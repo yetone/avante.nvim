@@ -1,0 +1,16 @@
+; https://editorconfig.org/
+
+root = true
+
+[*]
+insert_final_newline = true
+charset = utf-8
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+tab_width = 8
+
+[{Makefile,**/Makefile}]
+indent_style = tab
+indent_size = 8
+
