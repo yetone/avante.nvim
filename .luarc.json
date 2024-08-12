@@ -1,0 +1,9 @@
+{
+    "workspace.library": [
+        "/Users/yetone/.local/share/nvim/lazy/neodev.nvim/types/stable",
+        "/opt/homebrew/Cellar/neovim/0.9.0/share/nvim/runtime/lua",
+        "/Users/yetone/.local/share/nvim/lazy/nvim-dap-ui/lua",
+        "/Users/yetone/.config/nvim/lua",
+        "${3rd}/luv/library"
+    ]
+}

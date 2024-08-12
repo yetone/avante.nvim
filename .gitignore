@@ -1,0 +1,44 @@
+# Lua compiled files
+*.lua~
+*.luac
+
+# Neovim plugin specific files
+plugin/packer_compiled.lua
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Editor/IDE generated files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Dependency manager generated directories
+/lua_modules/
+/.luarocks/
+
+# Log files
+*.log
+
+# Temporary files
+tmp/
+temp/
+
+# Environment variable files (if you use .env file to store API keys)
+.env
+
+# If you use any build tools, you might need to ignore build output directories
+/build/
+/dist/
+
+# If you use any test frameworks, you might need to ignore test coverage reports
+/coverage/
+
+# If you use documentation generation tools, you might need to ignore generated docs
+/doc/
+
+# If you have any personal configuration files, you should ignore them too
+config.personal.lua
