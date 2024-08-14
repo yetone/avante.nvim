@@ -1,6 +1,6 @@
 # avante.nvim (Alpha)
 
-**avante.nvim** is a Neovim plugin designed to emulate the behavior of the Cursor AI IDE, providing users with AI-driven code suggestions and the ability to apply these recommendations directly to their source files with minimal effort.
+**avante.nvim** is a Neovim plugin designed to emulate the behavior of the [Cursor](https://www.cursor.com) AI IDE, providing users with AI-driven code suggestions and the ability to apply these recommendations directly to their source files with minimal effort.
 
 
 ⚠️⚠️ **WARNING: This plugin is still in a very early stage of development, so please be aware that the current code is very messy and unstable, and problems are likely to occur.**
@@ -111,6 +111,15 @@ The following key bindings are available for use with `avante.nvim`:
 - **Enhanced AI Interactions**: Improve the depth of AI analysis and recommendations for more complex coding scenarios.
 - **Stability Improvements**: Refactor and optimize the codebase to enhance the stability and reliability of the plugin.
 - **Expanded Features**: Introduce additional customization options and new features to support a wider range of coding tasks.
+
+## TODOs
+
+- [x] Chat with current file
+- [x] Apply diff patch
+- [ ] Chat with selected block
+- [ ] Chat with project
+- [ ] Chat with selected files
+- [ ] Auto suggestion and completion
 
 ## Contributing
 
