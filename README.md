@@ -6,6 +6,12 @@
 <strong>Warning:</strong> This plugin is still in a very early stage of development, so please be aware that the current code is very messy and unstable, and problems are likely to occur.
 </div>
 
+
+
+https://github.com/user-attachments/assets/510e6270-b6cf-459d-9a2f-15b397d1fe53
+
+
+
 ## Features
 
 - **AI-Powered Code Assistance**: Interact with AI to ask questions about your current code file and receive intelligent suggestions for improvement or modification.
