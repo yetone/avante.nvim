@@ -79,9 +79,13 @@ Default setup configuration:
 
 Given its early stage, `avante.nvim` currently supports the following basic functionalities:
 
-1. Set `ANTHROPIC_API_KEY` environment variable.
+1. Set `ANTHROPIC_API_KEY` environment variable:
 ```sh
 export ANTHROPIC_API=your-api-key
+```
+Or set `OPENAI_API_KEY` environment variable:
+```sh
+export OPENAI_API_KEY=your-api-key
 ```
 2. Open a code file in Neovim.
 3. Use the `:AvanteAsk` command to query the AI about the code.
