@@ -158,7 +158,6 @@ Replace lines: {{start_line}}-{{end_line}}
 ```
 
 3. Crucial guidelines for line numbers:
-   - L1:, L2:, L3:, ... in the prefix of each line represent line numbers in the original code, you must use these exact numbers, but you must NOT include them in your response.
    - The range {{start_line}}-{{end_line}} is INCLUSIVE. Both start_line and end_line are included in the replacement.
    - Count EVERY line, including empty lines, comments, and the LAST line of the file.
    - For single-line changes, use the same number for start and end lines.
