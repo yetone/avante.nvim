@@ -40,6 +40,41 @@ Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
 }
 ```
 
+Default setup configuration:
+
+```lua
+{
+  provider = "claude", -- openai, claude
+  openai = {
+    model = "gpt-4o",
+    temperature = 0,
+    max_tokens = 4096,
+  },
+  claude = {
+    model = "claude-3-5-sonnet-20240620",
+    temperature = 0,
+    max_tokens = 4096,
+  },
+  highlights = {
+    diff = {
+      incoming = "DiffAdded", -- need have background color
+      current = "DiffRemoved", -- need have background color
+    },
+  },
+  mappings = {
+    show_sidebar = "<leader>aa",
+    diff = {
+      ours = "co",
+      theirs = "ct",
+      none = "c0",
+      both = "cb",
+      next = "]x",
+      prev = "[x",
+    },
+  },
+}
+```
+
 ## Usage
 
 Given its early stage, `avante.nvim` currently supports the following basic functionalities:

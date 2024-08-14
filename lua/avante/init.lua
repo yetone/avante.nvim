@@ -602,7 +602,7 @@ function M.render_sidebar()
 end
 
 M.config = {
-  provider = "claude",
+  provider = "claude", -- "claude" or "openai"
   openai = {
     model = "gpt-4o",
     temperature = 0,
@@ -613,32 +613,41 @@ M.config = {
     temperature = 0,
     max_tokens = 4096,
   },
+  highlights = {
+    diff = {
+      incoming = "DiffAdded", -- need have background color
+      current = "DiffRemoved", -- need have background color
+    },
+  },
   mappings = {
     show_sidebar = "<leader>aa",
-    apply = "co",
-    reject = "ct",
-    next = "]x",
-    prev = "[x",
+    diff = {
+      ours = "co",
+      theirs = "ct",
+      none = "c0",
+      both = "cb",
+      next = "]x",
+      prev = "[x",
+    },
   },
 }
 
 function M.setup(opts)
+  M.config = vim.tbl_deep_extend("force", M.config, opts or {})
+
   local bufnr = vim.api.nvim_get_current_buf()
   if is_code_buf(bufnr) then
     _cur_code_buf = bufnr
   end
+
   diff.setup({
     debug = false, -- log output to console
-    default_mappings = true, -- disable buffer local mapping created by this plugin
+    default_mappings = M.config.mappings.diff, -- disable buffer local mapping created by this plugin
     default_commands = true, -- disable commands created by this plugin
     disable_diagnostics = true, -- This will disable the diagnostics in a buffer whilst it is conflicted
     list_opener = "copen",
-    highlights = {
-      incoming = "DiffAdded",
-      current = "DiffRemoved",
-    },
+    highlights = M.config.highlights.diff,
   })
-  M.config = vim.tbl_deep_extend("force", M.config, opts or {})
 
   local function on_buf_enter()
     bufnr = vim.api.nvim_get_current_buf()
