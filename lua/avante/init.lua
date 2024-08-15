@@ -483,6 +483,10 @@ local function update_result_buf_with_history(history)
   update_result_buf_content(content)
 end
 
+local function trim_line_number_prefix(line)
+  return line:gsub("^L%d+: ", "")
+end
+
 local function get_conflict_content(content, snippets)
   -- sort snippets by start_line
   table.sort(snippets, function(a, b)
@@ -508,6 +512,7 @@ local function get_conflict_content(content, snippets)
     table.insert(result, "=======")
 
     for _, line in ipairs(vim.split(snippet.content, "\n")) do
+      line = trim_line_number_prefix(line)
       table.insert(result, line)
     end
 
