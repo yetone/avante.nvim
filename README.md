@@ -16,10 +16,19 @@ https://github.com/user-attachments/assets/510e6270-b6cf-459d-9a2f-15b397d1fe53
 
 1. Install `tiktoken_core` (Optional):
 
-  - tiktoken_core: `sudo luarocks install --lua-version 5.1 tiktoken_core`. Alternatively, download a pre-built binary from [lua-tiktoken releases](https://github.com/gptlang/lua-tiktoken/releases)
-  - You can check your Lua PATH in Neovim by doing `:lua print(package.cpath)`. Save the binary as `tiktoken_core.so` in any of the given paths.
+    - tiktoken_core: `sudo luarocks install --lua-version 5.1 tiktoken_core`. Alternatively, download a pre-built binary from [lua-tiktoken releases](https://github.com/gptlang/lua-tiktoken/releases)
+
+    - You can check your Lua PATH in Neovim by doing `:lua print(package.cpath)`. Save the binary as `tiktoken_core.so` in any of the given paths.
 
     > For Arch Linux user, you can install [`luajit-tiktoken-bin`](https://aur.archlinux.org/packages/luajit-tiktoken-bin) or [`lua51-tiktoken-bin`](https://aur.archlinux.org/packages/lua51-tiktoken-bin) from aur!
+    >
+    > For macOS users:
+    > 1. Install `luarocks` using Homebrew: `brew install luarocks`
+    > 2. Install `tiktoken_core`: `luarocks install --lua-version 5.1 tiktoken_core`
+    > 3. Copy the installed `tiktoken_core.so` to your Homebrew Lua path:
+    >    `cp ~/.luarocks/lib/lua/5.1/tiktoken_core.so $(brew --prefix)/lib/lua/5.1/`
+    >
+    > This ensures `tiktoken_core` is properly installed and accessible in your Neovim environment.
 
 2. Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
 
@@ -58,7 +67,7 @@ https://github.com/user-attachments/assets/510e6270-b6cf-459d-9a2f-15b397d1fe53
       azure = {
         endpoint = "", -- Example: "https://<your-resource-name>.openai.azure.com"
         deployment = "", -- Azure deployment name (e.g., "gpt-4o", "my-gpt-4o-deployment")
-        api_version = "2024-05-13",
+        api_version = "2024-06-01",
         temperature = 0,
         max_tokens = 4096,
       },
