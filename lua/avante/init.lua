@@ -353,6 +353,7 @@ local function call_openai_api_stream(question, code_lang, code_content, on_chun
 end
 
 local function call_ai_api_stream(question, code_lang, code_content, on_chunk, on_complete)
+  code_content = utils.escape(code_content)
   if M.config.provider == "openai" or M.config.provider == "azure" then
     call_openai_api_stream(question, code_lang, code_content, on_chunk, on_complete)
   elseif M.config.provider == "claude" then
