@@ -70,8 +70,8 @@ https://github.com/user-attachments/assets/510e6270-b6cf-459d-9a2f-15b397d1fe53
       },
       highlights = {
         diff = {
-          incoming = "DiffAdded", -- need have background color
-          current = "DiffRemoved", -- need have background color
+          current = "DiffText", -- need have background color
+          incoming = "DiffAdd", -- need have background color
         },
       },
       mappings = {

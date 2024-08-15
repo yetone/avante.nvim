@@ -761,8 +761,8 @@ M.config = {
   },
   highlights = {
     diff = {
-      incoming = "DiffAdded", -- need have background color
-      current = "DiffRemoved", -- need have background color
+      current = "DiffText", -- need have background color
+      incoming = "DiffAdd", -- need have background color
     },
   },
   mappings = {
