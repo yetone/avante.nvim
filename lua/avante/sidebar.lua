@@ -11,7 +11,8 @@ local fn = vim.fn
 local RESULT_BUF_NAME = "AVANTE_RESULT"
 local CONFLICT_BUF_NAME = "AVANTE_CONFLICT"
 
-local NAMESPACE = vim.api.nvim_create_namespace("AVANTE_CODEBLOCK")
+local CODEBLOCK_KEYBINDING_NAMESPACE = vim.api.nvim_create_namespace("AVANTE_CODEBLOCK_KEYBINDING")
+local PRIORITY = vim.highlight.priorities.user
 
 local function parse_codeblocks(buf)
   local codeblocks = {}
@@ -370,14 +371,16 @@ function M.render_sidebar()
 
   local function show_apply_button(block)
     if current_apply_extmark_id then
-      api.nvim_buf_del_extmark(result_buf, NAMESPACE, current_apply_extmark_id)
+      api.nvim_buf_del_extmark(result_buf, CODEBLOCK_KEYBINDING_NAMESPACE, current_apply_extmark_id)
     end
 
-    current_apply_extmark_id = api.nvim_buf_set_extmark(result_buf, NAMESPACE, block.start_line, -1, {
-      virt_text = { { "[Press A to Apply these patches]", "Keyword" } },
-      virt_text_pos = "right_align",
-      hl_group = "Keyword",
-    })
+    current_apply_extmark_id =
+      api.nvim_buf_set_extmark(result_buf, CODEBLOCK_KEYBINDING_NAMESPACE, block.start_line, -1, {
+        virt_text = { { " [Press <A> to Apply these patches] ", "Keyword" } },
+        virt_text_pos = "right_align",
+        hl_group = "Keyword",
+        priority = PRIORITY,
+      })
   end
 
   local function apply()
@@ -429,7 +432,7 @@ function M.render_sidebar()
         show_apply_button(block)
         bind_apply_key()
       else
-        vim.api.nvim_buf_clear_namespace(result_buf, NAMESPACE, 0, -1)
+        api.nvim_buf_clear_namespace(result_buf, CODEBLOCK_KEYBINDING_NAMESPACE, 0, -1)
         unbind_apply_key()
       end
     end,
