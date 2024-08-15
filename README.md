@@ -127,6 +127,17 @@ The following key bindings are available for use with `avante.nvim`:
 
 Contributions to avante.nvim are welcome! If you're interested in helping out, please feel free to submit pull requests or open issues. Before contributing, ensure that your code has been thoroughly tested.
 
+## Development
+
+To set up the development environment:
+1. Install [StyLua](https://github.com/JohnnyMorganz/StyLua) for Lua code formatting.
+2. Install [pre-commit](https://pre-commit.com) for managing and maintaining pre-commit hooks.
+3. After cloning the repository, run the following command to set up pre-commit hooks:
+
+```sh
+pre-commit install --install-hooks
+```
+
 ## License
 
-avante.nvim is licensed under the MIT License. For more details, please refer to the [LICENSE](./LICENSE) file.
+avante.nvim is licensed under the Apache License. For more details, please refer to the [LICENSE](./LICENSE) file.
