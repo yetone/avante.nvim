@@ -20,31 +20,14 @@ https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd
 
 ## Installation
 
-1. Install `tiktoken_core` (Optional):
-
-    - tiktoken_core: `sudo luarocks install --lua-version 5.1 tiktoken_core`. Alternatively, download a pre-built binary from [lua-tiktoken releases](https://github.com/gptlang/lua-tiktoken/releases)
-
-    - You can check your Lua PATH in Neovim by doing `:lua print(package.cpath)`. Save the binary as `tiktoken_core.so` in any of the given paths.
-
-    > For Arch Linux user, you can install [`luajit-tiktoken-bin`](https://aur.archlinux.org/packages/luajit-tiktoken-bin) or [`lua51-tiktoken-bin`](https://aur.archlinux.org/packages/lua51-tiktoken-bin) from aur!
-    >
-    > For macOS users:
-    > 1. Install `luarocks` using Homebrew: `brew install luarocks`
-    > 2. Install `tiktoken_core`: `luarocks install --lua-version 5.1 tiktoken_core`
-    > 3. Copy the installed `tiktoken_core.so` to your Homebrew Lua path:
-    >    `cp ~/.luarocks/lib/lua/5.1/tiktoken_core.so $(brew --prefix)/lib/lua/5.1/`
-    >
-    > This ensures `tiktoken_core` is properly installed and accessible in your Neovim environment.
-
-2. Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
+Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
 
     ```lua
     {
       "yetone/avante.nvim",
       event = "VeryLazy",
-      config = function()
-          require("avante").setup({})
-      end,
+      opts = {},
+      build = "make",
       dependencies = {
         "nvim-tree/nvim-web-devicons",
         {
@@ -59,7 +42,12 @@ https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd
     }
     ```
 
-3. Default setup configuration:
+> [!IMPORTANT]
+>
+> If your neovim doesn't use LuaJIT, then change `build` to `make lua51`. By default running make will install luajit.
+> For ARM-based setup, make sure to also install cargo as we will have to build the tiktoken_core from source.
+
+Default setup configuration:
 
     ```lua
     {
