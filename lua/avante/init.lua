@@ -266,6 +266,9 @@ local function call_openai_api_stream(prompt, original_content, on_chunk, on_com
   local user_prompt = user_prompt_tpl:gsub("${{question}}", prompt):gsub("${{code}}", original_content)
 
   local url = utils.trim_suffix(M.config.openai.endpoint, "/") .. "/v1/chat/completions"
+  if M.config.provider == "azure" then
+    url = M.config.openai.endpoint
+  end
 
   print("Sending request to OpenAI API...")
 
@@ -295,6 +298,7 @@ local function call_openai_api_stream(prompt, original_content, on_chunk, on_com
     headers = {
       ["Content-Type"] = "application/json",
       ["Authorization"] = "Bearer " .. api_key,
+      ["api_key"] = api_key,
     },
     body = fn.json_encode({
       model = M.config.openai.model,
@@ -310,7 +314,7 @@ local function call_openai_api_stream(prompt, original_content, on_chunk, on_com
 end
 
 local function call_ai_api_stream(prompt, original_content, on_chunk, on_complete)
-  if M.config.provider == "openai" then
+  if M.config.provider == "openai" or M.config.provider == "azure" then
     call_openai_api_stream(prompt, original_content, on_chunk, on_complete)
   elseif M.config.provider == "claude" then
     call_claude_api_stream(prompt, original_content, on_chunk, on_complete)
@@ -643,7 +647,7 @@ function M.render_sidebar()
 end
 
 M.config = {
-  provider = "claude", -- "claude" or "openai"
+  provider = "claude", -- "claude" or "openai" or "azure"
   openai = {
     endpoint = "https://api.openai.com",
     model = "gpt-4o",
