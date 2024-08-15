@@ -7,6 +7,12 @@
 
 https://github.com/user-attachments/assets/510e6270-b6cf-459d-9a2f-15b397d1fe53
 
+
+
+https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd
+
+
+
 ## Features
 
 - **AI-Powered Code Assistance**: Interact with AI to ask questions about your current code file and receive intelligent suggestions for improvement or modification.
