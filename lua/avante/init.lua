@@ -754,7 +754,7 @@ M.config = {
   azure = {
     endpoint = "", -- example: "https://<your-resource-name>.openai.azure.com"
     deployment = "", -- Azure deployment name (e.g., "gpt-4o", "my-gpt-4o-deployment")
-    api_version = "2024-05-13",
+    api_version = "2024-06-01",
     temperature = 0,
     max_tokens = 4096,
   },
