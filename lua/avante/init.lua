@@ -314,6 +314,7 @@ local function call_openai_api_stream(prompt, original_content, on_chunk, on_com
 end
 
 local function call_ai_api_stream(prompt, original_content, on_chunk, on_complete)
+  original_content = utils.escape(original_content)
   if M.config.provider == "openai" or M.config.provider == "azure" then
     call_openai_api_stream(prompt, original_content, on_chunk, on_complete)
   elseif M.config.provider == "claude" then
