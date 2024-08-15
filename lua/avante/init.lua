@@ -265,12 +265,49 @@ local function call_openai_api_stream(prompt, original_content, on_chunk, on_com
 
   local user_prompt = user_prompt_tpl:gsub("${{question}}", prompt):gsub("${{code}}", original_content)
 
-  local url = utils.trim_suffix(M.config.openai.endpoint, "/") .. "/v1/chat/completions"
+  local url, headers, body
   if M.config.provider == "azure" then
-    url = M.config.openai.endpoint
+    api_key = os.getenv("AZURE_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
+    if not api_key then
+      error("Azure OpenAI API key is not set. Please set AZURE_OPENAI_API_KEY or OPENAI_API_KEY environment variable.")
+    end
+    url = M.config.azure.endpoint
+      .. "/openai/deployments/"
+      .. M.config.azure.deployment
+      .. "/chat/completions?api-version="
+      .. M.config.azure.api_version
+    headers = {
+      ["Content-Type"] = "application/json",
+      ["api-key"] = api_key,
+    }
+    body = {
+      messages = {
+        { role = "system", content = system_prompt },
+        { role = "user", content = user_prompt },
+      },
+      temperature = M.config.azure.temperature,
+      max_tokens = M.config.azure.max_tokens,
+      stream = true,
+    }
+  else
+    url = utils.trim_suffix(M.config.openai.endpoint, "/") .. "/v1/chat/completions"
+    headers = {
+      ["Content-Type"] = "application/json",
+      ["Authorization"] = "Bearer " .. api_key,
+    }
+    body = {
+      model = M.config.openai.model,
+      messages = {
+        { role = "system", content = system_prompt },
+        { role = "user", content = user_prompt },
+      },
+      temperature = M.config.openai.temperature,
+      max_tokens = M.config.openai.max_tokens,
+      stream = true,
+    }
   end
 
-  print("Sending request to OpenAI API...")
+  print("Sending request to " .. (M.config.provider == "azure" and "Azure OpenAI" or "OpenAI") .. " API...")
 
   curl.post(url, {
     ---@diagnostic disable-next-line: unused-local
@@ -295,21 +332,8 @@ local function call_openai_api_stream(prompt, original_content, on_chunk, on_com
         end
       end
     end,
-    headers = {
-      ["Content-Type"] = "application/json",
-      ["Authorization"] = "Bearer " .. api_key,
-      ["api_key"] = api_key,
-    },
-    body = fn.json_encode({
-      model = M.config.openai.model,
-      messages = {
-        { role = "system", content = system_prompt },
-        { role = "user", content = user_prompt },
-      },
-      temperature = M.config.openai.temperature,
-      max_tokens = M.config.openai.max_tokens,
-      stream = true,
-    }),
+    headers = headers,
+    body = fn.json_encode(body),
   })
 end
 
@@ -651,6 +675,13 @@ M.config = {
   openai = {
     endpoint = "https://api.openai.com",
     model = "gpt-4o",
+    temperature = 0,
+    max_tokens = 4096,
+  },
+  azure = {
+    endpoint = "", -- example: "https://<your-resource-name>.openai.azure.com"
+    deployment = "", -- Azure deployment name (e.g., "gpt-4o", "my-gpt-4o-deployment")
+    api_version = "2024-05-13",
     temperature = 0,
     max_tokens = 4096,
   },
