@@ -16,6 +16,7 @@ local function create_result_buf()
   api.nvim_set_option_value("buftype", "nofile", { buf = buf })
   api.nvim_set_option_value("swapfile", false, { buf = buf })
   api.nvim_set_option_value("modifiable", false, { buf = buf })
+  api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
   api.nvim_buf_set_name(buf, RESULT_BUF_NAME)
   return buf
 end
@@ -48,11 +49,6 @@ local function is_code_buf(buf)
 
   return false
 end
-
-local signal = n.create_signal({
-  is_loading = false,
-  text = "",
-})
 
 local _cur_code_buf = nil
 
@@ -455,16 +451,50 @@ local function get_conflict_content(content, snippets)
   return result
 end
 
-local renderer_width = math.ceil(vim.o.columns * 0.3)
-
-local renderer = n.create_renderer({
-  width = renderer_width,
-  height = vim.o.lines,
-  position = vim.o.columns - renderer_width,
-  relative = "editor",
-})
+local get_renderer_size_and_position = function()
+  local renderer_width = math.ceil(vim.o.columns * 0.3)
+  local renderer_height = vim.o.lines
+  local renderer_position = vim.o.columns - renderer_width
+  return renderer_width, renderer_height, renderer_position
+end
 
 function M.render_sidebar()
+  if result_buf ~= nil and api.nvim_buf_is_valid(result_buf) then
+    api.nvim_buf_delete(result_buf, { force = true })
+  end
+
+  result_buf = create_result_buf()
+
+  local renderer_width, renderer_height, renderer_position = get_renderer_size_and_position()
+
+  local renderer = n.create_renderer({
+    width = renderer_width,
+    height = renderer_height,
+    position = renderer_position,
+    relative = "editor",
+  })
+
+  local autocmd_id
+  renderer:on_mount(function()
+    autocmd_id = api.nvim_create_autocmd("VimResized", {
+      callback = function()
+        local width, height, _ = get_renderer_size_and_position()
+        renderer:set_size({ width = width, height = height })
+      end,
+    })
+  end)
+
+  renderer:on_unmount(function()
+    if autocmd_id ~= nil then
+      api.nvim_del_autocmd(autocmd_id)
+    end
+  end)
+
+  local signal = n.create_signal({
+    is_loading = false,
+    text = "",
+  })
+
   local chat_history = load_chat_history()
   update_result_buf_with_history(chat_history)
 
@@ -555,7 +585,7 @@ function M.render_sidebar()
       n.box(
         {
           direction = "column",
-          size = vim.o.lines - 3,
+          size = vim.o.lines - 4,
         },
         n.buffer({
           id = "response",
@@ -565,6 +595,12 @@ function M.render_sidebar()
           border_label = {
             text = "💬 Avante Chat",
             align = "center",
+          },
+          padding = {
+            top = 1,
+            bottom = 1,
+            left = 1,
+            right = 1,
           },
         })
       ),
@@ -590,11 +626,12 @@ function M.render_sidebar()
               handle_submit()
             end
           end,
+          padding = { left = 1, right = 1 },
         }),
         n.gap(1),
         n.spinner({
           is_loading = signal.is_loading,
-          padding = { top = 1, left = 1 },
+          padding = { top = 1, right = 1 },
           ---@diagnostic disable-next-line: undefined-field
           hidden = signal.is_loading:negate(),
         })
