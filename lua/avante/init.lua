@@ -220,7 +220,7 @@ local function call_claude_api_stream(question, code_lang, code_content, on_chun
     user_prompt_obj.cache_control = { type = "ephemeral" }
   end
 
-  local params = {
+  local body = {
     model = M.config.claude.model,
     system = system_prompt,
     messages = {
@@ -278,7 +278,7 @@ local function call_claude_api_stream(question, code_lang, code_content, on_chun
       end
     end,
     headers = headers,
-    body = fn.json_encode(params),
+    body = fn.json_encode(body),
   })
 end
 
