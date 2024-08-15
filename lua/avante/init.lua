@@ -357,8 +357,13 @@ local function call_openai_api_stream(question, code_lang, code_content, on_chun
           return
         end
         vim.schedule(function()
-          local success, parsed = pcall(fn.json_decode, line:sub(7))
+          local piece = line:sub(7)
+          local success, parsed = pcall(fn.json_decode, piece)
           if not success then
+            if piece == "[DONE]" then
+              on_complete(nil)
+              return
+            end
             error("Error: failed to parse json: " .. parsed)
             return
           end
@@ -572,7 +577,13 @@ function M.render_sidebar()
 
     local timestamp = get_timestamp()
     update_result_buf_content(
-      "## " .. timestamp .. "\n\n> " .. user_input:gsub("\n", "\n> ") .. "\n\nGenerating response...\n"
+      "## "
+        .. timestamp
+        .. "\n\n> "
+        .. user_input:gsub("\n", "\n> ")
+        .. "\n\nGenerating response from "
+        .. M.config.provider
+        .. " ...\n"
     )
 
     local code_buf = get_cur_code_buf()
