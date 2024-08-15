@@ -1,8 +1,9 @@
-local M = {}
+local View = require("avante.view")
+
 local Path = require("plenary.path")
-local n = require("nui-components")
+local N = require("nui-components")
+local Renderer = require("nui-components.renderer")
 local diff = require("avante.diff")
-local tiktoken = require("avante.tiktoken")
 local config = require("avante.config")
 local ai_bot = require("avante.ai_bot")
 local api = vim.api
@@ -13,6 +14,160 @@ local CONFLICT_BUF_NAME = "AVANTE_CONFLICT"
 
 local CODEBLOCK_KEYBINDING_NAMESPACE = vim.api.nvim_create_namespace("AVANTE_CODEBLOCK_KEYBINDING")
 local PRIORITY = vim.highlight.priorities.user
+
+---@class avante.Sidebar
+local Sidebar = {}
+
+---@class avante.SidebarState
+---@field win integer
+---@field buf integer
+
+---@class avante.Renderer
+---@field close fun(): nil
+---@field focus fun(): nil
+
+---@class avante.Sidebar
+---@field id integer
+---@field view avante.View
+---@field code avante.SidebarState
+---@field renderer avante.Renderer
+
+function Sidebar:new(id)
+  return setmetatable({
+    id = id,
+    code = { buf = 0, win = 0 },
+    view = View:new(),
+    renderer = nil,
+  }, { __index = Sidebar })
+end
+
+function Sidebar:destroy()
+  self.view = nil
+  self.code = nil
+  self.renderer = nil
+end
+
+function Sidebar:reset()
+  self.code = { buf = 0, win = 0 }
+end
+
+function Sidebar:open()
+  if not self.view:is_open() then
+    self:intialize()
+    self:render()
+    self:focus()
+  else
+    self:focus()
+  end
+  return self
+end
+
+function Sidebar:toggle()
+  if self.view:is_open() then
+    self:close()
+    return false
+  else
+    self:open()
+    return true
+  end
+end
+
+function Sidebar:has_code_win()
+  return self.code.win
+    and self.code.buf
+    and self.code.win ~= 0
+    and self.code.buf ~= 0
+    and vim.api.nvim_win_is_valid(self.code.win)
+    and vim.api.nvim_buf_is_valid(self.code.buf)
+end
+
+function Sidebar:focus_code()
+  if self:has_code_win() then
+    vim.fn.win_gotoid(self.code.win)
+    return true
+  end
+  return false
+end
+
+function Sidebar:focus_toggle()
+  if self.view:is_open() and self:has_code_win() then
+    local winid = vim.fn.win_getid()
+    if winid == self.code.win then
+      vim.fn.win_gotoid(self.view.win)
+    else
+      vim.fn.win_gotoid(self.code.win)
+    end
+    return true
+  end
+  return false
+end
+
+local get_renderer_size_and_position = function()
+  local renderer_width = math.ceil(vim.o.columns * 0.3)
+  local renderer_height = vim.o.lines
+  local renderer_position = vim.o.columns - renderer_width
+  return renderer_width, renderer_height, renderer_position
+end
+
+function Sidebar:intialize()
+  self.code.win = vim.api.nvim_get_current_win()
+  self.code.buf = vim.api.nvim_get_current_buf()
+
+  local split_command = "botright vs"
+  local renderer_width, renderer_height, renderer_position = get_renderer_size_and_position()
+
+  self.view:setup(split_command, renderer_width)
+
+  local winid = vim.fn.bufwinid(self.view.buf)
+  --- setup coord
+  self.renderer = Renderer.create({
+    width = vim.api.nvim_win_get_width(winid),
+    height = renderer_height,
+    position = renderer_position,
+    relative = { type = "win", winid = winid },
+  })
+
+  -- reset states when buffer is closed
+  vim.api.nvim_buf_attach(self.code.buf, false, {
+    on_detach = function(_, _)
+      self:reset()
+    end,
+  })
+end
+
+function Sidebar:close()
+  self.renderer:close()
+  vim.fn.win_gotoid(self.code.win)
+end
+
+---@return boolean
+function Sidebar:focus()
+  if self.view:is_open() then
+    vim.fn.win_gotoid(self.view.win)
+    self.renderer:focus()
+    return true
+  end
+  return false
+end
+
+function Sidebar:get_current_code_content()
+  local lines = vim.api.nvim_buf_get_lines(self.code.buf, 0, -1, false)
+  return table.concat(lines, "\n")
+end
+
+---@type content string
+function Sidebar:update_content(content)
+  vim.defer_fn(function()
+    vim.api.nvim_set_option_value("modifiable", true, { buf = self.view.buf })
+    vim.api.nvim_buf_set_lines(self.view.buf, 0, -1, false, vim.split(content, "\n"))
+    vim.api.nvim_set_option_value("modifiable", false, { buf = self.view.buf })
+    vim.api.nvim_set_option_value("filetype", "Avante", { buf = self.view.buf })
+
+    -- Move to the bottom
+    vim.api.nvim_win_set_cursor(self.view.win, { vim.api.nvim_buf_line_count(self.view.buf), 0 })
+    vim.api.nvim_set_current_win(self.code.win)
+  end, 0)
+end
 
 local function parse_codeblocks(buf)
   local codeblocks = {}
@@ -39,6 +194,7 @@ local function parse_codeblocks(buf)
   return codeblocks
 end
 
+---@param codeblocks table<integer, any>
 local function is_cursor_in_codeblock(codeblocks)
   local cursor_pos = vim.api.nvim_win_get_cursor(0)
   local cursor_line = cursor_pos[1] - 1 -- 转换为 0-indexed 行号
@@ -50,80 +206,6 @@ local function is_cursor_in_codeblock(codeblocks)
   end
 
   return nil
-end
-
-local function create_result_buf()
-  local buf = api.nvim_create_buf(false, true)
-  api.nvim_set_option_value("filetype", "markdown", { buf = buf })
-  api.nvim_set_option_value("buftype", "nofile", { buf = buf })
-  api.nvim_set_option_value("swapfile", false, { buf = buf })
-  api.nvim_set_option_value("modifiable", false, { buf = buf })
-  api.nvim_set_option_value("bufhidden", "wipe", { buf = buf })
-  api.nvim_buf_set_name(buf, RESULT_BUF_NAME)
-  return buf
-end
-
-local result_buf = create_result_buf()
-
-local function is_code_buf(buf)
-  local ignored_filetypes = {
-    "dashboard",
-    "alpha",
-    "neo-tree",
-    "NvimTree",
-    "TelescopePrompt",
-    "Prompt",
-    "qf",
-    "help",
-  }
-
-  if api.nvim_buf_is_valid(buf) and api.nvim_get_option_value("buflisted", { buf = buf }) then
-    local buftype = api.nvim_get_option_value("buftype", { buf = buf })
-    local filetype = api.nvim_get_option_value("filetype", { buf = buf })
-
-    if buftype == "" and filetype ~= "" and not vim.tbl_contains(ignored_filetypes, filetype) then
-      local bufname = api.nvim_buf_get_name(buf)
-      if bufname ~= "" and bufname ~= RESULT_BUF_NAME and bufname ~= CONFLICT_BUF_NAME then
-        return true
-      end
-    end
-  end
-
-  return false
-end
-
-local _cur_code_buf = nil
-
-local function get_cur_code_buf()
-  return _cur_code_buf
-end
-
-local function get_cur_code_buf_name()
-  local code_buf = get_cur_code_buf()
-  if code_buf == nil then
-    print("Error: cannot get code buffer")
-    return
-  end
-  return api.nvim_buf_get_name(code_buf)
-end
-
-local function get_cur_code_win()
-  local code_buf = get_cur_code_buf()
-  if code_buf == nil then
-    print("Error: cannot get code buffer")
-    return
-  end
-  return fn.bufwinid(code_buf)
-end
-
-local function get_cur_code_buf_content()
-  local code_buf = get_cur_code_buf()
-  if code_buf == nil then
-    print("Error: cannot get code buffer")
-    return {}
-  end
-  local lines = api.nvim_buf_get_lines(code_buf, 0, -1, false)
-  return table.concat(lines, "\n")
 end
 
 local function prepend_line_number(content)
@@ -179,23 +261,6 @@ local function extract_code_snippets(content)
   return snippets
 end
 
-local function update_result_buf_content(content)
-  local current_win = api.nvim_get_current_win()
-  local result_win = fn.bufwinid(result_buf)
-
-  vim.defer_fn(function()
-    api.nvim_set_option_value("modifiable", true, { buf = result_buf })
-    api.nvim_buf_set_lines(result_buf, 0, -1, false, vim.split(content, "\n"))
-    api.nvim_set_option_value("modifiable", false, { buf = result_buf })
-    api.nvim_set_option_value("filetype", "markdown", { buf = result_buf })
-    if result_win ~= -1 then
-      -- Move to the bottom
-      api.nvim_win_set_cursor(result_win, { api.nvim_buf_line_count(result_buf), 0 })
-      api.nvim_set_current_win(current_win)
-    end
-  end, 0)
-end
-
 -- Add a new function to display notifications
 local function show_notification(message)
   vim.notify(message, vim.log.levels.INFO, {
@@ -212,12 +277,9 @@ local function get_project_root()
   return git_root or current_dir
 end
 
-local function get_chat_history_filename()
-  local code_buf_name = get_cur_code_buf_name()
-  if code_buf_name == nil then
-    print("Error: cannot get code buffer name")
-    return
-  end
+---@param sidebar avante.Sidebar
+local function get_chat_history_filename(sidebar)
+  local code_buf_name = vim.api.nvim_buf_get_name(sidebar.code.buf)
   local relative_path = fn.fnamemodify(code_buf_name, ":~:.")
   -- Replace path separators with double underscores
   local path_with_separators = fn.substitute(relative_path, "/", "__", "g")
@@ -226,9 +288,9 @@ local function get_chat_history_filename()
 end
 
 -- Function to get the chat history file path
-local function get_chat_history_file()
+local function get_chat_history_file(sidebar)
   local project_root = get_project_root()
-  local filename = get_chat_history_filename()
+  local filename = get_chat_history_filename(sidebar)
   local history_dir = Path:new(project_root, ".avante_chat_history")
   return history_dir:joinpath(filename .. ".json")
 end
@@ -239,8 +301,8 @@ local function get_timestamp()
 end
 
 -- Function to load chat history
-local function load_chat_history()
-  local history_file = get_chat_history_file()
+local function load_chat_history(sidebar)
+  local history_file = get_chat_history_file(sidebar)
   if history_file:exists() then
     local content = history_file:read()
     return fn.json_decode(content)
@@ -249,8 +311,8 @@ local function load_chat_history()
 end
 
 -- Function to save chat history
-local function save_chat_history(history)
-  local history_file = get_chat_history_file()
+local function save_chat_history(sidebar, history)
+  local history_file = get_chat_history_file(sidebar)
   local history_dir = history_file:parent()
 
   -- Create the directory if it doesn't exist
@@ -261,7 +323,7 @@ local function save_chat_history(history)
   history_file:write(fn.json_encode(history), "w")
 end
 
-local function update_result_buf_with_history(history)
+function Sidebar:update_content_with_history(history)
   local content = ""
   for _, entry in ipairs(history) do
     content = content .. "## " .. entry.timestamp .. "\n\n"
@@ -269,7 +331,7 @@ local function update_result_buf_with_history(history)
     content = content .. entry.response .. "\n\n"
     content = content .. "---\n\n"
   end
-  update_result_buf_content(content)
+  self:update_content(content)
 end
 
 local function trim_line_number_prefix(line)
@@ -318,11 +380,12 @@ local function get_conflict_content(content, snippets)
   return result
 end
 
-local function get_content_between_separators()
+---@param sidebar avante.Sidebar
+---@return table<string, any>
+local function get_content_between_separators(sidebar)
   local separator = "---"
-  local bufnr = vim.api.nvim_get_current_buf()
   local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local lines = vim.api.nvim_buf_get_lines(sidebar.view.buf, 0, -1, false)
   local start_line, end_line
 
   for i = cursor_line, 1, -1 do
@@ -353,29 +416,16 @@ local function get_content_between_separators()
   return content
 end
 
-local get_renderer_size_and_position = function()
-  local renderer_width = math.ceil(vim.o.columns * 0.3)
-  local renderer_height = vim.o.lines
-  local renderer_position = vim.o.columns - renderer_width
-  return renderer_width, renderer_height, renderer_position
-end
-
-function M.render_sidebar()
-  if result_buf ~= nil and api.nvim_buf_is_valid(result_buf) then
-    api.nvim_buf_delete(result_buf, { force = true })
-  end
-
-  result_buf = create_result_buf()
-
+function Sidebar:render()
   local current_apply_extmark_id = nil
 
   local function show_apply_button(block)
     if current_apply_extmark_id then
-      api.nvim_buf_del_extmark(result_buf, CODEBLOCK_KEYBINDING_NAMESPACE, current_apply_extmark_id)
+      api.nvim_buf_del_extmark(self.view.buf, CODEBLOCK_KEYBINDING_NAMESPACE, current_apply_extmark_id)
     end
 
     current_apply_extmark_id =
-      api.nvim_buf_set_extmark(result_buf, CODEBLOCK_KEYBINDING_NAMESPACE, block.start_line, -1, {
+      api.nvim_buf_set_extmark(self.view.buf, CODEBLOCK_KEYBINDING_NAMESPACE, block.start_line, -1, {
         virt_text = { { " [Press <A> to Apply these patches] ", "Keyword" } },
         virt_text_pos = "right_align",
         hl_group = "Keyword",
@@ -384,27 +434,18 @@ function M.render_sidebar()
   end
 
   local function apply()
-    local code_buf = get_cur_code_buf()
-    if code_buf == nil then
-      error("Error: cannot get code buffer")
-      return
-    end
-    local content = get_cur_code_buf_content()
-    local response = get_content_between_separators()
+    local content = self:get_current_code_content()
+    local response = get_content_between_separators(self)
     local snippets = extract_code_snippets(response)
     local conflict_content = get_conflict_content(content, snippets)
 
     vim.defer_fn(function()
-      api.nvim_buf_set_lines(code_buf, 0, -1, false, conflict_content)
-      local code_win = get_cur_code_win()
-      if code_win == nil then
-        error("Error: cannot get code window")
-        return
-      end
-      api.nvim_set_current_win(code_win)
+      api.nvim_buf_set_lines(self.code.buf, 0, -1, false, conflict_content)
+
+      api.nvim_set_current_win(self.code.win)
       api.nvim_feedkeys(api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
-      diff.add_visited_buffer(code_buf)
-      diff.process(code_buf)
+      diff.add_visited_buffer(self.code.buf)
+      diff.process(self.code.buf)
       api.nvim_feedkeys("gg", "n", false)
       vim.defer_fn(function()
         vim.cmd("AvanteConflictNextConflict")
@@ -414,17 +455,17 @@ function M.render_sidebar()
   end
 
   local function bind_apply_key()
-    vim.keymap.set("n", "A", apply, { buffer = result_buf, noremap = true, silent = true })
+    vim.keymap.set("n", "A", apply, { buffer = self.view.buf, noremap = true, silent = true })
   end
 
   local function unbind_apply_key()
-    pcall(vim.keymap.del, "n", "A", { buffer = result_buf })
+    pcall(vim.keymap.del, "n", "A", { buffer = self.view.buf })
   end
 
   local codeblocks = {}
 
-  api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
-    buffer = result_buf,
+  vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
+    buffer = self.view.buf,
     callback = function()
       local block = is_cursor_in_codeblock(codeblocks)
 
@@ -432,58 +473,52 @@ function M.render_sidebar()
         show_apply_button(block)
         bind_apply_key()
       else
-        api.nvim_buf_clear_namespace(result_buf, CODEBLOCK_KEYBINDING_NAMESPACE, 0, -1)
+        api.nvim_buf_clear_namespace(self.view.buf, CODEBLOCK_KEYBINDING_NAMESPACE, 0, -1)
         unbind_apply_key()
       end
     end,
   })
 
-  api.nvim_create_autocmd({ "BufEnter", "BufWritePost" }, {
-    buffer = result_buf,
+  vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost" }, {
+    buffer = self.view.buf,
     callback = function()
-      codeblocks = parse_codeblocks(result_buf)
+      codeblocks = parse_codeblocks(self.view.buf)
+      self.renderer:focus()
     end,
   })
 
-  local renderer_width, renderer_height, renderer_position = get_renderer_size_and_position()
-
-  local renderer = n.create_renderer({
-    width = renderer_width,
-    height = renderer_height,
-    position = renderer_position,
-    relative = "editor",
-  })
-
   local autocmd_id
-  renderer:on_mount(function()
+  self.renderer:on_mount(function()
     autocmd_id = api.nvim_create_autocmd("VimResized", {
       callback = function()
         local width, height, _ = get_renderer_size_and_position()
-        renderer:set_size({ width = width, height = height })
+        self.renderer:set_size({ width = width, height = height })
       end,
     })
   end)
 
-  renderer:on_unmount(function()
+  self.renderer:on_unmount(function()
     if autocmd_id ~= nil then
       api.nvim_del_autocmd(autocmd_id)
     end
+
+    self.view:close()
   end)
 
-  local signal = n.create_signal({
+  local signal = N.create_signal({
     is_loading = false,
     text = "",
   })
 
-  local chat_history = load_chat_history()
-  update_result_buf_with_history(chat_history)
+  local chat_history = load_chat_history(self)
+  self:update_content_with_history(chat_history)
 
   local function handle_submit()
     local state = signal:get_value()
     local user_input = state.text
 
     local timestamp = get_timestamp()
-    update_result_buf_content(
+    self:update_content(
       "## "
         .. timestamp
         .. "\n\n> "
@@ -493,24 +528,17 @@ function M.render_sidebar()
         .. " ...\n"
     )
 
-    local code_buf = get_cur_code_buf()
-    if code_buf == nil then
-      error("Error: cannot get code buffer")
-      return
-    end
-    local content = get_cur_code_buf_content()
+    local content = self:get_current_code_content()
     local content_with_line_numbers = prepend_line_number(content)
     local full_response = ""
 
     signal.is_loading = true
 
-    local filetype = api.nvim_get_option_value("filetype", { buf = code_buf })
+    local filetype = vim.api.nvim_get_option_value("filetype", { buf = self.code.buf })
 
     ai_bot.call_ai_api_stream(user_input, filetype, content_with_line_numbers, function(chunk)
       full_response = full_response .. chunk
-      update_result_buf_content(
-        "## " .. timestamp .. "\n\n> " .. user_input:gsub("\n", "\n> ") .. "\n\n" .. full_response
-      )
+      self:update_content("## " .. timestamp .. "\n\n> " .. user_input:gsub("\n", "\n> ") .. "\n\n" .. full_response)
       vim.schedule(function()
         vim.cmd("redraw")
       end)
@@ -518,7 +546,7 @@ function M.render_sidebar()
       signal.is_loading = false
 
       if err ~= nil then
-        update_result_buf_content(
+        self:update_content(
           "## "
             .. timestamp
             .. "\n\n> "
@@ -532,7 +560,7 @@ function M.render_sidebar()
       end
 
       -- Execute when the stream request is actually completed
-      update_result_buf_content(
+      self:update_content(
         "## "
           .. timestamp
           .. "\n\n> "
@@ -543,36 +571,31 @@ function M.render_sidebar()
       )
 
       -- Display notification
-      show_notification("Content generation complete!")
+      -- show_notification("Content generation complete!")
 
       -- Save chat history
       table.insert(chat_history or {}, { timestamp = timestamp, requirement = user_input, response = full_response })
-      save_chat_history(chat_history)
+      save_chat_history(self, chat_history)
     end)
   end
 
   local body = function()
-    local code_buf = get_cur_code_buf()
-    if code_buf == nil then
-      error("Error: cannot get code buffer")
-      return
-    end
-    local filetype = api.nvim_get_option_value("filetype", { buf = code_buf })
+    local filetype = vim.api.nvim_get_option_value("filetype", { buf = self.code.buf })
     local icon = require("nvim-web-devicons").get_icon_by_filetype(filetype, {})
-    local code_file_fullpath = api.nvim_buf_get_name(code_buf)
+    local code_file_fullpath = api.nvim_buf_get_name(self.code.buf)
     local code_filename = fn.fnamemodify(code_file_fullpath, ":t")
 
-    return n.rows(
+    return N.rows(
       { flex = 0 },
-      n.box(
+      N.box(
         {
           direction = "column",
           size = vim.o.lines - 4,
         },
-        n.buffer({
+        N.buffer({
           id = "response",
           flex = 1,
-          buf = result_buf,
+          buf = self.view.buf,
           autoscroll = true,
           border_label = {
             text = "💬 Avante Chat",
@@ -586,10 +609,10 @@ function M.render_sidebar()
           },
         })
       ),
-      n.gap(1),
-      n.columns(
+      N.gap(1),
+      N.columns(
         { flex = 0 },
-        n.text_input({
+        N.text_input({
           id = "text-input",
           border_label = {
             text = string.format(" 🙋 Your question (with %s %s): ", icon, code_filename),
@@ -610,8 +633,8 @@ function M.render_sidebar()
           end,
           padding = { left = 1, right = 1 },
         }),
-        n.gap(1),
-        n.spinner({
+        N.gap(1),
+        N.spinner({
           is_loading = signal.is_loading,
           padding = { top = 1, right = 1 },
           ---@diagnostic disable-next-line: undefined-field
@@ -621,44 +644,8 @@ function M.render_sidebar()
     )
   end
 
-  renderer:render(body)
+  self.renderer:render(body)
+  return self
 end
 
-function M.setup()
-  local bufnr = vim.api.nvim_get_current_buf()
-  if is_code_buf(bufnr) then
-    _cur_code_buf = bufnr
-  end
-
-  tiktoken.setup("gpt-4o")
-
-  diff.setup({
-    debug = false, -- log output to console
-    default_mappings = config.get().mappings.diff, -- disable buffer local mapping created by this plugin
-    default_commands = true, -- disable commands created by this plugin
-    disable_diagnostics = true, -- This will disable the diagnostics in a buffer whilst it is conflicted
-    list_opener = "copen",
-    highlights = config.get().highlights.diff,
-  })
-
-  local function on_buf_enter()
-    bufnr = vim.api.nvim_get_current_buf()
-    if is_code_buf(bufnr) then
-      _cur_code_buf = bufnr
-    end
-  end
-
-  api.nvim_create_autocmd("BufEnter", {
-    callback = on_buf_enter,
-  })
-
-  api.nvim_create_user_command("AvanteAsk", function()
-    M.render_sidebar()
-  end, {
-    nargs = 0,
-  })
-
-  api.nvim_set_keymap("n", config.get().mappings.show_sidebar, "<cmd>AvanteAsk<CR>", { noremap = true, silent = true })
-end
-
-return M
+return Sidebar
