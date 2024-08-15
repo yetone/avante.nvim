@@ -2,7 +2,8 @@
 
 **avante.nvim** is a Neovim plugin designed to emulate the behavior of the [Cursor](https://www.cursor.com) AI IDE, providing users with AI-driven code suggestions and the ability to apply these recommendations directly to their source files with minimal effort.
 
-⚠️⚠️ **WARNING: This plugin is still in a very early stage of development, so please be aware that the current code is very messy and unstable, and problems are likely to occur.**
+> [!NOTE]
+> ⚠️⚠️ This plugin is still in a very early stage of development, so please be aware that the current code is very messy and unstable, and problems are likely to occur.
 
 https://github.com/user-attachments/assets/510e6270-b6cf-459d-9a2f-15b397d1fe53
 
@@ -13,72 +14,79 @@ https://github.com/user-attachments/assets/510e6270-b6cf-459d-9a2f-15b397d1fe53
 
 ## Installation
 
-Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
+1. Install `tiktoken_core` (Optional):
 
-```lua
-{
-  "yetone/avante.nvim",
-  event = "VeryLazy",
-  config = function()
-      require("avante").setup({})
-  end,
-  dependencies = {
-    "nvim-tree/nvim-web-devicons",
+  - tiktoken_core: `sudo luarocks install --lua-version 5.1 tiktoken_core`. Alternatively, download a pre-built binary from [lua-tiktoken releases](https://github.com/gptlang/lua-tiktoken/releases)
+  - You can check your Lua PATH in Neovim by doing `:lua print(package.cpath)`. Save the binary as `tiktoken_core.so` in any of the given paths.
+
+    > For Arch Linux user, you can install [`luajit-tiktoken-bin`](https://aur.archlinux.org/packages/luajit-tiktoken-bin) or [`lua51-tiktoken-bin`](https://aur.archlinux.org/packages/lua51-tiktoken-bin) from aur!
+
+2. Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
+
+    ```lua
     {
-      "grapp-dev/nui-components.nvim",
+      "yetone/avante.nvim",
+      event = "VeryLazy",
+      config = function()
+          require("avante").setup({})
+      end,
       dependencies = {
-        "MunifTanjim/nui.nvim"
-      }
-    },
-    "nvim-lua/plenary.nvim",
-    "MeanderingProgrammer/render-markdown.nvim",
-  },
-}
-```
+        "nvim-tree/nvim-web-devicons",
+        {
+          "grapp-dev/nui-components.nvim",
+          dependencies = {
+            "MunifTanjim/nui.nvim"
+          }
+        },
+        "nvim-lua/plenary.nvim",
+        "MeanderingProgrammer/render-markdown.nvim",
+      },
+    }
+    ```
 
-Default setup configuration:
+3. Default setup configuration:
 
-```lua
-{
-  provider = "claude", -- "claude" or "openai" or "azure"
-  openai = {
-    endpoint = "https://api.openai.com",
-    model = "gpt-4o",
-    temperature = 0,
-    max_tokens = 4096,
-  },
-  azure = {
-    endpoint = "", -- Example: "https://<your-resource-name>.openai.azure.com"
-    deployment = "", -- Azure deployment name (e.g., "gpt-4o", "my-gpt-4o-deployment")
-    api_version = "2024-05-13",
-    temperature = 0,
-    max_tokens = 4096,
-  },
-  claude = {
-    endpoint = "https://api.anthropic.com",
-    model = "claude-3-5-sonnet-20240620",
-    temperature = 0,
-    max_tokens = 4096,
-  },
-  highlights = {
-    diff = {
-      incoming = "DiffAdded", -- need have background color
-      current = "DiffRemoved", -- need have background color
-    },
-  },
-  mappings = {
-    show_sidebar = "<leader>aa",
-    diff = {
-      ours = "co",
-      theirs = "ct",
-      none = "c0",
-      both = "cb",
-      next = "]x",
-      prev = "[x",
-    },
-  },
-}
-```
+    ```lua
+    {
+      provider = "claude", -- "claude" or "openai" or "azure"
+      openai = {
+        endpoint = "https://api.openai.com",
+        model = "gpt-4o",
+        temperature = 0,
+        max_tokens = 4096,
+      },
+      azure = {
+        endpoint = "", -- Example: "https://<your-resource-name>.openai.azure.com"
+        deployment = "", -- Azure deployment name (e.g., "gpt-4o", "my-gpt-4o-deployment")
+        api_version = "2024-05-13",
+        temperature = 0,
+        max_tokens = 4096,
+      },
+      claude = {
+        endpoint = "https://api.anthropic.com",
+        model = "claude-3-5-sonnet-20240620",
+        temperature = 0,
+        max_tokens = 4096,
+      },
+      highlights = {
+        diff = {
+          incoming = "DiffAdded", -- need have background color
+          current = "DiffRemoved", -- need have background color
+        },
+      },
+      mappings = {
+        show_sidebar = "<leader>aa",
+        diff = {
+          ours = "co",
+          theirs = "ct",
+          none = "c0",
+          both = "cb",
+          next = "]x",
+          prev = "[x",
+        },
+      },
+    }
+    ```
 
 ## Usage
 
