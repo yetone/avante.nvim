@@ -115,13 +115,13 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 
 The following key bindings are available for use with `avante.nvim`:
 
-- `<kbd>Leader</kbd><kbd>a</kbd><kbd>a</kbd>` — show sidebar
-- `<kbd>c</kbd><kbd>o</kbd>` — choose ours
-- `<kbd>c</kbd><kbd>t</kbd>` — choose theirs
-- `<kbd>c</kbd><kbd>b</kbd>` — choose both
-- `<kbd>c</kbd><kbd>0</kbd>` — choose none
-- `<kbd>]</kbd><kbd>x</kbd>` — move to previous conflict
-- `<kbd>[</kbd><kbd>x</kbd>` — move to next conflict
+- <kbd>Leader</kbd><kbd>a</kbd><kbd>a</kbd> — show sidebar
+- <kbd>c</kbd><kbd>o</kbd> — choose ours
+- <kbd>c</kbd><kbd>t</kbd> — choose theirs
+- <kbd>c</kbd><kbd>b</kbd> — choose both
+- <kbd>c</kbd><kbd>0</kbd> — choose none
+- <kbd>]</kbd><kbd>x</kbd> — move to previous conflict
+- <kbd>[</kbd><kbd>x</kbd> — move to next conflict
 
 ## Roadmap
 
