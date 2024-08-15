@@ -3,6 +3,7 @@ local curl = require("plenary.curl")
 local Path = require("plenary.path")
 local n = require("nui-components")
 local diff = require("avante.diff")
+local utils = require("avante.utils")
 local api = vim.api
 local fn = vim.fn
 
@@ -217,7 +218,8 @@ local function call_claude_api_stream(prompt, original_content, on_chunk, on_com
     headers["anthropic-beta"] = "max-tokens-3-5-sonnet-2024-07-15"
   end
 
-  local url = "https://api.anthropic.com/v1/messages"
+  local url = utils.trim_suffix(M.config.claude.endpoint, "/") .. "/v1/messages"
+
   curl.post(url, {
     ---@diagnostic disable-next-line: unused-local
     stream = function(err, data, job)
@@ -267,9 +269,11 @@ local function call_openai_api_stream(prompt, original_content, on_chunk, on_com
 
   local user_prompt = user_prompt_tpl:gsub("${{question}}", prompt):gsub("${{code}}", original_content)
 
+  local url = utils.trim_suffix(M.config.openai.endpoint, "/") .. "/v1/chat/completions"
+
   print("Sending request to OpenAI API...")
 
-  curl.post("https://api.openai.com/v1/chat/completions", {
+  curl.post(url, {
     ---@diagnostic disable-next-line: unused-local
     stream = function(err, data, job)
       if err then
@@ -604,11 +608,13 @@ end
 M.config = {
   provider = "claude", -- "claude" or "openai"
   openai = {
+    endpoint = "https://api.openai.com",
     model = "gpt-4o",
     temperature = 0,
     max_tokens = 4096,
   },
   claude = {
+    endpoint = "https://api.anthropic.com",
     model = "claude-3-5-sonnet-20240620",
     temperature = 0,
     max_tokens = 4096,
