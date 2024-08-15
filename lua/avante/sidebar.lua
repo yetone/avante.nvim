@@ -186,11 +186,11 @@ local function update_result_buf_content(content)
   vim.defer_fn(function()
     api.nvim_set_option_value("modifiable", true, { buf = result_buf })
     api.nvim_buf_set_lines(result_buf, 0, -1, false, vim.split(content, "\n"))
+    api.nvim_set_option_value("modifiable", false, { buf = result_buf })
     api.nvim_set_option_value("filetype", "markdown", { buf = result_buf })
     if result_win ~= -1 then
       -- Move to the bottom
       api.nvim_win_set_cursor(result_win, { api.nvim_buf_line_count(result_buf), 0 })
-      api.nvim_set_option_value("modifiable", false, { buf = result_buf })
       api.nvim_set_current_win(current_win)
     end
   end, 0)
