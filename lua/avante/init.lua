@@ -470,7 +470,7 @@ function M.render_sidebar()
 
     local timestamp = get_timestamp()
     update_result_buf_content(
-      "\n\n## " .. timestamp .. "\n\n> " .. user_input:gsub("\n", "\n> ") .. "\n\nGenerating response...\n"
+      "## " .. timestamp .. "\n\n> " .. user_input:gsub("\n", "\n> ") .. "\n\nGenerating response...\n"
     )
 
     local code_buf = get_cur_code_buf()
