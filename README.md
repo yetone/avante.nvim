@@ -2,13 +2,9 @@
 
 **avante.nvim** is a Neovim plugin designed to emulate the behavior of the [Cursor](https://www.cursor.com) AI IDE, providing users with AI-driven code suggestions and the ability to apply these recommendations directly to their source files with minimal effort.
 
-
 ⚠️⚠️ **WARNING: This plugin is still in a very early stage of development, so please be aware that the current code is very messy and unstable, and problems are likely to occur.**
 
-
 https://github.com/user-attachments/assets/510e6270-b6cf-459d-9a2f-15b397d1fe53
-
-
 
 ## Features
 
@@ -44,10 +40,17 @@ Default setup configuration:
 
 ```lua
 {
-  provider = "claude", -- openai, claude
+  provider = "claude", -- "claude" or "openai" or "azure"
   openai = {
     endpoint = "https://api.openai.com",
     model = "gpt-4o",
+    temperature = 0,
+    max_tokens = 4096,
+  },
+  azure = {
+    endpoint = "", -- Example: "https://<your-resource-name>.openai.azure.com"
+    deployment = "", -- Azure deployment name (e.g., "gpt-4o", "my-gpt-4o-deployment")
+    api_version = "2024-05-13",
     temperature = 0,
     max_tokens = 4096,
   },
@@ -81,14 +84,26 @@ Default setup configuration:
 
 Given its early stage, `avante.nvim` currently supports the following basic functionalities:
 
-1. Set `ANTHROPIC_API_KEY` environment variable:
-```sh
-export ANTHROPIC_API=your-api-key
-```
-Or set `OPENAI_API_KEY` environment variable:
-```sh
-export OPENAI_API_KEY=your-api-key
-```
+1. Set the appropriate API key as an environment variable:
+
+   For Claude:
+
+   ```sh
+   export ANTHROPIC_API_KEY=your-api-key
+   ```
+
+   For OpenAI:
+
+   ```sh
+   export OPENAI_API_KEY=your-api-key
+   ```
+
+   For Azure OpenAI:
+
+   ```sh
+   export AZURE_OPENAI_API_KEY=your-api-key
+   ```
+
 2. Open a code file in Neovim.
 3. Use the `:AvanteAsk` command to query the AI about the code.
 4. Review the AI's suggestions.
@@ -100,13 +115,13 @@ export OPENAI_API_KEY=your-api-key
 
 The following key bindings are available for use with `avante.nvim`:
 
-- <kbd>Leader</kbd><kbd>a</kbd><kbd>a</kbd> — show sidebar
-- <kbd>c</kbd><kbd>o</kbd> — choose ours
-- <kbd>c</kbd><kbd>t</kbd> — choose theirs
-- <kbd>c</kbd><kbd>b</kbd> — choose both
-- <kbd>c</kbd><kbd>0</kbd> — choose none
-- <kbd>]</kbd><kbd>x</kbd> — move to previous conflict
-- <kbd>[</kbd><kbd>x</kbd> — move to next conflict
+- `<kbd>Leader</kbd><kbd>a</kbd><kbd>a</kbd>` — show sidebar
+- `<kbd>c</kbd><kbd>o</kbd>` — choose ours
+- `<kbd>c</kbd><kbd>t</kbd>` — choose theirs
+- `<kbd>c</kbd><kbd>b</kbd>` — choose both
+- `<kbd>c</kbd><kbd>0</kbd>` — choose none
+- `<kbd>]</kbd><kbd>x</kbd>` — move to previous conflict
+- `<kbd>[</kbd><kbd>x</kbd>` — move to next conflict
 
 ## Roadmap
 
@@ -130,6 +145,7 @@ Contributions to avante.nvim are welcome! If you're interested in helping out, p
 ## Development
 
 To set up the development environment:
+
 1. Install [StyLua](https://github.com/JohnnyMorganz/StyLua) for Lua code formatting.
 2. Install [pre-commit](https://pre-commit.com) for managing and maintaining pre-commit hooks.
 3. After cloning the repository, run the following command to set up pre-commit hooks:
