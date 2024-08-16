@@ -378,7 +378,7 @@ local function get_conflict_content(content, snippets)
 end
 
 ---@param sidebar avante.Sidebar
----@return table<string, any>
+---@return string
 local function get_content_between_separators(sidebar)
   local separator = "---"
   local cursor_line = api.nvim_win_get_cursor(0)[1]
