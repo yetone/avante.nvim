@@ -88,6 +88,7 @@ Default setup configuration:
         prev = "[x",
       },
     },
+    history_dir = nil -- default to $project_root/.avante_chat_history
   }
   ```
 
@@ -133,6 +134,26 @@ The following key bindings are available for use with `avante.nvim`:
 - <kbd>c</kbd><kbd>0</kbd> — choose none
 - <kbd>]</kbd><kbd>x</kbd> — move to previous conflict
 - <kbd>[</kbd><kbd>x</kbd> — move to next conflict
+
+## Set up A Custom History Directory
+
+By default, `avante.nvim` stores chat history in the project root directory under the `.avante_chat_history` folder. To change the default directory, set the `history_dir` option in the configuration.
+
+```lua
+{
+  history_dir = "/path/to/your/history/directory"
+}
+```
+
+the `history_dir` can also be set to a function that accept project root directory and return the history directory.
+
+```lua
+{
+  history_dir = function(project_root)
+    return project_root .. "/.avante_chat_history"
+  end
+}
+```
 
 ## Roadmap
 

@@ -38,6 +38,7 @@ local config = {
       prev = "[x",
     },
   },
+  history_dir = nil, -- default to $project_root/.avante_chat_history
 }
 
 function M.update(opts)

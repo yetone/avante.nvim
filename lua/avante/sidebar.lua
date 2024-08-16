@@ -7,6 +7,7 @@ local config = require("avante.config")
 local ai_bot = require("avante.ai_bot")
 local api = vim.api
 local fn = vim.fn
+local utils = require("avante.utils")
 
 local RESULT_BUF_NAME = "AVANTE_RESULT"
 local CONFLICT_BUF_NAME = "AVANTE_CONFLICT"
@@ -227,9 +228,16 @@ end
 
 -- Function to get the chat history file path
 local function get_chat_history_file()
+  local history_dir = config.get().history_dir
   local project_root = get_project_root()
+  if history_dir == nil then
+    history_dir = Path:new(project_root, ".avante_chat_history")
+  elseif type(history_dir) == "function" then
+    history_dir = history_dir(project_root)
+  else
+    history_dir = Path:new(history_dir, fn.fnamemodify(project_root, ":~:."), ".avante_chat_history")
+  end
   local filename = get_chat_history_filename()
-  local history_dir = Path:new(project_root, ".avante_chat_history")
   return history_dir:joinpath(filename .. ".json")
 end
 
