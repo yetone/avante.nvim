@@ -2,7 +2,6 @@ local M = {}
 local Path = require("plenary.path")
 local n = require("nui-components")
 local diff = require("avante.diff")
-local tiktoken = require("avante.tiktoken")
 local config = require("avante.config")
 local ai_bot = require("avante.ai_bot")
 local api = vim.api
@@ -629,8 +628,6 @@ function M.setup()
   if is_code_buf(bufnr) then
     _cur_code_buf = bufnr
   end
-
-  tiktoken.setup("gpt-4o")
 
   diff.setup({
     debug = false, -- log output to console
