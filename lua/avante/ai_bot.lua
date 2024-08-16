@@ -113,7 +113,7 @@ local function call_claude_api_stream(question, code_lang, code_content, on_chun
 
   local url = utils.trim_suffix(config.get().claude.endpoint, "/") .. "/v1/messages"
 
-  print("Sending request to Claude API...")
+  -- print("Sending request to Claude API...")
 
   curl.post(url, {
     ---@diagnostic disable-next-line: unused-local
@@ -210,7 +210,7 @@ local function call_openai_api_stream(question, code_lang, code_content, on_chun
     }
   end
 
-  print("Sending request to " .. (config.get().provider == "azure" and "Azure OpenAI" or "OpenAI") .. " API...")
+  -- print("Sending request to " .. (config.get().provider == "azure" and "Azure OpenAI" or "OpenAI") .. " API...")
 
   curl.post(url, {
     ---@diagnostic disable-next-line: unused-local

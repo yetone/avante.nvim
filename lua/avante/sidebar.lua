@@ -582,6 +582,8 @@ function Sidebar:render()
       -- Save chat history
       table.insert(chat_history or {}, { timestamp = timestamp, requirement = user_input, response = full_response })
       save_chat_history(self, chat_history)
+
+      apply()
     end)
   end
 
