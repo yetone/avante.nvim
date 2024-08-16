@@ -30,7 +30,7 @@ define download_release
 	curl -L https://github.com/gptlang/lua-tiktoken/releases/latest/download/tiktoken_core-$1-$2.$(EXT) -o $(BUILD_DIR)/tiktoken_core.$(EXT)
 endef
 
-ifeq ($(ARCH), arm64)
+ifneq ($(filter arm64 aarch64,$(ARCH)),)
     $(BUILD_DIR)/tiktoken_core.$(EXT): $(BUILD_DIR)
 	$(call build_from_source,luajit)
     $(BUILD_DIR)/tiktoken_core-lua51.$(EXT): $(BUILD_DIR)
