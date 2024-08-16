@@ -9,10 +9,7 @@ local ai_bot = require("avante.ai_bot")
 local api = vim.api
 local fn = vim.fn
 
-local RESULT_BUF_NAME = "AVANTE_RESULT"
-local CONFLICT_BUF_NAME = "AVANTE_CONFLICT"
-
-local CODEBLOCK_KEYBINDING_NAMESPACE = vim.api.nvim_create_namespace("AVANTE_CODEBLOCK_KEYBINDING")
+local CODEBLOCK_KEYBINDING_NAMESPACE = api.nvim_create_namespace("AVANTE_CODEBLOCK_KEYBINDING")
 local PRIORITY = vim.highlight.priorities.user
 
 ---@class avante.Sidebar
@@ -77,13 +74,13 @@ function Sidebar:has_code_win()
     and self.code.buf
     and self.code.win ~= 0
     and self.code.buf ~= 0
-    and vim.api.nvim_win_is_valid(self.code.win)
-    and vim.api.nvim_buf_is_valid(self.code.buf)
+    and api.nvim_win_is_valid(self.code.win)
+    and api.nvim_buf_is_valid(self.code.buf)
 end
 
 function Sidebar:focus_code()
   if self:has_code_win() then
-    vim.fn.win_gotoid(self.code.win)
+    fn.win_gotoid(self.code.win)
     return true
   end
   return false
@@ -91,11 +88,11 @@ end
 
 function Sidebar:focus_toggle()
   if self.view:is_open() and self:has_code_win() then
-    local winid = vim.fn.win_getid()
+    local winid = fn.win_getid()
     if winid == self.code.win then
-      vim.fn.win_gotoid(self.view.win)
+      fn.win_gotoid(self.view.win)
     else
-      vim.fn.win_gotoid(self.code.win)
+      fn.win_gotoid(self.code.win)
     end
     return true
   end
@@ -110,25 +107,25 @@ local get_renderer_size_and_position = function()
 end
 
 function Sidebar:intialize()
-  self.code.win = vim.api.nvim_get_current_win()
-  self.code.buf = vim.api.nvim_get_current_buf()
+  self.code.win = api.nvim_get_current_win()
+  self.code.buf = api.nvim_get_current_buf()
 
   local split_command = "botright vs"
   local renderer_width, renderer_height, renderer_position = get_renderer_size_and_position()
 
   self.view:setup(split_command, renderer_width)
 
-  local winid = vim.fn.bufwinid(self.view.buf)
+  local winid = fn.bufwinid(self.view.buf)
   --- setup coord
   self.renderer = Renderer.create({
-    width = vim.api.nvim_win_get_width(winid),
+    width = api.nvim_win_get_width(winid),
     height = renderer_height,
     position = renderer_position,
     relative = { type = "win", winid = winid },
   })
 
   -- reset states when buffer is closed
-  vim.api.nvim_buf_attach(self.code.buf, false, {
+  api.nvim_buf_attach(self.code.buf, false, {
     on_detach = function(_, _)
       self:reset()
     end,
@@ -137,13 +134,13 @@ end
 
 function Sidebar:close()
   self.renderer:close()
-  vim.fn.win_gotoid(self.code.win)
+  fn.win_gotoid(self.code.win)
 end
 
 ---@return boolean
 function Sidebar:focus()
   if self.view:is_open() then
-    vim.fn.win_gotoid(self.view.win)
+    fn.win_gotoid(self.view.win)
     self.renderer:focus()
     return true
   end
@@ -151,21 +148,21 @@ function Sidebar:focus()
 end
 
 function Sidebar:get_current_code_content()
-  local lines = vim.api.nvim_buf_get_lines(self.code.buf, 0, -1, false)
+  local lines = api.nvim_buf_get_lines(self.code.buf, 0, -1, false)
   return table.concat(lines, "\n")
 end
 
 ---@type content string
 function Sidebar:update_content(content)
   vim.defer_fn(function()
-    vim.api.nvim_set_option_value("modifiable", true, { buf = self.view.buf })
-    vim.api.nvim_buf_set_lines(self.view.buf, 0, -1, false, vim.split(content, "\n"))
-    vim.api.nvim_set_option_value("modifiable", false, { buf = self.view.buf })
-    vim.api.nvim_set_option_value("filetype", "Avante", { buf = self.view.buf })
+    api.nvim_set_option_value("modifiable", true, { buf = self.view.buf })
+    api.nvim_buf_set_lines(self.view.buf, 0, -1, false, vim.split(content, "\n"))
+    api.nvim_set_option_value("modifiable", false, { buf = self.view.buf })
+    api.nvim_set_option_value("filetype", "Avante", { buf = self.view.buf })
 
     -- Move to the bottom
-    vim.api.nvim_win_set_cursor(self.view.win, { vim.api.nvim_buf_line_count(self.view.buf), 0 })
-    vim.api.nvim_set_current_win(self.code.win)
+    api.nvim_win_set_cursor(self.view.win, { api.nvim_buf_line_count(self.view.buf), 0 })
+    api.nvim_set_current_win(self.code.win)
   end, 0)
 end
 
@@ -175,7 +172,7 @@ local function parse_codeblocks(buf)
   local start_line = nil
   local lang = nil
 
-  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  local lines = api.nvim_buf_get_lines(buf, 0, -1, false)
   for i, line in ipairs(lines) do
     if line:match("^```") then
       -- parse language
@@ -196,7 +193,7 @@ end
 
 ---@param codeblocks table<integer, any>
 local function is_cursor_in_codeblock(codeblocks)
-  local cursor_pos = vim.api.nvim_win_get_cursor(0)
+  local cursor_pos = api.nvim_win_get_cursor(0)
   local cursor_line = cursor_pos[1] - 1 -- 转换为 0-indexed 行号
 
   for _, block in ipairs(codeblocks) do
@@ -279,7 +276,7 @@ end
 
 ---@param sidebar avante.Sidebar
 local function get_chat_history_filename(sidebar)
-  local code_buf_name = vim.api.nvim_buf_get_name(sidebar.code.buf)
+  local code_buf_name = api.nvim_buf_get_name(sidebar.code.buf)
   local relative_path = fn.fnamemodify(code_buf_name, ":~:.")
   -- Replace path separators with double underscores
   local path_with_separators = fn.substitute(relative_path, "/", "__", "g")
@@ -384,8 +381,8 @@ end
 ---@return table<string, any>
 local function get_content_between_separators(sidebar)
   local separator = "---"
-  local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
-  local lines = vim.api.nvim_buf_get_lines(sidebar.view.buf, 0, -1, false)
+  local cursor_line = api.nvim_win_get_cursor(0)[1]
+  local lines = api.nvim_buf_get_lines(sidebar.view.buf, 0, -1, false)
   local start_line, end_line
 
   for i = cursor_line, 1, -1 do
@@ -464,7 +461,7 @@ function Sidebar:render()
 
   local codeblocks = {}
 
-  vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
+  api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
     buffer = self.view.buf,
     callback = function()
       local block = is_cursor_in_codeblock(codeblocks)
@@ -479,7 +476,7 @@ function Sidebar:render()
     end,
   })
 
-  vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost" }, {
+  api.nvim_create_autocmd({ "BufEnter", "BufWritePost" }, {
     buffer = self.view.buf,
     callback = function()
       codeblocks = parse_codeblocks(self.view.buf)
@@ -534,7 +531,7 @@ function Sidebar:render()
 
     signal.is_loading = true
 
-    local filetype = vim.api.nvim_get_option_value("filetype", { buf = self.code.buf })
+    local filetype = api.nvim_get_option_value("filetype", { buf = self.code.buf })
 
     ai_bot.call_ai_api_stream(user_input, filetype, content_with_line_numbers, function(chunk)
       full_response = full_response .. chunk
@@ -580,7 +577,7 @@ function Sidebar:render()
   end
 
   local body = function()
-    local filetype = vim.api.nvim_get_option_value("filetype", { buf = self.code.buf })
+    local filetype = api.nvim_get_option_value("filetype", { buf = self.code.buf })
     local icon = require("nvim-web-devicons").get_icon_by_filetype(filetype, {})
     local code_file_fullpath = api.nvim_buf_get_name(self.code.buf)
     local code_filename = fn.fnamemodify(code_file_fullpath, ":t")

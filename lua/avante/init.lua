@@ -3,6 +3,8 @@ local Sidebar = require("avante.sidebar")
 local config = require("avante.config")
 local diff = require("avante.diff")
 
+local api = vim.api
+
 local M = {
   ---@type avante.Sidebar
   sidebars = {},
@@ -13,7 +15,7 @@ local M = {
 ---@param current boolean? false to disable setting current, otherwise use this to track across tabs.
 ---@return avante.Sidebar
 function M._get(current)
-  local tab = vim.api.nvim_get_current_tabpage()
+  local tab = api.nvim_get_current_tabpage()
   local sidebar = M.sidebars[tab]
   if current ~= false then
     M.current = sidebar
@@ -37,7 +39,7 @@ function M._call(method, args)
 end
 
 M.open = function()
-  local tab = vim.api.nvim_get_current_tabpage()
+  local tab = api.nvim_get_current_tabpage()
   local sidebar = M.sidebars[tab]
 
   if not sidebar then
@@ -77,7 +79,7 @@ function M.setup(opts)
         require("tiktoken_lib").load()
       end)
     else
-      vim.api.nvim_create_autocmd("User", {
+      api.nvim_create_autocmd("User", {
         pattern = "LazyLoad",
         callback = function(event)
           if event.data == name then
@@ -102,21 +104,16 @@ function M.setup(opts)
     highlights = config.get().highlights.diff,
   })
 
-  vim.api.nvim_create_user_command("AvanteAsk", function()
+  api.nvim_create_user_command("AvanteAsk", function()
     M.toggle()
   end, { nargs = 0 })
-  vim.api.nvim_set_keymap(
-    "n",
-    config.get().mappings.show_sidebar,
-    "<cmd>AvanteAsk<CR>",
-    { noremap = true, silent = true }
-  )
+  api.nvim_set_keymap("n", config.get().mappings.show_sidebar, "<cmd>AvanteAsk<CR>", { noremap = true, silent = true })
 
-  vim.api.nvim_create_autocmd("FileType", {
-    group = vim.api.nvim_create_augroup("Avante", { clear = true }),
+  api.nvim_create_autocmd("FileType", {
+    group = api.nvim_create_augroup("Avante", { clear = true }),
     pattern = "Avante",
     callback = function(event)
-      vim.api.nvim_buf_set_keymap(event.buf, "n", "q", '<cmd>:lua require("avante").close()<cr>', { silent = true })
+      api.nvim_buf_set_keymap(event.buf, "n", "q", '<cmd>:lua require("avante").close()<cr>', { silent = true })
     end,
   })
 
