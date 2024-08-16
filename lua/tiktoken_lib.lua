@@ -19,10 +19,15 @@ H.library_path = function()
   return dirname .. ("../build/?.%s"):format(ext)
 end
 
+---@type fun(s: string): string
+local trim_semicolon = function(s)
+  return s:sub(-1) == ";" and s:sub(1, -2) or s
+end
+
 M.load = function()
   local library_path = H.library_path()
   if not string.find(package.cpath, library_path, 1, true) then
-    package.cpath = package.cpath .. ";" .. library_path
+    package.cpath = trim_semicolon(package.cpath) .. ";" .. library_path
   end
 end
 
