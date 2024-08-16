@@ -165,8 +165,9 @@ function Sidebar:update_content(content)
     -- Move to the bottom
     if result_win ~= -1 then
       -- Move to the bottom
-      vim.api.nvim_win_set_cursor(result_win, { api.nvim_buf_line_count(self.view.buf), 0 })
-      vim.api.nvim_set_current_win(current_win)
+      -- vim.api.nvim_win_set_cursor(result_win, { api.nvim_buf_line_count(self.view.buf), 0 })
+      -- vim.api.nvim_set_current_win(current_win)
+      self.renderer:focus()
     end
   end, 0)
 end
@@ -485,6 +486,7 @@ function Sidebar:render()
     buffer = self.view.buf,
     callback = function()
       codeblocks = parse_codeblocks(self.view.buf)
+      self.renderer:focus()
     end,
   })
 
