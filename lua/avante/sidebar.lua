@@ -152,8 +152,6 @@ end
 ---@param jump? boolean
 function Sidebar:update_content(content, jump)
   jump = jump or false
-  local current_win = vim.api.nvim_get_current_win()
-  local result_win = vim.fn.bufwinid(self.view.buf)
 
   vim.defer_fn(function()
     api.nvim_set_option_value("modifiable", true, { buf = self.view.buf })
@@ -163,9 +161,8 @@ function Sidebar:update_content(content, jump)
 
     -- Move to the bottom
     if jump then
-      -- Move to the bottom
-      vim.api.nvim_win_set_cursor(self.view.win, { api.nvim_buf_line_count(self.view.buf), 0 })
-      vim.api.nvim_set_current_win(self.code.win)
+      api.nvim_win_set_cursor(self.view.win, { api.nvim_buf_line_count(self.view.buf), 0 })
+      api.nvim_set_current_win(self.code.win)
     else
       self.renderer:focus()
     end
