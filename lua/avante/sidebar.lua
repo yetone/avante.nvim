@@ -19,15 +19,11 @@ local Sidebar = {}
 ---@field win integer
 ---@field buf integer
 
----@class avante.Renderer
----@field close fun(): nil
----@field focus fun(): nil
-
 ---@class avante.Sidebar
 ---@field id integer
 ---@field view avante.View
 ---@field code avante.SidebarState
----@field renderer avante.Renderer
+---@field renderer NuiRenderer
 
 function Sidebar:new(id)
   return setmetatable({
@@ -121,8 +117,6 @@ function Sidebar:intialize()
     height = renderer_height,
     position = renderer_position,
     relative = { type = "win", winid = winid },
-    -- position = 40,
-    -- relative = "editor",
   })
 
   -- reset states when buffer is closed
