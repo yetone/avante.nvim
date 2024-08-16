@@ -237,11 +237,13 @@ local function call_openai_api_stream(question, code_lang, code_content, on_chun
             error("Error: failed to parse json: " .. parsed)
             return
           end
-          if parsed and parsed.choices and parsed.choices[1].delta.content then
-            on_chunk(parsed.choices[1].delta.content)
-          elseif parsed and parsed.choices and parsed.choices[1].finish_reason == "stop" then
-            -- Stream request completed
-            on_complete(nil)
+          if parsed and parsed.choices and parsed.choices[1] then
+            local choice = parsed.choices[1]
+            if choice.finish_reason == "stop" then
+              on_complete(nil)
+            elseif choice.delta and choice.delta.content then
+              on_chunk(choice.delta.content)
+            end
           end
         end)
       end
