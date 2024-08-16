@@ -148,11 +148,6 @@ function Sidebar:focus()
   return false
 end
 
-function Sidebar:get_current_code_content()
-  local lines = api.nvim_buf_get_lines(self.code.buf, 0, -1, false)
-  return table.concat(lines, "\n")
-end
-
 ---@param content string
 ---@param jump? boolean
 function Sidebar:update_content(content, jump)
@@ -169,7 +164,7 @@ function Sidebar:update_content(content, jump)
     -- Move to the bottom
     if jump then
       -- Move to the bottom
-      vim.api.nvim_win_set_cursor(self.view.win, { api.nvim_buf_line_count(self.view.buf) - 5, 0 })
+      vim.api.nvim_win_set_cursor(self.view.win, { api.nvim_buf_line_count(self.view.buf), 0 })
       vim.api.nvim_set_current_win(self.code.win)
     else
       self.renderer:focus()
@@ -388,12 +383,17 @@ local function get_conflict_content(content, snippets)
   return result
 end
 
----@param sidebar avante.Sidebar
 ---@return string
-local function get_content_between_separators(sidebar)
+function Sidebar:get_code_content()
+  local lines = api.nvim_buf_get_lines(self.code.buf, 0, -1, false)
+  return table.concat(lines, "\n")
+end
+
+---@return string
+function Sidebar:get_content_between_separators()
   local separator = "---"
   local cursor_line = api.nvim_win_get_cursor(0)[1]
-  local lines = api.nvim_buf_get_lines(sidebar.view.buf, 0, -1, false)
+  local lines = api.nvim_buf_get_lines(self.view.buf, 0, -1, false)
   local start_line, end_line
 
   for i = cursor_line, 1, -1 do
@@ -442,8 +442,8 @@ function Sidebar:render()
   end
 
   local function apply()
-    local content = self:get_current_code_content()
-    local response = get_content_between_separators(self)
+    local content = self:get_code_content()
+    local response = self:get_content_between_separators()
     local snippets = extract_code_snippets(response)
     local conflict_content = get_conflict_content(content, snippets)
 
@@ -536,7 +536,7 @@ function Sidebar:render()
         .. " ...\n"
     )
 
-    local content = self:get_current_code_content()
+    local content = self:get_code_content()
     local content_with_line_numbers = prepend_line_number(content)
     local full_response = ""
 
