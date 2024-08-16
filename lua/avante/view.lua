@@ -8,7 +8,7 @@ local api = vim.api
 ---@field win integer
 ---@field RESULT_BUF_NAME string
 
-View.RESULT_BUF_NAME = "AVANTE_RESULT"
+local RESULT_BUF_NAME = "AVANTE_RESULT"
 
 function View:new()
   return setmetatable({ buf = nil, win = nil }, { __index = View })
@@ -25,6 +25,8 @@ function View:setup(split_command, size)
   -- set filetype
   api.nvim_set_option_value("filetype", "Avante", { buf = self.buf })
   api.nvim_set_option_value("bufhidden", "wipe", { buf = self.buf })
+  api.nvim_set_option_value("modifiable", false, { buf = self.buf })
+  api.nvim_set_option_value("swapfile", false, { buf = self.buf })
 
   -- create a split
   vim.cmd(split_command)
@@ -47,9 +49,7 @@ function View:setup(split_command, size)
   api.nvim_set_option_value("winhl", "", { win = self.win })
 
   -- buffer stuff
-  api.nvim_set_option_value("modifiable", false, { buf = self.buf })
-  api.nvim_set_option_value("swapfile", false, { buf = self.buf })
-  api.nvim_buf_set_name(self.buf, self.RESULT_BUF_NAME)
+  api.nvim_buf_set_name(self.buf, RESULT_BUF_NAME)
 
   return self
 end

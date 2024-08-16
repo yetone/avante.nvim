@@ -52,7 +52,6 @@ function Sidebar:open()
   if not self.view:is_open() then
     self:intialize()
     self:render()
-    self:focus()
   else
     self:focus()
   end
@@ -154,6 +153,9 @@ end
 
 ---@type content string
 function Sidebar:update_content(content)
+  local current_win = vim.api.nvim_get_current_win()
+  local result_win = vim.fn.bufwinid(self.view.buf)
+
   vim.defer_fn(function()
     api.nvim_set_option_value("modifiable", true, { buf = self.view.buf })
     api.nvim_buf_set_lines(self.view.buf, 0, -1, false, vim.split(content, "\n"))
@@ -161,8 +163,11 @@ function Sidebar:update_content(content)
     api.nvim_set_option_value("filetype", "Avante", { buf = self.view.buf })
 
     -- Move to the bottom
-    api.nvim_win_set_cursor(self.view.win, { api.nvim_buf_line_count(self.view.buf), 0 })
-    api.nvim_set_current_win(self.code.win)
+    if result_win ~= -1 then
+      -- Move to the bottom
+      vim.api.nvim_win_set_cursor(result_win, { api.nvim_buf_line_count(self.view.buf), 0 })
+      vim.api.nvim_set_current_win(current_win)
+    end
   end, 0)
 end
 
@@ -480,7 +485,6 @@ function Sidebar:render()
     buffer = self.view.buf,
     callback = function()
       codeblocks = parse_codeblocks(self.view.buf)
-      self.renderer:focus()
     end,
   })
 
