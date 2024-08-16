@@ -6,7 +6,7 @@ local diff = require("avante.diff")
 local api = vim.api
 
 local M = {
-  ---@type avante.Sidebar
+  ---@type avante.Sidebar[]
   sidebars = {},
   ---@type avante.Sidebar
   current = nil,
