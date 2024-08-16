@@ -154,7 +154,7 @@ end
 
 local function call_openai_api_stream(question, code_lang, code_content, on_chunk, on_complete)
   local api_key = os.getenv("OPENAI_API_KEY")
-  if not api_key then
+  if not api_key and config.get().provider == "openai" then
     error("OPENAI_API_KEY environment variable is not set")
   end
 
