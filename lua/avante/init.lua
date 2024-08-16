@@ -72,28 +72,36 @@ end
 
 function M.setup(opts)
   local ok, LazyConfig = pcall(require, "lazy.core.config")
+
+  local load_path = function()
+    require("tiktoken_lib").load()
+
+    tiktoken.setup("gpt-4o")
+  end
+
   if ok then
     local name = "avante.nvim"
     if LazyConfig.plugins[name] and LazyConfig.plugins[name]._.loaded then
-      vim.schedule(function()
-        require("tiktoken_lib").load()
-      end)
+      vim.schedule(load_path)
     else
       api.nvim_create_autocmd("User", {
         pattern = "LazyLoad",
         callback = function(event)
           if event.data == name then
-            require("tiktoken_lib").load()
+            load_path()
             return true
           end
         end,
       })
     end
+
+    api.nvim_create_autocmd("User", {
+      pattern = "VeryLazy",
+      callback = load_path,
+    })
   end
 
   config.update(opts)
-
-  tiktoken.setup("gpt-4o")
 
   diff.setup({
     debug = false, -- log output to console
