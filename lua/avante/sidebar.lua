@@ -121,6 +121,8 @@ function Sidebar:intialize()
     height = renderer_height,
     position = renderer_position,
     relative = { type = "win", winid = winid },
+    -- position = 40,
+    -- relative = "editor",
   })
 
   -- reset states when buffer is closed
@@ -151,8 +153,10 @@ function Sidebar:get_current_code_content()
   return table.concat(lines, "\n")
 end
 
----@type content string
-function Sidebar:update_content(content)
+---@param content string
+---@param jump? boolean
+function Sidebar:update_content(content, jump)
+  jump = jump or false
   local current_win = vim.api.nvim_get_current_win()
   local result_win = vim.fn.bufwinid(self.view.buf)
 
@@ -163,10 +167,11 @@ function Sidebar:update_content(content)
     api.nvim_set_option_value("filetype", "Avante", { buf = self.view.buf })
 
     -- Move to the bottom
-    if result_win ~= -1 then
+    if jump then
       -- Move to the bottom
-      -- vim.api.nvim_win_set_cursor(result_win, { api.nvim_buf_line_count(self.view.buf), 0 })
-      -- vim.api.nvim_set_current_win(current_win)
+      vim.api.nvim_win_set_cursor(self.view.win, { api.nvim_buf_line_count(self.view.buf) - 5, 0 })
+      vim.api.nvim_set_current_win(self.code.win)
+    else
       self.renderer:focus()
     end
   end, 0)
@@ -326,7 +331,7 @@ local function save_chat_history(sidebar, history)
   history_file:write(fn.json_encode(history), "w")
 end
 
-function Sidebar:update_content_with_history(history)
+function Sidebar:update_content_with_history(history, jump)
   local content = ""
   for _, entry in ipairs(history) do
     content = content .. "## " .. entry.timestamp .. "\n\n"
@@ -334,7 +339,7 @@ function Sidebar:update_content_with_history(history)
     content = content .. entry.response .. "\n\n"
     content = content .. "---\n\n"
   end
-  self:update_content(content)
+  self:update_content(content, jump or nil)
 end
 
 local function trim_line_number_prefix(line)
@@ -570,7 +575,8 @@ function Sidebar:render()
           .. user_input:gsub("\n", "\n> ")
           .. "\n\n"
           .. full_response
-          .. "\n\n**Generation complete!** Please review the code suggestions above.\n\n\n\n"
+          .. "\n\n**Generation complete!** Please review the code suggestions above.\n\n\n\n",
+        true
       )
 
       -- Display notification
