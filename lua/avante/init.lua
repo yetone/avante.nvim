@@ -4,6 +4,7 @@ local Tiktoken = require("avante.tiktoken")
 local Sidebar = require("avante.sidebar")
 local Config = require("avante.config")
 local Diff = require("avante.diff")
+local AiBot = require("avante.ai_bot")
 local Selection = require("avante.selection")
 
 ---@class Avante
@@ -164,6 +165,7 @@ function M.setup(opts)
   end
 
   Diff.setup()
+  AiBot.setup()
   M.selection = Selection:new():setup()
 
   -- setup helpers
