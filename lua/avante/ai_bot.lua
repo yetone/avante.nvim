@@ -149,7 +149,7 @@ local function call_claude_api_stream(question, code_lang, code_content, selecte
       if not data then
         return
       end
-      for line in data:gmatch("[^\r\n]+") do
+      for _, line in ipairs(vim.split(data, "\n")) do
         if line:sub(1, 6) ~= "data: " then
           return
         end
@@ -264,7 +264,7 @@ local function call_openai_api_stream(question, code_lang, code_content, selecte
       if not data then
         return
       end
-      for line in data:gmatch("[^\r\n]+") do
+      for _, line in ipairs(vim.split(data, "\n")) do
         if line:sub(1, 6) ~= "data: " then
           return
         end
