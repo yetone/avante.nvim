@@ -42,7 +42,7 @@ function View:setup(split_command, size)
   api.nvim_set_option_value("number", false, { win = self.win })
   api.nvim_set_option_value("relativenumber", false, { win = self.win })
   api.nvim_set_option_value("list", false, { win = self.win })
-  api.nvim_set_option_value("wrap", false, { win = self.win })
+  api.nvim_set_option_value("wrap", true, { win = self.win })
   api.nvim_set_option_value("winhl", "", { win = self.win })
 
   -- buffer stuff
