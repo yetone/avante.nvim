@@ -642,7 +642,7 @@ function Sidebar:render()
             .. user_input:gsub("\n", "\n> ")
             .. "\n\n"
             .. full_response
-            .. "\n\n**Generation complete!** Please review the code suggestions above.\n\n\n\n",
+            .. "\n\n🎉🎉🎉 **Generation complete!** Please review the code suggestions above.\n\n\n\n",
           true,
           function()
             api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN })
