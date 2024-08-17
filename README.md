@@ -51,21 +51,21 @@ Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
 >
 > If your neovim doesn't use LuaJIT, then change `build` to `make lua51`. By default running make will install luajit.
 > For ARM-based setup, make sure to also install cargo as we will have to build the tiktoken_core from source.
+
+> [!NOTE]
 >
-> > [!NOTE]
-> >
-> > `render-markdown.nvim` is an optional dependency that is used to render the markdown content of the chat history. Make sure to also include `Avante` as a filetype
-> > to its setup:
-> >
-> > ```lua
-> > {
-> >   "MeanderingProgrammer/render-markdown.nvim",
-> >   opts = {
-> >     file_types = { "markdown", "Avante" },
-> >   },
-> >   ft = { "markdown", "Avante" },
-> > }
-> > ```
+> `render-markdown.nvim` is an optional dependency that is used to render the markdown content of the chat history. Make sure to also include `Avante` as a filetype
+> to its setup:
+>
+> ```lua
+> {
+>   "MeanderingProgrammer/render-markdown.nvim",
+>   opts = {
+>     file_types = { "markdown", "Avante" },
+>   },
+>   ft = { "markdown", "Avante" },
+> }
+> ```
 
 Default setup configuration:
 
