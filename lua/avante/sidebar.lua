@@ -10,6 +10,7 @@ local Diff = require("avante.diff")
 local AiBot = require("avante.ai_bot")
 local Utils = require("avante.utils")
 
+local VIEW_BUFFER_UPDATED_PATTERN = "AvanteViewBufferUpdated"
 local CODEBLOCK_KEYBINDING_NAMESPACE = api.nvim_create_namespace("AVANTE_CODEBLOCK_KEYBINDING")
 local PRIORITY = vim.highlight.priorities.user
 
@@ -215,13 +216,16 @@ end
 
 ---@param content string concatenated content of the buffer
 ---@param focus? boolean whether to focus the result view
-function Sidebar:update_content(content, focus)
+function Sidebar:update_content(content, focus, callback)
   focus = focus or false
   vim.defer_fn(function()
     api.nvim_set_option_value("modifiable", true, { buf = self.view.buf })
     api.nvim_buf_set_lines(self.view.buf, 0, -1, false, vim.split(content, "\n"))
     api.nvim_set_option_value("modifiable", false, { buf = self.view.buf })
     api.nvim_set_option_value("filetype", "Avante", { buf = self.view.buf })
+    if callback ~= nil then
+      callback()
+    end
     if focus then
       xpcall(function()
         --- set cursor to bottom of result view
@@ -553,6 +557,13 @@ function Sidebar:render()
     end,
   })
 
+  api.nvim_create_autocmd("User", {
+    pattern = VIEW_BUFFER_UPDATED_PATTERN,
+    callback = function()
+      codeblocks = parse_codeblocks(self.view.buf)
+    end,
+  })
+
   ---@type NuiSignal
   local signal = N.create_signal({ is_loading = false, text = "" })
 
@@ -617,8 +628,11 @@ function Sidebar:render()
           .. user_input:gsub("\n", "\n> ")
           .. "\n\n"
           .. full_response
-          .. "\n\n**Generation complete!** Please review the code suggestions above.\n\n",
-        true
+          .. "\n\n**Generation complete!** Please review the code suggestions above.\n\n\n\n",
+        true,
+        function()
+          api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN })
+        end
       )
 
       api.nvim_set_current_win(self.winid.result)
