@@ -1,11 +1,13 @@
-local M = {}
+local fn = vim.fn
 
 local curl = require("plenary.curl")
-local utils = require("avante.utils")
-local config = require("avante.config")
-local tiktoken = require("avante.tiktoken")
 
-local fn = vim.fn
+local Utils = require("avante.utils")
+local Config = require("avante.config")
+local Tiktoken = require("avante.tiktoken")
+
+---@class avante.AiBot
+local M = {}
 
 local system_prompt = [[
 You are an excellent programming expert.
@@ -64,7 +66,7 @@ local function call_claude_api_stream(question, code_lang, code_content, on_chun
 
   local user_prompt = base_user_prompt
 
-  local tokens = config.get().claude.max_tokens
+  local tokens = Config.claude.max_tokens
   local headers = {
     ["Content-Type"] = "application/json",
     ["x-api-key"] = api_key,
@@ -82,16 +84,16 @@ local function call_claude_api_stream(question, code_lang, code_content, on_chun
     text = user_prompt,
   }
 
-  if tiktoken.count(code_prompt_obj.text) > 1024 then
+  if Tiktoken.count(code_prompt_obj.text) > 1024 then
     code_prompt_obj.cache_control = { type = "ephemeral" }
   end
 
-  if tiktoken.count(user_prompt_obj.text) > 1024 then
+  if Tiktoken.count(user_prompt_obj.text) > 1024 then
     user_prompt_obj.cache_control = { type = "ephemeral" }
   end
 
   local body = {
-    model = config.get().claude.model,
+    model = Config.claude.model,
     system = system_prompt,
     messages = {
       {
@@ -107,13 +109,13 @@ local function call_claude_api_stream(question, code_lang, code_content, on_chun
       },
     },
     stream = true,
-    temperature = config.get().claude.temperature,
+    temperature = Config.claude.temperature,
     max_tokens = tokens,
   }
 
-  local url = utils.trim_suffix(config.get().claude.endpoint, "/") .. "/v1/messages"
+  local url = Utils.trim_suffix(Config.claude.endpoint, "/") .. "/v1/messages"
 
-  print("Sending request to Claude API...")
+  -- print("Sending request to Claude API...")
 
   curl.post(url, {
     ---@diagnostic disable-next-line: unused-local
@@ -154,7 +156,7 @@ end
 
 local function call_openai_api_stream(question, code_lang, code_content, on_chunk, on_complete)
   local api_key = os.getenv("OPENAI_API_KEY")
-  if not api_key and config.get().provider == "openai" then
+  if not api_key and Config.provider == "openai" then
     error("OPENAI_API_KEY environment variable is not set")
   end
 
@@ -169,16 +171,16 @@ local function call_openai_api_stream(question, code_lang, code_content, on_chun
     .. "\n```"
 
   local url, headers, body
-  if config.get().provider == "azure" then
+  if Config.provider == "azure" then
     api_key = os.getenv("AZURE_OPENAI_API_KEY") or os.getenv("OPENAI_API_KEY")
     if not api_key then
       error("Azure OpenAI API key is not set. Please set AZURE_OPENAI_API_KEY or OPENAI_API_KEY environment variable.")
     end
-    url = config.get().azure.endpoint
+    url = Config.azure.endpoint
       .. "/openai/deployments/"
-      .. config.get().azure.deployment
+      .. Config.azure.deployment
       .. "/chat/completions?api-version="
-      .. config.get().azure.api_version
+      .. Config.azure.api_version
     headers = {
       ["Content-Type"] = "application/json",
       ["api-key"] = api_key,
@@ -188,29 +190,29 @@ local function call_openai_api_stream(question, code_lang, code_content, on_chun
         { role = "system", content = system_prompt },
         { role = "user", content = user_prompt },
       },
-      temperature = config.get().azure.temperature,
-      max_tokens = config.get().azure.max_tokens,
+      temperature = Config.azure.temperature,
+      max_tokens = Config.azure.max_tokens,
       stream = true,
     }
   else
-    url = utils.trim_suffix(config.get().openai.endpoint, "/") .. "/v1/chat/completions"
+    url = Utils.trim_suffix(Config.openai.endpoint, "/") .. "/v1/chat/completions"
     headers = {
       ["Content-Type"] = "application/json",
       ["Authorization"] = "Bearer " .. api_key,
     }
     body = {
-      model = config.get().openai.model,
+      model = Config.openai.model,
       messages = {
         { role = "system", content = system_prompt },
         { role = "user", content = user_prompt },
       },
-      temperature = config.get().openai.temperature,
-      max_tokens = config.get().openai.max_tokens,
+      temperature = Config.openai.temperature,
+      max_tokens = Config.openai.max_tokens,
       stream = true,
     }
   end
 
-  print("Sending request to " .. (config.get().provider == "azure" and "Azure OpenAI" or "OpenAI") .. " API...")
+  -- print("Sending request to " .. (config.get().provider == "azure" and "Azure OpenAI" or "OpenAI") .. " API...")
 
   curl.post(url, {
     ---@diagnostic disable-next-line: unused-local
@@ -253,10 +255,15 @@ local function call_openai_api_stream(question, code_lang, code_content, on_chun
   })
 end
 
+---@param question string
+---@param code_lang string
+---@param code_content string
+---@param on_chunk fun(chunk: string): any
+---@param on_complete fun(err: string|nil): any
 function M.call_ai_api_stream(question, code_lang, code_content, on_chunk, on_complete)
-  if config.get().provider == "openai" or config.get().provider == "azure" then
+  if Config.provider == "openai" or Config.provider == "azure" then
     call_openai_api_stream(question, code_lang, code_content, on_chunk, on_complete)
-  elseif config.get().provider == "claude" then
+  elseif Config.provider == "claude" then
     call_claude_api_stream(question, code_lang, code_content, on_chunk, on_complete)
   end
 end

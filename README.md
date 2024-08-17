@@ -7,11 +7,7 @@
 
 https://github.com/user-attachments/assets/510e6270-b6cf-459d-9a2f-15b397d1fe53
 
-
-
 https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd
-
-
 
 ## Features
 
@@ -22,74 +18,89 @@ https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd
 
 Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
 
-  ```lua
-  {
-    "yetone/avante.nvim",
-    event = "VeryLazy",
-    opts = {},
-    build = "make",
-    dependencies = {
-      "nvim-tree/nvim-web-devicons",
-      {
-        "grapp-dev/nui-components.nvim",
-        dependencies = {
-          "MunifTanjim/nui.nvim"
-        }
-      },
-      "nvim-lua/plenary.nvim",
-      "MeanderingProgrammer/render-markdown.nvim",
+```lua
+{
+  "yetone/avante.nvim",
+  event = "VeryLazy",
+  opts = {},
+  build = "make",
+  dependencies = {
+    "nvim-tree/nvim-web-devicons",
+    {
+      "grapp-dev/nui-components.nvim",
+      dependencies = {
+        "MunifTanjim/nui.nvim"
+      }
     },
-  }
-  ```
+    "nvim-lua/plenary.nvim",
+    "MeanderingProgrammer/render-markdown.nvim", -- optional
+  },
+}
+```
 
 > [!IMPORTANT]
 >
 > If your neovim doesn't use LuaJIT, then change `build` to `make lua51`. By default running make will install luajit.
 > For ARM-based setup, make sure to also install cargo as we will have to build the tiktoken_core from source.
 
+> [!note] `render-markdown.nvim`
+>
+> `render-markdown.nvim` is an optional dependency that is used to render the markdown content of the chat history. Make sure to also include `Avante` as a filetype
+> to its setup:
+>
+> ```lua
+> {
+>   "MeanderingProgrammer/markdown.nvim",
+>   opts = {
+>     file_types = { "markdown", "Avante" },
+>   },
+>   ft = { "markdown", "Avante" },
+> }
+> ```
+
 Default setup configuration:
 
-  ```lua
-  {
-    provider = "claude", -- "claude" or "openai" or "azure"
-    openai = {
-      endpoint = "https://api.openai.com",
-      model = "gpt-4o",
-      temperature = 0,
-      max_tokens = 4096,
+```lua
+{
+  provider = "claude", -- "claude" or "openai" or "azure"
+  openai = {
+    endpoint = "https://api.openai.com",
+    model = "gpt-4o",
+    temperature = 0,
+    max_tokens = 4096,
+  },
+  azure = {
+    endpoint = "", -- Example: "https://<your-resource-name>.openai.azure.com"
+    deployment = "", -- Azure deployment name (e.g., "gpt-4o", "my-gpt-4o-deployment")
+    api_version = "2024-06-01",
+    temperature = 0,
+    max_tokens = 4096,
+  },
+  claude = {
+    endpoint = "https://api.anthropic.com",
+    model = "claude-3-5-sonnet-20240620",
+    temperature = 0,
+    max_tokens = 4096,
+  },
+  highlights = {
+    diff = {
+      current = "DiffText", -- need have background color
+      incoming = "DiffAdd", -- need have background color
     },
-    azure = {
-      endpoint = "", -- Example: "https://<your-resource-name>.openai.azure.com"
-      deployment = "", -- Azure deployment name (e.g., "gpt-4o", "my-gpt-4o-deployment")
-      api_version = "2024-06-01",
-      temperature = 0,
-      max_tokens = 4096,
+  },
+  mappings = {
+    show_sidebar = "<leader>aa",
+    diff = {
+      ours = "co",
+      theirs = "ct",
+      none = "c0",
+      both = "cb",
+      next = "]x",
+      prev = "[x",
     },
-    claude = {
-      endpoint = "https://api.anthropic.com",
-      model = "claude-3-5-sonnet-20240620",
-      temperature = 0,
-      max_tokens = 4096,
-    },
-    highlights = {
-      diff = {
-        current = "DiffText", -- need have background color
-        incoming = "DiffAdd", -- need have background color
-      },
-    },
-    mappings = {
-      show_sidebar = "<leader>aa",
-      diff = {
-        ours = "co",
-        theirs = "ct",
-        none = "c0",
-        both = "cb",
-        next = "]x",
-        prev = "[x",
-      },
-    },
-  }
-  ```
+  },
+}
+```
 
 ## Usage
 
@@ -163,6 +174,29 @@ To set up the development environment:
 
 ```sh
 pre-commit install --install-hooks
+```
+
+For setting up lua_ls you can use the following for `nvim-lspconfig`:
+
+```lua
+lua_ls = {
+  settings = {
+    Lua = {
+      runtime = {
+        version = "LuaJIT",
+        special = { reload = "require" },
+      },
+      workspace = {
+        library = {
+          vim.fn.expand "$VIMRUNTIME/lua",
+          vim.fn.expand "$VIMRUNTIME/lua/vim/lsp",
+          vim.fn.stdpath "data" .. "/lazy/lazy.nvim/lua/lazy",
+          "${3rd}/luv/library",
+        },
+      },
+    },
+  },
+},
 ```
 
 ## License

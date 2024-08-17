@@ -1,6 +1,10 @@
+---NOTE: user will be merged with defaults and
+---we add a default var_accessor for this table to config values.
+---@class avante.CoreConfig: avante.Config
 local M = {}
 
-local config = {
+---@class avante.Config
+M.defaults = {
   provider = "claude", -- "claude" or "openai" or "azure"
   openai = {
     endpoint = "https://api.openai.com",
@@ -38,14 +42,37 @@ local config = {
       prev = "[x",
     },
   },
+  windows = {
+    width = 30, -- default % based on available width
+  },
 }
 
-function M.update(opts)
-  config = vim.tbl_deep_extend("force", config, opts or {})
+---@type avante.Config
+M.options = {}
+
+---@param opts? avante.Config
+function M.setup(opts)
+  M.options = vim.tbl_deep_extend("force", M.defaults, opts or {})
 end
 
-function M.get()
-  return config
+M = setmetatable(M, {
+  __index = function(_, k)
+    if M.options[k] then
+      return M.options[k]
+    end
+  end,
+})
+
+function M.get_window_width()
+  return math.ceil(vim.o.columns * (M.windows.width / 100))
+end
+
+---@return {width: integer, height: integer, position: integer}
+function M.get_renderer_layout_options()
+  local width = M.get_window_width()
+  local height = vim.o.lines
+  local position = vim.o.columns - width
+  return { width = width, height = height, position = position }
 end
 
 return M
