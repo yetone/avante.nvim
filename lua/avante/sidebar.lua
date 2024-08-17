@@ -445,7 +445,7 @@ function Sidebar:render()
   end
 
   local function apply()
-    local content = self.view:get_content()
+    local content = self:get_code_content()
     local response = self:get_content_between_separators()
     local snippets = extract_code_snippets(response)
     local conflict_content = get_conflict_content(content, snippets)
