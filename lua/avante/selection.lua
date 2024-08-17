@@ -83,6 +83,7 @@ function Selection:setup()
       self:close_hints_popup()
     end,
   })
+  return self
 end
 
 function Selection:delete_autocmds()
