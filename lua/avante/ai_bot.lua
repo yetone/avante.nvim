@@ -28,23 +28,21 @@ Replace lines: {{start_line}}-{{end_line}}
 {{suggested_code}}
 ```
 
-3. Crucial guidelines for line numbers:
+3. Crucial guidelines for suggested code snippets:
+   - Only apply the change(s) suggested by the most recent assistant message (before your generation).
+   - Do not make any unrelated changes to the code.
+   - Produce a valid full rewrite of the entire original file without skipping any lines. Do not be lazy!
+   - Do not arbitrarily delete pre-existing comments/empty Lines.
+   - Do not omit large parts of the original file for no reason.
+   - Do not omit any needed changes from the requisite messages/code blocks.
+   - If there is a clicked code block, bias towards just applying that (and applying other changes implied).
+
+4. Crucial guidelines for line numbers:
    - The range {{start_line}}-{{end_line}} is INCLUSIVE. Both start_line and end_line are included in the replacement.
    - Count EVERY line, including empty lines, comments, and the LAST line of the file.
    - For single-line changes, use the same number for start and end lines.
    - For multi-line changes, ensure the range covers ALL affected lines, from the very first to the very last.
-   - Include the entire block (e.g., complete function) when modifying structured code.
-   - Pay special attention to the start_line, ensuring it's not omitted or incorrectly set.
-   - Double-check that your start_line is correct, especially for changes at the beginning of the file.
-   - Also, be careful with the end_line, especially when it's the last line of the file.
    - Double-check that your line numbers align perfectly with the original code structure.
-
-4. Context and verification:
-   - Show 1-2 unchanged lines before and after each modification as context.
-   - These context lines are NOT included in the replacement range.
-   - After each suggestion, recount the lines to verify the accuracy of your line numbers.
-   - Double-check that both the start_line and end_line are correct for each modification.
-   - Verify that your suggested changes align perfectly with the original code structure.
 
 5. Final check:
    - Review all suggestions, ensuring each line number is correct, especially the start_line and end_line.
