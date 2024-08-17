@@ -331,9 +331,10 @@ local function register_cursor_move_events(bufnr)
     end
 
     local hint = string.format(
-      " [Press <%s> for OURS, <%s> for THEIRS, <%s> for PREV, <%s> for NEXT] ",
+      " [Press <%s> for OURS, <%s> for THEIRS, <%s> for BOTH, <%s> for PREV, <%s> for NEXT] ",
       Config.diff.mappings.ours,
       Config.diff.mappings.theirs,
+      Config.diff.mappings.both,
       Config.diff.mappings.prev,
       Config.diff.mappings.next
     )

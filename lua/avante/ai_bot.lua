@@ -120,6 +120,11 @@ E.setup = function(var)
     on_submit = function(value)
       vim.fn.setenv(var, value)
     end,
+    on_close = function()
+      if not E[Config.provider] then
+        vim.notify_once("Failed to set " .. var .. ". Avante won't work as expected", vim.log.levels.WARN)
+      end
+    end,
   })
 
   api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
@@ -141,7 +146,7 @@ E.setup = function(var)
           E._once = true
           input:mount()
         end
-      end, 100)
+      end, 200)
     end,
   })
 
