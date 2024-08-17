@@ -611,7 +611,7 @@ function Sidebar:render()
         N.text_input({
           id = "text-input",
           border_label = {
-            text = string.format(" 🙋 (with %s %s): ", icon, code_filename),
+            text = string.format(" 🙋 with %s %s (<Tab> key jump to the chat history): ", icon, code_filename),
           },
           placeholder = "Enter your question",
           autofocus = true,
