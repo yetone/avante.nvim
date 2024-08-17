@@ -3,7 +3,10 @@
 **avante.nvim** is a Neovim plugin designed to emulate the behavior of the [Cursor](https://www.cursor.com) AI IDE, providing users with AI-driven code suggestions and the ability to apply these recommendations directly to their source files with minimal effort.
 
 > [!NOTE]
-> ⚠️⚠️ This plugin is still in a very early stage of development, so please be aware that the current code is very messy and unstable, and problems are likely to occur.
+> 
+> ⚠️ This plugin is still in a very early stage of development, so please be aware that the current code is very messy and unstable, and problems are likely to occur.
+> 
+> 🥰 This project is undergoing rapid iterations, and many exciting features will be added successively. Stay tuned!
 
 https://github.com/user-attachments/assets/510e6270-b6cf-459d-9a2f-15b397d1fe53
 
@@ -49,7 +52,7 @@ Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
 > If your neovim doesn't use LuaJIT, then change `build` to `make lua51`. By default running make will install luajit.
 > For ARM-based setup, make sure to also install cargo as we will have to build the tiktoken_core from source.
 
-> [!note] `render-markdown.nvim`
+> [!NOTE]
 >
 > `render-markdown.nvim` is an optional dependency that is used to render the markdown content of the chat history. Make sure to also include `Avante` as a filetype
 > to its setup:
@@ -161,7 +164,8 @@ The following key bindings are available for use with `avante.nvim`:
 
 - [x] Chat with current file
 - [x] Apply diff patch
-- [ ] Chat with selected block
+- [x] Chat with the selected block
+- [ ] Edit the selected block
 - [ ] Chat with project
 - [ ] Chat with selected files
 - [ ] Auto suggestion and completion

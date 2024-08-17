@@ -34,10 +34,14 @@ H.commands = function()
     end
     sidebar:close()
   end, { desc = "avante: close chat window" })
+  cmd("Refresh", function()
+    M.refresh()
+  end, { desc = "avante: refresh windows" })
 end
 
 H.keymaps = function()
   vim.keymap.set({ "n", "v" }, Config.mappings.ask, M.toggle, { noremap = true })
+  vim.keymap.set("n", Config.mappings.refresh, M.refresh, { noremap = true })
 end
 
 H.autocmds = function()
@@ -121,6 +125,32 @@ M.toggle = function()
   end
 
   return sidebar:toggle()
+end
+
+M.refresh = function()
+  local sidebar = M._get()
+  if not sidebar then
+    return
+  end
+  local curbuf = vim.api.nvim_get_current_buf()
+
+  local focused = sidebar.view.buf == curbuf or sidebar.bufnr.result == curbuf or sidebar.bufnr.input == curbuf
+  if focused or not sidebar.view:is_open() then
+    return
+  end
+
+  local ft = vim.api.nvim_get_option_value("filetype", { buf = curbuf })
+  local listed = vim.api.nvim_get_option_value("buflisted", { buf = curbuf })
+
+  if ft == "Avante" or not listed then
+    return
+  end
+
+  local curwin = vim.api.nvim_get_current_win()
+
+  sidebar.code.win = curwin
+  sidebar.code.buf = curbuf
+  sidebar:render()
 end
 
 ---@param opts? avante.Config

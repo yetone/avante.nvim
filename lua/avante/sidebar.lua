@@ -141,7 +141,7 @@ function Sidebar:intialize()
 
     local filetype = api.nvim_get_option_value("filetype", { buf = self.code.buf })
     local selected_code_buf = self.renderer:get_component_by_id("selected_code").bufnr
-    api.nvim_buf_set_option(selected_code_buf, "filetype", filetype)
+    api.nvim_set_option_value("filetype", filetype, { buf = selected_code_buf })
     api.nvim_set_option_value("wrap", false, { win = self.renderer:get_component_by_id("selected_code").winid })
 
     api.nvim_create_autocmd("BufEnter", {
@@ -205,24 +205,6 @@ function Sidebar:intialize()
       self:reset()
     end,
   })
-
-  return self
-end
-
-function Sidebar:refresh()
-  local buf = vim.api.nvim_get_current_buf()
-
-  local focused = self.view.buf == buf or self.bufnr.result == buf or self.bufnr.input == buf
-  if focused or not self.view:is_open() then
-    return
-  end
-
-  local ft = vim.api.nvim_get_option_value("filetype", { buf = buf })
-  local listed = vim.api.nvim_get_option_value("buflisted", { buf = buf })
-
-  if ft == "Avante" or not listed then
-    return
-  end
 
   return self
 end
