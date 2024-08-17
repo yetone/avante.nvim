@@ -201,6 +201,7 @@ lua_ls = {
           vim.fn.expand "$VIMRUNTIME/lua",
           vim.fn.expand "$VIMRUNTIME/lua/vim/lsp",
           vim.fn.stdpath "data" .. "/lazy/lazy.nvim/lua/lazy",
+          vim.fn.expand "$HOME/path/to/parent" -- parent/avante.nvim
           "${3rd}/luv/library",
         },
       },
@@ -208,6 +209,8 @@ lua_ls = {
   },
 },
 ```
+
+Then you can set `dev = true` in your `lazy` config for development.
 
 ## License
 
