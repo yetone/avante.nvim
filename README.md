@@ -29,7 +29,20 @@ Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
   build = "make",
   dependencies = {
     "nvim-tree/nvim-web-devicons",
-    "stevearc/dressing.nvim",
+    {
+      "stevearc/dressing.nvim",
+      lazy = true,
+      init = function()
+        vim.ui.select = function(...)
+          require("lazy").load { plugins = { "dressing.nvim" } }
+          return vim.ui.select(...)
+        end
+        vim.ui.input = function(...)
+          require("lazy").load { plugins = { "dressing.nvim" } }
+          return vim.ui.input(...)
+        end
+      end,
+    },
     {
       "grapp-dev/nui-components.nvim",
       dependencies = {
