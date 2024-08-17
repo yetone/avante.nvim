@@ -1,14 +1,32 @@
 ---@meta
 
+---@class NuiSignalValue: boolean
+local NuiSignalValue = require("nui-components.signal.value")
+
+---@return boolean
+function NuiSignalValue:negate() end
+
+---@class NuiSignal
+---@field is_loading boolean | NuiSignalValue
+---@field text string
+local AvanteSignal = require("nui-components.signal")
+
+---@return any
+function AvanteSignal:get_value() end
+
 ---@class NuiRenderer
-_G.AvanteRenderer = require("nui-components.renderer")
+local AvanteRenderer = require("nui-components.renderer")
 
 ---@class NuiComponent
-_G.AvanteComponent = require("nui-components.component")
+---@field winid integer | nil
+local AvanteComponent = require("nui-components.component")
 
 ---@param opts table<string, any>
 ---@return NuiRenderer
 function AvanteRenderer.create(opts) end
+
+---@return NuiComponent[]
+function AvanteRenderer:get_focusable_components() end
 
 ---@param body fun():NuiComponent
 function AvanteRenderer:render(body) end

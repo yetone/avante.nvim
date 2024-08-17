@@ -41,6 +41,10 @@ M.defaults = {
       next = "]x",
       prev = "[x",
     },
+    jump = {
+      next = "]]",
+      prev = "[[",
+    },
   },
   windows = {
     width = 30, -- default % based on available width
