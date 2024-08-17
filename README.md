@@ -33,7 +33,13 @@ Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
       }
     },
     "nvim-lua/plenary.nvim",
-    "MeanderingProgrammer/render-markdown.nvim", -- optional
+    { -- Optional
+      'MeanderingProgrammer/render-markdown.nvim',
+      opts = {
+        file_types = { "markdown", "Avante" },
+      },
+      ft = { "markdown", "Avante" },
+    },
   },
 }
 ```
@@ -50,7 +56,7 @@ Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
 >
 > ```lua
 > {
->   "MeanderingProgrammer/markdown.nvim",
+>   "MeanderingProgrammer/render-markdown.nvim",
 >   opts = {
 >     file_types = { "markdown", "Avante" },
 >   },
@@ -89,7 +95,7 @@ Default setup configuration:
     },
   },
   mappings = {
-    show_sidebar = "<leader>aa",
+    ask = "<leader>aa",
     diff = {
       ours = "co",
       theirs = "ct",
