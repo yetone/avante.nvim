@@ -6,6 +6,7 @@ local M = {}
 
 ---@class avante.Config
 M.defaults = {
+  ---@alias Provider "openai" | "claude" | "azure"
   provider = "claude", -- "claude" or "openai" or "azure"
   openai = {
     endpoint = "https://api.openai.com",

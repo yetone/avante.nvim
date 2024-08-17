@@ -132,6 +132,16 @@ function Sidebar:intialize()
     relative = { type = "win", winid = fn.bufwinid(self.view.buf) },
   })
 
+  self.renderer:add_mappings({
+    {
+      mode = { "n" },
+      key = "q",
+      handler = function()
+        self.renderer:close()
+      end,
+    },
+  })
+
   self.renderer:on_mount(function()
     self.winid.result = self.renderer:get_component_by_id("result").winid
     self.winid.input = self.renderer:get_component_by_id("input").winid
