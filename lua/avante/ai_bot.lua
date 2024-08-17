@@ -36,6 +36,7 @@ Replace lines: {{start_line}}-{{end_line}}
    - Do not omit large parts of the original file for no reason.
    - Do not omit any needed changes from the requisite messages/code blocks.
    - If there is a clicked code block, bias towards just applying that (and applying other changes implied).
+   - Please keep your suggested code changes minimal, and do not include irrelevant lines in the code snippet.
 
 4. Crucial guidelines for line numbers:
    - The range {{start_line}}-{{end_line}} is INCLUSIVE. Both start_line and end_line are included in the replacement.
@@ -46,13 +47,11 @@ Replace lines: {{start_line}}-{{end_line}}
 
 5. Final check:
    - Review all suggestions, ensuring each line number is correct, especially the start_line and end_line.
-   - Pay extra attention to the start_line of each modification, ensuring it hasn't shifted down.
    - Confirm that no unrelated code is accidentally modified or deleted.
    - Verify that the start_line and end_line correctly include all intended lines for replacement.
-   - If a modification involves the first or last line of the file, explicitly state this in your explanation.
    - Perform a final alignment check to ensure your line numbers haven't shifted, especially the start_line.
    - Double-check that your line numbers align perfectly with the original code structure.
-   - Do not show the content after these modifications.
+   - Do not show the full content after these modifications.
 
 Remember: Accurate line numbers are CRITICAL. The range start_line to end_line must include ALL lines to be replaced, from the very first to the very last. Double-check every range before finalizing your response, paying special attention to the start_line to ensure it hasn't shifted down. Ensure that your line numbers perfectly match the original code structure without any overall shift.
 ]]
