@@ -29,6 +29,7 @@ local Sidebar = {}
 ---@field code avante.SidebarState
 ---@field renderer NuiRenderer
 ---@field winid {result: integer, input: integer}
+---@field bufnr {result: integer, input: integer}
 
 ---@param id integer the tabpage id retrieved from vim.api.nvim_get_current_tabpage()
 function Sidebar:new(id)
@@ -36,6 +37,7 @@ function Sidebar:new(id)
     id = id,
     code = { buf = 0, win = 0, selection = nil },
     winid = { result = 0, input = 0 },
+    bufnr = { result = 0, input = 0 },
     view = View:new(),
     renderer = nil,
   }, { __index = self })
@@ -60,6 +62,7 @@ end
 function Sidebar:reset()
   self.code = { buf = 0, win = 0 }
   self.winid = { result = 0, input = 0 }
+  self.bufnr = { result = 0, input = 0 }
   self:delete_autocmds()
 end
 
@@ -109,15 +112,8 @@ function Sidebar:toggle()
   end
 end
 
-function Sidebar:has_code_win()
-  return self.code.win
-    and self.code.buf
-    and self.code.win ~= 0
-    and self.code.buf ~= 0
-    and api.nvim_win_is_valid(self.code.win)
-    and api.nvim_buf_is_valid(self.code.buf)
-end
-
+--- Initialize the sidebar instance.
+--- @return avante.Sidebar The Sidebar instance.
 function Sidebar:intialize()
   self.code.win = api.nvim_get_current_win()
   self.code.buf = api.nvim_get_current_buf()
@@ -139,6 +135,8 @@ function Sidebar:intialize()
   self.renderer:on_mount(function()
     self.winid.result = self.renderer:get_component_by_id("result").winid
     self.winid.input = self.renderer:get_component_by_id("input").winid
+    self.bufnr.result = vim.api.nvim_win_get_buf(self.winid.result)
+    self.bufnr.input = vim.api.nvim_win_get_buf(self.winid.input)
     self.augroup = api.nvim_create_augroup("avante_" .. self.id .. self.view.win, { clear = true })
 
     local filetype = api.nvim_get_option_value("filetype", { buf = self.code.buf })
@@ -207,6 +205,26 @@ function Sidebar:intialize()
       self:reset()
     end,
   })
+
+  return self
+end
+
+function Sidebar:refresh()
+  local buf = vim.api.nvim_get_current_buf()
+
+  local focused = self.view.buf == buf or self.bufnr.result == buf or self.bufnr.input == buf
+  if focused or not self.view:is_open() then
+    return
+  end
+
+  local ft = vim.api.nvim_get_option_value("filetype", { buf = buf })
+  local listed = vim.api.nvim_get_option_value("buflisted", { buf = buf })
+
+  if ft == "Avante" or not listed then
+    return
+  end
+
+  return self
 end
 
 ---@param content string concatenated content of the buffer
@@ -239,6 +257,12 @@ function Sidebar:update_content(content, focus, callback)
   return self
 end
 
+---@class AvanteCodeblock
+---@field start_line integer
+---@field end_line integer
+---@field lang string
+
+---@return AvanteCodeblock[]
 local function parse_codeblocks(buf)
   local codeblocks = {}
   local in_codeblock = false
@@ -527,6 +551,7 @@ function Sidebar:render()
     pcall(vim.keymap.del, "n", "A", { buffer = self.view.buf })
   end
 
+  ---@type AvanteCodeblock[]
   local codeblocks = {}
 
   api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
@@ -558,6 +583,7 @@ function Sidebar:render()
     end,
   })
 
+  ---@type NuiSignal
   local signal = N.create_signal({ is_loading = false, text = "" })
 
   local chat_history = load_chat_history(self)
