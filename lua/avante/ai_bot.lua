@@ -207,7 +207,7 @@ Remember: Accurate line numbers are CRITICAL. The range start_line to end_line m
 ]]
 
 local function call_claude_api_stream(question, code_lang, code_content, selected_code_content, on_chunk, on_complete)
-  local api_key = os.getenv(E.key("azure"))
+  local api_key = os.getenv(E.key("claude"))
 
   local tokens = Config.claude.max_tokens
   local headers = {
