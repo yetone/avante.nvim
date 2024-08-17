@@ -2,8 +2,6 @@ local fn = vim.fn
 local api = vim.api
 
 local curl = require("plenary.curl")
-local Input = require("nui.input")
-local Event = require("nui.utils.autocmd").event
 
 local Utils = require("avante.utils")
 local Config = require("avante.config")
@@ -47,43 +45,6 @@ E = setmetatable(E, {
   end,
 })
 
--- courtesy of https://github.com/MunifTanjim/nui.nvim/wiki/nui.input
-local SecretInput = Input:extend("SecretInput")
-
-function SecretInput:init(popup_options, options)
-  assert(
-    not options.conceal_char or vim.api.nvim_strwidth(options.conceal_char) == 1,
-    "conceal_char must be a single char"
-  )
-
-  popup_options.win_options = vim.tbl_deep_extend("force", popup_options.win_options or {}, {
-    conceallevel = 2,
-    concealcursor = "nvi",
-  })
-
-  SecretInput.super.init(self, popup_options, options)
-
-  self._.conceal_char = type(options.conceal_char) == "nil" and "*" or options.conceal_char
-end
-
-function SecretInput:mount()
-  SecretInput.super.mount(self)
-
-  local conceal_char = self._.conceal_char
-  local prompt_length = vim.api.nvim_strwidth(vim.fn.prompt_getprompt(self.bufnr))
-
-  vim.api.nvim_buf_call(self.bufnr, function()
-    vim.cmd(string.format(
-      [[
-        syn region SecretValue start=/^/ms=s+%s end=/$/ contains=SecretChar
-        syn match SecretChar /./ contained conceal %s
-      ]],
-      prompt_length,
-      conceal_char and "cchar=" .. (conceal_char or "*") or ""
-    ))
-  end)
-end
-
 --- return the environment variable name for the given provider
 ---@param provider? Provider
 ---@return string the envvar key
@@ -95,68 +56,52 @@ E.key = function(provider)
 end
 
 E.setup = function(var)
+  local Dressing = require("avante.ui.dressing")
+
   if E._once then
     return
   end
 
-  local input = SecretInput({
-    position = "50%",
-    size = {
-      width = 40,
-    },
-    border = {
-      style = "single",
-      text = {
-        top = "Enter " .. var,
-        top_align = "center",
-      },
-    },
-    win_options = {
-      winhighlight = "Normal:Normal,FloatBorder:Normal",
-    },
-  }, {
-    prompt = "> ",
-    default_value = "",
-    on_submit = function(value)
+  ---@param value string
+  ---@return nil
+  local function on_confirm(value)
+    if value then
       vim.fn.setenv(var, value)
-    end,
-    on_close = function()
+      E._once = true
+    else
       if not E[Config.provider] then
         vim.notify_once("Failed to set " .. var .. ". Avante won't work as expected", vim.log.levels.WARN)
       end
-    end,
-  })
+    end
+  end
 
   api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
     pattern = "*",
+    once = true,
     callback = function()
-      if E._once then
-        return
-      end
-
       vim.defer_fn(function()
         -- only mount if given buffer is not of buftype ministarter, dashboard, alpha, qf
         local exclude_buftypes = { "dashboard", "alpha", "qf", "nofile" }
-        local exclude_filetypes =
-          { "NvimTree", "Outline", "help", "dashboard", "alpha", "qf", "ministarter", "TelescopePrompt", "gitcommit" }
+        local exclude_filetypes = {
+          "NvimTree",
+          "Outline",
+          "help",
+          "dashboard",
+          "alpha",
+          "qf",
+          "ministarter",
+          "TelescopePrompt",
+          "gitcommit",
+        }
         if
           not vim.tbl_contains(exclude_buftypes, vim.bo.buftype)
           and not vim.tbl_contains(exclude_filetypes, vim.bo.filetype)
         then
-          E._once = true
-          input:mount()
+          Dressing.initialize_input_buffer({ opts = { prompt = "Enter " .. var .. ": " }, on_confirm = on_confirm })
         end
       end, 200)
     end,
   })
-
-  input:map("n", "<Esc>", function()
-    input:unmount()
-  end, { noremap = true })
-
-  input:on(Event.BufLeave, function()
-    input:unmount()
-  end)
 end
 
 local system_prompt = [[
@@ -281,8 +226,6 @@ local function call_claude_api_stream(question, code_lang, code_content, selecte
 
   local url = Utils.trim_suffix(Config.claude.endpoint, "/") .. "/v1/messages"
 
-  -- print("Sending request to Claude API...")
-
   curl.post(url, {
     ---@diagnostic disable-next-line: unused-local
     stream = function(err, data, job)
@@ -388,8 +331,6 @@ local function call_openai_api_stream(question, code_lang, code_content, selecte
       stream = true,
     }
   end
-
-  -- print("Sending request to " .. (config.get().provider == "azure" and "Azure OpenAI" or "OpenAI") .. " API...")
 
   curl.post(url, {
     ---@diagnostic disable-next-line: unused-local
