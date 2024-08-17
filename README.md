@@ -89,7 +89,7 @@ Default setup configuration:
     },
   },
   mappings = {
-    show_sidebar = "<leader>aa",
+    ask = "<leader>aa",
     diff = {
       ours = "co",
       theirs = "ct",

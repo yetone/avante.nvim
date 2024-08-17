@@ -20,6 +20,7 @@ local Sidebar = {}
 ---@class avante.SidebarState
 ---@field win integer
 ---@field buf integer
+---@field selection avante.SelectionResult | nil
 
 ---@class avante.Sidebar
 ---@field id integer
@@ -33,11 +34,11 @@ local Sidebar = {}
 function Sidebar:new(id)
   return setmetatable({
     id = id,
-    code = { buf = 0, win = 0 },
+    code = { buf = 0, win = 0, selection = nil },
     winid = { result = 0, input = 0 },
     view = View:new(),
     renderer = nil,
-  }, { __index = Sidebar })
+  }, { __index = self })
 end
 
 --- This function should only be used on TabClosed, nothing else.
@@ -63,10 +64,17 @@ function Sidebar:reset()
 end
 
 function Sidebar:open()
+  local in_visual_mode = Utils.in_visual_mode() and self:in_code_win()
   if not self.view:is_open() then
     self:intialize()
     self:render()
   else
+    if in_visual_mode then
+      self:close()
+      self:intialize()
+      self:render()
+      return self
+    end
     self:focus()
   end
   return self
@@ -86,8 +94,13 @@ function Sidebar:focus()
   return false
 end
 
+function Sidebar:in_code_win()
+  return self.code.win == api.nvim_get_current_win()
+end
+
 function Sidebar:toggle()
-  if self.view:is_open() then
+  local in_visual_mode = Utils.in_visual_mode() and self:in_code_win()
+  if self.view:is_open() and not in_visual_mode then
     self:close()
     return false
   else
@@ -108,6 +121,7 @@ end
 function Sidebar:intialize()
   self.code.win = api.nvim_get_current_win()
   self.code.buf = api.nvim_get_current_buf()
+  self.code.selection = Utils.get_visual_selection_and_range()
 
   local split_command = "botright vs"
   local layout = Config.get_renderer_layout_options()
@@ -123,14 +137,14 @@ function Sidebar:intialize()
   })
 
   self.renderer:on_mount(function()
-    local components = self.renderer:get_focusable_components()
-    -- current layout is a
-    -- [  chat  ]
-    -- <gap>
-    -- [ input ]
-    self.winid.result = components[1].winid
-    self.winid.input = components[2].winid
+    self.winid.result = self.renderer:get_component_by_id("result").winid
+    self.winid.input = self.renderer:get_component_by_id("input").winid
     self.augroup = api.nvim_create_augroup("avante_" .. self.id .. self.view.win, { clear = true })
+
+    local filetype = api.nvim_get_option_value("filetype", { buf = self.code.buf })
+    local selected_code_buf = self.renderer:get_component_by_id("selected_code").bufnr
+    api.nvim_buf_set_option(selected_code_buf, "filetype", filetype)
+    api.nvim_set_option_value("wrap", false, { win = self.renderer:get_component_by_id("selected_code").winid })
 
     api.nvim_create_autocmd("BufEnter", {
       group = self.augroup,
@@ -215,7 +229,11 @@ function Sidebar:update_content(content, focus, callback)
         -- XXX: omit error for now, but should fix me why it can't jump here.
         return err
       end)
-      api.nvim_win_set_cursor(self.winid.result, { api.nvim_buf_line_count(self.view.buf), 0 })
+      xpcall(function()
+        api.nvim_win_set_cursor(self.winid.result, { api.nvim_buf_line_count(self.view.buf), 0 })
+      end, function(err)
+        return err
+      end)
     end
   end, 0)
   return self
@@ -260,10 +278,12 @@ local function is_cursor_in_codeblock(codeblocks)
   return nil
 end
 
-local function prepend_line_number(content)
+local function prepend_line_number(content, start_line)
+  start_line = start_line or 1
   local lines = vim.split(content, "\n")
   local result = {}
   for i, line in ipairs(lines) do
+    i = i + start_line - 1
     table.insert(result, "L" .. i .. ": " .. line)
   end
   return table.concat(result, "\n")
@@ -560,25 +580,53 @@ function Sidebar:render()
 
     local content = self:get_code_content()
     local content_with_line_numbers = prepend_line_number(content)
+
+    local selected_code_content_with_line_numbers = nil
+    if self.code.selection ~= nil then
+      selected_code_content_with_line_numbers =
+        prepend_line_number(self.code.selection.content, self.code.selection.range.start.line)
+    end
+
     local full_response = ""
 
     signal.is_loading = true
 
     local filetype = api.nvim_get_option_value("filetype", { buf = self.code.buf })
 
-    AiBot.call_ai_api_stream(user_input, filetype, content_with_line_numbers, function(chunk)
-      full_response = full_response .. chunk
-      self:update_content(
-        "## " .. timestamp .. "\n\n> " .. user_input:gsub("\n", "\n> ") .. "\n\n" .. full_response,
-        true
-      )
-      vim.schedule(function()
-        vim.cmd("redraw")
-      end)
-    end, function(err)
-      signal.is_loading = false
+    AiBot.call_ai_api_stream(
+      user_input,
+      filetype,
+      content_with_line_numbers,
+      selected_code_content_with_line_numbers,
+      function(chunk)
+        full_response = full_response .. chunk
+        self:update_content(
+          "## " .. timestamp .. "\n\n> " .. user_input:gsub("\n", "\n> ") .. "\n\n" .. full_response,
+          true
+        )
+        vim.schedule(function()
+          vim.cmd("redraw")
+        end)
+      end,
+      function(err)
+        signal.is_loading = false
 
-      if err ~= nil then
+        if err ~= nil then
+          self:update_content(
+            "## "
+              .. timestamp
+              .. "\n\n> "
+              .. user_input:gsub("\n", "\n> ")
+              .. "\n\n"
+              .. full_response
+              .. "\n\n🚨 Error: "
+              .. vim.inspect(err),
+            true
+          )
+          return
+        end
+
+        -- Execute when the stream request is actually completed
         self:update_content(
           "## "
             .. timestamp
@@ -586,37 +634,23 @@ function Sidebar:render()
             .. user_input:gsub("\n", "\n> ")
             .. "\n\n"
             .. full_response
-            .. "\n\n🚨 Error: "
-            .. vim.inspect(err),
-          true
+            .. "\n\n**Generation complete!** Please review the code suggestions above.\n\n\n\n",
+          true,
+          function()
+            api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN })
+          end
         )
-        return
+
+        api.nvim_set_current_win(self.winid.result)
+
+        -- Display notification
+        -- show_notification("Content generation complete!")
+
+        -- Save chat history
+        table.insert(chat_history or {}, { timestamp = timestamp, requirement = user_input, response = full_response })
+        save_chat_history(self, chat_history)
       end
-
-      -- Execute when the stream request is actually completed
-      self:update_content(
-        "## "
-          .. timestamp
-          .. "\n\n> "
-          .. user_input:gsub("\n", "\n> ")
-          .. "\n\n"
-          .. full_response
-          .. "\n\n**Generation complete!** Please review the code suggestions above.\n\n\n\n",
-        true,
-        function()
-          api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN })
-        end
-      )
-
-      api.nvim_set_current_win(self.winid.result)
-
-      -- Display notification
-      -- show_notification("Content generation complete!")
-
-      -- Save chat history
-      table.insert(chat_history or {}, { timestamp = timestamp, requirement = user_input, response = full_response })
-      save_chat_history(self, chat_history)
-    end)
+    )
   end
 
   local body = function()
@@ -625,15 +659,38 @@ function Sidebar:render()
     local code_file_fullpath = api.nvim_buf_get_name(self.code.buf)
     local code_filename = fn.fnamemodify(code_file_fullpath, ":t")
 
+    local input_label = string.format(" 🙋 with %s %s (<Tab> switch focus): ", icon, code_filename)
+
+    if self.code.selection ~= nil then
+      input_label = string.format(
+        " 🙋 with selected code in %s %s(%d:%d) (<Tab> switch focus): ",
+        icon,
+        code_filename,
+        self.code.selection.range.start.line,
+        self.code.selection.range.finish.line
+      )
+    end
+
+    local selected_code_lines_count = 0
+    local selected_code_max_lines_count = 10
+
+    local selected_code_size = 0
+
+    if self.code.selection ~= nil then
+      local selected_code_lines = vim.split(self.code.selection.content, "\n")
+      selected_code_lines_count = #selected_code_lines
+      selected_code_size = math.min(selected_code_lines_count, selected_code_max_lines_count) + 4
+    end
+
     return N.rows(
       { flex = 0 },
       N.box(
         {
           direction = "column",
-          size = vim.o.lines - 4,
+          size = vim.o.lines - 4 - selected_code_size,
         },
         N.buffer({
-          id = "response",
+          id = "result",
           flex = 1,
           buf = self.view.buf,
           autoscroll = true,
@@ -650,16 +707,35 @@ function Sidebar:render()
         })
       ),
       N.gap(1),
+      N.paragraph({
+        hidden = self.code.selection == nil,
+        id = "selected_code",
+        lines = self.code.selection and self.code.selection.content or "",
+        border_label = {
+          text = "💻 Selected Code"
+            .. (
+              selected_code_lines_count > selected_code_max_lines_count
+                and " (Show only the first " .. tostring(selected_code_max_lines_count) .. " lines)"
+              or ""
+            ),
+          align = "center",
+        },
+        align = "left",
+        is_focusable = false,
+        max_lines = selected_code_max_lines_count,
+        padding = {
+          top = 1,
+          bottom = 1,
+          left = 1,
+          right = 1,
+        },
+      }),
       N.columns(
         { flex = 0 },
         N.text_input({
-          id = "text-input",
+          id = "input",
           border_label = {
-            text = string.format(
-              " 🙋 with %s %s (<Tab> key to switch between result and input): ",
-              icon,
-              code_filename
-            ),
+            text = input_label,
           },
           placeholder = "Enter your question",
           autofocus = true,
