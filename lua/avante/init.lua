@@ -1,30 +1,148 @@
-local M = {}
-local sidebar = require("avante.sidebar")
-local config = require("avante.config")
+local api = vim.api
 
-function M.setup(opts)
+local Tiktoken = require("avante.tiktoken")
+local Sidebar = require("avante.sidebar")
+local Config = require("avante.config")
+local Diff = require("avante.diff")
+
+---@class Avante
+local M = {
+  ---@type avante.Sidebar[] we use this to track chat command across tabs
+  sidebars = {},
+  ---@type avante.Sidebar
+  current = nil,
+  _once = false,
+}
+
+local H = {}
+
+H.commands = function()
+  local cmd = function(n, c, o)
+    o = vim.tbl_extend("force", { nargs = 0 }, o or {})
+    api.nvim_create_user_command("Avante" .. n, c, o)
+  end
+
+  cmd("Ask", function()
+    M.toggle()
+  end, { desc = "avante: ask AI for code suggestions" })
+  cmd("Close", function()
+    local sidebar = M._get()
+    if not sidebar then
+      return
+    end
+    sidebar:close()
+  end, { desc = "avante: close chat window" })
+end
+
+H.keymaps = function()
+  vim.keymap.set({ "n" }, Config.mappings.show_sidebar, M.toggle, { noremap = true })
+end
+
+H.autocmds = function()
   local ok, LazyConfig = pcall(require, "lazy.core.config")
+
   if ok then
     local name = "avante.nvim"
+    local load_path = function()
+      require("tiktoken_lib").load()
+      Tiktoken.setup("gpt-4o")
+    end
+
     if LazyConfig.plugins[name] and LazyConfig.plugins[name]._.loaded then
-      vim.schedule(function()
-        require("tiktoken_lib").load()
-      end)
+      vim.schedule(load_path)
     else
-      vim.api.nvim_create_autocmd("User", {
+      api.nvim_create_autocmd("User", {
         pattern = "LazyLoad",
         callback = function(event)
           if event.data == name then
-            require("tiktoken_lib").load()
+            load_path()
             return true
           end
         end,
       })
     end
+
+    api.nvim_create_autocmd("User", {
+      pattern = "VeryLazy",
+      callback = load_path,
+    })
   end
 
-  config.update(opts)
-  sidebar.setup()
+  api.nvim_create_autocmd("TabClosed", {
+    pattern = "*",
+    callback = function(ev)
+      local tab = tonumber(ev.file)
+      local s = M.sidebars[tab]
+      if s then
+        s:destroy()
+      end
+      M.sidebars[tab] = nil
+    end,
+  })
+
+  -- automatically setup Avante filetype to markdown
+  vim.treesitter.language.register("markdown", "Avante")
+end
+
+---@param current boolean? false to disable setting current, otherwise use this to track across tabs.
+---@return avante.Sidebar
+function M._get(current)
+  local tab = api.nvim_get_current_tabpage()
+  local sidebar = M.sidebars[tab]
+  if current ~= false then
+    M.current = sidebar
+  end
+  return sidebar
+end
+
+M.open = function()
+  local tab = api.nvim_get_current_tabpage()
+  local sidebar = M.sidebars[tab]
+
+  if not sidebar then
+    sidebar = Sidebar:new(tab)
+    M.sidebars[tab] = sidebar
+  end
+
+  M.current = sidebar
+
+  return sidebar:open()
+end
+
+M.toggle = function()
+  local sidebar = M._get()
+  if not sidebar then
+    M.open()
+    return true
+  end
+
+  return sidebar:toggle()
+end
+
+---@param opts? avante.Config
+function M.setup(opts)
+  ---PERF: we can still allow running require("avante").setup() multiple times to override config if users wish to
+  ---but most of the other functionality will only be called once from lazy.nvim
+  Config.setup(opts)
+
+  if M._once then
+    return
+  end
+  Diff.setup({
+    debug = false, -- log output to console
+    default_mappings = Config.mappings.diff, -- disable buffer local mapping created by this plugin
+    default_commands = true, -- disable commands created by this plugin
+    disable_diagnostics = true, -- This will disable the diagnostics in a buffer whilst it is conflicted
+    list_opener = "copen",
+    highlights = Config.highlights.diff,
+  })
+
+  -- setup helpers
+  H.autocmds()
+  H.commands()
+  H.keymaps()
+
+  M._once = true
 end
 
 return M
