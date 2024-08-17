@@ -32,7 +32,8 @@ M.defaults = {
     },
   },
   mappings = {
-    show_sidebar = "<leader>aa",
+    ask = "<leader>aa",
+    edit = "<leader>ae",
     diff = {
       ours = "co",
       theirs = "ct",
