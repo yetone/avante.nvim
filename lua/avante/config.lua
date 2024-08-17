@@ -34,6 +34,7 @@ M.defaults = {
   mappings = {
     ask = "<leader>aa",
     edit = "<leader>ae",
+    refresh = "<leader>ar",
     diff = {
       ours = "co",
       theirs = "ct",

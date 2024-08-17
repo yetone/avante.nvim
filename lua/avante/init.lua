@@ -41,6 +41,7 @@ end
 
 H.keymaps = function()
   vim.keymap.set({ "n", "v" }, Config.mappings.ask, M.toggle, { noremap = true })
+  vim.keymap.set("n", Config.mappings.refresh, M.refresh, { noremap = true })
 end
 
 H.autocmds = function()
