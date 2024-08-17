@@ -150,6 +150,36 @@ function Sidebar:intialize()
         self.renderer:set_size({ width = new_layout.width, height = new_layout.height })
       end,
     })
+
+    local previous_winid = nil
+
+    api.nvim_create_autocmd("WinLeave", {
+      group = self.augroup,
+      callback = function()
+        previous_winid = vim.api.nvim_get_current_win()
+      end,
+    })
+
+    api.nvim_create_autocmd("WinEnter", {
+      group = self.augroup,
+      callback = function()
+        local current_win_id = vim.api.nvim_get_current_win()
+
+        if current_win_id ~= self.view.win then
+          return
+        end
+
+        if self.winid.result == previous_winid and api.nvim_win_is_valid(self.code.win) then
+          api.nvim_set_current_win(self.code.win)
+          return
+        end
+
+        if api.nvim_win_is_valid(self.winid.result) then
+          api.nvim_set_current_win(self.winid.result)
+          return
+        end
+      end,
+    })
   end)
 
   self.renderer:on_unmount(function()
