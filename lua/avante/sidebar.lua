@@ -320,7 +320,7 @@ local function extract_code_snippets(content)
   local lang, start_line, end_line
   local explanation = ""
 
-  for line in content:gmatch("[^\r\n]+") do
+  for _, line in ipairs(vim.split(content, "\n")) do
     local start_line_str, end_line_str = line:match("^Replace lines: (%d+)-(%d+)")
     if start_line_str ~= nil and end_line_str ~= nil then
       start_line = tonumber(start_line_str)
