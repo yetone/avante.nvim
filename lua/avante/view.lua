@@ -23,8 +23,8 @@ function View:setup(split_command, size)
   -- set filetype
   api.nvim_set_option_value("filetype", "Avante", { buf = self.buf })
   api.nvim_set_option_value("bufhidden", "wipe", { buf = self.buf })
-  -- api.nvim_set_option_value("modifiable", false, { buf = self.buf })
-  -- api.nvim_set_option_value("swapfile", false, { buf = self.buf })
+  api.nvim_set_option_value("modifiable", false, { buf = self.buf })
+  api.nvim_set_option_value("swapfile", false, { buf = self.buf })
 
   -- create a split
   vim.cmd(split_command)
