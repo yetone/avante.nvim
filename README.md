@@ -162,7 +162,8 @@ The following key bindings are available for use with `avante.nvim`:
 
 - [x] Chat with current file
 - [x] Apply diff patch
-- [ ] Chat with selected block
+- [x] Chat with the selected block
+- [ ] Edit the selected block
 - [ ] Chat with project
 - [ ] Chat with selected files
 - [ ] Auto suggestion and completion
