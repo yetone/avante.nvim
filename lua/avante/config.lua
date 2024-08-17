@@ -26,6 +26,9 @@ M.defaults = {
     temperature = 0,
     max_tokens = 4096,
   },
+  behaviour = {
+    auto_apply_diff_after_generation = false, -- Whether to automatically apply diff after LLM response.
+  },
   highlights = {
     ---@type AvanteConflictHighlights
     diff = {
