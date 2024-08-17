@@ -131,16 +131,6 @@ function Sidebar:intialize()
     self.winid.input = components[2].winid
     self.augroup = api.nvim_create_augroup("avante_" .. self.id .. self.view.win, { clear = true })
 
-    api.nvim_create_autocmd("TextChanged", {
-      group = self.augroup,
-      buffer = vim.api.nvim_win_get_buf(self.winid.result),
-      callback = function(ev)
-        api.nvim_set_current_win(self.winid.result)
-        local num_lines = vim.api.nvim_buf_line_count(ev.buf)
-        vim.api.nvim_win_set_cursor(self.winid.result, { num_lines, 0 })
-      end,
-    })
-
     api.nvim_create_autocmd("BufEnter", {
       group = self.augroup,
       buffer = self.view.buf,
@@ -621,8 +611,9 @@ function Sidebar:render()
         N.text_input({
           id = "text-input",
           border_label = {
-            text = string.format(" 🙋 Your question (with %s %s): ", icon, code_filename),
+            text = string.format(" 🙋 (with %s %s): ", icon, code_filename),
           },
+          placeholder = "Enter your question",
           autofocus = true,
           wrap = true,
           flex = 1,
@@ -643,7 +634,6 @@ function Sidebar:render()
         N.spinner({
           is_loading = signal.is_loading,
           padding = { top = 1, right = 1 },
-          ---@diagnostic disable-next-line: undefined-field
           hidden = signal.is_loading:negate(),
         })
       )
