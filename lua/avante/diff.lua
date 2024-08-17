@@ -5,11 +5,12 @@ local M = {}
 local color = require("avante.diff.colors")
 local utils = require("avante.diff.utils")
 
+local Config = require("avante.config")
+
 local fn = vim.fn
 local api = vim.api
 local fmt = string.format
 local map = vim.keymap.set
-local job = utils.job
 -----------------------------------------------------------------------------//
 -- REFERENCES:
 -----------------------------------------------------------------------------//
@@ -28,7 +29,7 @@ local job = utils.job
 
 ---@alias ConflictSide "'ours'"|"'theirs'"|"'both'"|"'base'"|"'none'"
 
---- @class ConflictHighlights
+--- @class AvanteConflictHighlights
 --- @field current string
 --- @field incoming string
 --- @field ancestor string?
@@ -60,31 +61,10 @@ local job = utils.job
 --- @field tick integer
 --- @field bufnr integer
 
---- @class AvanteConflictMappings
---- @field ours string
---- @field theirs string
---- @field none string
---- @field both string
---- @field next string
---- @field prev string
-
---- @class AvanteConflictConfig
---- @field default_mappings AvanteConflictMappings
---- @field disable_diagnostics boolean
---- @field list_opener string|function
---- @field highlights ConflictHighlights
---- @field debug boolean
-
---- @class AvanteConflictUserConfig
---- @field default_mappings boolean|AvanteConflictMappings
---- @field disable_diagnostics boolean
---- @field list_opener string|function
---- @field highlights ConflictHighlights
---- @field debug boolean
-
 -----------------------------------------------------------------------------//
 -- Constants
 -----------------------------------------------------------------------------//
+---@enum AvanteConflictSides
 local SIDES = {
   OURS = "ours",
   THEIRS = "theirs",
@@ -122,30 +102,6 @@ local DEFAULT_CURRENT_BG_COLOR = 4218238 -- #405d7e
 local DEFAULT_INCOMING_BG_COLOR = 3229523 -- #314753
 local DEFAULT_ANCESTOR_BG_COLOR = 6824314 -- #68217A
 -----------------------------------------------------------------------------//
-
---- @type AvanteConflictMappings
-local DEFAULT_MAPPINGS = {
-  ours = "co",
-  theirs = "ct",
-  none = "c0",
-  both = "cb",
-  next = "]x",
-  prev = "[x",
-}
-
---- @type AvanteConflictConfig
-local config = {
-  debug = false,
-  default_mappings = DEFAULT_MAPPINGS,
-  default_commands = true,
-  disable_diagnostics = false,
-  list_opener = "copen",
-  highlights = {
-    current = "DiffText",
-    incoming = "DiffAdd",
-    ancestor = nil,
-  },
-}
 
 --- @return table<string, ConflictBufferCache>
 local function create_visited_buffers()
@@ -367,20 +323,19 @@ local function set_cursor(position, side)
   api.nvim_win_set_cursor(0, { target.range_start + 1, 0 })
 end
 
+local show_keybinding_hint_extmark_id = nil
 local function register_cursor_move_events(bufnr)
-  local show_keybinding_hint_extmark_id = nil
-
   local function show_keybinding_hint(lnum)
     if show_keybinding_hint_extmark_id then
       api.nvim_buf_del_extmark(bufnr, KEYBINDING_NAMESPACE, show_keybinding_hint_extmark_id)
     end
 
     local hint = string.format(
-      " [Press <%s> for CHOICE OURS, <%s> for CHOICE THEIRS, <%s> for PREV, <%s> for NEXT] ",
-      config.default_mappings.ours,
-      config.default_mappings.theirs,
-      config.default_mappings.prev,
-      config.default_mappings.next
+      " [Press <%s> for OURS, <%s> for THEIRS, <%s> for PREV, <%s> for NEXT] ",
+      Config.diff.mappings.ours,
+      Config.diff.mappings.theirs,
+      Config.diff.mappings.prev,
+      Config.diff.mappings.next
     )
     local win_width = api.nvim_win_get_width(0)
     local col = win_width - #hint - math.ceil(win_width * 0.3) - 4
@@ -413,8 +368,8 @@ end
 
 ---Get the conflict marker positions for a buffer if any and update the buffers state
 ---@param bufnr integer
----@param range_start integer
----@param range_end integer
+---@param range_start? integer
+---@param range_end? integer
 local function parse_buffer(bufnr, range_start, range_end)
   local lines = utils.get_buf_lines(range_start or 0, range_end or -1, bufnr)
   local prev_conflicts = visited_buffers[bufnr].positions ~= nil and #visited_buffers[bufnr].positions > 0
@@ -453,10 +408,10 @@ local function set_commands()
     M.conflicts_to_qf_items(function(items)
       if #items > 0 then
         fn.setqflist(items, "r")
-        if type(config.list_opener) == "function" then
-          config.list_opener()
+        if type(Config.diff.list_opener) == "function" then
+          Config.diff.list_opener()
         else
-          vim.cmd(config.list_opener)
+          vim.cmd(Config.diff.list_opener)
         end
       end
     end)
@@ -501,19 +456,21 @@ local function set_plug_mappings()
   map("n", "<Plug>(git-conflict-prev-conflict)", "<Cmd>AvanteConflictPrevConflict<CR>", opts("Previous Conflict"))
 end
 
+---@param bufnr integer given buffer id
 local function setup_buffer_mappings(bufnr)
+  ---@param desc string
   local function opts(desc)
     return { silent = true, buffer = bufnr, desc = "Git Conflict: " .. desc }
   end
 
-  map({ "n", "v" }, config.default_mappings.ours, "<Plug>(git-conflict-ours)", opts("Choose Ours"))
-  map({ "n", "v" }, config.default_mappings.both, "<Plug>(git-conflict-both)", opts("Choose Both"))
-  map({ "n", "v" }, config.default_mappings.none, "<Plug>(git-conflict-none)", opts("Choose None"))
-  map({ "n", "v" }, config.default_mappings.theirs, "<Plug>(git-conflict-theirs)", opts("Choose Theirs"))
-  map({ "v", "v" }, config.default_mappings.ours, "<Plug>(git-conflict-ours)", opts("Choose Ours"))
-  -- map('V', config.default_mappings.ours, '<Plug>(git-conflict-ours)', opts('Choose Ours'))
-  map("n", config.default_mappings.prev, "<Plug>(git-conflict-prev-conflict)", opts("Previous Conflict"))
-  map("n", config.default_mappings.next, "<Plug>(git-conflict-next-conflict)", opts("Next Conflict"))
+  map({ "n", "v" }, Config.diff.mappings.ours, "<Plug>(git-conflict-ours)", opts("Choose Ours"))
+  map({ "n", "v" }, Config.diff.mappings.both, "<Plug>(git-conflict-both)", opts("Choose Both"))
+  map({ "n", "v" }, Config.diff.mappings.none, "<Plug>(git-conflict-none)", opts("Choose None"))
+  map({ "n", "v" }, Config.diff.mappings.theirs, "<Plug>(git-conflict-theirs)", opts("Choose Theirs"))
+  map({ "v", "v" }, Config.diff.mappings.ours, "<Plug>(git-conflict-ours)", opts("Choose Ours"))
+  -- map('V', Config.diff.mappings.ours, '<Plug>(git-conflict-ours)', opts('Choose Ours'))
+  map("n", Config.diff.mappings.prev, "<Plug>(git-conflict-prev-conflict)", opts("Previous Conflict"))
+  map("n", Config.diff.mappings.next, "<Plug>(git-conflict-next-conflict)", opts("Next Conflict"))
   vim.b[bufnr].conflict_mappings_set = true
 end
 
@@ -528,7 +485,7 @@ local function clear_buffer_mappings(bufnr)
   if not bufnr or not vim.b[bufnr].conflict_mappings_set then
     return
   end
-  for _, mapping in pairs(config.default_mappings) do
+  for _, mapping in pairs(Config.diff.mappings) do
     if is_mapped(mapping) then
       api.nvim_buf_del_keymap(bufnr, "n", mapping)
     end
@@ -541,7 +498,7 @@ end
 -----------------------------------------------------------------------------//
 
 ---Derive the colour of the section label highlights based on each sections highlights
----@param highlights ConflictHighlights
+---@param highlights AvanteConflictHighlights
 local function set_highlights(highlights)
   local current_color = utils.get_hl(highlights.current)
   local incoming_color = utils.get_hl(highlights.incoming)
@@ -560,21 +517,10 @@ local function set_highlights(highlights)
   api.nvim_set_hl(0, ANCESTOR_LABEL_HL, { background = ancestor_label_bg, default = true })
 end
 
----@param user_config AvanteConflictUserConfig
-function M.setup(user_config)
-  local _user_config = user_config or {}
+function M.setup()
+  set_highlights(Config.diff.highlights)
 
-  if _user_config.default_mappings == true then
-    _user_config.default_mappings = DEFAULT_MAPPINGS
-  end
-
-  config = vim.tbl_deep_extend("force", config, _user_config)
-
-  set_highlights(config.highlights)
-
-  if config.default_commands then
-    set_commands()
-  end
+  set_commands()
 
   set_plug_mappings()
 
@@ -582,7 +528,7 @@ function M.setup(user_config)
   api.nvim_create_autocmd("ColorScheme", {
     group = AUGROUP_NAME,
     callback = function()
-      set_highlights(config.highlights)
+      set_highlights(Config.diff.highlights)
     end,
   })
 
@@ -591,12 +537,8 @@ function M.setup(user_config)
     pattern = "AvanteConflictDetected",
     callback = function()
       local bufnr = api.nvim_get_current_buf()
-      if config.disable_diagnostics then
-        vim.diagnostic.disable(bufnr)
-      end
-      if config.default_mappings then
-        setup_buffer_mappings(bufnr)
-      end
+      vim.diagnostic.enable(not vim.diagnostic.is_enabled(), { bufnr = bufnr })
+      setup_buffer_mappings(bufnr)
     end,
   })
 
@@ -605,12 +547,8 @@ function M.setup(user_config)
     pattern = "AvanteConflictResolved",
     callback = function()
       local bufnr = api.nvim_get_current_buf()
-      if config.disable_diagnostics then
-        vim.diagnostic.enable(bufnr)
-      end
-      if config.default_mappings then
-        clear_buffer_mappings(bufnr)
-      end
+      vim.diagnostic.enable(not vim.diagnostic.is_enabled(), { bufnr = bufnr })
+      clear_buffer_mappings(bufnr)
     end,
   })
 
@@ -745,6 +683,10 @@ function M.choose(side)
         end)
       end
     end, 50)
+    if Config.diff.autojump then
+      M.find_next(side)
+      vim.cmd([[normal! zz]])
+    end
     return
   end
   local position = get_current_position(bufnr)
@@ -775,6 +717,10 @@ function M.choose(side)
     api.nvim_buf_del_extmark(0, NAMESPACE, position.marks.ancestor.label)
   end
   parse_buffer(bufnr)
+  if Config.diff.autojump then
+    M.find_next(side)
+    vim.cmd([[normal! zz]])
+  end
 end
 
 function M.conflict_count(bufnr)

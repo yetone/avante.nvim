@@ -1,5 +1,6 @@
 ---NOTE: user will be merged with defaults and
 ---we add a default var_accessor for this table to config values.
+---
 ---@class avante.CoreConfig: avante.Config
 local M = {}
 
@@ -26,6 +27,7 @@ M.defaults = {
     max_tokens = 4096,
   },
   highlights = {
+    ---@type AvanteConflictHighlights
     diff = {
       current = "DiffText", -- need have background color
       incoming = "DiffAdd", -- need have background color
@@ -35,6 +37,7 @@ M.defaults = {
     ask = "<leader>aa",
     edit = "<leader>ae",
     refresh = "<leader>ar",
+    --- @class AvanteConflictMappings
     diff = {
       ours = "co",
       theirs = "ct",
@@ -51,14 +54,33 @@ M.defaults = {
   windows = {
     width = 30, -- default % based on available width
   },
+  --- @class AvanteConflictUserConfig
+  diff = {
+    debug = false,
+    autojump = true,
+    ---@type string | fun(): any
+    list_opener = "copen",
+  },
 }
 
 ---@type avante.Config
 M.options = {}
 
+---@class avante.ConflictConfig: AvanteConflictUserConfig
+---@field mappings AvanteConflictMappings
+---@field highlights AvanteConflictHighlights
+M.diff = {}
+
 ---@param opts? avante.Config
 function M.setup(opts)
   M.options = vim.tbl_deep_extend("force", M.defaults, opts or {})
+
+  M.diff = vim.tbl_deep_extend(
+    "force",
+    {},
+    M.options.diff,
+    { mappings = M.options.mappings.diff, highlights = M.options.highlights.diff }
+  )
 end
 
 M = setmetatable(M, {

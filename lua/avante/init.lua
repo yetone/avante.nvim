@@ -162,18 +162,9 @@ function M.setup(opts)
   if M._once then
     return
   end
-  Diff.setup({
-    debug = false, -- log output to console
-    default_mappings = Config.mappings.diff, -- disable buffer local mapping created by this plugin
-    default_commands = true, -- disable commands created by this plugin
-    disable_diagnostics = true, -- This will disable the diagnostics in a buffer whilst it is conflicted
-    list_opener = "copen",
-    highlights = Config.highlights.diff,
-  })
 
-  local selection = Selection:new()
-  selection:setup()
-  M.selection = selection
+  Diff.setup()
+  M.selection = Selection:new():setup()
 
   -- setup helpers
   H.autocmds()
