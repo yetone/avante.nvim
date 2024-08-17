@@ -659,16 +659,15 @@ function Sidebar:render()
           end
         )
 
-        api.nvim_set_current_win(self.winid.result)
-
-        -- Display notification
-        -- show_notification("Content generation complete!")
-
         -- Save chat history
         table.insert(chat_history or {}, { timestamp = timestamp, requirement = user_input, response = full_response })
         save_chat_history(self, chat_history)
       end
     )
+
+    if Config.behaviour.auto_apply_diff_after_generation then
+      apply()
+    end
   end
 
   local body = function()
