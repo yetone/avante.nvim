@@ -4,6 +4,7 @@ local Tiktoken = require("avante.tiktoken")
 local Sidebar = require("avante.sidebar")
 local Config = require("avante.config")
 local Diff = require("avante.diff")
+local Selection = require("avante.selection")
 
 ---@class Avante
 local M = {
@@ -11,6 +12,7 @@ local M = {
   sidebars = {},
   ---@type avante.Sidebar
   current = nil,
+  selection = nil,
   _once = false,
 }
 
@@ -35,7 +37,7 @@ H.commands = function()
 end
 
 H.keymaps = function()
-  vim.keymap.set({ "n" }, Config.mappings.show_sidebar, M.toggle, { noremap = true })
+  vim.keymap.set({ "n", "v" }, Config.mappings.ask, M.toggle, { noremap = true })
 end
 
 H.autocmds = function()
@@ -76,7 +78,9 @@ H.autocmds = function()
       if s then
         s:destroy()
       end
-      M.sidebars[tab] = nil
+      if tab ~= nil then
+        M.sidebars[tab] = nil
+      end
     end,
   })
 
@@ -136,6 +140,10 @@ function M.setup(opts)
     list_opener = "copen",
     highlights = Config.highlights.diff,
   })
+
+  local selection = Selection:new()
+  selection:setup()
+  M.selection = selection
 
   -- setup helpers
   H.autocmds()
