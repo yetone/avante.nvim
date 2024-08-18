@@ -33,7 +33,6 @@ H.initialize_input_buffer = function(options)
     end
   end
 
-
   local prompt_length = api.nvim_strwidth(fn.prompt_getprompt(state.input_bufnr))
   api.nvim_buf_call(state.input_bufnr, function()
     vim.cmd(string.format(
