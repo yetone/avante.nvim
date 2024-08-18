@@ -5,6 +5,7 @@ local curl = require("plenary.curl")
 local Utils = require("avante.utils")
 local Config = require("avante.config")
 local Tiktoken = require("avante.tiktoken")
+local Dressing = require("avante.ui.dressing")
 
 ---@private
 ---@class AvanteAiBotInternal
@@ -39,34 +40,26 @@ E._once = false
 ---@param provider? Provider
 ---@return string the envvar key
 E.key = function(provider)
-  provider = provider or Config.provider
-  local var = E.env[provider]
-  return type(var) == "table" and var[1] ---@cast var string
-    or var
+  return E.env[provider or Config.provider]
 end
 
 ---@param provider? Provider
 E.value = function(provider)
-  provider = provider or Config.provider
-  return os.getenv(E.key(provider))
+  return os.getenv(E.key(provider or Config.provider))
 end
 
 --- intialize the environment variable for current neovim session.
 --- This will only run once and spawn a UI for users to input the envvar.
---- @param var Provider supported providers
-E.setup = function(var)
-  local Dressing = require("avante.ui.dressing")
-
-  if E._once then
-    return
-  end
+---@param var Provider supported providers
+---@param refresh? boolean
+E.setup = function(var, refresh)
+  refresh = refresh or false
 
   ---@param value string
   ---@return nil
   local function on_confirm(value)
     if value then
       vim.fn.setenv(var, value)
-      E._once = true
     else
       if not E[Config.provider] then
         vim.notify_once("Failed to set " .. var .. ". Avante won't work as expected", vim.log.levels.WARN)
@@ -74,35 +67,44 @@ E.setup = function(var)
     end
   end
 
-  api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
-    pattern = "*",
-    once = true,
-    callback = function()
-      vim.defer_fn(function()
-        -- only mount if given buffer is not of buftype ministarter, dashboard, alpha, qf
-        local exclude_buftypes = { "dashboard", "alpha", "qf", "nofile" }
-        local exclude_filetypes = {
-          "NvimTree",
-          "Outline",
-          "help",
-          "dashboard",
-          "alpha",
-          "qf",
-          "ministarter",
-          "TelescopePrompt",
-          "gitcommit",
-          "gitrebase",
-        }
-        if
-          not vim.tbl_contains(exclude_buftypes, vim.bo.buftype)
-          and not vim.tbl_contains(exclude_filetypes, vim.bo.filetype)
-        then
-          Dressing.initialize_input_buffer({ opts = { prompt = "Enter " .. var .. ": " }, on_confirm = on_confirm })
-        end
-      end, 200)
-    end,
-  })
+  if refresh then
+    vim.defer_fn(function()
+      Dressing.initialize_input_buffer({ opts = { prompt = "Enter " .. var .. ": " }, on_confirm = on_confirm })
+    end, 200)
+  elseif not E._once then
+    E._once = true
+    api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
+      pattern = "*",
+      once = true,
+      callback = function()
+        vim.defer_fn(function()
+          -- only mount if given buffer is not of buftype ministarter, dashboard, alpha, qf
+          local exclude_buftypes = { "dashboard", "alpha", "qf", "nofile" }
+          local exclude_filetypes = {
+            "NvimTree",
+            "Outline",
+            "help",
+            "dashboard",
+            "alpha",
+            "qf",
+            "ministarter",
+            "TelescopePrompt",
+            "gitcommit",
+            "gitrebase",
+          }
+          if
+            not vim.tbl_contains(exclude_buftypes, vim.bo.buftype)
+            and not vim.tbl_contains(exclude_filetypes, vim.bo.filetype)
+          then
+            Dressing.initialize_input_buffer({ opts = { prompt = "Enter " .. var .. ": " }, on_confirm = on_confirm })
+          end
+        end, 200)
+      end,
+    })
+  end
 end
+
+------------------------------Prompt and type------------------------------
 
 local system_prompt = [[
 You are an excellent programming expert.
@@ -506,6 +508,38 @@ function M.setup()
   if not has then
     E.setup(E.key())
   end
+
+  M.commands()
+end
+
+---@param provider Provider
+function M.refresh(provider)
+  local has = E[provider]
+  if not has then
+    E.setup(E.key(provider), true)
+  else
+    vim.notify_once("Switch to provider: " .. provider, vim.log.levels.INFO)
+  end
+  require("avante").setup({ provider = provider })
+end
+
+M.commands = function()
+  api.nvim_create_user_command("AvanteSwitchProvider", function(args)
+    local cmd = vim.trim(args.args or "")
+    M.refresh(cmd)
+  end, {
+    nargs = 1,
+    desc = "avante: switch provider",
+    complete = function(_, line)
+      if line:match("^%s*AvanteSwitchProvider %w") then
+        return {}
+      end
+      local prefix = line:match("^%s*AvanteSwitchProvider (%w*)") or ""
+      return vim.tbl_filter(function(key)
+        return key:find(prefix) == 1
+      end, vim.tbl_keys(E.env))
+    end,
+  })
 end
 
 return M

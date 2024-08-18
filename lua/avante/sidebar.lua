@@ -180,10 +180,16 @@ function Sidebar:intialize()
     api.nvim_create_autocmd("VimResized", {
       group = self.augroup,
       callback = function()
+        if not self.view:is_open() then
+          return
+        end
         local new_layout = Config.get_renderer_layout_options()
         vim.api.nvim_win_set_width(self.view.win, new_layout.width)
         vim.api.nvim_win_set_height(self.view.win, new_layout.height)
         self.renderer:set_size({ width = new_layout.width, height = new_layout.height })
+        vim.defer_fn(function()
+          vim.cmd("AvanteRefresh")
+        end, 200)
       end,
     })
 
