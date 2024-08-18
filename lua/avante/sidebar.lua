@@ -84,8 +84,12 @@ function Sidebar:open()
 end
 
 function Sidebar:close()
-  self.renderer:close()
-  fn.win_gotoid(self.code.win)
+  if self.renderer ~= nil then
+    self.renderer:close()
+  end
+  if self.code ~= nil and api.nvim_win_is_valid(self.code.win) then
+    fn.win_gotoid(self.code.win)
+  end
 end
 
 ---@return boolean
