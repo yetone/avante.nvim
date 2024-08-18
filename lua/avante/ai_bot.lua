@@ -118,7 +118,7 @@ Replace lines: {{start_line}}-{{end_line}}
    - Please keep your suggested code changes minimal, and do not include irrelevant lines in the code snippet.
 
 4. Crucial guidelines for line numbers:
-   - The content regarding line numbers must strictly follow the format "Replace lines: {{start_line}}-{{end_line}}".
+   - The content regarding line numbers MUST strictly follow the format "Replace lines: {{start_line}}-{{end_line}}". Do not be lazy!
    - The range {{start_line}}-{{end_line}} is INCLUSIVE. Both start_line and end_line are included in the replacement.
    - Count EVERY line, including empty lines and comments lines, comments. Do not be lazy!
    - For single-line changes, use the same number for start and end lines.
