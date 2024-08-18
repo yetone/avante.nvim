@@ -56,6 +56,7 @@ M.defaults = {
     },
   },
   windows = {
+    wrap_line = true,
     width = 30, -- default % based on available width
   },
   --- @class AvanteConflictUserConfig

@@ -120,6 +120,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     },
   },
   windows = {
+    wrap_line = true,
     width = 30, -- default % based on available width
   },
   --- @class AvanteConflictUserConfig
