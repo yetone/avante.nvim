@@ -6,13 +6,17 @@ local fn = vim.fn
 local NAMESPACE = api.nvim_create_namespace("avante_selection")
 local PRIORITY = vim.highlight.priorities.user
 
+---@class avante.Selection
 local Selection = {}
 
-function Selection:new()
+Selection.did_setup = false
+
+---@param id integer the tabpage id retrieved from vim.api.nvim_get_current_tabpage()
+function Selection:new(id)
   return setmetatable({
     hints_popup_extmark_id = nil,
     edit_popup_renderer = nil,
-    augroup = api.nvim_create_augroup("avante_selection", { clear = true }),
+    augroup = api.nvim_create_augroup("avante_selection_" .. id, { clear = true }),
   }, { __index = self })
 end
 
@@ -56,8 +60,9 @@ function Selection:close_hints_popup()
   end
 end
 
-function Selection:setup()
-  vim.api.nvim_create_autocmd({ "ModeChanged" }, {
+function Selection:setup_autocmds()
+  Selection.did_setup = true
+  api.nvim_create_autocmd({ "ModeChanged" }, {
     group = self.augroup,
     pattern = { "n:v", "n:V", "n:" }, -- Entering Visual mode from Normal mode
     callback = function()
@@ -91,6 +96,7 @@ function Selection:delete_autocmds()
     vim.api.nvim_del_augroup_by_id(self.augroup)
   end
   self.augroup = nil
+  Selection.did_setup = false
 end
 
 return Selection

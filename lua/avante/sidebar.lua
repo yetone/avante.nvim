@@ -219,28 +219,34 @@ function Sidebar:intialize()
   return self
 end
 
+function Sidebar:is_focused()
+  return self.view:is_open() and self.code.win == api.nvim_get_current_win()
+end
+
 ---@param content string concatenated content of the buffer
----@param focus? boolean whether to focus the result view
-function Sidebar:update_content(content, focus, callback)
-  focus = focus or false
+---@param opts? {focus?: boolean, scroll?: boolean, callback?: fun(): nil} whether to focus the result view
+function Sidebar:update_content(content, opts)
+  opts = vim.tbl_deep_extend("force", { focus = true, scroll = true, callback = nil }, opts or {})
   vim.defer_fn(function()
     api.nvim_set_option_value("modifiable", true, { buf = self.view.buf })
     api.nvim_buf_set_lines(self.view.buf, 0, -1, false, vim.split(content, "\n"))
     api.nvim_set_option_value("modifiable", false, { buf = self.view.buf })
     api.nvim_set_option_value("filetype", "Avante", { buf = self.view.buf })
-    if callback ~= nil then
-      callback()
+    if opts.callback ~= nil then
+      opts.callback()
     end
-    if focus then
+    if opts.focus and not self:is_focused() then
       xpcall(function()
         --- set cursor to bottom of result view
         api.nvim_set_current_win(self.winid.result)
       end, function(err)
-        -- XXX: omit error for now, but should fix me why it can't jump here.
         return err
       end)
+    end
+
+    if opts.scroll then
       xpcall(function()
-        api.nvim_win_set_cursor(self.winid.result, { api.nvim_buf_line_count(self.view.buf), 0 })
+        api.nvim_win_set_cursor(self.winid.result, { api.nvim_buf_line_count(self.bufnr.result), 0 })
       end, function(err)
         return err
       end)
@@ -411,7 +417,7 @@ function Sidebar:update_content_with_history(history)
     content = content .. entry.response .. "\n\n"
     content = content .. "---\n\n"
   end
-  self:update_content(content, true)
+  self:update_content(content)
 end
 
 local function get_conflict_content(content, snippets)
@@ -582,10 +588,15 @@ function Sidebar:render()
   self:update_content_with_history(chat_history)
 
   local function handle_submit()
+    signal.is_loading = true
     local state = signal:get_value()
     local user_input = state.text
 
     local timestamp = get_timestamp()
+    --- HACK: we need to set focus to true and scroll to false to
+    --- prevent the cursor from jumping to the bottom of the
+    --- buffer at the beginning
+    self:update_content("", { focus = true, scroll = false })
     self:update_content(
       "## "
         .. timestamp
@@ -607,8 +618,6 @@ function Sidebar:render()
 
     local full_response = ""
 
-    signal.is_loading = true
-
     local filetype = api.nvim_get_option_value("filetype", { buf = self.code.buf })
 
     AiBot.call_ai_api_stream(
@@ -617,11 +626,9 @@ function Sidebar:render()
       content_with_line_numbers,
       selected_code_content_with_line_numbers,
       function(chunk)
+        signal.is_loading = true
         full_response = full_response .. chunk
-        self:update_content(
-          "## " .. timestamp .. "\n\n> " .. user_input:gsub("\n", "\n> ") .. "\n\n" .. full_response,
-          true
-        )
+        self:update_content("## " .. timestamp .. "\n\n> " .. user_input:gsub("\n", "\n> ") .. "\n\n" .. full_response)
         vim.schedule(function()
           vim.cmd("redraw")
         end)
@@ -638,8 +645,7 @@ function Sidebar:render()
               .. "\n\n"
               .. full_response
               .. "\n\n🚨 Error: "
-              .. vim.inspect(err),
-            true
+              .. vim.inspect(err)
           )
           return
         end
@@ -653,10 +659,11 @@ function Sidebar:render()
             .. "\n\n"
             .. full_response
             .. "\n\n🎉🎉🎉 **Generation complete!** Please review the code suggestions above.\n\n\n\n",
-          true,
-          function()
-            api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN })
-          end
+          {
+            callback = function()
+              api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN })
+            end,
+          }
         )
 
         -- Save chat history
@@ -676,11 +683,11 @@ function Sidebar:render()
     local code_file_fullpath = api.nvim_buf_get_name(self.code.buf)
     local code_filename = fn.fnamemodify(code_file_fullpath, ":t")
 
-    local input_label = string.format(" 🙋 with %s %s (<Tab> switch focus): ", icon, code_filename)
+    local input_label = string.format(" 🙋 with %s %s (<Tab>: switch focus): ", icon, code_filename)
 
     if self.code.selection ~= nil then
       input_label = string.format(
-        " 🙋 with selected code in %s %s(%d:%d) (<Tab> switch focus): ",
+        " 🙋 with %s %s(%d:%d) (<Tab>: switch focus): ",
         icon,
         code_filename,
         self.code.selection.range.start.line,
@@ -747,37 +754,29 @@ function Sidebar:render()
           right = 1,
         },
       }),
-      N.columns(
-        { flex = 0 },
-        N.text_input({
-          id = "input",
-          border_label = {
-            text = input_label,
-          },
-          placeholder = "Enter your question",
-          autofocus = true,
-          wrap = true,
-          flex = 1,
-          on_change = function(value)
-            local state = signal:get_value()
-            local is_enter = value:sub(-1) == "\n" and #state.text < #value
-            if is_enter then
-              value = value:sub(1, -2)
-            end
-            signal.text = value
-            if is_enter and #value > 0 then
-              handle_submit()
-            end
-          end,
-          padding = { left = 1, right = 1 },
-        }),
-        N.gap(1),
-        N.spinner({
-          is_loading = signal.is_loading,
-          padding = { top = 1, right = 1 },
-          hidden = signal.is_loading:negate(),
-        })
-      )
+      N.gap(1),
+      N.text_input({
+        id = "input",
+        border_label = {
+          text = input_label,
+        },
+        placeholder = "Enter your question",
+        autofocus = true,
+        wrap = true,
+        flex = 1,
+        on_change = function(value)
+          local state = signal:get_value()
+          local is_enter = value:sub(-1) == "\n" and #state.text < #value
+          if is_enter then
+            value = value:sub(1, -2)
+          end
+          signal.text = value
+          if is_enter and #value > 0 then
+            handle_submit()
+          end
+        end,
+        padding = { left = 1, right = 1 },
+      })
     )
   end
 

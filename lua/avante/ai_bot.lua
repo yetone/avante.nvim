@@ -282,8 +282,6 @@ local function call_claude_api_stream(question, code_lang, code_content, selecte
 
   local url = Utils.trim_suffix(Config.claude.endpoint, "/") .. "/v1/messages"
 
-  -- print("Sending request to Claude API...")
-
   curl.post(url, {
     ---@diagnostic disable-next-line: unused-local
     stream = function(err, data, job)
@@ -389,8 +387,6 @@ local function call_openai_api_stream(question, code_lang, code_content, selecte
       stream = true,
     }
   end
-
-  -- print("Sending request to " .. (config.get().provider == "azure" and "Azure OpenAI" or "OpenAI") .. " API...")
 
   curl.post(url, {
     ---@diagnostic disable-next-line: unused-local
