@@ -47,7 +47,9 @@ function View:setup(split_command, size)
   api.nvim_set_option_value("winhl", "", { win = self.win })
 
   -- buffer stuff
-  api.nvim_buf_set_name(self.buf, RESULT_BUF_NAME)
+  xpcall(function()
+    api.nvim_buf_set_name(self.buf, RESULT_BUF_NAME)
+  end, function(err) end)
 
   return self
 end
