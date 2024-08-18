@@ -81,8 +81,8 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
 
 ```lua
 {
-  ---@alias Provider "openai" | "claude" | "azure"
-  provider = "claude", -- "claude" or "openai" or "azure"
+  ---@alias Provider "openai" | "claude" | "azure" | "deepseek"
+  provider = "claude", -- "claude" or "openai" or "azure" or "deepseek"
   openai = {
     endpoint = "https://api.openai.com",
     model = "gpt-4o",
@@ -166,6 +166,12 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 >
 > ```sh
 > export AZURE_OPENAI_API_KEY=your-api-key
+> ```
+>
+> For DeepSeek
+>
+> ```sh
+> export DEEPSEEK_API_KEY=you-api-key
 > ```
 
 1. Open a code file in Neovim.

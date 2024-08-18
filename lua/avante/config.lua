@@ -6,8 +6,8 @@ local M = {}
 
 ---@class avante.Config
 M.defaults = {
-  ---@alias Provider "openai" | "claude" | "azure"
-  provider = "claude", -- "claude" or "openai" or "azure"
+  ---@alias Provider "openai" | "claude" | "azure" | "deepseek"
+  provider = "claude", -- "claude" or "openai" or "azure" or "deepseek"
   openai = {
     endpoint = "https://api.openai.com",
     model = "gpt-4o",
@@ -24,6 +24,12 @@ M.defaults = {
   claude = {
     endpoint = "https://api.anthropic.com",
     model = "claude-3-5-sonnet-20240620",
+    temperature = 0,
+    max_tokens = 4096,
+  },
+  deepseek = {
+    endpoint = "https://api.deepseek.com",
+    model = "deepseek-coder",
     temperature = 0,
     max_tokens = 4096,
   },
