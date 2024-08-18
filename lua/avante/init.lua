@@ -74,6 +74,18 @@ H.autocmds = function()
     })
   end
 
+  api.nvim_create_autocmd("TabEnter", {
+    pattern = "*",
+    once = true,
+    callback = function(ev)
+      local tab = tonumber(ev.file)
+      M._init(tab or api.nvim_get_current_tabpage())
+      if not M.current.selection.did_setup then
+        M.current.selection:setup_autocmds()
+      end
+    end,
+  })
+
   api.nvim_create_autocmd("TabClosed", {
     pattern = "*",
     callback = function(ev)
