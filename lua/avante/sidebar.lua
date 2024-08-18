@@ -245,6 +245,9 @@ end
 ---@param content string concatenated content of the buffer
 ---@param opts? {focus?: boolean, stream?: boolean, scroll?: boolean, callback?: fun(): nil} whether to focus the result view
 function Sidebar:update_content(content, opts)
+  if not self.view.buf then
+    return
+  end
   opts = vim.tbl_deep_extend("force", { focus = true, scroll = true, stream = false, callback = nil }, opts or {})
   if opts.stream then
     vim.schedule(function()

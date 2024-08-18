@@ -104,6 +104,11 @@ function M.setup(opts)
   )
 end
 
+---@param opts? avante.Config
+function M.override(opts)
+  M.options = vim.tbl_deep_extend("force", M.options, opts or {})
+end
+
 M = setmetatable(M, {
   __index = function(_, k)
     if M.options[k] then

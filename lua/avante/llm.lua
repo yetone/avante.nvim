@@ -47,7 +47,7 @@ E = setmetatable(E, {
 E._once = false
 
 E.is_default = function(provider)
-  return vim.tbl_contains(E.env, provider)
+  return E.env[provider] and true or false
 end
 
 --- return the environment variable name for the given provider
@@ -586,7 +586,7 @@ function M.refresh(provider)
   else
     vim.notify_once("Switch to provider: " .. provider, vim.log.levels.INFO)
   end
-  require("avante").setup({ provider = provider })
+  require("avante.config").override({ provider = provider })
 end
 
 M.commands = function()
