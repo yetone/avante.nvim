@@ -224,6 +224,9 @@ end
 function Sidebar:update_content(content, focus, callback)
   focus = focus or false
   vim.defer_fn(function()
+    if not self.view.buf then
+      return
+    end
     api.nvim_set_option_value("modifiable", true, { buf = self.view.buf })
     api.nvim_buf_set_lines(self.view.buf, 0, -1, false, vim.split(content, "\n"))
     api.nvim_set_option_value("modifiable", false, { buf = self.view.buf })
