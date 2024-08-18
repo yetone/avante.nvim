@@ -1,3 +1,4 @@
+local Config = require("avante.config")
 local api = vim.api
 
 ---@class avante.View
@@ -42,7 +43,7 @@ function View:setup(split_command, size)
   api.nvim_set_option_value("number", false, { win = self.win })
   api.nvim_set_option_value("relativenumber", false, { win = self.win })
   api.nvim_set_option_value("list", false, { win = self.win })
-  api.nvim_set_option_value("wrap", true, { win = self.win })
+  api.nvim_set_option_value("wrap", Config.windows.wrap_line, { win = self.win })
   api.nvim_set_option_value("winhl", "", { win = self.win })
 
   -- buffer stuff
