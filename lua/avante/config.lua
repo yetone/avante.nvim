@@ -6,7 +6,7 @@ local M = {}
 
 ---@class avante.Config
 M.defaults = {
-  ---@alias Provider "openai" | "claude" | "azure" | "deepseek" | "groq"
+  ---@alias Provider "openai" | "claude" | "azure" | "deepseek" | "groq" | [string]
   provider = "claude", -- "claude" or "openai" or "azure" or "deepseek" or "groq"
   openai = {
     endpoint = "https://api.openai.com",
@@ -39,6 +39,10 @@ M.defaults = {
     temperature = 0,
     max_tokens = 4096,
   },
+  --- To add support for custom provider, follow the format below
+  --- See https://github.com/yetone/avante.nvim/README.md#custom-providers for more details
+  ---@type table<string, AvanteProvider>
+  vendors = {},
   behaviour = {
     auto_apply_diff_after_generation = false, -- Whether to automatically apply diff after LLM response.
   },

@@ -7,7 +7,7 @@ local N = require("nui-components")
 local Config = require("avante.config")
 local View = require("avante.view")
 local Diff = require("avante.diff")
-local AiBot = require("avante.ai_bot")
+local Llm = require("avante.llm")
 local Utils = require("avante.utils")
 
 local VIEW_BUFFER_UPDATED_PATTERN = "AvanteViewBufferUpdated"
@@ -141,7 +141,7 @@ function Sidebar:intialize()
       mode = { "n" },
       key = "q",
       handler = function()
-        api.nvim_exec_autocmds("User", { pattern = AiBot.CANCEL_PATTERN })
+        api.nvim_exec_autocmds("User", { pattern = Llm.CANCEL_PATTERN })
         self.renderer:close()
       end,
     },
@@ -149,7 +149,7 @@ function Sidebar:intialize()
       mode = { "n" },
       key = "<Esc>",
       handler = function()
-        api.nvim_exec_autocmds("User", { pattern = AiBot.CANCEL_PATTERN })
+        api.nvim_exec_autocmds("User", { pattern = Llm.CANCEL_PATTERN })
         self.renderer:close()
       end,
     },
@@ -643,9 +643,16 @@ function Sidebar:render()
     signal.is_loading = true
     local state = signal:get_value()
     local request = state.text
+    ---@type string
+    local model
 
-    local provider_config = Config[Config.provider]
-    local model = provider_config and provider_config.model or "default"
+    local builtins_provider_config = Config[Config.provider]
+    if builtins_provider_config ~= nil then
+      model = builtins_provider_config.model
+    else
+      local vendor_provider_config = Config.vendors[Config.provider]
+      model = vendor_provider_config and vendor_provider_config.model or "default"
+    end
 
     local timestamp = get_timestamp()
 
@@ -670,50 +677,43 @@ function Sidebar:render()
 
     local filetype = api.nvim_get_option_value("filetype", { buf = self.code.buf })
 
-    AiBot.invoke_llm_stream(
-      request,
-      filetype,
-      content_with_line_numbers,
-      selected_code_content_with_line_numbers,
-      function(chunk)
-        signal.is_loading = true
-        full_response = full_response .. chunk
-        self:update_content(chunk, { stream = true, scroll = false })
-        vim.schedule(function()
-          vim.cmd("redraw")
-        end)
-      end,
-      function(err)
-        signal.is_loading = false
+    Llm.stream(request, filetype, content_with_line_numbers, selected_code_content_with_line_numbers, function(chunk)
+      signal.is_loading = true
+      full_response = full_response .. chunk
+      self:update_content(chunk, { stream = true, scroll = false })
+      vim.schedule(function()
+        vim.cmd("redraw")
+      end)
+    end, function(err)
+      signal.is_loading = false
 
-        if err ~= nil then
-          self:update_content(content_prefix .. full_response .. "\n\n🚨 Error: " .. vim.inspect(err))
-          return
-        end
-
-        -- Execute when the stream request is actually completed
-        self:update_content(
-          content_prefix
-            .. full_response
-            .. "\n\n🎉🎉🎉 **Generation complete!** Please review the code suggestions above.\n\n",
-          {
-            callback = function()
-              api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN })
-            end,
-          }
-        )
-
-        -- Save chat history
-        table.insert(chat_history or {}, {
-          timestamp = timestamp,
-          provider = Config.provider,
-          model = model,
-          request = request,
-          response = full_response,
-        })
-        save_chat_history(self, chat_history)
+      if err ~= nil then
+        self:update_content(content_prefix .. full_response .. "\n\n🚨 Error: " .. vim.inspect(err))
+        return
       end
-    )
+
+      -- Execute when the stream request is actually completed
+      self:update_content(
+        content_prefix
+          .. full_response
+          .. "\n\n🎉🎉🎉 **Generation complete!** Please review the code suggestions above.\n\n",
+        {
+          callback = function()
+            api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN })
+          end,
+        }
+      )
+
+      -- Save chat history
+      table.insert(chat_history or {}, {
+        timestamp = timestamp,
+        provider = Config.provider,
+        model = model,
+        request = request,
+        response = full_response,
+      })
+      save_chat_history(self, chat_history)
+    end)
 
     if Config.behaviour.auto_apply_diff_after_generation then
       apply()
