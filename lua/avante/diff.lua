@@ -525,20 +525,20 @@ function M.setup()
 
   set_plug_mappings()
 
-  api.nvim_create_augroup(AUGROUP_NAME, { clear = true })
+  local augroup = api.nvim_create_augroup(AUGROUP_NAME, { clear = true })
   api.nvim_create_autocmd("ColorScheme", {
-    group = AUGROUP_NAME,
+    group = augroup,
     callback = function()
       set_highlights(Config.diff.highlights)
     end,
   })
 
   api.nvim_create_autocmd("User", {
-    group = AUGROUP_NAME,
+    group = augroup,
     pattern = "AvanteConflictDetected",
     callback = function()
       local bufnr = api.nvim_get_current_buf()
-      vim.diagnostic.enable(not vim.diagnostic.is_enabled(), { bufnr = bufnr })
+      vim.diagnostic.enable(false, { bufnr = bufnr })
       setup_buffer_mappings(bufnr)
     end,
   })
@@ -548,7 +548,7 @@ function M.setup()
     pattern = "AvanteConflictResolved",
     callback = function()
       local bufnr = api.nvim_get_current_buf()
-      vim.diagnostic.enable(not vim.diagnostic.is_enabled(), { bufnr = bufnr })
+      vim.diagnostic.enable(true, { bufnr = bufnr })
       clear_buffer_mappings(bufnr)
     end,
   })
