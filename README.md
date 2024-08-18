@@ -81,8 +81,8 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
 
 ```lua
 {
-  ---@alias Provider "openai" | "claude" | "azure" | "deepseek"
-  provider = "claude", -- "claude" or "openai" or "azure" or "deepseek"
+  ---@alias Provider "openai" | "claude" | "azure" | "deepseek" | "groq"
+  provider = "claude", -- "claude" or "openai" or "azure" or "deepseek" or "groq"
   openai = {
     endpoint = "https://api.openai.com",
     model = "gpt-4o",
@@ -172,6 +172,12 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 >
 > ```sh
 > export DEEPSEEK_API_KEY=you-api-key
+> ```
+>
+> For Groq
+>
+> ```sh
+> export GROQ_API_KEY=you-api-key
 > ```
 
 1. Open a code file in Neovim.
