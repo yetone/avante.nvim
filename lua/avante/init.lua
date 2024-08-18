@@ -185,6 +185,16 @@ end
 
 ---@param opts? avante.Config
 function M.setup(opts)
+  if vim.fn.has("nvim-0.10") == 0 then
+    vim.api.nvim_echo({
+      { "Avante requires at least nvim-0.10", "ErrorMsg" },
+      { "Please upgrade your neovim version", "WarningMsg" },
+      { "Press any key to exit", "ErrorMsg" },
+    }, true, {})
+    vim.fn.getchar()
+    vim.cmd([[quit]])
+  end
+
   ---PERF: we can still allow running require("avante").setup() multiple times to override config if users wish to
   ---but most of the other functionality will only be called once from lazy.nvim
   Config.setup(opts)
