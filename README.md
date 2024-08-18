@@ -53,6 +53,10 @@ Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
 
 > [!IMPORTANT]
 >
+> `avante.nvim` is currently only compatible with Neovim 0.10.0 or later. Please ensure that your Neovim version meets these requirements before proceeding.
+
+> [!IMPORTANT]
+>
 > If your neovim doesn't use LuaJIT, then change `build` to `make lua51`. By default running make will install luajit.
 > For ARM-based setup, make sure to also install cargo as we will have to build the tiktoken_core from source.
 
