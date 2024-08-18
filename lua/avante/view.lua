@@ -42,14 +42,17 @@ function View:setup(split_command, size)
   api.nvim_set_option_value("foldcolumn", "0", { win = self.win })
   api.nvim_set_option_value("number", false, { win = self.win })
   api.nvim_set_option_value("relativenumber", false, { win = self.win })
+  api.nvim_set_option_value("winfixwidth", true, { win = self.win })
   api.nvim_set_option_value("list", false, { win = self.win })
   api.nvim_set_option_value("wrap", Config.windows.wrap_line, { win = self.win })
   api.nvim_set_option_value("winhl", "", { win = self.win })
+  api.nvim_set_option_value("linebreak", true, { win = self.win }) -- only has effect when wrap=true
+  api.nvim_set_option_value("breakindent", true, { win = self.win }) -- only has effect when wrap=true
 
   -- buffer stuff
   xpcall(function()
     api.nvim_buf_set_name(self.buf, RESULT_BUF_NAME)
-  end, function(err) end)
+  end, function(_) end)
 
   return self
 end

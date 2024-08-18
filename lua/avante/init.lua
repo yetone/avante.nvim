@@ -143,14 +143,11 @@ function M._init(id)
   return M
 end
 
-M.open = function()
-  M._init(api.nvim_get_current_tabpage())._get(false):open()
-end
-
 M.toggle = function()
   local sidebar = M._get()
   if not sidebar then
-    M.open()
+    M._init(api.nvim_get_current_tabpage())
+    M.current.sidebar:open()
     return true
   end
 
