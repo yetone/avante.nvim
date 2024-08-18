@@ -68,7 +68,7 @@ M.defaults = {
     },
   },
   windows = {
-    wrap_line = true,
+    wrap_line = true, -- similar to vim.o.wrap
     width = 30, -- default % based on available width
   },
   --- @class AvanteConflictUserConfig
