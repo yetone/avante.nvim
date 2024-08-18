@@ -390,6 +390,21 @@ local function get_timestamp()
   return os.date("%Y-%m-%d %H:%M:%S")
 end
 
+local function get_chat_record_prefix(timestamp, provider, model, request)
+  provider = provider or "unknown"
+  model = model or "unknown"
+  return "- Datetime: "
+    .. timestamp
+    .. "\n\n"
+    .. "- Model: "
+    .. provider
+    .. "/"
+    .. model
+    .. "\n\n> "
+    .. request:gsub("\n", "\n> ")
+    .. "\n\n"
+end
+
 -- Function to load chat history
 local function load_chat_history(sidebar)
   local history_file = get_chat_history_file(sidebar)
@@ -416,8 +431,9 @@ end
 function Sidebar:update_content_with_history(history)
   local content = ""
   for _, entry in ipairs(history) do
-    content = content .. "## " .. entry.timestamp .. "\n\n"
-    content = content .. "> " .. entry.requirement:gsub("\n", "\n> ") .. "\n\n"
+    local prefix =
+      get_chat_record_prefix(entry.timestamp, entry.provider, entry.model, entry.request or entry.requirement or "")
+    content = content .. prefix
     content = content .. entry.response .. "\n\n"
     content = content .. "---\n\n"
   end
@@ -594,22 +610,20 @@ function Sidebar:render()
   local function handle_submit()
     signal.is_loading = true
     local state = signal:get_value()
-    local user_input = state.text
+    local request = state.text
+
+    local provider_config = Config[Config.provider]
+    local model = provider_config and provider_config.model or "default"
 
     local timestamp = get_timestamp()
+
+    local content_prefix = get_chat_record_prefix(timestamp, Config.provider, model, request)
+
     --- HACK: we need to set focus to true and scroll to false to
     --- prevent the cursor from jumping to the bottom of the
     --- buffer at the beginning
     self:update_content("", { focus = true, scroll = false })
-    self:update_content(
-      "## "
-        .. timestamp
-        .. "\n\n> "
-        .. user_input:gsub("\n", "\n> ")
-        .. "\n\nGenerating response from "
-        .. Config.provider
-        .. " ...\n"
-    )
+    self:update_content(content_prefix .. "🔄 **Generating response ...**\n")
 
     local content = self:get_code_content()
     local content_with_line_numbers = prepend_line_number(content)
@@ -625,14 +639,14 @@ function Sidebar:render()
     local filetype = api.nvim_get_option_value("filetype", { buf = self.code.buf })
 
     AiBot.call_ai_api_stream(
-      user_input,
+      request,
       filetype,
       content_with_line_numbers,
       selected_code_content_with_line_numbers,
       function(chunk)
         signal.is_loading = true
         full_response = full_response .. chunk
-        self:update_content("## " .. timestamp .. "\n\n> " .. user_input:gsub("\n", "\n> ") .. "\n\n" .. full_response)
+        self:update_content(content_prefix .. full_response)
         vim.schedule(function()
           vim.cmd("redraw")
         end)
@@ -641,28 +655,15 @@ function Sidebar:render()
         signal.is_loading = false
 
         if err ~= nil then
-          self:update_content(
-            "## "
-              .. timestamp
-              .. "\n\n> "
-              .. user_input:gsub("\n", "\n> ")
-              .. "\n\n"
-              .. full_response
-              .. "\n\n🚨 Error: "
-              .. vim.inspect(err)
-          )
+          self:update_content(content_prefix .. full_response .. "\n\n🚨 Error: " .. vim.inspect(err))
           return
         end
 
         -- Execute when the stream request is actually completed
         self:update_content(
-          "## "
-            .. timestamp
-            .. "\n\n> "
-            .. user_input:gsub("\n", "\n> ")
-            .. "\n\n"
+          content_prefix
             .. full_response
-            .. "\n\n🎉🎉🎉 **Generation complete!** Please review the code suggestions above.\n\n\n\n",
+            .. "\n\n🎉🎉🎉 **Generation complete!** Please review the code suggestions above.\n\n",
           {
             callback = function()
               api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN })
@@ -671,7 +672,13 @@ function Sidebar:render()
         )
 
         -- Save chat history
-        table.insert(chat_history or {}, { timestamp = timestamp, requirement = user_input, response = full_response })
+        table.insert(chat_history or {}, {
+          timestamp = timestamp,
+          provider = Config.provider,
+          model = model,
+          request = request,
+          response = full_response,
+        })
         save_chat_history(self, chat_history)
       end
     )
