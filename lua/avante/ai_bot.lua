@@ -239,6 +239,7 @@ H.parse_claude_response = function(data_stream, opts)
     opts.on_chunk(json.delta.text)
   elseif opts.event_state == "message_stop" then
     opts.on_complete(nil)
+    return
   elseif opts.event_state == "error" then
     opts.on_complete(vim.json.decode(data_stream))
   end
