@@ -1,21 +1,20 @@
 local api = vim.api
 
-local Tiktoken = require("avante.tiktoken")
 local Sidebar = require("avante.sidebar")
-local Config = require("avante.config")
-local Diff = require("avante.diff")
-local AiBot = require("avante.ai_bot")
 local Selection = require("avante.selection")
+local Config = require("avante.config")
 
 ---@class Avante
 local M = {
   ---@type avante.Sidebar[] we use this to track chat command across tabs
   sidebars = {},
-  ---@type avante.Sidebar
-  current = nil,
-  selection = nil,
-  _once = false,
+  ---@type avante.Selection[]
+  selections = {},
+  ---@type {sidebar?: avante.Sidebar, selection?: avante.Selection}
+  current = { sidebar = nil, selection = nil },
 }
+
+M.did_setup = false
 
 local H = {}
 
@@ -52,7 +51,7 @@ H.autocmds = function()
     local name = "avante.nvim"
     local load_path = function()
       require("tiktoken_lib").load()
-      Tiktoken.setup("gpt-4o")
+      require("avante.tiktoken").setup("gpt-4o")
     end
 
     if LazyConfig.plugins[name] and LazyConfig.plugins[name]._.loaded then
@@ -80,14 +79,23 @@ H.autocmds = function()
     callback = function(ev)
       local tab = tonumber(ev.file)
       local s = M.sidebars[tab]
+      local sl = M.selections[tab]
       if s then
         s:destroy()
+      end
+      if sl then
+        sl:delete_autocmds()
       end
       if tab ~= nil then
         M.sidebars[tab] = nil
       end
     end,
   })
+
+  vim.schedule(function()
+    M._init(api.nvim_get_current_tabpage())
+    M.current.selection:setup_autocmds()
+  end)
 
   -- automatically setup Avante filetype to markdown
   vim.treesitter.language.register("markdown", "Avante")
@@ -98,24 +106,33 @@ end
 function M._get(current)
   local tab = api.nvim_get_current_tabpage()
   local sidebar = M.sidebars[tab]
+  local selection = M.selections[tab]
   if current ~= false then
-    M.current = sidebar
+    M.current.sidebar = sidebar
+    M.current.selection = selection
   end
   return sidebar
 end
 
-M.open = function()
-  local tab = api.nvim_get_current_tabpage()
-  local sidebar = M.sidebars[tab]
+---@param id integer
+function M._init(id)
+  local sidebar = M.sidebars[id]
+  local selection = M.selections[id]
 
   if not sidebar then
-    sidebar = Sidebar:new(tab)
-    M.sidebars[tab] = sidebar
+    sidebar = Sidebar:new(id)
+    M.sidebars[id] = sidebar
   end
+  if not selection then
+    selection = Selection:new(id)
+    M.selections[id] = selection
+  end
+  M.current = { sidebar = sidebar, selection = selection }
+  return M
+end
 
-  M.current = sidebar
-
-  return sidebar:open()
+M.open = function()
+  M._init(api.nvim_get_current_tabpage())._get(false):open()
 end
 
 M.toggle = function()
@@ -160,20 +177,19 @@ function M.setup(opts)
   ---but most of the other functionality will only be called once from lazy.nvim
   Config.setup(opts)
 
-  if M._once then
+  if M.did_setup then
     return
   end
 
-  Diff.setup()
-  AiBot.setup()
-  M.selection = Selection:new():setup()
+  require("avante.diff").setup()
+  require("avante.ai_bot").setup()
 
   -- setup helpers
   H.autocmds()
   H.commands()
   H.keymaps()
 
-  M._once = true
+  M.did_setup = true
 end
 
 return M
