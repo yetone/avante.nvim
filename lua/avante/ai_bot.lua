@@ -18,6 +18,7 @@ local E = {
     claude = "ANTHROPIC_API_KEY",
     azure = "AZURE_OPENAI_API_KEY",
     deepseek = "DEEPSEEK_API_KEY",
+    groq = "GROQ_API_KEY",
   },
   _once = false,
 }
@@ -316,6 +317,23 @@ local function call_openai_api_stream(question, code_lang, code_content, selecte
       max_tokens = Config.deepseek.max_tokens,
       stream = true,
     }
+  elseif Config.provider == "groq" then
+    api_key = os.getenv(E.key("groq"))
+    url = Utils.trim_suffix(Config.groq.endpoint, "/") .. "/openai/v1/chat/completions"
+    headers = {
+      ["Content-Type"] = "application/json",
+      ["Authorization"] = "Bearer " .. api_key,
+    }
+    body = {
+      model = Config.groq.model,
+      messages = {
+        { role = "system", content = system_prompt },
+        { role = "user", content = user_prompt },
+      },
+      temperature = Config.groq.temperature,
+      max_tokens = Config.groq.max_tokens,
+      stream = true,
+    }
   else
     url = Utils.trim_suffix(Config.openai.endpoint, "/") .. "/v1/chat/completions"
     headers = {
@@ -382,7 +400,12 @@ end
 ---@param on_chunk fun(chunk: string): any
 ---@param on_complete fun(err: string|nil): any
 function M.call_ai_api_stream(question, code_lang, code_content, selected_content_content, on_chunk, on_complete)
-  if Config.provider == "openai" or Config.provider == "azure" or Config.provider == "deepseek" then
+  if
+    Config.provider == "openai"
+    or Config.provider == "azure"
+    or Config.provider == "deepseek"
+    or Config.provider == "groq"
+  then
     call_openai_api_stream(question, code_lang, code_content, selected_content_content, on_chunk, on_complete)
   elseif Config.provider == "claude" then
     call_claude_api_stream(question, code_lang, code_content, selected_content_content, on_chunk, on_complete)
