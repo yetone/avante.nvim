@@ -1,8 +1,17 @@
 local Range = require("avante.range")
 local SelectionResult = require("avante.selection_result")
 local M = {}
-function M.trim_suffix(str, suffix)
-  return string.gsub(str, suffix .. "$", "")
+---@param str string
+---@param opts? {suffix?: string, prefix?: string}
+function M.trim(str, opts)
+  if not opts then
+    return str
+  end
+  if opts.suffix then
+    return str:sub(-1) == opts.suffix and str:sub(1, -2) or str
+  elseif opts.prefix then
+    return str:sub(1, 1) == opts.prefix and str:sub(2) or str
+  end
 end
 function M.trim_line_number_prefix(line)
   return line:gsub("^L%d+: ", "")

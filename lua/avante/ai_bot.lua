@@ -1,4 +1,3 @@
-local fn = vim.fn
 local api = vim.api
 
 local curl = require("plenary.curl")
@@ -7,8 +6,14 @@ local Utils = require("avante.utils")
 local Config = require("avante.config")
 local Tiktoken = require("avante.tiktoken")
 
+---@private
+---@class AvanteAiBotInternal
+local H = {}
+
 ---@class avante.AiBot
 local M = {}
+
+M.CANCEL_PATTERN = "AvanteAiBotEscape"
 
 ---@class EnvironmentHandler: table<[Provider], string>
 local E = {
@@ -20,7 +25,6 @@ local E = {
     deepseek = "DEEPSEEK_API_KEY",
     groq = "GROQ_API_KEY",
   },
-  _once = false,
 }
 
 E = setmetatable(E, {
@@ -29,6 +33,7 @@ E = setmetatable(E, {
     return os.getenv(E.env[k]) and true or false
   end,
 })
+E._once = false
 
 --- return the environment variable name for the given provider
 ---@param provider? Provider
@@ -40,6 +45,15 @@ E.key = function(provider)
     or var
 end
 
+---@param provider? Provider
+E.value = function(provider)
+  provider = provider or Config.provider
+  return os.getenv(E.key(provider))
+end
+
+--- intialize the environment variable for current neovim session.
+--- This will only run once and spawn a UI for users to input the envvar.
+--- @param var Provider supported providers
 E.setup = function(var)
   local Dressing = require("avante.ui.dressing")
 
@@ -77,6 +91,7 @@ E.setup = function(var)
           "ministarter",
           "TelescopePrompt",
           "gitcommit",
+          "gitrebase",
         }
         if
           not vim.tbl_contains(exclude_buftypes, vim.bo.buftype)
@@ -137,38 +152,49 @@ Replace lines: {{start_line}}-{{end_line}}
 Remember: Accurate line numbers are CRITICAL. The range start_line to end_line must include ALL lines to be replaced, from the very first to the very last. Double-check every range before finalizing your response, paying special attention to the start_line to ensure it hasn't shifted down. Ensure that your line numbers perfectly match the original code structure without any overall shift.
 ]]
 
-local function call_claude_api_stream(question, code_lang, code_content, selected_code_content, on_chunk, on_complete)
-  local api_key = os.getenv(E.key("claude"))
+---@class AvantePromptOptions: table<[string], string>
+---@field question string
+---@field code_lang string
+---@field code_content string
+---@field selected_code_content? string
+---
+---@alias AvanteAiMessageBuilder fun(opts: AvantePromptOptions): {role: "user" | "system", content: string | table<string, any>}[]
+---
+---@class AvanteCurlOutput: {url: string, body: table<string, any> | string, headers: table<string, string>}
+---@alias AvanteCurlArgsBuilder fun(code_opts: AvantePromptOptions): AvanteCurlOutput
+---
+---@class ResponseParser
+---@field event_state string
+---@field on_chunk fun(chunk: string): any
+---@field on_complete fun(err: string|nil): any
+---@field on_error? fun(err_type: string): nil
+---@alias AvanteAiResponseParser fun(data_stream: string, opts: ResponseParser): nil
 
-  local tokens = Config.claude.max_tokens
-  local headers = {
-    ["Content-Type"] = "application/json",
-    ["x-api-key"] = api_key,
-    ["anthropic-version"] = "2023-06-01",
-    ["anthropic-beta"] = "prompt-caching-2024-07-31",
-  }
+------------------------------Anthropic------------------------------
 
+---@type AvanteAiMessageBuilder
+H.make_claude_message = function(opts)
   local code_prompt_obj = {
     type = "text",
-    text = string.format("<code>```%s\n%s```</code>", code_lang, code_content),
+    text = string.format("<code>```%s\n%s```</code>", opts.code_lang, opts.code_content),
   }
 
   if Tiktoken.count(code_prompt_obj.text) > 1024 then
     code_prompt_obj.cache_control = { type = "ephemeral" }
   end
 
-  if selected_code_content then
-    code_prompt_obj.text = string.format("<code_context>```%s\n%s```</code_context>", code_lang, code_content)
+  if opts.selected_code_content then
+    code_prompt_obj.text = string.format("<code_context>```%s\n%s```</code_context>", opts.code_lang, opts.code_content)
   end
 
   local message_content = {
     code_prompt_obj,
   }
 
-  if selected_code_content then
+  if opts.selected_code_content then
     local selected_code_obj = {
       type = "text",
-      text = string.format("<code>```%s\n%s```</code>", code_lang, selected_code_content),
+      text = string.format("<code>```%s\n%s```</code>", opts.code_lang, opts.selected_code_content),
     }
 
     if Tiktoken.count(selected_code_obj.text) > 1024 then
@@ -180,7 +206,7 @@ local function call_claude_api_stream(question, code_lang, code_content, selecte
 
   table.insert(message_content, {
     type = "text",
-    text = string.format("<question>%s</question>", question),
+    text = string.format("<question>%s</question>", opts.question),
   })
 
   local user_prompt = base_user_prompt
@@ -196,202 +222,207 @@ local function call_claude_api_stream(question, code_lang, code_content, selecte
 
   table.insert(message_content, user_prompt_obj)
 
-  local body = {
-    model = Config.claude.model,
-    system = system_prompt,
-    messages = {
-      {
-        role = "user",
-        content = message_content,
-      },
+  return {
+    {
+      role = "user",
+      content = message_content,
     },
-    stream = true,
-    temperature = Config.claude.temperature,
-    max_tokens = tokens,
   }
-
-  local url = Utils.trim_suffix(Config.claude.endpoint, "/") .. "/v1/messages"
-
-  curl.post(url, {
-    ---@diagnostic disable-next-line: unused-local
-    stream = function(err, data, job)
-      if err then
-        on_complete(err)
-        return
-      end
-      if not data then
-        return
-      end
-      for _, line in ipairs(vim.split(data, "\n")) do
-        if line:sub(1, 6) ~= "data: " then
-          return
-        end
-        vim.schedule(function()
-          local success, parsed = pcall(fn.json_decode, line:sub(7))
-          if not success then
-            error("Error: failed to parse json: " .. parsed)
-            return
-          end
-          if parsed and parsed.type == "content_block_delta" then
-            on_chunk(parsed.delta.text)
-          elseif parsed and parsed.type == "message_stop" then
-            -- Stream request completed
-            on_complete(nil)
-          elseif parsed and parsed.type == "error" then
-            -- Stream request completed
-            on_complete(parsed)
-          end
-        end)
-      end
-    end,
-    headers = headers,
-    body = fn.json_encode(body),
-  })
 end
 
-local function call_openai_api_stream(question, code_lang, code_content, selected_code_content, on_chunk, on_complete)
-  local api_key = os.getenv(E.key("openai"))
+---@type AvanteAiResponseParser
+H.parse_claude_response = function(data_stream, opts)
+  if opts.event_state == "content_block_delta" then
+    local json = vim.json.decode(data_stream)
+    opts.on_chunk(json.delta.text)
+  elseif opts.event_state == "message_stop" then
+    opts.on_complete(nil)
+  elseif opts.event_state == "error" then
+    opts.on_complete(vim.json.decode(data_stream))
+  end
+end
+
+---@type AvanteCurlArgsBuilder
+H.make_claude_curl_args = function(code_opts)
+  return {
+    url = Utils.trim(Config.claude.endpoint, { suffix = "/" }) .. "/v1/messages",
+    headers = {
+      ["Content-Type"] = "application/json",
+      ["x-api-key"] = E.value("claude"),
+      ["anthropic-version"] = "2023-06-01",
+      ["anthropic-beta"] = "prompt-caching-2024-07-31",
+    },
+    body = {
+      model = Config.claude.model,
+      system = system_prompt,
+      stream = true,
+      messages = H.make_claude_message(code_opts),
+      temperature = Config.claude.temperature,
+      max_tokens = Config.claude.max_tokens,
+    },
+  }
+end
+
+------------------------------OpenAI------------------------------
+
+---@type AvanteAiMessageBuilder
+H.make_openai_message = function(opts)
   local user_prompt = base_user_prompt
     .. "\n\nCODE:\n"
     .. "```"
-    .. code_lang
+    .. opts.code_lang
     .. "\n"
-    .. code_content
+    .. opts.code_content
     .. "\n```"
     .. "\n\nQUESTION:\n"
-    .. question
+    .. opts.question
 
-  if selected_code_content then
+  if opts.selected_code_content ~= nil then
     user_prompt = base_user_prompt
       .. "\n\nCODE CONTEXT:\n"
       .. "```"
-      .. code_lang
+      .. opts.code_lang
       .. "\n"
-      .. code_content
+      .. opts.code_content
       .. "\n```"
       .. "\n\nCODE:\n"
       .. "```"
-      .. code_lang
+      .. opts.code_lang
       .. "\n"
-      .. selected_code_content
+      .. opts.selected_code_content
       .. "\n```"
       .. "\n\nQUESTION:\n"
-      .. question
+      .. opts.question
   end
 
-  local url, headers, body
-  if Config.provider == "azure" then
-    api_key = os.getenv(E.key("azure"))
+  return {
+    { role = "system", content = system_prompt },
+    { role = "user", content = user_prompt },
+  }
+end
+
+---@type AvanteAiResponseParser
+H.parse_openai_response = function(data_stream, opts)
+  if data_stream:match('"%[DONE%]":') then
+    opts.on_complete(nil)
+    return
+  end
+  if data_stream:match('"delta":') then
+    local json = vim.json.decode(data_stream)
+    if json.choices and json.choices[1] then
+      local choice = json.choices[1]
+      if choice.finish_reason == "stop" then
+        opts.on_complete(nil)
+      elseif choice.delta.content then
+        opts.on_chunk(choice.delta.content)
+      end
+    end
+  end
+end
+
+---@type AvanteCurlArgsBuilder
+H.make_openai_curl_args = function(code_opts)
+  return {
+    url = Utils.trim(Config.openai.endpoint, { suffix = "/" }) .. "/v1/chat/completions",
+    headers = {
+      ["Content-Type"] = "application/json",
+      ["Authorization"] = "Bearer " .. E.value("openai"),
+    },
+    body = {
+      model = Config.openai.model,
+      messages = H.make_openai_message(code_opts),
+      temperature = Config.openai.temperature,
+      max_tokens = Config.openai.max_tokens,
+      stream = true,
+    },
+  }
+end
+
+------------------------------Azure------------------------------
+
+---@type AvanteAiMessageBuilder
+H.make_azure_message = H.make_openai_message
+
+---@type AvanteAiResponseParser
+H.parse_azure_response = H.parse_openai_response
+
+---@type AvanteCurlArgsBuilder
+H.make_azure_curl_args = function(code_opts)
+  return {
     url = Config.azure.endpoint
       .. "/openai/deployments/"
       .. Config.azure.deployment
       .. "/chat/completions?api-version="
-      .. Config.azure.api_version
+      .. Config.azure.api_version,
     headers = {
       ["Content-Type"] = "application/json",
-      ["api-key"] = api_key,
-    }
+      ["api-key"] = E.value("azure"),
+    },
     body = {
-      messages = {
-        { role = "system", content = system_prompt },
-        { role = "user", content = user_prompt },
-      },
+      messages = H.make_openai_message(code_opts),
       temperature = Config.azure.temperature,
       max_tokens = Config.azure.max_tokens,
       stream = true,
-    }
-  elseif Config.provider == "deepseek" then
-    api_key = os.getenv(E.key("deepseek"))
-    url = Utils.trim_suffix(Config.deepseek.endpoint, "/") .. "/chat/completions"
+    },
+  }
+end
+
+------------------------------Deepseek------------------------------
+
+---@type AvanteAiMessageBuilder
+H.make_deepseek_message = H.make_openai_message
+
+---@type AvanteAiResponseParser
+H.parse_deepseek_response = H.parse_openai_response
+
+---@type AvanteCurlArgsBuilder
+H.make_deepseek_curl_args = function(code_opts)
+  return {
+    url = Utils.trim(Config.deepseek.endpoint, { suffix = "/" }) .. "/chat/completions",
     headers = {
       ["Content-Type"] = "application/json",
-      ["Authorization"] = "Bearer " .. api_key,
-    }
+      ["Authorization"] = "Bearer " .. E.value("deepseek"),
+    },
     body = {
       model = Config.deepseek.model,
-      messages = {
-        { role = "system", content = system_prompt },
-        { role = "user", content = user_prompt },
-      },
+      messages = H.make_openai_message(code_opts),
       temperature = Config.deepseek.temperature,
       max_tokens = Config.deepseek.max_tokens,
       stream = true,
-    }
-  elseif Config.provider == "groq" then
-    api_key = os.getenv(E.key("groq"))
-    url = Utils.trim_suffix(Config.groq.endpoint, "/") .. "/openai/v1/chat/completions"
+    },
+  }
+end
+
+------------------------------Grok------------------------------
+
+---@type AvanteAiMessageBuilder
+H.make_groq_message = H.make_openai_message
+
+---@type AvanteAiResponseParser
+H.parse_groq_response = H.parse_openai_response
+
+---@type AvanteCurlArgsBuilder
+H.make_groq_curl_args = function(code_opts)
+  return {
+    url = Utils.trim(Config.groq.endpoint, { suffix = "/" }) .. "/openai/v1/chat/completions",
     headers = {
       ["Content-Type"] = "application/json",
-      ["Authorization"] = "Bearer " .. api_key,
-    }
+      ["Authorization"] = "Bearer " .. E.value("groq"),
+    },
     body = {
       model = Config.groq.model,
-      messages = {
-        { role = "system", content = system_prompt },
-        { role = "user", content = user_prompt },
-      },
+      messages = H.make_openai_message(code_opts),
       temperature = Config.groq.temperature,
       max_tokens = Config.groq.max_tokens,
       stream = true,
-    }
-  else
-    url = Utils.trim_suffix(Config.openai.endpoint, "/") .. "/v1/chat/completions"
-    headers = {
-      ["Content-Type"] = "application/json",
-      ["Authorization"] = "Bearer " .. api_key,
-    }
-    body = {
-      model = Config.openai.model,
-      messages = {
-        { role = "system", content = system_prompt },
-        { role = "user", content = user_prompt },
-      },
-      temperature = Config.openai.temperature,
-      max_tokens = Config.openai.max_tokens,
-      stream = true,
-    }
-  end
-
-  curl.post(url, {
-    ---@diagnostic disable-next-line: unused-local
-    stream = function(err, data, job)
-      if err then
-        on_complete(err)
-        return
-      end
-      if not data then
-        return
-      end
-      for _, line in ipairs(vim.split(data, "\n")) do
-        if line:sub(1, 6) ~= "data: " then
-          return
-        end
-        vim.schedule(function()
-          local piece = line:sub(7)
-          local success, parsed = pcall(fn.json_decode, piece)
-          if not success then
-            if piece == "[DONE]" then
-              on_complete(nil)
-              return
-            end
-            error("Error: failed to parse json: " .. parsed)
-            return
-          end
-          if parsed and parsed.choices and parsed.choices[1] then
-            local choice = parsed.choices[1]
-            if choice.finish_reason == "stop" then
-              on_complete(nil)
-            elseif choice.delta and choice.delta.content then
-              on_chunk(choice.delta.content)
-            end
-          end
-        end)
-      end
-    end,
-    headers = headers,
-    body = fn.json_encode(body),
-  })
+    },
+  }
 end
+
+------------------------------Logic------------------------------
+
+local group = vim.api.nvim_create_augroup("AvanteAiBot", { clear = true })
+local active_job = nil
 
 ---@param question string
 ---@param code_lang string
@@ -399,17 +430,75 @@ end
 ---@param selected_content_content string | nil
 ---@param on_chunk fun(chunk: string): any
 ---@param on_complete fun(err: string|nil): any
-function M.call_ai_api_stream(question, code_lang, code_content, selected_content_content, on_chunk, on_complete)
-  if
-    Config.provider == "openai"
-    or Config.provider == "azure"
-    or Config.provider == "deepseek"
-    or Config.provider == "groq"
-  then
-    call_openai_api_stream(question, code_lang, code_content, selected_content_content, on_chunk, on_complete)
-  elseif Config.provider == "claude" then
-    call_claude_api_stream(question, code_lang, code_content, selected_content_content, on_chunk, on_complete)
+M.invoke_llm_stream = function(question, code_lang, code_content, selected_content_content, on_chunk, on_complete)
+  local provider = Config.provider
+  local event_state = nil
+
+  ---@type AvanteCurlOutput
+  local spec = H["make_" .. provider .. "_curl_args"]({
+    question = question,
+    code_lang = code_lang,
+    code_content = code_content,
+    selected_code_content = selected_content_content,
+  })
+
+  ---@param line string
+  local function parse_and_call(line)
+    local event = line:match("^event: (.+)$")
+    if event then
+      event_state = event
+      return
+    end
+    local data_match = line:match("^data: (.+)$")
+    if data_match then
+      H["parse_" .. provider .. "_response"](
+        data_match,
+        vim.deepcopy({ on_chunk = on_chunk, on_complete = on_complete, event_state = event_state }, true)
+      )
+    end
   end
+
+  if active_job then
+    active_job:shutdown()
+    active_job = nil
+  end
+
+  active_job = curl.post(spec.url, {
+    headers = spec.headers,
+    body = vim.json.encode(spec.body),
+    stream = function(err, data, _)
+      if err then
+        on_complete(err)
+        return
+      end
+      if not data then
+        return
+      end
+      vim.schedule(function()
+        parse_and_call(data)
+      end)
+    end,
+    on_error = function(err)
+      on_complete(err)
+    end,
+    callback = function(_)
+      active_job = nil
+    end,
+  })
+
+  api.nvim_create_autocmd("User", {
+    group = group,
+    pattern = M.CANCEL_PATTERN,
+    callback = function()
+      if active_job then
+        active_job:shutdown()
+        vim.notify("LLM request cancelled", vim.log.levels.DEBUG)
+        active_job = nil
+      end
+    end,
+  })
+
+  return active_job
 end
 
 function M.setup()

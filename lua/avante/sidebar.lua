@@ -141,6 +141,15 @@ function Sidebar:intialize()
       mode = { "n" },
       key = "q",
       handler = function()
+        api.nvim_exec_autocmds("User", { pattern = AiBot.CANCEL_PATTERN })
+        self.renderer:close()
+      end,
+    },
+    {
+      mode = { "n" },
+      key = "<Esc>",
+      handler = function()
+        api.nvim_exec_autocmds("User", { pattern = AiBot.CANCEL_PATTERN })
         self.renderer:close()
       end,
     },
@@ -228,34 +237,51 @@ function Sidebar:is_focused()
 end
 
 ---@param content string concatenated content of the buffer
----@param opts? {focus?: boolean, scroll?: boolean, callback?: fun(): nil} whether to focus the result view
+---@param opts? {focus?: boolean, stream?: boolean, scroll?: boolean, callback?: fun(): nil} whether to focus the result view
 function Sidebar:update_content(content, opts)
-  opts = vim.tbl_deep_extend("force", { focus = true, scroll = true, callback = nil }, opts or {})
-  vim.defer_fn(function()
-    api.nvim_set_option_value("modifiable", true, { buf = self.view.buf })
-    api.nvim_buf_set_lines(self.view.buf, 0, -1, false, vim.split(content, "\n"))
-    api.nvim_set_option_value("modifiable", false, { buf = self.view.buf })
-    api.nvim_set_option_value("filetype", "Avante", { buf = self.view.buf })
-    if opts.callback ~= nil then
-      opts.callback()
-    end
-    if opts.focus and not self:is_focused() then
-      xpcall(function()
-        --- set cursor to bottom of result view
-        api.nvim_set_current_win(self.winid.result)
-      end, function(err)
-        return err
-      end)
-    end
+  opts = vim.tbl_deep_extend("force", { focus = true, scroll = true, stream = false, callback = nil }, opts or {})
+  if opts.stream then
+    vim.schedule(function()
+      api.nvim_set_option_value("modifiable", true, { buf = self.view.buf })
+      local current_window = vim.api.nvim_get_current_win()
+      local cursor_position = vim.api.nvim_win_get_cursor(current_window)
+      local row, col = cursor_position[1], cursor_position[2]
 
-    if opts.scroll then
-      xpcall(function()
-        api.nvim_win_set_cursor(self.winid.result, { api.nvim_buf_line_count(self.bufnr.result), 0 })
-      end, function(err)
-        return err
-      end)
-    end
-  end, 0)
+      local lines = vim.split(content, "\n")
+
+      vim.api.nvim_put(lines, "c", true, true)
+
+      local num_lines = #lines
+      local last_line_length = #lines[num_lines]
+      vim.api.nvim_win_set_cursor(current_window, { row + num_lines - 1, col + last_line_length })
+    end)
+  else
+    vim.defer_fn(function()
+      api.nvim_set_option_value("modifiable", true, { buf = self.view.buf })
+      api.nvim_buf_set_lines(self.view.buf, 0, -1, false, vim.split(content, "\n"))
+      api.nvim_set_option_value("modifiable", false, { buf = self.view.buf })
+      api.nvim_set_option_value("filetype", "Avante", { buf = self.view.buf })
+      if opts.callback ~= nil then
+        opts.callback()
+      end
+      if opts.focus and not self:is_focused() then
+        xpcall(function()
+          --- set cursor to bottom of result view
+          api.nvim_set_current_win(self.winid.result)
+        end, function(err)
+          return err
+        end)
+      end
+
+      if opts.scroll then
+        xpcall(function()
+          api.nvim_win_set_cursor(self.winid.result, { api.nvim_buf_line_count(self.bufnr.result), 0 })
+        end, function(err)
+          return err
+        end)
+      end
+    end, 0)
+  end
   return self
 end
 
@@ -638,7 +664,7 @@ function Sidebar:render()
 
     local filetype = api.nvim_get_option_value("filetype", { buf = self.code.buf })
 
-    AiBot.call_ai_api_stream(
+    AiBot.invoke_llm_stream(
       request,
       filetype,
       content_with_line_numbers,
@@ -646,7 +672,7 @@ function Sidebar:render()
       function(chunk)
         signal.is_loading = true
         full_response = full_response .. chunk
-        self:update_content(content_prefix .. full_response)
+        self:update_content(chunk, { stream = true, scroll = false })
         vim.schedule(function()
           vim.cmd("redraw")
         end)
