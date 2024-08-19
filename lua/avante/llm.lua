@@ -88,7 +88,7 @@ E.setup = function(var, refresh)
       vim.fn.setenv(var, value)
     else
       if not E[Config.provider] then
-        vim.notify_once("Failed to set " .. var .. ". Avante won't work as expected", vim.log.levels.WARN)
+        Util.warn("Failed to set " .. var .. ". Avante won't work as expected", { once = true, title = "Avante" })
       end
     end
   end
@@ -559,7 +559,7 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
     callback = function()
       if active_job then
         active_job:shutdown()
-        vim.notify("LLM request cancelled", vim.log.levels.DEBUG)
+        Utils.debug("LLM request cancelled", { title = "Avante" })
         active_job = nil
       end
     end,
@@ -583,7 +583,7 @@ function M.refresh(provider)
   if not has then
     E.setup(E.key(provider), true)
   else
-    vim.notify_once("Switch to provider: " .. provider, vim.log.levels.INFO)
+    Utils.info("Switch to provider: " .. provider, { once = true, title = "Avante" })
   end
   require("avante.config").override({ provider = provider })
 end

@@ -2,10 +2,8 @@
 
 local M = {}
 
-local color = require("avante.diff.colors")
-local utils = require("avante.diff.utils")
-
 local Config = require("avante.config")
+local Utils = require("avante.utils")
 
 local fn = vim.fn
 local api = vim.api
@@ -283,7 +281,7 @@ local function find_position(bufnr, comparator, opts)
   if not match then
     return
   end
-  local line = utils.get_cursor_pos()
+  local line = Utils.get_cursor_pos()
   line = line - 1 -- Convert to 0-based for position comparison
 
   if opts and opts.reverse then
@@ -372,7 +370,7 @@ end
 ---@param range_start? integer
 ---@param range_end? integer
 local function parse_buffer(bufnr, range_start, range_end)
-  local lines = utils.get_buf_lines(range_start or 0, range_end or -1, bufnr)
+  local lines = Utils.get_buf_lines(range_start or 0, range_end or -1, bufnr)
   local prev_conflicts = visited_buffers[bufnr].positions ~= nil and #visited_buffers[bufnr].positions > 0
   local has_conflict, positions = detect_conflicts(lines)
 
@@ -501,15 +499,15 @@ end
 ---Derive the colour of the section label highlights based on each sections highlights
 ---@param highlights AvanteConflictHighlights
 local function set_highlights(highlights)
-  local current_color = utils.get_hl(highlights.current)
-  local incoming_color = utils.get_hl(highlights.incoming)
-  local ancestor_color = utils.get_hl(highlights.ancestor)
+  local current_color = Utils.get_hl(highlights.current)
+  local incoming_color = Utils.get_hl(highlights.incoming)
+  local ancestor_color = Utils.get_hl(highlights.ancestor)
   local current_bg = current_color.background or DEFAULT_CURRENT_BG_COLOR
   local incoming_bg = incoming_color.background or DEFAULT_INCOMING_BG_COLOR
   local ancestor_bg = ancestor_color.background or DEFAULT_ANCESTOR_BG_COLOR
-  local current_label_bg = color.shade_color(current_bg, 60)
-  local incoming_label_bg = color.shade_color(incoming_bg, 60)
-  local ancestor_label_bg = color.shade_color(ancestor_bg, 60)
+  local current_label_bg = Utils.colors.shade_color(current_bg, 60)
+  local incoming_label_bg = Utils.colors.shade_color(incoming_bg, 60)
+  local ancestor_label_bg = Utils.colors.shade_color(ancestor_bg, 60)
   api.nvim_set_hl(0, CURRENT_HL, { background = current_bg, bold = true, default = true })
   api.nvim_set_hl(0, INCOMING_HL, { background = incoming_bg, bold = true, default = true })
   api.nvim_set_hl(0, ANCESTOR_HL, { background = ancestor_bg, bold = true, default = true })
@@ -555,7 +553,7 @@ function M.setup()
 
   api.nvim_set_decoration_provider(NAMESPACE, {
     on_buf = function(_, bufnr, _)
-      return utils.is_valid_buf(bufnr)
+      return Utils.is_valid_buf(bufnr)
     end,
     on_win = function(_, _, bufnr, _, _)
       if visited_buffers[bufnr] then
@@ -656,10 +654,10 @@ function M.choose(side)
         local lines = {}
         if vim.tbl_contains({ SIDES.OURS, SIDES.THEIRS, SIDES.BASE }, side) then
           local data = position[name_map[side]]
-          lines = utils.get_buf_lines(data.content_start, data.content_end + 1)
+          lines = Utils.get_buf_lines(data.content_start, data.content_end + 1)
         elseif side == SIDES.BOTH then
-          local first = utils.get_buf_lines(position.current.content_start, position.current.content_end + 1)
-          local second = utils.get_buf_lines(position.incoming.content_start, position.incoming.content_end + 1)
+          local first = Utils.get_buf_lines(position.current.content_start, position.current.content_end + 1)
+          local second = Utils.get_buf_lines(position.incoming.content_start, position.incoming.content_end + 1)
           lines = vim.list_extend(first, second)
         elseif side == SIDES.NONE then
           lines = {}
@@ -697,10 +695,10 @@ function M.choose(side)
   local lines = {}
   if vim.tbl_contains({ SIDES.OURS, SIDES.THEIRS, SIDES.BASE }, side) then
     local data = position[name_map[side]]
-    lines = utils.get_buf_lines(data.content_start, data.content_end + 1)
+    lines = Utils.get_buf_lines(data.content_start, data.content_end + 1)
   elseif side == SIDES.BOTH then
-    local first = utils.get_buf_lines(position.current.content_start, position.current.content_end + 1)
-    local second = utils.get_buf_lines(position.incoming.content_start, position.incoming.content_end + 1)
+    local first = Utils.get_buf_lines(position.current.content_start, position.current.content_end + 1)
+    local second = Utils.get_buf_lines(position.incoming.content_start, position.incoming.content_end + 1)
     lines = vim.list_extend(first, second)
   elseif side == SIDES.NONE then
     lines = {}
