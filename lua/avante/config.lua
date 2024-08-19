@@ -78,6 +78,10 @@ M.defaults = {
     ---@type string | fun(): any
     list_opener = "copen",
   },
+  --- @class AvanteHintsConfig
+  hints = {
+    enbaled = true,
+  },
 }
 
 ---@type avante.Config
@@ -87,6 +91,10 @@ M.options = {}
 ---@field mappings AvanteConflictMappings
 ---@field highlights AvanteConflictHighlights
 M.diff = {}
+
+---@class AvanteHintsConfig
+---@field enabled boolean
+M.hints = {}
 
 ---@param opts? avante.Config
 function M.setup(opts)
