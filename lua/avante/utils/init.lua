@@ -36,8 +36,8 @@ function M.in_visual_mode()
   return current_mode == "v" or current_mode == "V" or current_mode == ""
 end
 
--- Get the selected content and range in Visual mode
--- @return avante.SelectionResult | nil Selected content and range
+---Get the selected content and range in Visual mode
+---@return avante.SelectionResult | nil Selected content and range
 function M.get_visual_selection_and_range()
   local Range = require("avante.range")
   local SelectionResult = require("avante.selection_result")
