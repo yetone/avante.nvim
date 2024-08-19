@@ -481,7 +481,6 @@ local active_job = nil
 ---@param on_complete fun(err: string|nil): any
 M.stream = function(question, code_lang, code_content, selected_content_content, on_chunk, on_complete)
   local provider = Config.provider
-  local event_state = nil
 
   local code_opts = {
     question = question,
@@ -489,7 +488,7 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
     code_content = code_content,
     selected_code_content = selected_content_content,
   }
-  local handler_opts = vim.deepcopy({ on_chunk = on_chunk, on_complete = on_complete, event_state = event_state }, true)
+  local handler_opts = { on_chunk = on_chunk, on_complete = on_complete, event_state = nil }
 
   ---@type AvanteCurlOutput
   local spec = nil
@@ -513,7 +512,7 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
   local function parse_and_call(line)
     local event = line:match("^event: (.+)$")
     if event then
-      event_state = event
+      handler_opts.event_state = event
       return
     end
     local data_match = line:match("^data: (.+)$")
