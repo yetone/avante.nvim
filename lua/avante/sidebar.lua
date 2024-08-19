@@ -253,7 +253,7 @@ function Sidebar:update_content(content, opts)
     local scroll_to_bottom = function()
       local last_line = api.nvim_buf_line_count(self.view.buf)
 
-      local current_lines = api.nvim_buf_get_lines(self.view.buf, last_line - 1, last_line, false)
+      local current_lines = Utils.get_buf_lines(last_line - 1, last_line, self.view.buf)
 
       if #current_lines > 0 then
         local last_line_content = current_lines[1]
@@ -324,6 +324,7 @@ end
 ---@field end_line integer
 ---@field lang string
 
+---@param buf integer
 ---@return AvanteCodeblock[]
 local function parse_codeblocks(buf)
   local codeblocks = {}
@@ -331,7 +332,7 @@ local function parse_codeblocks(buf)
   local start_line = nil
   local lang = nil
 
-  local lines = api.nvim_buf_get_lines(buf, 0, -1, false)
+  local lines = Utils.get_buf_lines(0, -1, buf)
   for i, line in ipairs(lines) do
     if line:match("^```") then
       -- parse language
@@ -352,8 +353,8 @@ end
 
 ---@param codeblocks table<integer, any>
 local function is_cursor_in_codeblock(codeblocks)
-  local cursor_pos = api.nvim_win_get_cursor(0)
-  local cursor_line = cursor_pos[1] - 1 -- 转换为 0-indexed 行号
+  local cursor_line, _ = Utils.get_cursor_pos()
+  cursor_line = cursor_line - 1 -- 转换为 0-indexed 行号
 
   for _, block in ipairs(codeblocks) do
     if cursor_line >= block.start_line and cursor_line <= block.end_line then
@@ -543,16 +544,10 @@ local function get_conflict_content(content, snippets)
 end
 
 ---@return string
-function Sidebar:get_code_content()
-  local lines = api.nvim_buf_get_lines(self.code.buf, 0, -1, false)
-  return table.concat(lines, "\n")
-end
-
----@return string
 function Sidebar:get_content_between_separators()
   local separator = "---"
-  local cursor_line = api.nvim_win_get_cursor(0)[1]
-  local lines = api.nvim_buf_get_lines(self.view.buf, 0, -1, false)
+  local cursor_line, _ = Utils.get_cursor_pos()
+  local lines = Utils.get_buf_lines(0, -1, self.view.buf)
   local start_line, end_line
 
   for i = cursor_line, 1, -1 do
@@ -601,7 +596,7 @@ function Sidebar:render()
   end
 
   local function apply()
-    local content = self:get_code_content()
+    local content = table.concat(Utils.get_buf_lines(0, -1, self.code.buf), "\n")
     local response = self:get_content_between_separators()
     local snippets = extract_code_snippets(response)
     local conflict_content = get_conflict_content(content, snippets)
@@ -692,7 +687,7 @@ function Sidebar:render()
     self:update_content("", { focus = true, scroll = false })
     self:update_content(content_prefix .. "🔄 **Generating response ...**\n")
 
-    local content = self:get_code_content()
+    local content = table.concat(Utils.get_buf_lines(0, -1, self.code.buf), "\n")
     local content_with_line_numbers = prepend_line_number(content)
 
     local selected_code_content_with_line_numbers = nil
