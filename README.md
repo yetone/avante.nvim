@@ -330,6 +330,8 @@ vendors = {
 },
 ```
 
+</details>
+
 ## Local LLM
 
 If you want to use local LLM that has a OpenAI-compatible server, set `["local"] = true`:
@@ -346,7 +348,6 @@ openai = {
 
 You will be responsible for setting up the server yourself before using Neovim.
 
-</details>
 
 ## License
 
