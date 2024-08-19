@@ -140,6 +140,7 @@ E.setup = function(var, refresh)
             "TelescopePrompt",
             "gitcommit",
             "gitrebase",
+            "DressingInput",
           }
           if
             not vim.tbl_contains(exclude_buftypes, vim.bo.buftype)
