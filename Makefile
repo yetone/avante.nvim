@@ -13,6 +13,7 @@ endif
 
 LUA_VERSIONS := luajit lua51
 BUILD_DIR := build
+BUILD_FROM_SOURCE := false
 
 all: luajit
 
@@ -30,16 +31,23 @@ define download_release
 	curl -L https://github.com/gptlang/lua-tiktoken/releases/latest/download/tiktoken_core-$1-$2.$(EXT) -o $(BUILD_DIR)/tiktoken_core.$(EXT)
 endef
 
-ifneq ($(filter arm64 aarch64,$(ARCH)),)
+ifeq ($(BUILD_FROM_SOURCE), true)
     $(BUILD_DIR)/tiktoken_core.$(EXT): $(BUILD_DIR)
 	$(call build_from_source,luajit)
     $(BUILD_DIR)/tiktoken_core-lua51.$(EXT): $(BUILD_DIR)
 	$(call build_from_source,lua51)
 else
-    $(BUILD_DIR)/tiktoken_core.$(EXT): $(BUILD_DIR)
-	$(call download_release,$(OS),luajit)
-    $(BUILD_DIR)/tiktoken_core-lua51.$(EXT): $(BUILD_DIR)
-	$(call download_release,$(OS),lua51)
+    ifneq ($(filter arm64 aarch64,$(ARCH)),)
+        $(BUILD_DIR)/tiktoken_core.$(EXT): $(BUILD_DIR)
+		$(call build_from_source,luajit)
+        $(BUILD_DIR)/tiktoken_core-lua51.$(EXT): $(BUILD_DIR)
+		$(call build_from_source,lua51)
+    else
+        $(BUILD_DIR)/tiktoken_core.$(EXT): $(BUILD_DIR)
+		$(call download_release,$(OS),luajit)
+        $(BUILD_DIR)/tiktoken_core-lua51.$(EXT): $(BUILD_DIR)
+		$(call download_release,$(OS),lua51)
+    endif
 endif
 
 $(BUILD_DIR):
