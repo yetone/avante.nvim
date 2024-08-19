@@ -84,7 +84,7 @@ M.defaults = {
   },
   --- @class AvanteHintsConfig
   hints = {
-    enbaled = true,
+    enabled = true,
   },
 }
 
