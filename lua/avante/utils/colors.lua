@@ -1,3 +1,4 @@
+---@class avante.util.colors
 local M = {}
 
 local bit = require("bit")
