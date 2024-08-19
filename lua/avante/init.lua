@@ -201,7 +201,7 @@ function M.setup(opts)
   end
 
   require("avante.diff").setup()
-  require("avante.ai_bot").setup()
+  require("avante.llm").setup()
 
   -- setup helpers
   H.autocmds()
