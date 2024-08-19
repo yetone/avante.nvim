@@ -287,7 +287,7 @@ A custom provider should following the following spec:
   --- This opts include:
   --- - on_chunk: (fun(chunk: string): any) this is invoked on parsing correct delta chunk
   --- - on_complete: (fun(err: string|nil): any) this is invoked on either complete call or error chunk
-  ---@type fun(data_stream: string, opts: ResponseParser, event_state: string): nil
+  ---@type fun(data_stream: string, event_state: string, opts: ResponseParser): nil
   parse_response_data = function(data_stream, event_state, opts) end
 }
 ```
