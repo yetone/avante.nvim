@@ -6,8 +6,11 @@ local M = {}
 
 ---@class avante.Config
 M.defaults = {
+  debug = false,
+  ---Currently, default supported providers include "claude", "openai", "azure", "deepseek", "groq"
+  ---For custom provider, see README.md
   ---@alias Provider "openai" | "claude" | "azure" | "deepseek" | "groq" | [string]
-  provider = "claude", -- "claude" or "openai" or "azure" or "deepseek" or "groq"
+  provider = "claude",
   openai = {
     endpoint = "https://api.openai.com",
     model = "gpt-4o",
@@ -39,18 +42,21 @@ M.defaults = {
     temperature = 0,
     max_tokens = 4096,
   },
-  --- To add support for custom provider, follow the format below
-  --- See https://github.com/yetone/avante.nvim/README.md#custom-providers for more details
+  ---To add support for custom provider, follow the format below
+  ---See https://github.com/yetone/avante.nvim/README.md#custom-providers for more details
   ---@type table<string, AvanteProvider>
   vendors = {},
+  ---Specify the behaviour of avante.nvim
+  ---1. auto_apply_diff_after_generation: Whether to automatically apply diff after LLM response.
+  ---                                     This would simulate similar behaviour to cursor. Default to false.
   behaviour = {
-    auto_apply_diff_after_generation = false, -- Whether to automatically apply diff after LLM response.
+    auto_apply_diff_after_generation = false,
   },
   highlights = {
     ---@type AvanteConflictHighlights
     diff = {
-      current = "DiffText", -- need have background color
-      incoming = "DiffAdd", -- need have background color
+      current = "DiffText",
+      incoming = "DiffAdd",
     },
   },
   mappings = {
