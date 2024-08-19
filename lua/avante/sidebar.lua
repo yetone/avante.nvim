@@ -266,6 +266,9 @@ function Sidebar:update_content(content, opts)
     end)
   else
     vim.defer_fn(function()
+      if self.view.buf == nil then
+        return
+      end
       api.nvim_set_option_value("modifiable", true, { buf = self.view.buf })
       api.nvim_buf_set_lines(self.view.buf, 0, -1, false, vim.split(content, "\n"))
       api.nvim_set_option_value("modifiable", false, { buf = self.view.buf })
@@ -500,7 +503,7 @@ local function get_conflict_content(content, snippets)
     table.insert(result, "=======")
 
     for _, line in ipairs(vim.split(snippet.content, "\n")) do
-      line = Utils.trim_line_number_prefix(line)
+      line = line:gsub("^L%d+: ", "")
       table.insert(result, line)
     end
 
@@ -680,14 +683,18 @@ function Sidebar:render()
 
     local filetype = api.nvim_get_option_value("filetype", { buf = self.code.buf })
 
-    Llm.stream(request, filetype, content_with_line_numbers, selected_code_content_with_line_numbers, function(chunk)
+    ---@type AvanteChunkParser
+    local on_chunk = function(chunk)
       signal.is_loading = true
       full_response = full_response .. chunk
       self:update_content(chunk, { stream = true, scroll = false })
       vim.schedule(function()
         vim.cmd("redraw")
       end)
-    end, function(err)
+    end
+
+    ---@type AvanteCompleteParser
+    local on_complete = function(err)
       signal.is_loading = false
 
       if err ~= nil then
@@ -716,7 +723,16 @@ function Sidebar:render()
         response = full_response,
       })
       save_chat_history(self, chat_history)
-    end)
+    end
+
+    Llm.stream(
+      request,
+      filetype,
+      content_with_line_numbers,
+      selected_code_content_with_line_numbers,
+      on_chunk,
+      on_complete
+    )
 
     if Config.behaviour.auto_apply_diff_after_generation then
       apply()

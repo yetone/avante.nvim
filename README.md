@@ -82,32 +82,12 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
 ```lua
 {
   ---@alias Provider "openai" | "claude" | "azure" | "deepseek" | "groq"
-  provider = "claude", -- "claude" or "openai" or "azure" or "deepseek" or "groq"
-  openai = {
-    endpoint = "https://api.openai.com",
-    model = "gpt-4o",
-    temperature = 0,
-    max_tokens = 4096,
-  },
-  azure = {
-    endpoint = "", -- example: "https://<your-resource-name>.openai.azure.com"
-    deployment = "", -- Azure deployment name (e.g., "gpt-4o", "my-gpt-4o-deployment")
-    api_version = "2024-06-01",
-    temperature = 0,
-    max_tokens = 4096,
-  },
+  provider = "claude",
   claude = {
     endpoint = "https://api.anthropic.com",
     model = "claude-3-5-sonnet-20240620",
     temperature = 0,
     max_tokens = 4096,
-  },
-  highlights = {
-    ---@type AvanteConflictHighlights
-    diff = {
-      current = "DiffText",
-      incoming = "DiffAdd",
-    },
   },
   mappings = {
     ask = "<leader>aa",
@@ -127,6 +107,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
       prev = "[[",
     },
   },
+  hints = { enabled = true },
   windows = {
     wrap_line = true,
     width = 30, -- default % based on available width
@@ -301,13 +282,13 @@ A custom provider should following the following spec:
   ---@type fun(opts: AvanteProvider, code_opts: AvantePromptOptions): AvanteCurlOutput
   parse_curl_args = function(opts, code_opts) end
   --- This function will be used to parse incoming SSE stream
-  --- It takes in the data stream as the first argument, followed by opts retrieved from given buffer.
+  --- It takes in the data stream as the first argument, followed by SSE event state, and opts
+  --- retrieved from given buffer.
   --- This opts include:
   --- - on_chunk: (fun(chunk: string): any) this is invoked on parsing correct delta chunk
   --- - on_complete: (fun(err: string|nil): any) this is invoked on either complete call or error chunk
-  --- - event_state: SSE event state.
-  ---@type fun(data_stream: string, opts: ResponseParser): nil
-  parse_response_data = function(data_stream, opts) end
+  ---@type fun(data_stream: string, opts: ResponseParser, event_state: string): nil
+  parse_response_data = function(data_stream, event_state, opts) end
 }
 ```
 
@@ -341,9 +322,9 @@ vendors = {
       }
     end,
     -- The below function is used if the vendors has specific SSE spec that is not claude or openai.
-    parse_response_data = function(data_stream, opts)
+    parse_response_data = function(data_stream, event_state, opts)
       local Llm = require "avante.llm"
-      Llm.parse_openai_response(data_stream, opts)
+      Llm.parse_openai_response(data_stream, event_state, opts)
     end,
   },
 },
