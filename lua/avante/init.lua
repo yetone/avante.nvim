@@ -80,7 +80,7 @@ H.autocmds = function()
     callback = function(ev)
       local tab = tonumber(ev.file)
       M._init(tab or api.nvim_get_current_tabpage())
-      if not M.current.selection.did_setup then
+      if Config.hints.enabled and not M.current.selection.did_setup then
         M.current.selection:setup_autocmds()
       end
     end,
@@ -106,7 +106,9 @@ H.autocmds = function()
 
   vim.schedule(function()
     M._init(api.nvim_get_current_tabpage())
-    M.current.selection:setup_autocmds()
+    if Config.hints.enabled then
+      M.current.selection:setup_autocmds()
+    end
   end)
 
   -- automatically setup Avante filetype to markdown
