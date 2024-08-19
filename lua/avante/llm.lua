@@ -28,16 +28,23 @@ local E = {
   },
 }
 
-E = setmetatable(E, {
+setmetatable(E, {
   ---@param k Provider
   __index = function(_, k)
     local builtins = E.env[k]
     if builtins then
+      if Config.options[k]["local"] then
+        return true
+      end
       return os.getenv(builtins) and true or false
     end
 
+    ---@type AvanteProvider | nil
     local external = Config.vendors[k]
     if external then
+      if external["local"] then
+        return true
+      end
       return os.getenv(external.api_key_name) and true or false
     end
   end,
@@ -46,6 +53,7 @@ E = setmetatable(E, {
 ---@private
 E._once = false
 
+---@param provider Provider
 E.is_default = function(provider)
   return E.env[provider] and true or false
 end
@@ -60,6 +68,7 @@ E.key = function(provider)
     return E.env[provider]
   end
 
+  ---@type AvanteProvider | nil
   local external = Config.vendors[provider]
   if external then
     return external.api_key_name
@@ -68,8 +77,22 @@ E.key = function(provider)
   end
 end
 
+---@param provider Provider
+E.is_local = function(provider)
+  if Config.options[provider] then
+    return Config.options[provider]["local"]
+  elseif Config.vendors[provider] then
+    return Config.vendors[provider]["local"]
+  else
+    return false
+  end
+end
+
 ---@param provider? Provider
 E.value = function(provider)
+  if E.is_local(provider or Config.provider) then
+    return "dummy"
+  end
   return os.getenv(E.key(provider or Config.provider))
 end
 
@@ -88,7 +111,7 @@ E.setup = function(var, refresh)
       vim.fn.setenv(var, value)
     else
       if not E[Config.provider] then
-        Util.warn("Failed to set " .. var .. ". Avante won't work as expected", { once = true, title = "Avante" })
+        Utils.warn("Failed to set " .. var .. ". Avante won't work as expected", { once = true, title = "Avante" })
       end
     end
   end
@@ -208,9 +231,22 @@ Remember: Accurate line numbers are CRITICAL. The range start_line to end_line m
 ---@field on_complete fun(err: string|nil): any
 ---@alias AvanteResponseParser fun(data_stream: string, event_state: string, opts: ResponseParser): nil
 ---
----@class AvanteProvider
+---@class AvanteDefaultBaseProvider
 ---@field endpoint string
+---@field local? boolean
+---
+---@class AvanteSupportedProvider: AvanteDefaultBaseProvider
 ---@field model string
+---@field temperature number
+---@field max_tokens number
+---
+---@class AvanteAzureProvider: AvanteDefaultBaseProvider
+---@field deployment string
+---@field api_version string
+---@field temperature number
+---@field max_tokens number
+---
+---@class AvanteProvider: AvanteDefaultBaseProvider
 ---@field api_key_name string
 ---@field parse_response_data AvanteResponseParser
 ---@field parse_curl_args fun(opts: AvanteProvider, code_opts: AvantePromptOptions): AvanteCurlOutput
