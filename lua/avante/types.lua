@@ -19,6 +19,7 @@ local AvanteRenderer = require("nui-components.renderer")
 
 ---@class NuiComponent
 ---@field winid integer | nil
+---@field bufnr integer | nil
 local AvanteComponent = require("nui-components.component")
 
 ---@param opts table<string, any>
@@ -27,6 +28,14 @@ function AvanteRenderer.create(opts) end
 
 ---@return NuiComponent[]
 function AvanteRenderer:get_focusable_components() end
+
+---@param mappings {mode: string[], key: string, handler: fun(): any}[]
+---@return nil
+function AvanteRenderer:add_mappings(mappings) end
+
+---@param id string
+---@return NuiComponent
+function AvanteRenderer:get_component_by_id(id) end
 
 ---@param body fun():NuiComponent
 function AvanteRenderer:render(body) end
