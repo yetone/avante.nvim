@@ -488,7 +488,6 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
     code_content = code_content,
     selected_code_content = selected_content_content,
   }
-  local handler_opts = { on_chunk = on_chunk, on_complete = on_complete, event_state = nil }
 
   ---@type AvanteCurlOutput
   local spec = nil
@@ -510,6 +509,7 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
 
   ---@param line string
   local function parse_and_call(line)
+    local handler_opts = { on_chunk = on_chunk, on_complete = on_complete, event_state = nil }
     local event = line:match("^event: (.+)$")
     if event then
       handler_opts.event_state = event
