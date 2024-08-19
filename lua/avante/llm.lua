@@ -644,6 +644,9 @@ M.commands = function()
   })
 end
 
+M.SYSTEM_PROMPT = system_prompt
+M.BASE_PROMPT = base_user_prompt
+
 return setmetatable(M, {
   __index = function(t, k)
     local h = H[k]
