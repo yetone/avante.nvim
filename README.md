@@ -138,6 +138,10 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     ---@type string | fun(): any
     list_opener = "copen",
   },
+  --- @class AvanteHintsConfig
+  hints = {
+    enbaled = true,
+  }
 }
 ```
 
