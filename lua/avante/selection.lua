@@ -62,9 +62,6 @@ end
 
 function Selection:setup_autocmds()
   Selection.did_setup = true
-  if Config.hints.enabled == false then
-    return self
-  end
   api.nvim_create_autocmd({ "ModeChanged" }, {
     group = self.augroup,
     pattern = { "n:v", "n:V", "n:" }, -- Entering Visual mode from Normal mode
