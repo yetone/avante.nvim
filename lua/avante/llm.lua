@@ -542,12 +542,6 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
     ProviderConfig = Config.vendors[provider]
     spec = ProviderConfig.parse_curl_args(ProviderConfig, code_opts)
   end
-  --- If the provider doesn't have stream set, we set it to true
-  if spec.body.stream == nil then
-    spec = vim.tbl_deep_extend("force", spec, {
-      body = { stream = true },
-    })
-  end
 
   ---@param line string
   local function parse_and_call(line)
