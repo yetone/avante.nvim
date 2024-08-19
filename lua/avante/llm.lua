@@ -8,13 +8,13 @@ local Tiktoken = require("avante.tiktoken")
 local Dressing = require("avante.ui.dressing")
 
 ---@private
----@class AvanteAiBotInternal
+---@class AvanteLLMInternal
 local H = {}
 
----@class avante.AiBot
+---@class avante.LLM
 local M = {}
 
-M.CANCEL_PATTERN = "AvanteAiBotEscape"
+M.CANCEL_PATTERN = "AvanteLLMEscape"
 
 ---@class EnvironmentHandler: table<[Provider], string>
 local E = {
@@ -31,16 +31,41 @@ local E = {
 E = setmetatable(E, {
   ---@param k Provider
   __index = function(_, k)
-    return os.getenv(E.env[k]) and true or false
+    local builtins = E.env[k]
+    if builtins then
+      return os.getenv(builtins) and true or false
+    end
+
+    local external = Config.vendors[k]
+    if external then
+      return os.getenv(external.api_key_name) and true or false
+    end
   end,
 })
+
+---@private
 E._once = false
+
+E.is_default = function(provider)
+  return E.env[provider] and true or false
+end
 
 --- return the environment variable name for the given provider
 ---@param provider? Provider
 ---@return string the envvar key
 E.key = function(provider)
-  return E.env[provider or Config.provider]
+  provider = provider or Config.provider
+
+  if E.is_default(provider) then
+    return E.env[provider]
+  end
+
+  local external = Config.vendors[provider]
+  if external then
+    return external.api_key_name
+  else
+    error("Failed to find provider: " .. provider, 2)
+  end
 end
 
 ---@param provider? Provider
@@ -52,6 +77,7 @@ end
 --- This will only run once and spawn a UI for users to input the envvar.
 ---@param var Provider supported providers
 ---@param refresh? boolean
+---@private
 E.setup = function(var, refresh)
   refresh = refresh or false
 
@@ -160,7 +186,19 @@ Remember: Accurate line numbers are CRITICAL. The range start_line to end_line m
 ---@field code_content string
 ---@field selected_code_content? string
 ---
----@alias AvanteAiMessageBuilder fun(opts: AvantePromptOptions): {role: "user" | "system", content: string | table<string, any>}[]
+---@class AvanteBaseMessage
+---@field role "user" | "system"
+---@field content string
+---
+---@class AvanteClaudeMessage: AvanteBaseMessage
+---@field role "user"
+---@field content {type: "text", text: string, cache_control?: {type: "ephemeral"}}[]
+---
+---@alias AvanteOpenAIMessage AvanteBaseMessage
+---
+---@alias AvanteChatMessage AvanteClaudeMessage | AvanteOpenAIMessage
+---
+---@alias AvanteAiMessageBuilder fun(opts: AvantePromptOptions): AvanteChatMessage[]
 ---
 ---@class AvanteCurlOutput: {url: string, body: table<string, any> | string, headers: table<string, string>}
 ---@alias AvanteCurlArgsBuilder fun(code_opts: AvantePromptOptions): AvanteCurlOutput
@@ -169,12 +207,19 @@ Remember: Accurate line numbers are CRITICAL. The range start_line to end_line m
 ---@field event_state string
 ---@field on_chunk fun(chunk: string): any
 ---@field on_complete fun(err: string|nil): any
----@field on_error? fun(err_type: string): nil
----@alias AvanteAiResponseParser fun(data_stream: string, opts: ResponseParser): nil
+---@alias AvanteResponseParser fun(data_stream: string, opts: ResponseParser): nil
+---
+---@class AvanteProvider
+---@field endpoint string
+---@field model string
+---@field api_key_name string
+---@field parse_response_data AvanteResponseParser
+---@field parse_curl_args fun(opts: AvanteProvider, code_opts: AvantePromptOptions): AvanteCurlOutput
 
 ------------------------------Anthropic------------------------------
 
----@type AvanteAiMessageBuilder
+---@param opts AvantePromptOptions
+---@return AvanteClaudeMessage[]
 H.make_claude_message = function(opts)
   local code_prompt_obj = {
     type = "text",
@@ -232,7 +277,7 @@ H.make_claude_message = function(opts)
   }
 end
 
----@type AvanteAiResponseParser
+---@type AvanteResponseParser
 H.parse_claude_response = function(data_stream, opts)
   if opts.event_state == "content_block_delta" then
     local json = vim.json.decode(data_stream)
@@ -268,7 +313,8 @@ end
 
 ------------------------------OpenAI------------------------------
 
----@type AvanteAiMessageBuilder
+---@param opts AvantePromptOptions
+---@return AvanteOpenAIMessage[]
 H.make_openai_message = function(opts)
   local user_prompt = base_user_prompt
     .. "\n\nCODE:\n"
@@ -304,7 +350,7 @@ H.make_openai_message = function(opts)
   }
 end
 
----@type AvanteAiResponseParser
+---@type AvanteResponseParser
 H.parse_openai_response = function(data_stream, opts)
   if data_stream:match('"%[DONE%]":') then
     opts.on_complete(nil)
@@ -346,7 +392,7 @@ end
 ---@type AvanteAiMessageBuilder
 H.make_azure_message = H.make_openai_message
 
----@type AvanteAiResponseParser
+---@type AvanteResponseParser
 H.parse_azure_response = H.parse_openai_response
 
 ---@type AvanteCurlArgsBuilder
@@ -375,7 +421,7 @@ end
 ---@type AvanteAiMessageBuilder
 H.make_deepseek_message = H.make_openai_message
 
----@type AvanteAiResponseParser
+---@type AvanteResponseParser
 H.parse_deepseek_response = H.parse_openai_response
 
 ---@type AvanteCurlArgsBuilder
@@ -401,7 +447,7 @@ end
 ---@type AvanteAiMessageBuilder
 H.make_groq_message = H.make_openai_message
 
----@type AvanteAiResponseParser
+---@type AvanteResponseParser
 H.parse_groq_response = H.parse_openai_response
 
 ---@type AvanteCurlArgsBuilder
@@ -424,7 +470,7 @@ end
 
 ------------------------------Logic------------------------------
 
-local group = vim.api.nvim_create_augroup("AvanteAiBot", { clear = true })
+local group = vim.api.nvim_create_augroup("AvanteLLM", { clear = true })
 local active_job = nil
 
 ---@param question string
@@ -433,17 +479,35 @@ local active_job = nil
 ---@param selected_content_content string | nil
 ---@param on_chunk fun(chunk: string): any
 ---@param on_complete fun(err: string|nil): any
-M.invoke_llm_stream = function(question, code_lang, code_content, selected_content_content, on_chunk, on_complete)
+M.stream = function(question, code_lang, code_content, selected_content_content, on_chunk, on_complete)
   local provider = Config.provider
   local event_state = nil
 
-  ---@type AvanteCurlOutput
-  local spec = H["make_" .. provider .. "_curl_args"]({
+  local code_opts = {
     question = question,
     code_lang = code_lang,
     code_content = code_content,
     selected_code_content = selected_content_content,
-  })
+  }
+  local handler_opts = vim.deepcopy({ on_chunk = on_chunk, on_complete = on_complete, event_state = event_state }, true)
+
+  ---@type AvanteCurlOutput
+  local spec = nil
+
+  ---@type AvanteProvider
+  local ProviderConfig = nil
+
+  if E.is_default(provider) then
+    spec = H["make_" .. provider .. "_curl_args"](code_opts)
+  else
+    ProviderConfig = Config.vendors[provider]
+    spec = ProviderConfig.parse_curl_args(ProviderConfig, code_opts)
+  end
+  if spec.body.stream == nil then
+    spec = vim.tbl_deep_extend("force", spec, {
+      body = { stream = true },
+    })
+  end
 
   ---@param line string
   local function parse_and_call(line)
@@ -454,10 +518,11 @@ M.invoke_llm_stream = function(question, code_lang, code_content, selected_conte
     end
     local data_match = line:match("^data: (.+)$")
     if data_match then
-      H["parse_" .. provider .. "_response"](
-        data_match,
-        vim.deepcopy({ on_chunk = on_chunk, on_complete = on_complete, event_state = event_state }, true)
-      )
+      if ProviderConfig ~= nil then
+        ProviderConfig.parse_response_data(data_match, handler_opts)
+      else
+        H["parse_" .. provider .. "_response"](data_match, handler_opts)
+      end
     end
   end
 
@@ -521,7 +586,7 @@ function M.refresh(provider)
   else
     vim.notify_once("Switch to provider: " .. provider, vim.log.levels.INFO)
   end
-  require("avante").setup({ provider = provider })
+  require("avante.config").override({ provider = provider })
 end
 
 M.commands = function()
@@ -536,11 +601,25 @@ M.commands = function()
         return {}
       end
       local prefix = line:match("^%s*AvanteSwitchProvider (%w*)") or ""
+      -- join two tables
+      local Keys = vim.list_extend(vim.tbl_keys(E.env), vim.tbl_keys(Config.vendors))
       return vim.tbl_filter(function(key)
         return key:find(prefix) == 1
-      end, vim.tbl_keys(E.env))
+      end, Keys)
     end,
   })
 end
 
-return M
+return setmetatable(M, {
+  __index = function(t, k)
+    local h = H[k]
+    if h then
+      return H[k]
+    end
+    local v = t[k]
+    if v then
+      return t[k]
+    end
+    error("Failed to find key: " .. k)
+  end,
+})
