@@ -250,32 +250,47 @@ function Sidebar:update_content(content, opts)
   end
   opts = vim.tbl_deep_extend("force", { focus = true, scroll = true, stream = false, callback = nil }, opts or {})
   if opts.stream then
+    local scroll_to_bottom = function()
+      local last_line = api.nvim_buf_line_count(self.view.buf)
+
+      local current_lines = api.nvim_buf_get_lines(self.view.buf, last_line - 1, last_line, false)
+
+      if #current_lines > 0 then
+        local last_line_content = current_lines[1]
+        local last_col = #last_line_content
+        xpcall(function()
+          api.nvim_win_set_cursor(self.view.win, { last_line, last_col })
+        end, function(err)
+          return err
+        end)
+      end
+    end
+
     vim.schedule(function()
-      api.nvim_set_option_value("modifiable", true, { buf = self.view.buf })
-      local current_window = vim.api.nvim_get_current_win()
-      local cursor_position = vim.api.nvim_win_get_cursor(current_window)
-      local row, col = cursor_position[1], cursor_position[2]
-
+      scroll_to_bottom()
       local lines = vim.split(content, "\n")
-
-      vim.api.nvim_put(lines, "c", true, true)
-
-      local num_lines = #lines
-      local last_line_length = #lines[num_lines]
-      vim.api.nvim_win_set_cursor(current_window, { row + num_lines - 1, col + last_line_length })
+      api.nvim_set_option_value("modifiable", true, { buf = self.view.buf })
+      api.nvim_buf_call(self.view.buf, function()
+        api.nvim_put(lines, "c", true, true)
+      end)
+      api.nvim_set_option_value("modifiable", false, { buf = self.view.buf })
+      api.nvim_set_option_value("filetype", "Avante", { buf = self.view.buf })
+      if opts.scroll then
+        scroll_to_bottom()
+      end
     end)
   else
     vim.defer_fn(function()
       if self.view.buf == nil then
         return
       end
+      local lines = vim.split(content, "\n")
+      local n_lines = #lines
+      local last_line_length = lines[n_lines]
       api.nvim_set_option_value("modifiable", true, { buf = self.view.buf })
-      api.nvim_buf_set_lines(self.view.buf, 0, -1, false, vim.split(content, "\n"))
+      api.nvim_buf_set_lines(self.view.buf, 0, -1, false, lines)
       api.nvim_set_option_value("modifiable", false, { buf = self.view.buf })
       api.nvim_set_option_value("filetype", "Avante", { buf = self.view.buf })
-      if opts.callback ~= nil then
-        opts.callback()
-      end
       if opts.focus and not self:is_focused() then
         xpcall(function()
           --- set cursor to bottom of result view
@@ -287,10 +302,14 @@ function Sidebar:update_content(content, opts)
 
       if opts.scroll then
         xpcall(function()
-          api.nvim_win_set_cursor(self.winid.result, { api.nvim_buf_line_count(self.bufnr.result), 0 })
+          api.nvim_win_set_cursor(self.winid.result, { n_lines, #last_line_length })
         end, function(err)
           return err
         end)
+      end
+
+      if opts.callback ~= nil then
+        opts.callback()
       end
     end, 0)
   end
@@ -683,14 +702,33 @@ function Sidebar:render()
 
     local filetype = api.nvim_get_option_value("filetype", { buf = self.code.buf })
 
+    local is_first_chunk = true
+
     ---@type AvanteChunkParser
     local on_chunk = function(chunk)
-      signal.is_loading = true
-      full_response = full_response .. chunk
-      self:update_content(chunk, { stream = true, scroll = false })
-      vim.schedule(function()
-        vim.cmd("redraw")
-      end)
+      local append_chunk = function()
+        signal.is_loading = true
+        full_response = full_response .. chunk
+        self:update_content(chunk, { stream = true, scroll = true })
+        vim.schedule(function()
+          vim.cmd("redraw")
+        end)
+      end
+
+      if is_first_chunk then
+        is_first_chunk = false
+        self:update_content(content_prefix, {
+          scroll = true,
+          callback = function()
+            vim.schedule(function()
+              vim.cmd("redraw")
+              append_chunk()
+            end)
+          end,
+        })
+      else
+        append_chunk()
+      end
     end
 
     ---@type AvanteCompleteParser
@@ -698,21 +736,18 @@ function Sidebar:render()
       signal.is_loading = false
 
       if err ~= nil then
-        self:update_content(content_prefix .. full_response .. "\n\n🚨 Error: " .. vim.inspect(err))
+        self:update_content("\n\n🚨 Error: " .. vim.inspect(err), { stream = true, scroll = true })
         return
       end
 
       -- Execute when the stream request is actually completed
-      self:update_content(
-        content_prefix
-          .. full_response
-          .. "\n\n🎉🎉🎉 **Generation complete!** Please review the code suggestions above.\n\n",
-        {
-          callback = function()
-            api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN })
-          end,
-        }
-      )
+      self:update_content("\n\n🎉🎉🎉 **Generation complete!** Please review the code suggestions above.\n\n", {
+        stream = true,
+        scroll = true,
+        callback = function()
+          api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN })
+        end,
+      })
 
       -- Save chat history
       table.insert(chat_history or {}, {
