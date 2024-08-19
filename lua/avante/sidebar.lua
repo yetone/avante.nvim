@@ -278,6 +278,9 @@ function Sidebar:update_content(content, opts)
       if opts.scroll then
         scroll_to_bottom()
       end
+      if opts.callback ~= nil then
+        opts.callback()
+      end
     end)
   else
     vim.defer_fn(function()
