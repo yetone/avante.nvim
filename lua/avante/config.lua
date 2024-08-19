@@ -126,6 +126,7 @@ function M.setup(opts)
     M.options.diff,
     { mappings = M.options.mappings.diff, highlights = M.options.highlights.diff }
   )
+  M.hints = vim.tbl_deep_extend("force", {}, M.options.hints)
 end
 
 ---@param opts? avante.Config
