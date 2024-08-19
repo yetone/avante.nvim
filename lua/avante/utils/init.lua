@@ -83,36 +83,6 @@ function M.get_visual_selection_and_range()
   return SelectionResult.new(content, range)
 end
 
---- Start an async job
----@param cmd string
----@param callback fun(data: string[]): nil
-function M.job(cmd, callback)
-  fn.jobstart(cmd, {
-    stdout_buffered = true,
-    on_stdout = function(_, data, _)
-      callback(data)
-    end,
-  })
-end
-
----Only call the passed function once every timeout in ms
----@param timeout integer
----@param func function
----@return function
-function M.throttle(timeout, func)
-  local timer = vim.loop.new_timer()
-  local running = false
-  return function(...)
-    if not running then
-      func(...)
-      running = true
-      timer:start(timeout, 0, function()
-        running = false
-      end)
-    end
-  end
-end
-
 ---Wrapper around `api.nvim_buf_get_lines` which defaults to the current buffer
 ---@param start integer
 ---@param _end integer
