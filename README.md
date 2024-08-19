@@ -112,6 +112,13 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     wrap_line = true,
     width = 30, -- default % based on available width
   },
+  highlights = {
+    ---@type AvanteConflictHighlights
+    diff = {
+      current = "DiffText",
+      incoming = "DiffAdd",
+    },
+  },
   --- @class AvanteConflictUserConfig
   diff = {
     debug = false,
