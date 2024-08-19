@@ -330,6 +330,22 @@ vendors = {
 },
 ```
 
+## Local LLM
+
+If you want to use local LLM that has a OpenAI-compatible server, set `["local"] = true`:
+
+```lua
+openai = {
+  endpoint = "http://127.0.0.1:3000",
+  model = "code-gemma",
+  temperature = 0,
+  max_tokens = 4096,
+  ["local"] = true,
+},
+```
+
+You will be responsible for setting up the server yourself before using Neovim.
+
 </details>
 
 ## License

@@ -9,42 +9,52 @@ M.defaults = {
   debug = false,
   ---Currently, default supported providers include "claude", "openai", "azure", "deepseek", "groq"
   ---For custom provider, see README.md
-  ---@alias Provider "openai" | "claude" | "azure" | "deepseek" | "groq" | [string]
+  ---@alias Provider "openai" | "claude" | "azure" | "deepseek" | "groq" | string
   provider = "claude",
+  ---@type AvanteSupportedProvider
   openai = {
     endpoint = "https://api.openai.com",
     model = "gpt-4o",
     temperature = 0,
     max_tokens = 4096,
+    ["local"] = false,
   },
+  ---@type AvanteAzureProvider
   azure = {
     endpoint = "", -- example: "https://<your-resource-name>.openai.azure.com"
     deployment = "", -- Azure deployment name (e.g., "gpt-4o", "my-gpt-4o-deployment")
     api_version = "2024-06-01",
     temperature = 0,
     max_tokens = 4096,
+    ["local"] = false,
   },
+  ---@type AvanteSupportedProvider
   claude = {
     endpoint = "https://api.anthropic.com",
     model = "claude-3-5-sonnet-20240620",
     temperature = 0,
     max_tokens = 4096,
+    ["local"] = false,
   },
+  ---@type AvanteSupportedProvider
   deepseek = {
     endpoint = "https://api.deepseek.com",
     model = "deepseek-coder",
     temperature = 0,
     max_tokens = 4096,
+    ["local"] = false,
   },
+  ---@type AvanteSupportedProvider
   groq = {
     endpoint = "https://api.groq.com",
     model = "llama-3.1-70b-versatile",
     temperature = 0,
     max_tokens = 4096,
+    ["local"] = false,
   },
   ---To add support for custom provider, follow the format below
   ---See https://github.com/yetone/avante.nvim/README.md#custom-providers for more details
-  ---@type table<string, AvanteProvider>
+  ---@type {[string]: AvanteProvider}
   vendors = {},
   ---Specify the behaviour of avante.nvim
   ---1. auto_apply_diff_after_generation: Whether to automatically apply diff after LLM response.
