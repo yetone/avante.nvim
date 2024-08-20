@@ -12,25 +12,69 @@ local M = {}
 
 M.CANCEL_PATTERN = "AvanteLLMEscape"
 
+---@class CopilotToken
+---@field annotations_enabled boolean
+---@field chat_enabled boolean
+---@field chat_jetbrains_enabled boolean
+---@field code_quote_enabled boolean
+---@field codesearch boolean
+---@field copilotignore_enabled boolean
+---@field endpoints {api: string, ["origin-tracker"]: string, proxy: string, telemetry: string}
+---@field expires_at integer
+---@field individual boolean
+---@field nes_enabled boolean
+---@field prompt_8k boolean
+---@field public_suggestions string
+---@field refresh_in integer
+---@field sku string
+---@field snippy_load_test_enabled boolean
+---@field telemetry string
+---@field token string
+---@field tracking_id string
+---@field vsc_electron_fetcher boolean
+---@field xcode boolean
+---@field xcode_chat boolean
+---
+---@privaate
+---@class AvanteCopilot: table<string, any>
+---@field proxy string
+---@field allow_insecure boolean
+---@field token? CopilotToken
+---@field github_token? string
+---@field sessionid? string
+---@field machineid? string
+M.copilot = nil
+
 ---@class EnvironmentHandler: table<[Provider], string>
 local E = {
-  ---@type table<Provider, string>
+  ---@type table<Provider, string | fun(): boolean>
   env = {
     openai = "OPENAI_API_KEY",
     claude = "ANTHROPIC_API_KEY",
     azure = "AZURE_OPENAI_API_KEY",
     deepseek = "DEEPSEEK_API_KEY",
     groq = "GROQ_API_KEY",
+    copilot = function()
+      if Utils.has("copilot.lua") or Utils.has("copilot.vim") then
+        return true
+      end
+      Utils.warn("copilot is not setup correctly. Please use copilot.lua or copilot.vim for authentication.")
+      return false
+    end,
   },
 }
 
 setmetatable(E, {
   ---@param k Provider
   __index = function(_, k)
+    if E.is_local(k) then
+      return true
+    end
+
     local builtins = E.env[k]
     if builtins then
-      if Config.options[k]["local"] then
-        return true
+      if type(builtins) == "function" then
+        return builtins()
       end
       return os.getenv(builtins) and true or false
     end
@@ -38,9 +82,6 @@ setmetatable(E, {
     ---@type AvanteProvider | nil
     local external = Config.vendors[k]
     if external then
-      if external["local"] then
-        return true
-      end
       return os.getenv(external.api_key_name) and true or false
     end
   end,
@@ -54,6 +95,8 @@ E.is_default = function(provider)
   return E.env[provider] and true or false
 end
 
+local AVANTE_INTERNAL_KEY = "__avante_internal"
+
 --- return the environment variable name for the given provider
 ---@param provider? Provider
 ---@return string the envvar key
@@ -61,16 +104,16 @@ E.key = function(provider)
   provider = provider or Config.provider
 
   if E.is_default(provider) then
-    return E.env[provider]
+    local result = E.env[provider]
+    return type(result) == "function" and AVANTE_INTERNAL_KEY or result
   end
 
   ---@type AvanteProvider | nil
   local external = Config.vendors[provider]
   if external then
     return external.api_key_name
-  else
-    error("Failed to find provider: " .. provider, 2)
   end
+  error("Failed to find provider: " .. provider, 2)
 end
 
 ---@param provider Provider
@@ -87,17 +130,21 @@ end
 ---@param provider? Provider
 E.value = function(provider)
   if E.is_local(provider or Config.provider) then
-    return "dummy"
+    return "__avante_dummy"
   end
   return os.getenv(E.key(provider or Config.provider))
 end
 
 --- intialize the environment variable for current neovim session.
 --- This will only run once and spawn a UI for users to input the envvar.
----@param var Provider supported providers
+---@param var string supported providers
 ---@param refresh? boolean
 ---@private
 E.setup = function(var, refresh)
+  if var == AVANTE_INTERNAL_KEY then
+    return
+  end
+
   refresh = refresh or false
 
   ---@param value string
@@ -242,6 +289,11 @@ Remember: Accurate line numbers are CRITICAL. The range start_line to end_line m
 ---@field api_version string
 ---@field temperature number
 ---@field max_tokens number
+---
+---@class AvanteCopilotProvider: AvanteSupportedProvider
+---@field proxy string | nil
+---@field allow_insecure boolean
+---@field timeout number
 ---
 ---@class AvanteProvider: AvanteDefaultBaseProvider
 ---@field model? string
@@ -422,6 +474,75 @@ M.make_openai_curl_args = function(code_opts)
       stream = true,
     },
   }
+end
+
+------------------------------Copilot------------------------------
+---@type AvanteAiMessageBuilder
+M.make_copilot_message = M.make_openai_message
+
+---@type AvanteResponseParser
+M.parse_copilot_response = M.parse_openai_response
+
+---@type AvanteCurlArgsBuilder
+M.make_copilot_curl_args = function(code_opts)
+  local github_token = Utils.copilot.cached_token()
+
+  if not github_token then
+    error(
+      "No GitHub token found, please use `:Copilot auth` to setup with `copilot.lua` or `:Copilot setup` with `copilot.vim`"
+    )
+  end
+
+  local on_done = function()
+    return {
+      url = Utils.trim(Config.copilot.endpoint, { suffix = "/" }) .. "/chat/completions",
+      proxy = Config.copilot.proxy,
+      insecure = Config.copilot.allow_insecure,
+      headers = Utils.copilot.generate_headers(M.copilot.token.token, M.copilot.sessionid, M.copilot.machineid),
+      body = {
+        mode = Config.copilot.model,
+        n = 1,
+        top_p = 1,
+        stream = true,
+        temperature = Config.copilot.temperature,
+        max_tokens = Config.copilot.max_tokens,
+        messages = M.make_copilot_message(code_opts),
+      },
+    }
+  end
+
+  local result = nil
+
+  if not M.copilot.token or (M.copilot.token.expires_at and M.copilot.token.expires_at <= math.floor(os.time())) then
+    local sessionid = Utils.copilot.uuid() .. tostring(math.floor(os.time() * 1000))
+
+    local url = "https://api.github.com/copilot_internal/v2/token"
+    local headers = {
+      ["Authorization"] = "token " .. github_token,
+      ["Accept"] = "application/json",
+    }
+    for key, value in pairs(Utils.copilot.version_headers) do
+      headers[key] = value
+    end
+
+    local response = curl.get(url, {
+      timeout = Config.copilot.timeout,
+      headers = headers,
+      proxy = M.copilot.proxy,
+      insecure = M.copilot.allow_insecure,
+      on_error = function(err)
+        error("Failed to get response: " .. vim.inspect(err))
+      end,
+    })
+
+    M.copilot.sessionid = sessionid
+    M.copilot.token = vim.json.decode(response.body)
+    result = on_done()
+  else
+    result = on_done()
+  end
+
+  return result
 end
 
 ------------------------------Azure------------------------------
@@ -613,6 +734,17 @@ end
 
 ---@private
 function M.setup()
+  if Config.provider == "copilot" and not M.copilot then
+    M.copilot = {
+      proxy = Config.copilot.proxy,
+      allow_insecure = Config.copilot.allow_insecure,
+      github_token = Utils.copilot.cached_token(),
+      sessionid = nil,
+      token = nil,
+      machineid = Utils.copilot.machine_id(),
+    }
+  end
+
   local has = E[Config.provider]
   if not has then
     E.setup(E.key())
