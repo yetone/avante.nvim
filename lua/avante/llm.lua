@@ -35,7 +35,7 @@ M.CANCEL_PATTERN = "AvanteLLMEscape"
 ---@field xcode boolean
 ---@field xcode_chat boolean
 ---
----@privaate
+---@private
 ---@class AvanteCopilot: table<string, any>
 ---@field proxy string
 ---@field allow_insecure boolean
@@ -55,7 +55,7 @@ local E = {
     deepseek = "DEEPSEEK_API_KEY",
     groq = "GROQ_API_KEY",
     copilot = function()
-      if Utils.has("copilot.lua") or Utils.has("copilot.vim") then
+      if Utils.has("copilot.lua") or Utils.has("copilot.vim") or Utils.copilot.find_config_path() then
         return true
       end
       Utils.warn("copilot is not setup correctly. Please use copilot.lua or copilot.vim for authentication.")

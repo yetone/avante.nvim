@@ -32,7 +32,7 @@ M.machine_id = function()
 end
 
 ---@return string | nil
-local function find_config_path()
+M.find_config_path = function()
   local config = vim.fn.expand("$XDG_CONFIG_HOME")
   if config and vim.fn.isdirectory(config) > 0 then
     return config
@@ -58,7 +58,7 @@ M.cached_token = function()
   end
 
   -- loading token from the file
-  local config_path = find_config_path()
+  local config_path = M.find_config_path()
   if not config_path then
     return nil
   end
