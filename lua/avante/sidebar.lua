@@ -767,11 +767,11 @@ function Sidebar:render()
     local code_file_fullpath = api.nvim_buf_get_name(self.code.buf)
     local code_filename = fn.fnamemodify(code_file_fullpath, ":t")
 
-    local input_label = string.format(" 🙋 with %s %s (<Tab>: switch focus): ", icon, code_filename)
+    local input_label = string.format(" 󱜸 Chat with %s %s (<Tab>: switch focus): ", icon, code_filename)
 
     if self.code.selection ~= nil then
       input_label = string.format(
-        " 🙋 with %s %s(%d:%d) (<Tab>: switch focus): ",
+        " 󱜸 Chat with %s %s(%d:%d) (<Tab>: switch focus): ",
         icon,
         code_filename,
         self.code.selection.range.start.line,
@@ -803,7 +803,7 @@ function Sidebar:render()
           buf = self.view.buf,
           autoscroll = true,
           border_label = {
-            text = "💬 Avante Chat",
+            text = "󰭻 Avante Chat",
             align = "center",
           },
           padding = {
@@ -820,7 +820,7 @@ function Sidebar:render()
         id = "selected_code",
         lines = self.code.selection and self.code.selection.content or "",
         border_label = {
-          text = "💻 Selected Code"
+          text = " Selected Code"
             .. (
               selected_code_lines_count > selected_code_max_lines_count
                 and " (Show only the first " .. tostring(selected_code_max_lines_count) .. " lines)"
