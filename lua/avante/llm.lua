@@ -248,6 +248,7 @@ Remember: Accurate line numbers are CRITICAL. The range start_line to end_line m
 ---@field api_key_name string
 ---@field parse_response_data AvanteResponseParser
 ---@field parse_curl_args fun(opts: AvanteProvider, code_opts: AvantePromptOptions): AvanteCurlOutput
+---@field parse_stream_data?  fun(line: string): nil
 ---
 ---@alias AvanteChunkParser fun(chunk: string): any
 ---@alias AvanteCompleteParser fun(err: string|nil): nil
@@ -574,7 +575,17 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
         return
       end
       vim.schedule(function()
-        parse_and_call(data)
+        if ProviderConfig ~= nil then
+          if ProviderConfig.parse_response_data ~= nil then
+            Utils.warn(
+              "parse_stream_data and parse_response_data are mutually exclusive, and thus parse_response_data will be ignored. Make sure that you handle the incoming data correctly.",
+              { once = true }
+            )
+            ProviderConfig.parse_stream_data(data)
+          end
+        else
+          parse_and_call(data)
+        end
       end)
     end,
     on_error = function(err)
