@@ -1,8 +1,8 @@
 local api = vim.api
-local fn = vim.fn
 
 ---@class avante.Utils: LazyUtilCore
 ---@field colors avante.util.colors
+---@field copilot avante.utils.copilot
 local M = {}
 
 setmetatable(M, {
@@ -17,6 +17,13 @@ setmetatable(M, {
     return t[k]
   end,
 })
+
+---Check if a plugin is installed
+---@param plugin string
+---@return boolean
+M.has = function(plugin)
+  return require("lazy.core.config").plugins[plugin] ~= nil
+end
 
 ---@param str string
 ---@param opts? {suffix?: string, prefix?: string}
