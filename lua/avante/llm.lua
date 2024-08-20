@@ -317,7 +317,10 @@ end
 ---@type AvanteResponseParser
 M.parse_claude_response = function(data_stream, event_state, opts)
   if event_state == "content_block_delta" then
-    local json = vim.json.decode(data_stream)
+    local ok, json = pcall(vim.json.decode, data_stream)
+    if not ok then
+      return
+    end
     opts.on_chunk(json.delta.text)
   elseif event_state == "message_stop" then
     opts.on_complete(nil)
@@ -611,7 +614,7 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
   return active_job
 end
 
----@private
+---@public
 function M.setup()
   local has = E[Config.provider]
   if not has then

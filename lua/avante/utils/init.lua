@@ -1,5 +1,4 @@
 local api = vim.api
-local fn = vim.fn
 
 ---@class avante.Utils: LazyUtilCore
 ---@field colors avante.util.colors
@@ -202,6 +201,44 @@ function M.debug(msg, opts)
   else
     opts.lang = "lua"
     M.notify(vim.inspect(msg), opts)
+  end
+end
+
+function M.tbl_indexof(tbl, value)
+  for i, v in ipairs(tbl) do
+    if v == value then
+      return i
+    end
+  end
+  return nil
+end
+
+function M.update_win_options(winid, opt_name, key, value)
+  local cur_opt_value = api.nvim_get_option_value(opt_name, { win = winid })
+
+  if cur_opt_value:find(key .. ":") then
+    cur_opt_value = cur_opt_value:gsub(key .. ":[^,]*", key .. ":" .. value)
+  else
+    if #cur_opt_value > 0 then
+      cur_opt_value = cur_opt_value .. ","
+    end
+    cur_opt_value = cur_opt_value .. key .. ":" .. value
+  end
+
+  api.nvim_set_option_value(opt_name, cur_opt_value, { win = winid })
+end
+
+function M.get_win_options(winid, opt_name, key)
+  local cur_opt_value = api.nvim_get_option_value(opt_name, { win = winid })
+  if not cur_opt_value then
+    return
+  end
+  local pieces = vim.split(cur_opt_value, ",")
+  for _, piece in ipairs(pieces) do
+    local kv_pair = vim.split(piece, ":")
+    if kv_pair[1] == key then
+      return kv_pair[2]
+    end
   end
 end
 

@@ -146,12 +146,11 @@ function M.get_window_width()
   return math.ceil(vim.o.columns * (M.windows.width / 100))
 end
 
----@return {width: integer, height: integer, position: integer}
-function M.get_renderer_layout_options()
+---@return {width: integer, height: integer}
+function M.get_sidebar_layout_options()
   local width = M.get_window_width()
   local height = vim.o.lines
-  local position = vim.o.columns - width
-  return { width = width, height = height, position = position }
+  return { width = width, height = height }
 end
 
 return M
