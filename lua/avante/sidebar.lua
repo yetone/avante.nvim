@@ -700,33 +700,14 @@ function Sidebar:render()
 
     local filetype = api.nvim_get_option_value("filetype", { buf = self.code.buf })
 
-    local is_first_chunk = true
-
     ---@type AvanteChunkParser
     local on_chunk = function(chunk)
-      local append_chunk = function()
-        signal.is_loading = true
-        full_response = full_response .. chunk
-        self:update_content(chunk, { stream = true, scroll = true })
-        vim.schedule(function()
-          vim.cmd("redraw")
-        end)
-      end
-
-      if is_first_chunk then
-        is_first_chunk = false
-        self:update_content(content_prefix, {
-          scroll = true,
-          callback = function()
-            vim.schedule(function()
-              vim.cmd("redraw")
-              append_chunk()
-            end)
-          end,
-        })
-      else
-        append_chunk()
-      end
+      signal.is_loading = true
+      full_response = full_response .. chunk
+      self:update_content(content_prefix .. full_response, { stream = false, scroll = true })
+      vim.schedule(function()
+        vim.cmd("redraw")
+      end)
     end
 
     ---@type AvanteCompleteParser
@@ -734,18 +715,26 @@ function Sidebar:render()
       signal.is_loading = false
 
       if err ~= nil then
-        self:update_content("\n\n🚨 Error: " .. vim.inspect(err), { stream = true, scroll = true })
+        self:update_content(
+          content_prefix .. full_response .. "\n\n🚨 Error: " .. vim.inspect(err),
+          { stream = false, scroll = true }
+        )
         return
       end
 
       -- Execute when the stream request is actually completed
-      self:update_content("\n\n🎉🎉🎉 **Generation complete!** Please review the code suggestions above.\n\n", {
-        stream = true,
-        scroll = true,
-        callback = function()
-          api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN })
-        end,
-      })
+      self:update_content(
+        content_prefix
+          .. full_response
+          .. "\n\n🎉🎉🎉 **Generation complete!** Please review the code suggestions above.\n\n",
+        {
+          stream = false,
+          scroll = true,
+          callback = function()
+            api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN })
+          end,
+        }
+      )
 
       -- Save chat history
       table.insert(chat_history or {}, {
