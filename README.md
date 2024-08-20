@@ -81,7 +81,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
 
 ```lua
 {
-  ---@alias Provider "openai" | "claude" | "azure" | "deepseek" | "groq"
+  ---@alias Provider "openai" | "claude" | "azure" | "deepseek" | "groq" | "copilot" | [string]
   provider = "claude",
   claude = {
     endpoint = "https://api.anthropic.com",
