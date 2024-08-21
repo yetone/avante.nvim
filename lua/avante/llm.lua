@@ -189,7 +189,10 @@ E.setup = function(var, refresh)
             not vim.tbl_contains(exclude_buftypes, vim.bo.buftype)
             and not vim.tbl_contains(exclude_filetypes, vim.bo.filetype)
           then
-            Dressing.initialize_input_buffer({ opts = { prompt = "Enter " .. var .. ": " }, on_confirm = on_confirm })
+            Dressing.initialize_input_buffer({
+              opts = { prompt = "Enter " .. var .. ": " },
+              on_confirm = on_confirm,
+            })
           end
         end, 200)
       end,
@@ -696,7 +699,7 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
         return
       end
       vim.schedule(function()
-        if ProviderConfig ~= nil then
+        if ProviderConfig ~= nil and ProviderConfig.parse_stream_data ~= nil then
           if ProviderConfig.parse_response_data ~= nil then
             Utils.warn(
               "parse_stream_data and parse_response_data are mutually exclusive, and thus parse_response_data will be ignored. Make sure that you handle the incoming data correctly.",
