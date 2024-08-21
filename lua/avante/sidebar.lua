@@ -330,6 +330,9 @@ function Sidebar:do_render_header(winid, bufnr, header_text, hl, reverse_hl)
   if not bufnr or not api.nvim_buf_is_valid(bufnr) then
     return
   end
+
+  header_text = " " .. header_text .. " "
+
   local width = api.nvim_win_get_width(winid)
   local header_text_length = vim.fn.strdisplaywidth(header_text)
   local prefix_padding, suffix_padding = 0, 0
