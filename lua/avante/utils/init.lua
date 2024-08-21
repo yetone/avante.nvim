@@ -250,4 +250,50 @@ function M.get_win_options(winid, opt_name, key)
   end
 end
 
+function M.unlock_buf(bufnr)
+  vim.bo[bufnr].modified = false
+  vim.bo[bufnr].modifiable = true
+end
+
+function M.lock_buf(bufnr)
+  vim.bo[bufnr].modified = false
+  vim.bo[bufnr].modifiable = false
+end
+
+---@param winnr? number
+---@return nil
+M.scroll_to_end = function(winnr)
+  winnr = winnr or 0
+  local bufnr = api.nvim_win_get_buf(winnr)
+  local lnum = api.nvim_buf_line_count(bufnr)
+  local last_line = api.nvim_buf_get_lines(bufnr, -2, -1, true)[1]
+  api.nvim_win_set_cursor(winnr, { lnum, api.nvim_strwidth(last_line) })
+end
+
+---@param bufnr nil|integer
+---@return nil
+M.buf_scroll_to_end = function(bufnr)
+  for _, winnr in ipairs(M.buf_list_wins(bufnr or 0)) do
+    M.scroll_to_end(winnr)
+  end
+end
+
+---@param bufnr nil|integer
+---@return integer[]
+M.buf_list_wins = function(bufnr)
+  local wins = {}
+
+  if not bufnr or bufnr == 0 then
+    bufnr = api.nvim_get_current_buf()
+  end
+
+  for _, winnr in ipairs(api.nvim_list_wins()) do
+    if api.nvim_win_is_valid(winnr) and api.nvim_win_get_buf(winnr) == bufnr then
+      table.insert(wins, winnr)
+    end
+  end
+
+  return wins
+end
+
 return M

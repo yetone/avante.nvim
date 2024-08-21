@@ -347,7 +347,7 @@ function Sidebar:do_render_header(winid, bufnr, header_text, hl, reverse_hl)
 
   local prefix_padding_text = string.rep(" ", prefix_padding)
   local suffix_padding_text = string.rep(" ", suffix_padding)
-  api.nvim_set_option_value("modifiable", true, { buf = bufnr })
+  Utils.unlock_buf(bufnr)
   api.nvim_buf_set_lines(bufnr, 0, -1, false, { prefix_padding_text .. header_text .. suffix_padding_text })
   api.nvim_buf_add_highlight(bufnr, -1, "WinSeparator", 0, 0, #prefix_padding_text)
   api.nvim_buf_add_highlight(bufnr, -1, reverse_hl, 0, #prefix_padding_text, #prefix_padding_text)
@@ -361,7 +361,7 @@ function Sidebar:do_render_header(winid, bufnr, header_text, hl, reverse_hl)
     #prefix_padding_text + #header_text
   )
   api.nvim_buf_add_highlight(bufnr, -1, "WinSeparator", 0, #prefix_padding_text + #header_text, -1)
-  api.nvim_set_option_value("modifiable", false, { buf = bufnr })
+  Utils.lock_buf(bufnr)
 end
 
 function Sidebar:render_header()
@@ -515,10 +515,10 @@ function Sidebar:on_mount()
     local selected_code_buf = self.selected_code.bufnr
     if selected_code_buf ~= nil then
       if self.code.selection ~= nil then
-        api.nvim_set_option_value("modifiable", true, { buf = selected_code_buf })
+        Utils.unlock_buf(selected_code_buf)
         local lines = vim.split(self.code.selection.content, "\n")
         api.nvim_buf_set_lines(selected_code_buf, 0, -1, false, lines)
-        api.nvim_set_option_value("modifiable", false, { buf = selected_code_buf })
+        Utils.lock_buf(selected_code_buf)
       end
       api.nvim_set_option_value("filetype", filetype, { buf = selected_code_buf })
     end
@@ -817,11 +817,11 @@ function Sidebar:update_content(content, opts)
       end
       scroll_to_bottom()
       local lines = vim.split(content, "\n")
-      api.nvim_set_option_value("modifiable", true, { buf = self.result.bufnr })
+      Utils.unlock_buf(self.result.bufnr)
       api.nvim_buf_call(self.result.bufnr, function()
         api.nvim_put(lines, "c", true, true)
       end)
-      api.nvim_set_option_value("modifiable", false, { buf = self.result.bufnr })
+      Utils.lock_buf(self.result.bufnr)
       api.nvim_set_option_value("filetype", "Avante", { buf = self.result.bufnr })
       if opts.scroll then
         scroll_to_bottom()
@@ -836,11 +836,9 @@ function Sidebar:update_content(content, opts)
         return
       end
       local lines = vim.split(content, "\n")
-      local n_lines = #lines
-      local last_line_length = lines[n_lines]
-      api.nvim_set_option_value("modifiable", true, { buf = self.result.bufnr })
+      Utils.unlock_buf(self.result.bufnr)
       api.nvim_buf_set_lines(self.result.bufnr, 0, -1, false, lines)
-      api.nvim_set_option_value("modifiable", false, { buf = self.result.bufnr })
+      Utils.lock_buf(self.result.bufnr)
       api.nvim_set_option_value("filetype", "Avante", { buf = self.result.bufnr })
       if opts.focus and not self:is_focused_on_result() then
         xpcall(function()
@@ -852,11 +850,7 @@ function Sidebar:update_content(content, opts)
       end
 
       if opts.scroll then
-        xpcall(function()
-          api.nvim_win_set_cursor(self.result.winid, { n_lines, #last_line_length })
-        end, function(err)
-          return err
-        end)
+        Utils.buf_scroll_to_end(self.result.bufnr)
       end
 
       if opts.callback ~= nil then
