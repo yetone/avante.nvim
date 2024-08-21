@@ -331,19 +331,25 @@ function Sidebar:do_render_header(winid, bufnr, header_text, hl, reverse_hl)
     return
   end
 
-  header_text = " " .. header_text .. " "
+  local reversed_hl_off = 0
+  if Config.windows.sidebar_header.rounded then
+    reversed_hl_off = 1
+    header_text = "" .. header_text .. ""
+  else
+    header_text = " " .. header_text .. " "
+  end
 
   local width = api.nvim_win_get_width(winid)
   local header_text_length = vim.fn.strdisplaywidth(header_text)
   local prefix_padding, suffix_padding = 0, 0
 
-  if Config.windows.sidebar.align == "center" then
+  if Config.windows.sidebar_header.align == "center" then
     prefix_padding = math.floor((width - header_text_length) / 2)
     suffix_padding = width - header_text_length - prefix_padding
-  elseif Config.windows.sidebar.align == "right" then
+  elseif Config.windows.sidebar_header.align == "right" then
     prefix_padding = width - header_text_length
     suffix_padding = 0
-  elseif Config.windows.sidebar.align == "left" then
+  elseif Config.windows.sidebar_header.align == "left" then
     suffix_padding = width - header_text_length
     prefix_padding = 0
   end
@@ -352,18 +358,25 @@ function Sidebar:do_render_header(winid, bufnr, header_text, hl, reverse_hl)
   local suffix_padding_text = string.rep(" ", suffix_padding)
   Utils.unlock_buf(bufnr)
   api.nvim_buf_set_lines(bufnr, 0, -1, false, { prefix_padding_text .. header_text .. suffix_padding_text })
-  api.nvim_buf_add_highlight(bufnr, -1, "WinSeparator", 0, 0, #prefix_padding_text)
-  api.nvim_buf_add_highlight(bufnr, -1, reverse_hl, 0, #prefix_padding_text, #prefix_padding_text)
-  api.nvim_buf_add_highlight(bufnr, -1, hl, 0, #prefix_padding_text, #prefix_padding_text + #header_text)
+  api.nvim_buf_add_highlight(bufnr, -1, "WinSeparator", 0, 0, #prefix_padding_text - reversed_hl_off)
+  api.nvim_buf_add_highlight(bufnr, -1, reverse_hl, 0, #prefix_padding_text, #prefix_padding_text + reversed_hl_off)
+  api.nvim_buf_add_highlight(
+    bufnr,
+    -1,
+    hl,
+    0,
+    #prefix_padding_text + reversed_hl_off,
+    #prefix_padding_text + #header_text - reversed_hl_off * 3
+  )
   api.nvim_buf_add_highlight(
     bufnr,
     -1,
     reverse_hl,
     0,
-    #prefix_padding_text + #header_text,
-    #prefix_padding_text + #header_text
+    #prefix_padding_text + #header_text - reversed_hl_off * 3,
+    #prefix_padding_text + #header_text - reversed_hl_off * 2
   )
-  api.nvim_buf_add_highlight(bufnr, -1, "WinSeparator", 0, #prefix_padding_text + #header_text, -1)
+  api.nvim_buf_add_highlight(bufnr, -1, "WinSeparator", 0, #prefix_padding_text + #header_text - reversed_hl_off, -1)
   Utils.lock_buf(bufnr)
 end
 
