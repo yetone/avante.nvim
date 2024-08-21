@@ -307,7 +307,7 @@ Remember: Accurate line numbers are CRITICAL. The range start_line to end_line m
 ---@field api_key_name string
 ---@field parse_response_data AvanteResponseParser
 ---@field parse_curl_args fun(opts: AvanteProvider, code_opts: AvantePromptOptions): AvanteCurlOutput
----@field parse_stream_data?  fun(line: string, hanlder_opts: AvanteHandlerOptions): nil
+---@field parse_stream_data?  fun(line: string, handler_opts: AvanteHandlerOptions): nil
 ---
 ---@alias AvanteChunkParser fun(chunk: string): any
 ---@alias AvanteCompleteParser fun(err: string|nil): nil
