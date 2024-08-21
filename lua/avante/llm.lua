@@ -705,8 +705,8 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
               "parse_stream_data and parse_response_data are mutually exclusive, and thus parse_response_data will be ignored. Make sure that you handle the incoming data correctly.",
               { once = true }
             )
-            ProviderConfig.parse_stream_data(data)
           end
+          ProviderConfig.parse_stream_data(data)
         else
           parse_and_call(data)
         end
