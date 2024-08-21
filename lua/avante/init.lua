@@ -163,8 +163,8 @@ M.refresh = function()
   end
   local curbuf = vim.api.nvim_get_current_buf()
 
-  local focused = sidebar.view.buf == curbuf or sidebar.bufnr.result == curbuf or sidebar.bufnr.input == curbuf
-  if focused or not sidebar.view:is_open() then
+  local focused = sidebar.result.bufnr == curbuf or sidebar.input.bufnr == curbuf
+  if focused or not sidebar:is_open() then
     return
   end
 
@@ -177,8 +177,8 @@ M.refresh = function()
 
   local curwin = vim.api.nvim_get_current_win()
 
-  sidebar.code.win = curwin
-  sidebar.code.buf = curbuf
+  sidebar.code.winid = curwin
+  sidebar.code.bufnr = curbuf
   sidebar:render()
 end
 
@@ -202,6 +202,7 @@ function M.setup(opts)
     return
   end
 
+  require("avante.highlights").setup()
   require("avante.diff").setup()
   require("avante.llm").setup()
 
