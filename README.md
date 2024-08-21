@@ -68,6 +68,18 @@ For Windows users, change the build command to the following:
 
 > [!NOTE]
 >
+> Recommended **Neovim** options:
+>
+> ```lua
+> -- views can only be fully collapsed with the global statusline
+> vim.opt.laststatus = 3
+> -- Default splitting will cause your main splits to jump when opening an edgebar.
+> -- To prevent this, set `splitkeep` to either `screen` or `topline`.
+> vim.opt.splitkeep = "screen"
+> ```
+
+> [!NOTE]
+>
 > `render-markdown.nvim` is an optional dependency that is used to render the markdown content of the chat history. Make sure to also include `Avante` as a filetype
 > to its setup:
 >
