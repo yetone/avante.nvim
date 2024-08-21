@@ -100,6 +100,9 @@ M.defaults = {
   windows = {
     wrap_line = true, -- similar to vim.o.wrap
     width = 30, -- default % based on available width
+    sidebar = {
+      align = "center", -- left, center, right for title
+    },
   },
   --- @class AvanteConflictUserConfig
   diff = {
