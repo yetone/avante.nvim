@@ -332,24 +332,35 @@ function Sidebar:do_render_header(winid, bufnr, header_text, hl, reverse_hl)
   end
   local width = api.nvim_win_get_width(winid)
   local header_text_length = vim.fn.strdisplaywidth(header_text)
-  local prefix_padding = math.floor((width - header_text_length) / 2)
-  local suffix_padding = width - header_text_length - prefix_padding
+  local prefix_padding, suffix_padding = 0, 0
+
+  if Config.windows.sidebar.align == "center" then
+    prefix_padding = math.floor((width - header_text_length) / 2)
+    suffix_padding = width - header_text_length - prefix_padding
+  elseif Config.windows.sidebar.align == "right" then
+    prefix_padding = width - header_text_length
+    suffix_padding = 0
+  elseif Config.windows.sidebar.align == "left" then
+    suffix_padding = width - header_text_length
+    prefix_padding = 0
+  end
+
   local prefix_padding_text = string.rep(" ", prefix_padding)
   local suffix_padding_text = string.rep(" ", suffix_padding)
   api.nvim_set_option_value("modifiable", true, { buf = bufnr })
   api.nvim_buf_set_lines(bufnr, 0, -1, false, { prefix_padding_text .. header_text .. suffix_padding_text })
-  api.nvim_buf_add_highlight(bufnr, -1, "WinSeparator", 0, 0, #prefix_padding_text - 1)
-  api.nvim_buf_add_highlight(bufnr, -1, reverse_hl, 0, #prefix_padding_text, #prefix_padding_text + 1)
-  api.nvim_buf_add_highlight(bufnr, -1, hl, 0, #prefix_padding_text + 1, #prefix_padding_text + #header_text - 3)
+  api.nvim_buf_add_highlight(bufnr, -1, "WinSeparator", 0, 0, #prefix_padding_text)
+  api.nvim_buf_add_highlight(bufnr, -1, reverse_hl, 0, #prefix_padding_text, #prefix_padding_text)
+  api.nvim_buf_add_highlight(bufnr, -1, hl, 0, #prefix_padding_text, #prefix_padding_text + #header_text)
   api.nvim_buf_add_highlight(
     bufnr,
     -1,
     reverse_hl,
     0,
-    #prefix_padding_text + #header_text - 3,
-    #prefix_padding_text + #header_text - 2
+    #prefix_padding_text + #header_text,
+    #prefix_padding_text + #header_text
   )
-  api.nvim_buf_add_highlight(bufnr, -1, "WinSeparator", 0, #prefix_padding_text + #header_text - 1, -1)
+  api.nvim_buf_add_highlight(bufnr, -1, "WinSeparator", 0, #prefix_padding_text + #header_text, -1)
   api.nvim_set_option_value("modifiable", false, { buf = bufnr })
 end
 
@@ -357,7 +368,7 @@ function Sidebar:render_header()
   if not self.header or not self.header.bufnr or not api.nvim_buf_is_valid(self.header.bufnr) then
     return
   end
-  local header_text = "󰭻 Avante Chat"
+  local header_text = "󰭻 Avante"
   self:do_render_header(self.header.winid, self.header.bufnr, header_text, Highlights.TITLE, Highlights.REVERSED_TITLE)
 end
 
@@ -370,11 +381,11 @@ function Sidebar:render_input_header()
   local code_file_fullpath = api.nvim_buf_get_name(self.code.bufnr)
   local icon = require("nvim-web-devicons").get_icon_by_filetype(filetype, {})
   local code_filename = fn.fnamemodify(code_file_fullpath, ":t")
-  local header_text = string.format("󱜸 Chat with %s %s (<Tab>: switch focus)", icon, code_filename)
+  local header_text = string.format("󱜸 Chat with %s %s (<Tab>: switch focus)", icon, code_filename)
 
   if self.code.selection ~= nil then
     header_text = string.format(
-      "󱜸 Chat with %s %s(%d:%d) (<Tab>: switch focus)",
+      "󱜸 Chat with %s %s(%d:%d) (<Tab>: switch focus)",
       icon,
       code_filename,
       self.code.selection.range.start.line,
@@ -698,7 +709,7 @@ function Sidebar:refresh_winids()
   local current_winid = api.nvim_get_current_win()
   local current_idx = Utils.tbl_indexof(winids, current_winid)
 
-  local function swith_windows()
+  local function switch_windows()
     if current_idx == nil then
       current_winid = api.nvim_get_current_win()
       current_idx = Utils.tbl_indexof(winids, current_winid) or 1
@@ -712,7 +723,7 @@ function Sidebar:refresh_winids()
     end
   end
 
-  local function reverse_swith_windows()
+  local function reverse_switch_windows()
     if current_idx == nil then
       current_winid = api.nvim_get_current_win()
       current_idx = Utils.tbl_indexof(winids, current_winid) or 1
@@ -729,10 +740,10 @@ function Sidebar:refresh_winids()
   for _, winid in ipairs(winids) do
     local buf = api.nvim_win_get_buf(winid)
     vim.keymap.set({ "n", "i" }, "<Tab>", function()
-      swith_windows()
+      switch_windows()
     end, { buffer = buf, noremap = true, silent = true })
     vim.keymap.set({ "n", "i" }, "<S-Tab>", function()
-      reverse_swith_windows()
+      reverse_switch_windows()
     end, { buffer = buf, noremap = true, silent = true })
   end
 end
