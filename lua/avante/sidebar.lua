@@ -315,6 +315,8 @@ local base_win_options = {
   -- winhighlight = "Normal:NormalFloat,Border:FloatBorder,VertSplit:NormalFloat,WinSeparator:NormalFloat,CursorLine:NormalFloat",
   fillchars = "eob: ",
   winhighlight = "CursorLine:Normal,CursorColumn:Normal",
+  winbar = "",
+  statusline = "",
 }
 
 local function get_win_options()
