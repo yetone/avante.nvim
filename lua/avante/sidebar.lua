@@ -11,6 +11,7 @@ local Diff = require("avante.diff")
 local Llm = require("avante.llm")
 local Utils = require("avante.utils")
 local Highlights = require("avante.highlights")
+local FloatingWindow = require("avante.floating_window")
 
 local RESULT_BUF_NAME = "AVANTE_RESULT"
 local VIEW_BUFFER_UPDATED_PATTERN = "AvanteViewBufferUpdated"
@@ -29,27 +30,31 @@ local Sidebar = {}
 ---@field id integer
 ---@field augroup integer
 ---@field code avante.CodeState
----@field winids table<string, integer> this table stores the winids of the sidebar components (header, result, selected_code, input, input_placeholder), even though they are destroyed.
----@field header NuiSplit | nil
+---@field winids table<string, integer> this table stores the winids of the sidebar components (result_container, result, selected_code_container, selected_code, input_container, input), even though they are destroyed.
+---@field result_container NuiSplit | nil
 ---@field result NuiSplit | nil
----@field selected_code_header NuiSplit | nil
+---@field selected_code_container NuiSplit | nil
 ---@field selected_code NuiSplit | nil
----@field input_header NuiSplit | nil
+---@field input_container NuiSplit | nil
 ---@field input NuiSplit | nil
----@field input_placeholder NuiSplit | nil
 
 ---@param id integer the tabpage id retrieved from vim.api.nvim_get_current_tabpage()
 function Sidebar:new(id)
   return setmetatable({
     id = id,
     code = { bufnr = 0, winid = 0, selection = nil },
-    winids = { header = 0, result = 0, selected_code_header = 0, selected_code = 0, input = 0, input_placeholder = 0 },
+    winids = {
+      result_container = 0,
+      result = 0,
+      selected_code_container = 0,
+      selected_code = 0,
+      input = 0,
+    },
     result = nil,
-    selected_code_header = nil,
+    selected_code_container = nil,
     selected_code = nil,
-    input_header = nil,
+    input_container = nil,
     input = nil,
-    input_placeholder = nil,
   }, { __index = self })
 end
 
@@ -68,14 +73,13 @@ end
 function Sidebar:reset()
   self:delete_autocmds()
   self.code = { bufnr = 0, winid = 0, selection = nil }
-  self.winids = { header = 0, result = 0, selected_code = 0, input = 0, input_placeholder = 0 }
-  self.header = nil
+  self.winids = { result_container = 0, result = 0, selected_code = 0, input = 0 }
+  self.result_container = nil
   self.result = nil
-  self.selected_code_header = nil
+  self.selected_code_container = nil
   self.selected_code = nil
-  self.input_header = nil
+  self.input_container = nil
   self.input = nil
-  self.input_placeholder = nil
 end
 
 function Sidebar:open()
@@ -326,7 +330,7 @@ local function get_win_options()
   return base_win_options
 end
 
-function Sidebar:do_render_header(winid, bufnr, header_text, hl, reverse_hl)
+function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl)
   if not bufnr or not api.nvim_buf_is_valid(bufnr) then
     return
   end
@@ -380,16 +384,30 @@ function Sidebar:do_render_header(winid, bufnr, header_text, hl, reverse_hl)
   Utils.lock_buf(bufnr)
 end
 
-function Sidebar:render_header()
-  if not self.header or not self.header.bufnr or not api.nvim_buf_is_valid(self.header.bufnr) then
+function Sidebar:render_result_container()
+  if
+    not self.result_container
+    or not self.result_container.bufnr
+    or not api.nvim_buf_is_valid(self.result_container.bufnr)
+  then
     return
   end
   local header_text = "󰭻 Avante"
-  self:do_render_header(self.header.winid, self.header.bufnr, header_text, Highlights.TITLE, Highlights.REVERSED_TITLE)
+  self:render_header(
+    self.result_container.winid,
+    self.result_container.bufnr,
+    header_text,
+    Highlights.TITLE,
+    Highlights.REVERSED_TITLE
+  )
 end
 
-function Sidebar:render_input_header()
-  if not self.input_header or not self.input_header.bufnr or not api.nvim_buf_is_valid(self.input_header.bufnr) then
+function Sidebar:render_input_container()
+  if
+    not self.input_container
+    or not self.input_container.bufnr
+    or not api.nvim_buf_is_valid(self.input_container.bufnr)
+  then
     return
   end
 
@@ -409,20 +427,20 @@ function Sidebar:render_input_header()
     )
   end
 
-  self:do_render_header(
-    self.input_header.winid,
-    self.input_header.bufnr,
+  self:render_header(
+    self.input_container.winid,
+    self.input_container.bufnr,
     header_text,
     Highlights.THRIDTITLE,
     Highlights.REVERSED_THRIDTITLE
   )
 end
 
-function Sidebar:render_selected_code_header()
+function Sidebar:render_selected_code_container()
   if
-    not self.selected_code_header
-    or not self.selected_code_header.bufnr
-    or not api.nvim_buf_is_valid(self.selected_code_header.bufnr)
+    not self.selected_code_container
+    or not self.selected_code_container.bufnr
+    or not api.nvim_buf_is_valid(self.selected_code_container.bufnr)
   then
     return
   end
@@ -442,9 +460,9 @@ function Sidebar:render_selected_code_header()
       or ""
     )
 
-  self:do_render_header(
-    self.selected_code_header.winid,
-    self.selected_code_header.bufnr,
+  self:render_header(
+    self.selected_code_container.winid,
+    self.selected_code_container.bufnr,
     header_text,
     Highlights.SUBTITLE,
     Highlights.REVERSED_SUBTITLE
@@ -517,9 +535,9 @@ function Sidebar:on_mount()
     end,
   })
 
-  self:render_header()
-  self:render_input_header()
-  self:render_selected_code_header()
+  self:render_result_container()
+  self:render_input_container()
+  self:render_selected_code_container()
 
   -- api.nvim_set_option_value("buftype", "nofile", { buf = self.input.bufnr })
 
@@ -543,18 +561,6 @@ function Sidebar:on_mount()
   api.nvim_create_autocmd("BufEnter", {
     group = self.augroup,
     buffer = self.result.bufnr,
-    callback = function()
-      self:focus()
-      if self.input and self.input.winid and api.nvim_win_is_valid(self.input.winid) then
-        api.nvim_set_current_win(self.input.winid)
-      end
-      return true
-    end,
-  })
-
-  api.nvim_create_autocmd("BufEnter", {
-    group = self.augroup,
-    buffer = self.input_placeholder.bufnr,
     callback = function()
       self:focus()
       if self.input and self.input.winid and api.nvim_win_is_valid(self.input.winid) then
@@ -604,37 +610,9 @@ function Sidebar:on_mount()
   api.nvim_create_autocmd("WinEnter", {
     group = self.augroup,
     callback = function()
-      local current_win_id = vim.api.nvim_get_current_win()
-
-      if not self.input_placeholder or current_win_id ~= self.input_placeholder.winid then
-        return
-      end
-
-      if previous_winid == self.input.winid then
-        if self.selected_code and self.selected_code.winid and api.nvim_win_is_valid(self.selected_code.winid) then
-          api.nvim_set_current_win(self.selected_code.winid)
-          return
-        end
-        if self.result and self.result.winid and api.nvim_win_is_valid(self.result.winid) then
-          api.nvim_set_current_win(self.result.winid)
-          return
-        end
-        return
-      end
-
-      if self.input.winid and api.nvim_win_is_valid(self.input.winid) then
-        api.nvim_set_current_win(self.input.winid)
-        return
-      end
-    end,
-  })
-
-  api.nvim_create_autocmd("WinEnter", {
-    group = self.augroup,
-    callback = function()
       local current_win_id = api.nvim_get_current_win()
 
-      if not self.header or current_win_id ~= self.header.winid then
+      if not self.result_container or current_win_id ~= self.result_container.winid then
         return
       end
 
@@ -655,7 +633,7 @@ function Sidebar:on_mount()
     callback = function()
       local current_win_id = api.nvim_get_current_win()
 
-      if not self.input_header or current_win_id ~= self.input_header.winid then
+      if not self.input_container or current_win_id ~= self.input_container.winid then
         return
       end
 
@@ -682,7 +660,7 @@ function Sidebar:on_mount()
     callback = function()
       local current_win_id = api.nvim_get_current_win()
 
-      if not self.selected_code_header or current_win_id ~= self.selected_code_header.winid then
+      if not self.selected_code_container or current_win_id ~= self.selected_code_container.winid then
         return
       end
 
@@ -722,14 +700,10 @@ function Sidebar:refresh_winids()
   if self.winids.input then
     table.insert(winids, self.winids.input)
   end
-  local current_winid = api.nvim_get_current_win()
-  local current_idx = Utils.tbl_indexof(winids, current_winid)
 
   local function switch_windows()
-    if current_idx == nil then
-      current_winid = api.nvim_get_current_win()
-      current_idx = Utils.tbl_indexof(winids, current_winid) or 1
-    end
+    local current_winid = api.nvim_get_current_win()
+    local current_idx = Utils.tbl_indexof(winids, current_winid) or 1
     if current_idx == #winids then
       current_idx = 1
       api.nvim_set_current_win(winids[current_idx])
@@ -740,10 +714,8 @@ function Sidebar:refresh_winids()
   end
 
   local function reverse_switch_windows()
-    if current_idx == nil then
-      current_winid = api.nvim_get_current_win()
-      current_idx = Utils.tbl_indexof(winids, current_winid) or 1
-    end
+    local current_winid = api.nvim_get_current_win()
+    local current_idx = Utils.tbl_indexof(winids, current_winid) or 1
     if current_idx == 1 then
       current_idx = #winids
       api.nvim_set_current_win(winids[current_idx])
@@ -772,9 +744,9 @@ function Sidebar:resize()
     end
   end
   self:create_input()
-  self:render_header()
-  self:render_input_header()
-  self:render_selected_code_header()
+  self:render_result_container()
+  self:render_input_container()
+  self:render_selected_code_container()
   vim.defer_fn(function()
     vim.cmd("AvanteRefresh")
   end, 200)
@@ -1008,9 +980,9 @@ end
 
 function Sidebar:create_input()
   if
-    self.input_placeholder == nil
-    or self.input_placeholder.winid == nil
-    or not api.nvim_win_is_valid(self.input_placeholder.winid)
+    not self.input_container
+    or not self.input_container.winid
+    or not api.nvim_win_is_valid(self.input_container.winid)
   then
     return
   end
@@ -1121,19 +1093,19 @@ function Sidebar:create_input()
     end
   end
 
-  local win_width = api.nvim_win_get_width(self.input_placeholder.winid)
+  local win_width = api.nvim_win_get_width(self.input_container.winid)
 
   self.input = Input({
     relative = {
       type = "win",
-      winid = self.input_placeholder.winid,
+      winid = self.input_container.winid,
     },
     position = {
-      row = 0,
+      row = 2,
       col = 1,
     },
     size = {
-      height = 1,
+      height = 2,
       width = win_width - 2, -- Subtract the width of the input box borders
     },
   }, {
@@ -1162,33 +1134,79 @@ function Sidebar:get_selected_code_size()
   if self.code.selection ~= nil then
     local selected_code_lines = vim.split(self.code.selection.content, "\n")
     selected_code_lines_count = #selected_code_lines
-    selected_code_size = math.min(selected_code_lines_count, selected_code_max_lines_count) + 2
+    selected_code_size = math.min(selected_code_lines_count, selected_code_max_lines_count) + 3
   end
 
   return selected_code_size
 end
 
+local function create_floating_window_for_split(split_winid, buf_opts, win_opts, float_opts)
+  local height = vim.api.nvim_win_get_height(split_winid)
+  local width = vim.api.nvim_win_get_width(split_winid)
+
+  local float_opts_ = vim.tbl_deep_extend("force", {
+    relative = "win",
+    win = split_winid,
+    width = math.max(width - 2, 0),
+    height = math.max(height - 3, 0),
+    row = 1,
+    col = 0,
+    style = "minimal",
+    border = { " ", " ", " ", " ", " ", " ", " ", " " },
+  }, float_opts or {})
+
+  local win_opts_ = vim.tbl_deep_extend("force", get_win_options(), {
+    winhighlight = "NormalFloat:Normal,FloatBorder:Normal",
+  }, win_opts or {})
+
+  local buf_opts_ = vim.tbl_deep_extend("force", buf_options, buf_opts or {})
+
+  local floating_win = FloatingWindow({
+    buf_options = buf_opts_,
+    win_options = win_opts_,
+    float_options = float_opts_,
+  })
+
+  return floating_win
+end
+
 function Sidebar:render()
   local chat_history = load_chat_history(self)
 
-  local result_buf = api.nvim_create_buf(false, true)
+  local sidebar_height = api.nvim_win_get_height(self.code.winid)
+  local selected_code_size = self:get_selected_code_size()
 
-  api.nvim_set_option_value("filetype", "Avante", { buf = result_buf })
-  api.nvim_set_option_value("bufhidden", "wipe", { buf = result_buf })
-  api.nvim_set_option_value("modifiable", false, { buf = result_buf })
-  api.nvim_set_option_value("swapfile", false, { buf = result_buf })
-
-  self.result = Split({
+  self.result_container = Split({
     relative = "editor",
     position = "right",
-    buf = result_buf,
+    buf_options = buf_options,
     win_options = get_win_options(),
-    size = string.format("%d%%", Config.windows.width),
+    size = {
+      height = math.max(0, sidebar_height - selected_code_size - 8),
+      width = string.format("%d%%", Config.windows.width),
+    },
   })
+
+  self.result_container:mount()
+
+  self.result = create_floating_window_for_split(
+    self.result_container.winid,
+    {
+      modifiable = false,
+      swapfile = false,
+      buftype = "nofile",
+      bufhidden = "wipe",
+      filetype = "Avante",
+    },
+    nil,
+    {
+      height = math.max(0, sidebar_height - selected_code_size - 8),
+    }
+  )
 
   self.result:on(event.BufWinEnter, function()
     xpcall(function()
-      api.nvim_buf_set_name(result_buf, RESULT_BUF_NAME)
+      api.nvim_buf_set_name(self.result.bufnr, RESULT_BUF_NAME)
     end, function(_) end)
   end)
 
@@ -1204,47 +1222,21 @@ function Sidebar:render()
 
   self.result:mount()
 
-  self.header = Split({
+  self.input_container = Split({
     enter = false,
     relative = {
       type = "win",
-      winid = self.result.winid,
-    },
-    buf_options = buf_options,
-    win_options = get_win_options(),
-    position = "top",
-    size = 1,
-  })
-
-  self.header:mount()
-
-  self.input_placeholder = Split({
-    enter = false,
-    relative = {
-      type = "win",
-      winid = self.result.winid,
+      winid = self.result_container.winid,
     },
     buf_options = buf_options,
     win_options = get_win_options(),
     position = "bottom",
-    size = 2,
-  })
-
-  self.input_placeholder:mount()
-
-  self.input_header = Split({
-    enter = false,
-    relative = {
-      type = "win",
-      winid = self.result.winid,
+    size = {
+      height = 4,
     },
-    buf_options = buf_options,
-    win_options = get_win_options(),
-    position = "bottom",
-    size = 1,
   })
 
-  self.input_header:mount()
+  self.input_container:mount()
 
   self:update_content_with_history(chat_history)
 
@@ -1258,30 +1250,22 @@ function Sidebar:render()
   self:create_input()
 
   if self.code.selection ~= nil then
-    self.selected_code = Split({
+    self.selected_code_container = Split({
       enter = false,
       relative = {
         type = "win",
-        winid = self.result.winid,
+        winid = self.result_container.winid,
       },
       buf_options = buf_options,
       win_options = get_win_options(),
       position = "bottom",
-      size = self:get_selected_code_size(),
+      size = {
+        height = selected_code_size,
+      },
     })
+    self.selected_code_container:mount()
+    self.selected_code = create_floating_window_for_split(self.selected_code_container.winid)
     self.selected_code:mount()
-    self.selected_code_header = Split({
-      enter = false,
-      relative = {
-        type = "win",
-        winid = self.result.winid,
-      },
-      buf_options = buf_options,
-      win_options = get_win_options(),
-      position = "bottom",
-      size = 1,
-    })
-    self.selected_code_header:mount()
   end
 
   self:on_mount()
