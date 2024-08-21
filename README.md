@@ -51,6 +51,17 @@ Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
 }
 ```
 
+For Windows users, change the build command to the following:
+
+```lua
+{
+  "yetone/avante.nvim",
+  event = "VeryLazy",
+  build = "powershell -ExecutionPolicy Bypass -File Build-LuaTiktoken.ps1",
+  -- rest of the config
+}
+```
+
 > [!IMPORTANT]
 >
 > `avante.nvim` is currently only compatible with Neovim 0.10.0 or later. Please ensure that your Neovim version meets these requirements before proceeding.
