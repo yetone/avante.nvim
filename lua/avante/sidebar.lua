@@ -313,6 +313,7 @@ local base_win_options = {
   wrap = false,
   cursorline = false,
   -- winhighlight = "Normal:NormalFloat,Border:FloatBorder,VertSplit:NormalFloat,WinSeparator:NormalFloat,CursorLine:NormalFloat",
+  fillchars = "eob: ",
   winhighlight = "CursorLine:Normal,CursorColumn:Normal",
 }
 
