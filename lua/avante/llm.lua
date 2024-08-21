@@ -250,6 +250,10 @@ Replace lines: {{start_line}}-{{end_line}}
 Remember: Accurate line numbers are CRITICAL. The range start_line to end_line must include ALL lines to be replaced, from the very first to the very last. Double-check every range before finalizing your response, paying special attention to the start_line to ensure it hasn't shifted down. Ensure that your line numbers perfectly match the original code structure without any overall shift.
 ]]
 
+---@class AvanteHandlerOptions: table<[string], string>
+---@field on_chunk AvanteChunkParser
+---@field on_complete AvanteCompleteParser
+---
 ---@class AvantePromptOptions: table<[string], string>
 ---@field question string
 ---@field code_lang string
@@ -303,7 +307,7 @@ Remember: Accurate line numbers are CRITICAL. The range start_line to end_line m
 ---@field api_key_name string
 ---@field parse_response_data AvanteResponseParser
 ---@field parse_curl_args fun(opts: AvanteProvider, code_opts: AvantePromptOptions): AvanteCurlOutput
----@field parse_stream_data?  fun(line: string): nil
+---@field parse_stream_data?  fun(line: string, hanlder_opts: AvanteHandlerOptions): nil
 ---
 ---@alias AvanteChunkParser fun(chunk: string): any
 ---@alias AvanteCompleteParser fun(err: string|nil): nil
@@ -706,7 +710,7 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
               { once = true }
             )
           end
-          ProviderConfig.parse_stream_data(data)
+          ProviderConfig.parse_stream_data(data, handler_opts)
         else
           parse_and_call(data)
         end
