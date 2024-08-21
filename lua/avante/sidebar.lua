@@ -435,11 +435,11 @@ function Sidebar:render_selected_code_header()
     selected_code_lines_count = #selected_code_lines
   end
 
-  local header_text = " Selected Code"
+  local header_text = " Selected Code"
     .. (
       selected_code_lines_count > selected_code_max_lines_count
-        and " (Show only the first " .. tostring(selected_code_max_lines_count) .. " lines)"
-      or ""
+        and " (Show only the first " .. tostring(selected_code_max_lines_count) .. " lines)"
+      or ""
     )
 
   self:do_render_header(
