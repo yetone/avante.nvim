@@ -127,8 +127,12 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
   },
   hints = { enabled = true },
   windows = {
-    wrap_line = true,
+    wrap_line = true, -- similar to vim.o.wrap
     width = 30, -- default % based on available width
+    sidebar_header = {
+      align = "center", -- left, center, right for title
+      rounded = true,
+    },
   },
   highlights = {
     ---@type AvanteConflictHighlights
