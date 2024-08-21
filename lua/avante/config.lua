@@ -7,9 +7,9 @@ local M = {}
 ---@class avante.Config
 M.defaults = {
   debug = false,
-  ---Currently, default supported providers include "claude", "openai", "azure", "deepseek", "groq"
+  ---Currently, default supported providers include "claude", "openai", "azure", "deepseek", "groq", "gemini"
   ---For custom provider, see README.md
-  ---@alias Provider "openai" | "claude" | "azure" | "deepseek" | "groq" | "copilot" | string
+  ---@alias Provider "openai" | "claude" | "azure" | "deepseek" | "groq" | "copilot" | "gemini" | string
   provider = "claude",
   ---@type AvanteSupportedProvider
   openai = {
@@ -61,6 +61,13 @@ M.defaults = {
     temperature = 0,
     max_tokens = 4096,
     ["local"] = false,
+  },
+  ---@type AvanteGeminiProvider
+  gemini = {
+    endpoint = "",
+    type = "gemini",
+    model = "gemini-1.5-pro",
+    options = {},
   },
   ---To add support for custom provider, follow the format below
   ---See https://github.com/yetone/avante.nvim/README.md#custom-providers for more details
