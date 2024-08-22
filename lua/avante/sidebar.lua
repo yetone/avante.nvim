@@ -587,9 +587,10 @@ function Sidebar:on_mount()
     group = self.augroup,
     callback = function()
       if
-        not self.input_container.winid
-        or not api.nvim_win_is_valid(self.input_container.winid)
+        not self.input.winid
+        or not self.input_container.winid
         or not api.nvim_win_is_valid(self.input.winid)
+        or not api.nvim_win_is_valid(self.input_container.winid)
       then
         return
       end
