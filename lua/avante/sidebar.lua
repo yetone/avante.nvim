@@ -864,8 +864,8 @@ end
 local function get_project_root()
   local current_file = fn.expand("%:p")
   local current_dir = fn.fnamemodify(current_file, ":h")
-  local git_root = fn.systemlist("git -C " .. fn.shellescape(current_dir) .. " rev-parse --show-toplevel")
-  return (#git_root == 1 and git_root[1]) or current_dir
+  local git_root = vim.fs.root(current_file, { ".git" })
+  return git_root ~= nil and git_root or current_dir
 end
 
 ---@param sidebar avante.Sidebar
