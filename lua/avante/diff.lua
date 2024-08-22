@@ -640,11 +640,11 @@ end
 function M.choose(side)
   local bufnr = api.nvim_get_current_buf()
   if vim.fn.mode() == "v" or vim.fn.mode() == "V" or vim.fn.mode() == "" then
-    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
+    api.nvim_feedkeys(api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
     -- have to defer so that the < and > marks are set
     vim.defer_fn(function()
-      local start = vim.api.nvim_buf_get_mark(0, "<")[1]
-      local finish = vim.api.nvim_buf_get_mark(0, ">")[1]
+      local start = api.nvim_buf_get_mark(0, "<")[1]
+      local finish = api.nvim_buf_get_mark(0, ">")[1]
       local position = find_position(bufnr, function(line, pos)
         local left = pos.current.range_start >= start - 1
         local right = pos.incoming.range_end <= finish + 1
