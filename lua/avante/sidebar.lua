@@ -616,6 +616,35 @@ function Sidebar:on_mount()
     end,
   })
 
+  local input_win_width = api.nvim_win_get_width(self.input.winid)
+  local input_win_height = api.nvim_win_get_height(self.input.winid)
+
+  api.nvim_create_autocmd("WinResized", {
+    group = self.augroup,
+    callback = function()
+      if
+        not self.input.winid
+        or not self.input_container.winid
+        or not api.nvim_win_is_valid(self.input.winid)
+        or not api.nvim_win_is_valid(self.input_container.winid)
+      then
+        return
+      end
+
+      local current_input_win_width = api.nvim_win_get_width(self.input.winid)
+      local current_input_win_height = api.nvim_win_get_height(self.input.winid)
+
+      if current_input_win_width == input_win_width and current_input_win_height == input_win_height then
+        return
+      end
+
+      input_win_width = current_input_win_width
+      input_win_height = current_input_win_height
+
+      api.nvim_win_set_width(self.input_container.winid, input_win_width + 2)
+    end,
+  })
+
   api.nvim_create_autocmd("WinClosed", {
     group = self.augroup,
     callback = function(args)
