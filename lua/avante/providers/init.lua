@@ -267,9 +267,16 @@ M.parse_config = function(opts)
     end
   end
 
-  return s1, vim.tbl_filter(function(it)
-    return type(it) ~= "function"
-  end, s2)
+  return s1,
+    vim
+      .iter(s2)
+      :filter(function(k, v)
+        return type(v) ~= "function"
+      end)
+      :fold({}, function(acc, k, v)
+        acc[k] = v
+        return acc
+      end)
 end
 
 ---@private
