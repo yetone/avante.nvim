@@ -11,7 +11,7 @@ local Selection = {}
 
 Selection.did_setup = false
 
----@param id integer the tabpage id retrieved from vim.api.nvim_get_current_tabpage()
+---@param id integer the tabpage id retrieved from api.nvim_get_current_tabpage()
 function Selection:new(id)
   return setmetatable({
     hints_popup_extmark_id = nil,
@@ -46,7 +46,7 @@ function Selection:show_hints_popup()
 
   local virt_text_line = self:get_virt_text_line()
 
-  self.hints_popup_extmark_id = vim.api.nvim_buf_set_extmark(0, NAMESPACE, virt_text_line, -1, {
+  self.hints_popup_extmark_id = api.nvim_buf_set_extmark(0, NAMESPACE, virt_text_line, -1, {
     virt_text = { { hint_text, "Keyword" } },
     virt_text_pos = "eol",
     priority = PRIORITY,
@@ -55,7 +55,7 @@ end
 
 function Selection:close_hints_popup()
   if self.hints_popup_extmark_id then
-    vim.api.nvim_buf_del_extmark(0, NAMESPACE, self.hints_popup_extmark_id)
+    api.nvim_buf_del_extmark(0, NAMESPACE, self.hints_popup_extmark_id)
     self.hints_popup_extmark_id = nil
   end
 end
@@ -93,7 +93,7 @@ end
 
 function Selection:delete_autocmds()
   if self.augroup then
-    vim.api.nvim_del_augroup_by_id(self.augroup)
+    api.nvim_del_augroup_by_id(self.augroup)
   end
   self.augroup = nil
   Selection.did_setup = false

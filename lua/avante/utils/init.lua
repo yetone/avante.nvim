@@ -159,7 +159,7 @@ function M.notify(msg, opts)
       vim.wo[win].conceallevel = 3
       vim.wo[win].concealcursor = ""
       vim.wo[win].spell = false
-      local buf = vim.api.nvim_win_get_buf(win)
+      local buf = api.nvim_win_get_buf(win)
       if not pcall(vim.treesitter.start, buf, lang) then
         vim.bo[buf].filetype = lang
         vim.bo[buf].syntax = lang

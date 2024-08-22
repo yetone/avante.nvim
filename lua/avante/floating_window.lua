@@ -1,3 +1,10 @@
+local api = vim.api
+
+local namespace = api.nvim_create_namespace("avante_floating_window")
+
+api.nvim_set_hl(namespace, "NormalFloat", { link = "Normal" })
+api.nvim_set_hl(namespace, "FloatBorder", { link = "Normal" })
+
 ---@class FloatingWindow
 ---@field enter boolean | nil
 ---@field winid integer | nil
@@ -35,28 +42,30 @@ end
 
 ---@return nil
 function FloatingWindow:mount()
-  self.bufnr = vim.api.nvim_create_buf(false, true)
+  self.bufnr = api.nvim_create_buf(false, true)
 
   for option, value in pairs(self.buf_options) do
-    vim.api.nvim_set_option_value(option, value, { buf = self.bufnr })
+    api.nvim_set_option_value(option, value, { buf = self.bufnr })
   end
 
-  self.winid = vim.api.nvim_open_win(self.bufnr, self.enter, self.float_options)
+  self.winid = api.nvim_open_win(self.bufnr, self.enter, self.float_options)
 
   for option, value in pairs(self.win_options) do
-    vim.api.nvim_set_option_value(option, value, { win = self.winid })
+    api.nvim_set_option_value(option, value, { win = self.winid })
   end
+
+  api.nvim_win_set_hl_ns(self.winid, namespace)
 end
 
 ---@return nil
 function FloatingWindow:unmount()
-  if self.bufnr and vim.api.nvim_buf_is_valid(self.bufnr) then
-    vim.api.nvim_buf_delete(self.bufnr, { force = true })
+  if self.bufnr and api.nvim_buf_is_valid(self.bufnr) then
+    api.nvim_buf_delete(self.bufnr, { force = true })
     self.bufnr = nil
   end
 
-  if self.winid and vim.api.nvim_win_is_valid(self.winid) then
-    vim.api.nvim_win_close(self.winid, true)
+  if self.winid and api.nvim_win_is_valid(self.winid) then
+    api.nvim_win_close(self.winid, true)
     self.winid = nil
   end
 end
@@ -66,7 +75,7 @@ end
 ---@param options? table<"'once'" | "'nested'", boolean>
 ---@return nil
 function FloatingWindow:on(event, handler, options)
-  vim.api.nvim_create_autocmd(event, {
+  api.nvim_create_autocmd(event, {
     buffer = self.bufnr,
     callback = handler,
     once = options and options["once"] or false,
