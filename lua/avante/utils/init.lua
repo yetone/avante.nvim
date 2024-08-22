@@ -2,7 +2,6 @@ local api = vim.api
 
 ---@class avante.Utils: LazyUtilCore
 ---@field colors avante.util.colors
----@field copilot avante.utils.copilot
 local M = {}
 
 setmetatable(M, {

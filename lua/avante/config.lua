@@ -42,9 +42,9 @@ M.defaults = {
   claude = {
     endpoint = "https://api.anthropic.com",
     model = "claude-3-5-sonnet-20240620",
+    ["local"] = false,
     temperature = 0,
     max_tokens = 4096,
-    ["local"] = false,
   },
   ---@type AvanteSupportedProvider
   deepseek = {
@@ -64,10 +64,9 @@ M.defaults = {
   },
   ---@type AvanteGeminiProvider
   gemini = {
-    endpoint = "",
-    type = "gemini",
+    endpoint = "https://generativelanguage.googleapis.com/v1beta/models",
     model = "gemini-1.5-pro",
-    options = {},
+    ["local"] = false,
   },
   ---To add support for custom provider, follow the format below
   ---See https://github.com/yetone/avante.nvim/README.md#custom-providers for more details
@@ -105,11 +104,14 @@ M.defaults = {
     },
   },
   windows = {
-    wrap_line = true, -- similar to vim.o.wrap
+    wrap = true, -- similar to vim.o.wrap
     width = 30, -- default % based on available width
     sidebar_header = {
       align = "center", -- left, center, right for title
       rounded = true,
+    },
+    prompt = {
+      prefix = "> ", -- prefix for the prompt
     },
   },
   --- @class AvanteConflictUserConfig
@@ -148,11 +150,25 @@ function M.setup(opts)
     { mappings = M.options.mappings.diff, highlights = M.options.highlights.diff }
   )
   M.hints = vim.tbl_deep_extend("force", {}, M.options.hints)
+
+  if next(M.options.vendors) ~= nil then
+    for k, v in pairs(M.options.vendors) do
+      M.options.vendors[k] = type(v) == "function" and v() or v
+    end
+  end
 end
 
 ---@param opts? avante.Config
 function M.override(opts)
-  M.options = vim.tbl_deep_extend("force", M.options, opts or {})
+  opts = opts or {}
+  M.options = vim.tbl_deep_extend("force", M.options, opts)
+  M.diff = vim.tbl_deep_extend(
+    "force",
+    {},
+    M.options.diff,
+    { mappings = M.options.mappings.diff, highlights = M.options.highlights.diff }
+  )
+  M.hints = vim.tbl_deep_extend("force", {}, M.options.hints)
 end
 
 M = setmetatable(M, {
@@ -166,6 +182,27 @@ M = setmetatable(M, {
 function M.get_window_width()
   return math.ceil(vim.o.columns * (M.windows.width / 100))
 end
+
+---@param provider Provider
+---@return boolean
+M.has_provider = function(provider)
+  return M.options[provider] ~= nil or M.vendors[provider] ~= nil
+end
+
+---get supported providers
+---@param provider Provider
+---@return AvanteProvider | fun(): AvanteProvider
+M.get_provider = function(provider)
+  if M.options[provider] ~= nil then
+    return vim.deepcopy(M.options[provider], true)
+  elseif M.vendors[provider] ~= nil then
+    return vim.deepcopy(M.vendors[provider], true)
+  else
+    error("Failed to find provider: " .. provider, 2)
+  end
+end
+
+M.BASE_PROVIDER_KEYS = { "endpoint", "model", "local", "deployment", "api_version", "proxy", "allow_insecure" }
 
 ---@return {width: integer, height: integer}
 function M.get_sidebar_layout_options()

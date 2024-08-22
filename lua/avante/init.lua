@@ -207,7 +207,7 @@ function M.setup(opts)
 
   require("avante.highlights").setup()
   require("avante.diff").setup()
-  require("avante.llm").setup()
+  require("avante.providers").setup()
 
   -- setup helpers
   H.autocmds()

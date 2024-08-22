@@ -472,7 +472,7 @@ end
 function Sidebar:on_mount()
   self:refresh_winids()
 
-  api.nvim_set_option_value("wrap", Config.windows.wrap_line, { win = self.result.winid })
+  api.nvim_set_option_value("wrap", Config.windows.wrap, { win = self.result.winid })
 
   local current_apply_extmark_id = nil
 
@@ -1109,7 +1109,7 @@ function Sidebar:create_input()
       width = win_width - 2, -- Subtract the width of the input box borders
     },
   }, {
-    prompt = "> ",
+    prompt = Config.windows.prompt.prefix,
     default_value = "",
     on_submit = function(user_input)
       if user_input == "" then
