@@ -75,7 +75,9 @@ M.defaults = {
   ---Specify the behaviour of avante.nvim
   ---1. auto_apply_diff_after_generation: Whether to automatically apply diff after LLM response.
   ---                                     This would simulate similar behaviour to cursor. Default to false.
+  ---2. cycle_between_open_buffers      : Enable tab cycling between windows. Default to true
   behaviour = {
+    cycle_between_open_buffers = true,
     auto_apply_diff_after_generation = false,
   },
   highlights = {
