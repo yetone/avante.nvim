@@ -1,21 +1,21 @@
 ---@meta
 
----@class NuiSplit
+---@class AvanteComp
 ---@field winid integer | nil
 ---@field bufnr integer | nil
-local AvanteSplit = require("nui.split")
+local AvanteComp = {}
 
 ---@return nil
-function AvanteSplit:mount() end
+function AvanteComp:mount() end
 
 ---@return nil
-function AvanteSplit:unmount() end
+function AvanteComp:unmount() end
 
 ---@param event string | string[]
 ---@param handler string | function
 ---@param options? table<"'once'" | "'nested'", boolean>
 ---@return nil
-function AvanteSplit:on(event, handler, options) end
+function AvanteComp:on(event, handler, options) end
 
 -- set keymap for this split
 ---@param mode string check `:h :map-modes`
@@ -23,4 +23,4 @@ function AvanteSplit:on(event, handler, options) end
 ---@param handler string | fun(): nil handler for the mapping
 ---@param opts? table<"'expr'"|"'noremap'"|"'nowait'"|"'remap'"|"'script'"|"'silent'"|"'unique'", boolean>
 ---@return nil
-function AvanteSplit:map(mode, key, handler, opts, ___force___) end
+function AvanteComp:map(mode, key, handler, opts, ___force___) end
