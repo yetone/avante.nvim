@@ -31,12 +31,12 @@ local Sidebar = {}
 ---@field augroup integer
 ---@field code avante.CodeState
 ---@field winids table<string, integer> this table stores the winids of the sidebar components (result_container, result, selected_code_container, selected_code, input_container, input), even though they are destroyed.
----@field result_container NuiSplit | nil
----@field result NuiSplit | nil
----@field selected_code_container NuiSplit | nil
----@field selected_code NuiSplit | nil
----@field input_container NuiSplit | nil
----@field input NuiSplit | nil
+---@field result_container AvanteComp | nil
+---@field result FloatingWindow | nil
+---@field selected_code_container AvanteComp | nil
+---@field selected_code FloatingWindow | nil
+---@field input_container AvanteComp | nil
+---@field input FloatingWindow | nil
 
 ---@param id integer the tabpage id retrieved from api.nvim_get_current_tabpage()
 function Sidebar:new(id)
@@ -577,6 +577,37 @@ function Sidebar:on_mount()
         return
       end
       self:resize()
+    end,
+  })
+
+  local input_container_win_width = api.nvim_win_get_width(self.input_container.winid)
+  local input_container_win_height = api.nvim_win_get_height(self.input_container.winid)
+
+  api.nvim_create_autocmd("WinResized", {
+    group = self.augroup,
+    callback = function()
+      if not api.nvim_win_is_valid(self.input_container.winid) or not api.nvim_win_is_valid(self.input.winid) then
+        return
+      end
+
+      local current_input_container_win_width = api.nvim_win_get_width(self.input_container.winid)
+      local current_input_container_win_height = api.nvim_win_get_height(self.input_container.winid)
+
+      if
+        current_input_container_win_width == input_container_win_width
+        and current_input_container_win_height == input_container_win_height
+      then
+        return
+      end
+
+      input_container_win_width = current_input_container_win_width
+      input_container_win_height = current_input_container_win_height
+
+      local old_floating_win_options = api.nvim_win_get_config(self.input.winid)
+      local new_floating_win_options = vim.tbl_deep_extend("force", old_floating_win_options, {
+        width = current_input_container_win_width - 2,
+      })
+      api.nvim_win_set_config(self.input.winid, new_floating_win_options)
     end,
   })
 
@@ -1141,30 +1172,14 @@ function Sidebar:get_selected_code_size()
 end
 
 local function create_floating_window_for_split(split_winid, buf_opts, win_opts, float_opts)
-  local height = api.nvim_win_get_height(split_winid)
-  local width = api.nvim_win_get_width(split_winid)
-
-  local float_opts_ = vim.tbl_deep_extend("force", {
-    relative = "win",
-    win = split_winid,
-    width = math.max(width - 2, 0),
-    height = math.max(height - 3, 0),
-    row = 1,
-    col = 0,
-    style = "minimal",
-    border = { " ", " ", " ", " ", " ", " ", " ", " " },
-  }, float_opts or {})
-
-  local win_opts_ = vim.tbl_deep_extend("force", get_win_options(), {
-    winhighlight = "NormalFloat:Normal,FloatBorder:Normal",
-  }, win_opts or {})
+  local win_opts_ = vim.tbl_deep_extend("force", get_win_options(), win_opts or {})
 
   local buf_opts_ = vim.tbl_deep_extend("force", buf_options, buf_opts or {})
 
-  local floating_win = FloatingWindow({
+  local floating_win = FloatingWindow.from_split_win(split_winid, {
     buf_options = buf_opts_,
     win_options = win_opts_,
-    float_options = float_opts_,
+    float_options = float_opts,
   })
 
   return floating_win
