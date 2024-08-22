@@ -38,7 +38,7 @@ local Sidebar = {}
 ---@field input_container NuiSplit | nil
 ---@field input NuiSplit | nil
 
----@param id integer the tabpage id retrieved from vim.api.nvim_get_current_tabpage()
+---@param id integer the tabpage id retrieved from api.nvim_get_current_tabpage()
 function Sidebar:new(id)
   return setmetatable({
     id = id,
@@ -65,7 +65,7 @@ end
 
 function Sidebar:delete_autocmds()
   if self.augroup then
-    vim.api.nvim_del_augroup_by_id(self.augroup)
+    api.nvim_del_augroup_by_id(self.augroup)
   end
   self.augroup = nil
 end
@@ -603,7 +603,7 @@ function Sidebar:on_mount()
   api.nvim_create_autocmd("WinLeave", {
     group = self.augroup,
     callback = function()
-      previous_winid = vim.api.nvim_get_current_win()
+      previous_winid = api.nvim_get_current_win()
     end,
   })
 
@@ -1141,8 +1141,8 @@ function Sidebar:get_selected_code_size()
 end
 
 local function create_floating_window_for_split(split_winid, buf_opts, win_opts, float_opts)
-  local height = vim.api.nvim_win_get_height(split_winid)
-  local width = vim.api.nvim_win_get_width(split_winid)
+  local height = api.nvim_win_get_height(split_winid)
+  local width = api.nvim_win_get_width(split_winid)
 
   local float_opts_ = vim.tbl_deep_extend("force", {
     relative = "win",
@@ -1182,7 +1182,6 @@ function Sidebar:render()
     buf_options = buf_options,
     win_options = get_win_options(),
     size = {
-      height = math.max(0, sidebar_height - selected_code_size - 8),
       width = string.format("%d%%", Config.windows.width),
     },
   })
