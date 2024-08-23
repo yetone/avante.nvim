@@ -505,6 +505,53 @@ function Sidebar:on_mount()
   ---@type AvanteCodeblock[]
   local codeblocks = {}
 
+  ---@param direction "next" | "prev"
+  local function jump_to_codeblock(direction)
+    local cursor_line = api.nvim_win_get_cursor(self.result.winid)[1]
+    ---@type AvanteCodeblock
+    local target_block
+
+    if direction == "next" then
+      for _, block in ipairs(codeblocks) do
+        if block.start_line > cursor_line then
+          target_block = block
+          break
+        end
+      end
+      if not target_block and #codeblocks > 0 then
+        target_block = codeblocks[1]
+      end
+    elseif direction == "prev" then
+      for i = #codeblocks, 1, -1 do
+        if codeblocks[i].end_line < cursor_line then
+          target_block = codeblocks[i]
+          break
+        end
+      end
+      if not target_block and #codeblocks > 0 then
+        target_block = codeblocks[#codeblocks]
+      end
+    end
+
+    if target_block then
+      api.nvim_win_set_cursor(self.result.winid, { target_block.start_line + 1, 0 })
+    end
+  end
+
+  local function bind_jump_keys()
+    vim.keymap.set("n", Config.mappings.jump.next, function()
+      jump_to_codeblock("next")
+    end, { buffer = self.result.bufnr, noremap = true, silent = true })
+    vim.keymap.set("n", Config.mappings.jump.prev, function()
+      jump_to_codeblock("prev")
+    end, { buffer = self.result.bufnr, noremap = true, silent = true })
+  end
+
+  local function unbind_jump_keys()
+    pcall(vim.keymap.del, "n", "]c", { buffer = self.result.bufnr })
+    pcall(vim.keymap.del, "n", "[c", { buffer = self.result.bufnr })
+  end
+
   api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
     buffer = self.result.bufnr,
     callback = function(ev)
@@ -524,6 +571,7 @@ function Sidebar:on_mount()
     buffer = self.result.bufnr,
     callback = function(ev)
       codeblocks = parse_codeblocks(ev.buf)
+      bind_jump_keys()
     end,
   })
 
@@ -534,6 +582,14 @@ function Sidebar:on_mount()
         return
       end
       codeblocks = parse_codeblocks(self.result.bufnr)
+      bind_jump_keys()
+    end,
+  })
+
+  api.nvim_create_autocmd("BufLeave", {
+    buffer = self.result.bufnr,
+    callback = function()
+      unbind_jump_keys()
     end,
   })
 
@@ -1100,21 +1156,29 @@ Available commands:
       elseif command == "lines" then
         ---@diagnostic disable-next-line: no-unknown
         local start_line, end_line, question = args:match("(%d+)-(%d+)%s+(.*)")
+        ---@cast question string
 
-        if start_line and end_line and question then
-          ---@cast start_line integer
-          start_line = tonumber(start_line)
-          ---@cast end_line integer
-          end_line = tonumber(end_line)
-          selected_code_content_with_line_numbers = prepend_line_number(
-            table.concat(api.nvim_buf_get_lines(self.code.bufnr, start_line - 1, end_line, false), "\n"),
-            start_line
-          )
-          ---@cast question string
+        if selected_code_content_with_line_numbers ~= nil then
+          Utils.warn("/lines is mutually exclusive with visual selection on blocks.", { once = true, title = "Avante" })
           request = question
         else
-          self:update_content("Invalid format. Use: /lines <start>-<end> <question>", { focus = false, scroll = false })
-          return
+          if start_line and end_line and question then
+            ---@cast start_line integer
+            start_line = tonumber(start_line)
+            ---@cast end_line integer
+            end_line = tonumber(end_line)
+            selected_code_content_with_line_numbers = prepend_line_number(
+              table.concat(api.nvim_buf_get_lines(self.code.bufnr, start_line - 1, end_line, false), "\n"),
+              start_line
+            )
+            request = question
+          else
+            self:update_content(
+              "Invalid format. Use: /lines <start>-<end> <question>",
+              { focus = false, scroll = false }
+            )
+            return
+          end
         end
       elseif command == "clear" then
         chat_history = {}
