@@ -81,13 +81,13 @@ function Sidebar:open()
   local in_visual_mode = Utils.in_visual_mode() and self:in_code_win()
   if not self:is_open() then
     self:reset()
-    self:intialize()
+    self:initialize()
     self:render()
   else
     if in_visual_mode then
       self:close()
       self:reset()
-      self:intialize()
+      self:initialize()
       self:render()
       return self
     end
@@ -878,7 +878,7 @@ end
 
 --- Initialize the sidebar instance.
 --- @return avante.Sidebar The Sidebar instance.
-function Sidebar:intialize()
+function Sidebar:initialize()
   self.code.winid = api.nvim_get_current_win()
   self.code.bufnr = api.nvim_get_current_buf()
   self.code.selection = Utils.get_visual_selection_and_range()
