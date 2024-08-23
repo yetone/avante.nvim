@@ -26,7 +26,7 @@ function source:get_keyword_pattern()
 end
 
 function source:complete(_, callback)
-  local kind = require("cmp").lsp.CompletionItemKind.Function
+  local kind = require("cmp").lsp.CompletionItemKind.Variable
 
   local items = {}
 
