@@ -28,6 +28,7 @@ local Sidebar = {}
 
 ---@class avante.Sidebar
 ---@field id integer
+---@field registered_cmp boolean
 ---@field augroup integer
 ---@field code avante.CodeState
 ---@field winids table<string, integer> this table stores the winids of the sidebar components (result_container, result, selected_code_container, selected_code, input_container, input), even though they are destroyed.
@@ -42,6 +43,7 @@ local Sidebar = {}
 function Sidebar:new(id)
   return setmetatable({
     id = id,
+    registered_cmp = false,
     code = { bufnr = 0, winid = 0, selection = nil },
     winids = {
       result_container = 0,
@@ -67,6 +69,7 @@ end
 
 function Sidebar:reset()
   self:delete_autocmds()
+  self.registered_cmp = false
   self.code = { bufnr = 0, winid = 0, selection = nil }
   self.winids = { result_container = 0, result = 0, selected_code = 0, input = 0 }
   self.result_container = nil
@@ -544,8 +547,10 @@ function Sidebar:on_mount()
   end
 
   local function unbind_jump_keys()
-    pcall(vim.keymap.del, "n", "]c", { buffer = self.result.bufnr })
-    pcall(vim.keymap.del, "n", "[c", { buffer = self.result.bufnr })
+    if self.result and self.result.bufnr and api.nvim_buf_is_valid(self.result.bufnr) then
+      pcall(vim.keymap.del, "n", "]c", { buffer = self.result.bufnr })
+      pcall(vim.keymap.del, "n", "[c", { buffer = self.result.bufnr })
+    end
   end
 
   api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
@@ -592,8 +597,6 @@ function Sidebar:on_mount()
   self:render_result_container()
   self:render_input_container()
   self:render_selected_code_container()
-
-  -- api.nvim_set_option_value("buftype", "nofile", { buf = self.input.bufnr })
 
   self.augroup = api.nvim_create_augroup("avante_" .. self.id .. self.result.winid, { clear = true })
 
@@ -1105,6 +1108,111 @@ function Sidebar:get_content_between_separators()
   return content
 end
 
+function Sidebar:get_commands()
+  local function get_help_text(items_)
+    local help_text = ""
+    for _, item in ipairs(items_) do
+      help_text = help_text .. "- " .. item.name .. ": " .. item.description .. "\n"
+    end
+    return help_text
+  end
+
+  local items = {
+    { name = "help", description = "Show this help message", command = "help" },
+    { name = "clear", description = "Clear chat history", command = "clear" },
+    { name = "lines <start>-<end> <question>", description = "Ask a question about specific lines", command = "lines" },
+  }
+
+  local cbs = {
+    {
+      command = "help",
+      ---@diagnostic disable-next-line: unused-local
+      callback = function(args, cb)
+        local help_text = get_help_text(items)
+        self:create_input()
+        self:update_content(help_text, { focus = false, scroll = false })
+        if cb then
+          cb(args)
+        end
+      end,
+    },
+    {
+      command = "clear",
+      ---@diagnostic disable-next-line: unused-local
+      callback = function(args, cb)
+        local chat_history = {}
+        save_chat_history(self, chat_history)
+        self:create_input()
+        self:update_content("Chat history cleared", { focus = false, scroll = false })
+        vim.defer_fn(function()
+          self:close()
+          if cb then
+            cb(args)
+          end
+        end, 1000)
+      end,
+    },
+    {
+      command = "lines",
+      callback = function(args, cb)
+        if cb then
+          cb(args)
+        end
+      end,
+    },
+  }
+
+  local commands = {}
+  for _, item in ipairs(items) do
+    table.insert(commands, {
+      name = item.name,
+      command = item.command,
+      description = item.description,
+      callback = function(args, cb)
+        for _, cb_ in ipairs(cbs) do
+          if cb_.command == item.command then
+            cb_.callback(args, cb)
+            break
+          end
+        end
+      end,
+    })
+  end
+  return commands
+end
+
+function Sidebar:create_selected_code()
+  if self.selected_code ~= nil then
+    self.selected_code:unmount()
+    self.selected_code = nil
+  end
+  if self.selected_code_container ~= nil then
+    self.selected_code_container:unmount()
+    self.selected_code_container = nil
+  end
+
+  local selected_code_size = self:get_selected_code_size()
+
+  if self.code.selection ~= nil then
+    self.selected_code_container = Split({
+      enter = false,
+      relative = {
+        type = "win",
+        winid = self.result_container.winid,
+      },
+      buf_options = buf_options,
+      win_options = get_win_options(),
+      position = "bottom",
+      size = {
+        height = selected_code_size,
+      },
+    })
+    self.selected_code_container:mount()
+    self.selected_code = self:create_floating_window_for_split({ split_winid = self.selected_code_container.winid })
+    self.selected_code:mount()
+  end
+end
+
 function Sidebar:create_input()
   if
     not self.input_container
@@ -1145,25 +1253,22 @@ function Sidebar:create_input()
 
     if request:sub(1, 1) == "/" then
       local command, args = request:match("^/(%S+)%s*(.*)")
-      if command == "help" then
-        local help_text = [[
-Available commands:
-/clear - Clear chat history
-/help - Show this help message
-/lines <start>-<end> <question> - Ask a question about specific lines
-]]
-        self:update_content(help_text, { focus = false, scroll = false })
+      if command == nil then
+        self:update_content("Invalid command", { focus = false, scroll = false })
         return
-      elseif command == "lines" then
-        ---@diagnostic disable-next-line: no-unknown
-        local start_line, end_line, question = args:match("(%d+)-(%d+)%s+(.*)")
-        ---@cast question string
-
-        if selected_code_content_with_line_numbers ~= nil then
-          Utils.warn("/lines is mutually exclusive with visual selection on blocks.", { once = true, title = "Avante" })
-          request = question
-        else
-          if start_line and end_line and question then
+      end
+      local cmds = self:get_commands()
+      local cmd
+      for _, c in ipairs(cmds) do
+        if c.command == command then
+          cmd = c
+          break
+        end
+      end
+      if cmd then
+        if command == "lines" then
+          cmd.callback(args, function(args_)
+            local start_line, end_line, question = args_:match("(%d+)-(%d+)%s+(.*)")
             ---@cast start_line integer
             start_line = tonumber(start_line)
             ---@cast end_line integer
@@ -1177,24 +1282,13 @@ Available commands:
               start_line
             )
             request = question
-          else
-            self:update_content(
-              "Invalid format. Use: /lines <start>-<end> <question>",
-              { focus = false, scroll = false }
-            )
-            return
-          end
+          end)
+        else
+          cmd.callback(args)
+          return
         end
-      elseif command == "clear" then
-        chat_history = {}
-        save_chat_history(self, chat_history)
-        self:update_content("Chat history cleared", { focus = false, scroll = false })
-        vim.defer_fn(function()
-          self:close()
-        end, 1000)
-        return
       else
-        -- Unknown command
+        self:create_input()
         self:update_content("Unknown command: " .. command, { focus = false, scroll = false })
         return
       end
@@ -1204,9 +1298,16 @@ Available commands:
 
     local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
 
+    local is_first_chunk = true
+
     ---@type AvanteChunkParser
     local on_chunk = function(chunk)
       full_response = full_response .. chunk
+      if is_first_chunk then
+        is_first_chunk = false
+        self:update_content(content_prefix .. chunk, { stream = false, scroll = true })
+        return
+      end
       self:update_content(chunk, { stream = true, scroll = true })
       vim.schedule(function()
         vim.cmd("redraw")
@@ -1261,6 +1362,14 @@ Available commands:
     end
   end
 
+  if
+    not self.input_container
+    or not self.input_container.winid
+    or not api.nvim_win_is_valid(self.input_container.winid)
+  then
+    return
+  end
+
   local win_width = api.nvim_win_get_width(self.input_container.winid)
 
   self.input = Input({
@@ -1289,6 +1398,31 @@ Available commands:
 
   self.input:mount()
 
+  api.nvim_set_option_value("filetype", "AvanteInput", { buf = self.input.bufnr })
+
+  -- Setup completion
+  api.nvim_create_autocmd("InsertEnter", {
+    group = self.augroup,
+    buffer = self.input.bufnr,
+    once = true,
+    desc = "Setup the completion of helpers in the input buffer",
+    callback = function()
+      local has_cmp, cmp = pcall(require, "cmp")
+      if has_cmp then
+        if not self.registered_cmp then
+          self.registered_cmp = true
+          cmp.register_source("avante_commands", require("cmp_avante.commands").new(self))
+        end
+        cmp.setup.buffer({
+          enabled = true,
+          sources = {
+            { name = "avante_commands" },
+          },
+        })
+      end
+    end,
+  })
+
   self:refresh_winids()
 end
 
@@ -1314,7 +1448,7 @@ end
 ---@field float_opts table | nil
 
 ---@param opts CreateFloatingWindowForSplitOptions
-local function create_floating_window_for_split(opts)
+function Sidebar:create_floating_window_for_split(opts)
   local win_opts_ = vim.tbl_deep_extend("force", get_win_options(), opts.win_opts or {})
 
   local buf_opts_ = vim.tbl_deep_extend("force", buf_options, opts.buf_opts or {})
@@ -1346,7 +1480,7 @@ function Sidebar:render()
 
   self.result_container:mount()
 
-  self.result = create_floating_window_for_split({
+  self.result = self:create_floating_window_for_split({
     split_winid = self.result_container.winid,
     buf_opts = {
       modifiable = false,
@@ -1402,24 +1536,7 @@ function Sidebar:render()
 
   self:create_input()
 
-  if self.code.selection ~= nil then
-    self.selected_code_container = Split({
-      enter = false,
-      relative = {
-        type = "win",
-        winid = self.result_container.winid,
-      },
-      buf_options = buf_options,
-      win_options = get_win_options(),
-      position = "bottom",
-      size = {
-        height = selected_code_size,
-      },
-    })
-    self.selected_code_container:mount()
-    self.selected_code = create_floating_window_for_split({ split_winid = self.selected_code_container.winid })
-    self.selected_code:mount()
-  end
+  self:create_selected_code()
 
   self:on_mount()
 
