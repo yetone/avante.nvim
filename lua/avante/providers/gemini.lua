@@ -5,7 +5,7 @@ local P = require("avante.providers")
 ---@class AvanteProviderFunctor
 local M = {}
 
-M.api_key_name = "GROQ_API_KEY"
+M.api_key_name = "GEMINI_API_KEY"
 
 M.has = function()
   return os.getenv(M.api_key_name) and true or false
