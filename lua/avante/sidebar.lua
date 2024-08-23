@@ -1165,6 +1165,10 @@ Available commands:
             start_line = tonumber(start_line)
             ---@cast end_line integer
             end_line = tonumber(end_line)
+            if end_line == nil then
+              Utils.error("Invalid end line number", { once = true, title = "Avante" })
+              return
+            end
             selected_code_content_with_line_numbers = prepend_line_number(
               table.concat(api.nvim_buf_get_lines(self.code.bufnr, start_line - 1, end_line, false), "\n"),
               start_line
