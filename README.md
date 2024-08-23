@@ -214,6 +214,7 @@ The following key bindings are available for use with `avante.nvim`:
 - [x] Chat with current file
 - [x] Apply diff patch
 - [x] Chat with the selected block
+- [x] Slash commands
 - [ ] Edit the selected block
 - [ ] Smart Tab (Cursor Flow)
 - [ ] Chat with project
