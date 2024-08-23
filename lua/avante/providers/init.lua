@@ -88,9 +88,7 @@ local Dressing = require("avante.ui.dressing")
 ---@field copilot AvanteProviderFunctor
 ---@field claude AvanteProviderFunctor
 ---@field azure AvanteProviderFunctor
----@field deepseek AvanteProviderFunctor
 ---@field gemini AvanteProviderFunctor
----@field groq AvanteProviderFunctor
 local M = {}
 
 setmetatable(M, {
@@ -224,7 +222,7 @@ function M.refresh(provider)
   require("avante.config").override({ provider = provider })
 end
 
-local default_providers = { "openai", "claude", "azure", "deepseek", "groq", "gemini", "copilot" }
+local default_providers = { "openai", "claude", "azure", "gemini", "copilot" }
 
 ---@private
 M.commands = function()
