@@ -137,7 +137,11 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
           end
           Provider.parse_stream_data(data, handler_opts)
         else
-          parse_stream_data(data)
+          if Provider.parse_stream_data ~= nil then
+            Provider.parse_stream_data(data, handler_opts)
+          else
+            parse_stream_data(data)
+          end
         end
       end)
     end,
