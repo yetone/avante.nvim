@@ -98,6 +98,8 @@ function Sidebar:open()
     end
     self:focus()
   end
+
+  vim.cmd("wincmd =")
   return self
 end
 
