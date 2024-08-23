@@ -799,6 +799,12 @@ function Sidebar:on_mount()
       end
     end,
   })
+
+  for _, comp in pairs(self) do
+    if comp and type(comp) == "table" and comp.mount and comp.bufnr and api.nvim_buf_is_valid(comp.bufnr) then
+      Utils.mark_as_sidebar_buffer(comp.bufnr)
+    end
+  end
 end
 
 function Sidebar:refresh_winids()
