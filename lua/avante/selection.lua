@@ -1,3 +1,4 @@
+local Utils = require("avante.utils")
 local Config = require("avante.config")
 
 local api = vim.api
@@ -66,7 +67,7 @@ function Selection:setup_autocmds()
     group = self.augroup,
     pattern = { "n:v", "n:V", "n:" }, -- Entering Visual mode from Normal mode
     callback = function(ev)
-      if vim.bo[ev.buf].filetype ~= "Avante" then
+      if not Utils.is_sidebar_buffer(ev.buf) then
         self:show_hints_popup()
       end
     end,
@@ -75,8 +76,8 @@ function Selection:setup_autocmds()
   api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
     group = self.augroup,
     callback = function(ev)
-      if vim.bo[ev.buf].filetype ~= "Avante" then
-        if vim.fn.mode() == "v" or vim.fn.mode() == "V" or vim.fn.mode() == "" then
+      if not Utils.is_sidebar_buffer(ev.buf) then
+        if Utils.in_visual_mode() then
           self:show_hints_popup()
         else
           self:close_hints_popup()
@@ -89,7 +90,7 @@ function Selection:setup_autocmds()
     group = self.augroup,
     pattern = { "v:n", "v:i", "v:c" }, -- Switching from visual mode back to normal, insert, or other modes
     callback = function(ev)
-      if vim.bo[ev.buf].filetype ~= "Avante" then
+      if not Utils.is_sidebar_buffer(ev.buf) then
         self:close_hints_popup()
       end
     end,
