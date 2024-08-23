@@ -104,6 +104,9 @@ setmetatable(M, {
       t[k] = setmetatable({}, { __index = v })
       -- Hack for aliasing and makes it sane for us.
       t[k].parse_response = v.parse_response_data
+      t[k].has = function()
+        return os.getenv(t[k].api_key_name) and true or false
+      end
 
       return t[k]
     end
