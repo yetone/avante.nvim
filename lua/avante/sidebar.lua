@@ -819,9 +819,6 @@ function Sidebar:refresh_winids()
   if self.winids.input then
     table.insert(winids, self.winids.input)
   end
-  if Config.behaviour.cycle_between_open_buffers and self.code.winid then
-    table.insert(winids, self.code.winid)
-  end
 
   local function switch_windows()
     local current_winid = api.nvim_get_current_win()
