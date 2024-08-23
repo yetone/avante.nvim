@@ -505,6 +505,53 @@ function Sidebar:on_mount()
   ---@type AvanteCodeblock[]
   local codeblocks = {}
 
+  ---@param direction "next" | "prev"
+  local function jump_to_codeblock(direction)
+    local cursor_line = api.nvim_win_get_cursor(self.result.winid)[1]
+    ---@type AvanteCodeblock
+    local target_block
+
+    if direction == "next" then
+      for _, block in ipairs(codeblocks) do
+        if block.start_line > cursor_line then
+          target_block = block
+          break
+        end
+      end
+      if not target_block and #codeblocks > 0 then
+        target_block = codeblocks[1]
+      end
+    elseif direction == "prev" then
+      for i = #codeblocks, 1, -1 do
+        if codeblocks[i].end_line < cursor_line then
+          target_block = codeblocks[i]
+          break
+        end
+      end
+      if not target_block and #codeblocks > 0 then
+        target_block = codeblocks[#codeblocks]
+      end
+    end
+
+    if target_block then
+      api.nvim_win_set_cursor(self.result.winid, { target_block.start_line + 1, 0 })
+    end
+  end
+
+  local function bind_jump_keys()
+    vim.keymap.set("n", Config.mappings.jump.next, function()
+      jump_to_codeblock("next")
+    end, { buffer = self.result.bufnr, noremap = true, silent = true })
+    vim.keymap.set("n", Config.mappings.jump.prev, function()
+      jump_to_codeblock("prev")
+    end, { buffer = self.result.bufnr, noremap = true, silent = true })
+  end
+
+  local function unbind_jump_keys()
+    pcall(vim.keymap.del, "n", "]c", { buffer = self.result.bufnr })
+    pcall(vim.keymap.del, "n", "[c", { buffer = self.result.bufnr })
+  end
+
   api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
     buffer = self.result.bufnr,
     callback = function(ev)
@@ -524,6 +571,7 @@ function Sidebar:on_mount()
     buffer = self.result.bufnr,
     callback = function(ev)
       codeblocks = parse_codeblocks(ev.buf)
+      bind_jump_keys()
     end,
   })
 
@@ -534,6 +582,14 @@ function Sidebar:on_mount()
         return
       end
       codeblocks = parse_codeblocks(self.result.bufnr)
+      bind_jump_keys()
+    end,
+  })
+
+  api.nvim_create_autocmd("BufLeave", {
+    buffer = self.result.bufnr,
+    callback = function()
+      unbind_jump_keys()
     end,
   })
 
@@ -1063,17 +1119,9 @@ function Sidebar:create_input()
 
   local chat_history = load_chat_history(self)
 
+  ---@param request string
   local function handle_submit(request)
-    ---@type string
-    local model
-
-    local builtins_provider_config = Config[Config.provider]
-    if builtins_provider_config ~= nil then
-      model = builtins_provider_config.model
-    else
-      local vendor_provider_config = Config.vendors[Config.provider]
-      model = vendor_provider_config and vendor_provider_config.model or "default"
-    end
+    local model = Config.has_provider(Config.provider) and Config.get_provider(Config.provider).model or "default"
 
     local timestamp = get_timestamp()
 
@@ -1094,6 +1142,56 @@ function Sidebar:create_input()
         prepend_line_number(self.code.selection.content, self.code.selection.range.start.line)
     end
 
+    if request:sub(1, 1) == "/" then
+      local command, args = request:match("^/(%S+)%s*(.*)")
+      if command == "help" then
+        local help_text = [[
+Available commands:
+/clear - Clear chat history
+/help - Show this help message
+/lines <start>-<end> <question> - Ask a question about specific lines
+]]
+        self:update_content(help_text, { focus = false, scroll = false })
+        return
+      elseif command == "lines" then
+        ---@diagnostic disable-next-line: no-unknown
+        local start_line, end_line, question = args:match("(%d+)-(%d+)%s+(.*)")
+        ---@cast question string
+
+        if selected_code_content_with_line_numbers ~= nil then
+          Utils.warn("/lines is mutually exclusive with visual selection on blocks.", { once = true, title = "Avante" })
+          request = question
+        else
+          if start_line and end_line and question then
+            ---@cast start_line integer
+            start_line = tonumber(start_line)
+            ---@cast end_line integer
+            end_line = tonumber(end_line)
+            selected_code_content_with_line_numbers = prepend_line_number(
+              table.concat(api.nvim_buf_get_lines(self.code.bufnr, start_line - 1, end_line, false), "\n"),
+              start_line
+            )
+            request = question
+          else
+            self:update_content(
+              "Invalid format. Use: /lines <start>-<end> <question>",
+              { focus = false, scroll = false }
+            )
+            return
+          end
+        end
+      elseif command == "clear" then
+        chat_history = {}
+        save_chat_history(self, chat_history)
+        self:update_content("Chat history cleared", { focus = false, scroll = false })
+        return
+      else
+        -- Unknown command
+        self:update_content("Unknown command: " .. command, { focus = false, scroll = false })
+        return
+      end
+    end
+
     local full_response = ""
 
     local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
@@ -1101,7 +1199,7 @@ function Sidebar:create_input()
     ---@type AvanteChunkParser
     local on_chunk = function(chunk)
       full_response = full_response .. chunk
-      self:update_content(content_prefix .. full_response, { stream = false, scroll = true })
+      self:update_content(chunk, { stream = true, scroll = true })
       vim.schedule(function()
         vim.cmd("redraw")
       end)
