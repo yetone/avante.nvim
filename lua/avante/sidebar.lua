@@ -1267,7 +1267,6 @@ Available commands:
       col = 1,
     },
     size = {
-      height = 2,
       width = win_width - 2, -- Subtract the width of the input box borders
     },
   }, {
@@ -1345,7 +1344,7 @@ function Sidebar:render()
     },
     nil,
     {
-      height = math.max(0, sidebar_height - selected_code_size - 8),
+      height = math.max(0, sidebar_height - selected_code_size - 9),
     }
   )
 
@@ -1376,9 +1375,6 @@ function Sidebar:render()
     buf_options = buf_options,
     win_options = get_win_options(),
     position = "bottom",
-    size = {
-      height = 4,
-    },
   })
 
   self.input_container:mount()
