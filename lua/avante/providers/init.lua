@@ -46,6 +46,7 @@ local Dressing = require("avante.ui.dressing")
 ---@field local? boolean
 ---@field proxy? string
 ---@field allow_insecure? boolean
+---@field api_key_name? string
 ---
 ---@class AvanteSupportedProvider: AvanteDefaultBaseProvider
 ---@field temperature? number
@@ -64,7 +65,6 @@ local Dressing = require("avante.ui.dressing")
 ---@field model string
 ---
 ---@class AvanteProvider: AvanteDefaultBaseProvider
----@field api_key_name string
 ---@field parse_response_data AvanteResponseParser
 ---@field parse_curl_args AvanteCurlArgsParser
 ---@field parse_stream_data? AvanteStreamParser
@@ -89,6 +89,7 @@ local Dressing = require("avante.ui.dressing")
 ---@field claude AvanteProviderFunctor
 ---@field azure AvanteProviderFunctor
 ---@field gemini AvanteProviderFunctor
+---@field cohere AvanteProviderFunctor
 local M = {}
 
 setmetatable(M, {

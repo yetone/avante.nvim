@@ -42,14 +42,24 @@ M.defaults = {
   claude = {
     endpoint = "https://api.anthropic.com",
     model = "claude-3-5-sonnet-20240620",
-    ["local"] = false,
     temperature = 0,
     max_tokens = 4096,
+    ["local"] = false,
   },
   ---@type AvanteGeminiProvider
   gemini = {
     endpoint = "https://generativelanguage.googleapis.com/v1beta/models",
     model = "gemini-1.5-pro",
+    temperature = 0,
+    max_tokens = 4096,
+    ["local"] = false,
+  },
+  ---@type AvanteGeminiProvider
+  cohere = {
+    endpoint = "https://api.cohere.com",
+    model = "command-r-plus",
+    temperature = 0,
+    max_tokens = 3072,
     ["local"] = false,
   },
   ---To add support for custom provider, follow the format below
