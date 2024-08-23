@@ -1,5 +1,6 @@
 local api = vim.api
 
+local Utils = require("avante.utils")
 local Sidebar = require("avante.sidebar")
 local Selection = require("avante.selection")
 local Config = require("avante.config")
@@ -168,10 +169,9 @@ M.refresh = function()
     return
   end
 
-  local ft = vim.api.nvim_get_option_value("filetype", { buf = curbuf })
   local listed = vim.api.nvim_get_option_value("buflisted", { buf = curbuf })
 
-  if ft == "Avante" or not listed then
+  if Utils.is_sidebar_buffer(curbuf) or not listed then
     return
   end
 
