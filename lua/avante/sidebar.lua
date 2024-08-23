@@ -58,11 +58,6 @@ function Sidebar:new(id)
   }, { __index = self })
 end
 
---- This function should only be used on TabClosed, nothing else.
-function Sidebar:destroy()
-  self:reset()
-end
-
 function Sidebar:delete_autocmds()
   if self.augroup then
     api.nvim_del_augroup_by_id(self.augroup)
@@ -85,13 +80,13 @@ end
 function Sidebar:open()
   local in_visual_mode = Utils.in_visual_mode() and self:in_code_win()
   if not self:is_open() then
-    self:destroy()
+    self:reset()
     self:intialize()
     self:render()
   else
     if in_visual_mode then
       self:close()
-      self:destroy()
+      self:reset()
       self:intialize()
       self:render()
       return self

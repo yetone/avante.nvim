@@ -65,18 +65,22 @@ function Selection:setup_autocmds()
   api.nvim_create_autocmd({ "ModeChanged" }, {
     group = self.augroup,
     pattern = { "n:v", "n:V", "n:" }, -- Entering Visual mode from Normal mode
-    callback = function()
-      self:show_hints_popup()
+    callback = function(ev)
+      if vim.bo[ev.buf].filetype ~= "Avante" then
+        self:show_hints_popup()
+      end
     end,
   })
 
   api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
     group = self.augroup,
-    callback = function()
-      if vim.fn.mode() == "v" or vim.fn.mode() == "V" or vim.fn.mode() == "" then
-        self:show_hints_popup()
-      else
-        self:close_hints_popup()
+    callback = function(ev)
+      if vim.bo[ev.buf].filetype ~= "Avante" then
+        if vim.fn.mode() == "v" or vim.fn.mode() == "V" or vim.fn.mode() == "" then
+          self:show_hints_popup()
+        else
+          self:close_hints_popup()
+        end
       end
     end,
   })
@@ -84,8 +88,10 @@ function Selection:setup_autocmds()
   api.nvim_create_autocmd({ "ModeChanged" }, {
     group = self.augroup,
     pattern = { "v:n", "v:i", "v:c" }, -- Switching from visual mode back to normal, insert, or other modes
-    callback = function()
-      self:close_hints_popup()
+    callback = function(ev)
+      if vim.bo[ev.buf].filetype ~= "Avante" then
+        self:close_hints_popup()
+      end
     end,
   })
   return self
