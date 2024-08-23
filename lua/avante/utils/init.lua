@@ -80,7 +80,11 @@ function M.get_visual_selection_and_range()
     -- Extract partial content of the last line
     -- lines[#lines] = string.sub(lines[#lines], 1, end_col)
     -- Concatenate all lines in the selection into a string
-    content = table.concat(lines, "\n")
+    if type(lines) == "table" then
+      content = table.concat(lines, "\n")
+    else
+      content = lines
+    end
   end
   if not content then
     return nil
@@ -143,10 +147,13 @@ function M.notify(msg, opts)
       "\n"
     )
   end
+  ---@diagnostic disable-next-line: undefined-field
   if opts.stacktrace then
+    ---@diagnostic disable-next-line: undefined-field
     msg = msg .. M.pretty_trace({ level = opts.stacklevel or 2 })
   end
   local lang = opts.lang or "markdown"
+  ---@diagnostic disable-next-line: undefined-field
   local n = opts.once and vim.notify_once or vim.notify
   n(msg, opts.level or vim.log.levels.INFO, {
     on_open = function(win)
