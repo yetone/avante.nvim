@@ -799,6 +799,12 @@ function Sidebar:on_mount()
       end
     end,
   })
+
+  for _, comp in pairs(self) do
+    if comp and type(comp) == "table" and comp.mount and comp.bufnr and api.nvim_buf_is_valid(comp.bufnr) then
+      Utils.mark_as_sidebar_buffer(comp.bufnr)
+    end
+  end
 end
 
 function Sidebar:refresh_winids()
@@ -931,7 +937,7 @@ function Sidebar:update_content(content, opts)
         api.nvim_put(lines, "c", true, true)
       end)
       Utils.lock_buf(self.result.bufnr)
-      api.nvim_set_option_value("filetype", "Avante", { buf = self.result.bufnr })
+      api.nvim_set_option_value("filetype", "markdown", { buf = self.result.bufnr })
       if opts.scroll then
         scroll_to_bottom()
       end
@@ -948,7 +954,7 @@ function Sidebar:update_content(content, opts)
       Utils.unlock_buf(self.result.bufnr)
       api.nvim_buf_set_lines(self.result.bufnr, 0, -1, false, lines)
       Utils.lock_buf(self.result.bufnr)
-      api.nvim_set_option_value("filetype", "Avante", { buf = self.result.bufnr })
+      api.nvim_set_option_value("filetype", "markdown", { buf = self.result.bufnr })
       if opts.focus and not self:is_focused_on_result() then
         xpcall(function()
           --- set cursor to bottom of result view
@@ -1340,7 +1346,7 @@ function Sidebar:render()
       swapfile = false,
       buftype = "nofile",
       bufhidden = "wipe",
-      filetype = "Avante",
+      filetype = "markdown",
     },
     nil,
     {

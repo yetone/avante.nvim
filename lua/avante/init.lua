@@ -1,5 +1,6 @@
 local api = vim.api
 
+local Utils = require("avante.utils")
 local Sidebar = require("avante.sidebar")
 local Selection = require("avante.selection")
 local Config = require("avante.config")
@@ -110,9 +111,6 @@ H.autocmds = function()
       M.current.selection:setup_autocmds()
     end
   end)
-
-  -- automatically setup Avante filetype to markdown
-  vim.treesitter.language.register("markdown", "Avante")
 end
 
 ---@param current boolean? false to disable setting current, otherwise use this to track across tabs.
@@ -168,10 +166,9 @@ M.refresh = function()
     return
   end
 
-  local ft = vim.api.nvim_get_option_value("filetype", { buf = curbuf })
   local listed = vim.api.nvim_get_option_value("buflisted", { buf = curbuf })
 
-  if ft == "Avante" or not listed then
+  if Utils.is_sidebar_buffer(curbuf) or not listed then
     return
   end
 

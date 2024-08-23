@@ -39,7 +39,7 @@ end
 
 function M.in_visual_mode()
   local current_mode = vim.fn.mode()
-  return current_mode == "v" or current_mode == "V" or current_mode == ""
+  return current_mode == "v" or current_mode == "V" or current_mode == ""
 end
 
 ---Get the selected content and range in Visual mode
@@ -300,6 +300,20 @@ M.buf_list_wins = function(bufnr)
   end
 
   return wins
+end
+
+local sidebar_buffer_var_name = "is_sidebar_buffer"
+
+function M.mark_as_sidebar_buffer(bufnr)
+  api.nvim_buf_set_var(bufnr, sidebar_buffer_var_name, true)
+end
+
+function M.is_sidebar_buffer(bufnr)
+  local ok, v = pcall(api.nvim_buf_get_var, bufnr, sidebar_buffer_var_name)
+  if not ok then
+    return false
+  end
+  return v == true
 end
 
 return M

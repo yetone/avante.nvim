@@ -38,9 +38,9 @@ Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
     {
       'MeanderingProgrammer/render-markdown.nvim',
       opts = {
-        file_types = { "markdown", "Avante" },
+        file_types = { "markdown" },
       },
-      ft = { "markdown", "Avante" },
+      ft = { "markdown" },
     },
   },
 }
@@ -87,9 +87,9 @@ For Windows users, change the build command to the following:
 > {
 >   "MeanderingProgrammer/render-markdown.nvim",
 >   opts = {
->     file_types = { "markdown", "Avante" },
+>     file_types = { "markdown" },
 >   },
->   ft = { "markdown", "Avante" },
+>   ft = { "markdown" },
 > }
 > ```
 
