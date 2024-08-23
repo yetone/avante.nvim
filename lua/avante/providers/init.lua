@@ -123,7 +123,7 @@ local E = {}
 ---@private
 E._once = false
 
---- intialize the environment variable for current neovim session.
+--- initialize the environment variable for current neovim session.
 --- This will only run once and spawn a UI for users to input the envvar.
 ---@param opts {refresh: boolean, provider: AvanteProviderFunctor}
 ---@private
