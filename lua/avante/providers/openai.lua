@@ -24,10 +24,10 @@ local P = require("avante.providers")
 ---@class AvanteProviderFunctor
 local M = {}
 
-M.API_KEY = "OPENAI_API_KEY"
+M.api_key_name = "OPENAI_API_KEY"
 
 M.has = function()
-  return os.getenv(M.API_KEY) and true or false
+  return os.getenv(M.api_key_name) and true or false
 end
 
 M.parse_message = function(opts)
@@ -91,7 +91,7 @@ M.parse_curl_args = function(provider, code_opts)
     ["Content-Type"] = "application/json",
   }
   if not P.env.is_local("openai") then
-    headers["Authorization"] = "Bearer " .. os.getenv(M.API_KEY)
+    headers["Authorization"] = "Bearer " .. os.getenv(base.api_key_name or M.api_key_name)
   end
 
   return {

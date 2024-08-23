@@ -80,7 +80,7 @@ local Dressing = require("avante.ui.dressing")
 ---@field parse_curl_args AvanteCurlArgsParser
 ---@field setup? fun(): nil
 ---@field has fun(): boolean
----@field API_KEY string
+---@field api_key_name string
 ---@field parse_stream_data? AvanteStreamParser
 ---
 ---@class avante.Providers
@@ -102,13 +102,10 @@ setmetatable(M, {
       local v = Config.vendors[k]
 
       -- Patch from vendors similar to supported providers.
+      ---@type AvanteProviderFunctor
       t[k] = setmetatable({}, { __index = v })
-      t[k].API_KEY = v.api_key_name
       -- Hack for aliasing and makes it sane for us.
       t[k].parse_response = v.parse_response_data
-      t[k].has = function()
-        return os.getenv(v.api_key_name) and true or false
-      end
 
       return t[k]
     end
@@ -130,7 +127,7 @@ E._once = false
 ---@param opts {refresh: boolean, provider: AvanteProviderFunctor}
 ---@private
 E.setup = function(opts)
-  local var = opts.provider.API_KEY
+  local var = opts.provider.api_key_name
 
   if var == M.AVANTE_INTERNAL_KEY then
     return
