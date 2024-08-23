@@ -6,10 +6,10 @@ local O = require("avante.providers").openai
 ---@class AvanteProviderFunctor
 local M = {}
 
-M.API_KEY = "AZURE_OPENAI_API_KEY"
+M.api_key_name = "AZURE_OPENAI_API_KEY"
 
 M.has = function()
-  return os.getenv(M.API_KEY) and true or false
+  return os.getenv(M.api_key_name) and true or false
 end
 
 M.parse_message = O.parse_message
@@ -18,14 +18,11 @@ M.parse_response = O.parse_response
 M.parse_curl_args = function(provider, code_opts)
   local base, body_opts = P.parse_config(provider)
 
-  local api_key = os.getenv(body_opts.api_key_name or M.API_KEY)
-  body_opts.api_key_name = nil
-
   local headers = {
     ["Content-Type"] = "application/json",
   }
   if not P.env.is_local("azure") then
-    headers["api-key"] = api_key
+    headers["api-key"] = os.getenv(body_opts.api_key_name or M.api_key_name)
   end
 
   return {

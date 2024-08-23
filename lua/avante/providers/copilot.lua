@@ -142,7 +142,7 @@ H.generate_headers = function(token, sessionid, machineid)
   return headers
 end
 
-M.API_KEY = P.AVANTE_INTERNAL_KEY
+M.api_key_name = P.AVANTE_INTERNAL_KEY
 
 M.has = function()
   if Utils.has("copilot.lua") or Utils.has("copilot.vim") or H.find_config_path() then

@@ -6,10 +6,10 @@ local P = require("avante.providers")
 ---@class AvanteProviderFunctor
 local M = {}
 
-M.API_KEY = "ANTHROPIC_API_KEY"
+M.api_key_name = "ANTHROPIC_API_KEY"
 
 M.has = function()
-  return os.getenv(M.API_KEY) and true or false
+  return os.getenv(M.api_key_name) and true or false
 end
 
 M.parse_message = function(opts)
@@ -87,16 +87,13 @@ end
 M.parse_curl_args = function(provider, code_opts)
   local base, body_opts = P.parse_config(provider)
 
-  local api_key = os.getenv(body_opts.api_key_name or M.API_KEY)
-  body_opts.api_key_name = nil
-
   local headers = {
     ["Content-Type"] = "application/json",
     ["anthropic-version"] = "2023-06-01",
     ["anthropic-beta"] = "prompt-caching-2024-07-31",
   }
   if not P.env.is_local("claude") then
-    headers["x-api-key"] = api_key
+    headers["x-api-key"] = os.getenv(body_opts.api_key_name or M.api_key_name)
   end
 
   return {
