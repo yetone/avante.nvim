@@ -99,7 +99,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
 
 ```lua
 {
-  ---@alias Provider "openai" | "claude" | "azure" | "deepseek" | "groq" | "copilot" | [string]
+  ---@alias Provider "openai" | "claude" | "azure"  | "copilot" | [string]
   provider = "claude",
   claude = {
     endpoint = "https://api.anthropic.com",
@@ -157,6 +157,11 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 
 > [!IMPORTANT]
 >
+> Avante will only support OpenAI (and its variants including copilot and azure), and Claude out-of-the-box due to its high code quality generation.
+> For all OpenAI-compatible providers, see [wiki](https://github.com/yetone/avante.nvim/wiki) for more details.
+
+> [!IMPORTANT]
+>
 > For most consistency between neovim session, it is recommended to set the environment variables in your shell file.
 > By default, `Avante` will prompt you at startup to input the API key for the provider you have selected.
 >
@@ -176,18 +181,6 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 >
 > ```sh
 > export AZURE_OPENAI_API_KEY=your-api-key
-> ```
->
-> For DeepSeek
->
-> ```sh
-> export DEEPSEEK_API_KEY=you-api-key
-> ```
->
-> For Groq
->
-> ```sh
-> export GROQ_API_KEY=you-api-key
 > ```
 
 1. Open a code file in Neovim.
