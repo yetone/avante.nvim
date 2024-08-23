@@ -93,7 +93,7 @@ H.autocmds = function()
       local s = M.sidebars[tab]
       local sl = M.selections[tab]
       if s then
-        s:destroy()
+        s:reset()
       end
       if sl then
         sl:delete_autocmds()
@@ -177,6 +177,7 @@ M.refresh = function()
 
   local curwin = vim.api.nvim_get_current_win()
 
+  sidebar:close()
   sidebar.code.winid = curwin
   sidebar.code.bufnr = curbuf
   sidebar:render()
