@@ -95,6 +95,16 @@ function Selection:setup_autocmds()
       end
     end,
   })
+
+  api.nvim_create_autocmd({ "BufLeave" }, {
+    group = self.augroup,
+    callback = function(ev)
+      if not Utils.is_sidebar_buffer(ev.buf) then
+        self:close_hints_popup()
+      end
+    end,
+  })
+
   return self
 end
 
