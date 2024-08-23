@@ -1183,6 +1183,9 @@ Available commands:
         chat_history = {}
         save_chat_history(self, chat_history)
         self:update_content("Chat history cleared", { focus = false, scroll = false })
+        vim.defer_fn(function()
+          self:close()
+        end, 1000)
         return
       else
         -- Unknown command
