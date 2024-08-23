@@ -7,9 +7,9 @@ local M = {}
 ---@class avante.Config
 M.defaults = {
   debug = false,
-  ---Currently, default supported providers include "claude", "openai", "azure", "deepseek", "groq", "gemini"
+  ---Currently, default supported providers include "claude", "openai", "azure", "gemini"
   ---For custom provider, see README.md
-  ---@alias Provider "openai" | "claude" | "azure" | "deepseek" | "groq" | "copilot" | "gemini" | string
+  ---@alias Provider "openai" | "claude" | "azure" | "copilot" | "gemini" | string
   provider = "claude",
   ---@type AvanteSupportedProvider
   openai = {
@@ -27,7 +27,7 @@ M.defaults = {
     allow_insecure = false, -- Allow insecure server connections
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
-    max_tokens = 8192,
+    max_tokens = 4096,
   },
   ---@type AvanteAzureProvider
   azure = {
@@ -45,22 +45,6 @@ M.defaults = {
     ["local"] = false,
     temperature = 0,
     max_tokens = 4096,
-  },
-  ---@type AvanteSupportedProvider
-  deepseek = {
-    endpoint = "https://api.deepseek.com",
-    model = "deepseek-coder",
-    temperature = 0,
-    max_tokens = 4096,
-    ["local"] = false,
-  },
-  ---@type AvanteSupportedProvider
-  groq = {
-    endpoint = "https://api.groq.com",
-    model = "llama-3.1-70b-versatile",
-    temperature = 0,
-    max_tokens = 4096,
-    ["local"] = false,
   },
   ---@type AvanteGeminiProvider
   gemini = {
