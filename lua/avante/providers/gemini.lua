@@ -5,10 +5,10 @@ local P = require("avante.providers")
 ---@class AvanteProviderFunctor
 local M = {}
 
-M.API_KEY = "GROQ_API_KEY"
+M.api_key_name = "GROQ_API_KEY"
 
 M.has = function()
-  return os.getenv(M.API_KEY) and true or false
+  return os.getenv(M.api_key_name) and true or false
 end
 
 M.parse_message = function(opts)
@@ -68,7 +68,7 @@ M.parse_curl_args = function(provider, code_opts)
       .. "/"
       .. base.model
       .. ":streamGenerateContent?alt=sse&key="
-      .. os.getenv(M.API_KEY),
+      .. os.getenv(base.api_key_name or M.api_key_name),
     proxy = base.proxy,
     insecure = base.allow_insecure,
     headers = { ["Content-Type"] = "application/json" },

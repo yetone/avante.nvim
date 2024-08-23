@@ -204,7 +204,8 @@ M.get_provider = function(provider)
   end
 end
 
-M.BASE_PROVIDER_KEYS = { "endpoint", "model", "local", "deployment", "api_version", "proxy", "allow_insecure" }
+M.BASE_PROVIDER_KEYS =
+  { "endpoint", "model", "local", "deployment", "api_version", "proxy", "allow_insecure", "api_key_name" }
 
 ---@return {width: integer, height: integer}
 function M.get_sidebar_layout_options()
