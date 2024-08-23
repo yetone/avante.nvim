@@ -99,6 +99,7 @@ function Sidebar:open()
 end
 
 function Sidebar:close()
+  self:delete_autocmds()
   for _, comp in pairs(self) do
     if comp and type(comp) == "table" and comp.unmount then
       comp:unmount()
@@ -827,9 +828,10 @@ function Sidebar:refresh_winids()
     local current_idx = Utils.tbl_indexof(winids, current_winid) or 1
     if current_idx == #winids then
       current_idx = 1
-      api.nvim_set_current_win(winids[current_idx])
     else
       current_idx = current_idx + 1
+    end
+    if api.nvim_win_is_valid(winids[current_idx]) then
       api.nvim_set_current_win(winids[current_idx])
     end
   end
@@ -839,9 +841,10 @@ function Sidebar:refresh_winids()
     local current_idx = Utils.tbl_indexof(winids, current_winid) or 1
     if current_idx == 1 then
       current_idx = #winids
-      api.nvim_set_current_win(winids[current_idx])
     else
       current_idx = current_idx - 1
+    end
+    if api.nvim_win_is_valid(winids[current_idx]) then
       api.nvim_set_current_win(winids[current_idx])
     end
   end
