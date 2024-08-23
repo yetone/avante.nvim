@@ -18,11 +18,14 @@ M.parse_response = O.parse_response
 M.parse_curl_args = function(provider, code_opts)
   local base, body_opts = P.parse_config(provider)
 
+  local api_key = os.getenv(body_opts.api_key_name or M.API_KEY)
+  body_opts.api_key_name = nil
+
   local headers = {
     ["Content-Type"] = "application/json",
   }
   if not P.env.is_local("azure") then
-    headers["api-key"] = os.getenv(M.API_KEY)
+    headers["api-key"] = api_key
   end
 
   return {

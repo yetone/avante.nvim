@@ -63,12 +63,15 @@ end
 M.parse_curl_args = function(provider, code_opts)
   local base, body_opts = P.parse_config(provider)
 
+  local api_key = os.getenv(body_opts.api_key_name or M.API_KEY)
+  body_opts.api_key_name = nil
+
   return {
     url = Utils.trim(base.endpoint, { suffix = "/" })
       .. "/"
       .. base.model
       .. ":streamGenerateContent?alt=sse&key="
-      .. os.getenv(M.API_KEY),
+      .. api_key,
     proxy = base.proxy,
     insecure = base.allow_insecure,
     headers = { ["Content-Type"] = "application/json" },

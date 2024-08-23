@@ -102,6 +102,7 @@ setmetatable(M, {
       local v = Config.vendors[k]
 
       -- Patch from vendors similar to supported providers.
+      ---@type AvanteProviderFunctor
       t[k] = setmetatable({}, { __index = v })
       t[k].API_KEY = v.api_key_name
       -- Hack for aliasing and makes it sane for us.

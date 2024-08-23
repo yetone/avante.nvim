@@ -87,13 +87,16 @@ end
 M.parse_curl_args = function(provider, code_opts)
   local base, body_opts = P.parse_config(provider)
 
+  local api_key = os.getenv(body_opts.api_key_name or M.API_KEY)
+  body_opts.api_key_name = nil
+
   local headers = {
     ["Content-Type"] = "application/json",
     ["anthropic-version"] = "2023-06-01",
     ["anthropic-beta"] = "prompt-caching-2024-07-31",
   }
   if not P.env.is_local("claude") then
-    headers["x-api-key"] = os.getenv(M.API_KEY)
+    headers["x-api-key"] = api_key
   end
 
   return {
