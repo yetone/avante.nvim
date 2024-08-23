@@ -4,6 +4,7 @@ local fn = vim.fn
 local Path = require("plenary.path")
 local Split = require("nui.split")
 local Input = require("nui.input")
+local Popup = require("nui.popup")
 local event = require("nui.utils.autocmd").event
 
 local Config = require("avante.config")
@@ -124,10 +125,10 @@ end
 
 function Sidebar:is_open()
   return self.result
-    and self.result.bufnr
-    and api.nvim_buf_is_valid(self.result.bufnr)
-    and self.result.winid
-    and api.nvim_win_is_valid(self.result.winid)
+      and self.result.bufnr
+      and api.nvim_buf_is_valid(self.result.bufnr)
+      and self.result.winid
+      and api.nvim_win_is_valid(self.result.winid)
 end
 
 function Sidebar:in_code_win()
@@ -387,9 +388,9 @@ end
 
 function Sidebar:render_result_container()
   if
-    not self.result_container
-    or not self.result_container.bufnr
-    or not api.nvim_buf_is_valid(self.result_container.bufnr)
+      not self.result_container
+      or not self.result_container.bufnr
+      or not api.nvim_buf_is_valid(self.result_container.bufnr)
   then
     return
   end
@@ -405,9 +406,9 @@ end
 
 function Sidebar:render_input_container()
   if
-    not self.input_container
-    or not self.input_container.bufnr
-    or not api.nvim_buf_is_valid(self.input_container.bufnr)
+      not self.input_container
+      or not self.input_container.bufnr
+      or not api.nvim_buf_is_valid(self.input_container.bufnr)
   then
     return
   end
@@ -439,9 +440,9 @@ end
 
 function Sidebar:render_selected_code_container()
   if
-    not self.selected_code_container
-    or not self.selected_code_container.bufnr
-    or not api.nvim_buf_is_valid(self.selected_code_container.bufnr)
+      not self.selected_code_container
+      or not self.selected_code_container.bufnr
+      or not api.nvim_buf_is_valid(self.selected_code_container.bufnr)
   then
     return
   end
@@ -455,11 +456,11 @@ function Sidebar:render_selected_code_container()
   end
 
   local header_text = " Selected Code"
-    .. (
-      selected_code_lines_count > selected_code_max_lines_count
+      .. (
+        selected_code_lines_count > selected_code_max_lines_count
         and " (Show only the first " .. tostring(selected_code_max_lines_count) .. " lines)"
-      or ""
-    )
+        or ""
+      )
 
   self:render_header(
     self.selected_code_container.winid,
@@ -483,12 +484,12 @@ function Sidebar:on_mount()
     end
 
     current_apply_extmark_id =
-      api.nvim_buf_set_extmark(self.result.bufnr, CODEBLOCK_KEYBINDING_NAMESPACE, block.start_line, -1, {
-        virt_text = { { " [Press <A> to Apply these patches] ", "Keyword" } },
-        virt_text_pos = "right_align",
-        hl_group = "Keyword",
-        priority = PRIORITY,
-      })
+        api.nvim_buf_set_extmark(self.result.bufnr, CODEBLOCK_KEYBINDING_NAMESPACE, block.start_line, -1, {
+          virt_text = { { " [Press <A> to Apply these patches] ", "Keyword" } },
+          virt_text_pos = "right_align",
+          hl_group = "Keyword",
+          priority = PRIORITY,
+        })
   end
 
   local function bind_apply_key()
@@ -644,10 +645,10 @@ function Sidebar:on_mount()
     group = self.augroup,
     callback = function()
       if
-        not self.input.winid
-        or not self.input_container.winid
-        or not api.nvim_win_is_valid(self.input.winid)
-        or not api.nvim_win_is_valid(self.input_container.winid)
+          not self.input.winid
+          or not self.input_container.winid
+          or not api.nvim_win_is_valid(self.input.winid)
+          or not api.nvim_win_is_valid(self.input_container.winid)
       then
         return
       end
@@ -656,8 +657,8 @@ function Sidebar:on_mount()
       local current_input_container_win_height = api.nvim_win_get_height(self.input_container.winid)
 
       if
-        current_input_container_win_width == input_container_win_width
-        and current_input_container_win_height == input_container_win_height
+          current_input_container_win_width == input_container_win_width
+          and current_input_container_win_height == input_container_win_height
       then
         return
       end
@@ -680,10 +681,10 @@ function Sidebar:on_mount()
     group = self.augroup,
     callback = function()
       if
-        not self.input.winid
-        or not self.input_container.winid
-        or not api.nvim_win_is_valid(self.input.winid)
-        or not api.nvim_win_is_valid(self.input_container.winid)
+          not self.input.winid
+          or not self.input_container.winid
+          or not api.nvim_win_is_valid(self.input.winid)
+          or not api.nvim_win_is_valid(self.input_container.winid)
       then
         return
       end
@@ -787,10 +788,10 @@ function Sidebar:on_mount()
       end
 
       if
-        previous_winid == self.result.winid
-        and self.selected_code
-        and self.selected_code.winid
-        and api.nvim_win_is_valid(self.selected_code.winid)
+          previous_winid == self.result.winid
+          and self.selected_code
+          and self.selected_code.winid
+          and api.nvim_win_is_valid(self.selected_code.winid)
       then
         api.nvim_set_current_win(self.selected_code.winid)
         return
@@ -1025,15 +1026,15 @@ local function get_chat_record_prefix(timestamp, provider, model, request)
   provider = provider or "unknown"
   model = model or "unknown"
   return "- Datetime: "
-    .. timestamp
-    .. "\n\n"
-    .. "- Model: "
-    .. provider
-    .. "/"
-    .. model
-    .. "\n\n> "
-    .. request:gsub("\n", "\n> ")
-    .. "\n\n"
+      .. timestamp
+      .. "\n\n"
+      .. "- Model: "
+      .. provider
+      .. "/"
+      .. model
+      .. "\n\n> "
+      .. request:gsub("\n", "\n> ")
+      .. "\n\n"
 end
 
 -- Function to load chat history
@@ -1063,7 +1064,7 @@ function Sidebar:update_content_with_history(history)
   local content = ""
   for idx, entry in ipairs(history) do
     local prefix =
-      get_chat_record_prefix(entry.timestamp, entry.provider, entry.model, entry.request or entry.requirement or "")
+        get_chat_record_prefix(entry.timestamp, entry.provider, entry.model, entry.request or entry.requirement or "")
     content = content .. prefix
     content = content .. entry.response .. "\n\n"
     if idx < #history then
@@ -1215,15 +1216,11 @@ end
 
 function Sidebar:create_input()
   if
-    not self.input_container
-    or not self.input_container.winid
-    or not api.nvim_win_is_valid(self.input_container.winid)
+      not self.input_container
+      or not self.input_container.winid
+      or not api.nvim_win_is_valid(self.input_container.winid)
   then
     return
-  end
-
-  if self.input ~= nil then
-    self.input:unmount()
   end
 
   local chat_history = load_chat_history(self)
@@ -1248,7 +1245,7 @@ function Sidebar:create_input()
     local selected_code_content_with_line_numbers = nil
     if self.code.selection ~= nil then
       selected_code_content_with_line_numbers =
-        prepend_line_number(self.code.selection.content, self.code.selection.range.start.line)
+          prepend_line_number(self.code.selection.content, self.code.selection.range.start.line)
     end
 
     if request:sub(1, 1) == "/" then
@@ -1371,8 +1368,9 @@ function Sidebar:create_input()
   end
 
   local win_width = api.nvim_win_get_width(self.input_container.winid)
+  local win_height = api.nvim_win_get_height(self.input_container.winid)
 
-  self.input = Input({
+  self.input = Popup({
     relative = {
       type = "win",
       winid = self.input_container.winid,
@@ -1382,21 +1380,34 @@ function Sidebar:create_input()
       col = 1,
     },
     size = {
+      height = win_height - 6, -- Substract the borders, which also includes the filename in addition to the borders
       width = win_width - 2, -- Subtract the width of the input box borders
     },
-  }, {
-    disable_cursor_position_patch = true,
-    prompt = Config.windows.prompt.prefix,
-    default_value = " ",
-    on_submit = function(user_input)
-      user_input = Utils.trim_spaces(user_input)
-      if user_input == "" then
-        self:create_input()
-        return
-      end
-      handle_submit(user_input)
-    end,
-  })
+  }
+  -- , {
+  --   prompt = Config.windows.prompt.prefix,
+  --   default_value = "",
+  --   on_submit = function(user_input)
+  --     if user_input == "" then
+  --       self:create_input()
+  --       return
+  --     end
+  --     handle_submit(user_input)
+  --   end,
+  -- }
+  )
+  local save_input = function(bufnr)
+    local input = table.concat(api.nvim_buf_get_lines(bufnr or self.input.bufnr, 0, -1, false), "\n")
+      input = Utils.trim_spaces(input)
+    if input == "" then
+      self:create_input()
+      return
+    end
+    handle_submit(input)
+  end
+
+  self.input:map("n", "<C-s>", save_input, { noremap = true})
+  self.input:map("i", "<C-s>", save_input, { noremap = true})
 
   self.input:mount()
 
@@ -1523,6 +1534,9 @@ function Sidebar:render()
     buf_options = buf_options,
     win_options = get_win_options(),
     position = "bottom",
+    size = {
+      height = 0.2,
+    },
   })
 
   self.input_container:mount()
