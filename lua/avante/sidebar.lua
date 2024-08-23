@@ -1203,26 +1203,18 @@ Available commands:
     ---@type AvanteCompleteParser
     local on_complete = function(err)
       if err ~= nil then
-        self:update_content(
-          content_prefix .. full_response .. "\n\n🚨 Error: " .. vim.inspect(err),
-          { stream = false, scroll = true }
-        )
+        self:update_content("\n\n🚨 Error: " .. vim.inspect(err), { stream = true, scroll = true })
         return
       end
 
       -- Execute when the stream request is actually completed
-      self:update_content(
-        content_prefix
-          .. full_response
-          .. "\n\n🎉🎉🎉 **Generation complete!** Please review the code suggestions above.",
-        {
-          stream = false,
-          scroll = true,
-          callback = function()
-            api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN })
-          end,
-        }
-      )
+      self:update_content("\n\n🎉🎉🎉 **Generation complete!** Please review the code suggestions above.", {
+        stream = true,
+        scroll = true,
+        callback = function()
+          api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN })
+        end,
+      })
 
       vim.defer_fn(function()
         self:create_input() -- Recreate input box
