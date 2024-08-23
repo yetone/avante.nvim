@@ -22,7 +22,7 @@ M.parse_curl_args = function(provider, code_opts)
     ["Content-Type"] = "application/json",
   }
   if not P.env.is_local("azure") then
-    headers["api-key"] = os.getenv(body_opts.api_key_name or M.api_key_name)
+    headers["api-key"] = os.getenv(base.api_key_name or M.api_key_name)
   end
 
   return {
