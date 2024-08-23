@@ -70,7 +70,7 @@ function FloatingWindow.from_split_win(split_winid, opts)
     row = 1,
     col = 0,
     style = "minimal",
-    border = { " ", " ", " ", " ", " ", " ", " ", " " },
+    border = { " " },
   }, opts.float_options or {})
 
   local win_opts_ = vim.tbl_deep_extend("force", {}, opts.win_options or {})
