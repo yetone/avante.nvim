@@ -1307,15 +1307,22 @@ function Sidebar:get_selected_code_size()
   return selected_code_size
 end
 
-local function create_floating_window_for_split(split_winid, buf_opts, win_opts, float_opts)
-  local win_opts_ = vim.tbl_deep_extend("force", get_win_options(), win_opts or {})
+---@class CreateFloatingWindowForSplitOptions
+---@field split_winid integer | nil
+---@field buf_opts table | nil
+---@field win_opts table | nil
+---@field float_opts table | nil
 
-  local buf_opts_ = vim.tbl_deep_extend("force", buf_options, buf_opts or {})
+---@param opts CreateFloatingWindowForSplitOptions
+local function create_floating_window_for_split(opts)
+  local win_opts_ = vim.tbl_deep_extend("force", get_win_options(), opts.win_opts or {})
 
-  local floating_win = FloatingWindow.from_split_win(split_winid, {
+  local buf_opts_ = vim.tbl_deep_extend("force", buf_options, opts.buf_opts or {})
+
+  local floating_win = FloatingWindow.from_split_win(opts.split_winid, {
     buf_options = buf_opts_,
     win_options = win_opts_,
-    float_options = float_opts,
+    float_options = opts.float_opts,
   })
 
   return floating_win
@@ -1339,20 +1346,19 @@ function Sidebar:render()
 
   self.result_container:mount()
 
-  self.result = create_floating_window_for_split(
-    self.result_container.winid,
-    {
+  self.result = create_floating_window_for_split({
+    split_winid = self.result_container.winid,
+    buf_opts = {
       modifiable = false,
       swapfile = false,
       buftype = "nofile",
       bufhidden = "wipe",
       filetype = "Avante",
     },
-    nil,
-    {
+    float_opts = {
       height = math.max(0, sidebar_height - selected_code_size - 9),
-    }
-  )
+    },
+  })
 
   self.result:on(event.BufWinEnter, function()
     xpcall(function()
@@ -1411,7 +1417,7 @@ function Sidebar:render()
       },
     })
     self.selected_code_container:mount()
-    self.selected_code = create_floating_window_for_split(self.selected_code_container.winid)
+    self.selected_code = create_floating_window_for_split({ split_winid = self.selected_code_container.winid })
     self.selected_code:mount()
   end
 

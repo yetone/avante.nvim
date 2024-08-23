@@ -24,13 +24,13 @@ setmetatable(FloatingWindow, {
   end,
 })
 
----@class opts
+---@class FloatingWindowOptions
 ---@field enter? boolean
 ---@field buf_options? table<string, any>
 ---@field win_options? table<string, any>
 ---@field float_options? table<string, any>
 
----@param opts opts
+---@param opts FloatingWindowOptions
 ---@return FloatingWindow
 function FloatingWindow.new(opts)
   local instance = setmetatable({}, FloatingWindow)
@@ -47,7 +47,7 @@ function FloatingWindow.new(opts)
 end
 
 ---@param split_winid integer
----@param opts opts
+---@param opts FloatingWindowOptions
 ---@return FloatingWindow
 function FloatingWindow.from_split_win(split_winid, opts)
   local split_win_width = api.nvim_win_get_width(split_winid)
