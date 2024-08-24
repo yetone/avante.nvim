@@ -1385,9 +1385,11 @@ function Sidebar:create_input()
       width = win_width - 2, -- Subtract the width of the input box borders
     },
   }, {
+    disable_cursor_position_patch = true,
     prompt = Config.windows.prompt.prefix,
-    default_value = "",
+    default_value = " ",
     on_submit = function(user_input)
+      user_input = Utils.trim_spaces(user_input)
       if user_input == "" then
         self:create_input()
         return

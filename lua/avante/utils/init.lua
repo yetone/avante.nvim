@@ -30,11 +30,14 @@ function M.trim(str, opts)
   if not opts then
     return str
   end
+  local res = str
   if opts.suffix then
-    return str:sub(-1) == opts.suffix and str:sub(1, -2) or str
-  elseif opts.prefix then
-    return str:sub(1, 1) == opts.prefix and str:sub(2) or str
+    res = str:sub(#str - #opts.suffix + 1) == opts.suffix and str:sub(1, #str - #opts.suffix) or str
   end
+  if opts.prefix then
+    res = str:sub(1, #opts.prefix) == opts.prefix and str:sub(#opts.prefix + 1) or str
+  end
+  return res
 end
 
 function M.in_visual_mode()
@@ -314,6 +317,10 @@ function M.is_sidebar_buffer(bufnr)
     return false
   end
   return v == true
+end
+
+function M.trim_spaces(s)
+  return s:match("^%s*(.-)%s*$")
 end
 
 return M
