@@ -7,9 +7,9 @@ local M = {}
 ---@class avante.Config
 M.defaults = {
   debug = false,
-  ---Currently, default supported providers include "claude", "openai", "azure", "gemini"
+  ---Currently, default supported providers include "claude", "openai", "azure", "gemini", "deepseek"
   ---For custom provider, see README.md
-  ---@alias Provider "openai" | "claude" | "azure" | "copilot" | "gemini" | string
+  ---@alias Provider "openai" | "claude" | "azure" | "copilot" | "gemini" | "deepseek" | string
   provider = "claude",
   ---@type AvanteSupportedProvider
   openai = {
@@ -60,6 +60,14 @@ M.defaults = {
     model = "command-r-plus",
     temperature = 0,
     max_tokens = 3072,
+    ["local"] = false,
+  },
+  ---@type AvanteSupportedProvider
+  deepseek = {
+    endpoint = "https://api.deepseek.com",
+    model = "deepseek-coder",
+    temperature = 0,
+    max_tokens = 4096,
     ["local"] = false,
   },
   ---To add support for custom provider, follow the format below
