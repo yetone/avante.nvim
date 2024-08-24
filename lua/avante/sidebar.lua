@@ -1314,8 +1314,8 @@ function Sidebar:create_input()
     handle_submit(request)
   end
 
-  self.input:map("n", "<CR>", on_submit)
-  self.input:map("i", "<C-s>", on_submit)
+  self.input:map("n", Config.mappings.submit.normal, on_submit)
+  self.input:map("i", Config.mappings.submit.insert, on_submit)
 
   self.input:mount()
 
@@ -1358,9 +1358,9 @@ function Sidebar:create_input()
   local function show_hint()
     close_hint() -- Close the existing hint window
 
-    local hint_text = "Press <C-s> to submit"
+    local hint_text = "Press " .. Config.mappings.submit.insert .. " to submit"
     if vim.fn.mode() ~= "i" then
-      hint_text = "Press <CR> to submit"
+      hint_text = "Press " .. Config.mappings.submit.normal .. " to submit"
     end
 
     local buf = api.nvim_create_buf(false, true)
