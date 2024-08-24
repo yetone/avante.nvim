@@ -123,10 +123,6 @@ M.defaults = {
   hints = {
     enabled = true,
   },
-  --- @class AvanteThemeConfig
-  --- @field theme "light" | "dark"
-  --- @type string
-  theme = "dark",
 }
 
 ---@type avante.Config
