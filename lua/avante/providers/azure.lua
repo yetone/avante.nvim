@@ -1,5 +1,10 @@
+---@class AvanteAzureProvider: AvanteDefaultBaseProvider
+---@field deployment string
+---@field api_version string
+---@field temperature number
+---@field max_tokens number
+
 local Utils = require("avante.utils")
-local Config = require("avante.config")
 local P = require("avante.providers")
 local O = require("avante.providers").openai
 
@@ -7,10 +12,6 @@ local O = require("avante.providers").openai
 local M = {}
 
 M.api_key_name = "AZURE_OPENAI_API_KEY"
-
-M.has = function()
-  return os.getenv(M.api_key_name) and true or false
-end
 
 M.parse_message = O.parse_message
 M.parse_response = O.parse_response
@@ -22,7 +23,7 @@ M.parse_curl_args = function(provider, code_opts)
     ["Content-Type"] = "application/json",
   }
   if not P.env.is_local("azure") then
-    headers["api-key"] = os.getenv(base.api_key_name or M.api_key_name)
+    headers["api-key"] = provider.parse_api_key()
   end
 
   return {

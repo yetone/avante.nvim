@@ -15,6 +15,7 @@ M.defaults = {
   openai = {
     endpoint = "https://api.openai.com/v1",
     model = "gpt-4o",
+    timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
     max_tokens = 4096,
     ["local"] = false,
@@ -34,6 +35,7 @@ M.defaults = {
     endpoint = "", -- example: "https://<your-resource-name>.openai.azure.com"
     deployment = "", -- Azure deployment name (e.g., "gpt-4o", "my-gpt-4o-deployment")
     api_version = "2024-06-01",
+    timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
     max_tokens = 4096,
     ["local"] = false,
@@ -42,22 +44,25 @@ M.defaults = {
   claude = {
     endpoint = "https://api.anthropic.com",
     model = "claude-3-5-sonnet-20240620",
+    timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
     max_tokens = 4096,
     ["local"] = false,
   },
-  ---@type AvanteGeminiProvider
+  ---@type AvanteSupportedProvider
   gemini = {
     endpoint = "https://generativelanguage.googleapis.com/v1beta/models",
     model = "gemini-1.5-pro",
+    timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
     max_tokens = 4096,
     ["local"] = false,
   },
   ---@type AvanteGeminiProvider
   cohere = {
-    endpoint = "https://api.cohere.com",
+    endpoint = "https://api.cohere.com/v1",
     model = "command-r-plus",
+    timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
     max_tokens = 3072,
     ["local"] = false,
@@ -189,7 +194,7 @@ end
 
 ---get supported providers
 ---@param provider Provider
----@return AvanteProvider | fun(): AvanteProvider
+---@return AvanteProviderFunctor
 M.get_provider = function(provider)
   if M.options[provider] ~= nil then
     return vim.deepcopy(M.options[provider], true)
@@ -200,8 +205,17 @@ M.get_provider = function(provider)
   end
 end
 
-M.BASE_PROVIDER_KEYS =
-  { "endpoint", "model", "local", "deployment", "api_version", "proxy", "allow_insecure", "api_key_name" }
+M.BASE_PROVIDER_KEYS = {
+  "endpoint",
+  "model",
+  "local",
+  "deployment",
+  "api_version",
+  "proxy",
+  "allow_insecure",
+  "api_key_name",
+  "timeout",
+}
 
 ---@return {width: integer, height: integer}
 function M.get_sidebar_layout_options()
