@@ -43,7 +43,7 @@ M.defaults = {
     endpoint = "https://api.anthropic.com",
     model = "claude-3-5-sonnet-20240620",
     temperature = 0,
-    max_tokens = 4096,
+    max_tokens = 8192, -- per anthropic august 19 update : https://docs.anthropic.com/en/release-notes/api#august-19th-2024
     ["local"] = false,
   },
   ---@type AvanteGeminiProvider
