@@ -110,6 +110,8 @@ function Sidebar:close()
   if self.code ~= nil and api.nvim_win_is_valid(self.code.winid) then
     fn.win_gotoid(self.code.winid)
   end
+
+  vim.cmd("wincmd =")
 end
 
 ---@return boolean
