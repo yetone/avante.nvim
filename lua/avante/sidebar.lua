@@ -431,8 +431,8 @@ function Sidebar:render_input_container()
     self.input_container.winid,
     self.input_container.bufnr,
     header_text,
-    Highlights.THIRDTITLE,
-    Highlights.REVERSED_THIRDTITLE
+    Highlights.THRIDTITLE,
+    Highlights.REVERSED_THRIDTITLE
   )
 end
 
