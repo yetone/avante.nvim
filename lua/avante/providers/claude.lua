@@ -1,5 +1,4 @@
 local Utils = require("avante.utils")
-local Config = require("avante.config")
 local Tiktoken = require("avante.tiktoken")
 local P = require("avante.providers")
 
@@ -7,10 +6,6 @@ local P = require("avante.providers")
 local M = {}
 
 M.api_key_name = "ANTHROPIC_API_KEY"
-
-M.has = function()
-  return os.getenv(M.api_key_name) and true or false
-end
 
 M.parse_message = function(opts)
   local code_prompt_obj = {
@@ -93,7 +88,7 @@ M.parse_curl_args = function(provider, code_opts)
     ["anthropic-beta"] = "prompt-caching-2024-07-31",
   }
   if not P.env.is_local("claude") then
-    headers["x-api-key"] = os.getenv(base.api_key_name or M.api_key_name)
+    headers["x-api-key"] = provider.parse_api_key()
   end
 
   return {

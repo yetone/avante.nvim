@@ -30,10 +30,6 @@ local M = {}
 
 M.api_key_name = "CO_API_KEY"
 
-M.has = function()
-  return os.getenv(M.api_key_name) and true or false
-end
-
 M.parse_message = function(opts)
   local user_prompt = opts.base_prompt
     .. "\n\nCODE:\n"
@@ -103,11 +99,11 @@ M.parse_curl_args = function(provider, code_opts)
       .. vim.version().patch,
   }
   if not P.env.is_local("openai") then
-    headers["Authorization"] = "Bearer " .. os.getenv(base.api_key_name or M.api_key_name)
+    headers["Authorization"] = "Bearer " .. provider.parse_api_key()
   end
 
   return {
-    url = Utils.trim(base.endpoint, { suffix = "/" }) .. "/v1/chat",
+    url = Utils.trim(base.endpoint, { suffix = "/" }) .. "/chat",
     proxy = base.proxy,
     insecure = base.allow_insecure,
     headers = headers,

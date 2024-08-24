@@ -1,7 +1,9 @@
+---@class AvanteCopilotProvider: AvanteSupportedProvider
+---@field timeout number
+
 local curl = require("plenary.curl")
 
 local Utils = require("avante.utils")
-local Config = require("avante.config")
 local P = require("avante.providers")
 local O = require("avante.providers").openai
 
@@ -196,7 +198,7 @@ M.parse_curl_args = function(provider, code_opts)
     end
 
     local response = curl.get(url, {
-      timeout = Config.copilot.timeout,
+      timeout = base.timeout,
       headers = headers,
       proxy = base.proxy,
       insecure = base.allow_insecure,
