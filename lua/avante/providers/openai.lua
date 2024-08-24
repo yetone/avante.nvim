@@ -95,7 +95,7 @@ M.parse_curl_args = function(provider, code_opts)
   end
 
   return {
-    url = Utils.trim(base.endpoint, { suffix = "/" }) .. "/v1/chat/completions",
+    url = Utils.trim(base.endpoint, { suffix = "/" }) .. "/chat/completions",
     proxy = base.proxy,
     insecure = base.allow_insecure,
     headers = headers,
