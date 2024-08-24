@@ -1380,7 +1380,7 @@ function Sidebar:create_input()
       col = 1,
     },
     size = {
-      height = win_height - 6, -- Substract the borders, which also includes the filename in addition to the borders
+      height = math.max(win_height - 8, 1), -- Substract the borders, which also includes the filename in addition to the borders
       width = win_width - 2, -- Subtract the width of the input box borders
     },
   }
@@ -1535,7 +1535,7 @@ function Sidebar:render()
     win_options = get_win_options(),
     position = "bottom",
     size = {
-      height = 0.2,
+      height = 10,
     },
   })
 
