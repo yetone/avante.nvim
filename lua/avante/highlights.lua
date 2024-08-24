@@ -10,6 +10,8 @@ local M = {
   REVERSED_NORMAL = "AvanteReversedNormal",
 }
 
+M.input_ns = api.nvim_create_namespace("avante_input")
+
 M.setup = function()
   local normal = api.nvim_get_hl(0, { name = "Normal" })
   api.nvim_set_hl(0, M.REVERSED_NORMAL, { fg = normal.bg })
@@ -19,6 +21,10 @@ M.setup = function()
   api.nvim_set_hl(0, M.REVERSED_SUBTITLE, { fg = "#56b6c2" })
   api.nvim_set_hl(0, M.THRIDTITLE, { fg = "#ABB2BF", bg = "#353B45" })
   api.nvim_set_hl(0, M.REVERSED_THRIDTITLE, { fg = "#353B45" })
+
+  local normal_float = api.nvim_get_hl(0, { name = "NormalFloat" })
+  api.nvim_set_hl(M.input_ns, "NormalFloat", { fg = normal_float.fg, bg = normal_float.bg })
+  api.nvim_set_hl(M.input_ns, "FloatBorder", { fg = normal.fg, bg = normal.bg })
 end
 
 return M

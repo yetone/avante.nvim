@@ -3,7 +3,6 @@ local fn = vim.fn
 
 local Path = require("plenary.path")
 local Split = require("nui.split")
-local Input = require("nui.input")
 local event = require("nui.utils.autocmd").event
 
 local Config = require("avante.config")
@@ -637,84 +636,12 @@ function Sidebar:on_mount()
     end,
   })
 
-  local input_container_win_width = api.nvim_win_get_width(self.input_container.winid)
-  local input_container_win_height = api.nvim_win_get_height(self.input_container.winid)
-
-  api.nvim_create_autocmd("WinResized", {
-    group = self.augroup,
-    callback = function()
-      if
-        not self.input.winid
-        or not self.input_container.winid
-        or not api.nvim_win_is_valid(self.input.winid)
-        or not api.nvim_win_is_valid(self.input_container.winid)
-      then
-        return
-      end
-
-      local current_input_container_win_width = api.nvim_win_get_width(self.input_container.winid)
-      local current_input_container_win_height = api.nvim_win_get_height(self.input_container.winid)
-
-      if
-        current_input_container_win_width == input_container_win_width
-        and current_input_container_win_height == input_container_win_height
-      then
-        return
-      end
-
-      input_container_win_width = current_input_container_win_width
-      input_container_win_height = current_input_container_win_height
-
-      local old_floating_win_options = api.nvim_win_get_config(self.input.winid)
-      local new_floating_win_options = vim.tbl_deep_extend("force", old_floating_win_options, {
-        width = current_input_container_win_width - 2,
-      })
-      api.nvim_win_set_config(self.input.winid, new_floating_win_options)
-    end,
-  })
-
-  local input_win_width = api.nvim_win_get_width(self.input.winid)
-  local input_win_height = api.nvim_win_get_height(self.input.winid)
-
-  api.nvim_create_autocmd("WinResized", {
-    group = self.augroup,
-    callback = function()
-      if
-        not self.input.winid
-        or not self.input_container.winid
-        or not api.nvim_win_is_valid(self.input.winid)
-        or not api.nvim_win_is_valid(self.input_container.winid)
-      then
-        return
-      end
-
-      local current_input_win_width = api.nvim_win_get_width(self.input.winid)
-      local current_input_win_height = api.nvim_win_get_height(self.input.winid)
-
-      if current_input_win_width == input_win_width and current_input_win_height == input_win_height then
-        return
-      end
-
-      input_win_width = current_input_win_width
-      input_win_height = current_input_win_height
-
-      api.nvim_win_set_width(self.input_container.winid, input_win_width + 2)
-    end,
-  })
-
   api.nvim_create_autocmd("WinClosed", {
     group = self.augroup,
     callback = function(args)
       local closed_winid = tonumber(args.match)
       if not self:is_focused_on(closed_winid) then
         return
-      end
-      if closed_winid == self.winids.input then
-        -- Do not blame me for this hack: https://github.com/MunifTanjim/nui.nvim/blob/61574ce6e60c815b0a0c4b5655b8486ba58089a1/lua/nui/input/init.lua#L96-L99
-        ---@diagnostic disable-next-line: undefined-field
-        if self.input._.pending_submit_value then
-          return
-        end
       end
       self:close()
     end,
@@ -873,7 +800,6 @@ function Sidebar:resize()
       api.nvim_win_set_width(comp.winid, new_layout.width)
     end
   end
-  self:create_input()
   self:render_result_container()
   self:render_input_container()
   self:render_selected_code_container()
@@ -1129,7 +1055,6 @@ function Sidebar:get_commands()
       ---@diagnostic disable-next-line: unused-local
       callback = function(args, cb)
         local help_text = get_help_text(items)
-        self:create_input()
         self:update_content(help_text, { focus = false, scroll = false })
         if cb then
           cb(args)
@@ -1142,7 +1067,6 @@ function Sidebar:get_commands()
       callback = function(args, cb)
         local chat_history = {}
         save_chat_history(self, chat_history)
-        self:create_input()
         self:update_content("Chat history cleared", { focus = false, scroll = false })
         vim.defer_fn(function()
           self:close()
@@ -1204,7 +1128,7 @@ function Sidebar:create_selected_code()
       win_options = get_win_options(),
       position = "bottom",
       size = {
-        height = selected_code_size,
+        height = selected_code_size + 3,
       },
     })
     self.selected_code_container:mount()
@@ -1288,7 +1212,6 @@ function Sidebar:create_input()
           return
         end
       else
-        self:create_input()
         self:update_content("Unknown command: " .. command, { focus = false, scroll = false })
         return
       end
@@ -1331,7 +1254,6 @@ function Sidebar:create_input()
       })
 
       vim.defer_fn(function()
-        self:create_input() -- Recreate input box
         if self.result and self.result.winid and api.nvim_win_is_valid(self.result.winid) then
           api.nvim_set_current_win(self.result.winid)
         end
@@ -1370,33 +1292,30 @@ function Sidebar:create_input()
     return
   end
 
-  local win_width = api.nvim_win_get_width(self.input_container.winid)
-
-  self.input = Input({
-    relative = {
-      type = "win",
-      winid = self.input_container.winid,
+  self.input = self:create_floating_window_for_split({
+    split_winid = self.input_container.winid,
+    buf_opts = {
+      modifiable = true,
     },
-    position = {
-      row = 2,
-      col = 1,
-    },
-    size = {
-      width = win_width - 2, -- Subtract the width of the input box borders
-    },
-  }, {
-    disable_cursor_position_patch = true,
-    prompt = Config.windows.prompt.prefix,
-    default_value = " ",
-    on_submit = function(user_input)
-      user_input = Utils.trim_spaces(user_input)
-      if user_input == "" then
-        self:create_input()
-        return
-      end
-      handle_submit(user_input)
-    end,
+    keep_floating_style = true,
   })
+
+  self.input:on_mount(function()
+    api.nvim_win_set_hl_ns(self.input.winid, Highlights.input_ns)
+  end)
+
+  local function on_submit()
+    local lines = api.nvim_buf_get_lines(self.input.bufnr, 0, -1, false)
+    local request = table.concat(lines, "\n")
+    if request == "" then
+      return
+    end
+    api.nvim_buf_set_lines(self.input.bufnr, 0, -1, false, {})
+    handle_submit(request)
+  end
+
+  self.input:map("n", "<CR>", on_submit)
+  self.input:map("i", "<C-s>", on_submit)
 
   self.input:mount()
 
@@ -1437,7 +1356,7 @@ function Sidebar:get_selected_code_size()
   if self.code.selection ~= nil then
     local selected_code_lines = vim.split(self.code.selection.content, "\n")
     selected_code_lines_count = #selected_code_lines
-    selected_code_size = math.min(selected_code_lines_count, selected_code_max_lines_count) + 3
+    selected_code_size = math.min(selected_code_lines_count, selected_code_max_lines_count)
   end
 
   return selected_code_size
@@ -1448,6 +1367,7 @@ end
 ---@field buf_opts table | nil
 ---@field win_opts table | nil
 ---@field float_opts table | nil
+---@field keep_floating_style boolean | nil
 
 ---@param opts CreateFloatingWindowForSplitOptions
 function Sidebar:create_floating_window_for_split(opts)
@@ -1492,7 +1412,7 @@ function Sidebar:render()
       filetype = "Avante",
     },
     float_opts = {
-      height = math.max(0, sidebar_height - selected_code_size - 9),
+      height = math.max(1, sidebar_height - selected_code_size - 3 - 8),
     },
   })
 
