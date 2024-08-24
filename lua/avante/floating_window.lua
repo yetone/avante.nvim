@@ -15,6 +15,7 @@ api.nvim_set_hl(namespace, "FloatBorder", { link = "Normal" })
 ---@field on_mount_handlers table | nil
 ---@field on_unmount_handlers table | nil
 ---@field augroup integer | nil
+---@field keep_floating_style boolean | nil
 local FloatingWindow = {}
 FloatingWindow.__index = FloatingWindow
 
@@ -29,6 +30,7 @@ setmetatable(FloatingWindow, {
 ---@field buf_options? table<string, any>
 ---@field win_options? table<string, any>
 ---@field float_options? table<string, any>
+---@field keep_floating_style? boolean
 
 ---@param opts FloatingWindowOptions
 ---@return FloatingWindow
@@ -43,6 +45,7 @@ function FloatingWindow.new(opts)
   instance.on_mount_handlers = {}
   instance.on_unmount_handlers = {}
   instance.augroup = nil
+  instance.keep_floating_style = opts.keep_floating_style or false
   return instance
 end
 
@@ -55,8 +58,8 @@ function FloatingWindow.from_split_win(split_winid, opts)
 
   local calc_floating_win_size = function(width, height)
     return {
-      width = math.max(width - 2, 0),
-      height = math.max(height - 3, 0),
+      width = math.max(width - 2, 1),
+      height = math.max(height - 3, 1),
     }
   end
 
@@ -81,6 +84,7 @@ function FloatingWindow.from_split_win(split_winid, opts)
     buf_options = buf_opts_,
     win_options = win_opts_,
     float_options = float_opts_,
+    keep_floating_style = opts.keep_floating_style,
   })
 
   floating_win:on_mount(function(winid)
@@ -178,7 +182,9 @@ function FloatingWindow:mount()
     api.nvim_set_option_value(option, value, { win = self.winid })
   end
 
-  api.nvim_win_set_hl_ns(self.winid, namespace)
+  if not self.keep_floating_style then
+    api.nvim_win_set_hl_ns(self.winid, namespace)
+  end
 
   for _, handler in ipairs(self.on_mount_handlers) do
     handler(self.winid, self.bufnr)
@@ -220,7 +226,7 @@ function FloatingWindow:on(event, handler, options)
   })
 end
 
----@param mode string check `:h :map-modes`
+---@param mode string|string[] check `:h :map-modes`
 ---@param key string|string[] key for the mapping
 ---@param handler string | fun(): nil handler for the mapping
 ---@param opts? table<"'expr'"|"'noremap'"|"'nowait'"|"'remap'"|"'script'"|"'silent'"|"'unique'", boolean>
