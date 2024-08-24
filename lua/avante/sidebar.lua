@@ -1344,6 +1344,93 @@ function Sidebar:create_input()
     end,
   })
 
+  local hint_window = nil
+
+  -- Close the floating window
+  local function close_hint()
+    if hint_window and api.nvim_win_is_valid(hint_window) then
+      api.nvim_win_close(hint_window, true)
+      hint_window = nil
+    end
+  end
+
+  -- Create a floating window as a hint
+  local function show_hint()
+    close_hint() -- Close the existing hint window
+
+    local hint_text = "Press <C-s> to submit"
+    if vim.fn.mode() ~= "i" then
+      hint_text = "Press <CR> to submit"
+    end
+
+    local buf = api.nvim_create_buf(false, true)
+    api.nvim_buf_set_lines(buf, 0, -1, false, { hint_text })
+
+    -- Get the current window size
+    local win_width = api.nvim_win_get_width(self.input.winid)
+    local width = #hint_text + 2
+
+    -- Set the floating window options
+    local opts = {
+      relative = "win",
+      win = self.input.winid,
+      width = width,
+      height = 1,
+      row = -1,
+      col = math.max(win_width - width, 0), -- Display in the top right corner
+      style = "minimal",
+      border = "none",
+      focusable = false,
+      zindex = 100,
+    }
+
+    -- Create the floating window
+    hint_window = api.nvim_open_win(buf, false, opts)
+
+    api.nvim_win_set_hl_ns(hint_window, Highlights.hint_ns)
+  end
+
+  show_hint()
+
+  self.input:on_unmount(function()
+    close_hint()
+  end)
+
+  -- Show hint in insert mode
+  api.nvim_create_autocmd("ModeChanged", {
+    group = self.augroup,
+    pattern = "*:i",
+    callback = function()
+      local cur_buf = api.nvim_get_current_buf()
+      if self.input and cur_buf == self.input.bufnr then
+        show_hint()
+      end
+    end,
+  })
+
+  -- Close hint when exiting insert mode
+  api.nvim_create_autocmd("ModeChanged", {
+    group = self.augroup,
+    pattern = "i:*",
+    callback = function()
+      local cur_buf = api.nvim_get_current_buf()
+      if self.input and cur_buf == self.input.bufnr then
+        show_hint()
+      end
+    end,
+  })
+
+  api.nvim_create_autocmd("WinEnter", {
+    callback = function()
+      local cur_win = api.nvim_get_current_win()
+      if self.input and cur_win == self.input.winid then
+        show_hint()
+      else
+        close_hint()
+      end
+    end,
+  })
+
   self:refresh_winids()
 end
 
