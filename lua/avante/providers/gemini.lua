@@ -1,15 +1,10 @@
 local Utils = require("avante.utils")
-local Config = require("avante.config")
 local P = require("avante.providers")
 
 ---@class AvanteProviderFunctor
 local M = {}
 
 M.api_key_name = "GEMINI_API_KEY"
-
-M.has = function()
-  return os.getenv(M.api_key_name) and true or false
-end
 
 M.parse_message = function(opts)
   local code_prompt_obj = {
@@ -68,7 +63,7 @@ M.parse_curl_args = function(provider, code_opts)
       .. "/"
       .. base.model
       .. ":streamGenerateContent?alt=sse&key="
-      .. os.getenv(base.api_key_name or M.api_key_name),
+      .. provider.parse_api_key(),
     proxy = base.proxy,
     insecure = base.allow_insecure,
     headers = { ["Content-Type"] = "application/json" },

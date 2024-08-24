@@ -94,7 +94,7 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
   ---@type AvanteHandlerOptions
   local handler_opts = { on_chunk = on_chunk, on_complete = on_complete }
   ---@type AvanteCurlOutput
-  local spec = Provider.parse_curl_args(Config.get_provider(provider), code_opts)
+  local spec = Provider.parse_curl_args(Provider, code_opts)
 
   ---@param line string
   local function parse_stream_data(line)
