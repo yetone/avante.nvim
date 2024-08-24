@@ -96,6 +96,10 @@ M.defaults = {
       next = "]]",
       prev = "[[",
     },
+    submit = {
+      normal = "<CR>",
+      insert = "<C-s>",
+    },
   },
   windows = {
     wrap = true, -- similar to vim.o.wrap
