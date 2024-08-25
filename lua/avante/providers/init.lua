@@ -232,6 +232,8 @@ M = setmetatable(M, {
       end
     end
 
+    t[k].setup()
+
     return t[k]
   end,
 })
@@ -240,9 +242,7 @@ M.setup = function()
   ---@type AvanteProviderFunctor
   local provider = M[Config.provider]
   E.setup({ provider = provider })
-  vim.schedule(function()
-    provider.setup()
-  end)
+  provider.setup()
 
   M.commands()
 end
@@ -254,6 +254,7 @@ function M.refresh(provider)
 
   ---@type AvanteProviderFunctor
   local p = M[Config.provider]
+  p.setup()
   if not p.has() then
     E.setup({ provider = p, refresh = true })
   else

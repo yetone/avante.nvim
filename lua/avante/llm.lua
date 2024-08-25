@@ -96,8 +96,6 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
   ---@type AvanteCurlOutput
   local spec = Provider.parse_curl_args(Provider, code_opts)
 
-  Utils.debug({ spec })
-
   ---@param line string
   local function parse_stream_data(line)
     local event = line:match("^event: (.+)$")
