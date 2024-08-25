@@ -74,7 +74,9 @@ M.defaults = {
   ---Specify the behaviour of avante.nvim
   ---1. auto_apply_diff_after_generation: Whether to automatically apply diff after LLM response.
   ---                                     This would simulate similar behaviour to cursor. Default to false.
+  ---2. auto_set_highlight_group: Whether to automatically set the highlight group for the current line. Default to true.
   behaviour = {
+    auto_set_highlight_group = true,
     auto_apply_diff_after_generation = false,
   },
   highlights = {
@@ -112,9 +114,6 @@ M.defaults = {
     sidebar_header = {
       align = "center", -- left, center, right for title
       rounded = true,
-    },
-    prompt = {
-      prefix = "> ", -- prefix for the prompt
     },
   },
   --- @class AvanteConflictUserConfig
