@@ -413,8 +413,16 @@ function Sidebar:render_input_container()
   end
 
   local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
+
+  ---@type string
+  local icon
+  if _G.MiniIcons ~= nil then
+    icon, _, _ = MiniIcons.get("filetype", filetype)
+  else
+    icon = require("nvim-web-devicons").get_icon_by_filetype(filetype, {})
+  end
+
   local code_file_fullpath = api.nvim_buf_get_name(self.code.bufnr)
-  local icon = require("nvim-web-devicons").get_icon_by_filetype(filetype, {})
   local code_filename = fn.fnamemodify(code_file_fullpath, ":t")
   local header_text = string.format("󱜸 Chat with %s %s (<Tab>: switch focus)", icon, code_filename)
 
@@ -1358,17 +1366,16 @@ function Sidebar:create_input()
   local function show_hint()
     close_hint() -- Close the existing hint window
 
-    local hint_text = "Press " .. Config.mappings.submit.insert .. " to submit"
-    if vim.fn.mode() ~= "i" then
-      hint_text = "Press " .. Config.mappings.submit.normal .. " to submit"
-    end
+    local hint_text = "Press "
+      .. (vim.fn.mode() ~= "i" and Config.mappings.submit.normal or Config.mappings.submit.insert)
+      .. " to submit"
 
     local buf = api.nvim_create_buf(false, true)
     api.nvim_buf_set_lines(buf, 0, -1, false, { hint_text })
 
     -- Get the current window size
     local win_width = api.nvim_win_get_width(self.input.winid)
-    local width = #hint_text + 2
+    local width = #hint_text
 
     -- Set the floating window options
     local opts = {
@@ -1390,11 +1397,8 @@ function Sidebar:create_input()
     api.nvim_win_set_hl_ns(hint_window, Highlights.hint_ns)
   end
 
-  self.input:on(event.InsertEnter, show_hint)
-
-  self.input:on_unmount(function()
-    close_hint()
-  end)
+  self.input:on_mount(show_hint)
+  self.input:on_unmount(close_hint)
 
   -- Show hint in insert mode
   api.nvim_create_autocmd("ModeChanged", {
