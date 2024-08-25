@@ -31,11 +31,11 @@ local Sidebar = {}
 ---@field augroup integer
 ---@field code avante.CodeState
 ---@field winids table<string, integer> this table stores the winids of the sidebar components (result_container, result, selected_code_container, selected_code, input_container, input), even though they are destroyed.
----@field result_container NuiSplit | nil
+---@field result_container AvanteComp | nil
 ---@field result FloatingWindow | nil
----@field selected_code_container NuiSplit | nil
+---@field selected_code_container AvanteComp | nil
 ---@field selected_code FloatingWindow | nil
----@field input_container NuiSplit | nil
+---@field input_container AvanteComp | nil
 ---@field input FloatingWindow | nil
 
 ---@param id integer the tabpage id retrieved from api.nvim_get_current_tabpage()
@@ -416,7 +416,9 @@ function Sidebar:render_input_container()
 
   ---@type string
   local icon
+  ---@diagnostic disable-next-line: undefined-field
   if _G.MiniIcons ~= nil then
+    ---@diagnostic disable-next-line: undefined-global
     icon, _, _ = MiniIcons.get("filetype", filetype)
   else
     icon = require("nvim-web-devicons").get_icon_by_filetype(filetype, {})
