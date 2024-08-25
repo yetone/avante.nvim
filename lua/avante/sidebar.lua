@@ -845,7 +845,7 @@ end
 ---@param content string concatenated content of the buffer
 ---@param opts? {focus?: boolean, stream?: boolean, scroll?: boolean, callback?: fun(): nil} whether to focus the result view
 function Sidebar:update_content(content, opts)
-  if not self.result or not self.result.bufnr or not api.nvim_buf_is_valid(self.result.bufnr) then
+  if not self.result or not self.result.bufnr then
     return
   end
   opts = vim.tbl_deep_extend("force", { focus = true, scroll = true, stream = false, callback = nil }, opts or {})
@@ -867,7 +867,7 @@ function Sidebar:update_content(content, opts)
     end
 
     vim.schedule(function()
-      if not self.result.bufnr or not api.nvim_buf_is_valid(self.result.bufnr) then
+      if not self.result or not self.result.bufnr or not api.nvim_buf_is_valid(self.result.bufnr) then
         return
       end
       scroll_to_bottom()
@@ -887,7 +887,7 @@ function Sidebar:update_content(content, opts)
     end)
   else
     vim.defer_fn(function()
-      if not self.result.bufnr or not api.nvim_buf_is_valid(self.result.bufnr) then
+      if not self.result or not self.result.bufnr or not api.nvim_buf_is_valid(self.result.bufnr) then
         return
       end
       local lines = vim.split(content, "\n")
