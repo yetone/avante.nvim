@@ -150,7 +150,6 @@ E.setup = function(opts)
   local function mount_dressing_buffer()
     vim.defer_fn(function()
       -- only mount if given buffer is not of buftype ministarter, dashboard, alpha, qf
-      local exclude_buftypes = { "qf", "nofile" }
       local exclude_filetypes = {
         "NvimTree",
         "Outline",
@@ -163,12 +162,9 @@ E.setup = function(opts)
         "gitcommit",
         "gitrebase",
         "DressingInput",
+        "noice",
       }
-      if
-        not vim.tbl_contains(exclude_buftypes, vim.bo.buftype)
-        and not vim.tbl_contains(exclude_filetypes, vim.bo.filetype)
-        and not opts.provider.has()
-      then
+      if not vim.tbl_contains(exclude_filetypes, vim.bo.filetype) and not opts.provider.has() then
         Dressing.initialize_input_buffer({
           opts = { prompt = "Enter " .. var .. ": " },
           on_confirm = on_confirm,
