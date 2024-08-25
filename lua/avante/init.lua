@@ -225,6 +225,7 @@ function M.setup(opts)
     return
   end
 
+  require("avante.history").setup()
   require("avante.highlights").setup()
   require("avante.diff").setup()
   require("avante.providers").setup()
