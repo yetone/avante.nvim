@@ -28,7 +28,7 @@ define build_from_source
 endef
 
 define download_release
-	curl -L https://github.com/gptlang/lua-tiktoken/releases/latest/download/tiktoken_core-$1-$2.$(EXT) -o $(BUILD_DIR)/tiktoken_core.$(EXT)
+	curl -L https://github.com/gptlang/lua-tiktoken/releases/latest/download/tiktoken_core-$1-$(ARCH)-$2.$(EXT) -o $(BUILD_DIR)/tiktoken_core.$(EXT)
 endef
 
 ifeq ($(BUILD_FROM_SOURCE), true)
