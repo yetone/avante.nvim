@@ -1366,8 +1366,8 @@ function Sidebar:create_input()
   local function show_hint()
     close_hint() -- Close the existing hint window
 
-    local hint_text = vim.fn.mode() ~= "i" and Config.mappings.submit.normal
-      or Config.mappings.submit.insert .. ": submit"
+    local hint_text = (vim.fn.mode() ~= "i" and Config.mappings.submit.normal or Config.mappings.submit.insert)
+      .. ": submit"
 
     local buf = api.nvim_create_buf(false, true)
     api.nvim_buf_set_lines(buf, 0, -1, false, { hint_text })
