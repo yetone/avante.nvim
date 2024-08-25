@@ -492,7 +492,7 @@ function Sidebar:on_mount()
 
     current_apply_extmark_id =
       api.nvim_buf_set_extmark(self.result.bufnr, CODEBLOCK_KEYBINDING_NAMESPACE, block.start_line, -1, {
-        virt_text = { { " [Press <A> to Apply these patches] ", "Keyword" } },
+        virt_text = { { " [<A>: apply patch] ", "Keyword" } },
         virt_text_pos = "right_align",
         hl_group = "Keyword",
         priority = PRIORITY,
@@ -1366,9 +1366,8 @@ function Sidebar:create_input()
   local function show_hint()
     close_hint() -- Close the existing hint window
 
-    local hint_text = "Press "
-      .. (vim.fn.mode() ~= "i" and Config.mappings.submit.normal or Config.mappings.submit.insert)
-      .. " to submit"
+    local hint_text = vim.fn.mode() ~= "i" and Config.mappings.submit.normal
+      or Config.mappings.submit.insert .. ": submit"
 
     local buf = api.nvim_create_buf(false, true)
     api.nvim_buf_set_lines(buf, 0, -1, false, { hint_text })
