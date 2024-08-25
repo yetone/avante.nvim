@@ -107,6 +107,10 @@ M.defaults = {
       normal = "<CR>",
       insert = "<C-s>",
     },
+    toggle = {
+      debug = "<leader>ad",
+      hint = "<leader>ah",
+    },
   },
   windows = {
     wrap = true, -- similar to vim.o.wrap
@@ -118,7 +122,6 @@ M.defaults = {
   },
   --- @class AvanteConflictUserConfig
   diff = {
-    debug = false,
     autojump = true,
     ---@type string | fun(): any
     list_opener = "copen",
