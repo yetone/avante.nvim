@@ -31,11 +31,11 @@ local Sidebar = {}
 ---@field augroup integer
 ---@field code avante.CodeState
 ---@field winids table<string, integer> this table stores the winids of the sidebar components (result_container, result, selected_code_container, selected_code, input_container, input), even though they are destroyed.
----@field result_container AvanteComp | nil
+---@field result_container NuiSplit | nil
 ---@field result FloatingWindow | nil
----@field selected_code_container AvanteComp | nil
+---@field selected_code_container NuiSplit | nil
 ---@field selected_code FloatingWindow | nil
----@field input_container AvanteComp | nil
+---@field input_container NuiSplit | nil
 ---@field input FloatingWindow | nil
 
 ---@param id integer the tabpage id retrieved from api.nvim_get_current_tabpage()
@@ -68,7 +68,6 @@ end
 
 function Sidebar:reset()
   self:delete_autocmds()
-  self.registered_cmp = false
   self.code = { bufnr = 0, winid = 0, selection = nil }
   self.winids = { result_container = 0, result = 0, selected_code = 0, input = 0 }
   self.result_container = nil
@@ -433,8 +432,8 @@ function Sidebar:render_input_container()
     self.input_container.winid,
     self.input_container.bufnr,
     header_text,
-    Highlights.THRIDTITLE,
-    Highlights.REVERSED_THRIDTITLE
+    Highlights.THIRD_TITLE,
+    Highlights.REVERSED_THIRD_TITLE
   )
 end
 
@@ -549,8 +548,8 @@ function Sidebar:on_mount()
 
   local function unbind_jump_keys()
     if self.result and self.result.bufnr and api.nvim_buf_is_valid(self.result.bufnr) then
-      pcall(vim.keymap.del, "n", "]c", { buffer = self.result.bufnr })
-      pcall(vim.keymap.del, "n", "[c", { buffer = self.result.bufnr })
+      pcall(vim.keymap.del, "n", Config.mappings.jump.next, { buffer = self.result.bufnr })
+      pcall(vim.keymap.del, "n", Config.mappings.jump.prev, { buffer = self.result.bufnr })
     end
   end
 
@@ -620,7 +619,6 @@ function Sidebar:on_mount()
     group = self.augroup,
     buffer = self.result.bufnr,
     callback = function()
-      self:focus()
       if self.input and self.input.winid and api.nvim_win_is_valid(self.input.winid) then
         api.nvim_set_current_win(self.input.winid)
       end
@@ -1392,7 +1390,7 @@ function Sidebar:create_input()
     api.nvim_win_set_hl_ns(hint_window, Highlights.hint_ns)
   end
 
-  show_hint()
+  self.input:on(event.InsertEnter, show_hint)
 
   self.input:on_unmount(function()
     close_hint()

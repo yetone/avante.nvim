@@ -107,13 +107,8 @@ E.parse_envvar = function(Opts)
 
   local key = nil
   if cmd ~= nil then
-    local ok, job = pcall(vim.system, vim.split(cmd, " ", { trimempty = true }), { text = true })
-    if not ok then
-      Utils.error("Failed to execute command to retrieve secrets: " .. cmd, { once = true, title = "Avante" })
-    else
-      local out = job:wait()
-      key = out.stdout
-    end
+    local result = vim.system(vim.split(cmd, " ", { trimempty = true }), { text = true }):wait()
+    key = vim.split(result.stdout, "\n")[1]
   else
     key = os.getenv(api_key_name)
   end
