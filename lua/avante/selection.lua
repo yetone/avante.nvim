@@ -43,7 +43,7 @@ end
 function Selection:show_hints_popup()
   self:close_hints_popup()
 
-  local hint_text = string.format(" [Ask %s] ", Config.mappings.ask)
+  local hint_text = string.format(" [%s: ask avante] ", Config.mappings.ask)
 
   local virt_text_line = self:get_virt_text_line()
 

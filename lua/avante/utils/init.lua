@@ -24,6 +24,25 @@ M.has = function(plugin)
   return require("lazy.core.config").plugins[plugin] ~= nil
 end
 
+---@alias _ToggleSet fun(state: boolean): nil
+---@alias _ToggleGet fun(): boolean
+---
+---@param lhs string
+---@param toggle {name: string, set: _ToggleSet, get: _ToggleGet}
+---@param mode? string | string[]
+M.toggle_map = function(mode, lhs, toggle)
+  vim.keymap.set(mode or { "n" }, lhs, function()
+    toggle.set(not toggle.get())
+    local state = toggle.get()
+    if state then
+      M.info("enabled: " .. toggle.name, { title = "Avante" })
+    else
+      M.warn("disabled: " .. toggle.name, { title = "Avante" })
+    end
+    return state
+  end, { desc = "toggle(avante): " .. toggle.name })
+end
+
 ---@param str string
 ---@param opts? {suffix?: string, prefix?: string}
 function M.trim(str, opts)
