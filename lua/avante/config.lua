@@ -58,7 +58,7 @@ M.defaults = {
     max_tokens = 4096,
     ["local"] = false,
   },
-  ---@type AvanteGeminiProvider
+  ---@type AvanteSupportedProvider
   cohere = {
     endpoint = "https://api.cohere.com/v1",
     model = "command-r-plus",

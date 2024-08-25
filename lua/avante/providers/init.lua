@@ -69,6 +69,7 @@ local Dressing = require("avante.ui.dressing")
 ---@field setup fun(): nil
 ---@field has fun(): boolean
 ---@field api_key_name string
+---@field model? string
 ---@field parse_api_key fun(): string | nil
 ---@field parse_stream_data? AvanteStreamParser
 ---
