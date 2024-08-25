@@ -1,10 +1,10 @@
 local api = vim.api
 local fn = vim.fn
 
-local Path = require("plenary.path")
 local Split = require("nui.split")
 local event = require("nui.utils.autocmd").event
 
+local History = require("avante.history")
 local Config = require("avante.config")
 local Diff = require("avante.diff")
 local Llm = require("avante.llm")
@@ -925,32 +925,6 @@ local function prepend_line_number(content, start_line)
   return table.concat(result, "\n")
 end
 
--- Function to get the current project root directory
-local function get_project_root()
-  local current_file = fn.expand("%:p")
-  local current_dir = fn.fnamemodify(current_file, ":h")
-  local git_root = vim.fs.root(current_file, { ".git" })
-  return git_root ~= nil and git_root or current_dir
-end
-
----@param sidebar avante.Sidebar
-local function get_chat_history_filename(sidebar)
-  local code_buf_name = api.nvim_buf_get_name(sidebar.code.bufnr)
-  local relative_path = fn.fnamemodify(code_buf_name, ":~:.")
-  -- Replace path separators with double underscores
-  local path_with_separators = fn.substitute(relative_path, "/", "__", "g")
-  -- Replace other non-alphanumeric characters with single underscores
-  return fn.substitute(path_with_separators, "[^A-Za-z0-9._]", "_", "g")
-end
-
--- Function to get the chat history file path
-local function get_chat_history_file(sidebar)
-  local project_root = get_project_root()
-  local filename = get_chat_history_filename(sidebar)
-  local history_dir = Path:new(project_root, ".avante_chat_history")
-  return history_dir:joinpath(filename .. ".json")
-end
-
 -- Function to get current timestamp
 local function get_timestamp()
   return os.date("%Y-%m-%d %H:%M:%S")
@@ -969,29 +943,6 @@ local function get_chat_record_prefix(timestamp, provider, model, request)
     .. "\n\n> "
     .. request:gsub("\n", "\n> ")
     .. "\n\n"
-end
-
--- Function to load chat history
-local function load_chat_history(sidebar)
-  local history_file = get_chat_history_file(sidebar)
-  if history_file:exists() then
-    local content = history_file:read()
-    return fn.json_decode(content)
-  end
-  return {}
-end
-
--- Function to save chat history
-local function save_chat_history(sidebar, history)
-  local history_file = get_chat_history_file(sidebar)
-  local history_dir = history_file:parent()
-
-  -- Create the directory if it doesn't exist
-  if not history_dir:exists() then
-    history_dir:mkdir({ parents = true })
-  end
-
-  history_file:write(fn.json_encode(history), "w")
 end
 
 function Sidebar:update_content_with_history(history)
@@ -1080,7 +1031,7 @@ function Sidebar:get_commands()
     end,
     clear = function(args, cb)
       local chat_history = {}
-      save_chat_history(self, chat_history)
+      History.save(self.code.bufnr, chat_history)
       self:update_content("Chat history cleared", { focus = false, scroll = false })
       vim.defer_fn(function()
         self:close()
@@ -1157,7 +1108,7 @@ function Sidebar:create_input()
     self.input:unmount()
   end
 
-  local chat_history = load_chat_history(self)
+  local chat_history = History.load(self.code.bufnr)
 
   ---@param request string
   local function handle_submit(request)
@@ -1274,7 +1225,7 @@ function Sidebar:create_input()
         request = request,
         response = full_response,
       })
-      save_chat_history(self, chat_history)
+      History.save(self.code.bufnr, chat_history)
     end
 
     Llm.stream(
@@ -1474,7 +1425,7 @@ function Sidebar:create_floating_window_for_split(opts)
 end
 
 function Sidebar:render()
-  local chat_history = load_chat_history(self)
+  local chat_history = History.load(self.code.bufnr)
 
   local sidebar_height = api.nvim_win_get_height(self.code.winid)
   local selected_code_size = self:get_selected_code_size()
