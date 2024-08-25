@@ -209,6 +209,17 @@ The following key bindings are available for use with `avante.nvim`:
 - **Stability Improvements**: Refactor and optimize the codebase to enhance the stability and reliability of the plugin.
 - **Expanded Features**: Introduce additional customization options and new features to support a wider range of coding tasks.
 
+## Highlight Groups
+
+| Highlight Group | Description |
+|-----------------|-------------|
+| AvanteTitle | Title  |
+| AvanteReversedTitle | Used for rounded border |
+| AvanteSubtitle | Selected code title |
+| AvanteReversedSubtitle | Used for rounded border |
+| AvanteThirdTitle | Prompt title |
+| AvanteReversedThirdTitle | Used for rounded border |
+
 ## TODOs
 
 - [x] Chat with current file

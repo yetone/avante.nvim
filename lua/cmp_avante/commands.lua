@@ -4,6 +4,7 @@ local source = {}
 
 ---@param sidebar avante.Sidebar
 function source.new(sidebar)
+  ---@type cmp.Source
   return setmetatable({
     sidebar = sidebar,
   }, { __index = source })
