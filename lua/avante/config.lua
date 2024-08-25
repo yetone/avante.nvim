@@ -79,6 +79,9 @@ M.defaults = {
     auto_set_highlight_group = true,
     auto_apply_diff_after_generation = false,
   },
+  history = {
+    storage_path = vim.fn.stdpath("state") .. "/avante",
+  },
   highlights = {
     ---@type AvanteConflictHighlights
     diff = {
