@@ -35,9 +35,9 @@ function source:complete(_, callback)
 
   for _, command in ipairs(commands) do
     table.insert(items, {
-      label = "/" .. command.name,
+      label = "/" .. command.command,
       kind = kind,
-      detail = command.description,
+      detail = command.details,
     })
   end
 

@@ -627,6 +627,7 @@ function Sidebar:on_mount()
     group = self.augroup,
     buffer = self.result.bufnr,
     callback = function()
+      self:focus()
       if self.input and self.input.winid and api.nvim_win_is_valid(self.input.winid) then
         api.nvim_set_current_win(self.input.winid)
       end
@@ -1042,75 +1043,73 @@ function Sidebar:get_content_between_separators()
   return content
 end
 
+---@alias AvanteSlashCommands "clear" | "help" | "lines"
+---@alias AvanteSlashCallback fun(args: string, cb?: fun(args: string): nil): nil
+---@alias AvanteSlash {description: string, command: AvanteSlashCommands, details: string, shorthelp?: string, callback?: AvanteSlashCallback}
+---@return AvanteSlash[]
 function Sidebar:get_commands()
+  ---@param items_ {command: string, description: string, shorthelp?: string}[]
+  ---@return string
   local function get_help_text(items_)
     local help_text = ""
     for _, item in ipairs(items_) do
-      help_text = help_text .. "- " .. item.name .. ": " .. item.description .. "\n"
+      help_text = help_text .. "- " .. item.command .. ": " .. (item.shorthelp or item.description) .. "\n"
     end
     return help_text
   end
 
+  ---@type AvanteSlash[]
   local items = {
-    { name = "help", description = "Show this help message", command = "help" },
-    { name = "clear", description = "Clear chat history", command = "clear" },
-    { name = "lines <start>-<end> <question>", description = "Ask a question about specific lines", command = "lines" },
-  }
-
-  local cbs = {
+    { description = "Show help message", command = "help" },
+    { description = "Clear chat history", command = "clear" },
     {
-      command = "help",
-      ---@diagnostic disable-next-line: unused-local
-      callback = function(args, cb)
-        local help_text = get_help_text(items)
-        self:update_content(help_text, { focus = false, scroll = false })
-        if cb then
-          cb(args)
-        end
-      end,
-    },
-    {
-      command = "clear",
-      ---@diagnostic disable-next-line: unused-local
-      callback = function(args, cb)
-        local chat_history = {}
-        save_chat_history(self, chat_history)
-        self:update_content("Chat history cleared", { focus = false, scroll = false })
-        vim.defer_fn(function()
-          self:close()
-          if cb then
-            cb(args)
-          end
-        end, 1000)
-      end,
-    },
-    {
+      shorthelp = "Ask a question about specific lines",
+      description = "/lines <start>-<end> <question>",
       command = "lines",
-      callback = function(args, cb)
-        if cb then
-          cb(args)
-        end
-      end,
     },
   }
 
-  local commands = {}
-  for _, item in ipairs(items) do
-    table.insert(commands, {
-      name = item.name,
-      command = item.command,
-      description = item.description,
-      callback = function(args, cb)
-        for _, cb_ in ipairs(cbs) do
-          if cb_.command == item.command then
-            cb_.callback(args, cb)
-            break
-          end
+  ---@type {[AvanteSlashCommands]: AvanteSlashCallback}
+  local cbs = {
+    help = function(args, cb)
+      local help_text = get_help_text(items)
+      self:update_content(help_text, { focus = false, scroll = false })
+      if cb then
+        cb(args)
+      end
+    end,
+    clear = function(args, cb)
+      local chat_history = {}
+      save_chat_history(self, chat_history)
+      self:update_content("Chat history cleared", { focus = false, scroll = false })
+      vim.defer_fn(function()
+        self:close()
+        if cb then
+          cb(args)
         end
-      end,
-    })
-  end
-  return commands
+      end, 1000)
+    end,
+    lines = function(args, cb)
+      if cb then
+        cb(args)
+      end
+    end,
+  }
+
+  return vim
+    .iter(items)
+    :map(
+      ---@param item AvanteSlash
+      function(item)
+        return {
+          command = item.command,
+          description = item.description,
+          callback = cbs[item.command],
+          details = item.shorthelp and table.concat({ item.shorthelp, item.description }, "\n") or item.description,
+        }
+      end
+    )
+    :totable()
 end
 
 function Sidebar:create_selected_code()
@@ -1190,13 +1189,13 @@ function Sidebar:create_input()
         return
       end
       local cmds = self:get_commands()
-      local cmd
-      for _, c in ipairs(cmds) do
-        if c.command == command then
-          cmd = c
-          break
-        end
-      end
+      ---@type AvanteSlash
+      local cmd = vim
+        .iter(cmds)
+        :filter(function(_)
+          return _.command == command
+        end)
+        :totable()[1]
       if cmd then
         if command == "lines" then
           cmd.callback(args, function(args_)
