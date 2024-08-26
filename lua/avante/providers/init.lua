@@ -47,6 +47,7 @@ local Dressing = require("avante.ui.dressing")
 ---@field proxy? string
 ---@field allow_insecure? boolean
 ---@field api_key_name? string
+---@field _shellenv? string
 ---
 ---@class AvanteSupportedProvider: AvanteDefaultBaseProvider
 ---@field temperature? number
@@ -108,7 +109,19 @@ E.parse_envvar = function(Opts)
   local cmd = api_key_name:match("^cmd:(.*)")
 
   local key = nil
+
   if cmd ~= nil then
+    -- NOTE: in case api_key_name is cmd, and users still set envvar
+    -- We will try to get envvar first
+    if Opts._shellenv ~= nil and Opts._shellenv ~= M.AVANTE_INTERNAL_KEY then
+      key = os.getenv(Opts._shellenv)
+      if key ~= nil then
+        E.cache[Opts._shellenv] = key
+        E.cache[api_key_name] = key
+      end
+      return key
+    end
+
     local result = vim.system(vim.split(cmd, " ", { trimempty = true }), { text = true }):wait()
     key = vim.split(result.stdout, "\n")[1]
   else
@@ -210,7 +223,12 @@ M = setmetatable(M, {
       Opts.parse_response = Opts.parse_response_data
       t[k] = Opts
     else
-      t[k] = vim.tbl_deep_extend("keep", Opts, require("avante.providers." .. k))
+      local ok, module = pcall(require, "avante.providers." .. k)
+      if not ok then
+        error("Failed to load provider: " .. k)
+      end
+      Opts._shellenv = module.api_key_name ~= M.AVANTE_INTERNAL_KEY and module.api_key_name or nil
+      t[k] = vim.tbl_deep_extend("keep", Opts, module)
     end
 
     t[k].parse_api_key = function()
