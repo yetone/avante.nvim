@@ -122,6 +122,14 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
       next = "]]",
       prev = "[[",
     },
+    submit = {
+      normal = "<CR>",
+      insert = "<C-s>",
+    },
+    toggle = {
+      debug = "<leader>ad",
+      hint = "<leader>ah",
+    },
   },
   hints = { enabled = true },
   windows = {
