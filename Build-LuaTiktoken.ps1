@@ -11,7 +11,7 @@ function Build-FromSource($feature) {
     }
 
     $tempDir = Join-Path $BuildDir "lua-tiktoken-temp"
-    git clone https://github.com/gptlang/lua-tiktoken.git $tempDir
+    git clone --branch v0.2.2 --depth 1 https://github.com/gptlang/lua-tiktoken.git $tempDir
 
     Push-Location $tempDir
     cargo build --features=$feature
