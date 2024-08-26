@@ -52,7 +52,6 @@ local M = {}
 function M.setup(model)
   local ok, core = pcall(require, "tiktoken_core")
   if not ok then
-    print("Warn: tiktoken_core is not found!!!!")
     return
   end
 
