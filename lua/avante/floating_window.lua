@@ -1,3 +1,5 @@
+local keymap = require("avante.utils.keymap")
+
 local api = vim.api
 
 local namespace = api.nvim_create_namespace("avante_floating_window")
@@ -237,19 +239,16 @@ function FloatingWindow:on(event, handler, options)
 end
 
 ---@param mode string|string[] check `:h :map-modes`
----@param key string|string[] key for the mapping
+---@param lhs string|string[]
 ---@param handler string | fun(): nil handler for the mapping
----@param opts? table<"'expr'"|"'noremap'"|"'nowait'"|"'remap'"|"'script'"|"'silent'"|"'unique'", boolean>
+---@param opts? vim.keymap.set.Opts
 ---@return nil
-function FloatingWindow:map(mode, key, handler, opts)
+function FloatingWindow:map(mode, lhs, handler, opts)
+  if not self.bufnr then
+    error("floating buffer not found.")
+  end
   local options = opts or {}
-  if type(key) == "string" then
-    vim.keymap.set(mode, key, handler, options)
-    return
-  end
-  for _, key_ in ipairs(key) do
-    vim.keymap.set(mode, key_, handler, options)
-  end
+  keymap.set(self.bufnr, mode, lhs, handler, options)
 end
 
 return FloatingWindow

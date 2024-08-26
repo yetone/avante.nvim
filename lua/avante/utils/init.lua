@@ -343,4 +343,26 @@ function M.trim_spaces(s)
   return s:match("^%s*(.-)%s*$")
 end
 
+function M.fallback(v, default_value)
+  return type(v) == "nil" and default_value or v
+end
+
+-- luacheck: push no max comment line length
+---@param type_name "'nil'" | "'number'" | "'string'" | "'boolean'" | "'table'" | "'function'" | "'thread'" | "'userdata'" | "'list'" | '"map"'
+---@return boolean
+function M.is_type(type_name, v)
+  ---@diagnostic disable-next-line: deprecated
+  local islist = vim.islist or vim.tbl_islist
+  if type_name == "list" then
+    return islist(v)
+  end
+
+  if type_name == "map" then
+    return type(v) == "table" and not islist(v)
+  end
+
+  return type(v) == type_name
+end
+-- luacheck: pop
+
 return M
