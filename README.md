@@ -62,7 +62,7 @@ For Windows users, change the build command to the following:
 > [!IMPORTANT]
 >
 > If your neovim doesn't use LuaJIT, then change `build` to `make lua51`. By default running make will install luajit.
-> For ARM-based setup, make sure to also install cargo as we will have to build the tiktoken_core from source.
+> Avante.nvim will now requires cargo to build tiktoken_core from source.
 
 > [!NOTE]
 >
