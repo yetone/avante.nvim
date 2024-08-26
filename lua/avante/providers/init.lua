@@ -226,6 +226,10 @@ M = setmetatable(M, {
     if t[k].setup == nil then
       t[k].setup = function()
         t[k].parse_api_key()
+
+        if not t[k].has() then
+          Utils.warn("Failed to setup " .. k .. ". Avante won't work as expected", { once = true, title = "Avante" })
+        end
       end
     end
 
