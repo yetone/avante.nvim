@@ -150,22 +150,10 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
     end,
     callback = function(result)
       if result.status >= 400 then
-        local error_msg
-        if result.body then
-          local body = vim.json.decode(result.body)
-          if body and body.error then
-            if body.error.type == "insufficient_quota" then
-              error_msg =
-                "You don't have any credits or have exceeded your quota. Please check your plan and billing details."
-            elseif body.error.code == "invalid_request_error" and body.error.param == "temperature" then
-              error_msg = "Invalid temperature value. Please ensure it's between 0 and 1."
-            else
-              error_msg = body.error.message or "Unknown API error"
-            end
-          end
-        end
-        if error_msg then
-          Utils.error(error_msg, { once = true, title = "Avante" })
+        if Provider.on_error then
+          Provider.on_error(result)
+        else
+          Utils.error("API request failed with status " .. result.status, { once = true, title = "Avante" })
         end
       end
       active_job = nil
