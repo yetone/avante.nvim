@@ -21,34 +21,16 @@ luajit: $(BUILD_DIR)/tiktoken_core.$(EXT)
 lua51: $(BUILD_DIR)/tiktoken_core-lua51.$(EXT)
 
 define build_from_source
-	git clone https://github.com/gptlang/lua-tiktoken.git $(BUILD_DIR)/lua-tiktoken-temp
+	git clone --branch v0.2.2 --depth 1 https://github.com/gptlang/lua-tiktoken.git $(BUILD_DIR)/lua-tiktoken-temp
 	cd $(BUILD_DIR)/lua-tiktoken-temp && cargo build --features=$1
 	cp $(BUILD_DIR)/lua-tiktoken-temp/target/debug/libtiktoken_core.$(EXT) $(BUILD_DIR)/tiktoken_core.$(EXT)
 	rm -rf $(BUILD_DIR)/lua-tiktoken-temp
 endef
 
-define download_release
-	curl -L https://github.com/gptlang/lua-tiktoken/releases/latest/download/tiktoken_core-$1-$(ARCH)-$2.$(EXT) -o $(BUILD_DIR)/tiktoken_core.$(EXT)
-endef
-
-ifeq ($(BUILD_FROM_SOURCE), true)
-    $(BUILD_DIR)/tiktoken_core.$(EXT): $(BUILD_DIR)
+$(BUILD_DIR)/tiktoken_core.$(EXT): $(BUILD_DIR)
 	$(call build_from_source,luajit)
-    $(BUILD_DIR)/tiktoken_core-lua51.$(EXT): $(BUILD_DIR)
+$(BUILD_DIR)/tiktoken_core-lua51.$(EXT): $(BUILD_DIR)
 	$(call build_from_source,lua51)
-else
-    ifneq ($(filter arm64 aarch64,$(ARCH)),)
-        $(BUILD_DIR)/tiktoken_core.$(EXT): $(BUILD_DIR)
-		$(call build_from_source,luajit)
-        $(BUILD_DIR)/tiktoken_core-lua51.$(EXT): $(BUILD_DIR)
-		$(call build_from_source,lua51)
-    else
-        $(BUILD_DIR)/tiktoken_core.$(EXT): $(BUILD_DIR)
-		$(call download_release,$(OS),luajit)
-        $(BUILD_DIR)/tiktoken_core-lua51.$(EXT): $(BUILD_DIR)
-		$(call download_release,$(OS),lua51)
-    endif
-endif
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
