@@ -1,5 +1,3 @@
-local keymap = require("avante.utils.keymap")
-
 local api = vim.api
 
 local namespace = api.nvim_create_namespace("avante_floating_window")
@@ -240,15 +238,21 @@ end
 
 ---@param mode string|string[] check `:h :map-modes`
 ---@param lhs string|string[]
----@param handler string | fun(): nil handler for the mapping
+---@param handler string|fun(): nil handler for the mapping
 ---@param opts? vim.keymap.set.Opts
 ---@return nil
 function FloatingWindow:map(mode, lhs, handler, opts)
   if not self.bufnr then
     error("floating buffer not found.")
   end
-  local options = opts or {}
-  keymap.set(self.bufnr, mode, lhs, handler, options)
+  local options = vim.deepcopy(opts or {})
+  options.buffer = self.bufnr
+  if type(lhs) ~= "table" then
+    lhs = { lhs }
+  end
+  for _, lhs_ in ipairs(lhs) do
+    vim.keymap.set(mode, lhs_, handler, options)
+  end
 end
 
 return FloatingWindow
