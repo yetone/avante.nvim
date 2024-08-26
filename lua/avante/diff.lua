@@ -537,6 +537,9 @@ function M.setup()
     callback = function()
       local bufnr = api.nvim_get_current_buf()
       vim.diagnostic.enable(false, { bufnr = bufnr })
+      if vim.lsp.inlay_hint then
+        vim.lsp.inlay_hint.enable(false, { bufnr = bufnr })
+      end
       setup_buffer_mappings(bufnr)
     end,
   })
@@ -547,6 +550,9 @@ function M.setup()
     callback = function()
       local bufnr = api.nvim_get_current_buf()
       vim.diagnostic.enable(true, { bufnr = bufnr })
+      if vim.lsp.inlay_hint then
+        vim.lsp.inlay_hint.enable(true, { bufnr = bufnr })
+      end
       clear_buffer_mappings(bufnr)
     end,
   })
