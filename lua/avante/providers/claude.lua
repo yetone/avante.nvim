@@ -104,4 +104,26 @@ M.parse_curl_args = function(provider, code_opts)
   }
 end
 
+M.on_error = function(result)
+  if not result.body then
+    return Utils.error("API request failed with status " .. result.status, { once = true, title = "Avante" })
+  end
+
+  local ok, body = pcall(vim.json.decode, result.body)
+  if not (ok and body and body.error) then
+    return Utils.error("Failed to parse error response", { once = true, title = "Avante" })
+  end
+
+  local error_msg = body.error.message
+  local error_type = body.error.type
+
+  if error_type == "insufficient_quota" then
+    error_msg = "You don't have any credits or have exceeded your quota. Please check your plan and billing details."
+  elseif error_type == "invalid_request_error" and error_msg:match("temperature") then
+    error_msg = "Invalid temperature value. Please ensure it's between 0 and 1."
+  end
+
+  Utils.error(error_msg, { once = true, title = "Avante" })
+end
+
 return M
