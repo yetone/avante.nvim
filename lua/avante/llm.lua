@@ -148,7 +148,14 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
     on_error = function(err)
       on_complete(err)
     end,
-    callback = function(_)
+    callback = function(result)
+      if result.status >= 400 then
+        if Provider.on_error then
+          Provider.on_error(result)
+        else
+          Utils.error("API request failed with status " .. result.status, { once = true, title = "Avante" })
+        end
+      end
       active_job = nil
     end,
   })

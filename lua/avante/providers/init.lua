@@ -72,6 +72,7 @@ local Dressing = require("avante.ui.dressing")
 ---@field model? string
 ---@field parse_api_key fun(): string | nil
 ---@field parse_stream_data? AvanteStreamParser
+---@field on_error? fun(result: table): nil
 ---
 ---@class avante.Providers
 ---@field openai AvanteProviderFunctor
