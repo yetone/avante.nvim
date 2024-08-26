@@ -91,7 +91,12 @@ function FloatingWindow.from_split_win(split_winid, opts)
     api.nvim_create_autocmd("WinResized", {
       group = floating_win.augroup,
       callback = function()
-        if not api.nvim_win_is_valid(split_winid) or not api.nvim_win_is_valid(winid) then
+        if
+          not split_winid
+          or not winid
+          or not api.nvim_win_is_valid(split_winid)
+          or not api.nvim_win_is_valid(winid)
+        then
           return
         end
 
@@ -113,7 +118,12 @@ function FloatingWindow.from_split_win(split_winid, opts)
     api.nvim_create_autocmd("WinResized", {
       group = floating_win.augroup,
       callback = function()
-        if not api.nvim_win_is_valid(split_winid) or not api.nvim_win_is_valid(winid) then
+        if
+          not split_winid
+          or not winid
+          or not api.nvim_win_is_valid(split_winid)
+          or not api.nvim_win_is_valid(winid)
+        then
           return
         end
 
