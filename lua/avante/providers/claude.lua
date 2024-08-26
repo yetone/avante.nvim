@@ -1,5 +1,5 @@
 local Utils = require("avante.utils")
-local Tiktoken = require("avante.tiktoken")
+local Tokens = require("avante.utils.tokens")
 local P = require("avante.providers")
 
 ---@class AvanteProviderFunctor
@@ -13,7 +13,7 @@ M.parse_message = function(opts)
     text = string.format("<code>```%s\n%s```</code>", opts.code_lang, opts.code_content),
   }
 
-  if Tiktoken.count(code_prompt_obj.text) > 1024 then
+  if Tokens.calculate_tokens(code_prompt_obj.text) > 1024 then
     code_prompt_obj.cache_control = { type = "ephemeral" }
   end
 
@@ -31,7 +31,7 @@ M.parse_message = function(opts)
       text = string.format("<code>```%s\n%s```</code>", opts.code_lang, opts.selected_code_content),
     }
 
-    if Tiktoken.count(selected_code_obj.text) > 1024 then
+    if Tokens.calculate_tokens(selected_code_obj.text) > 1024 then
       selected_code_obj.cache_control = { type = "ephemeral" }
     end
 
@@ -50,7 +50,7 @@ M.parse_message = function(opts)
     text = user_prompt,
   }
 
-  if Tiktoken.count(user_prompt_obj.text) > 1024 then
+  if Tokens.calculate_tokens(user_prompt_obj.text) > 1024 then
     user_prompt_obj.cache_control = { type = "ephemeral" }
   end
 
@@ -79,6 +79,9 @@ M.parse_response = function(data_stream, event_state, opts)
   end
 end
 
+---@param provider AvanteProviderFunctor
+---@param code_opts AvantePromptOptions
+---@return table
 M.parse_curl_args = function(provider, code_opts)
   local base, body_opts = P.parse_config(provider)
 

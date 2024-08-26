@@ -23,7 +23,7 @@ Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
 {
   "yetone/avante.nvim",
   event = "VeryLazy",
-  build = "make",
+  build = "make", -- This is Optional, only if you want to use tiktoken_core to calculate tokens count
   opts = {
     -- add any opts here
   },
@@ -50,7 +50,7 @@ For Windows users, change the build command to the following:
 {
   "yetone/avante.nvim",
   event = "VeryLazy",
-  build = "powershell -ExecutionPolicy Bypass -File Build-LuaTiktoken.ps1",
+  build = "powershell -ExecutionPolicy Bypass -File Build-LuaTiktoken.ps1", -- This is Optional, only if you want to use tiktoken_core to calculate tokens count
   -- rest of the config
 }
 ```
