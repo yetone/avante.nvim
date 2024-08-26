@@ -106,7 +106,7 @@ function Sidebar:close()
       comp:unmount()
     end
   end
-  if self.code ~= nil and api.nvim_win_is_valid(self.code.winid) then
+  if self.code and self.code.winid and api.nvim_win_is_valid(self.code.winid) then
     fn.win_gotoid(self.code.winid)
   end
 
@@ -775,8 +775,9 @@ function Sidebar:refresh_winids()
     else
       current_idx = current_idx + 1
     end
-    if api.nvim_win_is_valid(winids[current_idx]) then
-      api.nvim_set_current_win(winids[current_idx])
+    local winid = winids[current_idx]
+    if winid and api.nvim_win_is_valid(winid) then
+      api.nvim_set_current_win(winid)
     end
   end
 
@@ -788,8 +789,9 @@ function Sidebar:refresh_winids()
     else
       current_idx = current_idx - 1
     end
-    if api.nvim_win_is_valid(winids[current_idx]) then
-      api.nvim_set_current_win(winids[current_idx])
+    local winid = winids[current_idx]
+    if winid and api.nvim_win_is_valid(winid) then
+      api.nvim_set_current_win(winid)
     end
   end
 
