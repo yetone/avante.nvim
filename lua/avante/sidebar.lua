@@ -589,7 +589,7 @@ function Sidebar:on_mount()
   api.nvim_create_autocmd("User", {
     pattern = VIEW_BUFFER_UPDATED_PATTERN,
     callback = function()
-      if self.result == nil then
+      if not self.result or not self.result.bufnr or not api.nvim_buf_is_valid(self.result.bufnr) then
         return
       end
       codeblocks = parse_codeblocks(self.result.bufnr)
@@ -1265,6 +1265,9 @@ function Sidebar:create_input()
   end)
 
   local function on_submit()
+    if not self.input or not self.input.bufnr or not api.nvim_buf_is_valid(self.input.bufnr) then
+      return
+    end
     local lines = api.nvim_buf_get_lines(self.input.bufnr, 0, -1, false)
     local request = table.concat(lines, "\n")
     if request == "" then
