@@ -1008,6 +1008,10 @@ function Sidebar:create_input()
     self.input:unmount()
   end
 
+  if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then
+    return
+  end
+
   local chat_history = History.load(self.code.bufnr)
 
   ---@param request string
@@ -1133,6 +1137,7 @@ function Sidebar:create_input()
       filetype,
       content_with_line_numbers,
       selected_code_content_with_line_numbers,
+      "planning",
       on_chunk,
       on_complete
     )

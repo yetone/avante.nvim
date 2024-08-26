@@ -410,4 +410,10 @@ function M.is_type(type_name, v)
 end
 -- luacheck: pop
 
+---@param code string
+---@return string
+function M.get_indentation(code)
+  return code:match("^%s*") or ""
+end
+
 return M

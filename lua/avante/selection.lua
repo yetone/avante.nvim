@@ -1,5 +1,7 @@
 local Utils = require("avante.utils")
 local Config = require("avante.config")
+local Llm = require("avante.llm")
+local Highlights = require("avante.highlights")
 
 local api = vim.api
 local fn = vim.fn
@@ -7,7 +9,18 @@ local fn = vim.fn
 local NAMESPACE = api.nvim_create_namespace("avante_selection")
 local PRIORITY = vim.highlight.priorities.user
 
+local EIDTING_INPUT_START_SPINNER_PATTERN = "AvanteEditingInputStartSpinner"
+local EIDTING_INPUT_STOP_SPINNER_PATTERN = "AvanteEditingInputStopSpinner"
+
 ---@class avante.Selection
+---@field selection avante.SelectionResult | nil
+---@field cursor_pos table | nil
+---@field shortcuts_extmark_id integer | nil
+---@field augroup integer | nil
+---@field editing_input_bufnr integer | nil
+---@field editing_input_winid integer | nil
+---@field editing_input_shortcuts_hints_winid integer | nil
+---@field code_winid integer | nil
 local Selection = {}
 
 Selection.did_setup = false
@@ -15,9 +28,14 @@ Selection.did_setup = false
 ---@param id integer the tabpage id retrieved from api.nvim_get_current_tabpage()
 function Selection:new(id)
   return setmetatable({
-    hints_popup_extmark_id = nil,
-    edit_popup_renderer = nil,
+    shortcuts_extmark_id = nil,
     augroup = api.nvim_create_augroup("avante_selection_" .. id, { clear = true }),
+    selection = nil,
+    cursor_pos = nil,
+    editing_input_bufnr = nil,
+    editing_input_winid = nil,
+    editing_input_shortcuts_hints_winid = nil,
+    code_winid = nil,
   }, { __index = self })
 end
 
@@ -40,25 +58,348 @@ function Selection:get_virt_text_line()
   return current_line
 end
 
-function Selection:show_hints_popup()
-  self:close_hints_popup()
+function Selection:show_shortcuts_hints_popup()
+  self:close_shortcuts_hints_popup()
 
-  local hint_text = string.format(" [%s: ask avante] ", Config.mappings.ask)
+  local hint_text = string.format(" [%s: ask avante, %s: edit] ", Config.mappings.ask, Config.mappings.edit)
 
   local virt_text_line = self:get_virt_text_line()
 
-  self.hints_popup_extmark_id = api.nvim_buf_set_extmark(0, NAMESPACE, virt_text_line, -1, {
+  self.shortcuts_extmark_id = api.nvim_buf_set_extmark(0, NAMESPACE, virt_text_line, -1, {
     virt_text = { { hint_text, "Keyword" } },
     virt_text_pos = "eol",
     priority = PRIORITY,
   })
 end
 
-function Selection:close_hints_popup()
-  if self.hints_popup_extmark_id then
-    api.nvim_buf_del_extmark(0, NAMESPACE, self.hints_popup_extmark_id)
-    self.hints_popup_extmark_id = nil
+function Selection:close_shortcuts_hints_popup()
+  if self.shortcuts_extmark_id then
+    api.nvim_buf_del_extmark(0, NAMESPACE, self.shortcuts_extmark_id)
+    self.shortcuts_extmark_id = nil
   end
+end
+
+function Selection:close_editing_input()
+  self:close_editing_input_shortcuts_hints()
+  api.nvim_exec_autocmds("User", { pattern = Llm.CANCEL_PATTERN })
+  if api.nvim_get_mode().mode == "i" then
+    vim.cmd([[stopinsert]])
+  end
+  if self.editing_input_winid and api.nvim_win_is_valid(self.editing_input_winid) then
+    api.nvim_win_close(self.editing_input_winid, true)
+    self.editing_input_winid = nil
+  end
+  if self.cursor_pos and self.code_winid then
+    vim.schedule(function()
+      api.nvim_win_set_cursor(self.code_winid, { self.cursor_pos[1], self.cursor_pos[2] })
+    end)
+  end
+  if self.editing_input_bufnr and api.nvim_buf_is_valid(self.editing_input_bufnr) then
+    api.nvim_buf_delete(self.editing_input_bufnr, { force = true })
+    self.editing_input_bufnr = nil
+  end
+end
+
+function Selection:close_editing_input_shortcuts_hints()
+  if self.editing_input_shortcuts_hints_winid and api.nvim_win_is_valid(self.editing_input_shortcuts_hints_winid) then
+    api.nvim_win_close(self.editing_input_shortcuts_hints_winid, true)
+    self.editing_input_shortcuts_hints_winid = nil
+  end
+end
+
+function Selection:show_editing_input_shortcuts_hints()
+  self:close_editing_input_shortcuts_hints()
+
+  if not self.editing_input_winid or not api.nvim_win_is_valid(self.editing_input_winid) then
+    return
+  end
+
+  local win_width = api.nvim_win_get_width(self.editing_input_winid)
+  local buf_height = api.nvim_buf_line_count(self.editing_input_bufnr)
+  -- "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⢤⣠⡀⡀⣀⢀⢀⣄⡤⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈⠉"
+  local spinner_chars = {
+    "⠁",
+    "⠉",
+    "⠙",
+    "⠚",
+    "⠒",
+    "⠂",
+    "⠂",
+    "⠒",
+    "⠲",
+    "⠴",
+    "⠤",
+    "⠄",
+    "⠄",
+    "⠤",
+    "⢤",
+    "⣠",
+    "⡀",
+    "⡀",
+    "⣀",
+    "⢀",
+    "⢀",
+    "⣄",
+    "⡤",
+    "⠤",
+    "⠠",
+    "⠠",
+    "⠤",
+    "⠦",
+    "⠖",
+    "⠒",
+    "⠐",
+    "⠐",
+    "⠒",
+    "⠓",
+    "⠋",
+    "⠉",
+    "⠈",
+    "⠈",
+    "⠉",
+  }
+  local spinner_index = 1
+  local timer = nil
+
+  local hint_text = (vim.fn.mode() ~= "i" and Config.mappings.submit.normal or Config.mappings.submit.insert)
+    .. ": submit"
+
+  local buf = api.nvim_create_buf(false, true)
+  api.nvim_buf_set_lines(buf, 0, -1, false, { hint_text })
+
+  local function update_spinner()
+    spinner_index = (spinner_index % #spinner_chars) + 1
+    local spinner = spinner_chars[spinner_index]
+    local new_text = spinner .. " " .. hint_text
+
+    api.nvim_buf_set_lines(buf, 0, -1, false, { new_text })
+
+    if
+      not self.editing_input_shortcuts_hints_winid
+      or not api.nvim_win_is_valid(self.editing_input_shortcuts_hints_winid)
+    then
+      return
+    end
+
+    local win_config = vim.api.nvim_win_get_config(self.editing_input_shortcuts_hints_winid)
+
+    if win_config.width ~= #new_text then
+      win_config.width = #new_text
+      win_config.col = math.max(win_width - #new_text, 0)
+      vim.api.nvim_win_set_config(self.editing_input_shortcuts_hints_winid, win_config)
+    end
+  end
+
+  local function stop_spinner()
+    if timer then
+      timer:stop()
+      timer:close()
+      timer = nil
+    end
+    api.nvim_buf_set_lines(buf, 0, -1, false, { hint_text })
+
+    if
+      not self.editing_input_shortcuts_hints_winid
+      or not api.nvim_win_is_valid(self.editing_input_shortcuts_hints_winid)
+    then
+      return
+    end
+
+    local win_config = vim.api.nvim_win_get_config(self.editing_input_shortcuts_hints_winid)
+
+    if win_config.width ~= #hint_text then
+      win_config.width = #hint_text
+      win_config.col = math.max(win_width - #hint_text, 0)
+      vim.api.nvim_win_set_config(self.editing_input_shortcuts_hints_winid, win_config)
+    end
+  end
+
+  api.nvim_create_autocmd("User", {
+    pattern = EIDTING_INPUT_START_SPINNER_PATTERN,
+    callback = function()
+      timer = vim.loop.new_timer()
+      if timer then
+        timer:start(
+          0,
+          100,
+          vim.schedule_wrap(function()
+            update_spinner()
+          end)
+        )
+      end
+    end,
+  })
+
+  api.nvim_create_autocmd("User", {
+    pattern = EIDTING_INPUT_STOP_SPINNER_PATTERN,
+    callback = function()
+      stop_spinner()
+    end,
+  })
+  local width = #hint_text
+
+  local opts = {
+    relative = "win",
+    win = self.editing_input_winid,
+    width = width,
+    height = 1,
+    row = buf_height,
+    col = math.max(win_width - width, 0),
+    style = "minimal",
+    border = "none",
+    focusable = false,
+    zindex = 100,
+  }
+
+  self.editing_input_shortcuts_hints_winid = api.nvim_open_win(buf, false, opts)
+
+  api.nvim_win_set_hl_ns(self.editing_input_shortcuts_hints_winid, Highlights.hint_ns)
+end
+
+function Selection:create_editing_input()
+  local code_bufnr = api.nvim_get_current_buf()
+  local code_wind = api.nvim_get_current_win()
+  self.cursor_pos = api.nvim_win_get_cursor(code_wind)
+  self.code_winid = code_wind
+  local filetype = api.nvim_get_option_value("filetype", { buf = code_bufnr })
+  local code_lines = api.nvim_buf_get_lines(code_bufnr, 0, -1, false)
+  local code_content = table.concat(code_lines, "\n")
+
+  self.selection = Utils.get_visual_selection_and_range()
+
+  self:close_editing_input()
+
+  local bufnr = api.nvim_create_buf(false, true)
+
+  self.editing_input_bufnr = bufnr
+
+  local win_opts = {
+    relative = "cursor",
+    width = 40,
+    height = 2,
+    row = 1,
+    col = 0,
+    style = "minimal",
+    border = "rounded",
+    title = { { "Chat with selected code", "FloatTitle" } },
+    title_pos = "center",
+  }
+
+  local winid = api.nvim_open_win(bufnr, true, win_opts)
+
+  self.editing_input_winid = winid
+
+  api.nvim_set_option_value("wrap", false, { win = winid })
+  api.nvim_set_option_value("cursorline", true, { win = winid })
+  api.nvim_set_option_value("modifiable", true, { buf = bufnr })
+
+  self:show_editing_input_shortcuts_hints()
+
+  api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
+    group = self.augroup,
+    buffer = bufnr,
+    callback = function()
+      self:show_editing_input_shortcuts_hints()
+    end,
+  })
+
+  api.nvim_create_autocmd("ModeChanged", {
+    group = self.augroup,
+    pattern = "i:*",
+    callback = function()
+      local cur_buf = api.nvim_get_current_buf()
+      if cur_buf == bufnr then
+        self:show_editing_input_shortcuts_hints()
+      end
+    end,
+  })
+
+  api.nvim_create_autocmd("ModeChanged", {
+    group = self.augroup,
+    pattern = "*:i",
+    callback = function()
+      local cur_buf = api.nvim_get_current_buf()
+      if cur_buf == bufnr then
+        self:show_editing_input_shortcuts_hints()
+      end
+    end,
+  })
+
+  local function submit_input()
+    local lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
+    local input = lines[1] or ""
+
+    local full_response = ""
+    local start_line = self.selection.range.start.line
+    local finish_line = self.selection.range.finish.line
+
+    local indentation = Utils.get_indentation(code_lines[self.selection.range.start.line])
+
+    api.nvim_exec_autocmds("User", { pattern = EIDTING_INPUT_START_SPINNER_PATTERN })
+    ---@type AvanteChunkParser
+    local on_chunk = function(chunk)
+      full_response = full_response .. chunk
+      local response_lines = vim.split(full_response, "\n")
+      for i, line in ipairs(response_lines) do
+        response_lines[i] = indentation .. line
+      end
+      api.nvim_buf_set_lines(code_bufnr, start_line - 1, finish_line, true, response_lines)
+      finish_line = start_line + #response_lines - 1
+    end
+
+    ---@type AvanteCompleteParser
+    local on_complete = function(err)
+      if err then
+        Utils.error(
+          "Error occurred while processing the response: " .. vim.inspect(err),
+          { once = true, title = "Avante" }
+        )
+        return
+      end
+      api.nvim_exec_autocmds("User", { pattern = EIDTING_INPUT_STOP_SPINNER_PATTERN })
+      vim.defer_fn(function()
+        self:close_editing_input()
+      end, 0)
+    end
+
+    Llm.stream(input, filetype, code_content, self.selection.content, "editing", on_chunk, on_complete)
+  end
+
+  vim.keymap.set("i", Config.mappings.submit.insert, submit_input, { buffer = bufnr, noremap = true, silent = true })
+  vim.keymap.set("n", Config.mappings.submit.normal, submit_input, { buffer = bufnr, noremap = true, silent = true })
+  vim.keymap.set("n", "<Esc>", function()
+    self:close_editing_input()
+  end, { buffer = bufnr })
+  vim.keymap.set("n", "q", function()
+    self:close_editing_input()
+  end, { buffer = bufnr })
+
+  local quit_id, close_unfocus
+  quit_id = api.nvim_create_autocmd("QuitPre", {
+    group = self.augroup,
+    buffer = bufnr,
+    once = true,
+    nested = true,
+    callback = function()
+      self:close_editing_input()
+      if not quit_id then
+        api.nvim_del_autocmd(quit_id)
+        quit_id = nil
+      end
+    end,
+  })
+
+  close_unfocus = api.nvim_create_autocmd("WinLeave", {
+    group = self.augroup,
+    buffer = bufnr,
+    callback = function()
+      self:close_editing_input()
+      if close_unfocus then
+        api.nvim_del_autocmd(close_unfocus)
+        close_unfocus = nil
+      end
+    end,
+  })
 end
 
 function Selection:setup_autocmds()
@@ -68,7 +409,7 @@ function Selection:setup_autocmds()
     pattern = { "n:v", "n:V", "n:" }, -- Entering Visual mode from Normal mode
     callback = function(ev)
       if not Utils.is_sidebar_buffer(ev.buf) then
-        self:show_hints_popup()
+        self:show_shortcuts_hints_popup()
       end
     end,
   })
@@ -78,9 +419,9 @@ function Selection:setup_autocmds()
     callback = function(ev)
       if not Utils.is_sidebar_buffer(ev.buf) then
         if Utils.in_visual_mode() then
-          self:show_hints_popup()
+          self:show_shortcuts_hints_popup()
         else
-          self:close_hints_popup()
+          self:close_shortcuts_hints_popup()
         end
       end
     end,
@@ -91,7 +432,7 @@ function Selection:setup_autocmds()
     pattern = { "v:n", "v:i", "v:c" }, -- Switching from visual mode back to normal, insert, or other modes
     callback = function(ev)
       if not Utils.is_sidebar_buffer(ev.buf) then
-        self:close_hints_popup()
+        self:close_shortcuts_hints_popup()
       end
     end,
   })
@@ -100,7 +441,7 @@ function Selection:setup_autocmds()
     group = self.augroup,
     callback = function(ev)
       if not Utils.is_sidebar_buffer(ev.buf) then
-        self:close_hints_popup()
+        self:close_shortcuts_hints_popup()
       end
     end,
   })

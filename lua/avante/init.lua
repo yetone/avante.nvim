@@ -29,7 +29,7 @@ H.commands = function()
     M.toggle()
   end, { desc = "avante: ask AI for code suggestions" })
   cmd("Close", function()
-    local sidebar = M._get()
+    local sidebar, _ = M._get()
     if not sidebar then
       return
     end
@@ -42,6 +42,7 @@ end
 
 H.keymaps = function()
   vim.keymap.set({ "n", "v" }, Config.mappings.ask, M.toggle, { noremap = true })
+  vim.keymap.set("v", Config.mappings.edit, M.edit, { noremap = true })
   vim.keymap.set("n", Config.mappings.refresh, M.refresh, { noremap = true })
 
   Utils.toggle_map("n", Config.mappings.toggle.debug, {
@@ -116,7 +117,7 @@ H.autocmds = function()
   api.nvim_create_autocmd("VimResized", {
     group = H.augroup,
     callback = function()
-      local sidebar = M._get()
+      local sidebar, _ = M._get()
       if not sidebar then
         return
       end
@@ -165,7 +166,7 @@ H.autocmds = function()
 end
 
 ---@param current boolean? false to disable setting current, otherwise use this to track across tabs.
----@return avante.Sidebar
+---@return avante.Sidebar, avante.Selection
 function M._get(current)
   local tab = api.nvim_get_current_tabpage()
   local sidebar = M.sidebars[tab]
@@ -174,7 +175,7 @@ function M._get(current)
     M.current.sidebar = sidebar
     M.current.selection = selection
   end
-  return sidebar
+  return sidebar, selection
 end
 
 ---@param id integer
@@ -195,7 +196,7 @@ function M._init(id)
 end
 
 M.toggle = function()
-  local sidebar = M._get()
+  local sidebar, _ = M._get()
   if not sidebar then
     M._init(api.nvim_get_current_tabpage())
     M.current.sidebar:open()
@@ -205,8 +206,16 @@ M.toggle = function()
   return sidebar:toggle()
 end
 
+M.edit = function()
+  local _, selection = M._get()
+  if not selection then
+    return
+  end
+  selection:create_editing_input()
+end
+
 M.refresh = function()
-  local sidebar = M._get()
+  local sidebar, _ = M._get()
   if not sidebar then
     return
   end
