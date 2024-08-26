@@ -117,6 +117,7 @@ E.parse_envvar = function(Opts)
     if Opts._shellenv ~= nil and Opts._shellenv ~= M.AVANTE_INTERNAL_KEY then
       key = os.getenv(Opts._shellenv)
       if key ~= nil then
+        ---@diagnostic disable: no-unknown
         E.cache[Opts._shellenv] = key
         E.cache[api_key_name] = key
       end
@@ -220,6 +221,7 @@ M = setmetatable(M, {
     ---@type AvanteProviderFunctor
     local Opts = M.get_config(k)
 
+    ---@diagnostic disable: undefined-field,no-unknown,inject-field
     if Config.vendors[k] ~= nil then
       Opts.parse_response = Opts.parse_response_data
       t[k] = Opts
@@ -328,7 +330,7 @@ M.parse_config = function(opts)
   return s1,
     vim
       .iter(s2)
-      :filter(function(k, v)
+      :filter(function(_, v)
         return type(v) ~= "function"
       end)
       :fold({}, function(acc, k, v)
