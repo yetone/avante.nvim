@@ -213,13 +213,15 @@ end
 M.BASE_PROVIDER_KEYS = {
   "endpoint",
   "model",
-  "local",
   "deployment",
   "api_version",
   "proxy",
   "allow_insecure",
   "api_key_name",
   "timeout",
+  -- internal
+  "local",
+  "_shellenv",
 }
 
 ---@return {width: integer, height: integer}
