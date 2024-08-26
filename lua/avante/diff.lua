@@ -4,6 +4,7 @@ local M = {}
 
 local Config = require("avante.config")
 local Utils = require("avante.utils")
+local Highlights = require("avante.highlights")
 
 local fn = vim.fn
 local api = vim.api
@@ -492,44 +493,14 @@ local function clear_buffer_mappings(bufnr)
   vim.b[bufnr].conflict_mappings_set = false
 end
 
------------------------------------------------------------------------------//
--- Highlights
------------------------------------------------------------------------------//
-
----Derive the colour of the section label highlights based on each sections highlights
----@param highlights AvanteConflictHighlights
-local function set_highlights(highlights)
-  local current_color = Utils.get_hl(highlights.current)
-  local incoming_color = Utils.get_hl(highlights.incoming)
-  local ancestor_color = Utils.get_hl(highlights.ancestor)
-  local current_bg = current_color.bg or DEFAULT_CURRENT_BG_COLOR
-  local incoming_bg = incoming_color.bg or DEFAULT_INCOMING_BG_COLOR
-  local ancestor_bg = ancestor_color.bg or DEFAULT_ANCESTOR_BG_COLOR
-  local current_label_bg = Utils.colors.shade_color(current_bg, 60)
-  local incoming_label_bg = Utils.colors.shade_color(incoming_bg, 60)
-  local ancestor_label_bg = Utils.colors.shade_color(ancestor_bg, 60)
-  api.nvim_set_hl(0, CURRENT_HL, { bg = current_bg, bold = true, default = true })
-  api.nvim_set_hl(0, INCOMING_HL, { bg = incoming_bg, bold = true, default = true })
-  api.nvim_set_hl(0, ANCESTOR_HL, { bg = ancestor_bg, bold = true, default = true })
-  api.nvim_set_hl(0, CURRENT_LABEL_HL, { bg = current_label_bg, default = true })
-  api.nvim_set_hl(0, INCOMING_LABEL_HL, { bg = incoming_label_bg, default = true })
-  api.nvim_set_hl(0, ANCESTOR_LABEL_HL, { bg = ancestor_label_bg, default = true })
-end
-
 function M.setup()
-  set_highlights(Config.diff.highlights)
+  Highlights.conflict_highlights()
 
   set_commands()
 
   set_plug_mappings()
 
   local augroup = api.nvim_create_augroup(AUGROUP_NAME, { clear = true })
-  api.nvim_create_autocmd("ColorScheme", {
-    group = augroup,
-    callback = function()
-      set_highlights(Config.diff.highlights)
-    end,
-  })
 
   api.nvim_create_autocmd("User", {
     group = augroup,

@@ -64,6 +64,8 @@ H.keymaps = function()
   })
 end
 
+H.augroup = api.nvim_create_augroup("avante-autocmds", { clear = true })
+
 H.autocmds = function()
   local ok, LazyConfig = pcall(require, "lazy.core.config")
 
@@ -95,6 +97,7 @@ H.autocmds = function()
   end
 
   api.nvim_create_autocmd("TabEnter", {
+    group = H.augroup,
     pattern = "*",
     once = true,
     callback = function(ev)
@@ -107,6 +110,7 @@ H.autocmds = function()
   })
 
   api.nvim_create_autocmd("TabClosed", {
+    group = H.augroup,
     pattern = "*",
     callback = function(ev)
       local tab = tonumber(ev.file)
@@ -130,6 +134,13 @@ H.autocmds = function()
       M.current.selection:setup_autocmds()
     end
   end)
+
+  api.nvim_create_autocmd("ColorSchemePre", {
+    group = H.augroup,
+    callback = function()
+      require("avante.highlights").setup()
+    end,
+  })
 
   -- automatically setup Avante filetype to markdown
   vim.treesitter.language.register("markdown", "Avante")
