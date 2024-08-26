@@ -1279,10 +1279,10 @@ function Sidebar:create_input()
     handle_submit(request)
   end
 
+  self.input:mount()
+
   self.input:map("n", Config.mappings.submit.normal, on_submit)
   self.input:map("i", Config.mappings.submit.insert, on_submit)
-
-  self.input:mount()
 
   api.nvim_set_option_value("filetype", "AvanteInput", { buf = self.input.bufnr })
 
@@ -1463,6 +1463,8 @@ function Sidebar:render()
     },
   })
 
+  self.result:mount()
+
   self.result:on(event.BufWinEnter, function()
     xpcall(function()
       api.nvim_buf_set_name(self.result.bufnr, RESULT_BUF_NAME)
@@ -1478,8 +1480,6 @@ function Sidebar:render()
     api.nvim_exec_autocmds("User", { pattern = Llm.CANCEL_PATTERN })
     self:close()
   end)
-
-  self.result:mount()
 
   self.input_container = Split({
     enter = false,
