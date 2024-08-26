@@ -251,7 +251,9 @@ M = setmetatable(M, {
       end
     end
 
-    t[k].setup()
+    if k == Config.provider then
+      t[k].setup()
+    end
 
     return t[k]
   end,
