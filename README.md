@@ -234,7 +234,7 @@ The following key bindings are available for use with `avante.nvim`:
 ## Roadmap
 
 - **Enhanced AI Interactions**: Improve the depth of AI analysis and recommendations for more complex coding scenarios.
-- **LSP + Tree-sitter + LLM Integration**: Integrate with LSP and Tree-sitter to provide more accurate code suggestions and analysis.
+- **LSP + Tree-sitter + LLM Integration**: Integrate with LSP and Tree-sitter and LLM to provide more accurate and powerful code suggestions and analysis.
 
 ## Contributing
 
