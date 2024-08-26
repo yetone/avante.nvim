@@ -209,12 +209,6 @@ The following key bindings are available for use with `avante.nvim`:
 - <kbd>]</kbd><kbd>x</kbd> — move to previous conflict
 - <kbd>[</kbd><kbd>x</kbd> — move to next conflict
 
-## Roadmap
-
-- **Enhanced AI Interactions**: Improve the depth of AI analysis and recommendations for more complex coding scenarios.
-- **Stability Improvements**: Refactor and optimize the codebase to enhance the stability and reliability of the plugin.
-- **Expanded Features**: Introduce additional customization options and new features to support a wider range of coding tasks.
-
 ## Highlight Groups
 
 | Highlight Group | Description |
@@ -236,6 +230,11 @@ The following key bindings are available for use with `avante.nvim`:
 - [ ] Smart Tab (Cursor Flow)
 - [ ] Chat with project
 - [ ] Chat with selected files
+
+## Roadmap
+
+- **Enhanced AI Interactions**: Improve the depth of AI analysis and recommendations for more complex coding scenarios.
+- **LSP + Tree-sitter + LLM Integration**: Integrate with LSP and Tree-sitter to provide more accurate code suggestions and analysis.
 
 ## Contributing
 
