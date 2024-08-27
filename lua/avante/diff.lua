@@ -90,7 +90,7 @@ local ANCESTOR_LABEL_HL = "AvanteConflictAncestorLabel"
 local PRIORITY = vim.highlight.priorities.user
 local NAMESPACE = api.nvim_create_namespace("avante-conflict")
 local KEYBINDING_NAMESPACE = api.nvim_create_namespace("avante-conflict-keybinding")
-local AUGROUP_NAME = "AvanteConflictCommands"
+local AUGROUP_NAME = "avante_conflicts"
 
 local conflict_start = "^<<<<<<<"
 local conflict_middle = "^======="

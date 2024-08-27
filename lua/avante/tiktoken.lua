@@ -21,6 +21,8 @@ local function file_exists(name)
 end
 
 --- Load tiktoken data from cache or download it
+---@param model string
+---@param done fun(path: string): nil
 local function load_tiktoken_data(done, model)
   local tiktoken_url = "https://openaipublic.blob.core.windows.net/encodings/cl100k_base.tiktoken"
   -- If model is gpt-4o, use o200k_base.tiktoken
@@ -28,7 +30,8 @@ local function load_tiktoken_data(done, model)
     tiktoken_url = "https://openaipublic.blob.core.windows.net/encodings/o200k_base.tiktoken"
   end
   local async
-  async = vim.loop.new_async(function()
+  ---@cast async uv_async_t
+  async = vim.uv.new_async(function()
     -- Take filename after the last slash of the url
     local cache_path = get_cache_path(tiktoken_url:match(".+/(.+)"))
     if not file_exists(cache_path) then
@@ -73,6 +76,8 @@ function M.available()
   return tiktoken_core ~= nil
 end
 
+---@param prompt string
+---@return integer[] | nil
 function M.encode(prompt)
   if not tiktoken_core then
     return nil
@@ -87,6 +92,8 @@ function M.encode(prompt)
   return tiktoken_core.encode(prompt)
 end
 
+---@param prompt string
+---@return integer
 function M.count(prompt)
   if not tiktoken_core then
     return math.ceil(#prompt * 0.2) -- Fallback to 0.2 character count

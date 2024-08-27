@@ -64,7 +64,7 @@ H.keymaps = function()
   })
 end
 
-H.augroup = api.nvim_create_augroup("avante-autocmds", { clear = true })
+H.augroup = api.nvim_create_augroup("avante_autocmds", { clear = true })
 
 H.autocmds = function()
   local ok, LazyConfig = pcall(require, "lazy.core.config")

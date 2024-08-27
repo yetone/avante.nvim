@@ -2,7 +2,7 @@ local H = {}
 local M = {}
 
 H.get_os_name = function()
-  local os_name = vim.loop.os_uname().sysname
+  local os_name = vim.uv.os_uname().sysname
   if os_name == "Linux" then
     return "linux"
   elseif os_name == "Darwin" then
