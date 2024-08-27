@@ -64,6 +64,10 @@ H.keymaps = function()
   })
 end
 
+H.signs = function()
+  vim.fn.sign_define("AvanteInputPromptSign", { text = "> " })
+end
+
 H.augroup = api.nvim_create_augroup("avante_autocmds", { clear = true })
 
 H.autocmds = function()
@@ -245,6 +249,7 @@ function M.setup(opts)
   H.autocmds()
   H.commands()
   H.keymaps()
+  H.signs()
 
   M.did_setup = true
 end
