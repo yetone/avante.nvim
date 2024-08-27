@@ -1,5 +1,6 @@
+local Config = require("avante.config")
 local Utils = require("avante.utils")
-local Tokens = require("avante.utils.tokens")
+local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
 
 ---@class AvanteProviderFunctor
@@ -13,7 +14,7 @@ M.parse_message = function(opts)
     text = string.format("<code>```%s\n%s```</code>", opts.code_lang, opts.code_content),
   }
 
-  if Tokens.calculate_tokens(code_prompt_obj.text) > 1024 then
+  if Utils.tokens.calculate_tokens(code_prompt_obj.text) > 1024 then
     code_prompt_obj.cache_control = { type = "ephemeral" }
   end
 
@@ -31,7 +32,7 @@ M.parse_message = function(opts)
       text = string.format("<code>```%s\n%s```</code>", opts.code_lang, opts.selected_code_content),
     }
 
-    if Tokens.calculate_tokens(selected_code_obj.text) > 1024 then
+    if Utils.tokens.calculate_tokens(selected_code_obj.text) > 1024 then
       selected_code_obj.cache_control = { type = "ephemeral" }
     end
 
@@ -43,6 +44,17 @@ M.parse_message = function(opts)
     text = string.format("<question>%s</question>", opts.question),
   })
 
+  if Config.behaviour.support_paste_from_clipboard and Clipboard.has_content() then
+    table.insert(message_content, {
+      type = "image",
+      source = {
+        type = "base64",
+        media_type = "image/png",
+        data = Clipboard.get_content(),
+      },
+    })
+  end
+
   local user_prompt = opts.base_prompt
 
   local user_prompt_obj = {
@@ -50,7 +62,7 @@ M.parse_message = function(opts)
     text = user_prompt,
   }
 
-  if Tokens.calculate_tokens(user_prompt_obj.text) > 1024 then
+  if Utils.tokens.calculate_tokens(user_prompt_obj.text) > 1024 then
     user_prompt_obj.cache_control = { type = "ephemeral" }
   end
 

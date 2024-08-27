@@ -1,5 +1,7 @@
 --Taken from https://github.com/jackMort/ChatGPT.nvim/blob/main/lua/chatgpt/flows/chat/tokens.lua
 local Tiktoken = require("avante.tiktoken")
+
+---@class avante.utils.tokens
 local Tokens = {}
 
 ---@type table<[string], number>

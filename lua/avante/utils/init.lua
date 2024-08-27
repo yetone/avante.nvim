@@ -1,6 +1,7 @@
 local api = vim.api
 
 ---@class avante.utils: LazyUtilCore
+---@field tokens avante.utils.tokens
 local M = {}
 
 setmetatable(M, {
@@ -43,11 +44,29 @@ end
 
 --- This function will run given shell command synchronously.
 ---@param input_cmd string
----@return integer, string?, string?
+---@return vim.SystemCompleted
 M.shell_run = function(input_cmd)
-  local output =
-    vim.system(vim.split("sh -c " .. vim.fn.shellescape(input_cmd), " ", { trimempty = true }), { text = true }):wait()
-  return output.code, output.stderr, output.stdout
+  local shell = vim.o.shell:lower()
+  ---@type string
+  local cmd
+
+  -- powershell then we can just run the cmd
+  if shell:match("powershell") or shell:match("pwsh") then
+    cmd = input_cmd
+  elseif vim.fn.has("wsl") > 0 then
+    -- wsl: powershell.exe -Command 'command "/path"'
+    cmd = "powershell.exe -NoProfile -Command '" .. input_cmd:gsub("'", '"') .. "'"
+  elseif vim.fn.has("win32") > 0 then
+    cmd = 'powershell.exe -NoProfile -Command "' .. input_cmd:gsub('"', "'") .. '"'
+  else
+    -- linux and macos we wil just do sh -c
+    cmd = "sh -c " .. vim.fn.shellescape(input_cmd)
+  end
+
+  local output = vim.fn.system(cmd)
+  local code = vim.v.shell_error
+
+  return { stdout = output, code = code }
 end
 
 ---@alias _ToggleSet fun(state: boolean): nil

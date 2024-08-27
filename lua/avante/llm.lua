@@ -27,7 +27,8 @@ Your primary task is to suggest code modifications with precise line number rang
 2. When suggesting modifications:
    a. Use the language in the question to reply. If there are non-English parts in the question, use the language of those parts.
    b. Explain why the change is necessary or beneficial.
-   c. Provide the exact code snippet to be replaced using this format:
+   c. If an image is provided, make sure to use the image in conjunction with the code snippet.
+   d. Provide the exact code snippet to be replaced using this format:
 
 Replace lines: {{start_line}}-{{end_line}}
 ```{{language}}
@@ -95,6 +96,8 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
   local handler_opts = { on_chunk = on_chunk, on_complete = on_complete }
   ---@type AvanteCurlOutput
   local spec = Provider.parse_curl_args(Provider, code_opts)
+
+  Utils.debug(spec)
 
   ---@param line string
   local function parse_stream_data(line)
