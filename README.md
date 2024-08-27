@@ -40,6 +40,12 @@ Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
       },
       ft = { "markdown", "Avante" },
     },
+    --- For image pasting support
+    {
+      "HakonHarnes/img-clip.nvim",
+      event = "VeryLazy",
+      opts = {},
+    }
   },
 }
 ```
@@ -63,18 +69,6 @@ For Windows users, change the build command to the following:
 >
 > If your neovim doesn't use LuaJIT, then change `build` to `make lua51`. By default running make will install luajit.
 > Avante.nvim will now requires cargo to build tiktoken_core from source.
-
-> [!NOTE]
->
-> Recommended **Neovim** options:
->
-> ```lua
-> -- views can only be fully collapsed with the global statusline
-> vim.opt.laststatus = 3
-> -- Default splitting will cause your main splits to jump when opening an edgebar.
-> -- To prevent this, set `splitkeep` to either `screen` or `topline`.
-> vim.opt.splitkeep = "screen"
-> ```
 
 > [!NOTE]
 >
