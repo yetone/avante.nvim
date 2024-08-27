@@ -169,16 +169,17 @@ end
 ---@param opts {refresh: boolean, provider: AvanteProviderFunctor}
 ---@private
 E.setup = function(opts)
+  if opts.provider["local"] then
+    vim.g.avante_login = true
+    return
+  end
+
   local var = opts.provider.api_key_name
 
   opts.provider.setup()
 
-  if opts.provider["local"] then
-    vim.g.avante_login = true
-  end
-
   -- check if var is a all caps string
-  if var == M.AVANTE_INTERNAL_KEY or var:match("^cmd:(.*)") or opts.provider["local"] == true then
+  if var == M.AVANTE_INTERNAL_KEY or var:match("^cmd:(.*)") then
     return
   end
 
@@ -280,7 +281,9 @@ M = setmetatable(M, {
 
     if t[k].setup == nil then
       t[k].setup = function()
-        t[k].parse_api_key()
+        if not E.is_local(k) then
+          t[k].parse_api_key()
+        end
       end
     end
 
