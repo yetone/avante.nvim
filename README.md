@@ -85,7 +85,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
 
 ```lua
 {
-  ---@alias Provider "openai" | "claude" | "azure"  | "copilot" | [string]
+  ---@alias Provider "openai" | "claude" | "azure"  | "copilot" | "cohere" | [string]
   provider = "claude",
   claude = {
     endpoint = "https://api.anthropic.com",
@@ -101,7 +101,6 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     diff = {
       ours = "co",
       theirs = "ct",
-      none = "c0",
       both = "cb",
       next = "]x",
       prev = "[x",
@@ -188,14 +187,19 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 
 The following key bindings are available for use with `avante.nvim`:
 
-- <kbd>Leader</kbd><kbd>a</kbd><kbd>a</kbd> — show sidebar
-- <kbd>Leader</kbd><kbd>a</kbd><kbd>r</kbd> — show sidebar
-- <kbd>c</kbd><kbd>o</kbd> — choose ours
-- <kbd>c</kbd><kbd>t</kbd> — choose theirs
-- <kbd>c</kbd><kbd>b</kbd> — choose both
-- <kbd>c</kbd><kbd>0</kbd> — choose none
-- <kbd>]</kbd><kbd>x</kbd> — move to previous conflict
-- <kbd>[</kbd><kbd>x</kbd> — move to next conflict
+| Key Binding | Description |
+|-------------|-------------|
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>a</kbd> | show sidebar |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>r</kbd> | refresh sidebar |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>e</kbd> | edit selected blocks |
+| <kbd>c</kbd><kbd>o</kbd> | choose ours |
+| <kbd>c</kbd><kbd>t</kbd> | choose theirs |
+| <kbd>c</kbd><kbd>b</kbd> | choose both |
+| <kbd>c</kbd><kbd>0</kbd> | choose none |
+| <kbd>]</kbd><kbd>x</kbd> | move to previous conflict |
+| <kbd>[</kbd><kbd>x</kbd> | move to next conflict |
+| <kbd>[</kbd><kbd>[</kbd> | jump to previous codeblocks (results window) |
+| <kbd>]</kbd><kbd>]</kbd> | jump to next codeblocks (results windows) |
 
 ## Highlight Groups
 
