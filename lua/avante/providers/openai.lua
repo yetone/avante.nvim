@@ -1,5 +1,6 @@
 local Utils = require("avante.utils")
 local Config = require("avante.config")
+local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
 
 ---@class OpenAIChatResponse
@@ -55,9 +56,21 @@ M.parse_message = function(opts)
       .. opts.question
   end
 
+  local user_content = {}
+  if Config.behaviour.support_paste_from_clipboard and Clipboard.has_content() then
+    table.insert(user_content, {
+      type = "image_url",
+      image_url = {
+        url = "data:image/png;base64," .. Clipboard.get_content(),
+      },
+    })
+  end
+
+  table.insert(user_content, { type = "text", text = user_prompt })
+
   return {
     { role = "system", content = opts.system_prompt },
-    { role = "user", content = user_prompt },
+    { role = "user", content = user_content },
   }
 end
 
