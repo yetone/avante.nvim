@@ -40,12 +40,6 @@ Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
       },
       ft = { "markdown", "Avante" },
     },
-    --- For image pasting support
-    {
-      "HakonHarnes/img-clip.nvim",
-      event = "VeryLazy",
-      opts = {},
-    }
   },
 }
 ```
