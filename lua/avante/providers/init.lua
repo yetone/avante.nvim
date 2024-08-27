@@ -173,6 +173,10 @@ E.setup = function(opts)
 
   opts.provider.setup()
 
+  if opts.provider["local"] then
+    vim.g.avante_login = true
+  end
+
   -- check if var is a all caps string
   if var == M.AVANTE_INTERNAL_KEY or var:match("^cmd:(.*)") or opts.provider["local"] == true then
     return
