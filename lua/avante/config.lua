@@ -75,9 +75,11 @@ M.defaults = {
   ---1. auto_apply_diff_after_generation: Whether to automatically apply diff after LLM response.
   ---                                     This would simulate similar behaviour to cursor. Default to false.
   ---2. auto_set_highlight_group: Whether to automatically set the highlight group for the current line. Default to true.
+  ---3. support_paste_from_clipboard: Whether to support pasting image from clipboard. Note that we will override vim.paste for this. Default to false.
   behaviour = {
     auto_set_highlight_group = true,
     auto_apply_diff_after_generation = false,
+    support_paste_from_clipboard = false,
   },
   history = {
     storage_path = vim.fn.stdpath("state") .. "/avante",
