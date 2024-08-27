@@ -27,6 +27,25 @@ M.has = function(plugin)
   return package.loaded[plugin] ~= nil
 end
 
+---@return "linux" | "darwin" | "windows"
+M.get_os_name = function()
+  local os_name = vim.uv.os_uname().sysname
+  if os_name == "Linux" then
+    return "linux"
+  elseif os_name == "Darwin" then
+    return "darwin"
+  elseif os_name == "Windows_NT" then
+    return "windows"
+  else
+    error("Unsupported operating system: " .. os_name)
+  end
+end
+
+---@param input_cmd string
+M.shell_run = function(input_cmd)
+  local output = vim.system(vim.split(cmd, " ", { trimempty = true }), { text = true })
+end
+
 ---@alias _ToggleSet fun(state: boolean): nil
 ---@alias _ToggleGet fun(): boolean
 ---
