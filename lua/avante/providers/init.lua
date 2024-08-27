@@ -173,6 +173,11 @@ E.setup = function(opts)
 
   opts.provider.setup()
 
+  -- check if var is a all caps string
+  if var == M.AVANTE_INTERNAL_KEY or var:match("^cmd:(.*)") then
+    return
+  end
+
   local refresh = opts.refresh or false
 
   ---@param value string
