@@ -27,7 +27,8 @@ local M = {}
 
 M.api_key_name = "OPENAI_API_KEY"
 
-M.parse_message = function(opts)
+---@param opts AvantePromptOptions
+M.get_user_message = function(opts)
   local user_prompt = opts.base_prompt
     .. "\n\nCODE:\n"
     .. "```"
@@ -56,6 +57,10 @@ M.parse_message = function(opts)
       .. opts.question
   end
 
+  return user_prompt
+end
+
+M.parse_message = function(opts)
   local user_content = {}
   if Config.behaviour.support_paste_from_clipboard and Clipboard.has_content() then
     table.insert(user_content, {
@@ -66,7 +71,7 @@ M.parse_message = function(opts)
     })
   end
 
-  table.insert(user_content, { type = "text", text = user_prompt })
+  table.insert(user_content, { type = "text", text = M.get_user_message(opts) })
 
   return {
     { role = "system", content = opts.system_prompt },

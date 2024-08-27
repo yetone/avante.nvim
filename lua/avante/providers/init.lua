@@ -301,11 +301,8 @@ function M.refresh(provider)
 
   ---@type AvanteProviderFunctor
   local p = M[Config.provider]
-  if not p.has() then
-    E.setup({ provider = p, refresh = true })
-  else
-    Utils.info("Switch to provider: " .. provider, { once = true, title = "Avante" })
-  end
+  E.setup({ provider = p, refresh = true })
+  Utils.info("Switch to provider: " .. provider, { once = true, title = "Avante" })
 end
 
 local default_providers = { "openai", "claude", "azure", "gemini", "copilot" }
