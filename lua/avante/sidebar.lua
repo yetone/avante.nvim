@@ -134,14 +134,64 @@ function Sidebar:toggle()
   end
 end
 
-local function extract_code_snippets(content)
+local function realign_line_numbers(code_lines, snippet)
+  local snippet_lines = vim.split(snippet.content, "\n")
+  local snippet_lines_count = #snippet_lines
+
+  local start_line = snippet.range[1]
+
+  local correct_start
+  for i = start_line, math.max(1, start_line - snippet_lines_count + 1), -1 do
+    local matched = true
+    for j = 1, math.min(snippet_lines_count, start_line - i + 1) do
+      if code_lines[i + j - 1] ~= snippet_lines[j] then
+        matched = false
+        break
+      end
+    end
+    if matched then
+      correct_start = i
+      break
+    end
+  end
+
+  local end_line = snippet.range[2]
+
+  local correct_end
+  for i = snippet_lines_count - 1, 1, -1 do
+    local matched = true
+    for j = 1, i do
+      if code_lines[end_line + j - 1] ~= snippet_lines[snippet_lines_count - j] then
+        matched = false
+        break
+      end
+    end
+    if matched then
+      correct_end = end_line + i
+      break
+    end
+  end
+
+  if correct_start then
+    snippet.range[1] = correct_start
+  end
+
+  if correct_end then
+    snippet.range[2] = correct_end
+  end
+
+  return snippet
+end
+
+local function extract_code_snippets(code_content, response_content)
+  local code_lines = vim.split(code_content, "\n")
   local snippets = {}
   local current_snippet = {}
   local in_code_block = false
   local lang, start_line, end_line
   local explanation = ""
 
-  for _, line in ipairs(vim.split(content, "\n")) do
+  for _, line in ipairs(vim.split(response_content, "\n")) do
     local start_line_str, end_line_str = line:match("^Replace lines: (%d+)-(%d+)")
     if start_line_str ~= nil and end_line_str ~= nil then
       start_line = tonumber(start_line_str)
@@ -150,12 +200,14 @@ local function extract_code_snippets(content)
     if line:match("^```") then
       if in_code_block then
         if start_line ~= nil and end_line ~= nil then
-          table.insert(snippets, {
+          local snippet = {
             range = { start_line, end_line },
             content = table.concat(current_snippet, "\n"),
             lang = lang,
             explanation = explanation,
-          })
+          }
+          snippet = realign_line_numbers(code_lines, snippet)
+          table.insert(snippets, snippet)
         end
         current_snippet = {}
         start_line, end_line = nil, nil
@@ -269,7 +321,7 @@ end
 function Sidebar:apply()
   local content = table.concat(Utils.get_buf_lines(0, -1, self.code.bufnr), "\n")
   local response = self:get_content_between_separators()
-  local snippets = extract_code_snippets(response)
+  local snippets = extract_code_snippets(content, response)
   local conflict_content = get_conflict_content(content, snippets)
 
   vim.defer_fn(function()
