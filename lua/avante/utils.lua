@@ -41,9 +41,13 @@ M.get_os_name = function()
   end
 end
 
+--- This function will run given shell command synchronously.
 ---@param input_cmd string
+---@return integer, string?, string?
 M.shell_run = function(input_cmd)
-  local output = vim.system(vim.split(cmd, " ", { trimempty = true }), { text = true })
+  local output =
+    vim.system(vim.split("sh -c " .. vim.fn.shellescape(input_cmd), " ", { trimempty = true }), { text = true }):wait()
+  return output.code, output.stderr, output.stdout
 end
 
 ---@alias _ToggleSet fun(state: boolean): nil

@@ -111,6 +111,7 @@ E.parse_envvar = function(Opts)
 
   local key = nil
 
+  vim.g.avante_login = false
   if cmd ~= nil then
     -- NOTE: in case api_key_name is cmd, and users still set envvar
     -- We will try to get envvar first
@@ -120,11 +121,11 @@ E.parse_envvar = function(Opts)
         ---@diagnostic disable: no-unknown
         E.cache[Opts._shellenv] = key
         E.cache[api_key_name] = key
+        vim.g.avante_login = true
         return key
       end
     end
 
-    vim.g.avante_login = false
     local exit_codes = { 0 }
     local ok, job_or_err = pcall(
       vim.system,
