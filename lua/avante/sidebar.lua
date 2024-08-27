@@ -1268,6 +1268,10 @@ function Sidebar:create_input()
   end)
 
   local function on_submit()
+    if not vim.g.avante_login then
+      Utils.warn("Sending message to fast!, API key is not yet set", { title = "Avante" })
+      return
+    end
     if not self.input or not self.input.bufnr or not api.nvim_buf_is_valid(self.input.bufnr) then
       return
     end

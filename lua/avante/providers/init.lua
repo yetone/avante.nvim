@@ -120,12 +120,38 @@ E.parse_envvar = function(Opts)
         ---@diagnostic disable: no-unknown
         E.cache[Opts._shellenv] = key
         E.cache[api_key_name] = key
+        return key
       end
-      return key
     end
 
-    local result = vim.system(vim.split(cmd, " ", { trimempty = true }), { text = true }):wait()
-    key = vim.split(result.stdout, "\n")[1]
+    vim.g.avante_login = false
+    local exit_codes = { 0 }
+    local ok, job_or_err = pcall(
+      vim.system,
+      vim.split(cmd, " ", { trimempty = true }),
+      { text = true },
+      function(result)
+        local code = result.code
+        local stderr = result.stderr or ""
+        local stdout = result.stdout and vim.split(result.stdout, "\n") or {}
+        if vim.tbl_contains(exit_codes, code) then
+          key = stdout[1]
+          E.cache[api_key_name] = key
+          vim.g.avante_login = true
+        else
+          Utils.error(
+            "Failed to get API key: (error code" .. code .. ")\n" .. stderr,
+            { once = true, title = "Avante" }
+          )
+        end
+      end
+    )
+
+    if not ok then
+      error("failed to run command: " .. cmd .. "\n" .. job_or_err)
+      return
+    end
+    vim.g.avante_pid = job_or_err.pid
   else
     key = os.getenv(api_key_name)
   end
@@ -145,7 +171,10 @@ E.setup = function(opts)
   local var = opts.provider.api_key_name
 
   -- check if var is a all caps string
-  if var == M.AVANTE_INTERNAL_KEY or var:match("^cmd:(.*)") then
+  if var == M.AVANTE_INTERNAL_KEY then
+    return
+  elseif var:match("^cmd:(.*)") then
+    opts.provider.setup()
     return
   end
 
@@ -247,15 +276,7 @@ M = setmetatable(M, {
     if t[k].setup == nil then
       t[k].setup = function()
         t[k].parse_api_key()
-
-        if not t[k].has() then
-          Utils.warn("Failed to setup " .. k .. ". Avante won't work as expected", { once = true, title = "Avante" })
-        end
       end
-    end
-
-    if k == Config.provider then
-      t[k].setup()
     end
 
     return t[k]
@@ -266,7 +287,6 @@ M.setup = function()
   ---@type AvanteProviderFunctor
   local provider = M[Config.provider]
   E.setup({ provider = provider })
-  provider.setup()
 
   M.commands()
 end
@@ -278,7 +298,6 @@ function M.refresh(provider)
 
   ---@type AvanteProviderFunctor
   local p = M[Config.provider]
-  p.setup()
   if not p.has() then
     E.setup({ provider = p, refresh = true })
   else
