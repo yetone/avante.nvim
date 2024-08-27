@@ -544,6 +544,7 @@ function Sidebar:on_mount()
 
     if target_block then
       api.nvim_win_set_cursor(self.result.winid, { target_block.start_line + 1, 0 })
+      vim.cmd("normal! zz")
     end
   end
 

@@ -2,18 +2,14 @@
 local Tiktoken = require("avante.tiktoken")
 local Tokens = {}
 
---[[
-  cost_per_token
-  @param {string} token_name
-  @return {number} cost_per_token
-]]
+---@type table<[string], number>
 local cost_per_token = {
   davinci = 0.000002,
 }
 
 --- Calculate the number of tokens in a given text.
--- @param text The text to calculate the number of tokens for.
--- @return The number of tokens in the given text.
+---@param text string The text to calculate the number of tokens for.
+---@return integer The number of tokens in the given text.
 function Tokens.calculate_tokens(text)
   if Tiktoken.available() then
     return Tiktoken.count(text)

@@ -63,7 +63,7 @@ Replace lines: {{start_line}}-{{end_line}}
 Remember: Accurate line numbers are CRITICAL. The range start_line to end_line must include ALL lines to be replaced, from the very first to the very last. Double-check every range before finalizing your response, paying special attention to the start_line to ensure it hasn't shifted down. Ensure that your line numbers perfectly match the original code structure without any overall shift.
 ]]
 
-local group = api.nvim_create_augroup("AvanteLLM", { clear = true })
+local group = api.nvim_create_augroup("avante_llm", { clear = true })
 local active_job = nil
 
 ---@param question string
