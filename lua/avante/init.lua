@@ -113,6 +113,20 @@ H.autocmds = function()
     end,
   })
 
+  api.nvim_create_autocmd("VimResized", {
+    group = H.augroup,
+    callback = function()
+      local sidebar = M._get()
+      if not sidebar then
+        return
+      end
+      if not sidebar:is_open() then
+        return
+      end
+      sidebar:resize()
+    end,
+  })
+
   api.nvim_create_autocmd("TabClosed", {
     group = H.augroup,
     pattern = "*",

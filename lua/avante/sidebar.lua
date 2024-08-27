@@ -10,7 +10,6 @@ local Diff = require("avante.diff")
 local Llm = require("avante.llm")
 local Utils = require("avante.utils")
 local Highlights = require("avante.highlights")
-local FloatingWindow = require("avante.floating_window")
 
 local RESULT_BUF_NAME = "AVANTE_RESULT"
 local VIEW_BUFFER_UPDATED_PATTERN = "AvanteViewBufferUpdated"
@@ -586,16 +585,6 @@ function Sidebar:on_mount()
         api.nvim_set_current_win(self.input.winid)
       end
       return true
-    end,
-  })
-
-  api.nvim_create_autocmd("VimResized", {
-    group = self.augroup,
-    callback = function()
-      if not self:is_open() then
-        return
-      end
-      self:resize()
     end,
   })
 
@@ -1292,28 +1281,6 @@ function Sidebar:get_selected_code_size()
   end
 
   return selected_code_size
-end
-
----@class CreateFloatingWindowForSplitOptions
----@field split_winid integer | nil
----@field buf_opts table | nil
----@field win_opts table | nil
----@field float_opts table | nil
----@field keep_floating_style boolean | nil
-
----@param opts CreateFloatingWindowForSplitOptions
-function Sidebar:create_floating_window_for_split(opts)
-  local win_opts_ = vim.tbl_deep_extend("force", get_win_options(), opts.win_opts or {})
-
-  local buf_opts_ = vim.tbl_deep_extend("force", buf_options, opts.buf_opts or {})
-
-  local floating_win = FloatingWindow.from_split_win(opts.split_winid, {
-    buf_options = buf_opts_,
-    win_options = win_opts_,
-    float_options = opts.float_opts,
-  })
-
-  return floating_win
 end
 
 function Sidebar:render()
