@@ -127,6 +127,9 @@ M.defaults = {
     input = {
       prefix = "> ",
     },
+    edit = {
+      border = "rounded",
+    },
   },
   --- @class AvanteConflictUserConfig
   diff = {

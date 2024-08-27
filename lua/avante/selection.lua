@@ -10,8 +10,8 @@ local NAMESPACE = api.nvim_create_namespace("avante_selection")
 local SELECTED_CODE_NAMESPACE = api.nvim_create_namespace("avante_selected_code")
 local PRIORITY = vim.highlight.priorities.user
 
-local EIDTING_INPUT_START_SPINNER_PATTERN = "AvanteEditingInputStartSpinner"
-local EIDTING_INPUT_STOP_SPINNER_PATTERN = "AvanteEditingInputStopSpinner"
+local EDITING_INPUT_START_SPINNER_PATTERN = "AvanteEditingInputStartSpinner"
+local EDITING_INPUT_STOP_SPINNER_PATTERN = "AvanteEditingInputStopSpinner"
 
 ---@class avante.Selection
 ---@field selection avante.SelectionResult | nil
@@ -64,7 +64,7 @@ end
 function Selection:show_shortcuts_hints_popup()
   self:close_shortcuts_hints_popup()
 
-  local hint_text = string.format(" [%s: ask avante, %s: edit] ", Config.mappings.ask, Config.mappings.edit)
+  local hint_text = string.format(" [%s: ask, %s: edit] ", Config.mappings.ask, Config.mappings.edit)
 
   local virt_text_line = self:get_virt_text_line()
 
@@ -226,9 +226,9 @@ function Selection:show_editing_input_shortcuts_hints()
   end
 
   api.nvim_create_autocmd("User", {
-    pattern = EIDTING_INPUT_START_SPINNER_PATTERN,
+    pattern = EDITING_INPUT_START_SPINNER_PATTERN,
     callback = function()
-      timer = vim.loop.new_timer()
+      timer = vim.uv.new_timer()
       if timer then
         timer:start(
           0,
@@ -242,7 +242,7 @@ function Selection:show_editing_input_shortcuts_hints()
   })
 
   api.nvim_create_autocmd("User", {
-    pattern = EIDTING_INPUT_STOP_SPINNER_PATTERN,
+    pattern = EDITING_INPUT_STOP_SPINNER_PATTERN,
     callback = function()
       stop_spinner()
     end,
@@ -305,8 +305,8 @@ function Selection:create_editing_input()
     row = 1,
     col = 0,
     style = "minimal",
-    border = "rounded",
-    title = { { "Chat with selected code", "FloatTitle" } },
+    border = Config.windows.edit.border,
+    title = { { "edit selected block", "FloatTitle" } },
     title_pos = "center",
   }
 
@@ -360,7 +360,7 @@ function Selection:create_editing_input()
 
     local indentation = Utils.get_indentation(code_lines[self.selection.range.start.line])
 
-    api.nvim_exec_autocmds("User", { pattern = EIDTING_INPUT_START_SPINNER_PATTERN })
+    api.nvim_exec_autocmds("User", { pattern = EDITING_INPUT_START_SPINNER_PATTERN })
     ---@type AvanteChunkParser
     local on_chunk = function(chunk)
       full_response = full_response .. chunk
@@ -381,7 +381,7 @@ function Selection:create_editing_input()
         )
         return
       end
-      api.nvim_exec_autocmds("User", { pattern = EIDTING_INPUT_STOP_SPINNER_PATTERN })
+      api.nvim_exec_autocmds("User", { pattern = EDITING_INPUT_STOP_SPINNER_PATTERN })
       vim.defer_fn(function()
         self:close_editing_input()
       end, 0)
