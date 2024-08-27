@@ -65,7 +65,7 @@ H.keymaps = function()
 end
 
 H.signs = function()
-  vim.fn.sign_define("AvanteInputPromptSign", { text = "> " })
+  vim.fn.sign_define("AvanteInputPromptSign", { text = Config.windows.input.prefix })
 end
 
 H.augroup = api.nvim_create_augroup("avante_autocmds", { clear = true })
