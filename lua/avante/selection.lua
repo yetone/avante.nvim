@@ -7,6 +7,7 @@ local api = vim.api
 local fn = vim.fn
 
 local NAMESPACE = api.nvim_create_namespace("avante_selection")
+local SELECTED_CODE_NAMESPACE = api.nvim_create_namespace("avante_selected_code")
 local PRIORITY = vim.highlight.priorities.user
 
 local EIDTING_INPUT_START_SPINNER_PATTERN = "AvanteEditingInputStartSpinner"
@@ -16,6 +17,7 @@ local EIDTING_INPUT_STOP_SPINNER_PATTERN = "AvanteEditingInputStopSpinner"
 ---@field selection avante.SelectionResult | nil
 ---@field cursor_pos table | nil
 ---@field shortcuts_extmark_id integer | nil
+---@field selected_code_extmark_id integer | nil
 ---@field augroup integer | nil
 ---@field editing_input_bufnr integer | nil
 ---@field editing_input_winid integer | nil
@@ -29,6 +31,7 @@ Selection.did_setup = false
 function Selection:new(id)
   return setmetatable({
     shortcuts_extmark_id = nil,
+    selected_code_extmark_id = nil,
     augroup = api.nvim_create_augroup("avante_selection_" .. id, { clear = true }),
     selection = nil,
     cursor_pos = nil,
@@ -88,6 +91,14 @@ function Selection:close_editing_input()
   if self.editing_input_winid and api.nvim_win_is_valid(self.editing_input_winid) then
     api.nvim_win_close(self.editing_input_winid, true)
     self.editing_input_winid = nil
+  end
+  if self.code_winid and api.nvim_win_is_valid(self.code_winid) then
+    local code_bufnr = api.nvim_win_get_buf(self.code_winid)
+    api.nvim_buf_clear_namespace(code_bufnr, SELECTED_CODE_NAMESPACE, 0, -1)
+    if self.selected_code_extmark_id then
+      api.nvim_buf_del_extmark(code_bufnr, SELECTED_CODE_NAMESPACE, self.selected_code_extmark_id)
+      self.selected_code_extmark_id = nil
+    end
   end
   if self.cursor_pos and self.code_winid then
     vim.schedule(function()
@@ -257,6 +268,8 @@ function Selection:show_editing_input_shortcuts_hints()
 end
 
 function Selection:create_editing_input()
+  self:close_editing_input()
+
   local code_bufnr = api.nvim_get_current_buf()
   local code_wind = api.nvim_get_current_win()
   self.cursor_pos = api.nvim_win_get_cursor(code_wind)
@@ -267,7 +280,19 @@ function Selection:create_editing_input()
 
   self.selection = Utils.get_visual_selection_and_range()
 
-  self:close_editing_input()
+  self.selected_code_extmark_id = api.nvim_buf_set_extmark(
+    code_bufnr,
+    SELECTED_CODE_NAMESPACE,
+    self.selection.range.start.line - 1,
+    self.selection.range.start.col - 1,
+    {
+      hl_group = "Visual",
+      hl_mode = "combine",
+      end_row = self.selection.range.finish.line - 1,
+      end_col = self.selection.range.finish.col,
+      priority = PRIORITY,
+    }
+  )
 
   local bufnr = api.nvim_create_buf(false, true)
 
