@@ -2,7 +2,7 @@ local M = {}
 
 local function get_library_path()
   local os_name = require("avante.utils").get_os_name()
-  local ext = os_name == "linux" and "so" or (os_name == "macOS" and "dylib" or "dll")
+  local ext = os_name == "linux" and "so" or (os_name == "darwin" and "dylib" or "dll")
   local dirname = string.sub(debug.getinfo(1).source, 2, #"/tiktoken_lib.lua" * -1)
   return dirname .. ("../build/?.%s"):format(ext)
 end
