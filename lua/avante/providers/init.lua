@@ -45,6 +45,7 @@ local Dressing = require("avante.ui.dressing")
 ---@field model? string
 ---@field local? boolean
 ---@field proxy? string
+---@field timeout? integer
 ---@field allow_insecure? boolean
 ---@field api_key_name? string
 ---@field _shellenv? string
@@ -111,7 +112,6 @@ E.parse_envvar = function(Opts)
 
   local key = nil
 
-  vim.g.avante_login = false
   if cmd ~= nil then
     -- NOTE: in case api_key_name is cmd, and users still set envvar
     -- We will try to get envvar first
@@ -171,13 +171,7 @@ end
 E.setup = function(opts)
   local var = opts.provider.api_key_name
 
-  -- check if var is a all caps string
-  if var == M.AVANTE_INTERNAL_KEY then
-    return
-  elseif var:match("^cmd:(.*)") then
-    opts.provider.setup()
-    return
-  end
+  opts.provider.setup()
 
   local refresh = opts.refresh or false
 
@@ -285,6 +279,8 @@ M = setmetatable(M, {
 })
 
 M.setup = function()
+  vim.g.avante_login = false
+
   ---@type AvanteProviderFunctor
   local provider = M[Config.provider]
   E.setup({ provider = provider })
