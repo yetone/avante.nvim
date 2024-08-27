@@ -180,6 +180,7 @@ E.setup = function(opts)
   local function on_confirm(value)
     if value then
       vim.fn.setenv(var, value)
+      vim.g.avante_login = true
     else
       if not opts.provider.has() then
         Utils.warn("Failed to set " .. var .. ". Avante won't work as expected", { once = true, title = "Avante" })
