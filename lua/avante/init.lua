@@ -225,9 +225,6 @@ function M.setup(opts)
     vim.cmd([[quit]])
   end
 
-  -- use a global statusline
-  vim.opt.laststatus = 3
-
   ---PERF: we can still allow running require("avante").setup() multiple times to override config if users wish to
   ---but most of the other functionality will only be called once from lazy.nvim
   Config.setup(opts)
