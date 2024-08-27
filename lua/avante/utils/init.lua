@@ -239,7 +239,7 @@ function M.notify(msg, opts)
         vim.bo[buf].syntax = lang
       end
     end,
-    title = opts.title or "lazy.nvim",
+    title = opts.title or "Avante",
   })
 end
 
