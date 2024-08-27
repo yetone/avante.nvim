@@ -20,7 +20,11 @@ setmetatable(M, {
 ---@param plugin string
 ---@return boolean
 M.has = function(plugin)
-  return require("lazy.core.config").plugins[plugin] ~= nil
+  local ok, LazyConfig = pcall(require, "lazy.core.config")
+  if ok then
+    return LazyConfig.plugins[plugin] ~= nil
+  end
+  return package.loaded[plugin] ~= nil
 end
 
 ---@alias _ToggleSet fun(state: boolean): nil
