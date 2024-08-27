@@ -151,13 +151,13 @@ E.parse_envvar = function(Opts)
       error("failed to run command: " .. cmd .. "\n" .. job_or_err)
       return
     end
-    vim.g.avante_pid = job_or_err.pid
   else
     key = os.getenv(api_key_name)
   end
 
   if key ~= nil then
     E.cache[api_key_name] = key
+    vim.g.avante_login = true
   end
 
   return key
