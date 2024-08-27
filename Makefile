@@ -21,6 +21,7 @@ luajit: $(BUILD_DIR)/tiktoken_core.$(EXT)
 lua51: $(BUILD_DIR)/tiktoken_core-lua51.$(EXT)
 
 define build_from_source
+	if [ -d "$(BUILD_DIR)/lua-tiktoken-temp" ]; then rm -rf $(BUILD_DIR)/lua-tiktoken-temp; fi
 	git clone --branch v0.2.2 --depth 1 https://github.com/gptlang/lua-tiktoken.git $(BUILD_DIR)/lua-tiktoken-temp
 	cd $(BUILD_DIR)/lua-tiktoken-temp && cargo build --features=$1
 	cp $(BUILD_DIR)/lua-tiktoken-temp/target/debug/libtiktoken_core.$(EXT) $(BUILD_DIR)/tiktoken_core.$(EXT)
