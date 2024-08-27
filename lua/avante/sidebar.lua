@@ -962,8 +962,6 @@ function Sidebar:create_selected_code()
   end
 end
 
-local input_prompt_ns = vim.api.nvim_create_namespace("avante_input_prompt")
-
 function Sidebar:create_input()
   if self.input then
     self.input:unmount()
