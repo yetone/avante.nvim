@@ -174,7 +174,7 @@ E.setup = function(opts)
   opts.provider.setup()
 
   -- check if var is a all caps string
-  if var == M.AVANTE_INTERNAL_KEY or var:match("^cmd:(.*)") or opts.providers["local"] == true then
+  if var == M.AVANTE_INTERNAL_KEY or var:match("^cmd:(.*)") or opts.provider["local"] == true then
     return
   end
 
