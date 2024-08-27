@@ -63,7 +63,7 @@ local Dressing = require("avante.ui.dressing")
 ---@field parse_response_data AvanteResponseParser
 ---@field parse_curl_args? AvanteCurlArgsParser
 ---@field parse_stream_data? AvanteStreamParser
----@field parse_api_key fun(): string | nil
+---@field parse_api_key? fun(): string | nil
 ---
 ---@class AvanteProviderFunctor
 ---@field parse_message AvanteMessageParser
