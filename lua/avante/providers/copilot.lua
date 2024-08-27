@@ -137,6 +137,7 @@ M.parse_curl_args = function(provider, code_opts)
     headers = {
       ["Authorization"] = "Bearer " .. M.copilot.token.token,
       ["Content-Type"] = "application/json",
+      ["Copilot-Integration-Id"] = "vscode-chat",
       ["editor-version"] = "Neovim/" .. vim.version().major .. "." .. vim.version().minor .. "." .. vim.version().patch,
     },
     body = vim.tbl_deep_extend("force", {
