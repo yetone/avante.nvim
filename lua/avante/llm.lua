@@ -19,7 +19,7 @@ You are an excellent programming expert.
 ]]
 
 ---@alias AvanteBasePrompt string
-local base_user_prompt = [[
+local planning_mode_prompt = [[
 Your primary task is to suggest code modifications with precise line number ranges. Follow these instructions meticulously:
 
 1. Carefully analyze the original code, paying close attention to its structure and line numbers. Line numbers start from 1 and include ALL lines, even empty ones.
@@ -44,6 +44,7 @@ Replace lines: {{start_line}}-{{end_line}}
    - Do not omit any needed changes from the requisite messages/code blocks.
    - If there is a clicked code block, bias towards just applying that (and applying other changes implied).
    - Please keep your suggested code changes minimal, and do not include irrelevant lines in the code snippet.
+   - Maintain the SAME indentation in the returned code as in the source code
 
 4. Crucial guidelines for line numbers:
    - The content regarding line numbers MUST strictly follow the format "Replace lines: {{start_line}}-{{end_line}}". Do not be lazy!
@@ -64,6 +65,21 @@ Replace lines: {{start_line}}-{{end_line}}
 Remember: Accurate line numbers are CRITICAL. The range start_line to end_line must include ALL lines to be replaced, from the very first to the very last. Double-check every range before finalizing your response, paying special attention to the start_line to ensure it hasn't shifted down. Ensure that your line numbers perfectly match the original code structure without any overall shift.
 ]]
 
+local editing_mode_prompt = [[
+Your task is to modify the provided code according to the user's request. Follow these instructions precisely:
+
+1. Carefully analyze the original code and the user's request.
+2. Make the necessary modifications to the code as requested.
+3. Return ONLY the complete modified code.
+4. Do not include any explanations, comments, or line numbers in your response.
+5. Ensure the returned code is complete and can be directly used as a replacement for the original code.
+6. Preserve the original structure, indentation, and formatting of the code as much as possible.
+7. Do not omit any parts of the code, even if they are unchanged.
+8. Maintain the SAME indentation in the returned code as in the source code
+
+Remember: Your response should contain nothing but the modified code, ready to be used as a direct replacement for the original file.
+]]
+
 local group = api.nvim_create_augroup("avante_llm", { clear = true })
 local active_job = nil
 
@@ -71,14 +87,16 @@ local active_job = nil
 ---@param code_lang string
 ---@param code_content string
 ---@param selected_content_content string | nil
+---@param mode "planning" | "editing"
 ---@param on_chunk AvanteChunkParser
 ---@param on_complete AvanteCompleteParser
-M.stream = function(question, code_lang, code_content, selected_content_content, on_chunk, on_complete)
+M.stream = function(question, code_lang, code_content, selected_content_content, mode, on_chunk, on_complete)
+  mode = mode or "planning"
   local provider = Config.provider
 
   ---@type AvantePromptOptions
   local code_opts = {
-    base_prompt = base_user_prompt,
+    base_prompt = mode == "planning" and planning_mode_prompt or editing_mode_prompt,
     system_prompt = system_prompt,
     question = question,
     code_lang = code_lang,
