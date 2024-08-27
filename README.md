@@ -203,14 +203,21 @@ The following key bindings are available for use with `avante.nvim`:
 
 ## Highlight Groups
 
-| Highlight Group | Description |
-|-----------------|-------------|
-| AvanteTitle | Title  |
-| AvanteReversedTitle | Used for rounded border |
-| AvanteSubtitle | Selected code title |
-| AvanteReversedSubtitle | Used for rounded border |
-| AvanteThirdTitle | Prompt title |
-| AvanteReversedThirdTitle | Used for rounded border |
+
+| Highlight Group | Description | Notes |
+|-----------------|-------------|-------|
+| AvanteTitle | Title | |
+| AvanteReversedTitle | Used for rounded border | |
+| AvanteSubtitle | Selected code title | |
+| AvanteReversedSubtitle | Used for rounded border | |
+| AvanteThirdTitle | Prompt title | |
+| AvanteReversedThirdTitle | Used for rounded border | |
+| AvanteConflictCurrent | Current conflict highlight | Default to `Config.highlights.diff.current` |
+| AvanteConflictIncoming | Incoming conflict highlight | Default to `Config.highlights.diff.incoming` |
+| AvanteConflictCurrentLabel | Current conflict label highlight | Default to shade of `AvanteConflictCurrent` |
+| AvanteConflictIncomingLabel | Incoming conflict label highlight | Default to shade of `AvanteConflictIncoming` |
+
+See [highlights.lua](./lua/avante/highlights.lua) for more information
 
 ## TODOs
 
