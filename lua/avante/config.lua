@@ -20,7 +20,7 @@ M.defaults = {
     max_tokens = 4096,
     ["local"] = false,
   },
-  ---@type AvanteCopilotProvider
+  ---@type AvanteSupportedProvider
   copilot = {
     endpoint = "https://api.githubcopilot.com",
     model = "gpt-4o-2024-05-13",
@@ -121,6 +121,9 @@ M.defaults = {
     sidebar_header = {
       align = "center", -- left, center, right for title
       rounded = true,
+    },
+    input = {
+      prefix = "> ",
     },
   },
   --- @class AvanteConflictUserConfig
