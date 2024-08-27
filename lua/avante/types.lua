@@ -1,26 +1,18 @@
 ---@meta
 
----@class AvanteComp
----@field winid integer | nil
----@field bufnr integer | nil
-local AvanteComp = {}
+---@class vim.api.create_autocmd.callback.args
+---@field id number
+---@field event string
+---@field group number?
+---@field match string
+---@field buf number
+---@field file string
+---@field data any
 
----@return nil
-function AvanteComp:mount() end
+---@class vim.api.keyset.create_autocmd.opts: vim.api.keyset.create_autocmd
+---@field callback? fun(ev:vim.api.create_autocmd.callback.args):boolean?
 
----@return nil
-function AvanteComp:unmount() end
-
----@param event string | string[]
----@param handler string | function
----@param options? table<"'once'" | "'nested'", boolean>
----@return nil
-function AvanteComp:on(event, handler, options) end
-
--- set keymap for this split
----@param mode string check `:h :map-modes`
----@param key string|string[] key for the mapping
----@param handler string | fun(): nil handler for the mapping
----@param opts? table<"'expr'"|"'noremap'"|"'nowait'"|"'remap'"|"'script'"|"'silent'"|"'unique'", boolean>
----@return nil
-function AvanteComp:map(mode, key, handler, opts, ___force___) end
+--- @param event string | string[] (string|array) Event(s) that will trigger the handler
+--- @param opts vim.api.keyset.create_autocmd.opts
+--- @return integer
+function vim.api.nvim_create_autocmd(event, opts) end
