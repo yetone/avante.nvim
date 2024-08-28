@@ -283,22 +283,29 @@ function Selection:create_editing_input()
 
   self.selection = Utils.get_visual_selection_and_range()
 
-  local end_row = self.selection.range.finish.line - 1
-  local end_col = math.min(self.selection.range.finish.col, #code_lines[self.selection.range.finish.line])
+  local start_row
+  local start_col
+  local end_row
+  local end_col
+  if vim.fn.mode() == "V" then
+    start_row = self.selection.range.start.line - 1
+    start_col = 0
+    end_row = self.selection.range.finish.line - 1
+    end_col = #code_lines[self.selection.range.finish.line]
+  else
+    start_row = self.selection.range.start.line - 1
+    start_col = self.selection.range.start.col - 1
+    end_row = self.selection.range.finish.line - 1
+    end_col = math.min(self.selection.range.finish.col, #code_lines[self.selection.range.finish.line])
+  end
 
-  self.selected_code_extmark_id = api.nvim_buf_set_extmark(
-    code_bufnr,
-    SELECTED_CODE_NAMESPACE,
-    self.selection.range.start.line - 1,
-    self.selection.range.start.col - 1,
-    {
-      hl_group = "Visual",
-      hl_mode = "combine",
-      end_row = end_row,
-      end_col = end_col,
-      priority = PRIORITY,
-    }
-  )
+  self.selected_code_extmark_id = api.nvim_buf_set_extmark(code_bufnr, SELECTED_CODE_NAMESPACE, start_row, start_col, {
+    hl_group = "Visual",
+    hl_mode = "combine",
+    end_row = end_row,
+    end_col = end_col,
+    priority = PRIORITY,
+  })
 
   local bufnr = api.nvim_create_buf(false, true)
 
