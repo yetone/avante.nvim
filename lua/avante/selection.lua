@@ -280,6 +280,9 @@ function Selection:create_editing_input()
 
   self.selection = Utils.get_visual_selection_and_range()
 
+  local end_row = self.selection.range.finish.line - 1
+  local end_col = math.min(self.selection.range.finish.col, #code_lines[self.selection.range.finish.line])
+
   self.selected_code_extmark_id = api.nvim_buf_set_extmark(
     code_bufnr,
     SELECTED_CODE_NAMESPACE,
@@ -288,8 +291,8 @@ function Selection:create_editing_input()
     {
       hl_group = "Visual",
       hl_mode = "combine",
-      end_row = self.selection.range.finish.line - 1,
-      end_col = self.selection.range.finish.col,
+      end_row = end_row,
+      end_col = end_col,
       priority = PRIORITY,
     }
   )
