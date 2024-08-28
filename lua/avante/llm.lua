@@ -76,8 +76,25 @@ Your task is to modify the provided code according to the user's request. Follow
 6. Preserve the original structure, indentation, and formatting of the code as much as possible.
 7. Do not omit any parts of the code, even if they are unchanged.
 8. Maintain the SAME indentation in the returned code as in the source code
+9. When suggesting modifications:
+   a. Please keep your suggested code changes minimal, and only append the diff between your suggestion versus what is PROVIDED.
+   b. Please make sure NOT TO generate CODE BLOCK when suggesting diff.
+   c. Ensure that the modified code has the SAME indentation as the original.
+   d. Provide the exact code snippet to be replaced using this format:
 
-Remember: Your response should contain nothing but the modified code, ready to be used as a direct replacement for the original file.
+{{modified_code}}
+
+   instead of
+
+```{{language}}
+{{modified_code}}
+```
+
+10. Final check:
+   - Do not wrap the modified code in any markdown code block markers or language identifiers.
+   - Do not show the full content after these modifications.
+
+Remember: Your response should contain nothing but ONLY the modified code, ready to be used as a direct replacement for the original file.
 ]]
 
 local group = api.nvim_create_augroup("avante_llm", { clear = true })
