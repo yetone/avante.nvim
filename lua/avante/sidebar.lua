@@ -1273,8 +1273,6 @@ function Sidebar:create_input()
     api.nvim_win_set_hl_ns(hint_window, Highlights.hint_ns)
   end
 
-  show_hint()
-
   api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
     group = self.augroup,
     buffer = self.input.bufnr,
