@@ -21,6 +21,11 @@ if Config.support_paste_image() then
       if not ok then
         return overriden(lines, phase)
       end
+
+      -- After pasting, insert a new line and set cursor to this line
+      vim.api.nvim_buf_set_lines(bufnr, -1, -1, false, { "" })
+      local last_line = vim.api.nvim_buf_line_count(bufnr)
+      vim.api.nvim_win_set_cursor(0, { last_line, 0 })
     end
   end)(vim.paste)
 end
