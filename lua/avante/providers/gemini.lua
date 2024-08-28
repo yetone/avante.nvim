@@ -50,13 +50,26 @@ M.parse_message = function(opts)
     },
   }
 end
+
 M.parse_response = function(data_stream, _, opts)
   local json = vim.json.decode(data_stream)
-  opts.on_chunk(json.candidates[1].content.parts[1].text)
+  if json.candidates and #json.candidates > 0 then
+    opts.on_chunk(json.candidates[1].content.parts[1].text)
+  end
 end
 
 M.parse_curl_args = function(provider, code_opts)
   local base, body_opts = P.parse_config(provider)
+
+  body_opts = {
+    generationConfig = {
+      temperature = body_opts.temperature,
+      maxOutputTokens = body_opts.max_tokens,
+    },
+  }
+
+  body_opts.temperature = nil
+  body_opts.max_tokens = nil
 
   return {
     url = Utils.trim(base.endpoint, { suffix = "/" })
