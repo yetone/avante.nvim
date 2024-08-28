@@ -65,13 +65,13 @@ M.conflict_highlights = function(opts)
   opts = opts or Config.diff.highlights
 
   local get_default_colors = function(key, hl)
-    --- We will first check for the hl name. If plugins set this then we won't use the default opts[var_accesor]
+    --- We will first check for user custom highlight. Then fallback to default name highlight.
     local cl
-    cl = api.nvim_get_hl(0, { name = hl.name })
+    cl = api.nvim_get_hl(0, { name = opts[key:lower()] })
     if cl ~= nil then
       return cl.bg or hl.bg
     end
-    cl = api.nvim_get_hl(0, { name = opts[key:lower()] })
+    cl = api.nvim_get_hl(0, { name = hl.name })
     return cl.bg or hl.bg
   end
 
