@@ -368,8 +368,10 @@ function Selection:create_editing_input()
     local on_chunk = function(chunk)
       full_response = full_response .. chunk
       local response_lines = vim.split(full_response, "\n")
-      for i, line in ipairs(response_lines) do
-        response_lines[i] = indentation .. line
+      if #response_lines > 0 then
+        if Utils.get_indentation(response_lines[1]) ~= indentation then
+          response_lines[1] = indentation .. response_lines[1]
+        end
       end
       api.nvim_buf_set_lines(code_bufnr, start_line - 1, finish_line, true, response_lines)
       finish_line = start_line + #response_lines - 1
