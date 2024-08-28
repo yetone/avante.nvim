@@ -507,28 +507,26 @@ function M.setup()
   api.nvim_create_autocmd("User", {
     group = augroup,
     pattern = "AvanteConflictDetected",
-    callback = function()
-      local bufnr = api.nvim_get_current_buf()
-      vim.diagnostic.enable(false, { bufnr = bufnr })
+    callback = function(ev)
+      vim.diagnostic.enable(false, { bufnr = ev.buf })
       if is_inlay_enable then
-        previous_inlay = vim.lsp.inlay_hint.is_enabled({ bufnr = bufnr })
-        vim.lsp.inlay_hint.enable(false, { bufnr = bufnr })
+        previous_inlay = vim.lsp.inlay_hint.is_enabled({ bufnr = ev.buf })
+        vim.lsp.inlay_hint.enable(false, { bufnr = ev.buf })
       end
-      setup_buffer_mappings(bufnr)
+      setup_buffer_mappings(ev.buf)
     end,
   })
 
   api.nvim_create_autocmd("User", {
     group = AUGROUP_NAME,
     pattern = "AvanteConflictResolved",
-    callback = function()
-      local bufnr = api.nvim_get_current_buf()
-      vim.diagnostic.enable(true, { bufnr = bufnr })
+    callback = function(ev)
+      vim.diagnostic.enable(true, { bufnr = ev.buf })
       if is_inlay_enable then
-        vim.lsp.inlay_hint.enable(previous_inlay, { bufnr = bufnr })
+        vim.lsp.inlay_hint.enable(previous_inlay, { bufnr = ev.buf })
         previous_inlay = nil
       end
-      clear_buffer_mappings(bufnr)
+      clear_buffer_mappings(ev.buf)
     end,
   })
 
