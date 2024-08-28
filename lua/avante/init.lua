@@ -41,12 +41,12 @@ H.commands = function()
 end
 
 H.keymaps = function()
-  vim.keymap.set({ "n", "v" }, Config.mappings.ask, M.toggle, { noremap = true, desc = "avante: Ask" })
-  vim.keymap.set("v", Config.mappings.edit, M.edit, { noremap = true, desc = "avante: Edit" })
-  vim.keymap.set("n", Config.mappings.refresh, M.refresh, { noremap = true, desc = "avante: Refresh" })
+  Utils.maybe_set_keymap({ "n", "v" }, Config.mappings.ask, M.toggle, { noremap = true, desc = "avante: Ask" })
+  Utils.maybe_set_keymap("v", Config.mappings.edit, M.edit, { noremap = true, desc = "avante: Edit" })
+  Utils.maybe_set_keymap("n", Config.mappings.refresh, M.refresh, { noremap = true, desc = "avante: Refresh" })
 
-  vim.keymap.set("n", Config.mappings.toggle.debug, M.toggle_debug, { desc = "toggle(avante): debug" })
-  vim.keymap.set("n", Config.mappings.toggle.hint, M.toggle_hint, { desc = "toggle(avante): hint" })
+  Utils.maybe_set_keymap("n", Config.mappings.toggle.debug, M.toggle_debug, { desc = "toggle(avante): debug" })
+  Utils.maybe_set_keymap("n", Config.mappings.toggle.hint, M.toggle_hint, { desc = "toggle(avante): hint" })
 end
 
 H.signs = function()

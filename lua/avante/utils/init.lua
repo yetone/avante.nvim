@@ -87,6 +87,16 @@ M.toggle = function(toggle)
   end
 end
 
+---@param mode string|string[]
+---@param lhs string
+---@param rhs string|function
+---@param opts? vim.keymap.set.Opts
+M.maybe_set_keymap = function(mode, lhs, rhs, opts)
+  if lhs then
+    vim.keymap.set(mode, lhs, rhs, opts)
+  end
+end
+
 ---@param str string
 ---@param opts? {suffix?: string, prefix?: string}
 function M.trim(str, opts)
