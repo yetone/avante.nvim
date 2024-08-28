@@ -127,47 +127,47 @@ function Selection:show_editing_input_shortcuts_hints()
 
   local win_width = api.nvim_win_get_width(self.editing_input_winid)
   local buf_height = api.nvim_buf_line_count(self.editing_input_bufnr)
-  -- "⠁⠁⠉⠙⠚⠒⠂⠂⠒⠲⠴⠤⠄⠄⠤⢤⣠⡀⡀⣀⢀⢀⣄⡤⠤⠠⠠⠤⠦⠖⠒⠐⠐⠒⠓⠋⠉⠈⠈⠉"
+  -- spinner string: "⡀⠄⠂⠁⠈⠐⠠⢀⣀⢄⢂⢁⢈⢐⢠⣠⢤⢢⢡⢨⢰⣰⢴⢲⢱⢸⣸⢼⢺⢹⣹⢽⢻⣻⢿⣿⣶⣤⣀"
   local spinner_chars = {
+    "⡀",
+    "⠄",
+    "⠂",
     "⠁",
-    "⠉",
-    "⠙",
-    "⠚",
-    "⠒",
-    "⠂",
-    "⠂",
-    "⠒",
-    "⠲",
-    "⠴",
-    "⠤",
-    "⠄",
-    "⠄",
-    "⠤",
-    "⢤",
-    "⣠",
-    "⡀",
-    "⡀",
+    "⠈",
+    "⠐",
+    "⠠",
+    "⢀",
     "⣀",
-    "⢀",
-    "⢀",
-    "⣄",
-    "⡤",
-    "⠤",
-    "⠠",
-    "⠠",
-    "⠤",
-    "⠦",
-    "⠖",
-    "⠒",
-    "⠐",
-    "⠐",
-    "⠒",
-    "⠓",
-    "⠋",
-    "⠉",
-    "⠈",
-    "⠈",
-    "⠉",
+    "⢄",
+    "⢂",
+    "⢁",
+    "⢈",
+    "⢐",
+    "⢠",
+    "⣠",
+    "⢤",
+    "⢢",
+    "⢡",
+    "⢨",
+    "⢰",
+    "⣰",
+    "⢴",
+    "⢲",
+    "⢱",
+    "⢸",
+    "⣸",
+    "⢼",
+    "⢺",
+    "⢹",
+    "⣹",
+    "⢽",
+    "⢻",
+    "⣻",
+    "⢿",
+    "⣿",
+    "⣶",
+    "⣤",
+    "⣀",
   }
   local spinner_index = 1
   local timer = nil
@@ -194,9 +194,11 @@ function Selection:show_editing_input_shortcuts_hints()
 
     local win_config = vim.api.nvim_win_get_config(self.editing_input_shortcuts_hints_winid)
 
-    if win_config.width ~= #new_text then
-      win_config.width = #new_text
-      win_config.col = math.max(win_width - #new_text, 0)
+    local new_width = fn.strdisplaywidth(new_text)
+
+    if win_config.width ~= new_width then
+      win_config.width = new_width
+      win_config.col = math.max(win_width - new_width, 0)
       vim.api.nvim_win_set_config(self.editing_input_shortcuts_hints_winid, win_config)
     end
   end
@@ -247,7 +249,8 @@ function Selection:show_editing_input_shortcuts_hints()
       stop_spinner()
     end,
   })
-  local width = #hint_text
+
+  local width = fn.strdisplaywidth(hint_text)
 
   local opts = {
     relative = "win",
