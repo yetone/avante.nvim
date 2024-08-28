@@ -1,3 +1,6 @@
+hello:
+	@echo Hello avante.nvim!
+
 luacheck:
 	luacheck `find -name "*.lua"` --codes
 
