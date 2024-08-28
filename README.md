@@ -236,13 +236,13 @@ See [wiki](https://github.com/yetone/avante.nvim/wiki) for more recipes and tric
 
 We would like to express our heartfelt gratitude to the contributors of the following open-source projects, whose code has provided invaluable inspiration and reference for the development of avante.nvim:
 
-| Nvim Plugin | Functionality | Where did we use |
-| --- | --- | --- |
-| [git-conflict.nvim](https://github.com/akinsho/git-conflict.nvim) | Diff comparison functionality | https://github.com/yetone/avante.nvim/blob/main/lua/avante/diff.lua |
-| [ChatGPT.nvim](https://github.com/jackMort/ChatGPT.nvim) | Calculation of tokens count | https://github.com/yetone/avante.nvim/blob/main/lua/avante/utils/tokens.lua |
+| Nvim Plugin | License | Functionality | Where did we use |
+| --- | --- | --- | --- |
+| [git-conflict.nvim](https://github.com/akinsho/git-conflict.nvim) | No License | Diff comparison functionality | https://github.com/yetone/avante.nvim/blob/main/lua/avante/diff.lua |
+| [ChatGPT.nvim](https://github.com/jackMort/ChatGPT.nvim) | Apache 2.0 License | Calculation of tokens count | https://github.com/yetone/avante.nvim/blob/main/lua/avante/utils/tokens.lua |
 
 The high quality and ingenuity of these projects' source code have been immensely beneficial throughout our development process. We extend our sincere thanks and respect to the authors and contributors of these projects. It is the selfless dedication of the open-source community that drives projects like avante.nvim forward.
 
 ## License
 
-avante.nvim is licensed under the Apache License. For more details, please refer to the [LICENSE](./LICENSE) file.
+avante.nvim is licensed under the Apache 2.0 License. For more details, please refer to the [LICENSE](./LICENSE) file.
