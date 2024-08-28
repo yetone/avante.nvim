@@ -43,15 +43,6 @@ Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
 }
 ```
 
-For Windows users, change the build command to the following:
-
-```lua
-{
-  "yetone/avante.nvim",
-  event = "VeryLazy",
-  -- rest of the config
-}
-```
 
 > [!IMPORTANT]
 >
