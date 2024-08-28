@@ -228,11 +228,10 @@ end
 ---@return ConflictPosition[]
 local function detect_conflicts(lines)
   local positions = {}
-  local position, has_start, has_middle, has_ancestor = nil, false, false, false
+  local position, has_middle, has_ancestor = nil, false, false
   for index, line in ipairs(lines) do
     local lnum = index - 1
     if line:match(conflict_start) then
-      has_start = true
       position = {
         current = { range_start = lnum, content_start = lnum + 1 },
         middle = {},
@@ -240,14 +239,14 @@ local function detect_conflicts(lines)
         ancestor = {},
       }
     end
-    if has_start and line:match(conflict_ancestor) then
+    if position ~= nil and line:match(conflict_ancestor) then
       has_ancestor = true
       position.ancestor.range_start = lnum
       position.ancestor.content_start = lnum + 1
       position.current.range_end = lnum - 1
       position.current.content_end = lnum - 1
     end
-    if has_start and line:match(conflict_middle) then
+    if position ~= nil and line:match(conflict_middle) then
       has_middle = true
       if has_ancestor then
         position.ancestor.content_end = lnum - 1
@@ -261,12 +260,12 @@ local function detect_conflicts(lines)
       position.incoming.range_start = lnum + 1
       position.incoming.content_start = lnum + 1
     end
-    if has_start and has_middle and line:match(conflict_end) then
+    if position ~= nil and has_middle and line:match(conflict_end) then
       position.incoming.range_end = lnum
       position.incoming.content_end = lnum - 1
       positions[#positions + 1] = position
 
-      position, has_start, has_middle, has_ancestor = nil, false, false, false
+      position, has_middle, has_ancestor = nil, false, false
     end
   end
   return #positions > 0, positions
