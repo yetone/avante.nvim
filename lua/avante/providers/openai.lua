@@ -95,7 +95,9 @@ M.parse_response = function(data_stream, _, opts)
       if choice.finish_reason == "stop" then
         opts.on_complete(nil)
       elseif choice.delta.content then
-        opts.on_chunk(choice.delta.content)
+        if choice.delta.content ~= vim.NIL then
+            opts.on_chunk(choice.delta.content)
+        end
       end
     end
   end
