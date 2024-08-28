@@ -15,11 +15,23 @@ local Config = require("avante.config")
 ---@class avante.Clipboard: AvanteClipboard
 local M = {}
 
-M.paste_directory = Path:new(Config.history.storage_path):joinpath("pasted_images")
+---@type Path
+local paste_directory = nil
+
+---@return Path
+local function get_paste_directory()
+  if paste_directory then
+    return paste_directory
+  end
+  paste_directory = Path:new(Config.history.storage_path):joinpath("pasted_images")
+  return paste_directory
+end
 
 M.setup = function()
-  if not M.paste_directory:exists() then
-    M.paste_directory:mkdir({ parent = true })
+  get_paste_directory()
+
+  if not paste_directory:exists() then
+    paste_directory:mkdir({ parent = true })
   end
 end
 
@@ -30,10 +42,7 @@ return setmetatable(M, {
     local impl = require("avante.clipboard." .. os_mapping)
     if impl[k] ~= nil then
       return impl[k]
-    elseif t[k] ~= nil then
-      return t[k]
-    else
-      error("Failed to find clipboard implementation for " .. os_mapping)
     end
+    return t[k]
   end,
 })
