@@ -41,9 +41,9 @@ H.commands = function()
 end
 
 H.keymaps = function()
-  vim.keymap.set({ "n", "v" }, Config.mappings.ask, M.toggle, { noremap = true })
-  vim.keymap.set("v", Config.mappings.edit, M.edit, { noremap = true })
-  vim.keymap.set("n", Config.mappings.refresh, M.refresh, { noremap = true })
+  vim.keymap.set({ "n", "v" }, Config.mappings.ask, M.toggle, { noremap = true, desc = "avante: Ask" })
+  vim.keymap.set("v", Config.mappings.edit, M.edit, { noremap = true, desc = "avante: Edit" })
+  vim.keymap.set("n", Config.mappings.refresh, M.refresh, { noremap = true, desc = "avante: Refresh" })
 
   Utils.toggle_map("n", Config.mappings.toggle.debug, {
     name = "debug",
