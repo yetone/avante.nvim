@@ -96,11 +96,27 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
   mode = mode or "planning"
   local provider = Config.provider
 
+  -- Check if the question contains an image path
+  local image_path = nil
+  local original_question = question
+  if question:match("image: ") then
+    local lines = vim.split(question, "\n")
+    for i, line in ipairs(lines) do
+      if line:match("^image: ") then
+        image_path = line:gsub("^image: ", "")
+        table.remove(lines, i)
+        original_question = table.concat(lines, "\n")
+        break
+      end
+    end
+  end
+
   ---@type AvantePromptOptions
   local code_opts = {
     base_prompt = mode == "planning" and planning_mode_prompt or editing_mode_prompt,
     system_prompt = system_prompt,
-    question = question,
+    question = original_question,
+    image_path = image_path,
     code_lang = code_lang,
     code_content = code_content,
     selected_code_content = selected_content_content,
@@ -186,13 +202,6 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
           if not completed then
             completed = true
             on_complete("API request failed with status " .. result.status .. ". Body: " .. vim.inspect(result.body))
-          end
-        end)
-      else
-        vim.schedule(function()
-          if not completed then
-            completed = true
-            on_complete(nil)
           end
         end)
       end

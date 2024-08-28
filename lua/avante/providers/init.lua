@@ -12,6 +12,7 @@ local Dressing = require("avante.ui.dressing")
 ---@field base_prompt AvanteBasePrompt
 ---@field system_prompt AvanteSystemPrompt
 ---@field question string
+---@field image_path? string
 ---@field code_lang string
 ---@field code_content string
 ---@field selected_code_content? string
