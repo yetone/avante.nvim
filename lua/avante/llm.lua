@@ -77,6 +77,7 @@ Your task is to modify the provided code according to the user's request. Follow
 7. Do not omit any parts of the code, even if they are unchanged.
 8. Maintain the SAME indentation in the returned code as in the source code
 9. Do NOT include three backticks: ```
+10. Only return code part, do NOT return the context part!
 
 Remember: Your response should contain nothing but ONLY the modified code, ready to be used as a direct replacement for the original file.
 ]]
@@ -136,6 +137,8 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
     active_job = nil
   end
 
+  local completed = false
+
   active_job = curl.post(spec.url, {
     headers = spec.headers,
     proxy = spec.proxy,
@@ -143,6 +146,7 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
     body = vim.json.encode(spec.body),
     stream = function(err, data, _)
       if err then
+        completed = true
         on_complete(err)
         return
       end
@@ -168,6 +172,7 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
       end)
     end,
     on_error = function(err)
+      completed = true
       on_complete(err)
     end,
     callback = function(result)
@@ -177,6 +182,19 @@ M.stream = function(question, code_lang, code_content, selected_content_content,
         else
           Utils.error("API request failed with status " .. result.status, { once = true, title = "Avante" })
         end
+        vim.schedule(function()
+          if not completed then
+            completed = true
+            on_complete("API request failed with status " .. result.status .. ". Body: " .. vim.inspect(result.body))
+          end
+        end)
+      else
+        vim.schedule(function()
+          if not completed then
+            completed = true
+            on_complete(nil)
+          end
+        end)
       end
       active_job = nil
     end,
