@@ -3,8 +3,10 @@ local Utils = require("avante.utils")
 ---@class AvanteClipboard
 local M = {}
 
+---@alias DarwinClipboardCommand "pngpaste" | "osascript"
 M.clip_cmd = nil
 
+---@return DarwinClipboardCommand
 M.get_clip_cmd = function()
   if M.clip_cmd then
     return M.clip_cmd
@@ -34,7 +36,31 @@ M.has_content = function()
   return false
 end
 
-M.get_content = function()
+M.save_content = function(filepath)
+  local cmd = M.get_clip_cmd()
+  ---@type vim.SystemCompleted
+  local output
+
+  if cmd == "pngpaste" then
+    output = Utils.shell_run(('pngpaste - > "%s"'):format(filepath))
+    return output.code == 0
+  elseif cmd == "osascript" then
+    output = Utils.shell_run(
+      string.format(
+        [[osascript -e 'set theFile to (open for access POSIX file "%s" with write permission)' ]]
+          .. [[-e 'try' -e 'write (the clipboard as «class PNGf») to theFile' -e 'end try' ]]
+          .. [[-e 'close access theFile' -e 'do shell script "cat %s > %s"']],
+        filepath,
+        filepath,
+        filepath
+      )
+    )
+    return output.code == 0
+  end
+  return false
+end
+
+M.get_base64_content = function()
   local cmd = M.get_clip_cmd()
   ---@type vim.SystemCompleted
   local output

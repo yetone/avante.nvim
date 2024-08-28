@@ -50,7 +50,7 @@ M.parse_message = function(opts)
       source = {
         type = "base64",
         media_type = "image/png",
-        data = Clipboard.get_content(),
+        data = Clipboard.get_base64_content(),
       },
     })
   end

@@ -30,7 +30,23 @@ M.has_content = function()
   return false
 end
 
-M.get_content = function()
+M.save_content = function(filepath)
+  local cmd = M.get_clip_cmd()
+  ---@type vim.SystemCompleted
+  local output
+
+  if cmd == "powershell.exe" then
+    output = Utils.shell_run(
+      ("Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.Clipboard]::GetImage().Save('%s')"):format(
+        filepath
+      )
+    )
+    return output.code == 0
+  end
+  return false
+end
+
+M.get_base64_content = function()
   local cmd = M.get_clip_cmd()
   ---@type vim.SystemCompleted
   local output
