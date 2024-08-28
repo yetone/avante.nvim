@@ -264,6 +264,7 @@ function M.setup(opts)
   require("avante.highlights").setup()
   require("avante.diff").setup()
   require("avante.providers").setup()
+  require("avante.clipboard").setup()
 
   -- setup helpers
   H.autocmds()

@@ -61,17 +61,20 @@ M.get_user_message = function(opts)
 end
 
 M.parse_message = function(opts)
-  local user_content = {}
+  ---@type string | OpenAIMessage[]
+  local user_content
   if Config.behaviour.support_paste_from_clipboard and Clipboard.has_content() then
+    user_content = {}
     table.insert(user_content, {
       type = "image_url",
       image_url = {
-        url = "data:image/png;base64," .. Clipboard.get_content(),
+        url = "data:image/png;base64," .. Clipboard.get_base64_content(),
       },
     })
+    table.insert(user_content, { type = "text", text = M.get_user_message(opts) })
+  else
+    user_content = M.get_user_message(opts)
   end
-
-  table.insert(user_content, { type = "text", text = M.get_user_message(opts) })
 
   return {
     { role = "system", content = opts.system_prompt },

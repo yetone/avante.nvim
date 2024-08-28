@@ -37,7 +37,22 @@ M.has_content = function()
   return false
 end
 
-M.get_content = function()
+M.save_content = function(filepath)
+  local cmd = M.get_clip_cmd()
+  ---@type vim.SystemCompleted
+  local output
+
+  if cmd == "xclip" then
+    output = Utils.shell_run(('xclip -selection clipboard -o -t image/png > "%s"'):format(filepath))
+    return output.code == 0
+  elseif cmd == "wl-paste" then
+    output = Utils.shell_run(('wl-paste --type image/png > "%s"'):format(filepath))
+    return output.code == 0
+  end
+  return false
+end
+
+M.get_base64_content = function()
   local cmd = M.get_clip_cmd()
   ---@type vim.SystemCompleted
   local output

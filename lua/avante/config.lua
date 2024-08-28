@@ -83,6 +83,10 @@ M.defaults = {
   },
   history = {
     storage_path = vim.fn.stdpath("state") .. "/avante",
+    paste = {
+      extension = "png",
+      filename = "pasted-%Y-%m-%d-%H-%M-%S",
+    },
   },
   highlights = {
     ---@type AvanteConflictHighlights
