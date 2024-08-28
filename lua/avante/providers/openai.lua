@@ -96,7 +96,7 @@ M.parse_response = function(data_stream, _, opts)
         opts.on_complete(nil)
       elseif choice.delta.content then
         if choice.delta.content ~= vim.NIL then
-            opts.on_chunk(choice.delta.content)
+          opts.on_chunk(choice.delta.content)
         end
       end
     end
