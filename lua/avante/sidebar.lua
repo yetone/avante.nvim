@@ -427,7 +427,12 @@ function Sidebar:render_input()
     ---@diagnostic disable-next-line: undefined-global
     icon, _, _ = MiniIcons.get("filetype", filetype)
   else
-    icon = require("nvim-web-devicons").get_icon_by_filetype(filetype, {})
+    local ok, devicons = pcall(require, "nvim-web-devicons")
+    if ok then
+      icon = devicons.get_icon_by_filetype(filetype, {})
+    else
+      icon = ""
+    end
   end
 
   local code_file_fullpath = api.nvim_buf_get_name(self.code.bufnr)
