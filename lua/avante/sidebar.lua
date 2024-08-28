@@ -1008,6 +1008,8 @@ function Sidebar:create_selected_code()
   end
 end
 
+local hint_window = nil
+
 function Sidebar:create_input()
   if self.input then
     self.input:unmount()
@@ -1227,8 +1229,6 @@ function Sidebar:create_input()
       end
     end,
   })
-
-  local hint_window = nil
 
   -- Close the floating window
   local function close_hint()
