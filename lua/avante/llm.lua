@@ -77,9 +77,10 @@ Your task is to modify the provided code according to the user's request. Follow
 7. Do not omit any parts of the code, even if they are unchanged.
 8. Maintain the SAME indentation in the returned code as in the source code
 9. When suggesting modifications:
-   a. Please keep your suggested code changes minimal, and do not include irrelevant lines in the code snippet.
-   b. Ensure that the modified code has the same indentation as the original code.
-   c. Provide the exact code snippet to be replaced using this format:
+   a. Please keep your suggested code changes minimal, and only append the diff between your suggestion versus what is PROVIDED.
+   b. Please make sure NOT TO generate CODE BLOCK when suggesting diff.
+   c. Ensure that the modified code has the SAME indentation as the original.
+   d. Provide the exact code snippet to be replaced using this format:
 
 {{modified_code}}
 
