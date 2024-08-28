@@ -45,24 +45,8 @@ H.keymaps = function()
   vim.keymap.set("v", Config.mappings.edit, M.edit, { noremap = true, desc = "avante: Edit" })
   vim.keymap.set("n", Config.mappings.refresh, M.refresh, { noremap = true, desc = "avante: Refresh" })
 
-  Utils.toggle_map("n", Config.mappings.toggle.debug, {
-    name = "debug",
-    get = function()
-      return Config.debug
-    end,
-    set = function(state)
-      Config.override({ debug = state })
-    end,
-  })
-  Utils.toggle_map("n", Config.mappings.toggle.hint, {
-    name = "hint",
-    get = function()
-      return Config.hints.enabled
-    end,
-    set = function(state)
-      Config.override({ hints = { enabled = state } })
-    end,
-  })
+  vim.keymap.set("n", Config.mappings.toggle.debug, M.toggle_debug, { desc = "toggle(avante): debug" })
+  vim.keymap.set("n", Config.mappings.toggle.hint, M.toggle_hint, { desc = "toggle(avante): hint" })
 end
 
 H.signs = function()
@@ -165,6 +149,26 @@ function M._init(id)
   M.current = { sidebar = sidebar, selection = selection }
   return M
 end
+
+M.toggle_debug = Utils.toggle({
+  name = "debug",
+  get = function()
+    return Config.debug
+  end,
+  set = function(state)
+    Config.override({ debug = state })
+  end,
+})
+
+M.toggle_hint = Utils.toggle({
+  name = "hint",
+  get = function()
+    return Config.hints.enabled
+  end,
+  set = function(state)
+    Config.override({ hints = { enabled = state } })
+  end,
+})
 
 M.toggle = function()
   local sidebar, _ = M._get()
