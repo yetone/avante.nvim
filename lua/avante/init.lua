@@ -192,6 +192,10 @@ M.refresh = function()
   end
   local curbuf = vim.api.nvim_get_current_buf()
 
+  if not sidebar.result then
+    return
+  end
+
   local focused = sidebar.result.bufnr == curbuf or sidebar.input.bufnr == curbuf
   if focused or not sidebar:is_open() then
     return
