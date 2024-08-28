@@ -79,7 +79,6 @@ local Dressing = require("avante.ui.dressing")
 ---
 ---@class avante.Providers
 ---@field openai AvanteProviderFunctor
----@field copilot AvanteProviderFunctor
 ---@field claude AvanteProviderFunctor
 ---@field azure AvanteProviderFunctor
 ---@field gemini AvanteProviderFunctor
@@ -312,7 +311,7 @@ function M.refresh(provider)
   Utils.info("Switch to provider: " .. provider, { once = true, title = "Avante" })
 end
 
-local default_providers = { "openai", "claude", "azure", "gemini", "copilot" }
+local default_providers = { "openai", "claude", "azure", "gemini" }
 
 ---@private
 M.commands = function()
@@ -369,7 +368,14 @@ end
 ---@param provider Provider
 ---@return AvanteProviderFunctor
 M.get_config = function(provider)
-  local cur = Config.get_provider(provider or Config.provider)
+  provider = provider or Config.provider
+  if provider == "copilot" then
+    Utils.error(
+      "Sorry! We no longer support the copilot provider! Please use other providers!",
+      { once = true, title = "Avante" }
+    )
+  end
+  local cur = Config.get_provider(provider)
   return type(cur) == "function" and cur() or cur
 end
 

@@ -9,8 +9,8 @@ M.defaults = {
   debug = false,
   ---Currently, default supported providers include "claude", "openai", "azure", "gemini"
   ---For custom provider, see README.md
-  ---@alias Provider "openai" | "claude" | "azure" | "copilot" | "gemini" | string
-  provider = "claude",
+  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | string
+  provider = "claude", -- Only recommend using Claude
   ---@type AvanteSupportedProvider
   openai = {
     endpoint = "https://api.openai.com/v1",
@@ -19,16 +19,6 @@ M.defaults = {
     temperature = 0,
     max_tokens = 4096,
     ["local"] = false,
-  },
-  ---@type AvanteSupportedProvider
-  copilot = {
-    endpoint = "https://api.githubcopilot.com",
-    model = "gpt-4o-2024-05-13",
-    proxy = nil, -- [protocol://]host[:port] Use this proxy
-    allow_insecure = false, -- Allow insecure server connections
-    timeout = 30000, -- Timeout in milliseconds
-    temperature = 0,
-    max_tokens = 4096,
   },
   ---@type AvanteAzureProvider
   azure = {

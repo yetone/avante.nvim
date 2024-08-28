@@ -72,35 +72,6 @@ end
 H.augroup = api.nvim_create_augroup("avante_autocmds", { clear = true })
 
 H.autocmds = function()
-  local ok, LazyConfig = pcall(require, "lazy.core.config")
-
-  if ok then
-    local name = "avante.nvim"
-    local load_path = function()
-      require("tiktoken_lib").load()
-      require("avante.tiktoken").setup("gpt-4o")
-    end
-
-    if LazyConfig.plugins[name] and LazyConfig.plugins[name]._.loaded then
-      vim.schedule(load_path)
-    else
-      api.nvim_create_autocmd("User", {
-        pattern = "LazyLoad",
-        callback = function(event)
-          if event.data == name then
-            load_path()
-            return true
-          end
-        end,
-      })
-    end
-
-    api.nvim_create_autocmd("User", {
-      pattern = "VeryLazy",
-      callback = load_path,
-    })
-  end
-
   api.nvim_create_autocmd("TabEnter", {
     group = H.augroup,
     pattern = "*",

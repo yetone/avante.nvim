@@ -23,7 +23,6 @@ Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
 {
   "yetone/avante.nvim",
   event = "VeryLazy",
-  build = "make", -- This is Optional, only if you want to use tiktoken_core to calculate tokens count
   opts = {
     -- add any opts here
   },
@@ -50,7 +49,6 @@ For Windows users, change the build command to the following:
 {
   "yetone/avante.nvim",
   event = "VeryLazy",
-  build = "powershell -ExecutionPolicy Bypass -File Build-LuaTiktoken.ps1", -- This is Optional, only if you want to use tiktoken_core to calculate tokens count
   -- rest of the config
 }
 ```
@@ -58,11 +56,6 @@ For Windows users, change the build command to the following:
 > [!IMPORTANT]
 >
 > `avante.nvim` is currently only compatible with Neovim 0.10.0 or later. Please ensure that your Neovim version meets these requirements before proceeding.
-
-> [!IMPORTANT]
->
-> If your neovim doesn't use LuaJIT, then change `build` to `make lua51`. By default running make will install luajit.
-> Avante.nvim will now requires cargo to build tiktoken_core from source.
 
 > [!NOTE]
 >
@@ -85,8 +78,8 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
 
 ```lua
 {
-  ---@alias Provider "openai" | "claude" | "azure"  | "copilot" | "cohere" | [string]
-  provider = "claude",
+  ---@alias Provider "openai" | "claude" | "azure" | "cohere" | [string]
+  provider = "claude", -- Only recommend using Claude
   claude = {
     endpoint = "https://api.anthropic.com",
     model = "claude-3-5-sonnet-20240620",
@@ -150,8 +143,15 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 
 > [!IMPORTANT]
 >
-> Avante will only support OpenAI (and its variants including copilot and azure), and Claude out-of-the-box due to its high code quality generation.
+> Avante will only support Claude, and OpenAI (and its variants including azure)out-of-the-box due to its high code quality generation.
 > For all OpenAI-compatible providers, see [wiki](https://github.com/yetone/avante.nvim/wiki) for more details.
+
+> [!IMPORTANT]
+>
+> Due to the poor performance of other models, avante.nvim only recommends using the claude-3.5-sonnet model.
+> All features can only be guaranteed to work properly on the claude-3.5-sonnet model.
+> We do not accept changes to the code or prompts to accommodate other models. Otherwise, it will greatly increase our maintenance costs.
+> We hope everyone can understand. Thank you!
 
 > [!IMPORTANT]
 >
@@ -248,7 +248,7 @@ We would like to express our heartfelt gratitude to the contributors of the foll
 | Nvim Plugin | Functionality | Where did we use |
 | --- | --- | --- |
 | [git-conflict.nvim](https://github.com/akinsho/git-conflict.nvim) | Diff comparison functionality | https://github.com/yetone/avante.nvim/blob/main/lua/avante/diff.lua |
-| [CopilotChat.nvim](https://github.com/CopilotC-Nvim/CopilotChat.nvim) | Request logic for Copilot's API | https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/copilot.lua |
+| [ChatGPT.nvim](https://github.com/jackMort/ChatGPT.nvim) | Calculation of tokens count | https://github.com/yetone/avante.nvim/blob/main/lua/avante/utils/tokens.lua |
 
 The high quality and ingenuity of these projects' source code have been immensely beneficial throughout our development process. We extend our sincere thanks and respect to the authors and contributors of these projects. It is the selfless dedication of the open-source community that drives projects like avante.nvim forward.
 
