@@ -39,21 +39,21 @@ M.parse_message = function(opts)
     table.insert(message_content, selected_code_obj)
   end
 
-  table.insert(message_content, {
-    type = "text",
-    text = string.format("<question>%s</question>", opts.question),
-  })
-
-  if Config.behaviour.support_paste_from_clipboard and Clipboard.has_content() then
+  if Clipboard.support_paste_image() and opts.image_path then
     table.insert(message_content, {
       type = "image",
       source = {
         type = "base64",
         media_type = "image/png",
-        data = Clipboard.get_base64_content(),
+        data = Clipboard.get_base64_content(opts.image_path),
       },
     })
   end
+
+  table.insert(message_content, {
+    type = "text",
+    text = string.format("<question>%s</question>", opts.question),
+  })
 
   local user_prompt = opts.base_prompt
 

@@ -1,6 +1,8 @@
 ---NOTE: user will be merged with defaults and
 ---we add a default var_accessor for this table to config values.
----
+
+local Utils = require("avante.utils")
+
 ---@class avante.CoreConfig: avante.Config
 local M = {}
 
@@ -65,7 +67,7 @@ M.defaults = {
   ---1. auto_apply_diff_after_generation: Whether to automatically apply diff after LLM response.
   ---                                     This would simulate similar behaviour to cursor. Default to false.
   ---2. auto_set_highlight_group: Whether to automatically set the highlight group for the current line. Default to true.
-  ---3. support_paste_from_clipboard: Whether to support pasting image from clipboard. Note that we will override vim.paste for this. Default to false.
+  ---3. support_paste_from_clipboard: Whether to support pasting image from clipboard. This will be determined automatically based whether img-clip is available or not.
   behaviour = {
     auto_set_highlight_group = true,
     auto_apply_diff_after_generation = false,
@@ -151,7 +153,17 @@ M.hints = {}
 
 ---@param opts? avante.Config
 function M.setup(opts)
-  M.options = vim.tbl_deep_extend("force", M.defaults, opts or {})
+  M.options = vim.tbl_deep_extend(
+    "force",
+    M.defaults,
+    opts or {},
+    ---@type avante.Config
+    {
+      behaviour = {
+        support_paste_from_clipboard = M.support_paste_image(),
+      },
+    }
+  )
 
   M.diff = vim.tbl_deep_extend(
     "force",
@@ -166,6 +178,14 @@ function M.setup(opts)
       M.options.vendors[k] = type(v) == "function" and v() or v
     end
   end
+end
+
+M.support_paste_image = function()
+  local supported = Utils.has("img-clip.nvim")
+  if not supported then
+    Utils.warn("img-clip.nvim is not installed. Pasting image will be disabled.", { once = true })
+  end
+  return supported
 end
 
 ---@param opts? avante.Config
