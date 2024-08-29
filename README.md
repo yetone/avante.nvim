@@ -117,7 +117,7 @@ require('avante').setup ({
 
 > [!IMPORTANT]
 >
-> `avante.nvim` is currently only compatible with Neovim 0.10.0 or later. Please ensure that your Neovim version meets these requirements before proceeding.
+> `avante.nvim` is currently only compatible with Neovim 0.10.1 or later. Please ensure that your Neovim version meets these requirements before proceeding.
 
 > [!NOTE]
 >
