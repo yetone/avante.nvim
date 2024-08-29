@@ -7,11 +7,10 @@ local Utils = require("avante.utils")
 local M = {}
 
 ---@class avante.Config
+---@field silent_warning boolean will be determined from debug
 M.defaults = {
   debug = false,
-  ---Currently, default supported providers include "claude", "openai", "azure", "gemini"
-  ---For custom provider, see README.md
-  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | string
+  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | string
   provider = "claude", -- Only recommend using Claude
   ---@type AvanteSupportedProvider
   openai = {
@@ -170,6 +169,10 @@ function M.setup(opts)
       },
     }
   )
+  if not M.options.silent_warning then
+    -- set silent_warning to true if debug is false
+    M.options.silent_warning = not M.options.debug
+  end
 
   M.diff = vim.tbl_deep_extend(
     "force",
@@ -186,18 +189,15 @@ function M.setup(opts)
   end
 end
 
-M.support_paste_image = function()
-  local supported = Utils.has("img-clip.nvim") or Utils.has("img-clip")
-  if not supported then
-    Utils.warn("img-clip.nvim is not installed. Pasting image will be disabled.", { once = true })
-  end
-  return supported
-end
-
 ---@param opts? avante.Config
 function M.override(opts)
   opts = opts or {}
   M.options = vim.tbl_deep_extend("force", M.options, opts)
+  if not M.options.silent_warning then
+    -- set silent_warning to true if debug is false
+    M.options.silent_warning = not M.options.debug
+  end
+
   M.diff = vim.tbl_deep_extend(
     "force",
     {},
@@ -205,6 +205,12 @@ function M.override(opts)
     { mappings = M.options.mappings.diff, highlights = M.options.highlights.diff }
   )
   M.hints = vim.tbl_deep_extend("force", {}, M.options.hints)
+
+  if next(M.options.vendors) ~= nil then
+    for k, v in pairs(M.options.vendors) do
+      M.options.vendors[k] = type(v) == "function" and v() or v
+    end
+  end
 end
 
 M = setmetatable(M, {
@@ -215,7 +221,15 @@ M = setmetatable(M, {
   end,
 })
 
-function M.get_window_width()
+M.support_paste_image = function()
+  local supported = Utils.has("img-clip.nvim") or Utils.has("img-clip")
+  if not supported then
+    Utils.warn("img-clip.nvim is not installed. Pasting image will be disabled.", { once = true })
+  end
+  return supported
+end
+
+M.get_window_width = function()
   return math.ceil(vim.o.columns * (M.windows.width / 100))
 end
 
@@ -253,7 +267,7 @@ M.BASE_PROVIDER_KEYS = {
 }
 
 ---@return {width: integer, height: integer}
-function M.get_sidebar_layout_options()
+M.get_sidebar_layout_options = function()
   local width = M.get_window_width()
   local height = vim.o.lines
   return { width = width, height = height }
