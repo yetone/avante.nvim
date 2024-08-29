@@ -209,7 +209,6 @@ The following key bindings are available for use with `avante.nvim`:
 | <kbd>c</kbd><kbd>0</kbd> | choose none |
 | <kbd>c</kbd><kbd>b</kbd> | choose both |
 | <kbd>c</kbd><kbd>c</kbd> | choose cursor |
-| <kbd>c</kbd><kbd>0</kbd> | choose none |
 | <kbd>]</kbd><kbd>x</kbd> | move to previous conflict |
 | <kbd>[</kbd><kbd>x</kbd> | move to next conflict |
 | <kbd>[</kbd><kbd>[</kbd> | jump to previous codeblocks (results window) |
