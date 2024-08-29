@@ -26,6 +26,11 @@ Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
   opts = {
     -- add any opts here
   },
+  keys = { -- See https://github.com/yetone/avante.nvim/wiki#keymaps for more info
+    { "<leader>aa", function() require("avante.api").ask() end, desc = "avante: ask", mode = { "n", "v" } },
+    { "<leader>ar", function() require("avante.api").refresh() end, desc = "avante: refresh", mode = "v" },
+    { "<leader>ae", function() require("avante.api").edit() end, desc = "avante: edit", mode = { "n", "v" } },
+  },
   dependencies = {
     "stevearc/dressing.nvim",
     "nvim-lua/plenary.nvim",
@@ -94,9 +99,6 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     max_tokens = 4096,
   },
   mappings = {
-    ask = "<leader>aa",
-    edit = "<leader>ae",
-    refresh = "<leader>ar",
     --- @class AvanteConflictMappings
     diff = {
       ours = "co",
@@ -112,10 +114,6 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     submit = {
       normal = "<CR>",
       insert = "<C-s>",
-    },
-    toggle = {
-      debug = "<leader>ad",
-      hint = "<leader>ah",
     },
   },
   hints = { enabled = true },
@@ -207,6 +205,11 @@ The following key bindings are available for use with `avante.nvim`:
 | <kbd>[</kbd><kbd>x</kbd> | move to next conflict |
 | <kbd>[</kbd><kbd>[</kbd> | jump to previous codeblocks (results window) |
 | <kbd>]</kbd><kbd>]</kbd> | jump to next codeblocks (results windows) |
+
+> [!NOTE]
+>
+> If you are using `lazy.nvim`, then all keymap here will be safely set, meaning if `<leader>aa` is already binded, then avante.nvim won't bind this mapping.
+> In this case, user will be responsible for setting up their own. See [notes on keymaps](https://github.com/yetone/avante.nvim/wiki#keymaps) for more details.
 
 ## Highlight Groups
 
