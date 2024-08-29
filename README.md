@@ -17,11 +17,14 @@ https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd
 
 ## Installation
 
-### Lazy
 
-Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
+<details>
 
-```lua
+  <summary>Lazy</summary>
+
+  Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
+
+  ```lua
 {
   "yetone/avante.nvim",
   event = "VeryLazy",
@@ -67,9 +70,13 @@ Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
     },
   },
 }
-```
+  ```
 
-### or with Plug
+</details>
+
+<details>
+
+  <summary>vim-plug</summary>
 
 ```vim
 
@@ -86,7 +93,11 @@ Plug 'HakonHarnes/img-clip.nvim'
 Plug 'yetone/avante.nvim'
 ```
 
-and Lua:
+</details>
+
+<details>
+
+  <summary>Lua</summary>
 
 ```lua
 -- deps:
@@ -101,7 +112,8 @@ require('avante').setup ({
 })
 ```
 
-### Install Notes
+</details>
+
 
 > [!IMPORTANT]
 >
@@ -142,7 +154,6 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
       ours = "co",
       theirs = "ct",
       all_theirs = "ca",
-      none = "c0",
       both = "cb",
       cursor = "cc",
       next = "]x",
@@ -175,7 +186,6 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
   },
   --- @class AvanteConflictUserConfig
   diff = {
-    debug = false,
     autojump = true,
     ---@type string | fun(): any
     list_opener = "copen",
