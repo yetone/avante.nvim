@@ -509,16 +509,15 @@ function M.setup()
 
   local augroup = api.nvim_create_augroup(AUGROUP_NAME, { clear = true })
 
-  local is_inlay_enable = vim.lsp.inlay_hint and vim.lsp.inlay_hint.is_enabled() or false
-  local previous_inlay = nil
+  local previous_inlay_enabled = nil
 
   api.nvim_create_autocmd("User", {
     group = augroup,
     pattern = "AvanteConflictDetected",
     callback = function(ev)
       vim.diagnostic.enable(false, { bufnr = ev.buf })
-      if is_inlay_enable then
-        previous_inlay = vim.lsp.inlay_hint.is_enabled({ bufnr = ev.buf })
+      if vim.lsp.inlay_hint then
+        previous_inlay_enabled = vim.lsp.inlay_hint.is_enabled({ bufnr = ev.buf })
         vim.lsp.inlay_hint.enable(false, { bufnr = ev.buf })
       end
       setup_buffer_mappings(ev.buf)
@@ -530,9 +529,9 @@ function M.setup()
     pattern = "AvanteConflictResolved",
     callback = function(ev)
       vim.diagnostic.enable(true, { bufnr = ev.buf })
-      if is_inlay_enable then
-        vim.lsp.inlay_hint.enable(previous_inlay, { bufnr = ev.buf })
-        previous_inlay = nil
+      if vim.lsp.inlay_hint and previous_inlay_enabled ~= nil then
+        vim.lsp.inlay_hint.enable(previous_inlay_enabled, { bufnr = ev.buf })
+        previous_inlay_enabled = nil
       end
       clear_buffer_mappings(ev.buf)
     end,
