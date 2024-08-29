@@ -39,8 +39,9 @@ M.setup = function()
   end
 end
 
----@param line string
+---@param line? string
 M.paste_image = function(line)
+  line = line or nil
   if not Config.support_paste_image() then
     return false
   end
