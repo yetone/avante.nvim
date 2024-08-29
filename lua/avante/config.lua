@@ -66,10 +66,13 @@ M.defaults = {
   ---Specify the behaviour of avante.nvim
   ---1. auto_apply_diff_after_generation: Whether to automatically apply diff after LLM response.
   ---                                     This would simulate similar behaviour to cursor. Default to false.
-  ---2. auto_set_highlight_group: Whether to automatically set the highlight group for the current line. Default to true.
-  ---3. support_paste_from_clipboard: Whether to support pasting image from clipboard. This will be determined automatically based whether img-clip is available or not.
+  ---2. auto_set_keymaps                : Whether to automatically set the keymap for the current line. Default to true.
+  ---                                     Note that avante will safely set these keymap. See https://github.com/yetone/avante.nvim/wiki#keymaps-and-api-i-guess for more details.
+  ---3. auto_set_highlight_group        : Whether to automatically set the highlight group for the current line. Default to true.
+  ---4. support_paste_from_clipboard    : Whether to support pasting image from clipboard. This will be determined automatically based whether img-clip is available or not.
   behaviour = {
     auto_set_highlight_group = true,
+    auto_set_keymaps = true,
     auto_apply_diff_after_generation = false,
     support_paste_from_clipboard = false,
   },

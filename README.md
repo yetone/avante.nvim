@@ -23,13 +23,14 @@ Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
 {
   "yetone/avante.nvim",
   event = "VeryLazy",
+  lazy = false,
   opts = {
     -- add any opts here
   },
-  keys = { -- See https://github.com/yetone/avante.nvim/wiki#keymaps for more info
+  keys = {
     { "<leader>aa", function() require("avante.api").ask() end, desc = "avante: ask", mode = { "n", "v" } },
-    { "<leader>ar", function() require("avante.api").refresh() end, desc = "avante: refresh", mode = "v" },
-    { "<leader>ae", function() require("avante.api").edit() end, desc = "avante: edit", mode = { "n", "v" } },
+    { "<leader>ar", function() require("avante.api").refresh() end, desc = "avante: refresh" },
+    { "<leader>ae", function() require("avante.api").edit() end, desc = "avante: edit", mode = "v" },
   },
   dependencies = {
     "stevearc/dressing.nvim",
@@ -211,7 +212,7 @@ The following key bindings are available for use with `avante.nvim`:
 > [!NOTE]
 >
 > If you are using `lazy.nvim`, then all keymap here will be safely set, meaning if `<leader>aa` is already binded, then avante.nvim won't bind this mapping.
-> In this case, user will be responsible for setting up their own. See [notes on keymaps](https://github.com/yetone/avante.nvim/wiki#keymaps) for more details.
+> In this case, user will be responsible for setting up their own. See [notes on keymaps](https://github.com/yetone/avante.nvim/wiki#keymaps-and-api-i-guess) for more details.
 
 ## Highlight Groups
 
