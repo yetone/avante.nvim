@@ -106,6 +106,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     diff = {
       ours = "co",
       theirs = "ct",
+      all_theirs = "ca",
       both = "cb",
       cursor = "cc",
       next = "]x",

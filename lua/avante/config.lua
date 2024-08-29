@@ -95,6 +95,7 @@ M.defaults = {
     diff = {
       ours = "co",
       theirs = "ct",
+      all_theirs = "ca",
       none = "c0",
       both = "cb",
       cursor = "cc",

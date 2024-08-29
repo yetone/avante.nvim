@@ -26,7 +26,7 @@ local map = vim.keymap.set
 -- Types
 -----------------------------------------------------------------------------//
 
----@alias ConflictSide "'ours'"|"'theirs'"|"'both'"|"'cursor'"|"'base'"|"'none'"
+---@alias ConflictSide "'ours'"|"'theirs'"|"'all_theirs'"|"'both'"|"'cursor'"|"'base'"|"'none'"
 
 --- @class AvanteConflictHighlights
 --- @field current string
@@ -67,6 +67,7 @@ local map = vim.keymap.set
 local SIDES = {
   OURS = "ours",
   THEIRS = "theirs",
+  ALL_THEIRS = "all_theirs",
   BOTH = "both",
   BASE = "base",
   NONE = "none",
@@ -331,11 +332,11 @@ local function register_cursor_move_events(bufnr)
     end
 
     local hint = string.format(
-      "[<%s> for OURS, <%s> for THEIRS, <%s> for BOTH, <%s> for CURSOR, <%s> for PREV, <%s> for NEXT]",
+      "[<%s>: OURS, <%s>: THEIRS, <%s>: CURSOR, <%s>: ALL THEIRS, <%s>: PREV, <%s>: NEXT]",
       Config.diff.mappings.ours,
       Config.diff.mappings.theirs,
-      Config.diff.mappings.both,
       Config.diff.mappings.cursor,
+      Config.diff.mappings.all_theirs,
       Config.diff.mappings.prev,
       Config.diff.mappings.next
     )
@@ -424,6 +425,9 @@ local function set_commands()
   command("AvanteConflictChooseTheirs", function()
     M.choose("theirs")
   end, { nargs = 0 })
+  command("AvanteConflictChooseAllTheirs", function()
+    M.choose("all_theirs")
+  end, { nargs = 0 })
   command("AvanteConflictChooseBoth", function()
     M.choose("both")
   end, { nargs = 0 })
@@ -457,6 +461,12 @@ local function set_plug_mappings()
   map({ "n", "v" }, "<Plug>(git-conflict-both)", "<Cmd>AvanteConflictChooseBoth<CR>", opts("Choose Both"))
   map({ "n", "v" }, "<Plug>(git-conflict-none)", "<Cmd>AvanteConflictChooseNone<CR>", opts("Choose None"))
   map({ "n", "v" }, "<Plug>(git-conflict-theirs)", "<Cmd>AvanteConflictChooseTheirs<CR>", opts("Choose Theirs"))
+  map(
+    { "n", "v" },
+    "<Plug>(git-conflict-all-theirs)",
+    "<Cmd>AvanteConflictChooseAllTheirs<CR>",
+    opts("Choose All Theirs")
+  )
   map("n", "<Plug>(git-conflict-cursor)", "<Cmd>AvanteConflictChooseCursor<CR>", opts("Choose Cursor"))
   map("n", "<Plug>(git-conflict-next-conflict)", "<Cmd>AvanteConflictNextConflict<CR>", opts("Next Conflict"))
   map("n", "<Plug>(git-conflict-prev-conflict)", "<Cmd>AvanteConflictPrevConflict<CR>", opts("Previous Conflict"))
@@ -473,6 +483,7 @@ local function setup_buffer_mappings(bufnr)
   map({ "n", "v" }, Config.diff.mappings.both, "<Plug>(git-conflict-both)", opts("Choose Both"))
   map({ "n", "v" }, Config.diff.mappings.none, "<Plug>(git-conflict-none)", opts("Choose None"))
   map({ "n", "v" }, Config.diff.mappings.theirs, "<Plug>(git-conflict-theirs)", opts("Choose Theirs"))
+  map({ "n", "v" }, Config.diff.mappings.all_theirs, "<Plug>(git-conflict-all-theirs)", opts("Choose All Theirs"))
   map({ "v", "v" }, Config.diff.mappings.ours, "<Plug>(git-conflict-ours)", opts("Choose Ours"))
   map("n", Config.diff.mappings.cursor, "<Plug>(git-conflict-cursor)", opts("Choose Cursor"))
   -- map('V', Config.diff.mappings.ours, '<Plug>(git-conflict-ours)', opts('Choose Ours'))
@@ -637,30 +648,7 @@ function M.choose(side)
         return left and right
       end)
       while position ~= nil do
-        local lines = {}
-        if vim.tbl_contains({ SIDES.OURS, SIDES.THEIRS, SIDES.BASE }, side) then
-          local data = position[name_map[side]]
-          lines = Utils.get_buf_lines(data.content_start, data.content_end + 1)
-        elseif side == SIDES.BOTH then
-          local first = Utils.get_buf_lines(position.current.content_start, position.current.content_end + 1)
-          local second = Utils.get_buf_lines(position.incoming.content_start, position.incoming.content_end + 1)
-          lines = vim.list_extend(first, second)
-        elseif side == SIDES.NONE then
-          lines = {}
-        else
-          return
-        end
-
-        local pos_start = position.current.range_start < 0 and 0 or position.current.range_start
-        local pos_end = position.incoming.range_end + 1
-
-        api.nvim_buf_set_lines(0, pos_start, pos_end, false, lines)
-        api.nvim_buf_del_extmark(0, NAMESPACE, position.marks.incoming.label)
-        api.nvim_buf_del_extmark(0, NAMESPACE, position.marks.current.label)
-        if position.marks.ancestor.label then
-          api.nvim_buf_del_extmark(0, NAMESPACE, position.marks.ancestor.label)
-        end
-        parse_buffer(bufnr)
+        M.process_position(bufnr, side, position, false)
         position = find_position(bufnr, function(line, pos)
           local left = pos.current.range_start >= start - 1
           local right = pos.incoming.range_end <= finish + 1
@@ -678,6 +666,27 @@ function M.choose(side)
   if not position then
     return
   end
+  if side == SIDES.ALL_THEIRS then
+    ---@diagnostic disable-next-line: unused-local
+    local pos = find_position(bufnr, function(line, pos)
+      return true
+    end)
+    while pos ~= nil do
+      M.process_position(bufnr, "theirs", pos, false)
+      ---@diagnostic disable-next-line: unused-local
+      pos = find_position(bufnr, function(line, pos)
+        return true
+      end)
+    end
+  else
+    M.process_position(bufnr, side, position, true)
+  end
+end
+
+---@param side ConflictSide
+---@param position ConflictPosition
+---@param enable_autojump boolean
+function M.process_position(bufnr, side, position, enable_autojump)
   local lines = {}
   if vim.tbl_contains({ SIDES.OURS, SIDES.THEIRS, SIDES.BASE }, side) then
     local data = position[name_map[side]]
@@ -715,7 +724,7 @@ function M.choose(side)
     api.nvim_buf_del_extmark(0, NAMESPACE, position.marks.ancestor.label)
   end
   parse_buffer(bufnr)
-  if Config.diff.autojump then
+  if enable_autojump and Config.diff.autojump then
     M.find_next(side)
     vim.cmd([[normal! zz]])
   end
