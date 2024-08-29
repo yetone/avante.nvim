@@ -107,6 +107,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
       ours = "co",
       theirs = "ct",
       both = "cb",
+      cursor = "cc",
       next = "]x",
       prev = "[x",
     },
@@ -203,6 +204,7 @@ The following key bindings are available for use with `avante.nvim`:
 | <kbd>c</kbd><kbd>o</kbd> | choose ours |
 | <kbd>c</kbd><kbd>t</kbd> | choose theirs |
 | <kbd>c</kbd><kbd>b</kbd> | choose both |
+| <kbd>c</kbd><kbd>c</kbd> | choose cursor |
 | <kbd>c</kbd><kbd>0</kbd> | choose none |
 | <kbd>]</kbd><kbd>x</kbd> | move to previous conflict |
 | <kbd>[</kbd><kbd>x</kbd> | move to next conflict |
