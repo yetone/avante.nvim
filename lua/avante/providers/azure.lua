@@ -13,14 +13,7 @@ local M = {}
 
 M.api_key_name = "AZURE_OPENAI_API_KEY"
 
-M.parse_message = function(opts)
-  local user_content = O.get_user_message(opts)
-  return {
-    { role = "system", content = opts.system_prompt },
-    { role = "user", content = user_content },
-  }
-end
-
+M.parse_message = O.parse_message
 M.parse_response = O.parse_response
 
 M.parse_curl_args = function(provider, code_opts)
