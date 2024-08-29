@@ -61,16 +61,21 @@ H.keymaps = function()
     M.toggle.hint()
   end)
 
-  Utils.safe_keymap_set({ "n", "v" }, Config.mappings.ask, "<Plug>(AvanteAsk)", { desc = "avante: ask" })
-  Utils.safe_keymap_set("v", Config.mappings.edit, "<Plug>(AvanteEdit)", { desc = "avante: edit" })
-  Utils.safe_keymap_set("n", Config.mappings.refresh, "<Plug>(AvanteRefresh)", { desc = "avante: refresh" })
-  Utils.safe_keymap_set(
-    "n",
-    Config.mappings.toggle.debug,
-    "<Plug>(AvanteToggleDebug)",
-    { desc = "avante: toggle debug" }
-  )
-  Utils.safe_keymap_set("n", Config.mappings.toggle.hint, "<Plug>(AvanteToggleHint)", { desc = "avante: toggle hint" })
+  Utils.safe_keymap_set({ "n", "v" }, Config.mappings.ask, function()
+    M.ask()
+  end, { desc = "avante: ask" })
+  Utils.safe_keymap_set("v", Config.mappings.edit, function()
+    M.edit()
+  end, { desc = "avante: edit" })
+  Utils.safe_keymap_set("n", Config.mappings.refresh, function()
+    M.refresh()
+  end, { desc = "avante: refresh" })
+  Utils.safe_keymap_set("n", Config.mappings.toggle.debug, function()
+    M.toggle.debug()
+  end, { desc = "avante: toggle debug" })
+  Utils.safe_keymap_set("n", Config.mappings.toggle.hint, function()
+    M.toggle.hint()
+  end, { desc = "avante: toggle hint" })
 end
 
 ---@class ApiCaller

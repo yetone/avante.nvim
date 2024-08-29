@@ -98,12 +98,6 @@ M.toggle_wrap = function(toggle)
   }) --[[@as ToggleBind.wrap]]
 end
 
----@param lhs string
----@param toggle ToggleBind
-M.toggle_map = function(lhs, toggle)
-  M.safe_keymap_set("n", lhs, M.toggle_wrap(toggle), { desc = "toggle(avante): " .. toggle.name })
-end
-
 -- Wrapper around vim.keymap.set that will
 -- not create a keymap if a lazy key handler exists.
 -- It will also set `silent` to true by default.
