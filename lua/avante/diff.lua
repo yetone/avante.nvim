@@ -516,7 +516,7 @@ function M.setup()
     group = augroup,
     pattern = "AvanteConflictDetected",
     callback = function(ev)
-      vim.diagnostic.enable(false, { bufnr = ev.buf })
+      vim.diagnostic.enable(namespace_id, bufnr, opts)
       if is_inlay_enable then
         previous_inlay = vim.lsp.inlay_hint.is_enabled({ bufnr = ev.buf })
         vim.lsp.inlay_hint.enable(false, { bufnr = ev.buf })
@@ -529,7 +529,7 @@ function M.setup()
     group = AUGROUP_NAME,
     pattern = "AvanteConflictResolved",
     callback = function(ev)
-      vim.diagnostic.enable(true, { bufnr = ev.buf })
+      vim.diagnostic.enable(namespace_id, bufnr, opts)
       if is_inlay_enable then
         vim.lsp.inlay_hint.enable(previous_inlay, { bufnr = ev.buf })
         previous_inlay = nil
