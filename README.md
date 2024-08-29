@@ -79,9 +79,7 @@ Plug 'nvim-lua/plenary.nvim'
 Plug 'MunifTanjim/nui.nvim'
 
 " Optional deps
-Plug 'nvim-tree/nvim-web-devicons'
-" or
-"Plug 'echasnovski/mini.icons'
+Plug 'nvim-tree/nvim-web-devicons' "or Plug 'echasnovski/mini.icons'
 Plug 'HakonHarnes/img-clip.nvim'
 
 " Yay
@@ -99,7 +97,7 @@ require('render-markdown').setup ({
   -- use recommended settings from above
 })
 require('avante').setup ({
-  -- config here
+  -- Your config here!
 })
 ```
 
@@ -124,8 +122,7 @@ require('avante').setup ({
 > }
 > ```
 
-### Setup configuration
-Default setup configuration:
+### Default setup configuration
 
 _See [config.lua#L9](./lua/avante/config.lua) for the full config_
 
