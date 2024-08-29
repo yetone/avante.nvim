@@ -17,6 +17,8 @@ https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd
 
 ## Installation
 
+### Lazy
+
 Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
 
 ```lua
@@ -67,6 +69,41 @@ Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
 }
 ```
 
+### or with Plug
+
+```vim
+
+" Deps
+Plug 'stevearc/dressing.nvim'
+Plug 'nvim-lua/plenary.nvim'
+Plug 'MunifTanjim/nui.nvim'
+
+" Optional deps
+Plug 'nvim-tree/nvim-web-devicons'
+" or
+"Plug 'echasnovski/mini.icons'
+Plug 'HakonHarnes/img-clip.nvim'
+
+" Yay
+Plug 'yetone/avante.nvim'
+```
+
+and Lua:
+
+```lua
+-- deps:
+require('img-clip').setup ({
+  -- use recommended settings from above
+})
+require('render-markdown').setup ({
+  -- use recommended settings from above
+})
+require('avante').setup ({
+  -- config here
+})
+```
+
+### Install Notes
 
 > [!IMPORTANT]
 >
@@ -75,7 +112,7 @@ Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
 > [!NOTE]
 >
 > `render-markdown.nvim` is an optional dependency that is used to render the markdown content of the chat history. Make sure to also include `Avante` as a filetype
-> to its setup:
+> to its setup (e.g. via Lazy):
 >
 > ```lua
 > {
@@ -87,6 +124,7 @@ Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
 > }
 > ```
 
+### Setup configuration
 Default setup configuration:
 
 _See [config.lua#L9](./lua/avante/config.lua) for the full config_
