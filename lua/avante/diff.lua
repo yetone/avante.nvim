@@ -26,7 +26,7 @@ local map = vim.keymap.set
 -- Types
 -----------------------------------------------------------------------------//
 
----@alias ConflictSide "'ours'"|"'theirs'"|"'both'"|"'cursor'"|"'base'"|"'none'"
+---@alias ConflictSide "'ours'"|"'theirs'"|"'both'"|"'base'"|"'none'"
 
 --- @class AvanteConflictHighlights
 --- @field current string
@@ -70,7 +70,6 @@ local SIDES = {
   BOTH = "both",
   BASE = "base",
   NONE = "none",
-  CURSOR = "cursor",
 }
 
 -- A mapping between the internal names and the display names
@@ -80,7 +79,6 @@ local name_map = {
   base = "ancestor",
   both = "both",
   none = "none",
-  cursor = "cursor",
 }
 
 local CURRENT_HL = "AvanteConflictCurrent"
@@ -331,11 +329,10 @@ local function register_cursor_move_events(bufnr)
     end
 
     local hint = string.format(
-      "[<%s> for OURS, <%s> for THEIRS, <%s> for BOTH, <%s> for CURSOR, <%s> for PREV, <%s> for NEXT]",
+      "[<%s> for OURS, <%s> for THEIRS, <%s> for BOTH, <%s> for PREV, <%s> for NEXT]",
       Config.diff.mappings.ours,
       Config.diff.mappings.theirs,
       Config.diff.mappings.both,
-      Config.diff.mappings.cursor,
       Config.diff.mappings.prev,
       Config.diff.mappings.next
     )
@@ -427,9 +424,6 @@ local function set_commands()
   command("AvanteConflictChooseBoth", function()
     M.choose("both")
   end, { nargs = 0 })
-  command("AvanteConflictChooseCursor", function()
-    M.choose("cursor")
-  end, { nargs = 0 })
   command("AvanteConflictChooseBase", function()
     M.choose("base")
   end, { nargs = 0 })
@@ -457,7 +451,6 @@ local function set_plug_mappings()
   map({ "n", "v" }, "<Plug>(git-conflict-both)", "<Cmd>AvanteConflictChooseBoth<CR>", opts("Choose Both"))
   map({ "n", "v" }, "<Plug>(git-conflict-none)", "<Cmd>AvanteConflictChooseNone<CR>", opts("Choose None"))
   map({ "n", "v" }, "<Plug>(git-conflict-theirs)", "<Cmd>AvanteConflictChooseTheirs<CR>", opts("Choose Theirs"))
-  map("n", "<Plug>(git-conflict-cursor)", "<Cmd>AvanteConflictChooseCursor<CR>", opts("Choose Cursor"))
   map("n", "<Plug>(git-conflict-next-conflict)", "<Cmd>AvanteConflictNextConflict<CR>", opts("Next Conflict"))
   map("n", "<Plug>(git-conflict-prev-conflict)", "<Cmd>AvanteConflictPrevConflict<CR>", opts("Previous Conflict"))
 end
@@ -474,7 +467,6 @@ local function setup_buffer_mappings(bufnr)
   map({ "n", "v" }, Config.diff.mappings.none, "<Plug>(git-conflict-none)", opts("Choose None"))
   map({ "n", "v" }, Config.diff.mappings.theirs, "<Plug>(git-conflict-theirs)", opts("Choose Theirs"))
   map({ "v", "v" }, Config.diff.mappings.ours, "<Plug>(git-conflict-ours)", opts("Choose Ours"))
-  map("n", Config.diff.mappings.cursor, "<Plug>(git-conflict-cursor)", opts("Choose Cursor"))
   -- map('V', Config.diff.mappings.ours, '<Plug>(git-conflict-ours)', opts('Choose Ours'))
   map("n", Config.diff.mappings.prev, "<Plug>(git-conflict-prev-conflict)", opts("Previous Conflict"))
   map("n", Config.diff.mappings.next, "<Plug>(git-conflict-next-conflict)", opts("Next Conflict"))
@@ -516,7 +508,8 @@ function M.setup()
     group = augroup,
     pattern = "AvanteConflictDetected",
     callback = function(ev)
-      vim.diagnostic.enable(false, { bufnr = ev.buf })
+      --- this is the og line vim.diagnostic.enable(false, { bufnr = ev.buf })
+      vim.diagnostic.enable(namespace_id, bufnr, opts)
       if is_inlay_enable then
         previous_inlay = vim.lsp.inlay_hint.is_enabled({ bufnr = ev.buf })
         vim.lsp.inlay_hint.enable(false, { bufnr = ev.buf })
@@ -529,7 +522,8 @@ function M.setup()
     group = AUGROUP_NAME,
     pattern = "AvanteConflictResolved",
     callback = function(ev)
-      vim.diagnostic.enable(true, { bufnr = ev.buf })
+      -- OG LINE vim.diagnostic.enable(true, { bufnr = ev.buf })
+      vim.diagnostic.enable(namespace_id, bufnr, opts)
       if is_inlay_enable then
         vim.lsp.inlay_hint.enable(previous_inlay, { bufnr = ev.buf })
         previous_inlay = nil
@@ -626,7 +620,7 @@ end
 ---@param side ConflictSide
 function M.choose(side)
   local bufnr = api.nvim_get_current_buf()
-  if vim.fn.mode() == "v" or vim.fn.mode() == "V" or vim.fn.mode() == "" then
+  if vim.fn.mode() == "v" or vim.fn.mode() == "V" or vim.fn.mode() == "" then
     api.nvim_feedkeys(api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
     -- have to defer so that the < and > marks are set
     vim.defer_fn(function()
@@ -689,19 +683,6 @@ function M.choose(side)
     lines = vim.list_extend(first, second)
   elseif side == SIDES.NONE then
     lines = {}
-  elseif side == SIDES.CURSOR then
-    local cursor_line = Utils.get_cursor_pos()
-    for _, pos in ipairs({ SIDES.OURS, SIDES.THEIRS, SIDES.BASE }) do
-      local data = position[name_map[pos]] or {}
-      if data.range_start and data.range_start + 1 <= cursor_line and data.range_end + 1 >= cursor_line then
-        side = pos
-        lines = Utils.get_buf_lines(data.content_start, data.content_end + 1)
-        break
-      end
-    end
-    if side == SIDES.CURSOR then
-      return
-    end
   else
     return
   end
