@@ -187,7 +187,7 @@ function M.setup(opts)
 end
 
 M.support_paste_image = function()
-  local supported = Utils.has("img-clip.nvim")
+  local supported = Utils.has("img-clip.nvim") or Utils.has("img-clip")
   if not supported then
     Utils.warn("img-clip.nvim is not installed. Pasting image will be disabled.", { once = true })
   end
