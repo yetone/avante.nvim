@@ -107,6 +107,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
       ours = "co",
       theirs = "ct",
       all_theirs = "ca",
+      none = "c0",
       both = "cb",
       cursor = "cc",
       next = "]x",
@@ -204,6 +205,8 @@ The following key bindings are available for use with `avante.nvim`:
 | <kbd>Leader</kbd><kbd>a</kbd><kbd>e</kbd> | edit selected blocks |
 | <kbd>c</kbd><kbd>o</kbd> | choose ours |
 | <kbd>c</kbd><kbd>t</kbd> | choose theirs |
+| <kbd>c</kbd><kbd>a</kbd> | choose all theirs |
+| <kbd>c</kbd><kbd>0</kbd> | choose none |
 | <kbd>c</kbd><kbd>b</kbd> | choose both |
 | <kbd>c</kbd><kbd>c</kbd> | choose cursor |
 | <kbd>c</kbd><kbd>0</kbd> | choose none |
