@@ -26,7 +26,7 @@ H.commands = function()
   end
 
   cmd("Ask", function()
-    M.toggle()
+    M.ask()
   end, { desc = "avante: ask AI for code suggestions" })
   cmd("Close", function()
     local sidebar, _ = M._get()
@@ -35,34 +35,53 @@ H.commands = function()
     end
     sidebar:close()
   end, { desc = "avante: close chat window" })
+  cmd("Edit", function()
+    M.edit()
+  end, { desc = "avante: edit selected block" })
   cmd("Refresh", function()
     M.refresh()
   end, { desc = "avante: refresh windows" })
 end
 
 H.keymaps = function()
-  vim.keymap.set({ "n", "v" }, Config.mappings.ask, M.toggle, { noremap = true, desc = "avante: Ask" })
-  vim.keymap.set("v", Config.mappings.edit, M.edit, { noremap = true, desc = "avante: Edit" })
-  vim.keymap.set("n", Config.mappings.refresh, M.refresh, { noremap = true, desc = "avante: Refresh" })
+  vim.keymap.set({ "n", "v" }, "<Plug>(AvanteAsk)", function()
+    M.ask()
+  end, { noremap = true })
+  vim.keymap.set("v", "<Plug>(AvanteEdit)", function()
+    M.edit()
+  end, { noremap = true })
+  vim.keymap.set("n", "<Plug>(AvanteRefresh)", function()
+    M.refresh()
+  end, { noremap = true })
+  --- the following is kinda considered as internal mappings.
+  vim.keymap.set("n", "<Plug>(AvanteToggleDebug)", function()
+    M.toggle.debug()
+  end)
+  vim.keymap.set("n", "<Plug>(AvanteToggleHint)", function()
+    M.toggle.hint()
+  end)
 
-  Utils.toggle_map("n", Config.mappings.toggle.debug, {
-    name = "debug",
-    get = function()
-      return Config.debug
+  Utils.safe_keymap_set({ "n", "v" }, Config.mappings.ask, "<Plug>(AvanteAsk)", { desc = "avante: ask" })
+  Utils.safe_keymap_set("v", Config.mappings.edit, "<Plug>(AvanteEdit)", { desc = "avante: edit" })
+  Utils.safe_keymap_set("n", Config.mappings.refresh, "<Plug>(AvanteRefresh)", { desc = "avante: refresh" })
+  Utils.safe_keymap_set(
+    "n",
+    Config.mappings.toggle.debug,
+    "<Plug>(AvanteToggleDebug)",
+    { desc = "avante: toggle debug" }
+  )
+  Utils.safe_keymap_set("n", Config.mappings.toggle.hint, "<Plug>(AvanteToggleHint)", { desc = "avante: toggle hint" })
+end
+
+---@class ApiCaller
+---@operator call(...): any
+
+H.api = function(fun)
+  return setmetatable({ api = true }, {
+    __call = function(...)
+      return fun(...)
     end,
-    set = function(state)
-      Config.override({ debug = state })
-    end,
-  })
-  Utils.toggle_map("n", Config.mappings.toggle.hint, {
-    name = "hint",
-    get = function()
-      return Config.hints.enabled
-    end,
-    set = function(state)
-      Config.override({ hints = { enabled = state } })
-    end,
-  })
+  }) --[[@as ApiCaller]]
 end
 
 H.signs = function()
@@ -166,26 +185,55 @@ function M._init(id)
   return M
 end
 
-M.toggle = function()
-  local sidebar, _ = M._get()
-  if not sidebar then
-    M._init(api.nvim_get_current_tabpage())
-    M.current.sidebar:open()
-    return true
-  end
+M.toggle = { api = true }
 
-  return sidebar:toggle()
-end
+M.toggle.debug = H.api(Utils.toggle_wrap({
+  name = "debug",
+  get = function()
+    return Config.debug
+  end,
+  set = function(state)
+    Config.override({ debug = state })
+  end,
+}))
 
-M.edit = function()
+M.toggle.hint = H.api(Utils.toggle_wrap({
+  name = "hint",
+  get = function()
+    return Config.hints.enabled
+  end,
+  set = function(state)
+    Config.override({ hints = { enabled = state } })
+  end,
+}))
+
+setmetatable(M.toggle, {
+  __index = M.toggle,
+  __call = function()
+    local sidebar, _ = M._get()
+    if not sidebar then
+      M._init(api.nvim_get_current_tabpage())
+      M.current.sidebar:open()
+      return true
+    end
+
+    return sidebar:toggle()
+  end,
+})
+
+M.ask = H.api(function()
+  M.toggle()
+end)
+
+M.edit = H.api(function()
   local _, selection = M._get()
   if not selection then
     return
   end
   selection:create_editing_input()
-end
+end)
 
-M.refresh = function()
+M.refresh = H.api(function()
   local sidebar, _ = M._get()
   if not sidebar then
     return
@@ -213,7 +261,7 @@ M.refresh = function()
   sidebar.code.winid = curwin
   sidebar.code.bufnr = curbuf
   sidebar:render()
-end
+end)
 
 ---@param opts? avante.Config
 function M.setup(opts)

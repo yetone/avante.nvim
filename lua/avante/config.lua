@@ -88,10 +88,7 @@ M.defaults = {
     },
   },
   mappings = {
-    ask = "<leader>aa",
-    edit = "<leader>ae",
-    refresh = "<leader>ar",
-    --- @class AvanteConflictMappings
+    ---@class AvanteConflictMappings
     diff = {
       ours = "co",
       theirs = "ct",
@@ -108,6 +105,10 @@ M.defaults = {
       normal = "<CR>",
       insert = "<C-s>",
     },
+    -- NOTE: The following will be safely set by avante.nvim
+    ask = "<leader>aa",
+    edit = "<leader>ae",
+    refresh = "<leader>ar",
     toggle = {
       debug = "<leader>ad",
       hint = "<leader>ah",

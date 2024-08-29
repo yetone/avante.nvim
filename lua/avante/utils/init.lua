@@ -69,23 +69,88 @@ M.shell_run = function(input_cmd)
   return { stdout = output, code = code }
 end
 
+---@see https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/util/toggle.lua
+---
 ---@alias _ToggleSet fun(state: boolean): nil
 ---@alias _ToggleGet fun(): boolean
 ---
+---@class ToggleBind
+---@field name string
+---@field set _ToggleSet
+---@field get _ToggleGet
+---
+---@class ToggleBind.wrap: ToggleBind
+---@operator call:boolean
+
+---@param toggle ToggleBind
+M.toggle_wrap = function(toggle)
+  return setmetatable(toggle, {
+    __call = function()
+      toggle.set(not toggle.get())
+      local state = toggle.get()
+      if state then
+        M.info("enabled: " .. toggle.name)
+      else
+        M.warn("disabled: " .. toggle.name)
+      end
+      return state
+    end,
+  }) --[[@as ToggleBind.wrap]]
+end
+
 ---@param lhs string
----@param toggle {name: string, set: _ToggleSet, get: _ToggleGet}
----@param mode? string | string[]
-M.toggle_map = function(mode, lhs, toggle)
-  vim.keymap.set(mode or { "n" }, lhs, function()
-    toggle.set(not toggle.get())
-    local state = toggle.get()
-    if state then
-      M.info("enabled: " .. toggle.name, { title = "Avante" })
-    else
-      M.warn("disabled: " .. toggle.name, { title = "Avante" })
+---@param toggle ToggleBind
+M.toggle_map = function(lhs, toggle)
+  M.safe_keymap_set("n", lhs, M.toggle_wrap(toggle), { desc = "toggle(avante): " .. toggle.name })
+end
+
+-- Wrapper around vim.keymap.set that will
+-- not create a keymap if a lazy key handler exists.
+-- It will also set `silent` to true by default.
+--
+---@param mode string|string[] Mode short-name, see |nvim_set_keymap()|.
+---                            Can also be list of modes to create mapping on multiple modes.
+---@param lhs string           Left-hand side |{lhs}| of the mapping.
+---@param rhs string|function  Right-hand side |{rhs}| of the mapping, can be a Lua function.
+---
+---@param opts? vim.keymap.set.Opts
+---@see |nvim_set_keymap()|
+---@see |maparg()|
+---@see |mapcheck()|
+---@see |mapset()|
+M.safe_keymap_set = function(mode, lhs, rhs, opts)
+  ---@type boolean
+  local ok
+  ---@module "lazy.core.handler"
+  local H
+
+  ok, H = pcall(require, "lazy.core.handler")
+  if not ok then
+    M.warn("lazy.nvim is not available. Avante will use vim.keymap.set", { once = true })
+    vim.keymap.set(mode, lhs, rhs, opts)
+    return
+  end
+
+  local Keys = H.handlers.keys
+  ---@cast Keys LazyKeysHandler
+  local modes = type(mode) == "string" and { mode } or mode
+  ---@cast modes -string
+
+  ---@param m string
+  modes = vim.tbl_filter(function(m)
+    return not (Keys.have and Keys:have(lhs, m))
+  end, modes)
+
+  -- don't create keymap if a lazy keys handler exists
+  if #modes > 0 then
+    opts = opts or {}
+    opts.silent = opts.silent ~= false
+    if opts.remap and not vim.g.vscode then
+      ---@diagnostic disable-next-line: no-unknown
+      opts.remap = nil
     end
-    return state
-  end, { desc = "toggle(avante): " .. toggle.name })
+    vim.keymap.set(mode, lhs, rhs, opts)
+  end
 end
 
 ---@param str string
