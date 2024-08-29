@@ -18,11 +18,9 @@ https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd
 ## Installation
 
 
-<details>
+<details open>
 
-  <summary>Lazy</summary>
-
-  Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
+  <summary><a href="https://github.com/folke/lazy.nvim">lazy.nvim</a> (recommended)</summary>
 
   ```lua
 {
@@ -92,6 +90,38 @@ Plug 'HakonHarnes/img-clip.nvim'
 " Yay
 Plug 'yetone/avante.nvim'
 ```
+
+</details>
+
+<details>
+
+  <summary><a href="https://github.com/echasnovski/mini.deps">mini.deps</a></summary>
+
+```lua
+local add, later = MiniDeps.add, MiniDeps.later
+
+add({
+  source = 'yetone/avante.nvim',
+  depends = {
+    'stevearc/dressing.nvim',
+    'nvim-lua/plenary.nvim',
+    'MunifTanjim/nui.nvim',
+    'echasnovski/mini.icons'
+  },
+})
+--- optional
+add({ source = 'HakonHarnes/img-clip.nvim' })
+add({ source = 'MeanderingProgrammer/render-markdown.nvim' })
+
+later(function() require('render-markdown').setup({...}) end)
+later(function()
+  require('img-clip').setup({...}) -- config img-clip
+  require("avante").setup({...}) -- config for avante.nvim
+end)
+
+```
+  ```
+  ```
 
 </details>
 
