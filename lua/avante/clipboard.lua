@@ -45,13 +45,19 @@ M.paste_image = function(line)
     return false
   end
 
-  return ImgClip.paste_image({
+  local opts = {
     dir_path = paste_directory:absolute(),
     prompt_for_file_name = false,
     filetypes = {
       AvanteInput = { url_encode_path = true, template = "\nimage: $FILE_PATH\n" },
     },
-  }, line)
+  }
+
+  if vim.fn.has("wsl") > 0 or vim.fn.has("win32") > 0 then
+    opts.use_absolute_path = true
+  end
+
+  return ImgClip.paste_image(opts, line)
 end
 
 ---@param filepath string
