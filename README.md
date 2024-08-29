@@ -49,6 +49,8 @@ Install `avante.nvim` using [lazy.nvim](https://github.com/folke/lazy.nvim):
           drag_and_drop = {
             insert_mode = true,
           },
+          -- required for Windows users
+          use_absolute_path = true,
         },
       },
     },
