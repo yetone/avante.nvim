@@ -61,13 +61,12 @@ end
 M.parse_curl_args = function(provider, code_opts)
   local base, body_opts = P.parse_config(provider)
 
-  body_opts = {
+  body_opts = vim.tbl_deep_extend("force", body_opts, {
     generationConfig = {
       temperature = body_opts.temperature,
       maxOutputTokens = body_opts.max_tokens,
     },
-  }
-
+  })
   body_opts.temperature = nil
   body_opts.max_tokens = nil
 
