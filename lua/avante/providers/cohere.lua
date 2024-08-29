@@ -31,37 +31,9 @@ local M = {}
 M.api_key_name = "CO_API_KEY"
 
 M.parse_message = function(opts)
-  local user_prompt = opts.base_prompt
-    .. "\n\nCODE:\n"
-    .. "```"
-    .. opts.code_lang
-    .. "\n"
-    .. opts.code_content
-    .. "\n```"
-    .. "\n\nQUESTION:\n"
-    .. opts.question
-
-  if opts.selected_code_content ~= nil then
-    user_prompt = opts.base_prompt
-      .. "\n\nCODE CONTEXT:\n"
-      .. "```"
-      .. opts.code_lang
-      .. "\n"
-      .. opts.code_content
-      .. "\n```"
-      .. "\n\nCODE:\n"
-      .. "```"
-      .. opts.code_lang
-      .. "\n"
-      .. opts.selected_code_content
-      .. "\n```"
-      .. "\n\nQUESTION:\n"
-      .. opts.question
-  end
-
   return {
     preamble = opts.system_prompt,
-    message = user_prompt,
+    message = opts.user_prompt,
   }
 end
 
