@@ -61,13 +61,14 @@ M.get_base64_content = function(filepath)
   local output
   if os_mapping == "darwin" or os_mapping == "linux" then
     output = Utils.shell_run(("cat %s | base64 | tr -d '\n'"):format(filepath))
-    if output.code == 0 then
-      return output.stdout
-    else
-      error("Failed to convert image to base64")
-    end
   else
-    Utils.warn("Windows is not supported yet", { title = "Avante" })
+    output =
+      Utils.shell_run(("([Convert]::ToBase64String([IO.File]::ReadAllBytes('%s')) -replace '`r`n')"):format(filepath))
+  end
+  if output.code == 0 then
+    return output.stdout
+  else
+    error("Failed to convert image to base64")
   end
 end
 
