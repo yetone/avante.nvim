@@ -1,5 +1,6 @@
 local Utils = require("avante.utils")
 local P = require("avante.providers")
+local Clipboard = require("avante.clipboard")
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -26,6 +27,17 @@ M.parse_message = function(opts)
     }
 
     table.insert(message_content, selected_code_obj)
+  end
+
+  if Clipboard.support_paste_image() and opts.image_path then
+    local image_data = {
+      inline_data = {
+        mime_type = "image/png",
+        data = Clipboard.get_base64_content(opts.image_path),
+      },
+    }
+
+    table.insert(message_content, image_data)
   end
 
   -- insert a part into parts

@@ -1,4 +1,3 @@
-local Config = require("avante.config")
 local Utils = require("avante.utils")
 local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
