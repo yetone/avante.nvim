@@ -85,7 +85,7 @@ Your task is to modify the provided code according to the user's request. Follow
 
 8. Only return the new code snippets to be updated, DO NOT return the entire file content.
 
-Remember: Your response should contain nothing but ONLY the modified code, ready to be used as a direct replacement for the original file.
+Remember: Your response should contain ONLY the modified code, ready to be used as a direct replacement for the original file.
 ]]
 
 local group = api.nvim_create_augroup("avante_llm", { clear = true })
