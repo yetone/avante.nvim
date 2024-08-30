@@ -31,10 +31,7 @@ local M = {}
 M.api_key_name = "CO_API_KEY"
 
 M.parse_message = function(opts)
-  local user_prompt = ""
-  for _, user_prompt_ in ipairs(opts.user_prompts) do
-    user_prompt = user_prompt .. "\n\n" .. user_prompt_
-  end
+  local user_prompt = table.concat(opts.user_prompts, "\n\n")
 
   return {
     preamble = opts.system_prompt,
@@ -75,7 +72,7 @@ M.parse_curl_args = function(provider, code_opts)
       .. "."
       .. vim.version().patch,
   }
-  if not P.env.is_local("openai") then
+  if not P.env.is_local("cohere") then
     headers["Authorization"] = "Bearer " .. provider.parse_api_key()
   end
 

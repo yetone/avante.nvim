@@ -62,10 +62,10 @@ M.defaults = {
   ---@type AvanteSupportedProvider
   cohere = {
     endpoint = "https://api.cohere.com/v1",
-    model = "command-r-plus",
+    model = "command-r-plus-08-2024",
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
-    max_tokens = 3072,
+    max_tokens = 4096,
     ["local"] = false,
   },
   ---To add support for custom provider, follow the format below
@@ -233,7 +233,7 @@ M = setmetatable(M, {
 
 M.support_paste_image = function()
   local supported = Utils.has("img-clip.nvim") or Utils.has("img-clip")
-  if not supported and not M.options.silent_warning then
+  if not supported then
     Utils.warn("img-clip.nvim is not installed. Pasting image will be disabled.", { once = true })
   end
   return supported
