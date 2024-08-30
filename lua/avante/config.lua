@@ -233,7 +233,7 @@ M = setmetatable(M, {
 
 M.support_paste_image = function()
   local supported = Utils.has("img-clip.nvim") or Utils.has("img-clip")
-  if not supported then
+  if not supported and not M.options.silent_warning then
     Utils.warn("img-clip.nvim is not installed. Pasting image will be disabled.", { once = true })
   end
   return supported
