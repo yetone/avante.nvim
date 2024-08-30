@@ -30,7 +30,7 @@ M.api_key_name = "OPENAI_API_KEY"
 M.parse_message = function(opts)
   ---@type string | OpenAIMessage[]
   local user_content
-  if Config.behaviour.support_paste_from_clipboard and opts.image_paths then
+  if Config.behaviour.support_paste_from_clipboard and opts.image_paths and #opts.image_paths > 0 then
     user_content = {}
     for _, image_path in ipairs(opts.image_paths) do
       table.insert(user_content, {
