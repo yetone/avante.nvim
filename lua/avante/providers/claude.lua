@@ -24,18 +24,18 @@ M.parse_message = function(prompt_opts)
     end
   end
 
-  local user_prompt = prompt_opts.user_prompt
+  for _, user_prompt in ipairs(prompt_opts.user_prompts) do
+    local user_prompt_obj = {
+      type = "text",
+      text = user_prompt,
+    }
 
-  local user_prompt_obj = {
-    type = "text",
-    text = user_prompt,
-  }
+    if Utils.tokens.calculate_tokens(user_prompt_obj.text) > 1024 then
+      user_prompt_obj.cache_control = { type = "ephemeral" }
+    end
 
-  if Utils.tokens.calculate_tokens(user_prompt_obj.text) > 1024 then
-    user_prompt_obj.cache_control = { type = "ephemeral" }
+    table.insert(message_content, user_prompt_obj)
   end
-
-  table.insert(message_content, user_prompt_obj)
 
   return {
     {
@@ -75,6 +75,8 @@ M.parse_curl_args = function(provider, prompt_opts)
     headers["x-api-key"] = provider.parse_api_key()
   end
 
+  local messages = M.parse_message(prompt_opts)
+
   return {
     url = Utils.trim(base.endpoint, { suffix = "/" }) .. "/v1/messages",
     proxy = base.proxy,
@@ -89,7 +91,7 @@ M.parse_curl_args = function(provider, prompt_opts)
           cache_control = { type = "ephemeral" },
         },
       },
-      messages = M.parse_message(prompt_opts),
+      messages = messages,
       stream = true,
     }, body_opts),
   }
