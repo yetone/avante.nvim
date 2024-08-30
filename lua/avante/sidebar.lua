@@ -262,14 +262,24 @@ local function get_conflict_content(content, snippets)
       current_line = current_line + 1
     end
 
+    local need_prepend_indentation = false
+    local original_start_line_indentation = Utils.get_indentation(lines[start_line] or "")
+
     table.insert(result, "<<<<<<< HEAD")
     for i = start_line, end_line do
       table.insert(result, lines[i])
     end
     table.insert(result, "=======")
 
-    for _, line in ipairs(vim.split(snippet.content, "\n")) do
+    for idx, line in ipairs(vim.split(snippet.content, "\n")) do
       line = line:gsub("^L%d+: ", "")
+      if idx == 1 then
+        local indentation = Utils.get_indentation(line)
+        need_prepend_indentation = indentation ~= original_start_line_indentation
+      end
+      if need_prepend_indentation then
+        line = original_start_line_indentation .. line
+      end
       table.insert(result, line)
     end
 
