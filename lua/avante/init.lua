@@ -100,7 +100,6 @@ H.autocmds = function()
     local name = "avante.nvim"
     local load_path = function()
       require("avante_lib").load()
-      -- require("avante.tiktoken").setup("gpt-4o")
     end
 
     if LazyConfig.plugins[name] and LazyConfig.plugins[name]._.loaded then
@@ -277,22 +276,28 @@ M.build = H.api(function()
       "-File",
       "Build.ps1",
       "-WorkingDirectory",
-      build_directory:gsub("/", "\\"),
+      build_directory:gsub("/", "\\")[0],
     }
   else
     error("Unsupported operating system: " .. os_name, 2)
   end
+
+  ---@type boolean
+  local success_or_fail
 
   vim.system(cmd, { text = true }, function(result)
     local output = result.stdout and vim.split(result.stdout, "\n") or {}
     local err = result.stderr and vim.split(result.stderr, "\n") or {}
     local code = result.code
 
-    local out = vim.tbl_contains(clean_exit, code) and output or err
+    success_or_fail = vim.tbl_contains(clean_exit, code)
+
+    local out = success_or_fail and output or err
     vim.iter(out):map(function(it)
       print(it)
     end)
   end)
+  return success_or_fail
 end)
 
 M.ask = H.api(function()
@@ -357,7 +362,7 @@ function M.setup(opts)
     return
   end
 
-  require("avante.history").setup()
+  require("avante.path").setup()
   require("avante.highlights").setup()
   require("avante.diff").setup()
   require("avante.providers").setup()

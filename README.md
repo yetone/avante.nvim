@@ -35,27 +35,6 @@ https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd
     "stevearc/dressing.nvim",
     "nvim-lua/plenary.nvim",
     "MunifTanjim/nui.nvim",
-  },
-}
-  ```
-
-  <details>
-
-  <summary>Recommended dependencies</summary>
-
-  ```lua
-{
-  "yetone/avante.nvim",
-  event = "VeryLazy",
-  lazy = false,
-  build = true, -- optional, this requires cargo.
-  opts = {
-    -- add any opts here
-  },
-  dependencies = {
-    "stevearc/dressing.nvim",
-    "nvim-lua/plenary.nvim",
-    "MunifTanjim/nui.nvim",
     --- The below dependencies are optional,
     "nvim-tree/nvim-web-devicons", -- or echasnovski/mini.icons
     "zbirenbaum/copilot.lua", -- for providers='copilot'
@@ -87,8 +66,6 @@ https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd
   },
 }
   ```
-
-  </details>
 
 </details>
 
