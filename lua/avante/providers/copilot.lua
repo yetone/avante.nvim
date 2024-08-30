@@ -54,7 +54,10 @@ H.get_oauth_token = function()
 
   local yason = Path:new(config_dir):joinpath("github-copilot", "hosts.json")
   if not yason:exists() then
-    error("You must setup copilot with either copilot.lua or copilot.vim", 2)
+    yason = Path:new(config_dir):joinpath("github-copilot", "apps.json")
+    if not yason:exists() then
+      error("You must setup copilot with either copilot.lua or copilot.vim", 2)
+    end
   end
   return vim
     .iter(
