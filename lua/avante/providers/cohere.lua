@@ -31,9 +31,14 @@ local M = {}
 M.api_key_name = "CO_API_KEY"
 
 M.parse_message = function(opts)
+  local user_prompt = ""
+  for _, user_prompt_ in ipairs(opts.user_prompts) do
+    user_prompt = user_prompt .. "\n\n" .. user_prompt_
+  end
+
   return {
     preamble = opts.system_prompt,
-    message = opts.user_prompt,
+    message = user_prompt,
   }
 end
 

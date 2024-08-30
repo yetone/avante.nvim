@@ -407,8 +407,11 @@ function Selection:create_editing_input()
       end, 0)
     end
 
+    local filetype = api.nvim_get_option_value("filetype", { buf = code_bufnr })
+
     Llm.stream({
       file_content = code_content,
+      code_lang = filetype,
       selected_code = self.selection.content,
       instructions = input,
       mode = "editing",

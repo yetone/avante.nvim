@@ -13,97 +13,77 @@ M.CANCEL_PATTERN = "AvanteLLMEscape"
 
 ------------------------------Prompt and type------------------------------
 
--- Copy from: https://github.com/Doriandarko/claude-engineer/blob/15c94963cbf9d01b8ae7bbb5d42d7025aa0555d5/main.py#L276
----@alias AvanteBasePrompt string
-local planning_mode_system_prompt_tpl = [[
-You are an excellent programming expert and your primary task is to generate code according to the instructions. Follow these steps:
-
-1. Review the entire file content to understand the context:
-${file_content}
-
-2. Carefully analyze the selected code:
-${selected_code}
-
-3. Carefully analyze the specific instructions:
-${instructions}
-
-4. Take into account the overall project context:
-${project_context}
-
-5. Consider the memory of previous edits:
-${memory_context}
-
-6. Consider the full context of all files in the project:
-${full_file_contents_context}
-
-7. Generate SEARCH/REPLACE blocks for each necessary change. Each block should:
-   - Include enough context to uniquely identify the code to be changed
-   - Provide the exact replacement code, maintaining correct INDENTATION and FORMATTING
-   - Focus on specific, targeted changes rather than large, sweeping modifications
-   - The content in the SEARCH tag MUST NOT contain any of your generated content. Do not be lazy!
-   - The content in the SEARCH tag MUST be based on the original content of the source file
-   - The content in the SEARCH tag needs to ensure a certain context to guarantee its UNIQUENESS
-   - There should be NO OVERLAP between the code of each SEARCH tag. Do not be lazy!
-   - Be sure to ensure that there are NO SYNTAX ERRORS OR FORMATTING ERRORS after the SEARCH part in the source code is replaced by the REPLACE part! Do not be lazy!
-   - DO NOT use ``` to wrap code blocks, Do not be lazy!
-
-8. Ensure that your SEARCH/REPLACE blocks:
-   - Address all relevant aspects of the instructions
-   - Maintain or enhance code readability and efficiency
-   - Consider the overall structure and purpose of the code
-   - Follow best practices and coding standards for the language
-   - Maintain consistency with the project context and previous edits
-   - Take into account the full context of all files in the project
-
-IMPORTANT: MUST TO ADD EXPLANATIONS BEFORE AND AFTER EACH SEARCH/REPLACE BLOCK.
-USE THE FOLLOWING FORMAT FOR EACH BLOCK:
-
-<SEARCH>
-Code to be replaced
-</SEARCH>
-<REPLACE>
-New code to insert
-</REPLACE>
-
-If no changes are needed, return an empty list.
+---@alias AvanteSystemPrompt string
+local system_prompt = [[
+You are an excellent programming expert.
 ]]
 
-local editing_mode_system_prompt_tpl = [[
-You are an excellent programming expert and your primary task is to generate code according to the instructions. Follow these steps:
+-- Copy from: https://github.com/Doriandarko/claude-engineer/blob/15c94963cbf9d01b8ae7bbb5d42d7025aa0555d5/main.py#L276
+---@alias AvanteBasePrompt string
+local planning_mode_user_prompt_tpl = [[
+Your primary task is to suggest code modifications with precise line number ranges. Follow these instructions meticulously:
 
-1. Review the entire file content to understand the context:
-${file_content}
+1. Carefully analyze the original code, paying close attention to its structure and line numbers. Line numbers start from 1 and include ALL lines, even empty ones.
 
-2. Carefully analyze the selected code:
-${selected_code}
+2. When suggesting modifications:
+   a. Use the language in the question to reply. If there are non-English parts in the question, use the language of those parts.
+   b. Explain why the change is necessary or beneficial.
+   c. If an image is provided, make sure to use the image in conjunction with the code snippet.
+   d. Provide the exact code snippet to be replaced using this format:
 
-3. Carefully analyze the specific instructions:
-${instructions}
+Replace lines: {{start_line}}-{{end_line}}
+```{{language}}
+{{suggested_code}}
+```
 
-4. Take into account the overall project context:
-${project_context}
+3. Crucial guidelines for suggested code snippets:
+   - Only apply the change(s) suggested by the most recent assistant message (before your generation).
+   - Do not make any unrelated changes to the code.
+   - Produce a valid full rewrite of the entire original file without skipping any lines. Do not be lazy!
+   - Do not arbitrarily delete pre-existing comments/empty Lines.
+   - Do not omit large parts of the original file for no reason.
+   - Do not omit any needed changes from the requisite messages/code blocks.
+   - If there is a clicked code block, bias towards just applying that (and applying other changes implied).
+   - Please keep your suggested code changes minimal, and do not include irrelevant lines in the code snippet.
+   - Maintain the SAME indentation in the returned code as in the source code
 
-5. Consider the memory of previous edits:
-${memory_context}
+4. Crucial guidelines for line numbers:
+   - The content regarding line numbers MUST strictly follow the format "Replace lines: {{start_line}}-{{end_line}}". Do not be lazy!
+   - The range {{start_line}}-{{end_line}} is INCLUSIVE. Both start_line and end_line are included in the replacement.
+   - Count EVERY line, including empty lines and comments lines, comments. Do not be lazy!
+   - For single-line changes, use the same number for start and end lines.
+   - For multi-line changes, ensure the range covers ALL affected lines, from the very first to the very last.
+   - Double-check that your line numbers align perfectly with the original code structure.
 
-6. Consider the full context of all files in the project:
-${full_file_contents_context}
+5. Final check:
+   - Review all suggestions, ensuring each line number is correct, especially the start_line and end_line.
+   - Confirm that no unrelated code is accidentally modified or deleted.
+   - Verify that the start_line and end_line correctly include all intended lines for replacement.
+   - Perform a final alignment check to ensure your line numbers haven't shifted, especially the start_line.
+   - Double-check that your line numbers align perfectly with the original code structure.
+   - DO NOT return the complete modified code with applied changes!
 
-7. Return ONLY the complete modified code.
+Remember: Accurate line numbers are CRITICAL. The range start_line to end_line must include ALL lines to be replaced, from the very first to the very last. Double-check every range before finalizing your response, paying special attention to the start_line to ensure it hasn't shifted down. Ensure that your line numbers perfectly match the original code structure without any overall shift.
+]]
 
-8. Do not include any explanations, comments, or line numbers in your response.
+local editing_mode_user_prompt_tpl = [[
+Your task is to modify the provided code according to the user's request. Follow these instructions precisely:
 
-9. Ensure the returned code is complete and can be directly used as a replacement for the original code.
+1. Return ONLY the complete modified code.
 
-11. Preserve the original structure, indentation, and formatting of the code as much as possible.
+2. Do not include any explanations, comments, or line numbers in your response.
 
-12. Do not omit any parts of the code, even if they are unchanged.
+3. Ensure the returned code is complete and can be directly used as a replacement for the original code.
 
-13. Maintain the SAME indentation in the returned code as in the source code
+4. Preserve the original structure, indentation, and formatting of the code as much as possible.
 
-14. Do NOT include three backticks: ```
+5. Do not omit any parts of the code, even if they are unchanged.
 
-15. Only return code part, do NOT return the context part!
+6. Maintain the SAME indentation in the returned code as in the source code
+
+7. Do NOT include three backticks: ```
+
+8. Only return the new code snippets to be updated, DO NOT return the entire file content.
 
 Remember: Your response should contain nothing but ONLY the modified code, ready to be used as a direct replacement for the original file.
 ]]
@@ -113,6 +93,7 @@ local active_job = nil
 
 ---@class StreamOptions
 ---@field file_content string
+---@field code_lang string
 ---@field selected_code string | nil
 ---@field instructions string
 ---@field project_context string | nil
@@ -127,9 +108,9 @@ M.stream = function(opts)
   local mode = opts.mode or "planning"
   local provider = Config.provider
 
-  local system_prompt_tpl = mode == "planning" and planning_mode_system_prompt_tpl or editing_mode_system_prompt_tpl
+  local user_prompt_tpl = mode == "planning" and planning_mode_user_prompt_tpl or editing_mode_user_prompt_tpl
 
-  -- Check if the question contains an image path
+  -- Check if the instructions contains an image path
   local image_paths = {}
   local original_instructions = opts.instructions
   if opts.instructions:match("image: ") then
@@ -144,14 +125,43 @@ M.stream = function(opts)
     original_instructions = table.concat(lines, "\n")
   end
 
-  local system_prompt =
-    system_prompt_tpl:gsub("%${(.-)}", vim.tbl_deep_extend("force", opts, { instructions = original_instructions }))
+  local user_prompts = {}
+
+  if opts.selected_code and opts.selected_code ~= "" then
+    table.insert(
+      user_prompts,
+      string.format("<code_context>```%s\n%s\n```</code_context>", opts.code_lang, opts.file_content)
+    )
+    table.insert(user_prompts, string.format("<code>```%s\n%s\n```</code>", opts.code_lang, opts.selected_code))
+  else
+    table.insert(user_prompts, string.format("<code>```%s\n%s\n```</code>", opts.code_lang, opts.file_content))
+  end
+
+  if opts.project_context then
+    table.insert(user_prompts, string.format("<project_context>%s</project_context>", opts.project_context))
+  end
+
+  if opts.memory_context then
+    table.insert(user_prompts, string.format("<memory_context>%s</memory_context>", opts.memory_context))
+  end
+
+  if opts.full_file_contents_context then
+    table.insert(
+      user_prompts,
+      string.format("<full_file_contents_context>%s</full_file_contents_context>", opts.full_file_contents_context)
+    )
+  end
+
+  table.insert(user_prompts, "<question>" .. original_instructions .. "</question>")
+
+  local user_prompt = user_prompt_tpl:gsub("%${(.-)}", opts)
+
+  table.insert(user_prompts, user_prompt)
 
   ---@type AvantePromptOptions
   local code_opts = {
     system_prompt = system_prompt,
-    user_prompt = opts.selected_code and "Please suggest modifications to the selected code."
-      or "Please suggest modifications to the file coontent.",
+    user_prompts = user_prompts,
     image_paths = image_paths,
   }
 

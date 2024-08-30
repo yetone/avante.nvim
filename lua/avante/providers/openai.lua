@@ -28,6 +28,11 @@ local M = {}
 M.api_key_name = "OPENAI_API_KEY"
 
 M.parse_message = function(opts)
+  local user_prompt = ""
+  for _, user_prompt_ in ipairs(opts.user_prompts) do
+    user_prompt = user_prompt .. "\n\n" .. user_prompt_
+  end
+
   ---@type string | OpenAIMessage[]
   local user_content
   if Config.behaviour.support_paste_from_clipboard and opts.image_paths and #opts.image_paths > 0 then
@@ -40,9 +45,9 @@ M.parse_message = function(opts)
         },
       })
     end
-    table.insert(user_content, { type = "text", text = opts.user_prompt })
+    table.insert(user_content, { type = "text", text = user_prompt })
   else
-    user_content = opts.user_prompt
+    user_content = user_prompt
   end
 
   return {
