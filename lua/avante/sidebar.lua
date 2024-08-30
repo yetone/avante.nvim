@@ -243,11 +243,18 @@ local function transform_result_content(original_content, result_content, code_l
   }
 end
 
-local searching_hint = "\n 🔍 Searching..."
+local searching_hints = { "\n 🔍   Searching...", "\n  🔍  Searching...", "\n   🔍 Searching..." }
+local searching_hint_idx = 1
 
 ---@param replacement AvanteReplacementResult
 ---@return string
 local function generate_display_content(replacement)
+  local searching_hint = searching_hints[searching_hint_idx]
+  if searching_hint_idx >= #searching_hints then
+    searching_hint_idx = 1
+  else
+    searching_hint_idx = searching_hint_idx + 1
+  end
   if replacement.is_searching then
     return table.concat(
       vim.list_slice(vim.split(replacement.content, "\n"), 1, replacement.last_search_tag_start_line - 1),
@@ -316,6 +323,49 @@ local function extract_code_snippets(response_content)
   end
 
   return snippets
+end
+
+---@param snippets AvanteCodeSnippet[]
+---@return AvanteCodeSnippet[]
+local function ensure_snippets_no_overlap(original_content, snippets)
+  table.sort(snippets, function(a, b)
+    return a.range[1] < b.range[1]
+  end)
+
+  local original_lines = vim.split(original_content, "\n")
+
+  local result = {}
+  local last_end_line = 0
+  for _, snippet in ipairs(snippets) do
+    if snippet.range[1] > last_end_line then
+      table.insert(result, snippet)
+      last_end_line = snippet.range[2]
+    else
+      local snippet_lines = vim.split(snippet.content, "\n")
+      -- Trim the overlapping part
+      local new_start_line = nil
+      for i = snippet.range[1], math.min(snippet.range[2], last_end_line) do
+        if
+          Utils.remove_indentation(original_lines[i])
+          == Utils.remove_indentation(snippet_lines[i - snippet.range[1] + 1])
+        then
+          new_start_line = i + 1
+        else
+          break
+        end
+      end
+      if new_start_line ~= nil then
+        snippet.content = table.concat(vim.list_slice(snippet_lines, new_start_line - snippet.range[1] + 1), "\n")
+        snippet.range[1] = new_start_line
+        table.insert(result, snippet)
+        last_end_line = snippet.range[2]
+      else
+        Utils.error("Failed to ensure snippets no overlap", { once = true, title = "Avante" })
+      end
+    end
+  end
+
+  return result
 end
 
 local function get_conflict_content(content, snippets)
@@ -421,6 +471,7 @@ function Sidebar:apply(current_cursor)
   local content = table.concat(Utils.get_buf_lines(0, -1, self.code.bufnr), "\n")
   local response, response_start_line = self:get_content_between_separators()
   local snippets = extract_code_snippets(response)
+  snippets = ensure_snippets_no_overlap(content, snippets)
   if current_cursor then
     if self.result and self.result.winid then
       local cursor_line = Utils.get_cursor_pos(self.result.winid)
