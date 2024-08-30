@@ -370,12 +370,6 @@ end
 ---@return AvanteProviderFunctor
 M.get_config = function(provider)
   provider = provider or Config.provider
-  if provider == "copilot" then
-    Utils.error(
-      "Sorry! We no longer support the copilot provider! Please use other providers!",
-      { once = true, title = "Avante" }
-    )
-  end
   local cur = Config.get_provider(provider)
   return type(cur) == "function" and cur() or cur
 end

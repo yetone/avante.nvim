@@ -21,6 +21,16 @@ M.defaults = {
     max_tokens = 4096,
     ["local"] = false,
   },
+  ---@type AvanteSupportedProvider
+  copilot = {
+    endpoint = "https://api.githubcopilot.com",
+    model = "gpt-4o-2024-05-13",
+    proxy = nil, -- [protocol://]host[:port] Use this proxy
+    allow_insecure = false, -- Allow insecure server connections
+    timeout = 30000, -- Timeout in milliseconds
+    temperature = 0,
+    max_tokens = 4096,
+  },
   ---@type AvanteAzureProvider
   azure = {
     endpoint = "", -- example: "https://<your-resource-name>.openai.azure.com"

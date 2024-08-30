@@ -41,6 +41,7 @@ https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd
     "MunifTanjim/nui.nvim",
     --- The below dependencies are optional,
     "nvim-tree/nvim-web-devicons", -- or echasnovski/mini.icons
+    "zbirenbaum/copilot.lua", -- for providers='copilot'
     {
       -- support for image pasting
       "HakonHarnes/img-clip.nvim",
@@ -86,6 +87,7 @@ Plug 'MunifTanjim/nui.nvim'
 " Optional deps
 Plug 'nvim-tree/nvim-web-devicons' "or Plug 'echasnovski/mini.icons'
 Plug 'HakonHarnes/img-clip.nvim'
+Plug 'zbirenbaum/copilot.lua'
 
 " Yay
 Plug 'yetone/avante.nvim'
@@ -110,12 +112,14 @@ add({
   },
 })
 --- optional
+add({ source = 'zbirenbaum/copilot.lua' })
 add({ source = 'HakonHarnes/img-clip.nvim' })
 add({ source = 'MeanderingProgrammer/render-markdown.nvim' })
 
 later(function() require('render-markdown').setup({...}) end)
 later(function()
   require('img-clip').setup({...}) -- config img-clip
+  require("copilot").setup({...}) -- setup copilot to your liking
   require("avante").setup({...}) -- config for avante.nvim
 end)
 
@@ -132,6 +136,9 @@ end)
 ```lua
 -- deps:
 require('img-clip').setup ({
+  -- use recommended settings from above
+})
+require('copilot').setup ({
   -- use recommended settings from above
 })
 require('render-markdown').setup ({
@@ -171,7 +178,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
 ```lua
 {
   ---@alias Provider "openai" | "claude" | "azure" | "cohere" | [string]
-  provider = "claude", -- Only recommend using Claude
+  provider = "claude", -- Recommend using Claude
   claude = {
     endpoint = "https://api.anthropic.com",
     model = "claude-3-5-sonnet-20240620",
@@ -343,6 +350,7 @@ We would like to express our heartfelt gratitude to the contributors of the foll
 | [git-conflict.nvim](https://github.com/akinsho/git-conflict.nvim) | No License | Diff comparison functionality | https://github.com/yetone/avante.nvim/blob/main/lua/avante/diff.lua |
 | [ChatGPT.nvim](https://github.com/jackMort/ChatGPT.nvim) | Apache 2.0 License | Calculation of tokens count | https://github.com/yetone/avante.nvim/blob/main/lua/avante/utils/tokens.lua |
 | [img-clip.nvim](https://github.com/HakonHarnes/img-clip.nvim) | MIT License | Clipboard image support | https://github.com/yetone/avante.nvim/blob/main/lua/avante/clipboard.lua |
+| [copilot.lua](https://github.com/zbirenbaum/copilot.lua) | MIT License | Copilot support | https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/copilot.lua |
 
 The high quality and ingenuity of these projects' source code have been immensely beneficial throughout our development process. We extend our sincere thanks and respect to the authors and contributors of these projects. It is the selfless dedication of the open-source community that drives projects like avante.nvim forward.
 
