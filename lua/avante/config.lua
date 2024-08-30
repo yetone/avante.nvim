@@ -152,6 +152,12 @@ M.defaults = {
   hints = {
     enabled = true,
   },
+  ---@class AvanteLLMConfig
+  llm = {
+    system_prompt = "",
+    planning_mode_system_prompt_tpl = "",
+    editing_mode_system_prompt_tpl = "",
+  },
 }
 
 ---@type avante.Config
@@ -165,6 +171,12 @@ M.diff = {}
 ---@class AvanteHintsConfig
 ---@field enabled boolean
 M.hints = {}
+
+---@class AvanteLLMConfig
+---@field system_prompt string
+---@field planning_mode_user_prompt_tpl string
+---@field editing_mode_user_prompt_tpl string
+M.llm = {}
 
 ---@param opts? avante.Config
 function M.setup(opts)

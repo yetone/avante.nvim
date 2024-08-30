@@ -14,7 +14,7 @@ M.CANCEL_PATTERN = "AvanteLLMEscape"
 ------------------------------Prompt and type------------------------------
 
 ---@alias AvanteSystemPrompt string
-local system_prompt = [[
+local default_system_prompt = [[
 You are an excellent programming expert.
 ]]
 
@@ -108,7 +108,10 @@ M.stream = function(opts)
   local mode = opts.mode or "planning"
   local provider = Config.provider
 
-  local user_prompt_tpl = mode == "planning" and planning_mode_user_prompt_tpl or editing_mode_user_prompt_tpl
+  local system_prompt = Config.llm.system_prompt or default_system_prompt
+  local user_prompt_tpl = mode == "planning"
+      and (Config.llm.planning_mode_user_prompt_tpl or planning_mode_user_prompt_tpl)
+    or (Config.llm.editing_mode_user_prompt_tpl or editing_mode_user_prompt_tpl)
 
   -- Check if the instructions contains an image path
   local image_paths = {}
