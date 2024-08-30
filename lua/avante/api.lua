@@ -1,3 +1,4 @@
+local Config = require("avante.config")
 local Utils = require("avante.utils")
 
 ---@class avante.ApiToggle
@@ -17,7 +18,7 @@ return setmetatable({}, {
     ---@class AvailableApi: ApiCaller
     ---@field api? boolean
     local has = module[k]
-    if type(has) ~= "table" or not has.api then
+    if type(has) ~= "table" or not has.api and not Config.silent_warning then
       Utils.warn(k .. " is not a valid avante's API method", { once = true })
       return
     end
