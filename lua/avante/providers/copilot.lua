@@ -118,7 +118,17 @@ M.state = nil
 
 M.api_key_name = P.AVANTE_INTERNAL_KEY
 
-M.parse_message = O.parse_message
+M.parse_message = function(opts)
+  local user_prompt = ""
+  for _, user_prompt_ in ipairs(opts.user_prompts) do
+    user_prompt = user_prompt .. "\n\n" .. user_prompt_
+  end
+
+  return {
+    { role = "system", content = opts.system_prompt },
+    { role = "user", content = user_prompt },
+  }
+end
 M.parse_response = O.parse_response
 
 M.parse_curl_args = function(provider, code_opts)
