@@ -52,10 +52,20 @@ H.get_oauth_token = function()
     config_dir = vim.fn.expand("~/AppData/Local")
   end
 
-  local yason = Path:new(config_dir):joinpath("github-copilot", "hosts.json")
-  if not yason:exists() then
+  --- hosts.json (copilot.lua), apps.json (copilot.vim)
+  ---@type Path[]
+  local paths = vim.iter({ "hosts.json", "apps.json" }):fold({}, function(acc, path)
+    local yason = Path:new(config_dir):joinpath("github-copilot", path)
+    if yason:exists() then
+      table.insert(acc, yason)
+    end
+    return acc
+  end)
+  if #paths == 0 then
     error("You must setup copilot with either copilot.lua or copilot.vim", 2)
   end
+
+  local yason = paths[1]
   return vim
     .iter(
       ---@type table<string, OAuthToken>
@@ -119,16 +129,12 @@ M.state = nil
 M.api_key_name = P.AVANTE_INTERNAL_KEY
 
 M.parse_message = function(opts)
-  local user_prompt = ""
-  for _, user_prompt_ in ipairs(opts.user_prompts) do
-    user_prompt = user_prompt .. "\n\n" .. user_prompt_
-  end
-
   return {
     { role = "system", content = opts.system_prompt },
-    { role = "user", content = user_prompt },
+    { role = "user", content = table.concat(opts.user_prompts, "\n\n") },
   }
 end
+
 M.parse_response = O.parse_response
 
 M.parse_curl_args = function(provider, code_opts)
