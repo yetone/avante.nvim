@@ -134,53 +134,130 @@ function Sidebar:toggle()
   end
 end
 
-local function realign_line_numbers(code_lines, snippet)
-  local snippet_lines = vim.split(snippet.content, "\n")
-  local snippet_lines_count = #snippet_lines
+---@class AvanteReplacementResult
+---@field content string
+---@field is_searching boolean
+---@field is_replacing boolean
+---@field last_search_tag_start_line integer
+---@field last_replace_tag_start_line integer
 
-  local start_line = snippet.range[1]
+---@param original_content string
+---@param result_content string
+---@param code_lang string
+---@return AvanteReplacementResult
+local function transform_result_content(original_content, result_content, code_lang)
+  local transformed = ""
+  local original_lines = vim.split(original_content, "\n")
+  local result_lines = vim.split(result_content, "\n")
 
-  local correct_start
-  for i = start_line, math.max(1, start_line - snippet_lines_count + 1), -1 do
-    local matched = true
-    for j = 1, math.min(snippet_lines_count, start_line - i + 1) do
-      if code_lines[i + j - 1] ~= snippet_lines[j] then
-        matched = false
+  local is_searching = false
+  local is_replacing = false
+  local last_search_tag_start_line = 0
+  local last_replace_tag_start_line = 0
+
+  local trim_breakline_suffix = false
+
+  local i = 1
+  while i <= #result_lines do
+    if result_lines[i] == "<SEARCH>" then
+      is_searching = true
+      last_search_tag_start_line = i
+      local search_start = i + 1
+      local search_end = search_start
+      while search_end <= #result_lines and result_lines[search_end] ~= "</SEARCH>" do
+        search_end = search_end + 1
+      end
+
+      if search_end > #result_lines then
+        trim_breakline_suffix = false
+        -- <SEARCH> tag is not closed, add remaining content and return
+        transformed = transformed .. table.concat(result_lines, "\n", i)
         break
       end
-    end
-    if matched then
-      correct_start = i
-      break
-    end
-  end
 
-  local end_line = snippet.range[2]
-
-  local correct_end
-  for i = snippet_lines_count - 1, 1, -1 do
-    local matched = true
-    for j = 1, i do
-      if code_lines[end_line + j - 1] ~= snippet_lines[snippet_lines_count - j] then
-        matched = false
+      local replace_start = search_end + 2 -- Skip </SEARCH> and <REPLACE>
+      if replace_start > #result_lines or result_lines[replace_start - 1] ~= "<REPLACE>" then
+        trim_breakline_suffix = false
+        -- <REPLACE> tag is missing, add remaining content and return
+        transformed = transformed .. table.concat(result_lines, "\n", i)
         break
       end
+
+      is_replacing = true
+      last_replace_tag_start_line = replace_start - 1
+      local replace_end = replace_start
+      while replace_end <= #result_lines and result_lines[replace_end] ~= "</REPLACE>" do
+        replace_end = replace_end + 1
+      end
+
+      if replace_end > #result_lines then
+        trim_breakline_suffix = false
+        -- </REPLACE> tag is missing, add remaining content and return
+        transformed = transformed .. table.concat(result_lines, "\n", i)
+        break
+      end
+
+      -- Find the corresponding lines in the original content
+      local start_line, end_line
+      for j = 1, #original_lines - (search_end - search_start) + 1 do
+        local match = true
+        for k = 0, search_end - search_start - 1 do
+          if
+            Utils.remove_indentation(original_lines[j + k]) ~= Utils.remove_indentation(result_lines[search_start + k])
+          then
+            match = false
+            break
+          end
+        end
+        if match then
+          start_line = j
+          end_line = j + (search_end - search_start) - 1
+          break
+        end
+      end
+
+      if start_line and end_line then
+        transformed = transformed .. string.format("Replace lines: %d-%d\n```%s\n", start_line, end_line, code_lang)
+        for j = replace_start, replace_end - 1 do
+          transformed = transformed .. result_lines[j] .. "\n"
+        end
+        transformed = transformed .. "```\n"
+      end
+
+      i = replace_end + 1 -- Move to the line after </REPLACE>
+      is_searching = false
+      is_replacing = false
+    else
+      trim_breakline_suffix = true
+      transformed = transformed .. result_lines[i] .. "\n"
+      i = i + 1
     end
-    if matched then
-      correct_end = end_line + i
-      break
-    end
   end
 
-  if correct_start then
-    snippet.range[1] = correct_start
-  end
+  return {
+    content = trim_breakline_suffix and transformed:sub(1, -2) or transformed, -- Remove trailing newline
+    is_searching = is_searching,
+    is_replacing = is_replacing,
+    last_search_tag_start_line = last_search_tag_start_line,
+    last_replace_tag_start_line = last_replace_tag_start_line,
+  }
+end
 
-  if correct_end then
-    snippet.range[2] = correct_end
-  end
+local searching_hint = "\n 🔍 Searching..."
 
-  return snippet
+---@param replacement AvanteReplacementResult
+---@return string
+local function generate_display_content(replacement)
+  if replacement.is_searching then
+    return table.concat(
+      vim.list_slice(vim.split(replacement.content, "\n"), 1, replacement.last_search_tag_start_line - 1),
+      "\n"
+    ) .. searching_hint
+  end
+  if replacement.is_replacing then
+    return replacement.content .. "\n```"
+  end
+  return replacement.content
 end
 
 ---@class AvanteCodeSnippet
@@ -191,11 +268,9 @@ end
 ---@field start_line_in_response_buf integer
 ---@field end_line_in_response_buf integer
 
----@param code_content string
 ---@param response_content string
 ---@return AvanteCodeSnippet[]
-local function extract_code_snippets(code_content, response_content)
-  local code_lines = vim.split(code_content, "\n")
+local function extract_code_snippets(response_content)
   local snippets = {}
   local current_snippet = {}
   local in_code_block = false
@@ -219,7 +294,6 @@ local function extract_code_snippets(code_content, response_content)
             start_line_in_response_buf = start_line_in_response_buf,
             end_line_in_response_buf = idx,
           }
-          snippet = realign_line_numbers(code_lines, snippet)
           table.insert(snippets, snippet)
         end
         current_snippet = {}
@@ -346,7 +420,7 @@ end
 function Sidebar:apply(current_cursor)
   local content = table.concat(Utils.get_buf_lines(0, -1, self.code.bufnr), "\n")
   local response, response_start_line = self:get_content_between_separators()
-  local snippets = extract_code_snippets(content, response)
+  local snippets = extract_code_snippets(response)
   if current_cursor then
     if self.result and self.result.winid then
       local cursor_line = Utils.get_cursor_pos(self.result.winid)
@@ -876,17 +950,6 @@ function Sidebar:update_content(content, opts)
   return self
 end
 
-local function prepend_line_number(content, start_line)
-  start_line = start_line or 1
-  local lines = vim.split(content, "\n")
-  local result = {}
-  for i, line in ipairs(lines) do
-    i = i + start_line - 1
-    table.insert(result, "L" .. i .. ": " .. line)
-  end
-  return table.concat(result, "\n")
-end
-
 -- Function to get current timestamp
 local function get_timestamp()
   return os.date("%Y-%m-%d %H:%M:%S")
@@ -1079,12 +1142,11 @@ function Sidebar:create_input()
     self:update_content(content_prefix .. "🔄 **Generating response ...**\n")
 
     local content = table.concat(Utils.get_buf_lines(0, -1, self.code.bufnr), "\n")
-    local content_with_line_numbers = prepend_line_number(content)
+    local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
 
-    local selected_code_content_with_line_numbers = nil
+    local selected_code_content = nil
     if self.code.selection ~= nil then
-      selected_code_content_with_line_numbers =
-        prepend_line_number(self.code.selection.content, self.code.selection.range.start.line)
+      selected_code_content = self.code.selection.content
     end
 
     if request:sub(1, 1) == "/" then
@@ -1113,10 +1175,8 @@ function Sidebar:create_input()
               Utils.error("Invalid end line number", { once = true, title = "Avante" })
               return
             end
-            selected_code_content_with_line_numbers = prepend_line_number(
-              table.concat(api.nvim_buf_get_lines(self.code.bufnr, start_line - 1, end_line, false), "\n"),
-              start_line
-            )
+            selected_code_content =
+              table.concat(api.nvim_buf_get_lines(self.code.bufnr, start_line - 1, end_line, false), "\n")
             request = question
           end)
         else
@@ -1129,24 +1189,30 @@ function Sidebar:create_input()
       end
     end
 
-    local full_response = ""
-
-    local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
+    local original_response = ""
+    local transformed_response = ""
+    local displayed_response = ""
 
     local is_first_chunk = true
 
     ---@type AvanteChunkParser
     local on_chunk = function(chunk)
-      full_response = full_response .. chunk
+      original_response = original_response .. chunk
+      local transformed = transform_result_content(content, transformed_response .. chunk, filetype)
+      transformed_response = transformed.content
+      local cur_displayed_response = generate_display_content(transformed)
       if is_first_chunk then
         is_first_chunk = false
         self:update_content(content_prefix .. chunk, { stream = false, scroll = true })
         return
       end
-      self:update_content(chunk, { stream = true, scroll = true })
-      vim.schedule(function()
-        vim.cmd("redraw")
-      end)
+      if cur_displayed_response ~= displayed_response then
+        displayed_response = cur_displayed_response
+        self:update_content(content_prefix .. displayed_response, { stream = false, scroll = true })
+        vim.schedule(function()
+          vim.cmd("redraw")
+        end)
+      end
     end
 
     ---@type AvanteCompleteParser
@@ -1157,13 +1223,18 @@ function Sidebar:create_input()
       end
 
       -- Execute when the stream request is actually completed
-      self:update_content("\n\n🎉🎉🎉 **Generation complete!** Please review the code suggestions above.", {
-        stream = true,
-        scroll = true,
-        callback = function()
-          api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN })
-        end,
-      })
+      self:update_content(
+        content_prefix
+          .. displayed_response
+          .. "\n\n🎉🎉🎉 **Generation complete!** Please review the code suggestions above.",
+        {
+          stream = false,
+          scroll = true,
+          callback = function()
+            api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN })
+          end,
+        }
+      )
 
       vim.defer_fn(function()
         if self.result and self.result.winid and api.nvim_win_is_valid(self.result.winid) then
@@ -1177,20 +1248,20 @@ function Sidebar:create_input()
         provider = Config.provider,
         model = model,
         request = request,
-        response = full_response,
+        response = displayed_response,
+        original_response = original_response,
       })
       History.save(self.code.bufnr, chat_history)
     end
 
-    Llm.stream(
-      request,
-      filetype,
-      content_with_line_numbers,
-      selected_code_content_with_line_numbers,
-      "planning",
-      on_chunk,
-      on_complete
-    )
+    Llm.stream({
+      file_content = content,
+      selected_code = selected_code_content,
+      instructions = request,
+      mode = "planning",
+      on_chunk = on_chunk,
+      on_complete = on_complete,
+    })
 
     if Config.behaviour.auto_apply_diff_after_generation then
       self:apply(false)

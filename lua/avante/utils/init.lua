@@ -479,4 +479,9 @@ function M.get_indentation(code)
   return code:match("^%s*") or ""
 end
 
+--- remove indentation from code: spaces or tabs
+function M.remove_indentation(code)
+  return code:gsub("^%s*", "")
+end
+
 return M

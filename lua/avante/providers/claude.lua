@@ -7,54 +7,24 @@ local M = {}
 
 M.api_key_name = "ANTHROPIC_API_KEY"
 
-M.parse_message = function(opts)
-  local code_prompt_obj = {
-    type = "text",
-    text = string.format("<code>```%s\n%s```</code>", opts.code_lang, opts.code_content),
-  }
+---@param prompt_opts AvantePromptOptions
+M.parse_message = function(prompt_opts)
+  local message_content = {}
 
-  if Utils.tokens.calculate_tokens(code_prompt_obj.text) > 1024 then
-    code_prompt_obj.cache_control = { type = "ephemeral" }
-  end
-
-  if opts.selected_code_content then
-    code_prompt_obj.text = string.format("<code_context>```%s\n%s```</code_context>", opts.code_lang, opts.code_content)
-  end
-
-  local message_content = {
-    code_prompt_obj,
-  }
-
-  if opts.selected_code_content then
-    local selected_code_obj = {
-      type = "text",
-      text = string.format("<code>```%s\n%s```</code>", opts.code_lang, opts.selected_code_content),
-    }
-
-    if Utils.tokens.calculate_tokens(selected_code_obj.text) > 1024 then
-      selected_code_obj.cache_control = { type = "ephemeral" }
+  if Clipboard.support_paste_image() and prompt_opts.image_paths then
+    for _, image_path in ipairs(prompt_opts.image_paths) do
+      table.insert(message_content, {
+        type = "image",
+        source = {
+          type = "base64",
+          media_type = "image/png",
+          data = Clipboard.get_base64_content(image_path),
+        },
+      })
     end
-
-    table.insert(message_content, selected_code_obj)
   end
 
-  if Clipboard.support_paste_image() and opts.image_path then
-    table.insert(message_content, {
-      type = "image",
-      source = {
-        type = "base64",
-        media_type = "image/png",
-        data = Clipboard.get_base64_content(opts.image_path),
-      },
-    })
-  end
-
-  table.insert(message_content, {
-    type = "text",
-    text = string.format("<question>%s</question>", opts.question),
-  })
-
-  local user_prompt = opts.base_prompt
+  local user_prompt = prompt_opts.user_prompt
 
   local user_prompt_obj = {
     type = "text",
@@ -91,9 +61,9 @@ M.parse_response = function(data_stream, event_state, opts)
 end
 
 ---@param provider AvanteProviderFunctor
----@param code_opts AvantePromptOptions
+---@param prompt_opts AvantePromptOptions
 ---@return table
-M.parse_curl_args = function(provider, code_opts)
+M.parse_curl_args = function(provider, prompt_opts)
   local base, body_opts = P.parse_config(provider)
 
   local headers = {
@@ -112,7 +82,14 @@ M.parse_curl_args = function(provider, code_opts)
     headers = headers,
     body = vim.tbl_deep_extend("force", {
       model = base.model,
-      messages = M.parse_message(code_opts),
+      system = {
+        {
+          type = "text",
+          text = prompt_opts.system_prompt,
+          cache_control = { type = "ephemeral" },
+        },
+      },
+      messages = M.parse_message(prompt_opts),
       stream = true,
     }, body_opts),
   }
