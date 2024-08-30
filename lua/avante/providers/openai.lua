@@ -27,53 +27,22 @@ local M = {}
 
 M.api_key_name = "OPENAI_API_KEY"
 
----@param opts AvantePromptOptions
-M.get_user_message = function(opts)
-  local user_prompt = opts.base_prompt
-    .. "\n\nCODE:\n"
-    .. "```"
-    .. opts.code_lang
-    .. "\n"
-    .. opts.code_content
-    .. "\n```"
-    .. "\n\nQUESTION:\n"
-    .. opts.question
-
-  if opts.selected_code_content ~= nil then
-    user_prompt = opts.base_prompt
-      .. "\n\nCODE CONTEXT:\n"
-      .. "```"
-      .. opts.code_lang
-      .. "\n"
-      .. opts.code_content
-      .. "\n```"
-      .. "\n\nCODE:\n"
-      .. "```"
-      .. opts.code_lang
-      .. "\n"
-      .. opts.selected_code_content
-      .. "\n```"
-      .. "\n\nQUESTION:\n"
-      .. opts.question
-  end
-
-  return user_prompt
-end
-
 M.parse_message = function(opts)
   ---@type string | OpenAIMessage[]
   local user_content
-  if Config.behaviour.support_paste_from_clipboard and opts.image_path then
+  if Config.behaviour.support_paste_from_clipboard and opts.image_paths then
     user_content = {}
-    table.insert(user_content, {
-      type = "image_url",
-      image_url = {
-        url = "data:image/png;base64," .. Clipboard.get_base64_content(opts.image_path),
-      },
-    })
-    table.insert(user_content, { type = "text", text = M.get_user_message(opts) })
+    for _, image_path in ipairs(opts.image_paths) do
+      table.insert(user_content, {
+        type = "image_url",
+        image_url = {
+          url = "data:image/png;base64," .. Clipboard.get_base64_content(image_path),
+        },
+      })
+    end
+    table.insert(user_content, { type = "text", text = opts.user_prompt })
   else
-    user_content = M.get_user_message(opts)
+    user_content = opts.user_prompt
   end
 
   return {

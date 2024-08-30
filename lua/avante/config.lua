@@ -47,7 +47,7 @@ M.defaults = {
     model = "claude-3-5-sonnet-20240620",
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
-    max_tokens = 4096,
+    max_tokens = 8000,
     ["local"] = false,
   },
   ---@type AvanteSupportedProvider

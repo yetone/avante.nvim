@@ -8,41 +8,24 @@ local M = {}
 M.api_key_name = "GEMINI_API_KEY"
 
 M.parse_message = function(opts)
-  local code_prompt_obj = {
-    text = string.format("<code>```%s\n%s```</code>", opts.code_lang, opts.code_content),
-  }
+  local message_content = {}
 
-  if opts.selected_code_content then
-    code_prompt_obj.text = string.format("<code_context>```%s\n%s```</code_context>", opts.code_lang, opts.code_content)
-  end
+  if Clipboard.support_paste_image() and opts.image_paths then
+    for _, image_path in ipairs(opts.image_paths) do
+      local image_data = {
+        inline_data = {
+          mime_type = "image/png",
+          data = Clipboard.get_base64_content(image_path),
+        },
+      }
 
-  -- parts ready
-  local message_content = {
-    code_prompt_obj,
-  }
-
-  if opts.selected_code_content then
-    local selected_code_obj = {
-      text = string.format("<code>```%s\n%s```</code>", opts.code_lang, opts.selected_code_content),
-    }
-
-    table.insert(message_content, selected_code_obj)
-  end
-
-  if Clipboard.support_paste_image() and opts.image_path then
-    local image_data = {
-      inline_data = {
-        mime_type = "image/png",
-        data = Clipboard.get_base64_content(opts.image_path),
-      },
-    }
-
-    table.insert(message_content, image_data)
+      table.insert(message_content, image_data)
+    end
   end
 
   -- insert a part into parts
   table.insert(message_content, {
-    text = string.format("<question>%s</question>", opts.question),
+    text = opts.user_prompt,
   })
 
   return {
@@ -50,7 +33,7 @@ M.parse_message = function(opts)
       role = "user",
       parts = {
         {
-          text = opts.system_prompt .. "\n" .. opts.base_prompt,
+          text = opts.system_prompt,
         },
       },
     },

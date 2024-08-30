@@ -277,7 +277,6 @@ function Selection:create_editing_input()
   local code_wind = api.nvim_get_current_win()
   self.cursor_pos = api.nvim_win_get_cursor(code_wind)
   self.code_winid = code_wind
-  local filetype = api.nvim_get_option_value("filetype", { buf = code_bufnr })
   local code_lines = api.nvim_buf_get_lines(code_bufnr, 0, -1, false)
   local code_content = table.concat(code_lines, "\n")
 
@@ -408,7 +407,14 @@ function Selection:create_editing_input()
       end, 0)
     end
 
-    Llm.stream(input, filetype, code_content, self.selection.content, "editing", on_chunk, on_complete)
+    Llm.stream({
+      file_content = code_content,
+      selected_code = self.selection.content,
+      instructions = input,
+      mode = "editing",
+      on_chunk = on_chunk,
+      on_complete = on_complete,
+    })
   end
 
   vim.keymap.set("i", Config.mappings.submit.insert, submit_input, { buffer = bufnr, noremap = true, silent = true })

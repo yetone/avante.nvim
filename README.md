@@ -351,6 +351,7 @@ We would like to express our heartfelt gratitude to the contributors of the foll
 | [ChatGPT.nvim](https://github.com/jackMort/ChatGPT.nvim) | Apache 2.0 License | Calculation of tokens count | https://github.com/yetone/avante.nvim/blob/main/lua/avante/utils/tokens.lua |
 | [img-clip.nvim](https://github.com/HakonHarnes/img-clip.nvim) | MIT License | Clipboard image support | https://github.com/yetone/avante.nvim/blob/main/lua/avante/clipboard.lua |
 | [copilot.lua](https://github.com/zbirenbaum/copilot.lua) | MIT License | Copilot support | https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/copilot.lua |
+| [Claude Engineer](https://github.com/Doriandarko/claude-engineer) | No License | Some prompts | https://github.com/yetone/avante.nvim/blob/main/lua/avante/llm.lua |
 
 The high quality and ingenuity of these projects' source code have been immensely beneficial throughout our development process. We extend our sincere thanks and respect to the authors and contributors of these projects. It is the selfless dedication of the open-source community that drives projects like avante.nvim forward.
 

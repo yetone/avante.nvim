@@ -9,13 +9,9 @@ local Dressing = require("avante.ui.dressing")
 ---@field on_complete AvanteCompleteParser
 ---
 ---@class AvantePromptOptions: table<[string], string>
----@field base_prompt AvanteBasePrompt
----@field system_prompt AvanteSystemPrompt
----@field question string
----@field image_path? string
----@field code_lang string
----@field code_content string
----@field selected_code_content? string
+---@field system_prompt string
+---@field user_prompt string
+---@field image_paths? string[]
 ---
 ---@class AvanteBaseMessage
 ---@field role "user" | "system"
@@ -34,7 +30,7 @@ local Dressing = require("avante.ui.dressing")
 ---@alias AvanteMessageParser fun(opts: AvantePromptOptions): AvanteChatMessage[]
 ---
 ---@class AvanteCurlOutput: {url: string, proxy: string, insecure: boolean, body: table<string, any> | string, headers: table<string, string>}
----@alias AvanteCurlArgsParser fun(opts: AvanteProvider, code_opts: AvantePromptOptions): AvanteCurlOutput
+---@alias AvanteCurlArgsParser fun(opts: AvanteProvider | AvanteProviderFunctor, code_opts: AvantePromptOptions): AvanteCurlOutput
 ---
 ---@class ResponseParser
 ---@field on_chunk fun(chunk: string): any
@@ -337,7 +333,7 @@ M.commands = function()
   })
 end
 
----@param opts AvanteProvider | AvanteSupportedProvider
+---@param opts AvanteProvider | AvanteSupportedProvider | AvanteProviderFunctor
 ---@return AvanteDefaultBaseProvider, table<string, any>
 M.parse_config = function(opts)
   ---@type AvanteDefaultBaseProvider
