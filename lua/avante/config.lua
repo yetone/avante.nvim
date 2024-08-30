@@ -10,7 +10,7 @@ local M = {}
 ---@field silent_warning boolean will be determined from debug
 M.defaults = {
   debug = false,
-  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | string
+  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | string
   provider = "claude", -- Only recommend using Claude
   ---@type AvanteSupportedProvider
   openai = {

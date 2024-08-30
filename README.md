@@ -177,7 +177,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
 
 ```lua
 {
-  ---@alias Provider "openai" | "claude" | "azure" | "cohere" | [string]
+  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | string
   provider = "claude", -- Recommend using Claude
   claude = {
     endpoint = "https://api.anthropic.com",
