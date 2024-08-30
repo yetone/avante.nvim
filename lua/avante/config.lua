@@ -12,6 +12,12 @@ M.defaults = {
   debug = false,
   ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | string
   provider = "claude", -- Only recommend using Claude
+  ---@alias Tokenizer "tiktoken" | "hf"
+  -- Used for counting tokens and encoding text.
+  -- By default, we will use tiktoken.
+  -- For most providers that we support we will determine this automatically.
+  -- If you wish to use a given implementation, then you can override it here.
+  tokenizer = "tiktoken",
   ---@type AvanteSupportedProvider
   openai = {
     endpoint = "https://api.openai.com/v1",
@@ -231,7 +237,13 @@ M = setmetatable(M, {
   end,
 })
 
-M.support_paste_image = function()
+---@param skip_warning? boolean
+M.support_paste_image = function(skip_warning)
+  skip_warning = skip_warning or M.silent_warning
+  if skip_warning then
+    return
+  end
+
   local supported = Utils.has("img-clip.nvim") or Utils.has("img-clip")
   if not supported then
     Utils.warn("img-clip.nvim is not installed. Pasting image will be disabled.", { once = true })
