@@ -27,6 +27,11 @@ local M = {}
 
 M.api_key_name = "OPENAI_API_KEY"
 
+---@param opts AvantePromptOptions
+M.get_user_message = function(opts)
+  return table.concat(opts.user_prompts, "\n\n")
+end
+
 M.parse_message = function(opts)
   local user_prompt = table.concat(opts.user_prompts, "\n\n")
 
