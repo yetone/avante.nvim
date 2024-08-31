@@ -22,7 +22,7 @@ https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd
 
   <summary><a href="https://github.com/folke/lazy.nvim">lazy.nvim</a> (recommended)</summary>
 
-  ```lua
+```lua
 {
   "yetone/avante.nvim",
   event = "VeryLazy",
@@ -69,7 +69,7 @@ https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd
     },
   },
 }
-  ```
+```
 
 </details>
 
