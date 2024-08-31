@@ -102,7 +102,12 @@ function Selection:close_editing_input()
   end
   if self.cursor_pos and self.code_winid then
     vim.schedule(function()
-      api.nvim_win_set_cursor(self.code_winid, { self.cursor_pos[1], self.cursor_pos[2] })
+      local bufnr = api.nvim_win_get_buf(self.code_winid)
+      local line_count = api.nvim_buf_line_count(bufnr)
+      local row = math.min(self.cursor_pos[1], line_count)
+      local line = api.nvim_buf_get_lines(bufnr, row - 1, row, true)[1] or ""
+      local col = math.min(self.cursor_pos[2], #line)
+      api.nvim_win_set_cursor(self.code_winid, { row, col })
     end)
   end
   if self.editing_input_bufnr and api.nvim_buf_is_valid(self.editing_input_bufnr) then
