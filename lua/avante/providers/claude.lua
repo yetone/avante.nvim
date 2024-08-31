@@ -6,6 +6,7 @@ local P = require("avante.providers")
 local M = {}
 
 M.api_key_name = "ANTHROPIC_API_KEY"
+M.tokenizer_id = "gpt-4o"
 
 ---@param prompt_opts AvantePromptOptions
 M.parse_message = function(prompt_opts)
@@ -26,7 +27,7 @@ M.parse_message = function(prompt_opts)
 
   local user_prompts_with_length = {}
   for idx, user_prompt in ipairs(prompt_opts.user_prompts) do
-    table.insert(user_prompts_with_length, { idx = idx, length = #user_prompt })
+    table.insert(user_prompts_with_length, { idx = idx, length = Utils.tokens.calculate_tokens(user_prompt) })
   end
 
   table.sort(user_prompts_with_length, function(a, b)
