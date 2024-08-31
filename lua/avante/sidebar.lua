@@ -4,7 +4,7 @@ local fn = vim.fn
 local Split = require("nui.split")
 local event = require("nui.utils.autocmd").event
 
-local History = require("avante.history")
+local Path = require("avante.path")
 local Config = require("avante.config")
 local Diff = require("avante.diff")
 local Llm = require("avante.llm")
@@ -1170,7 +1170,7 @@ function Sidebar:get_commands()
     end,
     clear = function(args, cb)
       local chat_history = {}
-      History.save(self.code.bufnr, chat_history)
+      Path.history.save(self.code.bufnr, chat_history)
       self:update_content("Chat history cleared", { focus = false, scroll = false })
       vim.defer_fn(function()
         self:close()
@@ -1239,7 +1239,7 @@ function Sidebar:create_input()
     return
   end
 
-  local chat_history = History.load(self.code.bufnr)
+  local chat_history = Path.history.load(self.code.bufnr)
 
   ---@param request string
   local function handle_submit(request)
@@ -1356,7 +1356,7 @@ function Sidebar:create_input()
         request = request,
         response = full_response,
       })
-      History.save(self.code.bufnr, chat_history)
+      Path.history.save(self.code.bufnr, chat_history)
     end
 
     Llm.stream({
@@ -1564,7 +1564,7 @@ function Sidebar:get_selected_code_size()
 end
 
 function Sidebar:render()
-  local chat_history = History.load(self.code.bufnr)
+  local chat_history = Path.history.load(self.code.bufnr)
 
   local sidebar_height = api.nvim_win_get_height(self.code.winid)
   local selected_code_size = self:get_selected_code_size()
