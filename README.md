@@ -30,6 +30,7 @@ https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd
   opts = {
     -- add any opts here
   },
+  build = ":AvanteBuild", -- This is optional, recommended tho. Also note that this will block the startup for a bit since we are compiling bindings in Rust.
   dependencies = {
     "stevearc/dressing.nvim",
     "nvim-lua/plenary.nvim",
