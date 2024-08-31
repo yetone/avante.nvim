@@ -127,6 +127,7 @@ end
 M.state = nil
 
 M.api_key_name = P.AVANTE_INTERNAL_KEY
+M.tokenizer_id = "gpt-4o"
 
 M.parse_message = function(opts)
   return {
@@ -166,6 +167,7 @@ M.setup = function()
     M.state = { github_token = nil, oauth_token = H.get_oauth_token() }
     H.refresh_token()
   end
+  require("avante.tokenizers").setup(M.tokenizer_id)
   vim.g.avante_login = true
 end
 

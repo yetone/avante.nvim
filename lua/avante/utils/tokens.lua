@@ -1,5 +1,5 @@
 --Taken from https://github.com/jackMort/ChatGPT.nvim/blob/main/lua/chatgpt/flows/chat/tokens.lua
-local Tokenizer = require("avante.tokenizer")
+local Tokenizer = require("avante.tokenizers")
 
 ---@class avante.utils.tokens
 local Tokens = {}
