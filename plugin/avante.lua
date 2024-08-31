@@ -1,5 +1,7 @@
 --- NOTE: We will override vim.paste if img-clip.nvim is available to work with avante.nvim internal logic paste
 
+require("avante").setup()
+
 local Clipboard = require("avante.clipboard")
 local Config = require("avante.config")
 

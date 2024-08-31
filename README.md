@@ -27,7 +27,6 @@ https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd
   "yetone/avante.nvim",
   event = "VeryLazy",
   lazy = false,
-  build = true, -- optional, this requires cargo.
   opts = {
     -- add any opts here
   },
