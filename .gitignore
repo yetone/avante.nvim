@@ -43,5 +43,4 @@ temp/
 # If you have any personal configuration files, you should ignore them too
 config.personal.lua
 
-# Avante chat history
-.avante_chat_history
+target

@@ -12,6 +12,7 @@ local O = require("avante.providers").openai
 local M = {}
 
 M.api_key_name = "AZURE_OPENAI_API_KEY"
+M.tokenizer_id = "gpt-4o"
 
 M.parse_message = O.parse_message
 M.parse_response = O.parse_response

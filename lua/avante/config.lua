@@ -285,6 +285,7 @@ M.BASE_PROVIDER_KEYS = {
   -- internal
   "local",
   "_shellenv",
+  "tokenizer_id",
 }
 
 ---@return {width: integer, height: integer}
