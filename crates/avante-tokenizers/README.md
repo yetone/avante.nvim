@@ -1,1 +1,1 @@
-A simple unified crates to unify hf/tokenizers and tiktoken_core
+A simple crate to unify hf/tokenizers and tiktoken-rs
