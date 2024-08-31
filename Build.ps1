@@ -12,7 +12,7 @@ function Build-FromSource($feature) {
 
     cargo build --release --features=$feature
 
-    $targetFile = "libavante_tokenizers.dll"
+    $targetFile = "avante_tokenizers.dll"
     Copy-Item (Join-Path "target\release\libavante_tokenizers.dll") (Join-Path $BuildDir $targetFile)
 
     Remove-Item -Recurse -Force "target"
