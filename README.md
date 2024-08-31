@@ -30,7 +30,11 @@ https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd
   opts = {
     -- add any opts here
   },
-  build = ":AvanteBuild", -- This is optional, recommended tho. Also note that this will block the startup for a bit since we are compiling bindings in Rust.
+  keys = {
+    { "<leader>aa", function() require("avante.api").ask() end, desc = "avante: ask", mode = { "n", "v" } },
+    { "<leader>ar", function() require("avante.api").refresh() end, desc = "avante: refresh" },
+    { "<leader>ae", function() require("avante.api").edit() end, desc = "avante: edit", mode = "v" },
+  },
   dependencies = {
     "stevearc/dressing.nvim",
     "nvim-lua/plenary.nvim",
@@ -86,13 +90,8 @@ Plug 'HakonHarnes/img-clip.nvim'
 Plug 'zbirenbaum/copilot.lua'
 
 " Yay
-Plug 'yetone/avante.nvim', { 'branch': 'main', 'do': ':AvanteBuild', 'on': 'AvanteAsk' }
+Plug 'yetone/avante.nvim'
 ```
-
-> [!important]
->
-> For `avante.tokenizers` to work, make sure to call `require('avante_lib').load()` somewhere when entering the editor.
-> We will leave the users to decide where it fits to do this, as this varies among configurations. (But we do recommend running this after where you set your colorscheme)
 
 </details>
 
@@ -101,32 +100,32 @@ Plug 'yetone/avante.nvim', { 'branch': 'main', 'do': ':AvanteBuild', 'on': 'Avan
   <summary><a href="https://github.com/echasnovski/mini.deps">mini.deps</a></summary>
 
 ```lua
-local add, later, now = MiniDeps.add, MiniDeps.later, MiniDeps.now
+local add, later = MiniDeps.add, MiniDeps.later
 
 add({
   source = 'yetone/avante.nvim',
-  monitor = 'main',
   depends = {
     'stevearc/dressing.nvim',
     'nvim-lua/plenary.nvim',
     'MunifTanjim/nui.nvim',
     'echasnovski/mini.icons'
   },
-  hooks = { post_checkout = function() vim.cmd('AvanteBuild') end }
 })
 --- optional
 add({ source = 'zbirenbaum/copilot.lua' })
 add({ source = 'HakonHarnes/img-clip.nvim' })
 add({ source = 'MeanderingProgrammer/render-markdown.nvim' })
 
-now(function() require('avante_lib').load() end)
 later(function() require('render-markdown').setup({...}) end)
 later(function()
   require('img-clip').setup({...}) -- config img-clip
   require("copilot").setup({...}) -- setup copilot to your liking
   require("avante").setup({...}) -- config for avante.nvim
 end)
+
 ```
+  ```
+  ```
 
 </details>
 
@@ -171,10 +170,6 @@ require('avante').setup ({
 >   ft = { "markdown", "Avante" },
 > }
 > ```
-
-> [!TIP]
->
-> Any rendering plugins that support markdown should work with Avante as long as you add the supported filetype `Avante`. See https://github.com/yetone/avante.nvim/issues/175 and [this comment](https://github.com/yetone/avante.nvim/issues/175#issuecomment-2313749363) for more information.
 
 ### Default setup configuration
 

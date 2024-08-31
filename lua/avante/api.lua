@@ -10,7 +10,6 @@ local Utils = require("avante.utils")
 ---@field ask fun(): boolean
 ---@field edit fun(): nil
 ---@field refresh fun(): nil
----@field build fun(): boolean
 ---@field toggle avante.ApiToggle
 
 return setmetatable({}, {
