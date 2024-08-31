@@ -275,7 +275,6 @@ M.build = H.api(function()
 
   ---@type string[]
   local cmd
-  local clean_exit = { 0 }
   local os_name = Utils.get_os_name()
 
   if vim.tbl_contains({ "linux", "darwin" }, os_name) then
@@ -295,22 +294,9 @@ M.build = H.api(function()
     error("Unsupported operating system: " .. os_name, 2)
   end
 
-  ---@type boolean
-  local success_or_fail
+  local job = vim.system(cmd, { text = true }):wait()
 
-  vim.system(cmd, { text = true }, function(result)
-    local output = result.stdout and vim.split(result.stdout, "\n") or {}
-    local err = result.stderr and vim.split(result.stderr, "\n") or {}
-    local code = result.code
-
-    success_or_fail = vim.tbl_contains(clean_exit, code)
-
-    local out = success_or_fail and output or err
-    vim.iter(out):map(function(it)
-      print(it)
-    end)
-  end)
-  return success_or_fail
+  return vim.tbl_contains({ 0 }, job.code) and true or false
 end)
 
 M.ask = H.api(function()
