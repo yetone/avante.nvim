@@ -33,7 +33,10 @@ M.parse_message = function(prompt_opts)
     return a.length > b.length
   end)
 
-  local top_three = vim.list_slice(user_prompts_with_length, 1, 3)
+  local top_three = {}
+  for i = 1, math.min(3, #user_prompts_with_length) do
+    top_three[user_prompts_with_length[i].idx] = true
+  end
 
   for idx, prompt_data in ipairs(prompt_opts.user_prompts) do
     local user_prompt_obj = {
@@ -41,15 +44,7 @@ M.parse_message = function(prompt_opts)
       text = prompt_data,
     }
 
-    local is_top_three = false
-    for _, top in ipairs(top_three) do
-      if top.idx == idx then
-        is_top_three = true
-        break
-      end
-    end
-
-    if is_top_three then
+    if top_three[idx] then
       user_prompt_obj.cache_control = { type = "ephemeral" }
     end
 
