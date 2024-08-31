@@ -1374,6 +1374,26 @@ function Sidebar:create_input()
     end
   end
 
+  local get_position = function()
+    if Config.layout == "vertical" then
+      return "bottom"
+    end
+    return "right"
+  end
+
+  local get_size = function()
+    if Config.layout == "vertical" then
+      return {
+        height = 8,
+      }
+    end
+
+    return {
+      width = "40%",
+      height = api.nvim_win_get_height(self.result.winid),
+    }
+  end
+
   self.input = Split({
     enter = false,
     relative = {
@@ -1381,10 +1401,8 @@ function Sidebar:create_input()
       winid = self.result.winid,
     },
     win_options = vim.tbl_deep_extend("force", get_win_options(), { signcolumn = "yes" }),
-    position = "bottom",
-    size = {
-      height = 8,
-    },
+    position = get_position(),
+    size = get_size(),
   })
 
   local function on_submit()
@@ -1567,12 +1585,39 @@ function Sidebar:render()
   local chat_history = History.load(self.code.bufnr)
 
   local sidebar_height = api.nvim_win_get_height(self.code.winid)
-  local selected_code_size = self:get_selected_code_size()
+  local get_position = function()
+    if Config.layout == "vertical" then
+      return "right"
+    end
+    return "bottom"
+  end
+
+  local get_height = function()
+    local selected_code_size = self:get_selected_code_size()
+    vim.print(selected_code_size)
+    if Config.layout == "horizontal" then
+      return math.floor(Config.windows.height / 100 * api.nvim_win_get_height(self.code.winid))
+    end
+
+    if Config.layout == "vertical" then
+      return math.max(1, api.nvim_win_get_height(self.code.winid) - selected_code_size - 3 - 8)
+    end
+  end
+
+  local get_width = function()
+    if Config.layout == "vertical" then
+      return math.floor(Config.windows.width / 100 * api.nvim_win_get_width(self.code.winid))
+    end
+
+    if Config.layout == "horizontal" then
+      return math.max(1, api.nvim_win_get_width(self.code.winid))
+    end
+  end
 
   self.result = Split({
     enter = false,
     relative = "editor",
-    position = "right",
+    position = get_position(),
     buf_options = vim.tbl_deep_extend("force", buf_options, {
       modifiable = false,
       swapfile = false,
@@ -1582,8 +1627,8 @@ function Sidebar:render()
     }),
     win_options = get_win_options(),
     size = {
-      width = string.format("%d%%", Config.windows.width),
-      height = math.max(1, sidebar_height - selected_code_size - 3 - 8),
+      width = get_width(),
+      height = get_height(),
     },
   })
 
