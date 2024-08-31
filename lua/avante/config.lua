@@ -138,8 +138,8 @@ M.defaults = {
   },
   windows = {
     wrap = true, -- similar to vim.o.wrap
-    width = 30, -- default % based on available width
-    height = 30, -- default % based on available height
+    width = 30, -- default % based on available width in vertical layout
+    height = 30, -- default % based on available height in horizontal layout
     sidebar_header = {
       align = "center", -- left, center, right for title
       rounded = true,

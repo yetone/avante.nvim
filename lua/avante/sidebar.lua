@@ -681,7 +681,7 @@ function Sidebar:render_selected_code()
   end
 
   local selected_code_lines_count = 0
-  local selected_code_max_lines_count = 10
+  local selected_code_max_lines_count = 12
 
   if self.code.selection ~= nil then
     local selected_code_lines = vim.split(self.code.selection.content, "\n")
@@ -1225,6 +1225,9 @@ function Sidebar:create_selected_code()
       },
     })
     self.selected_code:mount()
+    if Config.layout == "horizontal" then
+      api.nvim_win_set_height(self.result.winid, api.nvim_win_get_height(self.result.winid) - selected_code_size - 3)
+    end
   end
 end
 
@@ -1388,9 +1391,11 @@ function Sidebar:create_input()
       }
     end
 
+    local selected_code_size = self:get_selected_code_size()
+
     return {
       width = "40%",
-      height = api.nvim_win_get_height(self.result.winid),
+      height = math.max(1, api.nvim_win_get_height(self.result.winid) - selected_code_size),
     }
   end
 
@@ -1584,7 +1589,6 @@ end
 function Sidebar:render()
   local chat_history = History.load(self.code.bufnr)
 
-  local sidebar_height = api.nvim_win_get_height(self.code.winid)
   local get_position = function()
     if Config.layout == "vertical" then
       return "right"
@@ -1594,7 +1598,7 @@ function Sidebar:render()
 
   local get_height = function()
     local selected_code_size = self:get_selected_code_size()
-    vim.print(selected_code_size)
+
     if Config.layout == "horizontal" then
       return math.floor(Config.windows.height / 100 * api.nvim_win_get_height(self.code.winid))
     end
