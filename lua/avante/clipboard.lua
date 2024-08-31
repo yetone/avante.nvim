@@ -42,7 +42,7 @@ end
 ---@param line? string
 M.paste_image = function(line)
   line = line or nil
-  if not Config.support_paste_image() then
+  if not Config.support_paste_image(true) then
     return false
   end
 
