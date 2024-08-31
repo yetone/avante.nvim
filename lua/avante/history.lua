@@ -2,14 +2,10 @@ local fn, api = vim.fn, vim.api
 local Path = require("plenary.path")
 local Config = require("avante.config")
 
----@class avante.Path
----@field history_path Path
----@field cache_path Path
-local P = {}
-
 local M = {}
 
 local H = {}
+
 ---@param bufnr integer
 ---@return string
 H.filename = function(bufnr)
@@ -43,20 +39,11 @@ M.save = function(bufnr, history)
   history_file:write(vim.json.encode(history), "w")
 end
 
-P.history = M
-
-P.setup = function()
-  local history_path = Path:new(Config.history.storage_path)
-  if not history_path:exists() then
-    history_path:mkdir({ parents = true })
+M.setup = function()
+  local history_dir = Path:new(Config.history.storage_path)
+  if not history_dir:exists() then
+    history_dir:mkdir({ parents = true })
   end
-  P.history_path = history_path
-
-  local cache_path = Path:new(vim.fn.stdpath("cache") .. "/avante")
-  if not cache_path:exists() then
-    cache_path:mkdir({ parents = true })
-  end
-  P.cache_path = cache_path
 end
 
-return P
+return M

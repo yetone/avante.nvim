@@ -34,9 +34,6 @@ H.commands = function()
   cmd("Refresh", function()
     M.refresh()
   end, { desc = "avante: refresh windows" })
-  cmd("Build", function()
-    M.build()
-  end, { desc = "avante: build dependencies" })
 end
 
 H.keymaps = function()
@@ -94,34 +91,6 @@ end
 H.augroup = api.nvim_create_augroup("avante_autocmds", { clear = true })
 
 H.autocmds = function()
-  local ok, LazyConfig = pcall(require, "lazy.core.config")
-
-  if ok then
-    local name = "avante.nvim"
-    local load_path = function()
-      require("avante_lib").load()
-    end
-
-    if LazyConfig.plugins[name] and LazyConfig.plugins[name]._.loaded then
-      vim.schedule(load_path)
-    else
-      api.nvim_create_autocmd("User", {
-        pattern = "LazyLoad",
-        callback = function(event)
-          if event.data == name then
-            load_path()
-            return true
-          end
-        end,
-      })
-    end
-
-    api.nvim_create_autocmd("User", {
-      pattern = "VeryLazy",
-      callback = load_path,
-    })
-  end
-
   api.nvim_create_autocmd("TabEnter", {
     group = H.augroup,
     pattern = "*",
@@ -252,53 +221,6 @@ setmetatable(M.toggle, {
   end,
 })
 
-local function to_windows_path(path)
-  local winpath = path:gsub("/", "\\")
-
-  if winpath:match("^%a:") then
-    winpath = winpath:sub(1, 2):upper() .. winpath:sub(3)
-  end
-
-  winpath = winpath:gsub("\\$", "")
-
-  return winpath
-end
-
-M.build = H.api(function()
-  local dirname = Utils.trim(string.sub(debug.getinfo(1).source, 2, #"/init.lua" * -1), { suffix = "/" })
-  local git_root = vim.fs.find(".git", { path = dirname, upward = true })[1]
-  local build_directory = git_root and vim.fn.fnamemodify(git_root, ":h") or (dirname .. "/../../")
-
-  if not vim.fn.executable("cargo") then
-    error("Building avante.nvim requires cargo to be installed.", 2)
-  end
-
-  ---@type string[]
-  local cmd
-  local os_name = Utils.get_os_name()
-
-  if vim.tbl_contains({ "linux", "darwin" }, os_name) then
-    cmd = { "sh", "-c", ("make -C %s"):format(build_directory) }
-  elseif os_name == "windows" then
-    build_directory = to_windows_path(build_directory)
-    cmd = {
-      "powershell",
-      "-ExecutionPolicy",
-      "Bypass",
-      "-File",
-      ("%s\\Build.ps1"):format(build_directory),
-      "-WorkingDirectory",
-      build_directory,
-    }
-  else
-    error("Unsupported operating system: " .. os_name, 2)
-  end
-
-  local job = vim.system(cmd, { text = true }):wait()
-
-  return vim.tbl_contains({ 0 }, job.code) and true or false
-end)
-
 M.ask = H.api(function()
   M.toggle()
 end)
@@ -361,7 +283,7 @@ function M.setup(opts)
     return
   end
 
-  require("avante.path").setup()
+  require("avante.history").setup()
   require("avante.highlights").setup()
   require("avante.diff").setup()
   require("avante.providers").setup()
