@@ -420,34 +420,34 @@ local function ensure_snippets_no_overlap(original_content, snippets)
   return result
 end
 
-local function get_conflict_content(content, snippets)
+local function insert_conflict_contents(bufnr, snippets)
   -- sort snippets by start_line
   table.sort(snippets, function(a, b)
     return a.range[1] < b.range[1]
   end)
 
+  local content = table.concat(Utils.get_buf_lines(0, -1, bufnr), "\n")
+
   local lines = vim.split(content, "\n")
-  local result = {}
-  local current_line = 1
+
+  local offset = 0
 
   for _, snippet in ipairs(snippets) do
     local start_line, end_line = unpack(snippet.range)
 
-    while current_line < start_line do
-      table.insert(result, lines[current_line])
-      current_line = current_line + 1
-    end
-
     local need_prepend_indentation = false
     local original_start_line_indentation = Utils.get_indentation(lines[start_line] or "")
 
+    local result = {}
     table.insert(result, "<<<<<<< HEAD")
     for i = start_line, end_line do
       table.insert(result, lines[i])
     end
     table.insert(result, "=======")
 
-    for idx, line in ipairs(vim.split(snippet.content, "\n")) do
+    local snippet_lines = vim.split(snippet.content, "\n")
+
+    for idx, line in ipairs(snippet_lines) do
       line = line:gsub("^L%d+: ", "")
       if idx == 1 then
         local indentation = Utils.get_indentation(line)
@@ -461,15 +461,9 @@ local function get_conflict_content(content, snippets)
 
     table.insert(result, ">>>>>>> Snippet")
 
-    current_line = end_line + 1
+    api.nvim_buf_set_lines(bufnr, offset + start_line - 1, offset + end_line, false, result)
+    offset = offset + #snippet_lines + 3
   end
-
-  while current_line <= #lines do
-    table.insert(result, lines[current_line])
-    current_line = current_line + 1
-  end
-
-  return result
 end
 
 ---@param codeblocks table<integer, any>
@@ -539,10 +533,8 @@ function Sidebar:apply(current_cursor)
     end
   end
 
-  local conflict_content = get_conflict_content(content, snippets)
-
   vim.defer_fn(function()
-    api.nvim_buf_set_lines(self.code.bufnr, 0, -1, false, conflict_content)
+    insert_conflict_contents(self.code.bufnr, snippets)
 
     api.nvim_set_current_win(self.code.winid)
     api.nvim_feedkeys(api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
