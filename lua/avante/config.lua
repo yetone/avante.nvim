@@ -18,6 +18,8 @@ M.defaults = {
   -- For most providers that we support we will determine this automatically.
   -- If you wish to use a given implementation, then you can override it here.
   tokenizer = "tiktoken",
+  ---@type "vertical" | "horizontal"
+  layout = "vertical",
   ---@type AvanteSupportedProvider
   openai = {
     endpoint = "https://api.openai.com/v1",
@@ -137,6 +139,7 @@ M.defaults = {
   windows = {
     wrap = true, -- similar to vim.o.wrap
     width = 30, -- default % based on available width
+    height = 30, -- default % based on available height
     sidebar_header = {
       align = "center", -- left, center, right for title
       rounded = true,
