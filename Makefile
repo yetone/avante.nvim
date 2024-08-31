@@ -13,33 +13,36 @@ endif
 
 LUA_VERSIONS := luajit lua51
 BUILD_DIR := build
-BUILD_FROM_SOURCE := false
 
 all: luajit
 
-luajit: $(BUILD_DIR)/tiktoken_core.$(EXT)
-lua51: $(BUILD_DIR)/tiktoken_core-lua51.$(EXT)
+luajit: $(BUILD_DIR)/libavante_tokenizers.$(EXT)
+lua51: $(BUILD_DIR)/libavante_tokenizers-lua51.$(EXT)
+lua52: $(BUILD_DIR)/libavante_tokenizers-lua52.$(EXT)
+lua53: $(BUILD_DIR)/libavante_tokenizers-lua53.$(EXT)
+lua54: $(BUILD_DIR)/libavante_tokenizers-lua54.$(EXT)
 
 define build_from_source
-	if [ -d "$(BUILD_DIR)/lua-tiktoken-temp" ]; then rm -rf $(BUILD_DIR)/lua-tiktoken-temp; fi
-	git clone --branch v0.2.2 --depth 1 https://github.com/gptlang/lua-tiktoken.git $(BUILD_DIR)/lua-tiktoken-temp
-	cd $(BUILD_DIR)/lua-tiktoken-temp && cargo build --features=$1
-	cp $(BUILD_DIR)/lua-tiktoken-temp/target/debug/libtiktoken_core.$(EXT) $(BUILD_DIR)/tiktoken_core.$(EXT)
-	rm -rf $(BUILD_DIR)/lua-tiktoken-temp
+	cargo build --release --features=$1
+	cp target/release/libavante_tokenizers.$(EXT) $(BUILD_DIR)/avante_tokenizers.$(EXT)
 endef
 
-$(BUILD_DIR)/tiktoken_core.$(EXT): $(BUILD_DIR)
+$(BUILD_DIR)/libavante_tokenizers.$(EXT): $(BUILD_DIR)
 	$(call build_from_source,luajit)
-$(BUILD_DIR)/tiktoken_core-lua51.$(EXT): $(BUILD_DIR)
+$(BUILD_DIR)/libavante_tokenizers-lua51.$(EXT): $(BUILD_DIR)
 	$(call build_from_source,lua51)
+$(BUILD_DIR)/libavante_tokenizers-lua52.$(EXT): $(BUILD_DIR)
+	$(call build_from_source,lua52)
+$(BUILD_DIR)/libavante_tokenizers-lua53.$(EXT): $(BUILD_DIR)
+	$(call build_from_source,lua53)
+$(BUILD_DIR)/libavante_tokenizers-lua54.$(EXT): $(BUILD_DIR)
+	$(call build_from_source,lua54)
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)
 
 clean:
 	rm -rf $(BUILD_DIR)
-hello:
-	@echo Hello avante.nvim!
 
 luacheck:
 	luacheck `find -name "*.lua"` --codes

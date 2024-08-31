@@ -5,28 +5,23 @@ param (
 $BuildDir = "build"
 $BuildFromSource = $true
 
-function Build-LuaTiktoken-FromSource($feature) {
+function Build-FromSource($feature) {
     if (-not (Test-Path $BuildDir)) {
         New-Item -ItemType Directory -Path $BuildDir | Out-Null
     }
 
-    $tempDir = Join-Path $BuildDir "lua-tiktoken-temp"
-    git clone --branch v0.2.2 --depth 1 https://github.com/gptlang/lua-tiktoken.git $tempDir
+    cargo build --release --features=$feature
 
-    Push-Location $tempDir
-    cargo build --features=$feature
-    Pop-Location
+    $targetFile = "libavante_tokenizers.dll"
+    Copy-Item (Join-Path "target\release\libavante_tokenizers.dll") (Join-Path $BuildDir $targetFile)
 
-    $targetFile = "tiktoken_core.dll"
-    Copy-Item (Join-Path $tempDir "target\debug\tiktoken_core.dll") (Join-Path $BuildDir $targetFile)
-
-    Remove-Item -Recurse -Force $tempDir
+    Remove-Item -Recurse -Force "target"
 }
 
 function Main {
     Set-Location $PSScriptRoot
     Write-Host "Building for $Version..."
-    Build-LuaTiktoken-FromSource $Version
+    Build-FromSource $Version
     Write-Host "Completed!"
 }
 

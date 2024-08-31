@@ -1,7 +1,27 @@
+[lib]
+crate-type = ["cdylib"]
+
 [package]
 name = "avante-tokenizers"
-version = "0.1.0"
-edition = "2021"
+edition = { workspace = true }
+version = { workspace = true }
+rust-version = { workspace = true }
+license = { workspace = true }
+
+[lints]
+workspace = true
 
 [dependencies]
-mlua = { version = "0.9.9", features = ["luajit", "async", "lua54"] }
+mlua = { version = "0.10.0-beta.1", features = [
+  "module",
+  "serialize",
+], git = "https://github.com/mlua-rs/mlua.git", branch = "main" }
+tiktoken-rs = "0.5.9"
+tokenizers = { version = "0.20.0", features = ["hf-hub", "http"] }
+
+[features]
+lua51 = ["mlua/lua51"]
+lua52 = ["mlua/lua52"]
+lua53 = ["mlua/lua53"]
+lua54 = ["mlua/lua54"]
+luajit = ["mlua/luajit"]
