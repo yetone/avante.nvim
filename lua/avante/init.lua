@@ -252,6 +252,18 @@ setmetatable(M.toggle, {
   end,
 })
 
+local function to_windows_path(path)
+  local winpath = path:gsub("/", "\\")
+
+  if winpath:match("^%a:") then
+    winpath = winpath:sub(1, 2):upper() .. winpath:sub(3)
+  end
+
+  winpath = winpath:gsub("\\$", "")
+
+  return winpath
+end
+
 M.build = H.api(function()
   local dirname = Utils.trim(string.sub(debug.getinfo(1).source, 2, #"/init.lua" * -1), { suffix = "/" })
   local git_root = vim.fs.find(".git", { path = dirname, upward = true })[1]
@@ -269,14 +281,15 @@ M.build = H.api(function()
   if vim.tbl_contains({ "linux", "darwin" }, os_name) then
     cmd = { "sh", "-c", ("make -C %s"):format(build_directory) }
   elseif os_name == "windows" then
+    build_directory = to_windows_path(build_directory)
     cmd = {
       "powershell",
       "-ExecutionPolicy",
       "Bypass",
       "-File",
-      "Build.ps1",
+      ("%s\\Build.ps1"):format(build_directory),
       "-WorkingDirectory",
-      build_directory:gsub("/", "\\")[0],
+      build_directory,
     }
   else
     error("Unsupported operating system: " .. os_name, 2)

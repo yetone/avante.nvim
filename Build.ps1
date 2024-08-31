@@ -24,8 +24,10 @@ function Build-LuaTiktoken-FromSource($feature) {
 }
 
 function Main {
+    Set-Location $PSScriptRoot
     Write-Host "Building for $Version..."
     Build-LuaTiktoken-FromSource $Version
+    Write-Host "Completed!"
 }
 
 # Run the main function
