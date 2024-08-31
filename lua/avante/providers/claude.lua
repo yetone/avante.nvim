@@ -24,12 +24,34 @@ M.parse_message = function(prompt_opts)
     end
   end
 
-  for _, user_prompt in ipairs(prompt_opts.user_prompts) do
+  local user_prompts_with_length = {}
+  for idx, user_prompt in ipairs(prompt_opts.user_prompts) do
+    table.insert(user_prompts_with_length, { idx = idx, length = #user_prompt })
+  end
+
+  table.sort(user_prompts_with_length, function(a, b)
+    return a.length > b.length
+  end)
+
+  local top_three = vim.list_slice(user_prompts_with_length, 1, 3)
+
+  for idx, prompt_data in ipairs(prompt_opts.user_prompts) do
     local user_prompt_obj = {
       type = "text",
-      text = user_prompt,
-      cache_control = { type = "ephemeral" },
+      text = prompt_data,
     }
+
+    local is_top_three = false
+    for _, top in ipairs(top_three) do
+      if top.idx == idx then
+        is_top_three = true
+        break
+      end
+    end
+
+    if is_top_three then
+      user_prompt_obj.cache_control = { type = "ephemeral" }
+    end
 
     table.insert(message_content, user_prompt_obj)
   end
