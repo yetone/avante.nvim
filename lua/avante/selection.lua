@@ -377,13 +377,14 @@ function Selection:create_editing_input()
 
     local original_first_line_indentation = Utils.get_indentation(code_lines[self.selection.range.start.line])
 
+    local need_prepend_indentation = false
+
     api.nvim_exec_autocmds("User", { pattern = EDITING_INPUT_START_SPINNER_PATTERN })
     ---@type AvanteChunkParser
     local on_chunk = function(chunk)
       full_response = full_response .. chunk
       local response_lines = vim.split(full_response, "\n")
-      local need_prepend_indentation = false
-      if #response_lines > 0 then
+      if #response_lines == 1 then
         local first_line = response_lines[1]
         local first_line_indentation = Utils.get_indentation(first_line)
         need_prepend_indentation = first_line_indentation ~= original_first_line_indentation
