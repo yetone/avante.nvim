@@ -6,6 +6,7 @@ local P = require("avante.providers")
 local M = {}
 
 M.api_key_name = "ANTHROPIC_API_KEY"
+M.tokenizer_id = "gpt-4o"
 
 ---@param prompt_opts AvantePromptOptions
 M.parse_message = function(prompt_opts)
@@ -28,8 +29,10 @@ M.parse_message = function(prompt_opts)
     local user_prompt_obj = {
       type = "text",
       text = user_prompt,
-      cache_control = { type = "ephemeral" },
     }
+    if Utils.tokens.calculate_tokens(user_prompt_obj.text) > 1024 then
+      user_prompt_obj.cache_control = { type = "ephemeral" }
+    end
 
     table.insert(message_content, user_prompt_obj)
   end

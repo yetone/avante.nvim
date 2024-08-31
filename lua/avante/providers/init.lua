@@ -69,6 +69,7 @@ local Dressing = require("avante.ui.dressing")
 ---@field setup fun(): nil
 ---@field has fun(): boolean
 ---@field api_key_name string
+---@field tokenizer_id string | "gpt-4o"
 ---@field model? string
 ---@field parse_api_key fun(): string | nil
 ---@field parse_stream_data? AvanteStreamParser
@@ -269,6 +270,11 @@ M = setmetatable(M, {
       return E.parse_envvar(t[k])
     end
 
+    -- default to gpt-4o as tokenizer
+    if t[k].tokenizer_id == nil then
+      t[k].tokenizer_id = "gpt-4o"
+    end
+
     if t[k].has == nil then
       t[k].has = function()
         return E.parse_envvar(t[k]) ~= nil
@@ -280,6 +286,7 @@ M = setmetatable(M, {
         if not E.is_local(k) then
           t[k].parse_api_key()
         end
+        require("avante.tokenizers").setup(t[k].tokenizer_id)
       end
     end
 
