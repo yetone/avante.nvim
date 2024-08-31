@@ -247,11 +247,7 @@ M.support_paste_image = function(skip_warning)
     return
   end
 
-  local supported = Utils.has("img-clip.nvim") or Utils.has("img-clip")
-  if not supported then
-    Utils.warn("img-clip.nvim is not installed. Pasting image will be disabled.", { once = true })
-  end
-  return supported
+  return Utils.has("img-clip.nvim") or Utils.has("img-clip")
 end
 
 M.get_window_width = function()
