@@ -1,3 +1,5 @@
+local Utils = require("avante.utils")
+
 ---@class AvanteTokenizer
 ---@field from_pretrained fun(model: string): nil
 ---@field encode fun(string): integer[]
@@ -11,10 +13,22 @@ M.setup = function(model)
   if not ok then
     return
   end
+  ---@cast core AvanteTokenizer
+  if tokenizers == nil then
+    tokenizers = core
+  end
+
+  local HF_TOKEN = os.getenv("HF_TOKEN")
+  if HF_TOKEN == nil and model ~= "gpt-4o" then
+    Utils.warn(
+      "Please set HF_TOKEN environment variable to use HuggingFace tokenizer if " .. model .. " is gated",
+      { once = true }
+    )
+  end
+  vim.env.HF_HUB_DISABLE_PROGRESS_BARS = 1
 
   ---@cast core AvanteTokenizer
   core.from_pretrained(model)
-  tokenizers = core
 end
 
 M.available = function()
