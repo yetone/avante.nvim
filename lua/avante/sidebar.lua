@@ -1383,7 +1383,7 @@ function Sidebar:create_input()
     if self:get_layout() == "vertical" then
       return "bottom"
     end
-    return Config.windows.direction
+    return "right"
   end
 
   local get_size = function()
