@@ -516,25 +516,28 @@ end
 function Sidebar:apply(current_cursor)
   local content = table.concat(Utils.get_buf_lines(0, -1, self.code.bufnr), "\n")
   local response, response_start_line = self:get_content_between_separators()
-  local snippets = extract_code_snippets(content, response)
-  snippets = ensure_snippets_no_overlap(content, snippets)
+  local all_snippets = extract_code_snippets(content, response)
+  all_snippets = ensure_snippets_no_overlap(content, all_snippets)
+  local selected_snippets = {}
   if current_cursor then
     if self.result and self.result.winid then
       local cursor_line = Utils.get_cursor_pos(self.result.winid)
-      for _, snippet in ipairs(snippets) do
+      for _, snippet in ipairs(all_snippets) do
         if
-          cursor_line >= snippet.start_line_in_response_buf + response_start_line
-          and cursor_line <= snippet.end_line_in_response_buf + response_start_line
+          cursor_line >= snippet.start_line_in_response_buf + response_start_line - 1
+          and cursor_line <= snippet.end_line_in_response_buf + response_start_line - 1
         then
-          snippets = { snippet }
+          selected_snippets = { snippet }
           break
         end
       end
     end
+  else
+    selected_snippets = all_snippets
   end
 
   vim.defer_fn(function()
-    insert_conflict_contents(self.code.bufnr, snippets)
+    insert_conflict_contents(self.code.bufnr, selected_snippets)
 
     api.nvim_set_current_win(self.code.winid)
     api.nvim_feedkeys(api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
