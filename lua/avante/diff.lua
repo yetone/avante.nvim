@@ -100,9 +100,6 @@ local conflict_middle = "^======="
 local conflict_end = "^>>>>>>>"
 local conflict_ancestor = "^|||||||"
 
-local DEFAULT_CURRENT_BG_COLOR = 4218238 -- #405d7e
-local DEFAULT_INCOMING_BG_COLOR = 3229523 -- #314753
-local DEFAULT_ANCESTOR_BG_COLOR = 6824314 -- #68217A
 -----------------------------------------------------------------------------//
 
 --- @return table<string, ConflictBufferCache>
@@ -340,12 +337,6 @@ local function register_cursor_move_events(bufnr)
       Config.diff.mappings.prev,
       Config.diff.mappings.next
     )
-    local win_width = api.nvim_win_get_width(0)
-    local col = win_width - #hint - math.ceil(win_width * 0.3) - 4
-
-    if col < 0 then
-      col = 0
-    end
 
     show_keybinding_hint_extmark_id = api.nvim_buf_set_extmark(bufnr, KEYBINDING_NAMESPACE, lnum - 1, -1, {
       hl_group = "Keyword",
@@ -642,14 +633,14 @@ function M.choose(side)
     vim.defer_fn(function()
       local start = api.nvim_buf_get_mark(0, "<")[1]
       local finish = api.nvim_buf_get_mark(0, ">")[1]
-      local position = find_position(bufnr, function(line, pos)
+      local position = find_position(bufnr, function(_, pos)
         local left = pos.current.range_start >= start - 1
         local right = pos.incoming.range_end <= finish + 1
         return left and right
       end)
       while position ~= nil do
         M.process_position(bufnr, side, position, false)
-        position = find_position(bufnr, function(line, pos)
+        position = find_position(bufnr, function(_, pos)
           local left = pos.current.range_start >= start - 1
           local right = pos.incoming.range_end <= finish + 1
           return left and right
@@ -674,7 +665,7 @@ function M.choose(side)
     while pos ~= nil do
       M.process_position(bufnr, "theirs", pos, false)
       ---@diagnostic disable-next-line: unused-local
-      pos = find_position(bufnr, function(line, pos)
+      pos = find_position(bufnr, function(line, pos_)
         return true
       end)
     end

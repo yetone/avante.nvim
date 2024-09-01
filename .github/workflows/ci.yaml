@@ -1,4 +1,4 @@
-name: Stylua Check
+name: CI
 
 on:
   push:
@@ -9,7 +9,8 @@ on:
       - main
 
 jobs:
-  format:
+  stylua:
+    name: Check Lua style
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,3 +19,13 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           version: latest
           args: --check ./lua/
+  luacheck:
+    name: Lint Lua
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Luacheck linter
+        uses: lunarmodules/luacheck@v1
+        with:
+          args: ./lua/
