@@ -1076,6 +1076,13 @@ local function get_chat_record_prefix(timestamp, provider, model, request)
     .. "\n\n"
 end
 
+function Sidebar:get_layout()
+  if Config.windows.position == "left" or Config.windows.position == "right" then
+    return "vertical"
+  end
+  return "horizontal"
+end
+
 function Sidebar:update_content_with_history(history)
   local content = ""
   for idx, entry in ipairs(history) do
@@ -1217,7 +1224,7 @@ function Sidebar:create_selected_code()
       },
     })
     self.selected_code:mount()
-    if Config.layout == "horizontal" then
+    if self:get_layout() == "horizontal" then
       api.nvim_win_set_height(self.result.winid, api.nvim_win_get_height(self.result.winid) - selected_code_size - 3)
     end
   end
@@ -1370,14 +1377,14 @@ function Sidebar:create_input()
   end
 
   local get_position = function()
-    if Config.layout == "vertical" then
+    if self:get_layout() == "vertical" then
       return "bottom"
     end
     return "right"
   end
 
   local get_size = function()
-    if Config.layout == "vertical" then
+    if self:get_layout() == "vertical" then
       return {
         height = 8,
       }
@@ -1582,32 +1589,25 @@ function Sidebar:render()
   local chat_history = Path.history.load(self.code.bufnr)
 
   local get_position = function()
-    if Config.layout == "vertical" then
-      return "right"
-    end
-    return "bottom"
+    return Config.windows.position
   end
 
   local get_height = function()
     local selected_code_size = self:get_selected_code_size()
 
-    if Config.layout == "horizontal" then
+    if self:get_layout() == "horizontal" then
       return math.floor(Config.windows.height / 100 * api.nvim_win_get_height(self.code.winid))
     end
 
-    if Config.layout == "vertical" then
-      return math.max(1, api.nvim_win_get_height(self.code.winid) - selected_code_size - 3 - 8)
-    end
+    return math.max(1, api.nvim_win_get_height(self.code.winid) - selected_code_size - 3 - 8)
   end
 
   local get_width = function()
-    if Config.layout == "vertical" then
+    if self:get_layout() == "vertical" then
       return math.floor(Config.windows.width / 100 * api.nvim_win_get_width(self.code.winid))
     end
 
-    if Config.layout == "horizontal" then
-      return math.max(1, api.nvim_win_get_width(self.code.winid))
-    end
+    return math.max(1, api.nvim_win_get_width(self.code.winid))
   end
 
   self.result = Split({
