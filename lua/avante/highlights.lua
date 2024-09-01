@@ -14,11 +14,11 @@ local Highlights = {
 }
 
 Highlights.conflict = {
-  CURRENT = { name = "AvanteConflictCurrent", bg = 4218238 }, -- #405d7e
+  CURRENT = { name = "AvanteConflictCurrent", bg = 4218238, bold = true }, -- #405d7e
   CURRENT_LABEL = { name = "AvanteConflictCurrentLabel", link = "CURRENT", shade = 60 },
-  INCOMING = { name = "AvanteConflictIncoming", bg = 3229523 }, -- #314753
+  INCOMING = { name = "AvanteConflictIncoming", bg = 3229523, bold = true }, -- #314753
   INCOMING_LABEL = { name = "AvanteConflictIncomingLabel", link = "INCOMING", shade = 60 },
-  ANCESTOR = { name = "AvanteConflictAncestor", bg = 6824314 }, -- #68217A
+  ANCESTOR = { name = "AvanteConflictAncestor", bg = 6824314, bold = true }, -- #68217A
   ANCESTOR_LABEL = { name = "AvanteConflictAncestorLabel", link = "ANCESTOR", shade = 60 },
 }
 
@@ -64,15 +64,14 @@ end
 M.conflict_highlights = function(opts)
   opts = opts or Config.diff.highlights
 
+  local get_highlights = function(key, hl)
+    local cl = api.nvim_get_hl(0, { name = opts[key:lower()] })
+    return cl ~= nil and cl or api.nvim_get_hl(0, { name = hl.name })
+  end
+
   local get_default_colors = function(key, hl)
     --- We will first check for user custom highlight. Then fallback to default name highlight.
-    local cl
-    cl = api.nvim_get_hl(0, { name = opts[key:lower()] })
-    if cl ~= nil then
-      return cl.bg or hl.bg
-    end
-    cl = api.nvim_get_hl(0, { name = hl.name })
-    return cl.bg or hl.bg
+    return get_highlights(key, hl).bg or hl.bg
   end
 
   local get_shade = function(hl)
@@ -85,7 +84,11 @@ M.conflict_highlights = function(opts)
       if hl.link ~= nil then
         api.nvim_set_hl(0, hl.name, { bg = get_shade(hl), default = true })
       else
-        api.nvim_set_hl(0, hl.name, { bg = get_default_colors(key, hl), default = true, bold = true })
+        api.nvim_set_hl(
+          0,
+          hl.name,
+          { bg = get_default_colors(key, hl), default = true, bold = get_highlights(key, hl).bold or hl.bold }
+        )
       end
     end
   end)
