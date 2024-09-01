@@ -1,5 +1,7 @@
 # avante.nvim
 
+[![CI](https://github.com/yetone/avante.nvim/actions/workflows/ci.yaml/badge.svg)](https://github.com/yetone/avante.nvim/actions/workflows/ci.yaml)
+
 **avante.nvim** is a Neovim plugin designed to emulate the behaviour of the [Cursor](https://www.cursor.com) AI IDE. It provides users with AI-driven code suggestions and the ability to apply these recommendations directly to their source files with minimal effort.
 
 > [!NOTE]
