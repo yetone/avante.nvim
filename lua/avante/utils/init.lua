@@ -190,7 +190,7 @@ function M.get_visual_selection_and_range()
     start_line, end_line = end_line, start_line
     start_col, end_col = end_col, start_col
   end
-  local content = ""
+  local content = "" -- luacheck: ignore
   local range = Range.new({ line = start_line, col = start_col }, { line = end_line, col = end_col })
   -- Check if it's a single-line selection
   if start_line == end_line then
@@ -221,11 +221,11 @@ end
 
 ---Wrapper around `api.nvim_buf_get_lines` which defaults to the current buffer
 ---@param start integer
----@param _end integer
+---@param end_ integer
 ---@param buf integer?
 ---@return string[]
-function M.get_buf_lines(start, _end, buf)
-  return api.nvim_buf_get_lines(buf or 0, start, _end, false)
+function M.get_buf_lines(start, end_, buf)
+  return api.nvim_buf_get_lines(buf or 0, start, end_, false)
 end
 
 ---Get cursor row and column as (1, 0) based

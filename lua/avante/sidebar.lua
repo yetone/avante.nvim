@@ -634,7 +634,7 @@ function Sidebar:render_input()
   ---@diagnostic disable-next-line: undefined-field
   if _G.MiniIcons ~= nil then
     ---@diagnostic disable-next-line: undefined-global
-    icon, _, _ = MiniIcons.get("filetype", filetype)
+    icon, _, _ = MiniIcons.get("filetype", filetype) -- luacheck: ignore
   else
     local ok, devicons = pcall(require, "nvim-web-devicons")
     if ok then
@@ -1571,14 +1571,13 @@ function Sidebar:create_input()
 end
 
 function Sidebar:get_selected_code_size()
-  local selected_code_lines_count = 0
   local selected_code_max_lines_count = 10
 
   local selected_code_size = 0
 
   if self.code.selection ~= nil then
     local selected_code_lines = vim.split(self.code.selection.content, "\n")
-    selected_code_lines_count = #selected_code_lines
+    local selected_code_lines_count = #selected_code_lines
     selected_code_size = math.min(selected_code_lines_count, selected_code_max_lines_count)
   end
 
