@@ -545,7 +545,7 @@ function Sidebar:apply(current_cursor)
     Diff.process(self.code.bufnr)
     api.nvim_win_set_cursor(self.code.winid, { 1, 0 })
     vim.defer_fn(function()
-      vim.cmd("AvanteConflictNextConflict")
+      Diff.find_next("ours")
       vim.cmd("normal! zz")
     end, 1000)
   end, 10)
@@ -576,13 +576,6 @@ local base_win_options = {
   winbar = "",
   statusline = "",
 }
-
-local function get_win_options()
-  -- return vim.tbl_deep_extend("force", base_win_options, {
-  --   fillchars = "eob: ,vert: ,horiz: ,horizup: ,horizdown: ,vertleft: ,vertright:" .. (code_vert_char ~= nil and code_vert_char or " ") .. ",verthoriz: ",
-  -- })
-  return base_win_options
-end
 
 function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl)
   if not bufnr or not api.nvim_buf_is_valid(bufnr) then
@@ -937,10 +930,9 @@ function Sidebar:refresh_winids()
 end
 
 function Sidebar:resize()
-  local new_layout = Config.get_sidebar_layout_options()
   for _, comp in pairs(self) do
     if comp and type(comp) == "table" and comp.winid and api.nvim_win_is_valid(comp.winid) then
-      api.nvim_win_set_width(comp.winid, new_layout.width)
+      api.nvim_win_set_width(comp.winid, Config.get_window_width())
     end
   end
   self:render_result()
@@ -1220,7 +1212,7 @@ function Sidebar:create_selected_code()
         winid = self.input.winid,
       },
       buf_options = buf_options,
-      win_options = get_win_options(),
+      win_options = base_win_options,
       position = "top",
       size = {
         height = selected_code_size + 3,
@@ -1407,7 +1399,7 @@ function Sidebar:create_input()
       type = "win",
       winid = self.result.winid,
     },
-    win_options = vim.tbl_deep_extend("force", get_win_options(), { signcolumn = "yes" }),
+    win_options = vim.tbl_deep_extend("force", base_win_options, { signcolumn = "yes" }),
     position = get_position(),
     size = get_size(),
   })
@@ -1571,6 +1563,15 @@ function Sidebar:create_input()
   })
 
   self:refresh_winids()
+
+  api.nvim_create_autocmd("User", {
+    pattern = "AvanteInputSubmitted",
+    callback = function(ev)
+      if ev.data and ev.data.request then
+        handle_submit(ev.data.request)
+      end
+    end,
+  })
 end
 
 function Sidebar:get_selected_code_size()
@@ -1623,7 +1624,7 @@ function Sidebar:render()
       bufhidden = "wipe",
       filetype = "Avante",
     }),
-    win_options = get_win_options(),
+    win_options = base_win_options,
     size = {
       width = get_width(),
       height = get_height(),
