@@ -448,7 +448,7 @@ local function insert_conflict_contents(bufnr, snippets)
     local snippet_lines = vim.split(snippet.content, "\n")
 
     for idx, line in ipairs(snippet_lines) do
-      line = line:gsub("^L%d+: ", "")
+      line = Utils.trim_line_number(line)
       if idx == 1 then
         local indentation = Utils.get_indentation(line)
         need_prepend_indentation = indentation ~= original_start_line_indentation
@@ -824,7 +824,7 @@ function Sidebar:on_mount()
   self:render_input()
   self:render_selected_code()
 
-  self.augroup = api.nvim_create_augroup("avante_" .. self.id .. self.result.winid, { clear = true })
+  self.augroup = api.nvim_create_augroup("avante_sidebar_" .. self.id .. self.result.winid, { clear = true })
 
   local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
 
@@ -1040,17 +1040,6 @@ function Sidebar:update_content(content, opts)
   return self
 end
 
-local function prepend_line_number(content, start_line)
-  start_line = start_line or 1
-  local lines = vim.split(content, "\n")
-  local result = {}
-  for i, line in ipairs(lines) do
-    i = i + start_line - 1
-    table.insert(result, "L" .. i .. ": " .. line)
-  end
-  return table.concat(result, "\n")
-end
-
 -- Function to get current timestamp
 local function get_timestamp()
   return os.date("%Y-%m-%d %H:%M:%S")
@@ -1253,14 +1242,14 @@ function Sidebar:create_input()
     self:update_content(content_prefix .. "🔄 **Generating response ...**\n")
 
     local content = table.concat(Utils.get_buf_lines(0, -1, self.code.bufnr), "\n")
-    local content_with_line_numbers = prepend_line_number(content)
+    local content_with_line_numbers = Utils.prepend_line_number(content)
 
     local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
 
     local selected_code_content_with_line_numbers = nil
     if self.code.selection ~= nil then
       selected_code_content_with_line_numbers =
-        prepend_line_number(self.code.selection.content, self.code.selection.range.start.line)
+        Utils.prepend_line_number(self.code.selection.content, self.code.selection.range.start.line)
     end
 
     if request:sub(1, 1) == "/" then
@@ -1289,7 +1278,7 @@ function Sidebar:create_input()
               Utils.error("Invalid end line number", { once = true, title = "Avante" })
               return
             end
-            selected_code_content_with_line_numbers = prepend_line_number(
+            selected_code_content_with_line_numbers = Utils.prepend_line_number(
               table.concat(api.nvim_buf_get_lines(self.code.bufnr, start_line - 1, end_line, false), "\n"),
               start_line
             )
@@ -1640,12 +1629,12 @@ function Sidebar:render()
   end)
 
   self.result:map("n", "q", function()
-    api.nvim_exec_autocmds("User", { pattern = Llm.CANCEL_PATTERN })
+    Llm.cancel_inflight_request()
     self:close()
   end)
 
   self.result:map("n", "<Esc>", function()
-    api.nvim_exec_autocmds("User", { pattern = Llm.CANCEL_PATTERN })
+    Llm.cancel_inflight_request()
     self:close()
   end)
 
