@@ -300,11 +300,8 @@ M.setup = function()
   ---@type AvanteProviderFunctor
   local provider = M[Config.provider]
   E.setup({ provider = provider })
-
-  M.commands()
 end
 
----@private
 ---@param provider Provider
 function M.refresh(provider)
   require("avante.config").override({ provider = provider })
@@ -313,31 +310,6 @@ function M.refresh(provider)
   local p = M[Config.provider]
   E.setup({ provider = p, refresh = true })
   Utils.info("Switch to provider: " .. provider, { once = true, title = "Avante" })
-end
-
-local default_providers = { "openai", "claude", "azure", "gemini" }
-
----@private
-M.commands = function()
-  api.nvim_create_user_command("AvanteSwitchProvider", function(args)
-    local cmd = vim.trim(args.args or "")
-    M.refresh(cmd)
-  end, {
-    nargs = 1,
-    desc = "avante: switch provider",
-    complete = function(_, line)
-      if line:match("^%s*AvanteSwitchProvider %w") then
-        return {}
-      end
-      local prefix = line:match("^%s*AvanteSwitchProvider (%w*)") or ""
-      -- join two tables
-      local Keys = vim.list_extend({}, default_providers)
-      Keys = vim.list_extend(Keys, vim.tbl_keys(Config.vendors or {}))
-      return vim.tbl_filter(function(key)
-        return key:find(prefix) == 1
-      end, Keys)
-    end,
-  })
 end
 
 ---@param opts AvanteProvider | AvanteSupportedProvider | AvanteProviderFunctor

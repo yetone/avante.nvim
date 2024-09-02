@@ -7,10 +7,10 @@ local Utils = require("avante.utils")
 local M = {}
 
 ---@class avante.Config
----@field silent_warning boolean will be determined from debug
+---@field silent_warning? boolean will be determined from debug
 M.defaults = {
   debug = false,
-  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | string
+  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | [string]
   provider = "claude", -- Only recommend using Claude
   ---@alias Tokenizer "tiktoken" | "hf"
   -- Used for counting tokens and encoding text.
@@ -111,7 +111,6 @@ M.defaults = {
       ours = "co",
       theirs = "ct",
       all_theirs = "ca",
-      none = "c0",
       both = "cb",
       cursor = "cc",
       next = "]x",
@@ -130,6 +129,7 @@ M.defaults = {
     edit = "<leader>ae",
     refresh = "<leader>ar",
     toggle = {
+      default = "<leader>at",
       debug = "<leader>ad",
       hint = "<leader>ah",
     },
@@ -151,11 +151,9 @@ M.defaults = {
       border = "rounded",
     },
   },
-  --- @class AvanteConflictUserConfig
+  --- @class AvanteConflictConfig
   diff = {
     autojump = true,
-    ---@type string | fun(): any
-    list_opener = "copen",
   },
   --- @class AvanteHintsConfig
   hints = {
@@ -166,10 +164,13 @@ M.defaults = {
 ---@type avante.Config
 M.options = {}
 
----@class avante.ConflictConfig: AvanteConflictUserConfig
+---@class avante.ConflictConfig: AvanteConflictConfig
 ---@field mappings AvanteConflictMappings
 ---@field highlights AvanteConflictHighlights
 M.diff = {}
+
+---@type Provider[]
+M.providers = {}
 
 ---@param opts? avante.Config
 function M.setup(opts)
@@ -190,6 +191,16 @@ function M.setup(opts)
     -- set silent_warning to true if debug is false
     M.options.silent_warning = not M.options.debug
   end
+  M.providers = vim
+    .iter(M.defaults)
+    :filter(function(_, value)
+      return type(value) == "table" and value.endpoint ~= nil
+    end)
+    :fold({}, function(acc, k)
+      acc = vim.list_extend({}, acc)
+      acc = vim.list_extend(acc, { k })
+      return acc
+    end)
 
   vim.validate({ provider = { M.options.provider, "string", false } })
 
@@ -205,6 +216,7 @@ function M.setup(opts)
       M.options.vendors[k] = type(v) == "function" and v() or v
     end
     vim.validate({ vendors = { M.options.vendors, "table", true } })
+    M.providers = vim.list_extend(M.providers, vim.tbl_keys(M.options.vendors))
   end
 end
 
@@ -228,6 +240,9 @@ function M.override(opts)
   if next(M.options.vendors) ~= nil then
     for k, v in pairs(M.options.vendors) do
       M.options.vendors[k] = type(v) == "function" and v() or v
+      if not vim.tbl_contains(M.providers, k) then
+        M.providers = vim.list_extend(M.providers, { k })
+      end
     end
     vim.validate({ vendors = { M.options.vendors, "table", true } })
   end

@@ -4,6 +4,7 @@ local Utils = require("avante.utils")
 local Sidebar = require("avante.sidebar")
 local Selection = require("avante.selection")
 local Config = require("avante.config")
+local Diff = require("avante.diff")
 
 ---@class Avante
 local M = {
@@ -20,36 +21,57 @@ M.did_setup = false
 local H = {}
 
 H.commands = function()
+  ---@param n string
+  ---@param c vim.api.keyset.user_command.callback
+  ---@param o vim.api.keyset.user_command.opts
   local cmd = function(n, c, o)
     o = vim.tbl_extend("force", { nargs = 0 }, o or {})
     api.nvim_create_user_command("Avante" .. n, c, o)
   end
 
-  cmd("Ask", function()
-    M.ask()
-  end, { desc = "avante: ask AI for code suggestions" })
-  cmd("Edit", function()
-    M.edit()
-  end, { desc = "avante: edit selected block" })
+  cmd("Ask", function(opts)
+    require("avante.api").ask(vim.trim(opts.args))
+  end, { desc = "avante: ask AI for code suggestions", nargs = "*" })
+  cmd("Toggle", function()
+    M.toggle()
+  end, { desc = "avante: toggle AI panel" })
+  cmd("Edit", function(opts)
+    require("avante.api").edit(vim.trim(opts.args))
+  end, { desc = "avante: edit selected block", nargs = "*" })
   cmd("Refresh", function()
-    M.refresh()
+    require("avante.api").refresh()
   end, { desc = "avante: refresh windows" })
   cmd("Build", function()
     M.build()
   end, { desc = "avante: build dependencies" })
+  cmd("SwitchProvider", function(opts)
+    require("avante.api").switch_provider(vim.trim(opts.args or ""))
+  end, {
+    nargs = 1,
+    desc = "avante: switch provider",
+    complete = function(_, line, _)
+      local prefix = line:match("AvanteSwitchProvider%s*(.*)$") or ""
+      ---@param key string
+      return vim.tbl_filter(function(key)
+        return key:find(prefix, 1, true) == 1
+      end, Config.providers)
+    end,
+  })
 end
 
 H.keymaps = function()
   vim.keymap.set({ "n", "v" }, "<Plug>(AvanteAsk)", function()
-    M.ask()
+    require("avante.api").ask()
   end, { noremap = true })
   vim.keymap.set("v", "<Plug>(AvanteEdit)", function()
-    M.edit()
+    require("avante.api").edit()
   end, { noremap = true })
   vim.keymap.set("n", "<Plug>(AvanteRefresh)", function()
-    M.refresh()
+    require("avante.api").refresh()
   end, { noremap = true })
-  --- the following is kinda considered as internal mappings.
+  vim.keymap.set("n", "<Plug>(AvanteToggle)", function()
+    M.toggle()
+  end, { noremap = true })
   vim.keymap.set("n", "<Plug>(AvanteToggleDebug)", function()
     M.toggle.debug()
   end)
@@ -57,16 +79,41 @@ H.keymaps = function()
     M.toggle.hint()
   end)
 
+  vim.keymap.set({ "n", "v" }, "<Plug>(AvanteConflictOurs)", function()
+    Diff.choose("ours")
+  end)
+  vim.keymap.set({ "n", "v" }, "<Plug>(AvanteConflictBoth)", function()
+    Diff.choose("both")
+  end)
+  vim.keymap.set({ "n", "v" }, "<Plug>(AvanteConflictTheirs)", function()
+    Diff.choose("theirs")
+  end)
+  vim.keymap.set({ "n", "v" }, "<Plug>(AvanteConflictAllTheirs)", function()
+    Diff.choose("all_theirs")
+  end)
+  vim.keymap.set({ "n", "v" }, "<Plug>(AvanteConflictCursor)", function()
+    Diff.choose("cursor")
+  end)
+  vim.keymap.set("n", "<Plug>(AvanteConflictNextConflict)", function()
+    Diff.find_next("ours")
+  end)
+  vim.keymap.set("n", "<Plug>(AvanteConflictPrevConflict)", function()
+    Diff.find_prev("ours")
+  end)
+
   if Config.behaviour.auto_set_keymaps then
     Utils.safe_keymap_set({ "n", "v" }, Config.mappings.ask, function()
-      M.ask()
+      require("avante.api").ask()
     end, { desc = "avante: ask" })
     Utils.safe_keymap_set("v", Config.mappings.edit, function()
-      M.edit()
+      require("avante.api").edit()
     end, { desc = "avante: edit" })
     Utils.safe_keymap_set("n", Config.mappings.refresh, function()
-      M.refresh()
+      require("avante.api").refresh()
     end, { desc = "avante: refresh" })
+    Utils.safe_keymap_set("n", Config.mappings.toggle.default, function()
+      M.toggle()
+    end, { desc = "avante: toggle" })
     Utils.safe_keymap_set("n", Config.mappings.toggle.debug, function()
       M.toggle.debug()
     end, { desc = "avante: toggle debug" })
@@ -138,7 +185,7 @@ H.autocmds = function()
   api.nvim_create_autocmd("VimResized", {
     group = H.augroup,
     callback = function()
-      local sidebar, _ = M._get()
+      local sidebar, _ = M.get()
       if not sidebar then
         return
       end
@@ -188,7 +235,7 @@ end
 
 ---@param current boolean? false to disable setting current, otherwise use this to track across tabs.
 ---@return avante.Sidebar, avante.Selection
-function M._get(current)
+function M.get(current)
   local tab = api.nvim_get_current_tabpage()
   local sidebar = M.sidebars[tab]
   local selection = M.selections[tab]
@@ -241,7 +288,7 @@ M.toggle.hint = H.api(Utils.toggle_wrap({
 setmetatable(M.toggle, {
   __index = M.toggle,
   __call = function()
-    local sidebar, _ = M._get()
+    local sidebar, _ = M.get()
     if not sidebar then
       M._init(api.nvim_get_current_tabpage())
       M.current.sidebar:open()
@@ -252,6 +299,7 @@ setmetatable(M.toggle, {
   end,
 })
 
+---@param path string
 local function to_windows_path(path)
   local winpath = path:gsub("/", "\\")
 
@@ -297,48 +345,6 @@ M.build = H.api(function()
   local job = vim.system(cmd, { text = true }):wait()
 
   return vim.tbl_contains({ 0 }, job.code) and true or false
-end)
-
-M.ask = H.api(function()
-  M.toggle()
-end)
-
-M.edit = H.api(function()
-  local _, selection = M._get()
-  if not selection then
-    return
-  end
-  selection:create_editing_input()
-end)
-
-M.refresh = H.api(function()
-  local sidebar, _ = M._get()
-  if not sidebar then
-    return
-  end
-  if not sidebar:is_open() then
-    return
-  end
-
-  local curbuf = vim.api.nvim_get_current_buf()
-
-  local focused = sidebar.result.bufnr == curbuf or sidebar.input.bufnr == curbuf
-  if focused or not sidebar:is_open() then
-    return
-  end
-
-  local listed = vim.api.nvim_get_option_value("buflisted", { buf = curbuf })
-
-  if Utils.is_sidebar_buffer(curbuf) or not listed then
-    return
-  end
-
-  local curwin = vim.api.nvim_get_current_win()
-
-  sidebar:close()
-  sidebar.code.winid = curwin
-  sidebar.code.bufnr = curbuf
-  sidebar:render()
 end)
 
 ---@param opts? avante.Config
