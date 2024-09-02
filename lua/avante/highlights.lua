@@ -84,10 +84,11 @@ M.conflict_highlights = function(opts)
       if hl.link ~= nil then
         api.nvim_set_hl(0, hl.name, { bg = get_shade(hl), default = true })
       else
+        local bold = get_highlights(key, hl).bold
         api.nvim_set_hl(
           0,
           hl.name,
-          { bg = get_default_colors(key, hl), default = true, bold = get_highlights(key, hl).bold or hl.bold }
+          { bg = get_default_colors(key, hl), default = true, bold = bold ~= nil and bold or hl.bold }
         )
       end
     end
