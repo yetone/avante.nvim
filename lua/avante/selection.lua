@@ -367,10 +367,8 @@ function Selection:create_editing_input()
     end,
   })
 
-  local function submit_input()
-    local lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
-    local input = lines[1] or ""
-
+  ---@param input string
+  local function submit_input(input)
     local full_response = ""
     local start_line = self.selection.range.start.line
     local finish_line = self.selection.range.finish.line
@@ -426,8 +424,18 @@ function Selection:create_editing_input()
     })
   end
 
-  vim.keymap.set("i", Config.mappings.submit.insert, submit_input, { buffer = bufnr, noremap = true, silent = true })
-  vim.keymap.set("n", Config.mappings.submit.normal, submit_input, { buffer = bufnr, noremap = true, silent = true })
+  ---@return string
+  local get_bufnr_input = function()
+    local lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
+    return lines[1] or ""
+  end
+
+  vim.keymap.set("i", Config.mappings.submit.insert, function()
+    submit_input(get_bufnr_input())
+  end, { buffer = bufnr, noremap = true, silent = true })
+  vim.keymap.set("n", Config.mappings.submit.normal, function()
+    submit_input(get_bufnr_input())
+  end, { buffer = bufnr, noremap = true, silent = true })
   vim.keymap.set("n", "<Esc>", function()
     self:close_editing_input()
   end, { buffer = bufnr })
@@ -458,6 +466,15 @@ function Selection:create_editing_input()
       if close_unfocus then
         api.nvim_del_autocmd(close_unfocus)
         close_unfocus = nil
+      end
+    end,
+  })
+
+  api.nvim_create_autocmd("User", {
+    pattern = "AvanteEditSubmitted",
+    callback = function(ev)
+      if ev.data and ev.data.request then
+        submit_input(ev.data.request)
       end
     end,
   })
