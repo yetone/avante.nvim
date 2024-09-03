@@ -13,7 +13,7 @@ TARGET_DIR="${SCRIPT_DIR}/build"
 # Get the artifact download URL based on the platform and Lua version
 case "$(uname -s)" in
 Linux*)
-  PLATFORM="linux"
+  PLATFORM="ubuntu"
   ;;
 Darwin*)
   PLATFORM="macos"
