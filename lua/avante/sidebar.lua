@@ -639,8 +639,6 @@ end
 function Sidebar:on_mount()
   self:refresh_winids()
 
-  api.nvim_set_option_value("wrap", Config.windows.wrap, { win = self.result.winid })
-
   local current_apply_extmark_id = nil
 
   local function show_apply_button(block)

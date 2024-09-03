@@ -151,7 +151,6 @@ You are an excellent programming expert.
   windows = {
     ---@alias AvantePosition "right" | "left" | "top" | "bottom"
     position = "right",
-    wrap = true, -- similar to vim.o.wrap
     width = 30, -- default % based on available width in vertical layout
     height = 30, -- default % based on available height in horizontal layout
     sidebar_header = {
@@ -175,7 +174,7 @@ You are an excellent programming expert.
       winhl = "",
       linebreak = true,
       breakindent = true,
-      wrap = false,
+      wrap = true,
       cursorline = false,
       -- winhighlight = "Normal:NormalFloat,Border:FloatBorder,VertSplit:NormalFloat,WinSeparator:NormalFloat,CursorLine:NormalFloat",
       fillchars = "eob: ",
