@@ -164,6 +164,25 @@ You are an excellent programming expert.
     edit = {
       border = "rounded",
     },
+    opts = {
+      spell = false,
+      signcolumn = "no",
+      foldcolumn = "0",
+      number = false,
+      relativenumber = false,
+      winfixwidth = true,
+      list = false,
+      winhl = "",
+      linebreak = true,
+      breakindent = true,
+      wrap = false,
+      cursorline = false,
+      -- winhighlight = "Normal:NormalFloat,Border:FloatBorder,VertSplit:NormalFloat,WinSeparator:NormalFloat,CursorLine:NormalFloat",
+      fillchars = "eob: ",
+      winhighlight = "CursorLine:Normal,CursorColumn:Normal",
+      winbar = "",
+      statusline = "",
+    },
   },
   --- @class AvanteConflictConfig
   diff = {

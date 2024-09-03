@@ -533,26 +533,6 @@ local buf_options = {
   buftype = "nofile",
 }
 
-local base_win_options = {
-  spell = false,
-  signcolumn = "no",
-  foldcolumn = "0",
-  number = false,
-  relativenumber = false,
-  winfixwidth = true,
-  list = false,
-  winhl = "",
-  linebreak = true,
-  breakindent = true,
-  wrap = false,
-  cursorline = false,
-  -- winhighlight = "Normal:NormalFloat,Border:FloatBorder,VertSplit:NormalFloat,WinSeparator:NormalFloat,CursorLine:NormalFloat",
-  fillchars = "eob: ",
-  winhighlight = "CursorLine:Normal,CursorColumn:Normal",
-  winbar = "",
-  statusline = "",
-}
-
 function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl)
   if not bufnr or not api.nvim_buf_is_valid(bufnr) then return end
 
@@ -1126,7 +1106,7 @@ function Sidebar:create_selected_code()
         winid = self.input.winid,
       },
       buf_options = buf_options,
-      win_options = base_win_options,
+      win_options = Config.windows.opts,
       position = "top",
       size = {
         height = selected_code_size + 3,
@@ -1295,7 +1275,7 @@ function Sidebar:create_input()
       type = "win",
       winid = self.result.winid,
     },
-    win_options = vim.tbl_deep_extend("force", base_win_options, { signcolumn = "yes" }),
+    win_options = vim.tbl_deep_extend("force", Config.windows.opts, { signcolumn = "yes" }),
     position = get_position(),
     size = get_size(),
   })
@@ -1506,7 +1486,7 @@ function Sidebar:render()
       bufhidden = "wipe",
       filetype = "Avante",
     }),
-    win_options = base_win_options,
+    win_options = Config.windows.opts,
     size = {
       width = get_width(),
       height = get_height(),
