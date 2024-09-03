@@ -20,6 +20,17 @@ local M = {}
 ---@param target Provider
 M.switch_provider = function(target) require("avante.providers").refresh(target) end
 
+---@param path string
+local function to_windows_path(path)
+  local winpath = path:gsub("/", "\\")
+
+  if winpath:match("^%a:") then winpath = winpath:sub(1, 2):upper() .. winpath:sub(3) end
+
+  winpath = winpath:gsub("\\$", "")
+
+  return winpath
+end
+
 ---@param opts {source: boolean}
 M.build = function(opts)
   local dirname = Utils.trim(string.sub(debug.getinfo(1).source, 2, #"/init.lua" * -1), { suffix = "/" })
@@ -41,7 +52,7 @@ M.build = function(opts)
       string.format("make BUILD_FROM_SOURCE=%s -C %s", opts.source == true and "true" or "false", build_directory),
     }
   elseif os_name == "windows" then
-    build_directory = Utils.norm(build_directory)
+    build_directory = to_windows_path(build_directory)
     cmd = {
       "powershell",
       "-ExecutionPolicy",

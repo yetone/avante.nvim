@@ -282,17 +282,6 @@ setmetatable(M.toggle, {
   end,
 })
 
----@param path string
-local function to_windows_path(path)
-  local winpath = path:gsub("/", "\\")
-
-  if winpath:match("^%a:") then winpath = winpath:sub(1, 2):upper() .. winpath:sub(3) end
-
-  winpath = winpath:gsub("\\$", "")
-
-  return winpath
-end
-
 ---@param opts? avante.Config
 function M.setup(opts)
   ---PERF: we can still allow running require("avante").setup() multiple times to override config if users wish to
