@@ -32,7 +32,10 @@ https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd
   opts = {
     -- add any opts here
   },
-  build = ":AvanteBuild", -- Also note that this will block the startup for a bit since we are compiling bindings in Rust.
+  -- if you want to build from source, then pass source=true (requires cargo).
+  -- Also note that building from source will block startuptime since
+  -- we are compiling bindings in Rust.
+  build = ":AvanteBuild",
   dependencies = {
     "stevearc/dressing.nvim",
     "nvim-lua/plenary.nvim",
@@ -87,7 +90,7 @@ Plug 'nvim-tree/nvim-web-devicons' "or Plug 'echasnovski/mini.icons'
 Plug 'HakonHarnes/img-clip.nvim'
 Plug 'zbirenbaum/copilot.lua'
 
-" Yay
+" Yay, pass source=true if you want to build from source
 Plug 'yetone/avante.nvim', { 'branch': 'main', 'do': { -> avante#build() }, 'on': 'AvanteAsk' }
 ```
 

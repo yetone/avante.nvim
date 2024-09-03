@@ -44,7 +44,20 @@ H.commands = function()
     { desc = "avante: edit selected block", nargs = "*" }
   )
   cmd("Refresh", function() require("avante.api").refresh() end, { desc = "avante: refresh windows" })
-  cmd("Build", function() M.build() end, { desc = "avante: build dependencies" })
+  cmd("Build", function(opts)
+    local args = {}
+    for _, arg in ipairs(opts.fargs) do
+      local key, value = arg:match("(%w+)=(%w+)")
+      if key and value then args[key] = value == "true" end
+    end
+    if args.source == nil then args.source = Config.debug and true or false end
+
+    require("avante.api").build(args)
+  end, {
+    desc = "avante: build dependencies",
+    nargs = "*",
+    complete = function(_, _, _) return { "source=true", "source=false" } end,
+  })
   cmd("SwitchProvider", function(opts) require("avante.api").switch_provider(vim.trim(opts.args or "")) end, {
     nargs = 1,
     desc = "avante: switch provider",
@@ -279,39 +292,6 @@ local function to_windows_path(path)
 
   return winpath
 end
-
-M.build = H.api(function()
-  local dirname = Utils.trim(string.sub(debug.getinfo(1).source, 2, #"/init.lua" * -1), { suffix = "/" })
-  local git_root = vim.fs.find(".git", { path = dirname, upward = true })[1]
-  local build_directory = git_root and vim.fn.fnamemodify(git_root, ":h") or (dirname .. "/../../")
-
-  if not vim.fn.executable("cargo") then error("Building avante.nvim requires cargo to be installed.", 2) end
-
-  ---@type string[]
-  local cmd
-  local os_name = Utils.get_os_name()
-
-  if vim.tbl_contains({ "linux", "darwin" }, os_name) then
-    cmd = { "sh", "-c", string.format("make -C %s", build_directory) }
-  elseif os_name == "windows" then
-    build_directory = to_windows_path(build_directory)
-    cmd = {
-      "powershell",
-      "-ExecutionPolicy",
-      "Bypass",
-      "-File",
-      string.format("%s\\Build.ps1", build_directory),
-      "-WorkingDirectory",
-      build_directory,
-    }
-  else
-    error("Unsupported operating system: " .. os_name, 2)
-  end
-
-  local job = vim.system(cmd, { text = true }):wait()
-
-  return vim.tbl_contains({ 0 }, job.code) and true or false
-end)
 
 ---@param opts? avante.Config
 function M.setup(opts)
