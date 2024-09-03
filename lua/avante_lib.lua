@@ -8,9 +8,7 @@ local function get_library_path()
 end
 
 ---@type fun(s: string): string
-local trim_semicolon = function(s)
-  return s:sub(-1) == ";" and s:sub(1, -2) or s
-end
+local trim_semicolon = function(s) return s:sub(-1) == ";" and s:sub(1, -2) or s end
 
 M.load = function()
   local library_path = get_library_path()

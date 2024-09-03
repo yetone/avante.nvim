@@ -1,8 +1,8 @@
 local api = vim.api
 
-local Config = require("avante.config")
-local Utils = require("avante.utils")
-local Highlights = require("avante.highlights")
+local Config = require "avante.config"
+local Utils = require "avante.utils"
+local Highlights = require "avante.highlights"
 
 local H = {}
 local M = {}
@@ -82,8 +82,8 @@ local INCOMING_HL = "AvanteConflictIncoming"
 local CURRENT_LABEL_HL = "AvanteConflictCurrentLabel"
 local INCOMING_LABEL_HL = "AvanteConflictIncomingLabel"
 local PRIORITY = vim.highlight.priorities.user
-local NAMESPACE = api.nvim_create_namespace("avante-conflict")
-local KEYBINDING_NAMESPACE = api.nvim_create_namespace("avante-conflict-keybinding")
+local NAMESPACE = api.nvim_create_namespace "avante-conflict"
+local KEYBINDING_NAMESPACE = api.nvim_create_namespace "avante-conflict-keybinding"
 local AUGROUP_NAME = "avante_conflicts"
 
 local conflict_start = "^<<<<<<<"
@@ -96,9 +96,7 @@ local conflict_end = "^>>>>>>>"
 local function create_visited_buffers()
   return setmetatable({}, {
     __index = function(t, k)
-      if type(k) == "number" then
-        return t[api.nvim_buf_get_name(k)]
-      end
+      if type(k) == "number" then return t[api.nvim_buf_get_name(k)] end
     end,
   })
 end
@@ -114,14 +112,10 @@ local visited_buffers = create_visited_buffers()
 ---@param buf integer
 ---@param positions ConflictPosition[]
 local function update_visited_buffers(buf, positions)
-  if not buf or not api.nvim_buf_is_valid(buf) then
-    return
-  end
+  if not buf or not api.nvim_buf_is_valid(buf) then return end
   local name = api.nvim_buf_get_name(buf)
   -- If this buffer is not in the list
-  if not visited_buffers[name] then
-    return
-  end
+  if not visited_buffers[name] then return end
   visited_buffers[name].bufnr = buf
   visited_buffers[name].tick = vim.b[buf].changedtick
   visited_buffers[name].positions = positions
@@ -139,9 +133,7 @@ end
 ---@param range_end integer
 ---@return integer? extmark_id
 local function hl_range(bufnr, hl, range_start, range_end)
-  if not range_start or not range_end then
-    return
-  end
+  if not range_start or not range_end then return end
   return api.nvim_buf_set_extmark(bufnr, NAMESPACE, range_start, 0, {
     hl_group = hl,
     hl_eol = true,
@@ -246,26 +238,20 @@ end
 ---@return ConflictPosition?
 local function find_position(bufnr, comparator, opts)
   local match = visited_buffers[bufnr]
-  if not match then
-    return
-  end
+  if not match then return end
   local line = Utils.get_cursor_pos()
   line = line - 1 -- Convert to 0-based for position comparison
 
   if opts and opts.reverse then
     for i = #match.positions, 1, -1 do
       local position = match.positions[i]
-      if comparator(line, position) then
-        return position
-      end
+      if comparator(line, position) then return position end
     end
     return nil
   end
 
   for _, position in ipairs(match.positions) do
-    if comparator(line, position) then
-      return position
-    end
+    if comparator(line, position) then return position end
   end
   return nil
 end
@@ -274,17 +260,16 @@ end
 ---@param bufnr integer
 ---@return ConflictPosition?
 local function get_current_position(bufnr)
-  return find_position(bufnr, function(line, position)
-    return position.current.range_start <= line and position.incoming.range_end >= line
-  end)
+  return find_position(
+    bufnr,
+    function(line, position) return position.current.range_start <= line and position.incoming.range_end >= line end
+  )
 end
 
 ---@param position ConflictPosition?
 ---@param side ConflictSide
 local function set_cursor(position, side)
-  if not position then
-    return
-  end
+  if not position then return end
   local target = side == SIDES.OURS and position.current or position.incoming
   api.nvim_win_set_cursor(0, { target.range_start + 1, 0 })
 end
@@ -356,9 +341,7 @@ end
 ---@param range_end integer?
 function M.process(bufnr, range_start, range_end)
   bufnr = bufnr or api.nvim_get_current_buf()
-  if visited_buffers[bufnr] and visited_buffers[bufnr].tick == vim.b[bufnr].changedtick then
-    return
-  end
+  if visited_buffers[bufnr] and visited_buffers[bufnr].tick == vim.b[bufnr].changedtick then return end
   parse_buffer(bufnr, range_start, range_end)
 end
 
@@ -369,44 +352,29 @@ end
 ---@param bufnr integer given buffer id
 H.setup_buffer_mappings = function(bufnr)
   ---@param desc string
-  local function opts(desc)
-    return { silent = true, buffer = bufnr, desc = "avante(conflict): " .. desc }
-  end
+  local function opts(desc) return { silent = true, buffer = bufnr, desc = "avante(conflict): " .. desc } end
 
-  vim.keymap.set({ "n", "v" }, Config.diff.mappings.ours, function()
-    M.choose("ours")
-  end, opts("choose ours"))
-  vim.keymap.set({ "n", "v" }, Config.diff.mappings.both, function()
-    M.choose("both")
-  end, opts("choose both"))
-  vim.keymap.set({ "n", "v" }, Config.diff.mappings.theirs, function()
-    M.choose("theirs")
-  end, opts("choose theirs"))
-  vim.keymap.set({ "n", "v" }, Config.diff.mappings.all_theirs, function()
-    M.choose("all_theirs")
-  end, opts("choose all theirs"))
-  vim.keymap.set("n", Config.diff.mappings.cursor, function()
-    M.choose("cursor")
-  end, opts("choose under cursor"))
-  vim.keymap.set("n", Config.diff.mappings.prev, function()
-    M.find_prev("ours")
-  end, opts("previous conflict"))
-  vim.keymap.set("n", Config.diff.mappings.next, function()
-    M.find_next("ours")
-  end, opts("next conflict"))
+  vim.keymap.set({ "n", "v" }, Config.diff.mappings.ours, function() M.choose "ours" end, opts "choose ours")
+  vim.keymap.set({ "n", "v" }, Config.diff.mappings.both, function() M.choose "both" end, opts "choose both")
+  vim.keymap.set({ "n", "v" }, Config.diff.mappings.theirs, function() M.choose "theirs" end, opts "choose theirs")
+  vim.keymap.set(
+    { "n", "v" },
+    Config.diff.mappings.all_theirs,
+    function() M.choose "all_theirs" end,
+    opts "choose all theirs"
+  )
+  vim.keymap.set("n", Config.diff.mappings.cursor, function() M.choose "cursor" end, opts "choose under cursor")
+  vim.keymap.set("n", Config.diff.mappings.prev, function() M.find_prev "ours" end, opts "previous conflict")
+  vim.keymap.set("n", Config.diff.mappings.next, function() M.find_next "ours" end, opts "next conflict")
 
   vim.b[bufnr].avante_conflict_mappings_set = true
 end
 
 ---@param bufnr integer
 H.clear_buffer_mappings = function(bufnr)
-  if not bufnr or not vim.b[bufnr].avante_conflict_mappings_set then
-    return
-  end
+  if not bufnr or not vim.b[bufnr].avante_conflict_mappings_set then return end
   for _, mapping in pairs(Config.diff.mappings) do
-    if vim.fn.hasmapto(mapping, "n") > 0 then
-      api.nvim_buf_del_keymap(bufnr, "n", mapping)
-    end
+    if vim.fn.hasmapto(mapping, "n") > 0 then api.nvim_buf_del_keymap(bufnr, "n", mapping) end
   end
   vim.b[bufnr].avante_conflict_mappings_set = false
 end
@@ -422,7 +390,7 @@ function M.setup()
     callback = function(ev)
       vim.diagnostic.enable(false, { bufnr = ev.buf })
       if vim.lsp.inlay_hint then
-        previous_inlay_enabled = vim.lsp.inlay_hint.is_enabled({ bufnr = ev.buf })
+        previous_inlay_enabled = vim.lsp.inlay_hint.is_enabled { bufnr = ev.buf }
         vim.lsp.inlay_hint.enable(false, { bufnr = ev.buf })
       end
       H.setup_buffer_mappings(ev.buf)
@@ -443,13 +411,9 @@ function M.setup()
   })
 
   api.nvim_set_decoration_provider(NAMESPACE, {
-    on_buf = function(_, bufnr, _)
-      return Utils.is_valid_buf(bufnr)
-    end,
+    on_buf = function(_, bufnr, _) return Utils.is_valid_buf(bufnr) end,
     on_win = function(_, _, bufnr, _, _)
-      if visited_buffers[bufnr] then
-        M.process(bufnr)
-      end
+      if visited_buffers[bufnr] then M.process(bufnr) end
     end,
   })
 end
@@ -460,9 +424,7 @@ end
 ---@param items table<string, integer|string>[]
 ---@param visited_buf ConflictBufferCache
 local function quickfix_items_from_positions(item, items, visited_buf)
-  if vim.tbl_isempty(visited_buf.positions) then
-    return
-  end
+  if vim.tbl_isempty(visited_buf.positions) then return end
   for _, pos in ipairs(visited_buf.positions) do
     for key, value in pairs(pos) do
       if vim.tbl_contains({ name_map.ours, name_map.theirs, name_map.base }, key) and not vim.tbl_isempty(value) then
@@ -502,9 +464,7 @@ end
 
 ---@param bufnr integer?
 function M.clear(bufnr)
-  if bufnr and not api.nvim_buf_is_valid(bufnr) then
-    return
-  end
+  if bufnr and not api.nvim_buf_is_valid(bufnr) then return end
   bufnr = bufnr or 0
   api.nvim_buf_clear_namespace(bufnr, NAMESPACE, 0, -1)
   api.nvim_buf_clear_namespace(bufnr, KEYBINDING_NAMESPACE, 0, -1)
@@ -512,17 +472,20 @@ end
 
 ---@param side ConflictSide
 function M.find_next(side)
-  local pos = find_position(0, function(line, position)
-    return position.current.range_start >= line and position.incoming.range_end >= line
-  end)
+  local pos = find_position(
+    0,
+    function(line, position) return position.current.range_start >= line and position.incoming.range_end >= line end
+  )
   set_cursor(pos, side)
 end
 
 ---@param side ConflictSide
 function M.find_prev(side)
-  local pos = find_position(0, function(line, position)
-    return position.current.range_start <= line and position.incoming.range_end <= line
-  end, { reverse = true })
+  local pos = find_position(
+    0,
+    function(line, position) return position.current.range_start <= line and position.incoming.range_end <= line end,
+    { reverse = true }
+  )
   set_cursor(pos, side)
 end
 
@@ -552,25 +515,19 @@ function M.choose(side)
     end, 50)
     if Config.diff.autojump then
       M.find_next(side)
-      vim.cmd([[normal! zz]])
+      vim.cmd [[normal! zz]]
     end
     return
   end
   local position = get_current_position(bufnr)
-  if not position then
-    return
-  end
+  if not position then return end
   if side == SIDES.ALL_THEIRS then
     ---@diagnostic disable-next-line: unused-local
-    local pos = find_position(bufnr, function(line, pos)
-      return true
-    end)
+    local pos = find_position(bufnr, function(line, pos) return true end)
     while pos ~= nil do
       M.process_position(bufnr, "theirs", pos, false)
       ---@diagnostic disable-next-line: unused-local
-      pos = find_position(bufnr, function(line, pos_)
-        return true
-      end)
+      pos = find_position(bufnr, function(line, pos_) return true end)
     end
   else
     M.process_position(bufnr, side, position, true)
@@ -593,7 +550,7 @@ function M.process_position(bufnr, side, position, enable_autojump)
     lines = {}
   elseif side == SIDES.CURSOR then
     local cursor_line = Utils.get_cursor_pos()
-    for _, pos in ipairs({ SIDES.OURS, SIDES.THEIRS, SIDES.BASE }) do
+    for _, pos in ipairs { SIDES.OURS, SIDES.THEIRS, SIDES.BASE } do
       local data = position[name_map[pos]] or {}
       if data.range_start and data.range_start + 1 <= cursor_line and data.range_end + 1 >= cursor_line then
         side = pos
@@ -601,9 +558,7 @@ function M.process_position(bufnr, side, position, enable_autojump)
         break
       end
     end
-    if side == SIDES.CURSOR then
-      return
-    end
+    if side == SIDES.CURSOR then return end
   else
     return
   end
@@ -617,20 +572,16 @@ function M.process_position(bufnr, side, position, enable_autojump)
   parse_buffer(bufnr)
   if enable_autojump and Config.diff.autojump then
     M.find_next(side)
-    vim.cmd([[normal! zz]])
+    vim.cmd [[normal! zz]]
   end
 end
 
 function M.conflict_count(bufnr)
-  if bufnr and not api.nvim_buf_is_valid(bufnr) then
-    return 0
-  end
+  if bufnr and not api.nvim_buf_is_valid(bufnr) then return 0 end
   bufnr = bufnr or 0
 
   local name = api.nvim_buf_get_name(bufnr)
-  if not visited_buffers[name] then
-    return 0
-  end
+  if not visited_buffers[name] then return 0 end
 
   return #visited_buffers[name].positions
 end

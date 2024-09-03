@@ -10,21 +10,13 @@ function source.new(sidebar)
   }, { __index = source })
 end
 
-function source:is_available()
-  return vim.bo.filetype == "AvanteInput"
-end
+function source:is_available() return vim.bo.filetype == "AvanteInput" end
 
-source.get_position_encoding_kind = function()
-  return "utf-8"
-end
+source.get_position_encoding_kind = function() return "utf-8" end
 
-function source:get_trigger_characters()
-  return { "/" }
-end
+function source:get_trigger_characters() return { "/" } end
 
-function source:get_keyword_pattern()
-  return [[\%(@\|#\|/\)\k*]]
-end
+function source:get_keyword_pattern() return [[\%(@\|#\|/\)\k*]] end
 
 function source:complete(_, callback)
   local kind = require("cmp").lsp.CompletionItemKind.Variable
@@ -41,10 +33,10 @@ function source:complete(_, callback)
     })
   end
 
-  callback({
+  callback {
     items = items,
     isIncomplete = false,
-  })
+  }
 end
 
 return source

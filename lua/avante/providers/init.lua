@@ -1,8 +1,8 @@
 local api = vim.api
 
-local Config = require("avante.config")
-local Utils = require("avante.utils")
-local Dressing = require("avante.ui.dressing")
+local Config = require "avante.config"
+local Utils = require "avante.utils"
+local Dressing = require "avante.ui.dressing"
 
 ---@class AvanteHandlerOptions: table<[string], string>
 ---@field on_chunk AvanteChunkParser
@@ -98,15 +98,11 @@ E.cache = {}
 ---@return string | nil
 E.parse_envvar = function(Opts)
   local api_key_name = Opts.api_key_name
-  if api_key_name == nil then
-    error("Requires api_key_name")
-  end
+  if api_key_name == nil then error "Requires api_key_name" end
 
-  if E.cache[api_key_name] ~= nil then
-    return E.cache[api_key_name]
-  end
+  if E.cache[api_key_name] ~= nil then return E.cache[api_key_name] end
 
-  local cmd = api_key_name:match("^cmd:(.*)")
+  local cmd = api_key_name:match "^cmd:(.*)"
 
   local key = nil
 
@@ -177,9 +173,7 @@ E.setup = function(opts)
   opts.provider.setup()
 
   -- check if var is a all caps string
-  if var == M.AVANTE_INTERNAL_KEY or var:match("^cmd:(.*)") then
-    return
-  end
+  if var == M.AVANTE_INTERNAL_KEY or var:match "^cmd:(.*)" then return end
 
   local refresh = opts.refresh or false
 
@@ -214,10 +208,10 @@ E.setup = function(opts)
         "noice",
       }
       if not vim.tbl_contains(exclude_filetypes, vim.bo.filetype) and not opts.provider.has() then
-        Dressing.initialize_input_buffer({
+        Dressing.initialize_input_buffer {
           opts = { prompt = "Enter " .. var .. ": " },
           on_confirm = on_confirm,
-        })
+        }
       end
     end, 200)
   end
@@ -260,37 +254,23 @@ M = setmetatable(M, {
       t[k] = Opts
     else
       local ok, module = pcall(require, "avante.providers." .. k)
-      if not ok then
-        error("Failed to load provider: " .. k)
-      end
+      if not ok then error("Failed to load provider: " .. k) end
       Opts._shellenv = module.api_key_name ~= M.AVANTE_INTERNAL_KEY and module.api_key_name or nil
       t[k] = vim.tbl_deep_extend("keep", Opts, module)
     end
 
-    t[k].parse_api_key = function()
-      return E.parse_envvar(t[k])
-    end
+    t[k].parse_api_key = function() return E.parse_envvar(t[k]) end
 
     -- default to gpt-4o as tokenizer
-    if t[k].tokenizer_id == nil then
-      t[k].tokenizer_id = "gpt-4o"
-    end
+    if t[k].tokenizer_id == nil then t[k].tokenizer_id = "gpt-4o" end
 
-    if t[k].use_xml_format == nil then
-      t[k].use_xml_format = false
-    end
+    if t[k].use_xml_format == nil then t[k].use_xml_format = false end
 
-    if t[k].has == nil then
-      t[k].has = function()
-        return E.parse_envvar(t[k]) ~= nil
-      end
-    end
+    if t[k].has == nil then t[k].has = function() return E.parse_envvar(t[k]) ~= nil end end
 
     if t[k].setup == nil then
       t[k].setup = function()
-        if not E.is_local(k) then
-          t[k].parse_api_key()
-        end
+        if not E.is_local(k) then t[k].parse_api_key() end
         require("avante.tokenizers").setup(t[k].tokenizer_id)
       end
     end
@@ -304,16 +284,16 @@ M.setup = function()
 
   ---@type AvanteProviderFunctor
   local provider = M[Config.provider]
-  E.setup({ provider = provider })
+  E.setup { provider = provider }
 end
 
 ---@param provider Provider
 function M.refresh(provider)
-  require("avante.config").override({ provider = provider })
+  require("avante.config").override { provider = provider }
 
   ---@type AvanteProviderFunctor
   local p = M[Config.provider]
-  E.setup({ provider = p, refresh = true })
+  E.setup { provider = p, refresh = true }
   Utils.info("Switch to provider: " .. provider, { once = true, title = "Avante" })
 end
 
@@ -334,15 +314,10 @@ M.parse_config = function(opts)
   end
 
   return s1,
-    vim
-      .iter(s2)
-      :filter(function(_, v)
-        return type(v) ~= "function"
-      end)
-      :fold({}, function(acc, k, v)
-        acc[k] = v
-        return acc
-      end)
+    vim.iter(s2):filter(function(_, v) return type(v) ~= "function" end):fold({}, function(acc, k, v)
+      acc[k] = v
+      return acc
+    end)
 end
 
 ---@private
