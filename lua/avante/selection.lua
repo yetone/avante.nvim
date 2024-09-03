@@ -84,7 +84,7 @@ end
 
 function Selection:close_editing_input()
   self:close_editing_input_shortcuts_hints()
-  api.nvim_exec_autocmds("User", { pattern = Llm.CANCEL_PATTERN })
+  Llm.cancel_inflight_request()
   if api.nvim_get_mode().mode == "i" then
     vim.cmd([[stopinsert]])
   end

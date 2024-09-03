@@ -45,8 +45,14 @@ M.edit = function(question)
   end
 end
 
+---@return avante.Suggestion | nil
+M.get_suggestion = function()
+  local _, _, suggestion = require("avante").get()
+  return suggestion
+end
+
 M.refresh = function()
-  local sidebar, _ = require("avante").get()
+  local sidebar = require("avante").get()
   if not sidebar then
     return
   end
