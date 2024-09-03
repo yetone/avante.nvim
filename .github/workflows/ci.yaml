@@ -30,7 +30,7 @@ jobs:
         with:
           args: ./lua/
   rust:
-    name: Lint Rust
+    name: Check Rust style
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
