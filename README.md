@@ -21,8 +21,6 @@ https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd
 
 For building binary if you wish to build from source, then `cargo` is required. Otherwise `curl` and `jq` will be used to get prebuilt binary from GitHub.
 
-For prebuilt binary, one must set the following `GITHUB_TOKEN` in given shell (instruction for creating PAT is [here](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)) (requires `action:scope`)
-
 <details open>
 
   <summary><a href="https://github.com/folke/lazy.nvim">lazy.nvim</a> (recommended)</summary>
