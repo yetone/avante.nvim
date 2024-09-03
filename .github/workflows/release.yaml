@@ -46,6 +46,7 @@ jobs:
           body: "${{ steps.tag.outputs.message }}"
 
   releases-matrix:
+    needs: [create-release]
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
