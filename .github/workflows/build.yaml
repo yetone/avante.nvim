@@ -19,7 +19,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        feature: [lua54, lua53, lua52, lua51, luajit]
+        feature: [lua51, luajit]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -45,11 +45,11 @@ jobs:
           fi
 
           if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            cp target/release/avante_templates.$EXT results/avante_templates-$OS-${{ matrix.feature }}.$EXT
-            cp target/release/avante_tokenizers.$EXT results/avante_tokenizers-$OS-${{ matrix.feature }}.$EXT
+            cp target/release/avante_templates.$EXT results/avante_templates.$EXT
+            cp target/release/avante_tokenizers.$EXT results/avante_tokenizers.$EXT
           else
-            cp target/release/libavante_templates.$EXT results/avante_templates-$OS-${{ matrix.feature }}.$EXT
-            cp target/release/libavante_tokenizers.$EXT results/avante_tokenizers-$OS-${{ matrix.feature }}.$EXT
+            cp target/release/libavante_templates.$EXT results/avante_templates.$EXT
+            cp target/release/libavante_tokenizers.$EXT results/avante_tokenizers.$EXT
           fi
       - name: Upload binaries
         uses: actions/upload-artifact@v4

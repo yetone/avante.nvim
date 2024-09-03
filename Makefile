@@ -11,9 +11,10 @@ else
 	$(error Unsupported operating system: $(UNAME))
 endif
 
-LUA_VERSIONS := luajit lua51 lua52 lua53 lua54
+LUA_VERSIONS := luajit lua51
 
 BUILD_DIR := build
+BUILD_FROM_SOURCE ?= false
 TARGET_LIBRARY ?= all
 
 all: luajit
@@ -30,7 +31,16 @@ else
 endif
 endef
 
-$(foreach lua_version,$(LUA_VERSIONS),$(eval $(call make_definitions,$(lua_version))))
+define curl_definitions
+$1:
+	LUA_VERSION=$1 sh ./build.sh
+endef
+
+ifeq ($(BUILD_FROM_SOURCE),true)
+	$(foreach lua_version,$(LUA_VERSIONS),$(eval $(call make_definitions,$(lua_version))))
+else
+	$(foreach lua_version,$(LUA_VERSIONS),$(eval $(call curl_definitions,$(lua_version))))
+endif
 
 define build_package
 	cargo build --release --features=$1 -p avante-$2
