@@ -1239,7 +1239,7 @@ function Sidebar:create_input()
     --- prevent the cursor from jumping to the bottom of the
     --- buffer at the beginning
     self:update_content("", { focus = true, scroll = false })
-    self:update_content(content_prefix .. "🔄 **Generating response ...**\n")
+    self:update_content(content_prefix .. "**Generating response ...**\n")
 
     local content = table.concat(Utils.get_buf_lines(0, -1, self.code.bufnr), "\n")
     local content_with_line_numbers = Utils.prepend_line_number(content)
@@ -1315,12 +1315,12 @@ function Sidebar:create_input()
     ---@type AvanteCompleteParser
     local on_complete = function(err)
       if err ~= nil then
-        self:update_content("\n\n🚨 Error: " .. vim.inspect(err), { stream = true, scroll = true })
+        self:update_content("\n\nError: " .. vim.inspect(err), { stream = true, scroll = true })
         return
       end
 
       -- Execute when the stream request is actually completed
-      self:update_content("\n\n🎉🎉🎉 **Generation complete!** Please review the code suggestions above.", {
+      self:update_content("\n\n**Generation complete!** Please review the code suggestions above.", {
         stream = true,
         scroll = true,
         callback = function()
