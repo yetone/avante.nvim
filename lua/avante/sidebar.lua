@@ -1,19 +1,19 @@
 local api = vim.api
 local fn = vim.fn
 
-local Split = require("nui.split")
+local Split = require "nui.split"
 local event = require("nui.utils.autocmd").event
 
-local Path = require("avante.path")
-local Config = require("avante.config")
-local Diff = require("avante.diff")
-local Llm = require("avante.llm")
-local Utils = require("avante.utils")
-local Highlights = require("avante.highlights")
+local Path = require "avante.path"
+local Config = require "avante.config"
+local Diff = require "avante.diff"
+local Llm = require "avante.llm"
+local Utils = require "avante.utils"
+local Highlights = require "avante.highlights"
 
 local RESULT_BUF_NAME = "AVANTE_RESULT"
 local VIEW_BUFFER_UPDATED_PATTERN = "AvanteViewBufferUpdated"
-local CODEBLOCK_KEYBINDING_NAMESPACE = api.nvim_create_namespace("AVANTE_CODEBLOCK_KEYBINDING")
+local CODEBLOCK_KEYBINDING_NAMESPACE = api.nvim_create_namespace "AVANTE_CODEBLOCK_KEYBINDING"
 local PRIORITY = vim.highlight.priorities.user
 
 ---@class avante.Sidebar
@@ -52,9 +52,7 @@ function Sidebar:new(id)
 end
 
 function Sidebar:delete_autocmds()
-  if self.augroup then
-    api.nvim_del_augroup_by_id(self.augroup)
-  end
+  if self.augroup then api.nvim_del_augroup_by_id(self.augroup) end
   self.augroup = nil
 end
 
@@ -84,22 +82,18 @@ function Sidebar:open()
     self:focus()
   end
 
-  vim.cmd("wincmd =")
+  vim.cmd "wincmd ="
   return self
 end
 
 function Sidebar:close()
   self:delete_autocmds()
   for _, comp in pairs(self) do
-    if comp and type(comp) == "table" and comp.unmount then
-      comp:unmount()
-    end
+    if comp and type(comp) == "table" and comp.unmount then comp:unmount() end
   end
-  if self.code and self.code.winid and api.nvim_win_is_valid(self.code.winid) then
-    fn.win_gotoid(self.code.winid)
-  end
+  if self.code and self.code.winid and api.nvim_win_is_valid(self.code.winid) then fn.win_gotoid(self.code.winid) end
 
-  vim.cmd("wincmd =")
+  vim.cmd "wincmd ="
 end
 
 ---@return boolean
@@ -119,9 +113,7 @@ function Sidebar:is_open()
     and api.nvim_win_is_valid(self.result.winid)
 end
 
-function Sidebar:in_code_win()
-  return self.code.winid == api.nvim_get_current_win()
-end
+function Sidebar:in_code_win() return self.code.winid == api.nvim_get_current_win() end
 
 function Sidebar:toggle()
   local in_visual_mode = Utils.in_visual_mode() and self:in_code_win()
@@ -172,13 +164,9 @@ local function realign_line_numbers(code_lines, snippet)
     end
   end
 
-  if correct_start then
-    snippet.range[1] = correct_start
-  end
+  if correct_start then snippet.range[1] = correct_start end
 
-  if correct_end then
-    snippet.range[2] = correct_end
-  end
+  if correct_end then snippet.range[2] = correct_end end
 
   return snippet
 end
@@ -310,9 +298,7 @@ local function generate_display_content(replacement)
       "\n"
     ) .. searching_hint
   end
-  if replacement.is_replacing then
-    return replacement.content .. "\n```"
-  end
+  if replacement.is_replacing then return replacement.content .. "\n```" end
   return replacement.content
 end
 
@@ -336,12 +322,12 @@ local function extract_code_snippets(code_content, response_content)
   local explanation = ""
 
   for idx, line in ipairs(vim.split(response_content, "\n")) do
-    local start_line_str, end_line_str = line:match("^Replace lines: (%d+)-(%d+)")
+    local start_line_str, end_line_str = line:match "^Replace lines: (%d+)-(%d+)"
     if start_line_str ~= nil and end_line_str ~= nil then
       start_line = tonumber(start_line_str)
       end_line = tonumber(end_line_str)
     end
-    if line:match("^```") then
+    if line:match "^```" then
       if in_code_block then
         if start_line ~= nil and end_line ~= nil then
           local snippet = {
@@ -360,10 +346,8 @@ local function extract_code_snippets(code_content, response_content)
         explanation = ""
         in_code_block = false
       else
-        lang = line:match("^```(%w+)")
-        if not lang or lang == "" then
-          lang = "text"
-        end
+        lang = line:match "^```(%w+)"
+        if not lang or lang == "" then lang = "text" end
         in_code_block = true
         start_line_in_response_buf = idx
       end
@@ -380,9 +364,7 @@ end
 ---@param snippets AvanteCodeSnippet[]
 ---@return AvanteCodeSnippet[]
 local function ensure_snippets_no_overlap(original_content, snippets)
-  table.sort(snippets, function(a, b)
-    return a.range[1] < b.range[1]
-  end)
+  table.sort(snippets, function(a, b) return a.range[1] < b.range[1] end)
 
   local original_lines = vim.split(original_content, "\n")
 
@@ -422,9 +404,7 @@ end
 
 local function insert_conflict_contents(bufnr, snippets)
   -- sort snippets by start_line
-  table.sort(snippets, function(a, b)
-    return a.range[1] < b.range[1]
-  end)
+  table.sort(snippets, function(a, b) return a.range[1] < b.range[1] end)
 
   local content = table.concat(Utils.get_buf_lines(0, -1, bufnr), "\n")
 
@@ -453,9 +433,7 @@ local function insert_conflict_contents(bufnr, snippets)
         local indentation = Utils.get_indentation(line)
         need_prepend_indentation = indentation ~= original_start_line_indentation
       end
-      if need_prepend_indentation then
-        line = original_start_line_indentation .. line
-      end
+      if need_prepend_indentation then line = original_start_line_indentation .. line end
       table.insert(result, line)
     end
 
@@ -472,9 +450,7 @@ local function is_cursor_in_codeblock(codeblocks)
   cursor_line = cursor_line - 1 -- 转换为 0-indexed 行号
 
   for _, block in ipairs(codeblocks) do
-    if cursor_line >= block.start_line and cursor_line <= block.end_line then
-      return block
-    end
+    if cursor_line >= block.start_line and cursor_line <= block.end_line then return block end
   end
 
   return nil
@@ -495,9 +471,9 @@ local function parse_codeblocks(buf)
 
   local lines = Utils.get_buf_lines(0, -1, buf)
   for i, line in ipairs(lines) do
-    if line:match("^```") then
+    if line:match "^```" then
       -- parse language
-      local lang_ = line:match("^```(%w+)")
+      local lang_ = line:match "^```(%w+)"
       if in_codeblock and not lang_ then
         table.insert(codeblocks, { start_line = start_line, end_line = i - 1, lang = lang })
         in_codeblock = false
@@ -545,8 +521,8 @@ function Sidebar:apply(current_cursor)
     Diff.process(self.code.bufnr)
     api.nvim_win_set_cursor(self.code.winid, { 1, 0 })
     vim.defer_fn(function()
-      Diff.find_next("ours")
-      vim.cmd("normal! zz")
+      Diff.find_next "ours"
+      vim.cmd "normal! zz"
     end, 1000)
   end, 10)
 end
@@ -578,13 +554,9 @@ local base_win_options = {
 }
 
 function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl)
-  if not bufnr or not api.nvim_buf_is_valid(bufnr) then
-    return
-  end
+  if not bufnr or not api.nvim_buf_is_valid(bufnr) then return end
 
-  if not Config.windows.sidebar_header.rounded then
-    header_text = " " .. header_text .. " "
-  end
+  if not Config.windows.sidebar_header.rounded then header_text = " " .. header_text .. " " end
 
   local winbar_text = "%#Normal#"
 
@@ -600,28 +572,20 @@ function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl)
     winbar_text = winbar_text .. "%#" .. hl .. "#"
   end
   winbar_text = winbar_text .. header_text
-  if Config.windows.sidebar_header.rounded then
-    winbar_text = winbar_text .. "%#" .. reverse_hl .. "#"
-  end
+  if Config.windows.sidebar_header.rounded then winbar_text = winbar_text .. "%#" .. reverse_hl .. "#" end
   winbar_text = winbar_text .. "%#Normal#"
-  if Config.windows.sidebar_header.align == "center" then
-    winbar_text = winbar_text .. "%="
-  end
+  if Config.windows.sidebar_header.align == "center" then winbar_text = winbar_text .. "%=" end
   api.nvim_set_option_value("winbar", winbar_text, { win = winid })
 end
 
 function Sidebar:render_result()
-  if not self.result or not self.result.bufnr or not api.nvim_buf_is_valid(self.result.bufnr) then
-    return
-  end
+  if not self.result or not self.result.bufnr or not api.nvim_buf_is_valid(self.result.bufnr) then return end
   local header_text = "󰭻 Avante"
   self:render_header(self.result.winid, self.result.bufnr, header_text, Highlights.TITLE, Highlights.REVERSED_TITLE)
 end
 
 function Sidebar:render_input()
-  if not self.input or not self.input.bufnr or not api.nvim_buf_is_valid(self.input.bufnr) then
-    return
-  end
+  if not self.input or not self.input.bufnr or not api.nvim_buf_is_valid(self.input.bufnr) then return end
 
   local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
 
@@ -714,17 +678,21 @@ function Sidebar:on_mount()
   end
 
   local function bind_apply_key()
-    vim.keymap.set("n", "a", function()
-      self:apply(true)
-    end, { buffer = self.result.bufnr, noremap = true, silent = true })
-    vim.keymap.set("n", "A", function()
-      self:apply(false)
-    end, { buffer = self.result.bufnr, noremap = true, silent = true })
+    vim.keymap.set(
+      "n",
+      "a",
+      function() self:apply(true) end,
+      { buffer = self.result.bufnr, noremap = true, silent = true }
+    )
+    vim.keymap.set(
+      "n",
+      "A",
+      function() self:apply(false) end,
+      { buffer = self.result.bufnr, noremap = true, silent = true }
+    )
   end
 
-  local function unbind_apply_key()
-    pcall(vim.keymap.del, "n", "A", { buffer = self.result.bufnr })
-  end
+  local function unbind_apply_key() pcall(vim.keymap.del, "n", "A", { buffer = self.result.bufnr }) end
 
   ---@type AvanteCodeblock[]
   local codeblocks = {}
@@ -742,9 +710,7 @@ function Sidebar:on_mount()
           break
         end
       end
-      if not target_block and #codeblocks > 0 then
-        target_block = codeblocks[1]
-      end
+      if not target_block and #codeblocks > 0 then target_block = codeblocks[1] end
     elseif direction == "prev" then
       for i = #codeblocks, 1, -1 do
         if codeblocks[i].end_line < cursor_line then
@@ -752,24 +718,28 @@ function Sidebar:on_mount()
           break
         end
       end
-      if not target_block and #codeblocks > 0 then
-        target_block = codeblocks[#codeblocks]
-      end
+      if not target_block and #codeblocks > 0 then target_block = codeblocks[#codeblocks] end
     end
 
     if target_block then
       api.nvim_win_set_cursor(self.result.winid, { target_block.start_line + 1, 0 })
-      vim.cmd("normal! zz")
+      vim.cmd "normal! zz"
     end
   end
 
   local function bind_jump_keys()
-    vim.keymap.set("n", Config.mappings.jump.next, function()
-      jump_to_codeblock("next")
-    end, { buffer = self.result.bufnr, noremap = true, silent = true })
-    vim.keymap.set("n", Config.mappings.jump.prev, function()
-      jump_to_codeblock("prev")
-    end, { buffer = self.result.bufnr, noremap = true, silent = true })
+    vim.keymap.set(
+      "n",
+      Config.mappings.jump.next,
+      function() jump_to_codeblock "next" end,
+      { buffer = self.result.bufnr, noremap = true, silent = true }
+    )
+    vim.keymap.set(
+      "n",
+      Config.mappings.jump.prev,
+      function() jump_to_codeblock "prev" end,
+      { buffer = self.result.bufnr, noremap = true, silent = true }
+    )
   end
 
   local function unbind_jump_keys()
@@ -805,9 +775,7 @@ function Sidebar:on_mount()
   api.nvim_create_autocmd("User", {
     pattern = VIEW_BUFFER_UPDATED_PATTERN,
     callback = function()
-      if not self.result or not self.result.bufnr or not api.nvim_buf_is_valid(self.result.bufnr) then
-        return
-      end
+      if not self.result or not self.result.bufnr or not api.nvim_buf_is_valid(self.result.bufnr) then return end
       codeblocks = parse_codeblocks(self.result.bufnr)
       bind_jump_keys()
     end,
@@ -815,9 +783,7 @@ function Sidebar:on_mount()
 
   api.nvim_create_autocmd("BufLeave", {
     buffer = self.result.bufnr,
-    callback = function()
-      unbind_jump_keys()
-    end,
+    callback = function() unbind_jump_keys() end,
   })
 
   self:render_result()
@@ -857,9 +823,7 @@ function Sidebar:on_mount()
     group = self.augroup,
     callback = function(args)
       local closed_winid = tonumber(args.match)
-      if not self:is_focused_on(closed_winid) then
-        return
-      end
+      if not self:is_focused_on(closed_winid) then return end
       self:close()
     end,
   })
@@ -880,15 +844,9 @@ function Sidebar:refresh_winids()
   end
 
   local winids = {}
-  if self.winids.result then
-    table.insert(winids, self.winids.result)
-  end
-  if self.winids.selected_code then
-    table.insert(winids, self.winids.selected_code)
-  end
-  if self.winids.input then
-    table.insert(winids, self.winids.input)
-  end
+  if self.winids.result then table.insert(winids, self.winids.result) end
+  if self.winids.selected_code then table.insert(winids, self.winids.selected_code) end
+  if self.winids.input then table.insert(winids, self.winids.input) end
 
   local function switch_windows()
     local current_winid = api.nvim_get_current_win()
@@ -899,9 +857,7 @@ function Sidebar:refresh_winids()
       current_idx = current_idx + 1
     end
     local winid = winids[current_idx]
-    if winid and api.nvim_win_is_valid(winid) then
-      pcall(api.nvim_set_current_win, winid)
-    end
+    if winid and api.nvim_win_is_valid(winid) then pcall(api.nvim_set_current_win, winid) end
   end
 
   local function reverse_switch_windows()
@@ -913,19 +869,23 @@ function Sidebar:refresh_winids()
       current_idx = current_idx - 1
     end
     local winid = winids[current_idx]
-    if winid and api.nvim_win_is_valid(winid) then
-      api.nvim_set_current_win(winid)
-    end
+    if winid and api.nvim_win_is_valid(winid) then api.nvim_set_current_win(winid) end
   end
 
   for _, winid in ipairs(winids) do
     local buf = api.nvim_win_get_buf(winid)
-    vim.keymap.set({ "n", "i" }, "<Tab>", function()
-      switch_windows()
-    end, { buffer = buf, noremap = true, silent = true })
-    vim.keymap.set({ "n", "i" }, "<S-Tab>", function()
-      reverse_switch_windows()
-    end, { buffer = buf, noremap = true, silent = true })
+    vim.keymap.set(
+      { "n", "i" },
+      "<Tab>",
+      function() switch_windows() end,
+      { buffer = buf, noremap = true, silent = true }
+    )
+    vim.keymap.set(
+      { "n", "i" },
+      "<S-Tab>",
+      function() reverse_switch_windows() end,
+      { buffer = buf, noremap = true, silent = true }
+    )
   end
 end
 
@@ -938,9 +898,7 @@ function Sidebar:resize()
   self:render_result()
   self:render_input()
   self:render_selected_code()
-  vim.defer_fn(function()
-    vim.cmd("AvanteRefresh")
-  end, 200)
+  vim.defer_fn(function() vim.cmd "AvanteRefresh" end, 200)
 end
 
 --- Initialize the sidebar instance.
@@ -959,9 +917,7 @@ end
 
 function Sidebar:is_focused_on(winid)
   for _, stored_winid in pairs(self.winids) do
-    if stored_winid == winid then
-      return true
-    end
+    if stored_winid == winid then return true end
   end
   return false
 end
@@ -969,9 +925,7 @@ end
 ---@param content string concatenated content of the buffer
 ---@param opts? {focus?: boolean, stream?: boolean, scroll?: boolean, callback?: fun(): nil} whether to focus the result view
 function Sidebar:update_content(content, opts)
-  if not self.result or not self.result.bufnr then
-    return
-  end
+  if not self.result or not self.result.bufnr then return end
   opts = vim.tbl_deep_extend("force", { focus = true, scroll = true, stream = false, callback = nil }, opts or {})
   if opts.stream then
     local scroll_to_bottom = function()
@@ -982,38 +936,27 @@ function Sidebar:update_content(content, opts)
       if #current_lines > 0 then
         local last_line_content = current_lines[1]
         local last_col = #last_line_content
-        xpcall(function()
-          api.nvim_win_set_cursor(self.result.winid, { last_line, last_col })
-        end, function(err)
-          return err
-        end)
+        xpcall(
+          function() api.nvim_win_set_cursor(self.result.winid, { last_line, last_col }) end,
+          function(err) return err end
+        )
       end
     end
 
     vim.schedule(function()
-      if not self.result or not self.result.bufnr or not api.nvim_buf_is_valid(self.result.bufnr) then
-        return
-      end
+      if not self.result or not self.result.bufnr or not api.nvim_buf_is_valid(self.result.bufnr) then return end
       scroll_to_bottom()
       local lines = vim.split(content, "\n")
       Utils.unlock_buf(self.result.bufnr)
-      api.nvim_buf_call(self.result.bufnr, function()
-        api.nvim_put(lines, "c", true, true)
-      end)
+      api.nvim_buf_call(self.result.bufnr, function() api.nvim_put(lines, "c", true, true) end)
       Utils.lock_buf(self.result.bufnr)
       api.nvim_set_option_value("filetype", "Avante", { buf = self.result.bufnr })
-      if opts.scroll then
-        scroll_to_bottom()
-      end
-      if opts.callback ~= nil then
-        opts.callback()
-      end
+      if opts.scroll then scroll_to_bottom() end
+      if opts.callback ~= nil then opts.callback() end
     end)
   else
     vim.defer_fn(function()
-      if not self.result or not self.result.bufnr or not api.nvim_buf_is_valid(self.result.bufnr) then
-        return
-      end
+      if not self.result or not self.result.bufnr or not api.nvim_buf_is_valid(self.result.bufnr) then return end
       local lines = vim.split(content, "\n")
       Utils.unlock_buf(self.result.bufnr)
       api.nvim_buf_set_lines(self.result.bufnr, 0, -1, false, lines)
@@ -1023,27 +966,19 @@ function Sidebar:update_content(content, opts)
         xpcall(function()
           --- set cursor to bottom of result view
           api.nvim_set_current_win(self.result.winid)
-        end, function(err)
-          return err
-        end)
+        end, function(err) return err end)
       end
 
-      if opts.scroll then
-        Utils.buf_scroll_to_end(self.result.bufnr)
-      end
+      if opts.scroll then Utils.buf_scroll_to_end(self.result.bufnr) end
 
-      if opts.callback ~= nil then
-        opts.callback()
-      end
+      if opts.callback ~= nil then opts.callback() end
     end, 0)
   end
   return self
 end
 
 -- Function to get current timestamp
-local function get_timestamp()
-  return os.date("%Y-%m-%d %H:%M:%S")
-end
+local function get_timestamp() return os.date "%Y-%m-%d %H:%M:%S" end
 
 local function get_chat_record_prefix(timestamp, provider, model, request)
   provider = provider or "unknown"
@@ -1061,9 +996,7 @@ local function get_chat_record_prefix(timestamp, provider, model, request)
 end
 
 function Sidebar:get_layout()
-  if Config.windows.position == "left" or Config.windows.position == "right" then
-    return "vertical"
-  end
+  if Config.windows.position == "left" or Config.windows.position == "right" then return "vertical" end
   return "horizontal"
 end
 
@@ -1074,9 +1007,7 @@ function Sidebar:update_content_with_history(history)
       get_chat_record_prefix(entry.timestamp, entry.provider, entry.model, entry.request or entry.requirement or "")
     content = content .. prefix
     content = content .. entry.response .. "\n\n"
-    if idx < #history then
-      content = content .. "---\n\n"
-    end
+    if idx < #history then content = content .. "---\n\n" end
   end
   self:update_content(content)
 end
@@ -1147,9 +1078,7 @@ function Sidebar:get_commands()
     help = function(args, cb)
       local help_text = get_help_text(items)
       self:update_content(help_text, { focus = false, scroll = false })
-      if cb then
-        cb(args)
-      end
+      if cb then cb(args) end
     end,
     clear = function(args, cb)
       local chat_history = {}
@@ -1157,15 +1086,11 @@ function Sidebar:get_commands()
       self:update_content("Chat history cleared", { focus = false, scroll = false })
       vim.defer_fn(function()
         self:close()
-        if cb then
-          cb(args)
-        end
+        if cb then cb(args) end
       end, 1000)
     end,
     lines = function(args, cb)
-      if cb then
-        cb(args)
-      end
+      if cb then cb(args) end
     end,
   }
 
@@ -1194,7 +1119,7 @@ function Sidebar:create_selected_code()
   local selected_code_size = self:get_selected_code_size()
 
   if self.code.selection ~= nil then
-    self.selected_code = Split({
+    self.selected_code = Split {
       enter = false,
       relative = {
         type = "win",
@@ -1206,7 +1131,7 @@ function Sidebar:create_selected_code()
       size = {
         height = selected_code_size + 3,
       },
-    })
+    }
     self.selected_code:mount()
     if self:get_layout() == "horizontal" then
       api.nvim_win_set_height(self.result.winid, api.nvim_win_get_height(self.result.winid) - selected_code_size - 3)
@@ -1217,13 +1142,9 @@ end
 local hint_window = nil
 
 function Sidebar:create_input()
-  if self.input then
-    self.input:unmount()
-  end
+  if self.input then self.input:unmount() end
 
-  if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then
-    return
-  end
+  if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then return end
 
   local chat_history = Path.history.load(self.code.bufnr)
 
@@ -1253,23 +1174,18 @@ function Sidebar:create_input()
     end
 
     if request:sub(1, 1) == "/" then
-      local command, args = request:match("^/(%S+)%s*(.*)")
+      local command, args = request:match "^/(%S+)%s*(.*)"
       if command == nil then
         self:update_content("Invalid command", { focus = false, scroll = false })
         return
       end
       local cmds = self:get_commands()
       ---@type AvanteSlash
-      local cmd = vim
-        .iter(cmds)
-        :filter(function(_)
-          return _.command == command
-        end)
-        :totable()[1]
+      local cmd = vim.iter(cmds):filter(function(_) return _.command == command end):totable()[1]
       if cmd then
         if command == "lines" then
           cmd.callback(args, function(args_)
-            local start_line, end_line, question = args_:match("(%d+)-(%d+)%s+(.*)")
+            local start_line, end_line, question = args_:match "(%d+)-(%d+)%s+(.*)"
             ---@cast start_line integer
             start_line = tonumber(start_line)
             ---@cast end_line integer
@@ -1307,9 +1223,7 @@ function Sidebar:create_input()
         return
       end
       self:update_content(chunk, { stream = true, scroll = true })
-      vim.schedule(function()
-        vim.cmd("redraw")
-      end)
+      vim.schedule(function() vim.cmd "redraw" end)
     end
 
     ---@type AvanteCompleteParser
@@ -1323,9 +1237,7 @@ function Sidebar:create_input()
       self:update_content("\n\n**Generation complete!** Please review the code suggestions above.", {
         stream = true,
         scroll = true,
-        callback = function()
-          api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN })
-        end,
+        callback = function() api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN }) end,
       })
 
       vim.defer_fn(function()
@@ -1345,7 +1257,7 @@ function Sidebar:create_input()
       Path.history.save(self.code.bufnr, chat_history)
     end
 
-    Llm.stream({
+    Llm.stream {
       bufnr = self.code.bufnr,
       file_content = content_with_line_numbers,
       code_lang = filetype,
@@ -1354,26 +1266,20 @@ function Sidebar:create_input()
       mode = "planning",
       on_chunk = on_chunk,
       on_complete = on_complete,
-    })
+    }
 
-    if Config.behaviour.auto_apply_diff_after_generation then
-      self:apply(false)
-    end
+    if Config.behaviour.auto_apply_diff_after_generation then self:apply(false) end
   end
 
   local get_position = function()
-    if self:get_layout() == "vertical" then
-      return "bottom"
-    end
+    if self:get_layout() == "vertical" then return "bottom" end
     return "right"
   end
 
   local get_size = function()
-    if self:get_layout() == "vertical" then
-      return {
-        height = 8,
-      }
-    end
+    if self:get_layout() == "vertical" then return {
+      height = 8,
+    } end
 
     local selected_code_size = self:get_selected_code_size()
 
@@ -1383,7 +1289,7 @@ function Sidebar:create_input()
     }
   end
 
-  self.input = Split({
+  self.input = Split {
     enter = false,
     relative = {
       type = "win",
@@ -1392,21 +1298,17 @@ function Sidebar:create_input()
     win_options = vim.tbl_deep_extend("force", base_win_options, { signcolumn = "yes" }),
     position = get_position(),
     size = get_size(),
-  })
+  }
 
   local function on_submit()
     if not vim.g.avante_login then
       Utils.warn("Sending message to fast!, API key is not yet set", { title = "Avante" })
       return
     end
-    if not self.input or not self.input.bufnr or not api.nvim_buf_is_valid(self.input.bufnr) then
-      return
-    end
+    if not self.input or not self.input.bufnr or not api.nvim_buf_is_valid(self.input.bufnr) then return end
     local lines = api.nvim_buf_get_lines(self.input.bufnr, 0, -1, false)
     local request = table.concat(lines, "\n")
-    if request == "" then
-      return
-    end
+    if request == "" then return end
     api.nvim_buf_set_lines(self.input.bufnr, 0, -1, false, {})
     handle_submit(request)
   end
@@ -1447,12 +1349,12 @@ function Sidebar:create_input()
           self.registered_cmp = true
           cmp.register_source("avante_commands", require("cmp_avante.commands").new(self))
         end
-        cmp.setup.buffer({
+        cmp.setup.buffer {
           enabled = true,
           sources = {
             { name = "avante_commands" },
           },
-        })
+        }
       end
     end,
   })
@@ -1512,9 +1414,7 @@ function Sidebar:create_input()
   api.nvim_create_autocmd("QuitPre", {
     group = self.augroup,
     buffer = self.input.bufnr,
-    callback = function()
-      close_hint()
-    end,
+    callback = function() close_hint() end,
   })
 
   -- Show hint in insert mode
@@ -1523,9 +1423,7 @@ function Sidebar:create_input()
     pattern = "*:i",
     callback = function()
       local cur_buf = api.nvim_get_current_buf()
-      if self.input and cur_buf == self.input.bufnr then
-        show_hint()
-      end
+      if self.input and cur_buf == self.input.bufnr then show_hint() end
     end,
   })
 
@@ -1535,9 +1433,7 @@ function Sidebar:create_input()
     pattern = "i:*",
     callback = function()
       local cur_buf = api.nvim_get_current_buf()
-      if self.input and cur_buf == self.input.bufnr then
-        show_hint()
-      end
+      if self.input and cur_buf == self.input.bufnr then show_hint() end
     end,
   })
 
@@ -1557,9 +1453,7 @@ function Sidebar:create_input()
   api.nvim_create_autocmd("User", {
     pattern = "AvanteInputSubmitted",
     callback = function(ev)
-      if ev.data and ev.data.request then
-        handle_submit(ev.data.request)
-      end
+      if ev.data and ev.data.request then handle_submit(ev.data.request) end
     end,
   })
 end
@@ -1581,9 +1475,7 @@ end
 function Sidebar:render()
   local chat_history = Path.history.load(self.code.bufnr)
 
-  local get_position = function()
-    return Config.windows.position
-  end
+  local get_position = function() return Config.windows.position end
 
   local get_height = function()
     local selected_code_size = self:get_selected_code_size()
@@ -1603,7 +1495,7 @@ function Sidebar:render()
     return math.max(1, api.nvim_win_get_width(self.code.winid))
   end
 
-  self.result = Split({
+  self.result = Split {
     enter = false,
     relative = "editor",
     position = get_position(),
@@ -1619,14 +1511,12 @@ function Sidebar:render()
       width = get_width(),
       height = get_height(),
     },
-  })
+  }
 
   self.result:mount()
 
   self.result:on(event.BufWinEnter, function()
-    xpcall(function()
-      api.nvim_buf_set_name(self.result.bufnr, RESULT_BUF_NAME)
-    end, function(_) end)
+    xpcall(function() api.nvim_buf_set_name(self.result.bufnr, RESULT_BUF_NAME) end, function(_) end)
   end)
 
   self.result:map("n", "q", function()
@@ -1645,9 +1535,7 @@ function Sidebar:render()
 
   -- reset states when buffer is closed
   api.nvim_buf_attach(self.code.bufnr, false, {
-    on_detach = function(_, _)
-      self:reset()
-    end,
+    on_detach = function(_, _) self:reset() end,
   })
 
   self:create_selected_code()

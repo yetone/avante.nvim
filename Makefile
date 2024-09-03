@@ -59,4 +59,4 @@ stylecheck:
 	stylua --check lua/
 
 stylefix:
-	stylua lua/
+	stylua lua/ plugin/

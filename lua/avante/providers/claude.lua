@@ -1,6 +1,6 @@
-local Utils = require("avante.utils")
-local Clipboard = require("avante.clipboard")
-local P = require("avante.providers")
+local Utils = require "avante.utils"
+local Clipboard = require "avante.clipboard"
+local P = require "avante.providers"
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -29,9 +29,7 @@ M.parse_message = function(opts)
     type = "text",
     text = opts.user_prompt,
   }
-  if Utils.tokens.calculate_tokens(opts.user_prompt) then
-    user_prompt_obj.cache_control = { type = "ephemeral" }
-  end
+  if Utils.tokens.calculate_tokens(opts.user_prompt) then user_prompt_obj.cache_control = { type = "ephemeral" } end
 
   table.insert(message_content, user_prompt_obj)
 
@@ -46,9 +44,7 @@ end
 M.parse_response = function(data_stream, event_state, opts)
   if event_state == "content_block_delta" then
     local ok, json = pcall(vim.json.decode, data_stream)
-    if not ok then
-      return
-    end
+    if not ok then return end
     opts.on_chunk(json.delta.text)
   elseif event_state == "message_stop" then
     opts.on_complete(nil)
@@ -69,9 +65,7 @@ M.parse_curl_args = function(provider, prompt_opts)
     ["anthropic-version"] = "2023-06-01",
     ["anthropic-beta"] = "prompt-caching-2024-07-31",
   }
-  if not P.env.is_local("claude") then
-    headers["x-api-key"] = provider.parse_api_key()
-  end
+  if not P.env.is_local "claude" then headers["x-api-key"] = provider.parse_api_key() end
 
   local messages = M.parse_message(prompt_opts)
 
@@ -110,7 +104,7 @@ M.on_error = function(result)
 
   if error_type == "insufficient_quota" then
     error_msg = "You don't have any credits or have exceeded your quota. Please check your plan and billing details."
-  elseif error_type == "invalid_request_error" and error_msg:match("temperature") then
+  elseif error_type == "invalid_request_error" and error_msg:match "temperature" then
     error_msg = "Invalid temperature value. Please ensure it's between 0 and 1."
   end
 

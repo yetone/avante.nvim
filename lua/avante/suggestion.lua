@@ -1,11 +1,11 @@
-local Utils = require("avante.utils")
-local Llm = require("avante.llm")
-local Highlights = require("avante.highlights")
-local Config = require("avante.config")
+local Utils = require "avante.utils"
+local Llm = require "avante.llm"
+local Highlights = require "avante.highlights"
+local Config = require "avante.config"
 local api = vim.api
 local fn = vim.fn
 
-local SUGGESTION_NS = api.nvim_create_namespace("avante_suggestion")
+local SUGGESTION_NS = api.nvim_create_namespace "avante_suggestion"
 
 ---@class avante.SuggestionItem
 ---@field content string
@@ -50,13 +50,9 @@ function Suggestion:destroy()
 end
 
 function Suggestion:setup_mappings()
-  if not Config.behaviour.auto_set_keymaps then
-    return
-  end
+  if not Config.behaviour.auto_set_keymaps then return end
   if Config.mappings.suggestion and Config.mappings.suggestion.accept then
-    vim.keymap.set("i", Config.mappings.suggestion.accept, function()
-      self:accept()
-    end, {
+    vim.keymap.set("i", Config.mappings.suggestion.accept, function() self:accept() end, {
       desc = "[avante] accept suggestion",
       noremap = true,
       silent = true,
@@ -65,9 +61,7 @@ function Suggestion:setup_mappings()
 
   if Config.mappings.suggestion and Config.mappings.suggestion.dismiss then
     vim.keymap.set("i", Config.mappings.suggestion.dismiss, function()
-      if self:is_visible() then
-        self:dismiss()
-      end
+      if self:is_visible() then self:dismiss() end
     end, {
       desc = "[avante] dismiss suggestion",
       noremap = true,
@@ -76,9 +70,7 @@ function Suggestion:setup_mappings()
   end
 
   if Config.mappings.suggestion and Config.mappings.suggestion.next then
-    vim.keymap.set("i", Config.mappings.suggestion.next, function()
-      self:next()
-    end, {
+    vim.keymap.set("i", Config.mappings.suggestion.next, function() self:next() end, {
       desc = "[avante] next suggestion",
       noremap = true,
       silent = true,
@@ -86,9 +78,7 @@ function Suggestion:setup_mappings()
   end
 
   if Config.mappings.suggestion and Config.mappings.suggestion.prev then
-    vim.keymap.set("i", Config.mappings.suggestion.prev, function()
-      self:prev()
-    end, {
+    vim.keymap.set("i", Config.mappings.suggestion.prev, function() self:prev() end, {
       desc = "[avante] previous suggestion",
       noremap = true,
       silent = true,
@@ -97,7 +87,7 @@ function Suggestion:setup_mappings()
 end
 
 function Suggestion:suggest()
-  Utils.debug("suggesting")
+  Utils.debug "suggesting"
 
   local ctx = self:ctx()
   local doc = Utils.get_doc()
@@ -110,15 +100,13 @@ function Suggestion:suggest()
 
   local full_response = ""
 
-  Llm.stream({
+  Llm.stream {
     bufnr = bufnr,
     file_content = code_content,
     code_lang = filetype,
     instructions = vim.json.encode(doc),
     mode = "suggesting",
-    on_chunk = function(chunk)
-      full_response = full_response .. chunk
-    end,
+    on_chunk = function(chunk) full_response = full_response .. chunk end,
     on_complete = function(err)
       if err then
         Utils.error("Error while suggesting: " .. vim.inspect(err), { once = true, title = "Avante" })
@@ -126,9 +114,7 @@ function Suggestion:suggest()
       end
       Utils.debug("full_response: " .. vim.inspect(full_response))
       local cursor_row, cursor_col = Utils.get_cursor_pos()
-      if cursor_row ~= doc.position.row or cursor_col ~= doc.position.col then
-        return
-      end
+      if cursor_row ~= doc.position.row or cursor_col ~= doc.position.col then return end
       local ok, suggestions = pcall(vim.json.decode, full_response)
       if not ok then
         Utils.error("Error while decoding suggestions: " .. full_response, { once = true, title = "Avante" })
@@ -140,35 +126,27 @@ function Suggestion:suggest()
       end
       suggestions = vim
         .iter(suggestions)
-        :map(function(s)
-          return { row = s.row, col = s.col, content = Utils.trim_all_line_numbers(s.content) }
-        end)
+        :map(function(s) return { row = s.row, col = s.col, content = Utils.trim_all_line_numbers(s.content) } end)
         :totable()
       ctx.suggestions = suggestions
       ctx.current_suggestion_idx = 1
       self:show()
     end,
-  })
+  }
 end
 
 function Suggestion:show()
   self:hide()
 
-  if not fn.mode():match("^[iR]") then
-    return
-  end
+  if not fn.mode():match "^[iR]" then return end
 
   local ctx = self:ctx()
   local suggestion = ctx.suggestions[ctx.current_suggestion_idx]
-  if not suggestion then
-    return
-  end
+  if not suggestion then return end
 
   local cursor_row, cursor_col = Utils.get_cursor_pos()
 
-  if suggestion.row < cursor_row then
-    return
-  end
+  if suggestion.row < cursor_row then return end
 
   local bufnr = api.nvim_get_current_buf()
   local row = suggestion.row
@@ -179,9 +157,7 @@ function Suggestion:show()
 
   local extmark_col = cursor_col
 
-  if cursor_row < row then
-    extmark_col = 0
-  end
+  if cursor_row < row then extmark_col = 0 end
 
   local current_lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
 
@@ -223,9 +199,7 @@ function Suggestion:is_visible()
   return not not api.nvim_buf_get_extmark_by_id(0, SUGGESTION_NS, self.extmark_id, { details = false })[1]
 end
 
-function Suggestion:hide()
-  api.nvim_buf_del_extmark(0, SUGGESTION_NS, self.extmark_id)
-end
+function Suggestion:hide() api.nvim_buf_del_extmark(0, SUGGESTION_NS, self.extmark_id) end
 
 function Suggestion:ctx()
   local bufnr = api.nvim_get_current_buf()
@@ -249,27 +223,21 @@ end
 
 function Suggestion:stop_timer()
   if self._timer then
-    pcall(function()
-      fn.timer_stop(self._timer)
-    end)
+    pcall(function() fn.timer_stop(self._timer) end)
     self._timer = nil
   end
 end
 
 function Suggestion:next()
   local ctx = self:ctx()
-  if #ctx.suggestions == 0 then
-    return
-  end
+  if #ctx.suggestions == 0 then return end
   ctx.current_suggestion_idx = (ctx.current_suggestion_idx % #ctx.suggestions) + 1
   self:show()
 end
 
 function Suggestion:prev()
   local ctx = self:ctx()
-  if #ctx.suggestions == 0 then
-    return
-  end
+  if #ctx.suggestions == 0 then return end
   ctx.current_suggestion_idx = ((ctx.current_suggestion_idx - 2 + #ctx.suggestions) % #ctx.suggestions) + 1
   self:show()
 end
@@ -298,9 +266,7 @@ function Suggestion:accept()
   local content = suggestion.content
   local lines = vim.split(content, "\n")
   local cursor_row, cursor_col = Utils.get_cursor_pos()
-  if row > cursor_row then
-    api.nvim_buf_set_lines(bufnr, row - 1, row - 1, false, { "" })
-  end
+  if row > cursor_row then api.nvim_buf_set_lines(bufnr, row - 1, row - 1, false, { "" }) end
   local line_count = #lines
   if line_count > 0 then
     if cursor_row == row then
@@ -325,9 +291,7 @@ function Suggestion:accept()
   end
 
   local down_count = line_count - 1
-  if row > cursor_row then
-    down_count = down_count + 1
-  end
+  if row > cursor_row then down_count = down_count + 1 end
 
   local cursor_keys = string.rep("<Down>", down_count) .. "<End>"
   api.nvim_feedkeys(api.nvim_replace_termcodes(cursor_keys, true, false, true), "n", false)
@@ -347,19 +311,13 @@ function Suggestion:setup_autocmds()
   end, 77)
 
   local function suggest_callback()
-    if not vim.bo.buflisted then
-      return
-    end
+    if not vim.bo.buflisted then return end
 
-    if vim.bo.buftype ~= "" then
-      return
-    end
+    if vim.bo.buftype ~= "" then return end
 
     local ctx = self:ctx()
 
-    if ctx.prev_doc and vim.deep_equal(ctx.prev_doc, Utils.get_doc()) then
-      return
-    end
+    if ctx.prev_doc and vim.deep_equal(ctx.prev_doc, Utils.get_doc()) then return end
 
     self:hide()
     last_cursor_pos = api.nvim_win_get_cursor(0)
@@ -374,9 +332,7 @@ function Suggestion:setup_autocmds()
   api.nvim_create_autocmd("BufEnter", {
     group = self.augroup,
     callback = function()
-      if fn.mode():match("^[iR]") then
-        suggest_callback()
-      end
+      if fn.mode():match "^[iR]" then suggest_callback() end
     end,
   })
 
@@ -396,9 +352,7 @@ function Suggestion:setup_autocmds()
 end
 
 function Suggestion:delete_autocmds()
-  if self.augroup then
-    api.nvim_del_augroup_by_id(self.augroup)
-  end
+  if self.augroup then api.nvim_del_augroup_by_id(self.augroup) end
   self.augroup = nil
 end
 

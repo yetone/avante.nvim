@@ -1,7 +1,7 @@
 ---NOTE: user will be merged with defaults and
 ---we add a default var_accessor for this table to config values.
 
-local Utils = require("avante.utils")
+local Utils = require "avante.utils"
 
 ---@class avante.CoreConfig: avante.Config
 local M = {}
@@ -100,7 +100,7 @@ You are an excellent programming expert.
     support_paste_from_clipboard = false,
   },
   history = {
-    storage_path = vim.fn.stdpath("state") .. "/avante",
+    storage_path = vim.fn.stdpath "state" .. "/avante",
     paste = {
       extension = "png",
       filename = "pasted-%Y-%m-%d-%H-%M-%S",
@@ -188,7 +188,7 @@ M.providers = {}
 
 ---@param opts? avante.Config
 function M.setup(opts)
-  vim.validate({ opts = { opts, "table", true } })
+  vim.validate { opts = { opts, "table", true } }
 
   M.options = vim.tbl_deep_extend(
     "force",
@@ -207,16 +207,14 @@ function M.setup(opts)
   end
   M.providers = vim
     .iter(M.defaults)
-    :filter(function(_, value)
-      return type(value) == "table" and value.endpoint ~= nil
-    end)
+    :filter(function(_, value) return type(value) == "table" and value.endpoint ~= nil end)
     :fold({}, function(acc, k)
       acc = vim.list_extend({}, acc)
       acc = vim.list_extend(acc, { k })
       return acc
     end)
 
-  vim.validate({ provider = { M.options.provider, "string", false } })
+  vim.validate { provider = { M.options.provider, "string", false } }
 
   M.diff = vim.tbl_deep_extend(
     "force",
@@ -229,14 +227,14 @@ function M.setup(opts)
     for k, v in pairs(M.options.vendors) do
       M.options.vendors[k] = type(v) == "function" and v() or v
     end
-    vim.validate({ vendors = { M.options.vendors, "table", true } })
+    vim.validate { vendors = { M.options.vendors, "table", true } }
     M.providers = vim.list_extend(M.providers, vim.tbl_keys(M.options.vendors))
   end
 end
 
 ---@param opts? avante.Config
 function M.override(opts)
-  vim.validate({ opts = { opts, "table", true } })
+  vim.validate { opts = { opts, "table", true } }
 
   M.options = vim.tbl_deep_extend("force", M.options, opts or {})
   if not M.options.silent_warning then
@@ -254,41 +252,31 @@ function M.override(opts)
   if next(M.options.vendors) ~= nil then
     for k, v in pairs(M.options.vendors) do
       M.options.vendors[k] = type(v) == "function" and v() or v
-      if not vim.tbl_contains(M.providers, k) then
-        M.providers = vim.list_extend(M.providers, { k })
-      end
+      if not vim.tbl_contains(M.providers, k) then M.providers = vim.list_extend(M.providers, { k }) end
     end
-    vim.validate({ vendors = { M.options.vendors, "table", true } })
+    vim.validate { vendors = { M.options.vendors, "table", true } }
   end
 end
 
 M = setmetatable(M, {
   __index = function(_, k)
-    if M.options[k] then
-      return M.options[k]
-    end
+    if M.options[k] then return M.options[k] end
   end,
 })
 
 ---@param skip_warning? boolean
 M.support_paste_image = function(skip_warning)
   skip_warning = skip_warning or M.silent_warning
-  if skip_warning then
-    return
-  end
+  if skip_warning then return end
 
-  return Utils.has("img-clip.nvim") or Utils.has("img-clip")
+  return Utils.has "img-clip.nvim" or Utils.has "img-clip"
 end
 
-M.get_window_width = function()
-  return math.ceil(vim.o.columns * (M.windows.width / 100))
-end
+M.get_window_width = function() return math.ceil(vim.o.columns * (M.windows.width / 100)) end
 
 ---@param provider Provider
 ---@return boolean
-M.has_provider = function(provider)
-  return M.options[provider] ~= nil or M.vendors[provider] ~= nil
-end
+M.has_provider = function(provider) return M.options[provider] ~= nil or M.vendors[provider] ~= nil end
 
 ---get supported providers
 ---@param provider Provider

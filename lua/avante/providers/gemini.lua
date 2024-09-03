@@ -1,6 +1,6 @@
-local Utils = require("avante.utils")
-local P = require("avante.providers")
-local Clipboard = require("avante.clipboard")
+local Utils = require "avante.utils"
+local P = require "avante.providers"
+local Clipboard = require "avante.clipboard"
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -47,9 +47,7 @@ end
 
 M.parse_response = function(data_stream, _, opts)
   local ok, json = pcall(vim.json.decode, data_stream)
-  if not ok then
-    opts.on_complete(json)
-  end
+  if not ok then opts.on_complete(json) end
   if json.candidates then
     if #json.candidates > 0 then
       opts.on_chunk(json.candidates[1].content.parts[1].text)

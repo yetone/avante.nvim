@@ -6,9 +6,7 @@ local H = {}
 local C = {
   filetype = "DressingInput",
   conceal_char = "*",
-  close_window = function()
-    require("dressing.input").close()
-  end,
+  close_window = function() require("dressing.input").close() end,
 }
 
 ---@class avante.DressingState
@@ -34,16 +32,19 @@ H.initialize_input_buffer = function(options)
   end
 
   local prompt_length = api.nvim_strwidth(fn.prompt_getprompt(state.input_bufnr))
-  api.nvim_buf_call(state.input_bufnr, function()
-    vim.cmd(string.format(
-      [[
+  api.nvim_buf_call(
+    state.input_bufnr,
+    function()
+      vim.cmd(string.format(
+        [[
       syn region SecretValue start=/^/ms=s+%s end=/$/ contains=SecretChar
       syn match SecretChar /./ contained conceal %s
       ]],
-      prompt_length,
-      "cchar=*"
-    ))
-  end)
+        prompt_length,
+        "cchar=*"
+      ))
+    end
+  )
 end
 
 ---@param switch_buffer? boolean To switch back original buffer, default to tru
@@ -53,9 +54,7 @@ H.teardown = function(switch_buffer)
   if state.input_winid and api.nvim_win_is_valid(state.input_winid) then
     C.close_window()
     state.input_winid = nil
-    if switch_buffer then
-      pcall(api.nvim_set_current_win, state.winid)
-    end
+    if switch_buffer then pcall(api.nvim_set_current_win, state.winid) end
   end
 end
 

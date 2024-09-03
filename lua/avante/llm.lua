@@ -1,11 +1,11 @@
 local api = vim.api
 
-local curl = require("plenary.curl")
+local curl = require "plenary.curl"
 
-local Utils = require("avante.utils")
-local Config = require("avante.config")
-local Path = require("avante.path")
-local P = require("avante.providers")
+local Utils = require "avante.utils"
+local Config = require "avante.config"
+local Path = require "avante.path"
+local P = require "avante.providers"
 
 ---@class avante.LLM
 local M = {}
@@ -44,10 +44,10 @@ M.stream = function(opts)
   -- Check if the instructions contains an image path
   local image_paths = {}
   local original_instructions = opts.instructions
-  if opts.instructions:match("image: ") then
+  if opts.instructions:match "image: " then
     local lines = vim.split(opts.instructions, "\n")
     for i, line in ipairs(lines) do
-      if line:match("^image: ") then
+      if line:match "^image: " then
         local image_path = line:gsub("^image: ", "")
         table.insert(image_paths, image_path)
         table.remove(lines, i)
@@ -89,15 +89,13 @@ M.stream = function(opts)
 
   ---@param line string
   local function parse_stream_data(line)
-    local event = line:match("^event: (.+)$")
+    local event = line:match "^event: (.+)$"
     if event then
       current_event_state = event
       return
     end
-    local data_match = line:match("^data: (.+)$")
-    if data_match then
-      Provider.parse_response(data_match, current_event_state, handler_opts)
-    end
+    local data_match = line:match "^data: (.+)$"
+    if data_match then Provider.parse_response(data_match, current_event_state, handler_opts) end
   end
 
   local completed = false
@@ -115,9 +113,7 @@ M.stream = function(opts)
         opts.on_complete(err)
         return
       end
-      if not data then
-        return
-      end
+      if not data then return end
       vim.schedule(function()
         if Config.options[Config.provider] == nil and Provider.parse_stream_data ~= nil then
           if Provider.parse_response ~= nil then
@@ -168,11 +164,7 @@ M.stream = function(opts)
     callback = function()
       -- Error: cannot resume dead coroutine
       if active_job then
-        xpcall(function()
-          active_job:shutdown()
-        end, function(err)
-          return err
-        end)
+        xpcall(function() active_job:shutdown() end, function(err) return err end)
         Utils.debug("LLM request cancelled", { title = "Avante" })
         active_job = nil
       end
@@ -182,8 +174,6 @@ M.stream = function(opts)
   return active_job
 end
 
-function M.cancel_inflight_request()
-  api.nvim_exec_autocmds("User", { pattern = M.CANCEL_PATTERN })
-end
+function M.cancel_inflight_request() api.nvim_exec_autocmds("User", { pattern = M.CANCEL_PATTERN }) end
 
 return M
