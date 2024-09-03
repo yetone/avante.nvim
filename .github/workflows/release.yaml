@@ -84,16 +84,16 @@ jobs:
           fi
 
           cd results
-          zip avante_lib-${{ matrix.os }}-${{ matrix.feature }}.zip *.${EXT}
+          tar cvf avante_lib-${{ matrix.os }}-${{ matrix.feature }}.tar *.${EXT}
 
       - name: Upload Release Asset
         uses: shogo82148/actions-upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ASSET_NAME: avante_lib-${{ matrix.os }}-${{ matrix.feature }}.zip
+          ASSET_NAME: avante_lib-${{ matrix.os }}-${{ matrix.feature }}.tar
         with:
           upload_url: ${{ needs.create-release.outputs.release_upload_url }}
-          asset_path: ./results/avante_lib-${{ matrix.os }}-${{ matrix.feature }}.zip
+          asset_path: ./results/avante_lib-${{ matrix.os }}-${{ matrix.feature }}.tar
 
   publish-release:
     permissions:
