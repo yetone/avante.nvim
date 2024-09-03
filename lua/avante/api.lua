@@ -13,6 +13,7 @@ local Utils = require "avante.utils"
 ---@field build fun(): boolean
 ---@field switch_provider fun(target: string): nil
 ---@field toggle avante.ApiToggle
+---@field get_suggestion fun(): avante.Suggestion | nil
 
 local M = {}
 
