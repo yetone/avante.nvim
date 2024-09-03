@@ -132,7 +132,7 @@ M.safe_keymap_set = function(mode, lhs, rhs, opts)
   ---@cast modes -string
 
   ---@param m string
-  modes = vim.tbl_filter(function(m) return not (Keys.have and Keys:have(lhs, m)) end, modes)
+  modes = vim.tbl_filter(function(m) return not (Keys and Keys.have and Keys:have(lhs, m)) end, modes)
 
   -- don't create keymap if a lazy keys handler exists
   if #modes > 0 then
