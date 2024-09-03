@@ -1,5 +1,5 @@
 --Taken from https://github.com/jackMort/ChatGPT.nvim/blob/main/lua/chatgpt/flows/chat/tokens.lua
-local Tokenizer = require("avante.tokenizers")
+local Tokenizer = require "avante.tokenizers"
 
 ---@class avante.utils.tokens
 local Tokens = {}
@@ -13,13 +13,11 @@ local cost_per_token = {
 ---@param text string The text to calculate the number of tokens for.
 ---@return integer The number of tokens in the given text.
 function Tokens.calculate_tokens(text)
-  if Tokenizer.available() then
-    return Tokenizer.count(text)
-  end
+  if Tokenizer.available() then return Tokenizer.count(text) end
 
   local tokens = 0
   local current_token = ""
-  for char in text:gmatch(".") do
+  for char in text:gmatch "." do
     if char == " " or char == "\n" then
       if current_token ~= "" then
         tokens = tokens + 1
@@ -29,9 +27,7 @@ function Tokens.calculate_tokens(text)
       current_token = current_token .. char
     end
   end
-  if current_token ~= "" then
-    tokens = tokens + 1
-  end
+  if current_token ~= "" then tokens = tokens + 1 end
   return tokens
 end
 
@@ -48,8 +44,6 @@ end
 -- @param tokens The number of tokens to calculate the cost of.
 -- @param model The model to use to calculate the cost.
 -- @return The cost of the given number of tokens in dollars.
-function Tokens.usage_in_dollars(tokens, model)
-  return tokens * cost_per_token[model or "davinci"]
-end
+function Tokens.usage_in_dollars(tokens, model) return tokens * cost_per_token[model or "davinci"] end
 
 return Tokens
