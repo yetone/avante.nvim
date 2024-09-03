@@ -53,13 +53,12 @@ M.setup = function()
           api.nvim_set_hl(0, hl.name, { fg = hl.fg or nil, bg = hl.bg or nil, link = hl.link or nil })
         end
       end)
-
-    M.conflict_highlights()
   end
 
   api.nvim_set_hl(M.hint_ns, "NormalFloat", { fg = normal_float.fg, bg = normal_float.bg })
   api.nvim_set_hl(M.input_ns, "NormalFloat", { fg = normal_float.fg, bg = normal_float.bg })
   api.nvim_set_hl(M.input_ns, "FloatBorder", { fg = normal.fg, bg = normal.bg })
+  M.conflict_highlights()
 end
 
 ---@param opts? AvanteConflictHighlights
