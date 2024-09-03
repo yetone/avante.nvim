@@ -50,7 +50,7 @@ H.commands = function()
       local key, value = arg:match("(%w+)=(%w+)")
       if key and value then args[key] = value == "true" end
     end
-    if args.source == nil then args.source = Config.debug and true or false end
+    if args.source == nil then args.source = true end
 
     require("avante.api").build(args)
   end, {
