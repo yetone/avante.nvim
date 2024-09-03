@@ -18,7 +18,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           version: latest
-          args: --check ./lua/
+          args: --check ./lua/ ./plugin/
   luacheck:
     name: Lint Lua
     runs-on: ubuntu-latest
@@ -29,3 +29,15 @@ jobs:
         uses: lunarmodules/luacheck@v1
         with:
           args: ./lua/
+  rust:
+    name: Lint Rust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+      - name: Run rustfmt
+        run: make ruststylecheck

@@ -1,0 +1,55 @@
+name: Nightly Release
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # Runs at 2 AM UTC every day
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allows manual triggering
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        feature: [lua54, lua53, lua52, lua51, luajit]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: 1.80.0
+      - name: Build all crates
+        run: cargo build --release --features ${{ matrix.feature }}
+      - name: handle binaries
+        shell: bash
+        run: |
+          mkdir -p results
+          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
+            OS="linux"
+            EXT="so"
+          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+            OS="macOS"
+            EXT="dylib"
+          else
+            OS="windows"
+            EXT="dll"
+          fi
+
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            cp target/release/avante_templates.$EXT results/avante_templates-$OS-${{ matrix.feature }}.$EXT
+            cp target/release/avante_tokenizers.$EXT results/avante_tokenizers-$OS-${{ matrix.feature }}.$EXT
+          else
+            cp target/release/libavante_templates.$EXT results/avante_templates-$OS-${{ matrix.feature }}.$EXT
+            cp target/release/libavante_tokenizers.$EXT results/avante_tokenizers-$OS-${{ matrix.feature }}.$EXT
+          fi
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: avante_lib-${{ matrix.os }}-${{ matrix.feature }}
+          path: results/

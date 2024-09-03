@@ -32,31 +32,41 @@ endef
 
 $(foreach lua_version,$(LUA_VERSIONS),$(eval $(call make_definitions,$(lua_version))))
 
-define build_from_source
+define build_package
 	cargo build --release --features=$1 -p avante-$2
 	cp target/release/libavante_$2.$(EXT) $(BUILD_DIR)/avante_$2.$(EXT)
 endef
 
 define build_targets
 $(BUILD_DIR)/libAvanteTokenizers-$1.$(EXT): $(BUILD_DIR)
-	$$(call build_from_source,$1,tokenizers)
+	$$(call build_package,$1,tokenizers)
 $(BUILD_DIR)/libAvanteTemplates-$1.$(EXT): $(BUILD_DIR)
-	$$(call build_from_source,$1,templates)
+	$$(call build_package,$1,templates)
 endef
 
 $(foreach lua_version,$(LUA_VERSIONS),$(eval $(call build_targets,$(lua_version))))
 
 $(BUILD_DIR):
-	mkdir -p $(BUILD_DIR)
+	@mkdir -p $(BUILD_DIR)
 
 clean:
-	rm -rf $(BUILD_DIR)
+	@rm -rf $(BUILD_DIR)
 
 luacheck:
-	luacheck `find -name "*.lua"` --codes
+	@luacheck `find -name "*.lua"` --codes
 
 stylecheck:
-	stylua --check lua/
+	@stylua --check lua/ plugin/
 
 stylefix:
-	stylua lua/ plugin/
+	@stylua lua/ plugin/
+
+.PHONY: ruststylecheck
+ruststylecheck:
+	@rustup component add rustfmt 2> /dev/null
+	@cargo fmt --all -- --check
+
+.PHONY: rustlint
+rustlint:
+	@rustup component add clippy 2> /dev/null
+	@cargo clippy -F luajit --all -- -F clippy::dbg-macro -D warnings
