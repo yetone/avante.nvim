@@ -1,13 +1,13 @@
-local Utils = require "avante.utils"
-local Config = require "avante.config"
-local Llm = require "avante.llm"
-local Highlights = require "avante.highlights"
+local Utils = require("avante.utils")
+local Config = require("avante.config")
+local Llm = require("avante.llm")
+local Highlights = require("avante.highlights")
 
 local api = vim.api
 local fn = vim.fn
 
-local NAMESPACE = api.nvim_create_namespace "avante_selection"
-local SELECTED_CODE_NAMESPACE = api.nvim_create_namespace "avante_selected_code"
+local NAMESPACE = api.nvim_create_namespace("avante_selection")
+local SELECTED_CODE_NAMESPACE = api.nvim_create_namespace("avante_selected_code")
 local PRIORITY = vim.highlight.priorities.user
 
 local EDITING_INPUT_START_SPINNER_PATTERN = "AvanteEditingInputStartSpinner"
@@ -43,7 +43,7 @@ function Selection:new(id)
 end
 
 function Selection:get_virt_text_line()
-  local current_pos = fn.getpos "."
+  local current_pos = fn.getpos(".")
 
   -- Get the current and start position line numbers
   local current_line = current_pos[2] - 1 -- 0-indexed
@@ -81,7 +81,7 @@ end
 function Selection:close_editing_input()
   self:close_editing_input_shortcuts_hints()
   Llm.cancel_inflight_request()
-  if api.nvim_get_mode().mode == "i" then vim.cmd [[stopinsert]] end
+  if api.nvim_get_mode().mode == "i" then vim.cmd([[stopinsert]]) end
   if self.editing_input_winid and api.nvim_win_is_valid(self.editing_input_winid) then
     api.nvim_win_close(self.editing_input_winid, true)
     self.editing_input_winid = nil
@@ -387,7 +387,7 @@ function Selection:create_editing_input()
 
     local filetype = api.nvim_get_option_value("filetype", { buf = code_bufnr })
 
-    Llm.stream {
+    Llm.stream({
       bufnr = code_bufnr,
       file_content = code_content,
       code_lang = filetype,
@@ -396,7 +396,7 @@ function Selection:create_editing_input()
       mode = "editing",
       on_chunk = on_chunk,
       on_complete = on_complete,
-    }
+    })
   end
 
   ---@return string

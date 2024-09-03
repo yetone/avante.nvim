@@ -1,5 +1,5 @@
 -- COPIED and MODIFIED from https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/util/root.lua
-local Utils = require "avante.utils"
+local Utils = require("avante.utils")
 
 ---@class avante.utils.root
 ---@overload fun(): string
@@ -27,7 +27,7 @@ function M.detectors.lsp(buf)
   local bufpath = M.bufpath(buf)
   if not bufpath then return {} end
   local roots = {} ---@type string[]
-  for _, client in pairs(Utils.lsp.get_clients { bufnr = buf }) do
+  for _, client in pairs(Utils.lsp.get_clients({ bufnr = buf })) do
     local workspace = client.config.workspace_folders
     for _, ws in pairs(workspace or {}) do
       roots[#roots + 1] = vim.uri_to_fname(ws.uri)
@@ -115,7 +115,7 @@ function M.get(opts)
   local buf = opts.buf or vim.api.nvim_get_current_buf()
   local ret = M.cache[buf]
   if not ret then
-    local roots = M.detect { all = false, buf = buf }
+    local roots = M.detect({ all = false, buf = buf })
     ret = roots[1] and roots[1].paths[1] or vim.uv.cwd()
     M.cache[buf] = ret
   end

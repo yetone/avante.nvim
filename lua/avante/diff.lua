@@ -1,8 +1,8 @@
 local api = vim.api
 
-local Config = require "avante.config"
-local Utils = require "avante.utils"
-local Highlights = require "avante.highlights"
+local Config = require("avante.config")
+local Utils = require("avante.utils")
+local Highlights = require("avante.highlights")
 
 local H = {}
 local M = {}
@@ -82,8 +82,8 @@ local INCOMING_HL = "AvanteConflictIncoming"
 local CURRENT_LABEL_HL = "AvanteConflictCurrentLabel"
 local INCOMING_LABEL_HL = "AvanteConflictIncomingLabel"
 local PRIORITY = vim.highlight.priorities.user
-local NAMESPACE = api.nvim_create_namespace "avante-conflict"
-local KEYBINDING_NAMESPACE = api.nvim_create_namespace "avante-conflict-keybinding"
+local NAMESPACE = api.nvim_create_namespace("avante-conflict")
+local KEYBINDING_NAMESPACE = api.nvim_create_namespace("avante-conflict-keybinding")
 local AUGROUP_NAME = "avante_conflicts"
 
 local conflict_start = "^<<<<<<<"
@@ -354,18 +354,18 @@ H.setup_buffer_mappings = function(bufnr)
   ---@param desc string
   local function opts(desc) return { silent = true, buffer = bufnr, desc = "avante(conflict): " .. desc } end
 
-  vim.keymap.set({ "n", "v" }, Config.diff.mappings.ours, function() M.choose "ours" end, opts "choose ours")
-  vim.keymap.set({ "n", "v" }, Config.diff.mappings.both, function() M.choose "both" end, opts "choose both")
-  vim.keymap.set({ "n", "v" }, Config.diff.mappings.theirs, function() M.choose "theirs" end, opts "choose theirs")
+  vim.keymap.set({ "n", "v" }, Config.diff.mappings.ours, function() M.choose("ours") end, opts("choose ours"))
+  vim.keymap.set({ "n", "v" }, Config.diff.mappings.both, function() M.choose("both") end, opts("choose both"))
+  vim.keymap.set({ "n", "v" }, Config.diff.mappings.theirs, function() M.choose("theirs") end, opts("choose theirs"))
   vim.keymap.set(
     { "n", "v" },
     Config.diff.mappings.all_theirs,
-    function() M.choose "all_theirs" end,
-    opts "choose all theirs"
+    function() M.choose("all_theirs") end,
+    opts("choose all theirs")
   )
-  vim.keymap.set("n", Config.diff.mappings.cursor, function() M.choose "cursor" end, opts "choose under cursor")
-  vim.keymap.set("n", Config.diff.mappings.prev, function() M.find_prev "ours" end, opts "previous conflict")
-  vim.keymap.set("n", Config.diff.mappings.next, function() M.find_next "ours" end, opts "next conflict")
+  vim.keymap.set("n", Config.diff.mappings.cursor, function() M.choose("cursor") end, opts("choose under cursor"))
+  vim.keymap.set("n", Config.diff.mappings.prev, function() M.find_prev("ours") end, opts("previous conflict"))
+  vim.keymap.set("n", Config.diff.mappings.next, function() M.find_next("ours") end, opts("next conflict"))
 
   vim.b[bufnr].avante_conflict_mappings_set = true
 end
@@ -390,7 +390,7 @@ function M.setup()
     callback = function(ev)
       vim.diagnostic.enable(false, { bufnr = ev.buf })
       if vim.lsp.inlay_hint then
-        previous_inlay_enabled = vim.lsp.inlay_hint.is_enabled { bufnr = ev.buf }
+        previous_inlay_enabled = vim.lsp.inlay_hint.is_enabled({ bufnr = ev.buf })
         vim.lsp.inlay_hint.enable(false, { bufnr = ev.buf })
       end
       H.setup_buffer_mappings(ev.buf)
@@ -515,7 +515,7 @@ function M.choose(side)
     end, 50)
     if Config.diff.autojump then
       M.find_next(side)
-      vim.cmd [[normal! zz]]
+      vim.cmd([[normal! zz]])
     end
     return
   end
@@ -550,7 +550,7 @@ function M.process_position(bufnr, side, position, enable_autojump)
     lines = {}
   elseif side == SIDES.CURSOR then
     local cursor_line = Utils.get_cursor_pos()
-    for _, pos in ipairs { SIDES.OURS, SIDES.THEIRS, SIDES.BASE } do
+    for _, pos in ipairs({ SIDES.OURS, SIDES.THEIRS, SIDES.BASE }) do
       local data = position[name_map[pos]] or {}
       if data.range_start and data.range_start + 1 <= cursor_line and data.range_end + 1 >= cursor_line then
         side = pos
@@ -572,7 +572,7 @@ function M.process_position(bufnr, side, position, enable_autojump)
   parse_buffer(bufnr)
   if enable_autojump and Config.diff.autojump then
     M.find_next(side)
-    vim.cmd [[normal! zz]]
+    vim.cmd([[normal! zz]])
   end
 end
 

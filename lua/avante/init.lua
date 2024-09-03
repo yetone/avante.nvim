@@ -1,11 +1,11 @@
 local api = vim.api
 
-local Utils = require "avante.utils"
-local Sidebar = require "avante.sidebar"
-local Selection = require "avante.selection"
-local Suggestion = require "avante.suggestion"
-local Config = require "avante.config"
-local Diff = require "avante.diff"
+local Utils = require("avante.utils")
+local Sidebar = require("avante.sidebar")
+local Selection = require("avante.selection")
+local Suggestion = require("avante.suggestion")
+local Config = require("avante.config")
+local Diff = require("avante.diff")
 
 ---@class Avante
 local M = {
@@ -49,7 +49,7 @@ H.commands = function()
     nargs = 1,
     desc = "avante: switch provider",
     complete = function(_, line, _)
-      local prefix = line:match "AvanteSwitchProvider%s*(.*)$" or ""
+      local prefix = line:match("AvanteSwitchProvider%s*(.*)$") or ""
       ---@param key string
       return vim.tbl_filter(function(key) return key:find(prefix, 1, true) == 1 end, Config.providers)
     end,
@@ -64,13 +64,13 @@ H.keymaps = function()
   vim.keymap.set("n", "<Plug>(AvanteToggleDebug)", function() M.toggle.debug() end)
   vim.keymap.set("n", "<Plug>(AvanteToggleHint)", function() M.toggle.hint() end)
 
-  vim.keymap.set({ "n", "v" }, "<Plug>(AvanteConflictOurs)", function() Diff.choose "ours" end)
-  vim.keymap.set({ "n", "v" }, "<Plug>(AvanteConflictBoth)", function() Diff.choose "both" end)
-  vim.keymap.set({ "n", "v" }, "<Plug>(AvanteConflictTheirs)", function() Diff.choose "theirs" end)
-  vim.keymap.set({ "n", "v" }, "<Plug>(AvanteConflictAllTheirs)", function() Diff.choose "all_theirs" end)
-  vim.keymap.set({ "n", "v" }, "<Plug>(AvanteConflictCursor)", function() Diff.choose "cursor" end)
-  vim.keymap.set("n", "<Plug>(AvanteConflictNextConflict)", function() Diff.find_next "ours" end)
-  vim.keymap.set("n", "<Plug>(AvanteConflictPrevConflict)", function() Diff.find_prev "ours" end)
+  vim.keymap.set({ "n", "v" }, "<Plug>(AvanteConflictOurs)", function() Diff.choose("ours") end)
+  vim.keymap.set({ "n", "v" }, "<Plug>(AvanteConflictBoth)", function() Diff.choose("both") end)
+  vim.keymap.set({ "n", "v" }, "<Plug>(AvanteConflictTheirs)", function() Diff.choose("theirs") end)
+  vim.keymap.set({ "n", "v" }, "<Plug>(AvanteConflictAllTheirs)", function() Diff.choose("all_theirs") end)
+  vim.keymap.set({ "n", "v" }, "<Plug>(AvanteConflictCursor)", function() Diff.choose("cursor") end)
+  vim.keymap.set("n", "<Plug>(AvanteConflictNextConflict)", function() Diff.find_next("ours") end)
+  vim.keymap.set("n", "<Plug>(AvanteConflictPrevConflict)", function() Diff.find_prev("ours") end)
 
   if Config.behaviour.auto_set_keymaps then
     Utils.safe_keymap_set(
@@ -194,14 +194,14 @@ H.autocmds = function()
   -- automatically setup Avante filetype to markdown
   vim.treesitter.language.register("markdown", "Avante")
 
-  vim.filetype.add {
+  vim.filetype.add({
     extension = {
       ["avanterules"] = "jinja",
     },
     pattern = {
       ["%.avanterules%.[%w_.-]+"] = "jinja",
     },
-  }
+  })
 end
 
 ---@param current boolean? false to disable setting current, otherwise use this to track across tabs.
@@ -243,17 +243,17 @@ end
 
 M.toggle = { api = true }
 
-M.toggle.debug = H.api(Utils.toggle_wrap {
+M.toggle.debug = H.api(Utils.toggle_wrap({
   name = "debug",
   get = function() return Config.debug end,
-  set = function(state) Config.override { debug = state } end,
-})
+  set = function(state) Config.override({ debug = state }) end,
+}))
 
-M.toggle.hint = H.api(Utils.toggle_wrap {
+M.toggle.hint = H.api(Utils.toggle_wrap({
   name = "hint",
   get = function() return Config.hints.enabled end,
-  set = function(state) Config.override { hints = { enabled = state } } end,
-})
+  set = function(state) Config.override({ hints = { enabled = state } }) end,
+}))
 
 setmetatable(M.toggle, {
   __index = M.toggle,
@@ -273,7 +273,7 @@ setmetatable(M.toggle, {
 local function to_windows_path(path)
   local winpath = path:gsub("/", "\\")
 
-  if winpath:match "^%a:" then winpath = winpath:sub(1, 2):upper() .. winpath:sub(3) end
+  if winpath:match("^%a:") then winpath = winpath:sub(1, 2):upper() .. winpath:sub(3) end
 
   winpath = winpath:gsub("\\$", "")
 
@@ -285,7 +285,7 @@ M.build = H.api(function()
   local git_root = vim.fs.find(".git", { path = dirname, upward = true })[1]
   local build_directory = git_root and vim.fn.fnamemodify(git_root, ":h") or (dirname .. "/../../")
 
-  if not vim.fn.executable "cargo" then error("Building avante.nvim requires cargo to be installed.", 2) end
+  if not vim.fn.executable("cargo") then error("Building avante.nvim requires cargo to be installed.", 2) end
 
   ---@type string[]
   local cmd

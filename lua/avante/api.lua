@@ -1,5 +1,5 @@
-local Config = require "avante.config"
-local Utils = require "avante.utils"
+local Config = require("avante.config")
+local Utils = require("avante.utils")
 
 ---@class avante.ApiToggle
 ---@operator call(): boolean
@@ -66,7 +66,7 @@ end
 
 return setmetatable(M, {
   __index = function(t, k)
-    local module = require "avante"
+    local module = require("avante")
     ---@class AvailableApi: ApiCaller
     ---@field api? boolean
     local has = module[k]

@@ -1,11 +1,11 @@
 local api = vim.api
 
-local curl = require "plenary.curl"
+local curl = require("plenary.curl")
 
-local Utils = require "avante.utils"
-local Config = require "avante.config"
-local Path = require "avante.path"
-local P = require "avante.providers"
+local Utils = require("avante.utils")
+local Config = require("avante.config")
+local Path = require("avante.path")
+local P = require("avante.providers")
 
 ---@class avante.LLM
 local M = {}
@@ -44,10 +44,10 @@ M.stream = function(opts)
   -- Check if the instructions contains an image path
   local image_paths = {}
   local original_instructions = opts.instructions
-  if opts.instructions:match "image: " then
+  if opts.instructions:match("image: ") then
     local lines = vim.split(opts.instructions, "\n")
     for i, line in ipairs(lines) do
-      if line:match "^image: " then
+      if line:match("^image: ") then
         local image_path = line:gsub("^image: ", "")
         table.insert(image_paths, image_path)
         table.remove(lines, i)
@@ -89,12 +89,12 @@ M.stream = function(opts)
 
   ---@param line string
   local function parse_stream_data(line)
-    local event = line:match "^event: (.+)$"
+    local event = line:match("^event: (.+)$")
     if event then
       current_event_state = event
       return
     end
-    local data_match = line:match "^data: (.+)$"
+    local data_match = line:match("^data: (.+)$")
     if data_match then Provider.parse_response(data_match, current_event_state, handler_opts) end
   end
 

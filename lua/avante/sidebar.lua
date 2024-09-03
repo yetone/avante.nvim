@@ -1,19 +1,19 @@
 local api = vim.api
 local fn = vim.fn
 
-local Split = require "nui.split"
+local Split = require("nui.split")
 local event = require("nui.utils.autocmd").event
 
-local Path = require "avante.path"
-local Config = require "avante.config"
-local Diff = require "avante.diff"
-local Llm = require "avante.llm"
-local Utils = require "avante.utils"
-local Highlights = require "avante.highlights"
+local Path = require("avante.path")
+local Config = require("avante.config")
+local Diff = require("avante.diff")
+local Llm = require("avante.llm")
+local Utils = require("avante.utils")
+local Highlights = require("avante.highlights")
 
 local RESULT_BUF_NAME = "AVANTE_RESULT"
 local VIEW_BUFFER_UPDATED_PATTERN = "AvanteViewBufferUpdated"
-local CODEBLOCK_KEYBINDING_NAMESPACE = api.nvim_create_namespace "AVANTE_CODEBLOCK_KEYBINDING"
+local CODEBLOCK_KEYBINDING_NAMESPACE = api.nvim_create_namespace("AVANTE_CODEBLOCK_KEYBINDING")
 local PRIORITY = vim.highlight.priorities.user
 
 ---@class avante.Sidebar
@@ -82,7 +82,7 @@ function Sidebar:open()
     self:focus()
   end
 
-  vim.cmd "wincmd ="
+  vim.cmd("wincmd =")
   return self
 end
 
@@ -93,7 +93,7 @@ function Sidebar:close()
   end
   if self.code and self.code.winid and api.nvim_win_is_valid(self.code.winid) then fn.win_gotoid(self.code.winid) end
 
-  vim.cmd "wincmd ="
+  vim.cmd("wincmd =")
 end
 
 ---@return boolean
@@ -322,12 +322,12 @@ local function extract_code_snippets(code_content, response_content)
   local explanation = ""
 
   for idx, line in ipairs(vim.split(response_content, "\n")) do
-    local start_line_str, end_line_str = line:match "^Replace lines: (%d+)-(%d+)"
+    local start_line_str, end_line_str = line:match("^Replace lines: (%d+)-(%d+)")
     if start_line_str ~= nil and end_line_str ~= nil then
       start_line = tonumber(start_line_str)
       end_line = tonumber(end_line_str)
     end
-    if line:match "^```" then
+    if line:match("^```") then
       if in_code_block then
         if start_line ~= nil and end_line ~= nil then
           local snippet = {
@@ -346,7 +346,7 @@ local function extract_code_snippets(code_content, response_content)
         explanation = ""
         in_code_block = false
       else
-        lang = line:match "^```(%w+)"
+        lang = line:match("^```(%w+)")
         if not lang or lang == "" then lang = "text" end
         in_code_block = true
         start_line_in_response_buf = idx
@@ -471,9 +471,9 @@ local function parse_codeblocks(buf)
 
   local lines = Utils.get_buf_lines(0, -1, buf)
   for i, line in ipairs(lines) do
-    if line:match "^```" then
+    if line:match("^```") then
       -- parse language
-      local lang_ = line:match "^```(%w+)"
+      local lang_ = line:match("^```(%w+)")
       if in_codeblock and not lang_ then
         table.insert(codeblocks, { start_line = start_line, end_line = i - 1, lang = lang })
         in_codeblock = false
@@ -521,8 +521,8 @@ function Sidebar:apply(current_cursor)
     Diff.process(self.code.bufnr)
     api.nvim_win_set_cursor(self.code.winid, { 1, 0 })
     vim.defer_fn(function()
-      Diff.find_next "ours"
-      vim.cmd "normal! zz"
+      Diff.find_next("ours")
+      vim.cmd("normal! zz")
     end, 1000)
   end, 10)
 end
@@ -723,7 +723,7 @@ function Sidebar:on_mount()
 
     if target_block then
       api.nvim_win_set_cursor(self.result.winid, { target_block.start_line + 1, 0 })
-      vim.cmd "normal! zz"
+      vim.cmd("normal! zz")
     end
   end
 
@@ -731,13 +731,13 @@ function Sidebar:on_mount()
     vim.keymap.set(
       "n",
       Config.mappings.jump.next,
-      function() jump_to_codeblock "next" end,
+      function() jump_to_codeblock("next") end,
       { buffer = self.result.bufnr, noremap = true, silent = true }
     )
     vim.keymap.set(
       "n",
       Config.mappings.jump.prev,
-      function() jump_to_codeblock "prev" end,
+      function() jump_to_codeblock("prev") end,
       { buffer = self.result.bufnr, noremap = true, silent = true }
     )
   end
@@ -898,7 +898,7 @@ function Sidebar:resize()
   self:render_result()
   self:render_input()
   self:render_selected_code()
-  vim.defer_fn(function() vim.cmd "AvanteRefresh" end, 200)
+  vim.defer_fn(function() vim.cmd("AvanteRefresh") end, 200)
 end
 
 --- Initialize the sidebar instance.
@@ -978,7 +978,7 @@ function Sidebar:update_content(content, opts)
 end
 
 -- Function to get current timestamp
-local function get_timestamp() return os.date "%Y-%m-%d %H:%M:%S" end
+local function get_timestamp() return os.date("%Y-%m-%d %H:%M:%S") end
 
 local function get_chat_record_prefix(timestamp, provider, model, request)
   provider = provider or "unknown"
@@ -1119,7 +1119,7 @@ function Sidebar:create_selected_code()
   local selected_code_size = self:get_selected_code_size()
 
   if self.code.selection ~= nil then
-    self.selected_code = Split {
+    self.selected_code = Split({
       enter = false,
       relative = {
         type = "win",
@@ -1131,7 +1131,7 @@ function Sidebar:create_selected_code()
       size = {
         height = selected_code_size + 3,
       },
-    }
+    })
     self.selected_code:mount()
     if self:get_layout() == "horizontal" then
       api.nvim_win_set_height(self.result.winid, api.nvim_win_get_height(self.result.winid) - selected_code_size - 3)
@@ -1174,7 +1174,7 @@ function Sidebar:create_input()
     end
 
     if request:sub(1, 1) == "/" then
-      local command, args = request:match "^/(%S+)%s*(.*)"
+      local command, args = request:match("^/(%S+)%s*(.*)")
       if command == nil then
         self:update_content("Invalid command", { focus = false, scroll = false })
         return
@@ -1185,7 +1185,7 @@ function Sidebar:create_input()
       if cmd then
         if command == "lines" then
           cmd.callback(args, function(args_)
-            local start_line, end_line, question = args_:match "(%d+)-(%d+)%s+(.*)"
+            local start_line, end_line, question = args_:match("(%d+)-(%d+)%s+(.*)")
             ---@cast start_line integer
             start_line = tonumber(start_line)
             ---@cast end_line integer
@@ -1223,7 +1223,7 @@ function Sidebar:create_input()
         return
       end
       self:update_content(chunk, { stream = true, scroll = true })
-      vim.schedule(function() vim.cmd "redraw" end)
+      vim.schedule(function() vim.cmd("redraw") end)
     end
 
     ---@type AvanteCompleteParser
@@ -1257,7 +1257,7 @@ function Sidebar:create_input()
       Path.history.save(self.code.bufnr, chat_history)
     end
 
-    Llm.stream {
+    Llm.stream({
       bufnr = self.code.bufnr,
       file_content = content_with_line_numbers,
       code_lang = filetype,
@@ -1266,7 +1266,7 @@ function Sidebar:create_input()
       mode = "planning",
       on_chunk = on_chunk,
       on_complete = on_complete,
-    }
+    })
 
     if Config.behaviour.auto_apply_diff_after_generation then self:apply(false) end
   end
@@ -1289,7 +1289,7 @@ function Sidebar:create_input()
     }
   end
 
-  self.input = Split {
+  self.input = Split({
     enter = false,
     relative = {
       type = "win",
@@ -1298,7 +1298,7 @@ function Sidebar:create_input()
     win_options = vim.tbl_deep_extend("force", base_win_options, { signcolumn = "yes" }),
     position = get_position(),
     size = get_size(),
-  }
+  })
 
   local function on_submit()
     if not vim.g.avante_login then
@@ -1349,12 +1349,12 @@ function Sidebar:create_input()
           self.registered_cmp = true
           cmp.register_source("avante_commands", require("cmp_avante.commands").new(self))
         end
-        cmp.setup.buffer {
+        cmp.setup.buffer({
           enabled = true,
           sources = {
             { name = "avante_commands" },
           },
-        }
+        })
       end
     end,
   })
@@ -1495,7 +1495,7 @@ function Sidebar:render()
     return math.max(1, api.nvim_win_get_width(self.code.winid))
   end
 
-  self.result = Split {
+  self.result = Split({
     enter = false,
     relative = "editor",
     position = get_position(),
@@ -1511,7 +1511,7 @@ function Sidebar:render()
       width = get_width(),
       height = get_height(),
     },
-  }
+  })
 
   self.result:mount()
 

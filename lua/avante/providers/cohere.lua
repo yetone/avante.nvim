@@ -1,5 +1,5 @@
-local Utils = require "avante.utils"
-local P = require "avante.providers"
+local Utils = require("avante.utils")
+local P = require("avante.providers")
 
 ---@alias CohereFinishReason "COMPLETE" | "LENGTH" | "ERROR"
 ---
@@ -69,7 +69,7 @@ M.parse_curl_args = function(provider, code_opts)
       .. "."
       .. vim.version().patch,
   }
-  if not P.env.is_local "cohere" then headers["Authorization"] = "Bearer " .. provider.parse_api_key() end
+  if not P.env.is_local("cohere") then headers["Authorization"] = "Bearer " .. provider.parse_api_key() end
 
   return {
     url = Utils.trim(base.endpoint, { suffix = "/" }) .. "/chat",
