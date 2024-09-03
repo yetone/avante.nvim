@@ -232,13 +232,37 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
   },
   hints = { enabled = true },
   windows = {
-    ---@type "right" | "left" | "top" | "bottom"
-    position = "right", -- the position of the sidebar
-    wrap = true, -- similar to vim.o.wrap
-    width = 30, -- default % based on available width
+    ---@alias AvantePosition "right" | "left" | "top" | "bottom"
+    position = "right",
+    width = 30, -- default % based on available width in vertical layout
+    height = 30, -- default % based on available height in horizontal layout
     sidebar_header = {
       align = "center", -- left, center, right for title
       rounded = true,
+    },
+    input = {
+      prefix = "> ",
+    },
+    edit = {
+      border = "rounded",
+    },
+    opts = {
+      spell = false,
+      signcolumn = "no",
+      foldcolumn = "0",
+      number = false,
+      relativenumber = false,
+      winfixwidth = true,
+      list = false,
+      winhl = "",
+      linebreak = true,
+      breakindent = true,
+      wrap = true,
+      cursorline = false,
+      fillchars = "eob: ",
+      winhighlight = "CursorLine:Normal,CursorColumn:Normal",
+      winbar = "",
+      statusline = "",
     },
   },
   highlights = {
