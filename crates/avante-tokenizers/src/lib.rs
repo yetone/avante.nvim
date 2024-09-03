@@ -68,13 +68,12 @@ fn encode(state: &State, text: String) -> LuaResult<(Vec<usize>, usize, usize)> 
     }
 }
 
-fn from_pretrained(state: &State, model: String) -> LuaResult<()> {
+fn from_pretrained(state: &State, model: String) {
     let mut tokenizer_mutex = state.tokenizer.lock().unwrap();
     *tokenizer_mutex = Some(match model.as_str() {
         "gpt-4o" => TokenizerType::Tiktoken(Tiktoken::new(model)),
         _ => TokenizerType::HuggingFace(HuggingFaceTokenizer::new(model)),
     });
-    Ok(())
 }
 
 #[mlua::lua_module]
@@ -86,7 +85,10 @@ fn avante_tokenizers(lua: &Lua) -> LuaResult<LuaTable> {
     let exports = lua.create_table()?;
     exports.set(
         "from_pretrained",
-        lua.create_function(move |_, model: String| from_pretrained(&state, model))?,
+        lua.create_function(move |_, model: String| {
+            from_pretrained(&state, model);
+            Ok(())
+        })?,
     )?;
     exports.set(
         "encode",

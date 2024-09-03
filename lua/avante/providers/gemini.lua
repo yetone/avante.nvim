@@ -25,11 +25,7 @@ M.parse_message = function(opts)
   end
 
   -- insert a part into parts
-  for _, user_prompt in ipairs(opts.user_prompts) do
-    table.insert(message_content, {
-      text = user_prompt,
-    })
-  end
+  table.insert(message_content, { text = opts.user_prompt })
 
   return {
     systemInstruction = {
