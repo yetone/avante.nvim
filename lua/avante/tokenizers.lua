@@ -9,14 +9,19 @@ local M = {}
 
 ---@param model "gpt-4o" | string
 M.setup = function(model)
-  local ok, core = pcall(require, "avante_tokenizers")
-  if not ok then
-    return
-  end
-  ---@cast core AvanteTokenizer
-  if tokenizers == nil then
-    tokenizers = core
-  end
+  vim.defer_fn(function()
+    local ok, core = pcall(require, "avante_tokenizers")
+    if not ok then
+      return
+    end
+
+    ---@cast core AvanteTokenizer
+    if tokenizers == nil then
+      tokenizers = core
+    end
+
+    core.from_pretrained(model)
+  end, 1000)
 
   local HF_TOKEN = os.getenv("HF_TOKEN")
   if HF_TOKEN == nil and model ~= "gpt-4o" then
@@ -26,9 +31,6 @@ M.setup = function(model)
     )
   end
   vim.env.HF_HUB_DISABLE_PROGRESS_BARS = 1
-
-  ---@cast core AvanteTokenizer
-  core.from_pretrained(model)
 end
 
 M.available = function()

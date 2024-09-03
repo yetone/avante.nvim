@@ -1,0 +1,32 @@
+{% extends "planning.avanterules" %}
+{% block user_prompt %}
+Your task is to suggest code modifications at the cursor position. Follow these instructions meticulously:
+
+1. Carefully analyze the original code, paying close attention to its structure and the cursor position.
+
+2. You must follow this json format when suggesting modifications:
+
+{% raw %}
+[
+  {
+    "row": ${row},
+    "col": ${column},
+    "content": "Your suggested code here"
+  }
+]
+{% endraw %}
+
+3. When suggesting suggested code:
+  - Each element in the returned list is a COMPLETE and INDEPENDENT code snippet.
+  - MUST be a valid json format. Don't be lazy!
+  - Only return the new code to be inserted.
+  - Your returned code should not overlap with the original code in any way. Don't be lazy!
+  - Please strictly check the code around the position and ensure that the complete code after insertion is correct. Don't be lazy!
+  - Do not return the entire file content or any surrounding code.
+  - Do not include any explanations, comments, or line numbers in your response.
+  - Ensure the suggested code fits seamlessly with the existing code structure and indentation.
+  - If there are no recommended modifications, return an empty list.
+
+Remember to ONLY RETURN the suggested code snippet, without any additional formatting or explanation.
+{% endblock %}
+

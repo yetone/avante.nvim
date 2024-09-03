@@ -10,7 +10,7 @@ local Dressing = require("avante.ui.dressing")
 ---
 ---@class AvantePromptOptions: table<[string], string>
 ---@field system_prompt string
----@field user_prompts string[]
+---@field user_prompt string
 ---@field image_paths? string[]
 ---
 ---@class AvanteBaseMessage
@@ -70,6 +70,7 @@ local Dressing = require("avante.ui.dressing")
 ---@field has fun(): boolean
 ---@field api_key_name string
 ---@field tokenizer_id string | "gpt-4o"
+---@field use_xml_format boolean
 ---@field model? string
 ---@field parse_api_key fun(): string | nil
 ---@field parse_stream_data? AvanteStreamParser
@@ -273,6 +274,10 @@ M = setmetatable(M, {
     -- default to gpt-4o as tokenizer
     if t[k].tokenizer_id == nil then
       t[k].tokenizer_id = "gpt-4o"
+    end
+
+    if t[k].use_xml_format == nil then
+      t[k].use_xml_format = false
     end
 
     if t[k].has == nil then

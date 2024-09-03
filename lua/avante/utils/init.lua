@@ -4,6 +4,7 @@ local lsp = vim.lsp
 
 ---@class avante.utils: LazyUtilCore
 ---@field tokens avante.utils.tokens
+---@field root avante.utils.root
 local M = {}
 
 setmetatable(M, {
@@ -28,6 +29,10 @@ M.has = function(plugin)
     return LazyConfig.plugins[plugin] ~= nil
   end
   return package.loaded[plugin] ~= nil
+end
+
+M.is_win = function()
+  return jit.os:find("Windows") ~= nil
 end
 
 ---@return "linux" | "darwin" | "windows"
@@ -254,7 +259,33 @@ function M.get_hl(name)
   return api.nvim_get_hl(0, { name = name })
 end
 
+M.lsp = {}
+
+---@alias vim.lsp.Client.filter {id?: number, bufnr?: number, name?: string, method?: string, filter?:fun(client: vim.lsp.Client):boolean}
+
+---@param opts? vim.lsp.Client.filter
+---@return vim.lsp.Client[]
+M.lsp.get_clients = function(opts)
+  ---@type vim.lsp.Client[]
+  local ret = vim.lsp.get_clients(opts)
+  return (opts and opts.filter) and vim.tbl_filter(opts.filter, ret) or ret
+end
+
 --- vendor from lazy.nvim for early access and override
+
+---@param path string
+---@return string
+function M.norm(path)
+  if path:sub(1, 1) == "~" then
+    local home = vim.uv.os_homedir()
+    if home:sub(-1) == "\\" or home:sub(-1) == "/" then
+      home = home:sub(1, -2)
+    end
+    path = home .. path:sub(2)
+  end
+  path = path:gsub("\\", "/"):gsub("/+", "/")
+  return path:sub(-1) == "/" and path:sub(1, -2) or path
+end
 
 ---@param msg string|string[]
 ---@param opts? LazyNotifyOpts
