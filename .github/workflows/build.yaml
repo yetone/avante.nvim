@@ -1,4 +1,4 @@
-name: Nightly Release
+name: Nightly Build
 
 on:
   schedule:
@@ -9,6 +9,9 @@ on:
   pull_request:
     branches:
       - main
+    paths:
+      - 'crates/**'
+      - '**/Cargo.toml'
   workflow_dispatch: # Allows manual triggering
 
 env:
