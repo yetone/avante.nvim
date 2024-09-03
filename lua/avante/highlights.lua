@@ -11,6 +11,8 @@ local Highlights = {
   REVERSED_SUBTITLE = { name = "AvanteReversedSubtitle", fg = "#56b6c2" },
   THIRD_TITLE = { name = "AvanteThirdTitle", fg = "#ABB2BF", bg = "#353B45" },
   REVERSED_THIRD_TITLE = { name = "AvanteReversedThirdTitle", fg = "#353B45" },
+  SUGGESTION = { name = "AvanteSuggestion", link = "Comment" },
+  ANNOTATION = { name = "AvanteAnnotation", link = "Comment" },
 }
 
 Highlights.conflict = {
@@ -48,7 +50,7 @@ M.setup = function()
       end)
       :each(function(_, hl)
         if not has_set_colors(hl.name) then
-          api.nvim_set_hl(0, hl.name, { fg = hl.fg or nil, bg = hl.bg or nil })
+          api.nvim_set_hl(0, hl.name, { fg = hl.fg or nil, bg = hl.bg or nil, link = hl.link or nil })
         end
       end)
 

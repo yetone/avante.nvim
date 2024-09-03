@@ -3,6 +3,7 @@ local api = vim.api
 local Utils = require("avante.utils")
 local Sidebar = require("avante.sidebar")
 local Selection = require("avante.selection")
+local Suggestion = require("avante.suggestion")
 local Config = require("avante.config")
 local Diff = require("avante.diff")
 
@@ -12,8 +13,10 @@ local M = {
   sidebars = {},
   ---@type avante.Selection[]
   selections = {},
-  ---@type {sidebar?: avante.Sidebar, selection?: avante.Selection}
-  current = { sidebar = nil, selection = nil },
+  ---@type avante.Suggestion[]
+  suggestions = {},
+  ---@type {sidebar?: avante.Sidebar, selection?: avante.Selection, suggestion?: avante.Suggestion}
+  current = { sidebar = nil, selection = nil, suggestion = nil },
 }
 
 M.did_setup = false
@@ -185,7 +188,7 @@ H.autocmds = function()
   api.nvim_create_autocmd("VimResized", {
     group = H.augroup,
     callback = function()
-      local sidebar, _ = M.get()
+      local sidebar = M.get()
       if not sidebar then
         return
       end
@@ -234,22 +237,25 @@ H.autocmds = function()
 end
 
 ---@param current boolean? false to disable setting current, otherwise use this to track across tabs.
----@return avante.Sidebar, avante.Selection
+---@return avante.Sidebar, avante.Selection, avante.Suggestion
 function M.get(current)
   local tab = api.nvim_get_current_tabpage()
   local sidebar = M.sidebars[tab]
   local selection = M.selections[tab]
+  local suggestion = M.suggestions[tab]
   if current ~= false then
     M.current.sidebar = sidebar
     M.current.selection = selection
+    M.current.suggestion = suggestion
   end
-  return sidebar, selection
+  return sidebar, selection, suggestion
 end
 
 ---@param id integer
 function M._init(id)
   local sidebar = M.sidebars[id]
   local selection = M.selections[id]
+  local suggestion = M.suggestions[id]
 
   if not sidebar then
     sidebar = Sidebar:new(id)
@@ -259,7 +265,11 @@ function M._init(id)
     selection = Selection:new(id)
     M.selections[id] = selection
   end
-  M.current = { sidebar = sidebar, selection = selection }
+  if not suggestion then
+    suggestion = Suggestion:new(id)
+    M.suggestions[id] = suggestion
+  end
+  M.current = { sidebar = sidebar, selection = selection, suggestion = suggestion }
   return M
 end
 
@@ -288,7 +298,7 @@ M.toggle.hint = H.api(Utils.toggle_wrap({
 setmetatable(M.toggle, {
   __index = M.toggle,
   __call = function()
-    local sidebar, _ = M.get()
+    local sidebar = M.get()
     if not sidebar then
       M._init(api.nvim_get_current_tabpage())
       M.current.sidebar:open()
@@ -326,7 +336,7 @@ M.build = H.api(function()
   local os_name = Utils.get_os_name()
 
   if vim.tbl_contains({ "linux", "darwin" }, os_name) then
-    cmd = { "sh", "-c", ("make -C %s"):format(build_directory) }
+    cmd = { "sh", "-c", string.format("make -C %s", build_directory) }
   elseif os_name == "windows" then
     build_directory = to_windows_path(build_directory)
     cmd = {
@@ -334,7 +344,7 @@ M.build = H.api(function()
       "-ExecutionPolicy",
       "Bypass",
       "-File",
-      ("%s\\Build.ps1"):format(build_directory),
+      string.format("%s\\Build.ps1", build_directory),
       "-WorkingDirectory",
       build_directory,
     }

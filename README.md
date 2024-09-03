@@ -192,6 +192,13 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     temperature = 0,
     max_tokens = 4096,
   },
+  behaviour = {
+    auto_suggestions = false, -- Experimental stage
+    auto_set_highlight_group = true,
+    auto_set_keymaps = true,
+    auto_apply_diff_after_generation = false,
+    support_paste_from_clipboard = false,
+  },
   mappings = {
     --- @class AvanteConflictMappings
     diff = {
@@ -202,6 +209,12 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
       cursor = "cc",
       next = "]x",
       prev = "[x",
+    },
+    suggestion = {
+      accept = "<M-l>",
+      next = "<M-]>",
+      prev = "<M-[>",
+      dismiss = "<C-]>",
     },
     jump = {
       next = "]]",

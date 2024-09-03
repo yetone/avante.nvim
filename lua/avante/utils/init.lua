@@ -1,4 +1,6 @@
 local api = vim.api
+local fn = vim.fn
+local lsp = vim.lsp
 
 ---@class avante.utils: LazyUtilCore
 ---@field tokens avante.utils.tokens
@@ -338,7 +340,7 @@ function M.debug(msg, opts)
   end
   opts = opts or {}
   if opts.title then
-    opts.title = "lazy.nvim: " .. opts.title
+    opts.title = "avante.nvim: " .. opts.title
   end
   if type(msg) == "string" then
     M.notify(msg, opts)
@@ -482,6 +484,80 @@ end
 --- remove indentation from code: spaces or tabs
 function M.remove_indentation(code)
   return code:gsub("^%s*", "")
+end
+
+local function relative_path(absolute)
+  local relative = fn.fnamemodify(absolute, ":.")
+  if string.sub(relative, 0, 1) == "/" then
+    return fn.fnamemodify(absolute, ":t")
+  end
+  return relative
+end
+
+function M.get_doc()
+  local absolute = api.nvim_buf_get_name(0)
+  local params = lsp.util.make_position_params(0, "utf-8")
+
+  local position = {
+    row = params.position.line + 1,
+    col = params.position.character,
+  }
+
+  local doc = {
+    uri = params.textDocument.uri,
+    version = api.nvim_buf_get_var(0, "changedtick"),
+    relativePath = relative_path(absolute),
+    insertSpaces = vim.o.expandtab,
+    tabSize = fn.shiftwidth(),
+    indentSize = fn.shiftwidth(),
+    position = position,
+  }
+
+  return doc
+end
+
+function M.prepend_line_number(content, start_line)
+  start_line = start_line or 1
+  local lines = vim.split(content, "\n")
+  local result = {}
+  for i, line in ipairs(lines) do
+    i = i + start_line - 1
+    table.insert(result, "L" .. i .. ": " .. line)
+  end
+  return table.concat(result, "\n")
+end
+
+function M.trim_line_number(line)
+  return line:gsub("^L%d+: ", "")
+end
+
+function M.trim_all_line_numbers(content)
+  return vim
+    .iter(vim.split(content, "\n"))
+    :map(function(line)
+      local new_line = M.trim_line_number(line)
+      return new_line
+    end)
+    :join("\n")
+end
+
+function M.debounce(func, delay)
+  local timer_id = nil
+
+  return function(...)
+    local args = { ... }
+
+    if timer_id then
+      fn.timer_stop(timer_id)
+    end
+
+    timer_id = fn.timer_start(delay, function()
+      func(unpack(args))
+      timer_id = nil
+    end)
+
+    return timer_id
+  end
 end
 
 return M

@@ -86,6 +86,7 @@ M.defaults = {
   ---3. auto_set_highlight_group        : Whether to automatically set the highlight group for the current line. Default to true.
   ---4. support_paste_from_clipboard    : Whether to support pasting image from clipboard. This will be determined automatically based whether img-clip is available or not.
   behaviour = {
+    auto_suggestions = false, -- Experimental stage
     auto_set_highlight_group = true,
     auto_set_keymaps = true,
     auto_apply_diff_after_generation = false,
@@ -115,6 +116,12 @@ M.defaults = {
       cursor = "cc",
       next = "]x",
       prev = "[x",
+    },
+    suggestion = {
+      accept = "<M-l>",
+      next = "<M-]>",
+      prev = "<M-[>",
+      dismiss = "<C-]>",
     },
     jump = {
       next = "]]",

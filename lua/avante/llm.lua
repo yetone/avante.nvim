@@ -88,8 +88,36 @@ Your task is to modify the provided code according to the user's request. Follow
 Remember: Your response should contain ONLY the modified code, ready to be used as a direct replacement for the original file.
 ]]
 
+local suggesting_mode_user_prompt_tpl = [[
+Your task is to suggest code modifications at the cursor position. Follow these instructions meticulously:
+
+1. Carefully analyze the original code, paying close attention to its structure and the cursor position.
+
+2. You must follow this json format when suggesting modifications:
+
+[
+  {
+    "row": ${row},
+    "col": ${column},
+    "content": "Your suggested code here"
+  }
+]
+
+3. When suggesting suggested code:
+  - Each element in the returned list is a COMPLETE and INDEPENDENT code snippet.
+  - MUST be a valid json format. Don't be lazy!
+  - Only return the new code to be inserted.
+  - Your returned code should not overlap with the original code in any way. Don't be lazy!
+  - Please strictly check the code around the position and ensure that the complete code after insertion is correct. Don't be lazy!
+  - Do not return the entire file content or any surrounding code.
+  - Do not include any explanations, comments, or line numbers in your response.
+  - Ensure the suggested code fits seamlessly with the existing code structure and indentation.
+  - If there are no recommended modifications, return an empty list.
+
+Remember: Return ONLY the suggested code snippet, without any additional formatting or explanation.
+]]
+
 local group = api.nvim_create_augroup("avante_llm", { clear = true })
-local active_job = nil
 
 ---@class StreamOptions
 ---@field file_content string
@@ -99,7 +127,7 @@ local active_job = nil
 ---@field project_context string | nil
 ---@field memory_context string | nil
 ---@field full_file_contents_context string | nil
----@field mode "planning" | "editing"
+---@field mode "planning" | "editing" | "suggesting"
 ---@field on_chunk AvanteChunkParser
 ---@field on_complete AvanteCompleteParser
 
@@ -108,7 +136,13 @@ M.stream = function(opts)
   local mode = opts.mode or "planning"
   local provider = Config.provider
 
-  local user_prompt_tpl = mode == "planning" and planning_mode_user_prompt_tpl or editing_mode_user_prompt_tpl
+  local user_prompt_tpl = planning_mode_user_prompt_tpl
+
+  if mode == "editing" then
+    user_prompt_tpl = editing_mode_user_prompt_tpl
+  elseif mode == "suggesting" then
+    user_prompt_tpl = suggesting_mode_user_prompt_tpl
+  end
 
   -- Check if the instructions contains an image path
   local image_paths = {}
@@ -191,12 +225,9 @@ M.stream = function(opts)
     end
   end
 
-  if active_job then
-    active_job:shutdown()
-    active_job = nil
-  end
-
   local completed = false
+
+  local active_job
 
   active_job = curl.post(spec.url, {
     headers = spec.headers,
@@ -230,11 +261,13 @@ M.stream = function(opts)
         end
       end)
     end,
-    on_error = function(err)
+    on_error = function()
+      active_job = nil
       completed = true
-      opts.on_complete(err)
+      opts.on_complete(nil)
     end,
     callback = function(result)
+      active_job = nil
       if result.status >= 400 then
         if Provider.on_error then
           Provider.on_error(result)
@@ -250,16 +283,21 @@ M.stream = function(opts)
           end
         end)
       end
-      active_job = nil
     end,
   })
 
   api.nvim_create_autocmd("User", {
     group = group,
     pattern = M.CANCEL_PATTERN,
+    once = true,
     callback = function()
+      -- Error: cannot resume dead coroutine
       if active_job then
-        active_job:shutdown()
+        xpcall(function()
+          active_job:shutdown()
+        end, function(err)
+          return err
+        end)
         Utils.debug("LLM request cancelled", { title = "Avante" })
         active_job = nil
       end
@@ -267,6 +305,10 @@ M.stream = function(opts)
   })
 
   return active_job
+end
+
+function M.cancel_inflight_request()
+  api.nvim_exec_autocmds("User", { pattern = M.CANCEL_PATTERN })
 end
 
 return M
