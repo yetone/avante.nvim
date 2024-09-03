@@ -1,5 +1,5 @@
 --Taken from https://github.com/jackMort/ChatGPT.nvim/blob/main/lua/chatgpt/flows/chat/tokens.lua
-local Tokenizer = require "avante.tokenizers"
+local Tokenizer = require("avante.tokenizers")
 
 ---@class avante.utils.tokens
 local Tokens = {}
@@ -17,7 +17,7 @@ function Tokens.calculate_tokens(text)
 
   local tokens = 0
   local current_token = ""
-  for char in text:gmatch "." do
+  for char in text:gmatch(".") do
     if char == " " or char == "\n" then
       if current_token ~= "" then
         tokens = tokens + 1

@@ -1,9 +1,9 @@
 ---NOTE: this module is inspired by https://github.com/HakonHarnes/img-clip.nvim/tree/main
 ---@see https://github.com/ekickx/clipboard-image.nvim/blob/main/lua/clipboard-image/paste.lua
 
-local Path = require "plenary.path"
-local Utils = require "avante.utils"
-local Config = require "avante.config"
+local Path = require("plenary.path")
+local Utils = require("avante.utils")
+local Config = require("avante.config")
 ---@module "img-clip"
 local ImgClip = nil
 
@@ -19,7 +19,7 @@ local paste_directory = nil
 ---@return Path
 local function get_paste_directory()
   if paste_directory then return paste_directory end
-  paste_directory = Path:new(Config.history.storage_path):joinpath "pasted_images"
+  paste_directory = Path:new(Config.history.storage_path):joinpath("pasted_images")
   return paste_directory
 end
 
@@ -28,9 +28,9 @@ M.support_paste_image = Config.support_paste_image
 M.setup = function()
   get_paste_directory()
 
-  if not paste_directory:exists() then paste_directory:mkdir { parent = true } end
+  if not paste_directory:exists() then paste_directory:mkdir({ parent = true }) end
 
-  if M.support_paste_image() and ImgClip == nil then ImgClip = require "img-clip" end
+  if M.support_paste_image() and ImgClip == nil then ImgClip = require("img-clip") end
 end
 
 ---@param line? string
@@ -46,7 +46,7 @@ M.paste_image = function(line)
     },
   }
 
-  if vim.fn.has "wsl" > 0 or vim.fn.has "win32" > 0 then opts.use_absolute_path = true end
+  if vim.fn.has("wsl") > 0 or vim.fn.has("win32") > 0 then opts.use_absolute_path = true end
 
   return ImgClip.paste_image(opts, line)
 end
@@ -65,7 +65,7 @@ M.get_base64_content = function(filepath)
   if output.code == 0 then
     return output.stdout
   else
-    error "Failed to convert image to base64"
+    error("Failed to convert image to base64")
   end
 end
 

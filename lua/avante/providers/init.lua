@@ -1,8 +1,8 @@
 local api = vim.api
 
-local Config = require "avante.config"
-local Utils = require "avante.utils"
-local Dressing = require "avante.ui.dressing"
+local Config = require("avante.config")
+local Utils = require("avante.utils")
+local Dressing = require("avante.ui.dressing")
 
 ---@class AvanteHandlerOptions: table<[string], string>
 ---@field on_chunk AvanteChunkParser
@@ -98,11 +98,11 @@ E.cache = {}
 ---@return string | nil
 E.parse_envvar = function(Opts)
   local api_key_name = Opts.api_key_name
-  if api_key_name == nil then error "Requires api_key_name" end
+  if api_key_name == nil then error("Requires api_key_name") end
 
   if E.cache[api_key_name] ~= nil then return E.cache[api_key_name] end
 
-  local cmd = api_key_name:match "^cmd:(.*)"
+  local cmd = api_key_name:match("^cmd:(.*)")
 
   local key = nil
 
@@ -173,7 +173,7 @@ E.setup = function(opts)
   opts.provider.setup()
 
   -- check if var is a all caps string
-  if var == M.AVANTE_INTERNAL_KEY or var:match "^cmd:(.*)" then return end
+  if var == M.AVANTE_INTERNAL_KEY or var:match("^cmd:(.*)") then return end
 
   local refresh = opts.refresh or false
 
@@ -208,10 +208,10 @@ E.setup = function(opts)
         "noice",
       }
       if not vim.tbl_contains(exclude_filetypes, vim.bo.filetype) and not opts.provider.has() then
-        Dressing.initialize_input_buffer {
+        Dressing.initialize_input_buffer({
           opts = { prompt = "Enter " .. var .. ": " },
           on_confirm = on_confirm,
-        }
+        })
       end
     end, 200)
   end
@@ -284,16 +284,16 @@ M.setup = function()
 
   ---@type AvanteProviderFunctor
   local provider = M[Config.provider]
-  E.setup { provider = provider }
+  E.setup({ provider = provider })
 end
 
 ---@param provider Provider
 function M.refresh(provider)
-  require("avante.config").override { provider = provider }
+  require("avante.config").override({ provider = provider })
 
   ---@type AvanteProviderFunctor
   local p = M[Config.provider]
-  E.setup { provider = p, refresh = true }
+  E.setup({ provider = p, refresh = true })
   Utils.info("Switch to provider: " .. provider, { once = true, title = "Avante" })
 end
 

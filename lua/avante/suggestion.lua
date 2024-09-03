@@ -1,11 +1,11 @@
-local Utils = require "avante.utils"
-local Llm = require "avante.llm"
-local Highlights = require "avante.highlights"
-local Config = require "avante.config"
+local Utils = require("avante.utils")
+local Llm = require("avante.llm")
+local Highlights = require("avante.highlights")
+local Config = require("avante.config")
 local api = vim.api
 local fn = vim.fn
 
-local SUGGESTION_NS = api.nvim_create_namespace "avante_suggestion"
+local SUGGESTION_NS = api.nvim_create_namespace("avante_suggestion")
 
 ---@class avante.SuggestionItem
 ---@field content string
@@ -87,7 +87,7 @@ function Suggestion:setup_mappings()
 end
 
 function Suggestion:suggest()
-  Utils.debug "suggesting"
+  Utils.debug("suggesting")
 
   local ctx = self:ctx()
   local doc = Utils.get_doc()
@@ -100,7 +100,7 @@ function Suggestion:suggest()
 
   local full_response = ""
 
-  Llm.stream {
+  Llm.stream({
     bufnr = bufnr,
     file_content = code_content,
     code_lang = filetype,
@@ -132,13 +132,13 @@ function Suggestion:suggest()
       ctx.current_suggestion_idx = 1
       self:show()
     end,
-  }
+  })
 end
 
 function Suggestion:show()
   self:hide()
 
-  if not fn.mode():match "^[iR]" then return end
+  if not fn.mode():match("^[iR]") then return end
 
   local ctx = self:ctx()
   local suggestion = ctx.suggestions[ctx.current_suggestion_idx]
@@ -332,7 +332,7 @@ function Suggestion:setup_autocmds()
   api.nvim_create_autocmd("BufEnter", {
     group = self.augroup,
     callback = function()
-      if fn.mode():match "^[iR]" then suggest_callback() end
+      if fn.mode():match("^[iR]") then suggest_callback() end
     end,
   })
 
