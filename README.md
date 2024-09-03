@@ -38,6 +38,7 @@ For building binary if you wish to build from source, then `cargo` is required. 
   build = "make",
   -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- for windows
   dependencies = {
+    "nvim-treesitter/nvim-treesitter",
     "stevearc/dressing.nvim",
     "nvim-lua/plenary.nvim",
     "MunifTanjim/nui.nvim",
@@ -212,6 +213,9 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     max_tokens = 4096,
   },
   behaviour = {
+    enable_project_context_for_suggestion = false,
+    enable_project_context_for_ask = false,
+    enable_project_context_for_edit = false,
     auto_suggestions = false, -- Experimental stage
     auto_set_highlight_group = true,
     auto_set_keymaps = true,

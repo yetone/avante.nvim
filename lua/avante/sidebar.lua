@@ -1296,9 +1296,12 @@ function Sidebar:create_input(opts)
       Path.history.save(self.code.bufnr, chat_history)
     end
 
+    local project_context = Config.behaviour.enable_project_context_for_ask and Utils.repo_map.get_repo_map() or nil
+
     Llm.stream({
       bufnr = self.code.bufnr,
       ask = opts.ask,
+      project_context = vim.json.encode(project_context),
       file_content = content_with_line_numbers,
       code_lang = filetype,
       selected_code = selected_code_content_with_line_numbers,

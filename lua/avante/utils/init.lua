@@ -5,6 +5,7 @@ local lsp = vim.lsp
 ---@class avante.utils: LazyUtilCore
 ---@field tokens avante.utils.tokens
 ---@field root avante.utils.root
+---@field repo_map avante.utils.repo_map
 local M = {}
 
 setmetatable(M, {
@@ -444,7 +445,7 @@ function M.get_indentation(code) return code:match("^%s*") or "" end
 --- remove indentation from code: spaces or tabs
 function M.remove_indentation(code) return code:gsub("^%s*", "") end
 
-local function relative_path(absolute)
+function M.relative_path(absolute)
   local relative = fn.fnamemodify(absolute, ":.")
   if string.sub(relative, 0, 1) == "/" then return fn.fnamemodify(absolute, ":t") end
   return relative
@@ -462,7 +463,7 @@ function M.get_doc()
   local doc = {
     uri = params.textDocument.uri,
     version = api.nvim_buf_get_var(0, "changedtick"),
-    relativePath = relative_path(absolute),
+    relativePath = M.relative_path(absolute),
     insertSpaces = vim.o.expandtab,
     tabSize = fn.shiftwidth(),
     indentSize = fn.shiftwidth(),
@@ -519,5 +520,100 @@ function M.winline(winid)
   vim.api.nvim_set_current_win(current_win)
   return line
 end
+
+function M.get_project_root() return M.root.get() end
+
+function M.is_same_file_ext(target_ext, filepath)
+  local ext = fn.fnamemodify(filepath, ":e")
+  if target_ext == "tsx" and ext == "ts" then return true end
+  if target_ext == "jsx" and ext == "js" then return true end
+  return ext == target_ext
+end
+
+-- Get recent filepaths in the same project and same file ext
+function M.get_recent_filepaths(limit, filenames)
+  local project_root = M.get_project_root()
+  local current_ext = fn.expand("%:e")
+  local oldfiles = vim.v.oldfiles
+  local recent_files = {}
+
+  for _, file in ipairs(oldfiles) do
+    if vim.startswith(file, project_root) and M.is_same_file_ext(current_ext, file) then
+      if filenames and #filenames > 0 then
+        for _, filename in ipairs(filenames) do
+          if file:find(filename) then table.insert(recent_files, file) end
+        end
+      else
+        table.insert(recent_files, file)
+      end
+      if #recent_files >= (limit or 10) then break end
+    end
+  end
+
+  return recent_files
+end
+
+local function pattern_to_lua(pattern)
+  local lua_pattern = pattern:gsub("[%(%)%.%%%+%-%*%?%[%]%^%$]", "%%%1")
+  lua_pattern = lua_pattern:gsub("%*%*/", ".-/")
+  lua_pattern = lua_pattern:gsub("%*", "[^/]*")
+  lua_pattern = lua_pattern:gsub("%?", ".")
+  if lua_pattern:sub(-1) == "/" then lua_pattern = lua_pattern .. ".*" end
+  return lua_pattern
+end
+
+function M.parse_gitignore(gitignore_path)
+  local ignore_patterns = { ".git", ".worktree", "__pycache__", "node_modules" }
+  local negate_patterns = {}
+  local file = io.open(gitignore_path, "r")
+  if not file then return ignore_patterns, negate_patterns end
+
+  for line in file:lines() do
+    if line:match("%S") and not line:match("^#") then
+      local trimmed_line = line:match("^%s*(.-)%s*$")
+      if trimmed_line:sub(1, 1) == "!" then
+        table.insert(negate_patterns, pattern_to_lua(trimmed_line:sub(2)))
+      else
+        table.insert(ignore_patterns, pattern_to_lua(trimmed_line))
+      end
+    end
+  end
+
+  file:close()
+  return ignore_patterns, negate_patterns
+end
+
+local function is_ignored(file, ignore_patterns, negate_patterns)
+  for _, pattern in ipairs(negate_patterns) do
+    if file:match(pattern) then return false end
+  end
+  for _, pattern in ipairs(ignore_patterns) do
+    if file:match(pattern) then return true end
+  end
+  return false
+end
+
+function M.scan_directory(directory, ignore_patterns, negate_patterns)
+  local files = {}
+  local handle = vim.loop.fs_scandir(directory)
+
+  if not handle then return files end
+
+  while true do
+    local name, type = vim.loop.fs_scandir_next(handle)
+    if not name then break end
+
+    local full_path = directory .. "/" .. name
+    if type == "directory" then
+      vim.list_extend(files, M.scan_directory(full_path, ignore_patterns, negate_patterns))
+    elseif type == "file" then
+      if not is_ignored(full_path, ignore_patterns, negate_patterns) then table.insert(files, full_path) end
+    end
+  end
+
+  return files
+end
+
+function M.is_first_letter_uppercase(str) return string.match(str, "^[A-Z]") ~= nil end
 
 return M

@@ -67,10 +67,14 @@ function Suggestion:suggest()
 
   local provider = Providers[Config.auto_suggestions_provider]
 
+  local project_context = Config.behaviour.enable_project_context_for_suggestion and Utils.repo_map.get_repo_map()
+    or nil
+
   Llm.stream({
     provider = provider,
     bufnr = bufnr,
     ask = true,
+    project_context = vim.json.encode(project_context),
     file_content = code_content,
     code_lang = filetype,
     instructions = vim.json.encode(doc),
@@ -82,24 +86,26 @@ function Suggestion:suggest()
         return
       end
       Utils.debug("full_response: " .. vim.inspect(full_response))
-      local cursor_row, cursor_col = Utils.get_cursor_pos()
-      if cursor_row ~= doc.position.row or cursor_col ~= doc.position.col then return end
-      local ok, suggestions = pcall(vim.json.decode, full_response)
-      if not ok then
-        Utils.error("Error while decoding suggestions: " .. full_response, { once = true, title = "Avante" })
-        return
-      end
-      if not suggestions then
-        Utils.info("No suggestions found", { once = true, title = "Avante" })
-        return
-      end
-      suggestions = vim
-        .iter(suggestions)
-        :map(function(s) return { row = s.row, col = s.col, content = Utils.trim_all_line_numbers(s.content) } end)
-        :totable()
-      ctx.suggestions = suggestions
-      ctx.current_suggestion_idx = 1
-      self:show()
+      vim.schedule(function()
+        local cursor_row, cursor_col = Utils.get_cursor_pos()
+        if cursor_row ~= doc.position.row or cursor_col ~= doc.position.col then return end
+        local ok, suggestions = pcall(vim.json.decode, full_response)
+        if not ok then
+          Utils.error("Error while decoding suggestions: " .. full_response, { once = true, title = "Avante" })
+          return
+        end
+        if not suggestions then
+          Utils.info("No suggestions found", { once = true, title = "Avante" })
+          return
+        end
+        suggestions = vim
+          .iter(suggestions)
+          :map(function(s) return { row = s.row, col = s.col, content = Utils.trim_all_line_numbers(s.content) } end)
+          :totable()
+        ctx.suggestions = suggestions
+        ctx.current_suggestion_idx = 1
+        self:show()
+      end)
     end,
   })
 end

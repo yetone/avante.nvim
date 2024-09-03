@@ -93,6 +93,9 @@ You are an excellent programming expert.
   ---3. auto_set_highlight_group        : Whether to automatically set the highlight group for the current line. Default to true.
   ---4. support_paste_from_clipboard    : Whether to support pasting image from clipboard. This will be determined automatically based whether img-clip is available or not.
   behaviour = {
+    enable_project_context_for_suggestion = false,
+    enable_project_context_for_ask = false,
+    enable_project_context_for_edit = false,
     auto_suggestions = false, -- Experimental stage
     auto_set_highlight_group = true,
     auto_set_keymaps = true,
