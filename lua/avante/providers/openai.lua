@@ -30,12 +30,10 @@ M.tokenizer_id = "gpt-4o"
 
 ---@param opts AvantePromptOptions
 M.get_user_message = function(opts)
-  return table.concat(opts.user_prompts, "\n\n")
+  return opts.user_prompt
 end
 
 M.parse_message = function(opts)
-  local user_prompt = table.concat(opts.user_prompts, "\n\n")
-
   ---@type string | OpenAIMessage[]
   local user_content
   if Config.behaviour.support_paste_from_clipboard and opts.image_paths and #opts.image_paths > 0 then
@@ -48,9 +46,9 @@ M.parse_message = function(opts)
         },
       })
     end
-    table.insert(user_content, { type = "text", text = user_prompt })
+    table.insert(user_content, { type = "text", text = opts.user_prompt })
   else
-    user_content = user_prompt
+    user_content = opts.user_prompt
   end
 
   return {

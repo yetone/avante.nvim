@@ -32,11 +32,9 @@ M.api_key_name = "CO_API_KEY"
 M.tokenizer_id = "CohereForAI/c4ai-command-r-plus-08-2024"
 
 M.parse_message = function(opts)
-  local user_prompt = table.concat(opts.user_prompts, "\n\n")
-
   return {
     preamble = opts.system_prompt,
-    message = user_prompt,
+    message = opts.user_prompt,
   }
 end
 

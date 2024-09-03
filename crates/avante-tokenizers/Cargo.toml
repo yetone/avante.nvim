@@ -12,17 +12,9 @@ license = { workspace = true }
 workspace = true
 
 [dependencies]
-mlua = { version = "0.10.0-beta.1", features = [
-  "module",
-  "serialize",
-], git = "https://github.com/mlua-rs/mlua.git", branch = "main" }
-tiktoken-rs = "0.5.9"
-tokenizers = { version = "0.20.0", features = [
-  "esaxx_fast",
-  "http",
-  "unstable_wasm",
-  "onig",
-], default-features = false }
+mlua = { workspace = true }
+tiktoken-rs = { workspace = true }
+tokenizers = { workspace = true }
 
 [features]
 lua51 = ["mlua/lua51"]

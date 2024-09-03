@@ -1,2 +1,4 @@
 * text=auto eol=lf
 **/*.lock linguist-generated=true
+*.avanterules linguist-language=jinja
+syntax/jinja.vim linguist-vendored

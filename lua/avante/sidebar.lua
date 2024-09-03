@@ -1346,6 +1346,7 @@ function Sidebar:create_input()
     end
 
     Llm.stream({
+      bufnr = self.code.bufnr,
       file_content = content_with_line_numbers,
       code_lang = filetype,
       selected_code = selected_code_content_with_line_numbers,

@@ -11,32 +11,40 @@ else
 	$(error Unsupported operating system: $(UNAME))
 endif
 
-LUA_VERSIONS := luajit lua51
+LUA_VERSIONS := luajit lua51 lua52 lua53 lua54
+
 BUILD_DIR := build
+TARGET_LIBRARY ?= all
 
 all: luajit
 
-luajit: $(BUILD_DIR)/libavante_tokenizers.$(EXT)
-lua51: $(BUILD_DIR)/libavante_tokenizers-lua51.$(EXT)
-lua52: $(BUILD_DIR)/libavante_tokenizers-lua52.$(EXT)
-lua53: $(BUILD_DIR)/libavante_tokenizers-lua53.$(EXT)
-lua54: $(BUILD_DIR)/libavante_tokenizers-lua54.$(EXT)
-
-define build_from_source
-	cargo build --release --features=$1
-	cp target/release/libavante_tokenizers.$(EXT) $(BUILD_DIR)/avante_tokenizers.$(EXT)
+define make_definitions
+ifeq ($(TARGET_LIBRARY), all)
+$1: $(BUILD_DIR)/libAvanteTokenizers-$1.$(EXT) $(BUILD_DIR)/libAvanteTemplates-$1.$(EXT)
+else ifeq ($(TARGET_LIBRARY), tokenizers)
+$1: $(BUILD_DIR)/libAvanteTokenizers-$1.$(EXT)
+else ifeq ($(TARGET_LIBRARY), templates)
+$1: $(BUILD_DIR)/libAvanteTemplates-$1.$(EXT)
+else
+	$$(error TARGET_LIBRARY must be one of all, tokenizers, templates)
+endif
 endef
 
-$(BUILD_DIR)/libavante_tokenizers.$(EXT): $(BUILD_DIR)
-	$(call build_from_source,luajit)
-$(BUILD_DIR)/libavante_tokenizers-lua51.$(EXT): $(BUILD_DIR)
-	$(call build_from_source,lua51)
-$(BUILD_DIR)/libavante_tokenizers-lua52.$(EXT): $(BUILD_DIR)
-	$(call build_from_source,lua52)
-$(BUILD_DIR)/libavante_tokenizers-lua53.$(EXT): $(BUILD_DIR)
-	$(call build_from_source,lua53)
-$(BUILD_DIR)/libavante_tokenizers-lua54.$(EXT): $(BUILD_DIR)
-	$(call build_from_source,lua54)
+$(foreach lua_version,$(LUA_VERSIONS),$(eval $(call make_definitions,$(lua_version))))
+
+define build_from_source
+	cargo build --release --features=$1 -p avante-$2
+	cp target/release/libavante_$2.$(EXT) $(BUILD_DIR)/avante_$2.$(EXT)
+endef
+
+define build_targets
+$(BUILD_DIR)/libAvanteTokenizers-$1.$(EXT): $(BUILD_DIR)
+	$$(call build_from_source,$1,tokenizers)
+$(BUILD_DIR)/libAvanteTemplates-$1.$(EXT): $(BUILD_DIR)
+	$$(call build_from_source,$1,templates)
+endef
+
+$(foreach lua_version,$(LUA_VERSIONS),$(eval $(call build_targets,$(lua_version))))
 
 $(BUILD_DIR):
 	mkdir -p $(BUILD_DIR)

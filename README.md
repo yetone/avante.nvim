@@ -32,7 +32,7 @@ https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd
   opts = {
     -- add any opts here
   },
-  build = ":AvanteBuild", -- This is optional, recommended tho. Also note that this will block the startup for a bit since we are compiling bindings in Rust.
+  build = ":AvanteBuild", -- Also note that this will block the startup for a bit since we are compiling bindings in Rust.
   dependencies = {
     "stevearc/dressing.nvim",
     "nvim-lua/plenary.nvim",
@@ -93,7 +93,7 @@ Plug 'yetone/avante.nvim', { 'branch': 'main', 'do': { -> avante#build() }, 'on'
 
 > [!important]
 >
-> For `avante.tokenizers` to work, make sure to call `require('avante_lib').load()` somewhere when entering the editor.
+> For `avante.tokenizers` and templates to work, make sure to call `require('avante_lib').load()` somewhere when entering the editor.
 > We will leave the users to decide where it fits to do this, as this varies among configurations. (But we do recommend running this after where you set your colorscheme)
 
 </details>
@@ -147,6 +147,7 @@ require('copilot').setup ({
 require('render-markdown').setup ({
   -- use recommended settings from above
 })
+require('avante_lib').load()
 require('avante').setup ({
   -- Your config here!
 })
@@ -341,6 +342,59 @@ The following key bindings are available for use with `avante.nvim`:
 
 See [highlights.lua](./lua/avante/highlights.lua) for more information
 
+## Custom prompts
+
+By default, `avante.nvim` provides three different modes to interact with: `planning`, `editing`, and `suggesting`, followed with three different prompts per mode.
+
+- `planning`: Used with `require("avante").toggle()` on sidebar
+- `editing`: Used with `require("avante").edit()` on selection codeblock
+- `suggesting`: Used with `require("avante").get_suggestion():suggest()` on Tab flow.
+
+Users can customize the system prompts via `Config.system_prompt`. We recommend calling this in a custom Autocmds depending on your need:
+
+```lua
+vim.api.nvim_create_autocmd("User", {
+  pattern = "ToggleMyPrompt"
+  callback = function() require("avante.config").override({system_prompt = "MY CUSTOM SYSTEM PROMPT"}) end,
+})
+
+vim.keymap.set("n", "<leader>am", function() vim.api.nvim_exec_autocmds("User", { pattern = "ToggleMyPrompt" }) end, { desc = "avante: toggle my prompt" })
+```
+
+If one wish to custom prompts for each mode, `avante.nvim` will check for project root based on the given buffer whether it contains
+the following patterns: `*.{mode}.avanterules`.
+
+The rules for root hierarchy:
+- lsp workspace folders
+- lsp root_dir
+- root pattern of filename of the current buffer
+- root pattern of cwd
+
+<details>
+
+  <summary>Example folder structure for custom prompt</summary>
+
+If you have the following structure:
+  ```bash
+.
+├── .git/
+├── typescript.planning.avanterules
+├── snippets.editing.avanterules
+└── src/
+
+  ```
+
+- `typescript.planning.avanterules` will be used for `planning` mode
+- `snippets.editing.avanterules`` will be used for `editing` mode
+- the default `suggesting` prompt from `avante.nvim` will be used for `suggesting` mode.
+
+</details>
+
+> [!important]
+>
+> `*.avanterules` is a jinja template file, in which will be rendered using [minijinja](https://github.com/mitsuhiko/minijinja). See [templates](https://github.com/yetone/avante.nvim/blob/main/lua/avante/templates) for example on how to extend current templates.
+
+
 ## TODOs
 
 - [x] Chat with current file
@@ -348,7 +402,7 @@ See [highlights.lua](./lua/avante/highlights.lua) for more information
 - [x] Chat with the selected block
 - [x] Slash commands
 - [x] Edit the selected block
-- [ ] Smart Tab (Cursor Flow)
+- [x] Smart Tab (Cursor Flow)
 - [ ] Chat with project
 - [ ] Chat with selected files
 
@@ -367,12 +421,13 @@ See [wiki](https://github.com/yetone/avante.nvim/wiki) for more recipes and tric
 
 We would like to express our heartfelt gratitude to the contributors of the following open-source projects, whose code has provided invaluable inspiration and reference for the development of avante.nvim:
 
-| Nvim Plugin | License | Functionality | Where did we use |
+| Nvim Plugin | License | Functionality | Location |
 | --- | --- | --- | --- |
-| [git-conflict.nvim](https://github.com/akinsho/git-conflict.nvim) | No License | Diff comparison functionality | https://github.com/yetone/avante.nvim/blob/main/lua/avante/diff.lua |
-| [ChatGPT.nvim](https://github.com/jackMort/ChatGPT.nvim) | Apache 2.0 License | Calculation of tokens count | https://github.com/yetone/avante.nvim/blob/main/lua/avante/utils/tokens.lua |
-| [img-clip.nvim](https://github.com/HakonHarnes/img-clip.nvim) | MIT License | Clipboard image support | https://github.com/yetone/avante.nvim/blob/main/lua/avante/clipboard.lua |
-| [copilot.lua](https://github.com/zbirenbaum/copilot.lua) | MIT License | Copilot support | https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/copilot.lua |
+| [git-conflict.nvim](https://github.com/akinsho/git-conflict.nvim) | No License | Diff comparison functionality | [lua/avante/diff.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/diff.lua) |
+| [ChatGPT.nvim](https://github.com/jackMort/ChatGPT.nvim) | Apache 2.0 License | Calculation of tokens count | [avante/utils/tokens.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/utils/tokens.lua) |
+| [img-clip.nvim](https://github.com/HakonHarnes/img-clip.nvim) | MIT License | Clipboard image support | [avante/clipboard.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/clipboard.lua) |
+| [copilot.lua](https://github.com/zbirenbaum/copilot.lua) | MIT License | Copilot support | [avante/providers/copilot.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/copilot.lua) |
+| [jinja.vim](https://github.com/HiPhish/jinja.vim) | MIT License | Template filetype support | [syntax/jinja.vim](https://github.com/yetone/avante.nvim/blob/main/syntax/jinja.vim) |
 
 The high quality and ingenuity of these projects' source code have been immensely beneficial throughout our development process. We extend our sincere thanks and respect to the authors and contributors of these projects. It is the selfless dedication of the open-source community that drives projects like avante.nvim forward.
 

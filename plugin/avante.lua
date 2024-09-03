@@ -1,3 +1,13 @@
+if vim.fn.has("nvim-0.10") == 0 then
+  vim.api.nvim_echo({
+    { "Avante requires at least nvim-0.10", "ErrorMsg" },
+    { "Please upgrade your neovim version", "WarningMsg" },
+    { "Press any key to exit", "ErrorMsg" },
+  }, true, {})
+  vim.fn.getchar()
+  vim.cmd([[quit]])
+end
+
 --- NOTE: We will override vim.paste if img-clip.nvim is available to work with avante.nvim internal logic paste
 
 local Clipboard = require("avante.clipboard")

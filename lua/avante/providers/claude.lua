@@ -7,13 +7,13 @@ local M = {}
 
 M.api_key_name = "ANTHROPIC_API_KEY"
 M.tokenizer_id = "gpt-4o"
+M.use_xml_format = true
 
----@param prompt_opts AvantePromptOptions
-M.parse_message = function(prompt_opts)
+M.parse_message = function(opts)
   local message_content = {}
 
-  if Clipboard.support_paste_image() and prompt_opts.image_paths then
-    for _, image_path in ipairs(prompt_opts.image_paths) do
+  if Clipboard.support_paste_image() and opts.image_paths then
+    for _, image_path in ipairs(opts.image_paths) do
       table.insert(message_content, {
         type = "image",
         source = {
@@ -25,32 +25,15 @@ M.parse_message = function(prompt_opts)
     end
   end
 
-  local user_prompts_with_length = {}
-  for idx, user_prompt in ipairs(prompt_opts.user_prompts) do
-    table.insert(user_prompts_with_length, { idx = idx, length = Utils.tokens.calculate_tokens(user_prompt) })
+  local user_prompt_obj = {
+    type = "text",
+    text = opts.user_prompt,
+  }
+  if Utils.tokens.calculate_tokens(opts.user_prompt) then
+    user_prompt_obj.cache_control = { type = "ephemeral" }
   end
 
-  table.sort(user_prompts_with_length, function(a, b)
-    return a.length > b.length
-  end)
-
-  local top_three = {}
-  for i = 1, math.min(3, #user_prompts_with_length) do
-    top_three[user_prompts_with_length[i].idx] = true
-  end
-
-  for idx, prompt_data in ipairs(prompt_opts.user_prompts) do
-    local user_prompt_obj = {
-      type = "text",
-      text = prompt_data,
-    }
-
-    if top_three[idx] then
-      user_prompt_obj.cache_control = { type = "ephemeral" }
-    end
-
-    table.insert(message_content, user_prompt_obj)
-  end
+  table.insert(message_content, user_prompt_obj)
 
   return {
     {
