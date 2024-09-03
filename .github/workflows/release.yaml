@@ -45,7 +45,7 @@ jobs:
           tag: ${{ steps.get_version.outputs.version }}
           body: "${{ steps.tag.outputs.message }}"
 
-  build:
+  releases-matrix:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
