@@ -83,13 +83,17 @@ jobs:
             cp target/release/libavante_tokenizers.$EXT results/avante_tokenizers.$EXT
           fi
 
+          cd results
+          zip avante_lib-${{ matrix.os }}-${{ matrix.feature }}.zip *.${EXT}
+
       - name: Upload Release Asset
         uses: shogo82148/actions-upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ASSET_NAME: avante_lib-${{ matrix.os }}-${{ matrix.feature }}.zip
         with:
           upload_url: ${{ needs.create-release.outputs.release_upload_url }}
-          asset_path: ./results/
+          asset_path: ./results/avante_lib-${{ matrix.os }}-${{ matrix.feature }}.zip
 
   publish-release:
     permissions:
