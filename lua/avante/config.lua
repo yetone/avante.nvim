@@ -176,7 +176,6 @@ You are an excellent programming expert.
       breakindent = true,
       wrap = true,
       cursorline = false,
-      -- winhighlight = "Normal:NormalFloat,Border:FloatBorder,VertSplit:NormalFloat,WinSeparator:NormalFloat,CursorLine:NormalFloat",
       fillchars = "eob: ",
       winhighlight = "CursorLine:Normal,CursorColumn:Normal",
       winbar = "",
