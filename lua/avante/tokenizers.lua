@@ -1,4 +1,4 @@
-local Utils = require "avante.utils"
+local Utils = require("avante.utils")
 
 ---@class AvanteTokenizer
 ---@field from_pretrained fun(model: string): nil
@@ -19,7 +19,7 @@ M.setup = function(model)
     core.from_pretrained(model)
   end, 1000)
 
-  local HF_TOKEN = os.getenv "HF_TOKEN"
+  local HF_TOKEN = os.getenv("HF_TOKEN")
   if HF_TOKEN == nil and model ~= "gpt-4o" then
     Utils.warn(
       "Please set HF_TOKEN environment variable to use HuggingFace tokenizer if " .. model .. " is gated",

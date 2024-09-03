@@ -27,7 +27,7 @@ M.has = function(plugin)
   return package.loaded[plugin] ~= nil
 end
 
-M.is_win = function() return jit.os:find "Windows" ~= nil end
+M.is_win = function() return jit.os:find("Windows") ~= nil end
 
 ---@return "linux" | "darwin" | "windows"
 M.get_os_name = function()
@@ -52,12 +52,12 @@ M.shell_run = function(input_cmd)
   local cmd
 
   -- powershell then we can just run the cmd
-  if shell:match "powershell" or shell:match "pwsh" then
+  if shell:match("powershell") or shell:match("pwsh") then
     cmd = input_cmd
-  elseif vim.fn.has "wsl" > 0 then
+  elseif vim.fn.has("wsl") > 0 then
     -- wsl: powershell.exe -Command 'command "/path"'
     cmd = "powershell.exe -NoProfile -Command '" .. input_cmd:gsub("'", '"') .. "'"
-  elseif vim.fn.has "win32" > 0 then
+  elseif vim.fn.has("win32") > 0 then
     cmd = 'powershell.exe -NoProfile -Command "' .. input_cmd:gsub('"', "'") .. '"'
   else
     -- linux and macos we wil just do sh -c
@@ -166,13 +166,13 @@ end
 ---Get the selected content and range in Visual mode
 ---@return avante.SelectionResult | nil Selected content and range
 function M.get_visual_selection_and_range()
-  local Range = require "avante.range"
-  local SelectionResult = require "avante.selection_result"
+  local Range = require("avante.range")
+  local SelectionResult = require("avante.selection_result")
 
   if not M.in_visual_mode() then return nil end
   -- Get the start and end positions of Visual mode
-  local start_pos = vim.fn.getpos "v"
-  local end_pos = vim.fn.getpos "."
+  local start_pos = vim.fn.getpos("v")
+  local end_pos = vim.fn.getpos(".")
   -- Get the start and end line and column numbers
   local start_line = start_pos[2]
   local start_col = start_pos[3]
@@ -276,14 +276,14 @@ function M.notify(msg, opts)
   ---@diagnostic disable-next-line: undefined-field
   if opts.stacktrace then
     ---@diagnostic disable-next-line: undefined-field
-    msg = msg .. M.pretty_trace { level = opts.stacklevel or 2 }
+    msg = msg .. M.pretty_trace({ level = opts.stacklevel or 2 })
   end
   local lang = opts.lang or "markdown"
   ---@diagnostic disable-next-line: undefined-field
   local n = opts.once and vim.notify_once or vim.notify
   n(msg, opts.level or vim.log.levels.INFO, {
     on_open = function(win)
-      local ok = pcall(function() vim.treesitter.language.add "markdown" end)
+      local ok = pcall(function() vim.treesitter.language.add("markdown") end)
       if not ok then pcall(require, "nvim-treesitter") end
       vim.wo[win].conceallevel = 3
       vim.wo[win].concealcursor = ""
@@ -374,7 +374,7 @@ function M.unlock_buf(bufnr)
 end
 
 function M.lock_buf(bufnr)
-  vim.cmd "stopinsert"
+  vim.cmd("stopinsert")
   vim.bo[bufnr].modified = false
   vim.bo[bufnr].modifiable = false
 end
@@ -421,7 +421,7 @@ function M.is_sidebar_buffer(bufnr)
   return v == true
 end
 
-function M.trim_spaces(s) return s:match "^%s*(.-)%s*$" end
+function M.trim_spaces(s) return s:match("^%s*(.-)%s*$") end
 
 function M.fallback(v, default_value) return type(v) == "nil" and default_value or v end
 
@@ -441,7 +441,7 @@ end
 
 ---@param code string
 ---@return string
-function M.get_indentation(code) return code:match "^%s*" or "" end
+function M.get_indentation(code) return code:match("^%s*") or "" end
 
 --- remove indentation from code: spaces or tabs
 function M.remove_indentation(code) return code:gsub("^%s*", "") end
@@ -494,7 +494,7 @@ function M.trim_all_line_numbers(content)
       local new_line = M.trim_line_number(line)
       return new_line
     end)
-    :join "\n"
+    :join("\n")
 end
 
 function M.debounce(func, delay)

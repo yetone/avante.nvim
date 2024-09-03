@@ -1,6 +1,6 @@
-local Utils = require "avante.utils"
-local P = require "avante.providers"
-local Clipboard = require "avante.clipboard"
+local Utils = require("avante.utils")
+local P = require("avante.providers")
+local Clipboard = require("avante.clipboard")
 
 ---@class AvanteProviderFunctor
 local M = {}

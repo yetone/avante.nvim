@@ -4,8 +4,8 @@
 ---@field temperature number
 ---@field max_tokens number
 
-local Utils = require "avante.utils"
-local P = require "avante.providers"
+local Utils = require("avante.utils")
+local P = require("avante.providers")
 local O = require("avante.providers").openai
 
 ---@class AvanteProviderFunctor
@@ -23,7 +23,7 @@ M.parse_curl_args = function(provider, code_opts)
   local headers = {
     ["Content-Type"] = "application/json",
   }
-  if not P.env.is_local "azure" then headers["api-key"] = provider.parse_api_key() end
+  if not P.env.is_local("azure") then headers["api-key"] = provider.parse_api_key() end
 
   return {
     url = Utils.trim(base.endpoint, { suffix = "/" })

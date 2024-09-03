@@ -25,12 +25,12 @@
 ---@field xcode boolean
 ---@field xcode_chat boolean
 
-local curl = require "plenary.curl"
+local curl = require("plenary.curl")
 
-local Config = require "avante.config"
-local Path = require "plenary.path"
-local Utils = require "avante.utils"
-local P = require "avante.providers"
+local Config = require("avante.config")
+local Path = require("plenary.path")
+local Utils = require("avante.utils")
+local P = require("avante.providers")
 local O = require("avante.providers").openai
 
 local H = {}
@@ -41,15 +41,15 @@ local H = {}
 ---
 ---@return string
 H.get_oauth_token = function()
-  local xdg_config = vim.fn.expand "$XDG_CONFIG_HOME"
+  local xdg_config = vim.fn.expand("$XDG_CONFIG_HOME")
   local os_name = Utils.get_os_name()
   ---@type string
   local config_dir
 
   if vim.tbl_contains({ "linux", "darwin" }, os_name) then
-    config_dir = (xdg_config and vim.fn.isdirectory(xdg_config) > 0) and xdg_config or vim.fn.expand "~/.config"
+    config_dir = (xdg_config and vim.fn.isdirectory(xdg_config) > 0) and xdg_config or vim.fn.expand("~/.config")
   else
-    config_dir = vim.fn.expand "~/AppData/Local"
+    config_dir = vim.fn.expand("~/AppData/Local")
   end
 
   --- hosts.json (copilot.lua), apps.json (copilot.vim)
@@ -67,7 +67,7 @@ H.get_oauth_token = function()
       ---@type table<string, OAuthToken>
       vim.json.decode(yason:read())
     )
-    :filter(function(k, _) return k:match "github.com" end)
+    :filter(function(k, _) return k:match("github.com") end)
     ---@param acc {oauth_token: string}
     :fold({}, function(acc, _, v)
       acc.oauth_token = v.oauth_token
@@ -83,7 +83,7 @@ H.chat_completion_url = function(base_url) return Utils.trim(base_url, { prefix 
 local M = {}
 
 H.refresh_token = function()
-  if not M.state then error "internal initialization error" end
+  if not M.state then error("internal initialization error") end
 
   if
     not M.state.github_token

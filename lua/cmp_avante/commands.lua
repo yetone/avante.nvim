@@ -33,10 +33,10 @@ function source:complete(_, callback)
     })
   end
 
-  callback {
+  callback({
     items = items,
     isIncomplete = false,
-  }
+  })
 end
 
 return source
