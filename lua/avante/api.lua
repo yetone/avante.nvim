@@ -66,9 +66,24 @@ M.build = function(opts)
     error("Unsupported operating system: " .. os_name, 2)
   end
 
-  local job = vim.system(cmd, { text = true }):wait()
-
-  return vim.tbl_contains({ 0 }, job.code) and true or false
+  ---@type integer
+  local code
+  vim.system(cmd, {
+    text = true,
+    stdout = function(_, data)
+      if data then vim.schedule(function() vim.api.nvim_echo({ { data, "Normal" } }, false, {}) end) end
+    end,
+    stderr = function(err, _)
+      if err then vim.schedule(function() vim.api.nvim_echo({ { err, "ErrorMsg" } }, false, {}) end) end
+    end,
+  }, function(obj)
+    if vim.tbl_contains({ 0 }, obj.code) then
+      code = obj.code
+    else
+      vim.api.nvim_echo({ { "Build failed with exit code: " .. obj.code, "ErrorMsg" } }, false, {})
+    end
+  end)
+  return code
 end
 
 ---@param question? string
