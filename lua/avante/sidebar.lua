@@ -1386,7 +1386,7 @@ function Sidebar:create_input()
 
     -- Get the current window size
     local win_width = api.nvim_win_get_width(self.input.winid)
-    local win_height = api.nvim_win_get_height(self.input.winid)
+    local cursor_row = Utils.winline(self.input.winid)
     local width = #hint_text
 
     -- Set the floating window options
@@ -1395,13 +1395,12 @@ function Sidebar:create_input()
       win = self.input.winid,
       width = width,
       height = 1,
-      row = win_height - 1,
+      row = cursor_row,
       col = math.max(win_width - width, 0), -- Display in the bottom right corner
       style = "minimal",
       border = "none",
       focusable = false,
       zindex = 100,
-      anchor = "SW",
     }
 
     -- Create the floating window
