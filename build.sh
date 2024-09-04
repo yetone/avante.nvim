@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -xeo pipefail
-
 REPO_OWNER="yetone"
 REPO_NAME="avante.nvim"
 
