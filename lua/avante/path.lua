@@ -140,7 +140,7 @@ P.available = function() return templates ~= nil end
 
 P.clear = function()
   P.cache_path:rm({ recursive = true })
-	P.history_path:rm({recursive = true})
+  P.history_path:rm({ recursive = true })
 end
 
 return P
