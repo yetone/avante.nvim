@@ -12,6 +12,14 @@ local P = {}
 -- Helpers
 local H = {}
 
+-- Convert a filename back to the original path
+---@param filename string
+---@return string
+H.path_from_filename = function(filename)
+  local path_with_separators = fn.substitute(filename, "__", "/", "g")
+  return (fn.substitute(path_with_separators, "_", "[^A-Za-z0-9./]", "g"):gsub("%.json$", ""))
+end
+
 -- Get a chat history file name given a buffer
 ---@param bufnr integer
 ---@return string
@@ -139,5 +147,9 @@ end
 P.available = function() return templates ~= nil end
 
 P.clear = function() P.cache_path:rm({ recursive = true }) end
+
+P.get_path_from_filename = H.path_from_filename
+
+P.get_storage_path = function() return P.history_path:absolute() end
 
 return P
