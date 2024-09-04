@@ -84,11 +84,21 @@ M.build = function(opts)
   return pid
 end
 
----@param question? string
-M.ask = function(question)
-  if not require("avante").toggle() then return false end
-  if question == nil or question == "" then return true end
-  vim.api.nvim_exec_autocmds("User", { pattern = "AvanteInputSubmitted", data = { request = question } })
+---@class AskOptions
+---@field question? string optional questions
+---@field win? table<string, any> windows options similar to |nvim_open_win()|
+
+---@param opts? AskOptions
+M.ask = function(opts)
+  opts = opts or {}
+  if type(opts) == "string" then
+    Utils.warn("passing 'ask' as string is deprecated, do {question = '...'} instead", { once = true })
+    opts = { question = opts }
+  end
+
+  if not require("avante").toggle_sidebar(opts) then return false end
+  if opts.question == nil or opts.question == "" then return true end
+  vim.api.nvim_exec_autocmds("User", { pattern = "AvanteInputSubmitted", data = { request = opts.question } })
   return true
 end
 
@@ -108,7 +118,8 @@ M.get_suggestion = function()
   return suggestion
 end
 
-M.refresh = function()
+---@param opts? AskOptions
+M.refresh = function(opts)
   local sidebar = require("avante").get()
   if not sidebar then return end
   if not sidebar:is_open() then return end
@@ -125,7 +136,7 @@ M.refresh = function()
   sidebar:close()
   sidebar.code.winid = curwin
   sidebar.code.bufnr = curbuf
-  sidebar:render()
+  sidebar:render(opts)
 end
 
 return setmetatable(M, {
