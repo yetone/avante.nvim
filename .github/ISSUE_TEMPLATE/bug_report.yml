@@ -28,7 +28,6 @@ body:
 
         **IMPORTANT**: make sure to use [code tags](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-and-highlighting-code-blocks#syntax-highlighting) to correctly format your code. Screenshots are helpful but don't use them for code snippets as they don't allow others to copy-and-paste your code.
 
-        Provide your neovim version with `neovim -v`
       placeholder: |
         Give a minimal config to reproduce the issue.
   - type: textarea
@@ -43,7 +42,7 @@ body:
     attributes:
       label: Environment
       description: |
-        Please share your environment with us.
+        Please share your environment with us, including your neovim version using `neovim -v`.
       placeholder: |
         neovim version: ...
         distribution (if any): ...
