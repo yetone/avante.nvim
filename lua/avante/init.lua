@@ -67,18 +67,7 @@ H.commands = function()
       return vim.tbl_filter(function(key) return key:find(prefix, 1, true) == 1 end, Config.providers)
     end,
   })
-  cmd("Clean", function()
-    local storage_path = require("avante.path").get_storage_path()
-    for _, file in ipairs(vim.fn.readdir(storage_path)) do
-      if file:match("%.json$") then
-        local sourcefile = require("avante.path").get_path_from_filename(file)
-        if not vim.loop.fs_stat(sourcefile) then
-          vim.notify("Deleting " .. storage_path .. "/" .. file)
-          vim.fn.delete(storage_path .. "/" .. file)
-        end
-      end
-    end
-  end, { desc = "avante: clean up" })
+  cmd("Clean", function() require("avante.path").clean() end, { desc = "avante: clean all chat history" })
 end
 
 H.keymaps = function()
