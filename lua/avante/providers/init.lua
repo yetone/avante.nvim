@@ -1,8 +1,14 @@
-local api = vim.api
+local api, fn = vim.api, vim.fn
 
 local Config = require("avante.config")
 local Utils = require("avante.utils")
-local Dressing = require("avante.ui.dressing")
+
+local DressingConfig = {
+  conceal_char = "*",
+  filetype = "DressingInput",
+  close_window = function() require("dressing.input").close() end,
+}
+local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 
 ---@class AvanteHandlerOptions: table<[string], string>
 ---@field on_chunk AvanteChunkParser
@@ -88,9 +94,6 @@ local M = {}
 local E = {}
 
 ---@private
-E._once = false
-
----@private
 ---@type table<string, string>
 E.cache = {}
 
@@ -100,9 +103,11 @@ E.parse_envvar = function(Opts)
   local api_key_name = Opts.api_key_name
   if api_key_name == nil then error("Requires api_key_name") end
 
-  if E.cache[api_key_name] ~= nil then return E.cache[api_key_name] end
+  local cache_key = type(api_key_name) == "table" and table.concat(api_key_name, "__") or api_key_name
 
-  local cmd = api_key_name:match("^cmd:(.*)")
+  if E.cache[cache_key] ~= nil then return E.cache[cache_key] end
+
+  local cmd = type(api_key_name) == "table" and api_key_name or api_key_name:match("^cmd:(.*)")
 
   local key = nil
 
@@ -114,33 +119,27 @@ E.parse_envvar = function(Opts)
       if key ~= nil then
         ---@diagnostic disable: no-unknown
         E.cache[Opts._shellenv] = key
-        E.cache[api_key_name] = key
+        E.cache[cache_key] = key
         vim.g.avante_login = true
         return key
       end
     end
 
+    if type(cmd) == "string" then cmd = vim.split(cmd, " ", { trimempty = true }) end
+
     local exit_codes = { 0 }
-    local ok, job_or_err = pcall(
-      vim.system,
-      vim.split(cmd, " ", { trimempty = true }),
-      { text = true },
-      function(result)
-        local code = result.code
-        local stderr = result.stderr or ""
-        local stdout = result.stdout and vim.split(result.stdout, "\n") or {}
-        if vim.tbl_contains(exit_codes, code) then
-          key = stdout[1]
-          E.cache[api_key_name] = key
-          vim.g.avante_login = true
-        else
-          Utils.error(
-            "Failed to get API key: (error code" .. code .. ")\n" .. stderr,
-            { once = true, title = "Avante" }
-          )
-        end
+    local ok, job_or_err = pcall(vim.system, cmd, { text = true }, function(result)
+      local code = result.code
+      local stderr = result.stderr or ""
+      local stdout = result.stdout and vim.split(result.stdout, "\n") or {}
+      if vim.tbl_contains(exit_codes, code) then
+        key = stdout[1]
+        E.cache[cache_key] = key
+        vim.g.avante_login = true
+      else
+        Utils.error("Failed to get API key: (error code" .. code .. ")\n" .. stderr, { once = true, title = "Avante" })
       end
-    )
+    end)
 
     if not ok then
       error("failed to run command: " .. cmd .. "\n" .. job_or_err)
@@ -151,7 +150,7 @@ E.parse_envvar = function(Opts)
   end
 
   if key ~= nil then
-    E.cache[api_key_name] = key
+    E.cache[cache_key] = key
     vim.g.avante_login = true
   end
 
@@ -173,7 +172,7 @@ E.setup = function(opts)
   opts.provider.setup()
 
   -- check if var is a all caps string
-  if var == M.AVANTE_INTERNAL_KEY or var:match("^cmd:(.*)") then return end
+  if var == M.AVANTE_INTERNAL_KEY or type(var) == "table" or var:match("^cmd:(.*)") then return end
 
   local refresh = opts.refresh or false
 
@@ -185,7 +184,7 @@ E.setup = function(opts)
       vim.g.avante_login = true
     else
       if not opts.provider.has() then
-        Utils.warn("Failed to set " .. var .. ". Avante won't work as expected", { once = true, title = "Avante" })
+        Utils.warn("Failed to set " .. var .. ". Avante won't work as expected", { once = true })
       end
     end
   end
@@ -207,29 +206,48 @@ E.setup = function(opts)
         "DressingInput",
         "noice",
       }
+
       if not vim.tbl_contains(exclude_filetypes, vim.bo.filetype) and not opts.provider.has() then
-        Dressing.initialize_input_buffer({
-          opts = { prompt = "Enter " .. var .. ": " },
-          on_confirm = on_confirm,
-        })
+        DressingState.winid = api.nvim_get_current_win()
+        vim.ui.input({ default = "", prompt = "Enter " .. var .. ": " }, on_confirm)
+        for _, winid in ipairs(api.nvim_list_wins()) do
+          local bufnr = api.nvim_win_get_buf(winid)
+          if vim.bo[bufnr].filetype == DressingConfig.filetype then
+            DressingState.input_winid = winid
+            DressingState.input_bufnr = bufnr
+            vim.wo[winid].conceallevel = 2
+            vim.wo[winid].concealcursor = "nvi"
+            break
+          end
+        end
+
+        local prompt_length = api.nvim_strwidth(fn.prompt_getprompt(DressingState.input_bufnr))
+        api.nvim_buf_call(
+          DressingState.input_bufnr,
+          function()
+            vim.cmd(string.format(
+              [[
+      syn region SecretValue start=/^/ms=s+%s end=/$/ contains=SecretChar
+      syn match SecretChar /./ contained conceal %s
+      ]],
+              prompt_length,
+              "cchar=*"
+            ))
+          end
+        )
       end
     end, 200)
   end
 
-  if refresh then
-    mount_dressing_buffer()
-    return
-  end
+  if refresh then return mount_dressing_buffer() end
 
-  if not E._once then
-    E._once = true
-    api.nvim_create_autocmd({ "BufEnter", "BufWinEnter", "WinEnter" }, {
-      pattern = "*",
-      once = true,
-      callback = mount_dressing_buffer,
-    })
-  end
+  api.nvim_create_autocmd("User", {
+    pattern = E.REQUEST_LOGIN_PATTERN,
+    callback = mount_dressing_buffer,
+  })
 end
+
+E.REQUEST_LOGIN_PATTERN = "AvanteRequestLogin"
 
 ---@param provider Provider
 E.is_local = function(provider)
