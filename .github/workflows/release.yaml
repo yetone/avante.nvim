@@ -61,39 +61,54 @@ jobs:
       - name: Build all crates
         run: cargo build --release --features ${{ matrix.feature }}
       - name: Handle binaries
+        if: ${{ matrix.os != 'windows-latest' }}
         shell: bash
         run: |
           mkdir -p results
           if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
             OS="linux"
             EXT="so"
-          elif [ "${{ matrix.os }}" == "macos-latest" ]; then
+          else
             OS="macOS"
             EXT="dylib"
-          else
-            OS="windows"
-            EXT="dll"
           fi
-
-          if [ "${{ matrix.os }}" == "windows-latest" ]; then
-            cp target/release/avante_templates.$EXT results/avante_templates.$EXT
-            cp target/release/avante_tokenizers.$EXT results/avante_tokenizers.$EXT
-          else
-            cp target/release/libavante_templates.$EXT results/avante_templates.$EXT
-            cp target/release/libavante_tokenizers.$EXT results/avante_tokenizers.$EXT
-          fi
+          cp target/release/libavante_templates.$EXT results/avante_templates.$EXT
+          cp target/release/libavante_tokenizers.$EXT results/avante_tokenizers.$EXT
 
           cd results
           tar zcvf avante_lib-${{ matrix.os }}-${{ matrix.feature }}.tar.gz *.${EXT}
+      - name: Handle binaries (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path results
+
+          Copy-Item -Path "target\release\avante_templates.dll" -Destination "results\avante_templates.dll"
+          Copy-Item -Path "target\release\avante_tokenizers.dll" -Destination "results\avante_tokenizers.dll"
+
+          Set-Location -Path results
+
+          $dllFiles = Get-ChildItem -Filter "*.dll" | Select-Object -ExpandProperty Name
+          Compress-Archive -Path $dllFiles -DestinationPath "avante_lib-${{ matrix.os }}-${{ matrix.feature }}.zip"
 
       - name: Upload Release Asset
         uses: shogo82148/actions-upload-release-asset@v1
+        if: ${{ matrix.os != 'windows-latest' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ASSET_NAME: avante_lib-${{ matrix.os }}-${{ matrix.feature }}.tar.gz
         with:
           upload_url: ${{ needs.create-release.outputs.release_upload_url }}
           asset_path: ./results/avante_lib-${{ matrix.os }}-${{ matrix.feature }}.tar.gz
+      - name: Upload Release Asset (Windows)
+        uses: shogo82148/actions-upload-release-asset@v1
+        if: ${{ matrix.os == 'windows-latest' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ASSET_NAME: avante_lib-${{ matrix.os }}-${{ matrix.feature }}.zip
+        with:
+          upload_url: ${{ needs.create-release.outputs.release_upload_url }}
+          asset_path: ./results/avante_lib-${{ matrix.os }}-${{ matrix.feature }}.zip
 
   publish-release:
     permissions:
