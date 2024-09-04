@@ -76,6 +76,7 @@ N.get = function(bufnr)
 
   -- get root directory of given bufnr
   local directory = Path:new(Utils.root.get({ buf = bufnr }))
+  if Utils.get_os_name() == "windows" then directory = Path:new(directory:absolute():gsub("^%a:", "")[1]) end
   ---@cast directory Path
   ---@type Path
   local cache_prompt_dir = P.cache_path:joinpath(directory)
