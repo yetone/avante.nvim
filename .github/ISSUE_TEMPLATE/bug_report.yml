@@ -16,7 +16,7 @@ body:
     attributes:
       label: Describe the bug
       description: Please provide a clear and concise description about the problem you ran into.
-      placeholder: This happened when I...
+      placeholder: This happened when I ...
   - type: textarea
     id: to-reproduce
     validations:
@@ -24,13 +24,12 @@ body:
     attributes:
       label: To reproduce
       description: |
-        Please provide a code sample or a code snipet to reproduce said problem. If you have code snippets, error messages, stack trace please also provide them here.
+        Please provide a code sample or a code snippet to reproduce said problem. If you have code snippets, error messages, or a stack trace please also provide them here.
 
-        **IMPORTANT**: make sure to use [code tag](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-and-highlighting-code-blocks#syntax-highlighting) to correctly format your code. Screenshot is helpful but don't use it for code snippets as it doesn't allow others to copy-and-paste your code.
+        **IMPORTANT**: make sure to use [code tags](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-and-highlighting-code-blocks#syntax-highlighting) to correctly format your code. Screenshots are helpful but don't use them for code snippets as they don't allow others to copy-and-paste your code.
 
-        Provide your neovim version with `neovim -v`
       placeholder: |
-        Give a minimal config to reproduce the issue.k
+        Give a minimal config to reproduce the issue.
   - type: textarea
     id: expected-behavior
     validations:
@@ -43,7 +42,7 @@ body:
     attributes:
       label: Environment
       description: |
-        Please share your environment with us.
+        Please share your environment with us, including your neovim version using `neovim -v`.
       placeholder: |
         neovim version: ...
         distribution (if any): ...
