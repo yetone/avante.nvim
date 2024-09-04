@@ -4,6 +4,7 @@ local fn = vim.fn
 local Split = require("nui.split")
 local event = require("nui.utils.autocmd").event
 
+local Provider = require("avante.providers")
 local Path = require("avante.path")
 local Config = require("avante.config")
 local Diff = require("avante.diff")
@@ -80,6 +81,11 @@ function Sidebar:open()
       return self
     end
     self:focus()
+  end
+
+  if not vim.g.avante_login or vim.g.avante_login == false then
+    api.nvim_exec_autocmds("User", { pattern = Provider.env.REQUEST_LOGIN_PATTERN })
+    vim.g.avante_login = true
   end
 
   vim.cmd("wincmd =")

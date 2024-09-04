@@ -201,7 +201,7 @@ function M.setup(opts)
       },
     }
   )
-  if not M.options.silent_warning then
+  if not M.options.silent_warning == nil then
     -- set silent_warning to true if debug is false
     M.options.silent_warning = not M.options.debug
   end
@@ -306,12 +306,5 @@ M.BASE_PROVIDER_KEYS = {
   "tokenizer_id",
   "use_xml_format",
 }
-
----@return {width: integer, height: integer}
-M.get_sidebar_layout_options = function()
-  local width = M.get_window_width()
-  local height = vim.o.lines
-  return { width = width, height = height }
-end
 
 return M
