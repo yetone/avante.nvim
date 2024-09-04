@@ -1,0 +1,52 @@
+name: 🐛 Bug Report
+description: Create a bug report to help us improve Avante
+title: 'bug: '
+labels: ['bug']
+body:
+  - type: markdown
+    id: issue-already-exists
+    attributes:
+      value: |
+        Please search to see if an issue already exists for the bug you encountered.
+        See [Searching Issues and Pull Requests](https://docs.github.com/en/search-github/searching-on-github/searching-issues-and-pull-requests) for how to use the GitHub search bar and filters.
+  - type: textarea
+    id: describe-the-bug
+    validations:
+      required: true
+    attributes:
+      label: Describe the bug
+      description: Please provide a clear and concise description about the problem you ran into.
+      placeholder: This happened when I...
+  - type: textarea
+    id: to-reproduce
+    validations:
+      required: false
+    attributes:
+      label: To reproduce
+      description: |
+        Please provide a code sample or a code snipet to reproduce said problem. If you have code snippets, error messages, stack trace please also provide them here.
+
+        **IMPORTANT**: make sure to use [code tag](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-and-highlighting-code-blocks#syntax-highlighting) to correctly format your code. Screenshot is helpful but don't use it for code snippets as it doesn't allow others to copy-and-paste your code.
+
+        Provide your neovim version with `neovim -v`
+      placeholder: |
+        Give a minimal config to reproduce the issue.k
+  - type: textarea
+    id: expected-behavior
+    validations:
+      required: false
+    attributes:
+      label: Expected behavior
+      description: 'A clear and concise description of what you would expect to happen.'
+  - type: textarea
+    id: environment-info
+    attributes:
+      label: Environment
+      description: |
+        Please share your environment with us.
+      placeholder: |
+        neovim version: ...
+        distribution (if any): ...
+        platform: ...
+    validations:
+      required: true
