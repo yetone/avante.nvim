@@ -1,0 +1,37 @@
+{%- if use_xml_format -%}
+{%- if selected_code -%}
+<context>
+```{{code_lang}}
+{{file_content}}
+```
+</context>
+
+<code>
+```{{code_lang}}
+{{selected_code}}
+```
+</code>
+{%- else -%}
+<code>
+```{{code_lang}}
+{{file_content}}
+```
+</code>
+{%- endif %}
+{% else %}
+{%- if selected_code -%}
+CONTEXT:
+```{{code_lang}}
+{{file_content}}
+```
+
+CODE:
+```{{code_lang}}
+{{selected_code}}
+```
+{%- else -%}
+CODE:
+```{{code_lang}}
+{{file_content}}
+```
+{%- endif %}{%- endif %}

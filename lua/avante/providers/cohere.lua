@@ -34,7 +34,7 @@ M.tokenizer_id = "CohereForAI/c4ai-command-r-plus-08-2024"
 M.parse_message = function(opts)
   return {
     preamble = opts.system_prompt,
-    message = opts.user_prompt,
+    message = table.concat(opts.user_prompts, "\n"),
   }
 end
 

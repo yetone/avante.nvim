@@ -28,13 +28,12 @@ local M = {}
 M.api_key_name = "OPENAI_API_KEY"
 
 ---@param opts AvantePromptOptions
-M.get_user_message = function(opts) return opts.user_prompt end
+M.get_user_message = function(opts) return table.concat(opts.user_prompts, "\n") end
 
 M.parse_message = function(opts)
-  ---@type string | OpenAIMessage[]
-  local user_content
+  ---@type OpenAIMessage[]
+  local user_content = {}
   if Config.behaviour.support_paste_from_clipboard and opts.image_paths and #opts.image_paths > 0 then
-    user_content = {}
     for _, image_path in ipairs(opts.image_paths) do
       table.insert(user_content, {
         type = "image_url",
@@ -43,9 +42,12 @@ M.parse_message = function(opts)
         },
       })
     end
-    table.insert(user_content, { type = "text", text = opts.user_prompt })
+    vim.iter(opts.user_prompts):each(function(prompt) table.insert(user_content, { type = "text", text = prompt }) end)
   else
-    user_content = opts.user_prompt
+    user_content = vim.iter(opts.user_prompts):fold({}, function(acc, prompt)
+      table.insert(acc, { type = "text", text = prompt })
+      return acc
+    end)
   end
 
   return {

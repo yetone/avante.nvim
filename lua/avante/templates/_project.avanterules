@@ -1,0 +1,12 @@
+{%- if use_xml_format -%}
+{%- if project_context -%}
+<project_context>
+{{project_context}}
+</project_context>
+{%- endif %}
+{%- else -%}
+{%- if project_context -%}
+PROJECT CONTEXT:
+{{project_context}}
+{%- endif %}
+{%- endif %}
