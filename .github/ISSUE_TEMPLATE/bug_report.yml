@@ -16,7 +16,7 @@ body:
     attributes:
       label: Describe the bug
       description: Please provide a clear and concise description about the problem you ran into.
-      placeholder: This happened when I...
+      placeholder: This happened when I ...
   - type: textarea
     id: to-reproduce
     validations:
