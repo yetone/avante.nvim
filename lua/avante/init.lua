@@ -67,7 +67,7 @@ H.commands = function()
       return vim.tbl_filter(function(key) return key:find(prefix, 1, true) == 1 end, Config.providers)
     end,
   })
-  cmd("Clean", function() require("avante.path").clean() end, { desc = "avante: clean all chat history" })
+  cmd("Clear", function() require("avante.path").clear() end, { desc = "avante: clear all chat history" })
 end
 
 H.keymaps = function()
