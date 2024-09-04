@@ -61,6 +61,8 @@ M.build = function(opts)
       string.format("%s\\Build.ps1", build_directory),
       "-WorkingDirectory",
       build_directory,
+      "-BuildFromSource",
+      string.format("%s", opts.source == true and "true" or "false"),
     }
   else
     error("Unsupported operating system: " .. os_name, 2)
