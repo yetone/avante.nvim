@@ -1374,6 +1374,13 @@ function Sidebar:create_input()
     end
   end
 
+  local function get_float_window_row()
+    local win_height = vim.api.nvim_win_get_height(self.input.winid)
+    local winline = Utils.winline(self.input.winid)
+    if winline >= win_height - 1 then return 0 end
+    return winline
+  end
+
   -- Create a floating window as a hint
   local function show_hint()
     close_hint() -- Close the existing hint window
@@ -1386,7 +1393,6 @@ function Sidebar:create_input()
 
     -- Get the current window size
     local win_width = api.nvim_win_get_width(self.input.winid)
-    local cursor_row = Utils.winline(self.input.winid)
     local width = #hint_text
 
     -- Set the floating window options
@@ -1395,7 +1401,7 @@ function Sidebar:create_input()
       win = self.input.winid,
       width = width,
       height = 1,
-      row = cursor_row,
+      row = get_float_window_row(),
       col = math.max(win_width - width, 0), -- Display in the bottom right corner
       style = "minimal",
       border = "none",
