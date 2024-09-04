@@ -201,7 +201,7 @@ function M.setup(opts)
       },
     }
   )
-  if not M.options.silent_warning == nil then
+  if M.options.silent_warning == nil then
     -- set silent_warning to true if debug is false
     M.options.silent_warning = not M.options.debug
   end
