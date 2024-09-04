@@ -30,7 +30,7 @@ body:
 
         Provide your neovim version with `neovim -v`
       placeholder: |
-        Give a minimal config to reproduce the issue.k
+        Give a minimal config to reproduce the issue.
   - type: textarea
     id: expected-behavior
     validations:
