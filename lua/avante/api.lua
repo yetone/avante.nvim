@@ -67,23 +67,25 @@ M.build = function(opts)
   end
 
   ---@type integer
-  local code
-  vim.system(cmd, {
-    text = true,
-    stdout = function(_, data)
-      if data then vim.schedule(function() vim.api.nvim_echo({ { data, "Normal" } }, false, {}) end) end
-    end,
-    stderr = function(err, _)
-      if err then vim.schedule(function() vim.api.nvim_echo({ { err, "ErrorMsg" } }, false, {}) end) end
-    end,
-  }, function(obj)
-    if vim.tbl_contains({ 0 }, obj.code) then
-      code = obj.code
-    else
-      vim.api.nvim_echo({ { "Build failed with exit code: " .. obj.code, "ErrorMsg" } }, false, {})
+  local pid
+  local exit_code = { 0 }
+
+  local ok, job_or_err = pcall(vim.system, cmd, { text = true }, function(obj)
+    local stderr = obj.stderr and vim.split(obj.stderr, "\n") or {}
+    local stdout = obj.stdout and vim.split(obj.stdout, "\n") or {}
+    if vim.tbl_contains(exit_code, obj.code) then
+      local output = stdout
+      if #output == 0 then
+        table.insert(output, "")
+        Utils.info("outputs: " .. output)
+      else
+        Utils.error("error: " .. stderr)
+      end
     end
   end)
-  return code
+  if not ok then Utils.error("Failed to build the command: " .. cmd .. "\n" .. job_or_err, { once = true }) end
+  pid = job_or_err.pid
+  return pid
 end
 
 ---@param question? string
