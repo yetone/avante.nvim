@@ -66,18 +66,19 @@ function Sidebar:reset()
   self.input = nil
 end
 
-function Sidebar:open()
+---@param opts? AskOptions
+function Sidebar:open(opts)
   local in_visual_mode = Utils.in_visual_mode() and self:in_code_win()
   if not self:is_open() then
     self:reset()
     self:initialize()
-    self:render()
+    self:render(opts)
   else
     if in_visual_mode then
       self:close()
       self:reset()
       self:initialize()
-      self:render()
+      self:render(opts)
       return self
     end
     self:focus()
@@ -121,13 +122,14 @@ end
 
 function Sidebar:in_code_win() return self.code.winid == api.nvim_get_current_win() end
 
-function Sidebar:toggle()
+---@param opts? table<string, any>
+function Sidebar:toggle(opts)
   local in_visual_mode = Utils.in_visual_mode() and self:in_code_win()
   if self:is_open() and not in_visual_mode then
     self:close()
     return false
   else
-    self:open()
+    self:open(opts)
     return true
   end
 end
@@ -1002,8 +1004,7 @@ local function get_chat_record_prefix(timestamp, provider, model, request)
 end
 
 function Sidebar:get_layout()
-  if Config.windows.position == "left" or Config.windows.position == "right" then return "vertical" end
-  return "horizontal"
+  return vim.tbl_contains({ "left", "right" }, Config.windows.position) and "vertical" or "horizontal"
 end
 
 function Sidebar:update_content_with_history(history)
@@ -1478,10 +1479,12 @@ function Sidebar:get_selected_code_size()
   return selected_code_size
 end
 
-function Sidebar:render()
+---@param opts? AskOptions
+function Sidebar:render(opts)
+  opts = opts or {}
   local chat_history = Path.history.load(self.code.bufnr)
 
-  local get_position = function() return Config.windows.position end
+  local get_position = function() return (opts and opts.win.position) and opts.win.position or Config.windows.position end
 
   local get_height = function()
     local selected_code_size = self:get_selected_code_size()
