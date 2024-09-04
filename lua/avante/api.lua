@@ -5,16 +5,9 @@ local Utils = require("avante.utils")
 ---@operator call(): boolean
 ---@field debug ToggleBind.wrap
 ---@field hint ToggleBind.wrap
----
----@class avante.Api
----@field ask fun(question:string?): boolean
----@field edit fun(question:string?): nil
----@field refresh fun(): nil
----@field build fun(opts: {source: boolean}): boolean
----@field switch_provider fun(target: string): nil
----@field toggle avante.ApiToggle
----@field get_suggestion fun(): avante.Suggestion | nil
 
+---@class avante.Api
+---@field toggle avante.ApiToggle
 local M = {}
 
 ---@param target Provider
@@ -31,8 +24,9 @@ local function to_windows_path(path)
   return winpath
 end
 
----@param opts {source: boolean}
+---@param opts? {source: boolean}
 M.build = function(opts)
+  opts = opts or { source = true }
   local dirname = Utils.trim(string.sub(debug.getinfo(1).source, 2, #"/init.lua" * -1), { suffix = "/" })
   local git_root = vim.fs.find(".git", { path = dirname, upward = true })[1]
   local build_directory = git_root and vim.fn.fnamemodify(git_root, ":h") or (dirname .. "/../../")
