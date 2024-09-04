@@ -7,60 +7,9 @@
   "file_content": "local Config = require('avante.config')"
 }
 #}
-{%- if use_xml_format -%}
-{%- if selected_code -%}
-<context>
-```{{code_lang}}
-{{file_content}}
-```
-</context>
-
-<code>
-```{{code_lang}}
-{{selected_code}}
-```
-</code>
-{%- else -%}
-<code>
-```{{code_lang}}
-{{file_content}}
-```
-</code>
-{%- endif %}{%- if project_context -%}
-<project_context>
-{{project_context}}
-</project_context>
-{%- endif %}{%- if memory_context -%}
-<memory_context>
-{{memory_context}}
-</memory_context>
-{%- endif %}
-{% else %}
-{%- if selected_code -%}
-CONTEXT:
-```{{code_lang}}
-{{file_content}}
-```
-
-CODE:
-```{{code_lang}}
-{{selected_code}}
-```
-{%- else -%}
-CODE:
-```{{code_lang}}
-{{file_content}}
-```
-{%- endif %}{%- if project_context -%}
-PROJECT CONTEXT:
-{{project_context}}
-{%- endif %}{%- if memory_context -%}
-MEMORY CONTEXT:
-{{memory_context}}
-{%- endif %}{%- endif %}{%- if ask %}
-{%- if not use_xml_format %}
-
-INSTRUCTION: {% else %}
+{%- if ask %}
+{%- if not use_xml_format -%}
+INSTRUCTION:{% else -%}
 <instruction>{% endif -%}
 {% block user_prompt %}
 Your primary task is to suggest code modifications with precise line number ranges. Follow these instructions meticulously:

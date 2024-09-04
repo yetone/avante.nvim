@@ -24,13 +24,27 @@ M.parse_message = function(opts)
     end
   end
 
-  local user_prompt_obj = {
-    type = "text",
-    text = opts.user_prompt,
-  }
-  if Utils.tokens.calculate_tokens(opts.user_prompt) then user_prompt_obj.cache_control = { type = "ephemeral" } end
+  ---@type {idx: integer, length: integer}[]
+  local user_prompts_with_length = {}
+  for idx, user_prompt in ipairs(opts.user_prompts) do
+    table.insert(user_prompts_with_length, { idx = idx, length = Utils.tokens.calculate_tokens(user_prompt) })
+  end
 
-  table.insert(message_content, user_prompt_obj)
+  table.sort(user_prompts_with_length, function(a, b) return a.length > b.length end)
+
+  ---@type table<integer, boolean>
+  local top_three = {}
+  for i = 1, math.min(3, #user_prompts_with_length) do
+    top_three[user_prompts_with_length[i].idx] = true
+  end
+
+  for idx, prompt_data in ipairs(opts.user_prompts) do
+    table.insert(message_content, {
+      type = "text",
+      text = prompt_data,
+      cache_control = top_three[idx] and { type = "ephemeral" } or nil,
+    })
+  end
 
   return {
     {

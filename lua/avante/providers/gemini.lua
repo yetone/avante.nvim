@@ -25,7 +25,7 @@ M.parse_message = function(opts)
   end
 
   -- insert a part into parts
-  table.insert(message_content, { text = opts.user_prompt })
+  table.insert(message_content, { text = table.concat(opts.user_prompts, "\n") })
 
   return {
     systemInstruction = {
