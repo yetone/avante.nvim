@@ -159,6 +159,120 @@ require('avante').setup ({
 
 </details>
 
+<details>
+
+  <summary>home-manager</summary>
+
+```nix
+{ pkgs }:
+
+let
+  fromGitHub = owner: repo: rev: sha256:
+    pkgs.vimUtils.buildVimPlugin {
+      name = "${repo}";
+      src = pkgs.fetchFromGitHub {
+        inherit owner repo rev sha256;
+      };
+    };
+
+  # nix-prefetch-url --unpack --print-path https://github.com/yetone/avante.nvim/archive/${rev}.zip
+  avante-nvim = fromGitHub "yetone" "avante.nvim" "v0.0.2" "1cf78bj82k74lyvgx7ayw6ph9sm2i82mchk18c2k6037mma0nhm7";
+
+  avante-nvim-config = ''
+    require'avante_lib'.load()
+
+    require'avante'.setup {
+      ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | string
+      provider = "claude", -- Recommend using Claude
+      claude = {
+        endpoint = "https://api.anthropic.com",
+        model = "claude-3-5-sonnet-20240620",
+        temperature = 0,
+        max_tokens = 4096,
+      },
+      behaviour = {
+        auto_suggestions = false, -- Experimental stage
+        auto_set_highlight_group = true,
+        auto_set_keymaps = true,
+        auto_apply_diff_after_generation = false,
+        support_paste_from_clipboard = false,
+      },
+      mappings = {
+        --- @class AvanteConflictMappings
+        diff = {
+          ours = "co",
+          theirs = "ct",
+          all_theirs = "ca",
+          both = "cb",
+          cursor = "cc",
+          next = "]x",
+          prev = "[x",
+        },
+        suggestion = {
+          accept = "<M-l>",
+          next = "<M-]>",
+          prev = "<M-[>",
+          dismiss = "<C-]>",
+        },
+        jump = {
+          next = "]]",
+          prev = "[[",
+        },
+        submit = {
+          normal = "<CR>",
+          insert = "<C-s>",
+        },
+      },
+      hints = { enabled = true },
+      windows = {
+        ---@type "right" | "left" | "top" | "bottom"
+        position = "right", -- the position of the sidebar
+        wrap = true, -- similar to vim.o.wrap
+        width = 30, -- default % based on available width
+        sidebar_header = {
+          align = "center", -- left, center, right for title
+          rounded = true,
+        },
+      },
+      highlights = {
+        ---@type AvanteConflictHighlights
+        diff = {
+          current = "DiffText",
+          incoming = "DiffAdd",
+        },
+      },
+      --- @class AvanteConflictUserConfig
+      diff = {
+        autojump = true,
+        ---@type string | fun(): any
+        list_opener = "copen",
+      },
+    }
+  '';
+in {
+  # Your other home-manager configs here...
+
+  programs.neovim = {
+    enable = true;
+    plugins = with pkgs; [
+      vimPlugins.dressing-nvim # required by avante-nvim
+      vimPlugins.plenary-nvim # required by avante-nvim
+      vimPlugins.nui-nvim # required by avante-nvim
+      vimPlugins.nvim-web-devicons # required by avante-nvim
+      vimPlugins.render-markdown # required by avante-nvim
+      vimPlugins.copilot-lua # optional, required by avante-nvim if provider is copilot
+      avante-nvim
+    ];
+    extraConfig = ''
+      lua <<EOF
+      ${avante-nvim-config}
+    '';
+  }
+}
+```
+
+</details>
+
 
 > [!IMPORTANT]
 >
