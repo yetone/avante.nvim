@@ -19,7 +19,7 @@ https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd
 
 ## Installation
 
-For building binary if you wish to build from source, then `cargo` is required. Otherwise `curl` and `jq` will be used to get prebuilt binary from GitHub.
+For building binary if you wish to build from source, then `cargo` is required. Otherwise `curl` and `tar` will be used to get prebuilt binary from GitHub.
 
 <details open>
 
