@@ -529,7 +529,7 @@ function Sidebar:apply(current_cursor)
     vim.defer_fn(function()
       Diff.find_next("ours")
       vim.cmd("normal! zz")
-    end, 1000)
+    end, 100)
   end, 10)
 end
 
