@@ -514,4 +514,12 @@ function M.debounce(func, delay)
   end
 end
 
+function M.winline(winid)
+  local current_win = vim.api.nvim_get_current_win()
+  vim.api.nvim_set_current_win(winid)
+  local line = vim.fn.winline()
+  vim.api.nvim_set_current_win(current_win)
+  return line
+end
+
 return M
