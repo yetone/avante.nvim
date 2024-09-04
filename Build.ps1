@@ -1,6 +1,6 @@
 param (
     [string]$Version = "luajit",
-    [string]$BuildFromSource = "true"
+    [string]$BuildFromSource = "false"
 )
 
 $Build = [System.Convert]::ToBoolean($BuildFromSource)
