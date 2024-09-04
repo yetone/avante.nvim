@@ -1484,7 +1484,9 @@ function Sidebar:render(opts)
   opts = opts or {}
   local chat_history = Path.history.load(self.code.bufnr)
 
-  local get_position = function() return (opts and opts.win and opts.win.position) and opts.win.position or Config.windows.position end
+  local get_position = function()
+    return (opts and opts.win and opts.win.position) and opts.win.position or Config.windows.position
+  end
 
   local get_height = function()
     local selected_code_size = self:get_selected_code_size()
