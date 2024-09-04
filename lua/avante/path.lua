@@ -110,9 +110,13 @@ N.get_file = function(mode)
   return string.format("%s.avanterules", mode)
 end
 
+---@param path string
+---@param opts TemplateOptions
+N.render_file = function(path, opts) return templates.render(path, opts) end
+
 ---@param mode LlmMode
 ---@param opts TemplateOptions
-N.render = function(mode, opts) return templates.render(N.get_file(mode), opts) end
+N.render_mode = function(mode, opts) return templates.render(N.get_file(mode), opts) end
 
 N.initialize = function(directory) templates.initialize(directory) end
 

@@ -118,7 +118,7 @@ M.tokenizer_id = "gpt-4o"
 M.parse_message = function(opts)
   return {
     { role = "system", content = opts.system_prompt },
-    { role = "user", content = opts.user_prompt },
+    { role = "user", content = table.concat(opts.user_prompts, "\n") },
   }
 end
 

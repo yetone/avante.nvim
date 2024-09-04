@@ -16,7 +16,7 @@ local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 ---
 ---@class AvantePromptOptions: table<[string], string>
 ---@field system_prompt string
----@field user_prompt string
+---@field user_prompts string[]
 ---@field image_paths? string[]
 ---
 ---@class AvanteBaseMessage

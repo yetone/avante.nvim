@@ -1,0 +1,12 @@
+{%- if use_xml_format -%}
+{%- if memory_context -%}
+<memory_context>
+{{memory_context}}
+</memory_context>
+{%- endif %}
+{%- else -%}
+{%- if memory_context -%}
+MEMORY CONTEXT:
+{{memory_context}}
+{%- endif %}
+{%- endif %}

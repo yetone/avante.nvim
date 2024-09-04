@@ -57,7 +57,8 @@ M.stream = function(opts)
   end
 
   Path.prompts.initialize(Path.prompts.get(opts.bufnr))
-  local user_prompt = Path.prompts.render(mode, {
+
+  local template_opts = {
     use_xml_format = Provider.use_xml_format,
     ask = true, -- TODO: add mode without ask instruction
     question = original_instructions,
@@ -66,14 +67,24 @@ M.stream = function(opts)
     selected_code = opts.selected_code,
     project_context = opts.project_context,
     memory_context = opts.memory_context,
-  })
+  }
 
-  Utils.debug(user_prompt)
+  local user_prompts = vim
+    .iter({
+      Path.prompts.render_file("_context.avanterules", template_opts),
+      Path.prompts.render_file("_project.avanterules", template_opts),
+      Path.prompts.render_file("_memory.avanterules", template_opts),
+      Path.prompts.render_mode(mode, template_opts),
+    })
+    :filter(function(k) return k ~= "" end)
+    :totable()
+
+  Utils.debug(user_prompts)
 
   ---@type AvantePromptOptions
   local code_opts = {
     system_prompt = Config.system_prompt,
-    user_prompt = user_prompt,
+    user_prompts = user_prompts,
     image_paths = image_paths,
   }
 
