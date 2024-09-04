@@ -140,11 +140,7 @@ P.available = function() return templates ~= nil end
 
 P.clear = function()
   P.cache_path:rm({ recursive = true })
-  local storage_path = P.history_path:absolute()
-  for _, file in ipairs(vim.fn.readdir(storage_path)) do
-    if file:match("%.json$") then vim.fn.delete(storage_path .. "/" .. file) end
-  end
-  vim.notify("Clear successful!")
+	P.history_path:rm({recursive = true})
 end
 
 return P
