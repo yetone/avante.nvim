@@ -32,7 +32,7 @@ else
 endif
 else
 $1:
-	LUA_VERSION=$1 sh ./build.sh
+	LUA_VERSION=$1 bash ./build.sh
 endif
 endef
 
