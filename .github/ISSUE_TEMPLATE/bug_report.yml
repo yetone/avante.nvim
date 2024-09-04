@@ -26,7 +26,7 @@ body:
       description: |
         Please provide a code sample or a code snippet to reproduce said problem. If you have code snippets, error messages, or a stack trace please also provide them here.
 
-        **IMPORTANT**: make sure to use [code tag](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-and-highlighting-code-blocks#syntax-highlighting) to correctly format your code. Screenshot is helpful but don't use it for code snippets as it doesn't allow others to copy-and-paste your code.
+        **IMPORTANT**: make sure to use [code tags](https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/creating-and-highlighting-code-blocks#syntax-highlighting) to correctly format your code. Screenshots are helpful but don't use them for code snippets as they don't allow others to copy-and-paste your code.
 
         Provide your neovim version with `neovim -v`
       placeholder: |
