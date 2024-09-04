@@ -6,7 +6,6 @@ local P = require("avante.providers")
 local M = {}
 
 M.api_key_name = "ANTHROPIC_API_KEY"
-M.tokenizer_id = "gpt-4o"
 M.use_xml_format = true
 
 M.parse_message = function(opts)
