@@ -41,3 +41,15 @@ jobs:
           components: clippy, rustfmt
       - name: Run rustfmt
         run: make ruststylecheck
+  rustlint:
+    name: Lint Rust
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+      - name: Run rustfmt
+        run: make rustlint

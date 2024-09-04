@@ -15,7 +15,7 @@ impl<'a> State<'a> {
     }
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 struct TemplateContext {
     use_xml_format: bool,
     ask: bool,
@@ -29,16 +29,17 @@ struct TemplateContext {
 
 // Given the file name registered after add, the context table in Lua, resulted in a formatted
 // Lua string
-fn render(state: &State, template: String, context: TemplateContext) -> LuaResult<String> {
+#[allow(clippy::needless_pass_by_value)]
+fn render(state: &State, template: &str, context: TemplateContext) -> LuaResult<String> {
     let environment = state.environment.lock().unwrap();
     match environment.as_ref() {
         Some(environment) => {
-            let template = environment
-                .get_template(&template)
+            let jinja_template = environment
+                .get_template(template)
                 .map_err(LuaError::external)
                 .unwrap();
 
-            Ok(template
+            Ok(jinja_template
                 .render(context! {
                   use_xml_format => context.use_xml_format,
                   ask => context.ask,
@@ -84,7 +85,7 @@ fn avante_templates(lua: &Lua) -> LuaResult<LuaTable> {
         "render",
         lua.create_function_mut(move |lua, (template, context): (String, LuaValue)| {
             let ctx = lua.from_value(context)?;
-            render(&state_clone, template, ctx)
+            render(&state_clone, template.as_str(), ctx)
         })?,
     )?;
     Ok(exports)
