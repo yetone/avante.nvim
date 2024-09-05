@@ -66,7 +66,7 @@ function Sidebar:reset()
   self.input = nil
 end
 
----@param opts? AskOptions
+---@param opts AskOptions
 function Sidebar:open(opts)
   local in_visual_mode = Utils.in_visual_mode() and self:in_code_win()
   if not self:is_open() then
@@ -122,7 +122,7 @@ end
 
 function Sidebar:in_code_win() return self.code.winid == api.nvim_get_current_win() end
 
----@param opts? table<string, any>
+---@param opts AskOptions
 function Sidebar:toggle(opts)
   local in_visual_mode = Utils.in_visual_mode() and self:in_code_win()
   if self:is_open() and not in_visual_mode then
@@ -592,7 +592,9 @@ function Sidebar:render_result()
   self:render_header(self.result.winid, self.result.bufnr, header_text, Highlights.TITLE, Highlights.REVERSED_TITLE)
 end
 
-function Sidebar:render_input()
+---@param ask? boolean
+function Sidebar:render_input(ask)
+  if ask == nil then ask = true end
   if not self.input or not self.input.bufnr or not api.nvim_buf_is_valid(self.input.bufnr) then return end
 
   local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
@@ -614,11 +616,13 @@ function Sidebar:render_input()
 
   local code_file_fullpath = api.nvim_buf_get_name(self.code.bufnr)
   local code_filename = fn.fnamemodify(code_file_fullpath, ":t")
-  local header_text = string.format("󱜸 Chat with %s %s (<Tab>: switch focus)", icon, code_filename)
+  local header_text =
+    string.format("󱜸 %s %s %s (<Tab>: switch focus)", ask and "Ask" or "Chat with", icon, code_filename)
 
   if self.code.selection ~= nil then
     header_text = string.format(
-      "󱜸 Chat with %s %s(%d:%d) (<Tab>: switch focus)",
+      "󱜸 %s %s %s(%d:%d) (<Tab>: switch focus)",
+      ask and "Ask" or "Chat with",
       icon,
       code_filename,
       self.code.selection.range.start.line,
@@ -664,7 +668,8 @@ function Sidebar:render_selected_code()
   )
 end
 
-function Sidebar:on_mount()
+---@param opts AskOptions
+function Sidebar:on_mount(opts)
   self:refresh_winids()
 
   api.nvim_set_option_value("wrap", Config.windows.wrap, { win = self.result.winid })
@@ -795,7 +800,7 @@ function Sidebar:on_mount()
   })
 
   self:render_result()
-  self:render_input()
+  self:render_input(opts.ask)
   self:render_selected_code()
 
   self.augroup = api.nvim_create_augroup("avante_sidebar_" .. self.id .. self.result.winid, { clear = true })
@@ -1148,7 +1153,8 @@ end
 
 local hint_window = nil
 
-function Sidebar:create_input()
+---@param opts AskOptions
+function Sidebar:create_input(opts)
   if self.input then self.input:unmount() end
 
   if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then return end
@@ -1266,6 +1272,7 @@ function Sidebar:create_input()
 
     Llm.stream({
       bufnr = self.code.bufnr,
+      ask = opts.ask,
       file_content = content_with_line_numbers,
       code_lang = filetype,
       selected_code = selected_code_content_with_line_numbers,
@@ -1396,7 +1403,7 @@ function Sidebar:create_input()
     local width = #hint_text
 
     -- Set the floating window options
-    local opts = {
+    local win_opts = {
       relative = "win",
       win = self.input.winid,
       width = width,
@@ -1410,7 +1417,7 @@ function Sidebar:create_input()
     }
 
     -- Create the floating window
-    hint_window = api.nvim_open_win(buf, false, opts)
+    hint_window = api.nvim_open_win(buf, false, win_opts)
 
     api.nvim_win_set_hl_ns(hint_window, Highlights.hint_ns)
   end
@@ -1461,14 +1468,14 @@ function Sidebar:create_input()
     end,
   })
 
-  self:refresh_winids()
-
   api.nvim_create_autocmd("User", {
     pattern = "AvanteInputSubmitted",
     callback = function(ev)
       if ev.data and ev.data.request then handle_submit(ev.data.request) end
     end,
   })
+
+  self:refresh_winids()
 end
 
 function Sidebar:get_selected_code_size()
@@ -1485,9 +1492,8 @@ function Sidebar:get_selected_code_size()
   return selected_code_size
 end
 
----@param opts? AskOptions
+---@param opts AskOptions
 function Sidebar:render(opts)
-  opts = opts or {}
   local chat_history = Path.history.load(self.code.bufnr)
 
   local get_position = function()
@@ -1546,7 +1552,7 @@ function Sidebar:render(opts)
     self:close()
   end)
 
-  self:create_input()
+  self:create_input(opts)
 
   self:update_content_with_history(chat_history)
 
@@ -1557,7 +1563,7 @@ function Sidebar:render(opts)
 
   self:create_selected_code()
 
-  self:on_mount()
+  self:on_mount(opts)
 
   return self
 end

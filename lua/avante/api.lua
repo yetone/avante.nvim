@@ -73,9 +73,9 @@ M.build = function(opts)
       local output = stdout
       if #output == 0 then
         table.insert(output, "")
-        Utils.info("outputs: " .. output)
+        Utils.debug(output)
       else
-        Utils.error("error: " .. stderr)
+        Utils.debug(stderr)
       end
     end
   end)
@@ -87,6 +87,7 @@ end
 ---@class AskOptions
 ---@field question? string optional questions
 ---@field win? table<string, any> windows options similar to |nvim_open_win()|
+---@field ask? boolean
 
 ---@param opts? AskOptions
 M.ask = function(opts)
