@@ -395,6 +395,7 @@ function Selection:create_editing_input()
 
     Llm.stream({
       bufnr = code_bufnr,
+      ask = true,
       file_content = code_content,
       code_lang = filetype,
       selected_code = self.selection.content,

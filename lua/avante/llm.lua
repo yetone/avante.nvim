@@ -29,6 +29,7 @@ local group = api.nvim_create_augroup("avante_llm", { clear = true })
 ---@field memory_context string | nil
 ---
 ---@class StreamOptions: TemplateOptions
+---@field ask boolean
 ---@field bufnr integer
 ---@field instructions string
 ---@field mode LlmMode
@@ -60,7 +61,7 @@ M.stream = function(opts)
 
   local template_opts = {
     use_xml_format = Provider.use_xml_format,
-    ask = true, -- TODO: add mode without ask instruction
+    ask = opts.ask, -- TODO: add mode without ask instruction
     question = original_instructions,
     code_lang = opts.code_lang,
     file_content = opts.file_content,
