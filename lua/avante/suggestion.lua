@@ -107,6 +107,7 @@ function Suggestion:suggest()
 
   Llm.stream({
     bufnr = bufnr,
+    ask = true,
     file_content = code_content,
     code_lang = filetype,
     instructions = vim.json.encode(doc),
