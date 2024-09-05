@@ -69,6 +69,7 @@ H.commands = function()
       return candidates
     end,
   })
+  cmd("Chat", function() require("avante.api").ask({ ask = false }) end, { desc = "avante: chat with the codebase" })
   cmd("Toggle", function() M.toggle() end, { desc = "avante: toggle AI panel" })
   cmd(
     "Edit",
