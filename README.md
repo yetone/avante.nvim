@@ -95,11 +95,6 @@ Plug 'zbirenbaum/copilot.lua'
 Plug 'yetone/avante.nvim', { 'branch': 'main', 'do': { -> avante#build() }, 'on': 'AvanteAsk' }
 ```
 
-> [!important]
->
-> For `avante.tokenizers` and templates to work, make sure to call `require('avante_lib').load()` somewhere when entering the editor.
-> We will leave the users to decide where it fits to do this, as this varies among configurations. (But we do recommend running this after where you set your colorscheme)
-
 </details>
 
 <details>
@@ -158,6 +153,12 @@ require('avante').setup ({
 ```
 
 </details>
+
+
+> [!IMPORTANT]
+>
+> For `avante.tokenizers` and templates to work, make sure to call `require('avante_lib').load()` somewhere when entering the editor.
+> We will leave the users to decide where it fits to do this, as this varies among configurations. (But we do recommend running this after where you set your colorscheme)
 
 
 > [!IMPORTANT]
