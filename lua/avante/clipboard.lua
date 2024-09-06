@@ -36,7 +36,7 @@ end
 ---@param line? string
 M.paste_image = function(line)
   line = line or nil
-  if not Config.support_paste_image(true) then return false end
+  if not Config.support_paste_image() then return false end
 
   local opts = {
     dir_path = paste_directory:absolute(),

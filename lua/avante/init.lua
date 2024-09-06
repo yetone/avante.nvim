@@ -105,12 +105,19 @@ end
 
 H.keymaps = function()
   vim.keymap.set({ "n", "v" }, "<Plug>(AvanteAsk)", function() require("avante.api").ask() end, { noremap = true })
+  vim.keymap.set(
+    { "n", "v" },
+    "<Plug>(AvanteChat)",
+    function() require("avante.api").ask({ ask = false }) end,
+    { noremap = true }
+  )
   vim.keymap.set("v", "<Plug>(AvanteEdit)", function() require("avante.api").edit() end, { noremap = true })
   vim.keymap.set("n", "<Plug>(AvanteRefresh)", function() require("avante.api").refresh() end, { noremap = true })
   vim.keymap.set("n", "<Plug>(AvanteBuild)", function() require("avante.api").build() end, { noremap = true })
   vim.keymap.set("n", "<Plug>(AvanteToggle)", function() M.toggle() end, { noremap = true })
   vim.keymap.set("n", "<Plug>(AvanteToggleDebug)", function() M.toggle.debug() end)
   vim.keymap.set("n", "<Plug>(AvanteToggleHint)", function() M.toggle.hint() end)
+  vim.keymap.set("n", "<Plug>(AvanteToggleSuggestion)", function() M.toggle.suggestion() end)
 
   vim.keymap.set({ "n", "v" }, "<Plug>(AvanteConflictOurs)", function() Diff.choose("ours") end)
   vim.keymap.set({ "n", "v" }, "<Plug>(AvanteConflictBoth)", function() Diff.choose("both") end)
@@ -152,6 +159,50 @@ H.keymaps = function()
       function() M.toggle.hint() end,
       { desc = "avante: toggle hint" }
     )
+    Utils.safe_keymap_set(
+      "n",
+      Config.mappings.toggle.suggestion,
+      function() M.toggle.suggestion() end,
+      { desc = "avante: toggle suggestion" }
+    )
+  end
+
+  if Config.behaviour.auto_suggestion then
+    Utils.safe_keymap_set("i", Config.mappings.suggestion.accept, function()
+      local _, _, sg = M.get()
+      sg:accept()
+    end, {
+      desc = "avante: accept suggestion",
+      noremap = true,
+      silent = true,
+    })
+
+    Utils.safe_keymap_set("i", Config.mappings.suggestion.dismiss, function()
+      local _, _, sg = M.get()
+      if sg:is_visible() then sg:dismiss() end
+    end, {
+      desc = "avante: dismiss suggestion",
+      noremap = true,
+      silent = true,
+    })
+
+    Utils.safe_keymap_set("i", Config.mappings.suggestion.next, function()
+      local _, _, sg = M.get()
+      sg:next()
+    end, {
+      desc = "avante: next suggestion",
+      noremap = true,
+      silent = true,
+    })
+
+    Utils.safe_keymap_set("i", Config.mappings.suggestion.prev, function()
+      local _, _, sg = M.get()
+      sg:prev()
+    end, {
+      desc = "avante: previous suggestion",
+      noremap = true,
+      silent = true,
+    })
   end
 end
 
@@ -316,6 +367,21 @@ M.toggle.hint = H.api(Utils.toggle_wrap({
   name = "hint",
   get = function() return Config.hints.enabled end,
   set = function(state) Config.override({ hints = { enabled = state } }) end,
+}))
+
+M.toggle.suggestion = H.api(Utils.toggle_wrap({
+  name = "suggestion",
+  get = function() return Config.behaviour.auto_suggestion end,
+  set = function(state)
+    Config.override({ behaviour = { auto_suggestion = state } })
+    local _, _, sg = M.get()
+    if state ~= false then
+      if sg then sg:setup_autocmds() end
+      H.keymaps()
+    else
+      if sg then sg:delete_autocmds() end
+    end
+  end,
 }))
 
 setmetatable(M.toggle, {

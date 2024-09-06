@@ -146,7 +146,7 @@ return setmetatable(M, {
     ---@class AvailableApi: ApiCaller
     ---@field api? boolean
     local has = module[k]
-    if type(has) ~= "table" or not has.api and not Config.silent_warning then
+    if type(has) ~= "table" or not has.api then
       Utils.warn(k .. " is not a valid avante's API method", { once = true })
       return
     end
