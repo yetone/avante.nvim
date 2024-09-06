@@ -7,7 +7,6 @@ local Utils = require("avante.utils")
 local M = {}
 
 ---@class avante.Config
----@field silent_warning? boolean will be determined from debug
 M.defaults = {
   debug = false,
   ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | [string]
@@ -146,6 +145,7 @@ You are an excellent programming expert.
       default = "<leader>at",
       debug = "<leader>ad",
       hint = "<leader>ah",
+      suggestion = "<leader>as",
     },
   },
   windows = {
@@ -197,14 +197,10 @@ function M.setup(opts)
     ---@type avante.Config
     {
       behaviour = {
-        support_paste_from_clipboard = M.support_paste_image(true),
+        support_paste_from_clipboard = M.support_paste_image(),
       },
     }
   )
-  if M.options.silent_warning == nil then
-    -- set silent_warning to true if debug is false
-    M.options.silent_warning = not M.options.debug
-  end
   M.providers = vim
     .iter(M.defaults)
     :filter(function(_, value) return type(value) == "table" and value.endpoint ~= nil end)
@@ -237,11 +233,6 @@ function M.override(opts)
   vim.validate({ opts = { opts, "table", true } })
 
   M.options = vim.tbl_deep_extend("force", M.options, opts or {})
-  if not M.options.silent_warning then
-    -- set silent_warning to true if debug is false
-    M.options.silent_warning = not M.options.debug
-  end
-
   M.diff = vim.tbl_deep_extend(
     "force",
     {},
@@ -264,13 +255,7 @@ M = setmetatable(M, {
   end,
 })
 
----@param skip_warning? boolean
-M.support_paste_image = function(skip_warning)
-  skip_warning = skip_warning or M.silent_warning
-  if skip_warning then return end
-
-  return Utils.has("img-clip.nvim") or Utils.has("img-clip")
-end
+M.support_paste_image = function() return Utils.has("img-clip.nvim") or Utils.has("img-clip") end
 
 M.get_window_width = function() return math.ceil(vim.o.columns * (M.windows.width / 100)) end
 

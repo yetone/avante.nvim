@@ -13,7 +13,7 @@ end
 local Clipboard = require("avante.clipboard")
 local Config = require("avante.config")
 
-if Config.support_paste_image(true) then
+if Config.support_paste_image() then
   vim.paste = (function(overriden)
     ---@param lines string[]
     ---@param phase -1|1|2|3

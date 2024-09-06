@@ -317,8 +317,6 @@ end
 ---@param msg string|string[]
 ---@param opts? LazyNotifyOpts
 function M.warn(msg, opts)
-  if require("avante.config").silent_warning then return end
-
   opts = opts or {}
   opts.level = vim.log.levels.WARN
   M.notify(msg, opts)
