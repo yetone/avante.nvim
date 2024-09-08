@@ -592,24 +592,24 @@ function RepoMap.stringify_definitions(filepath)
   -- Print or process the definitions
   for _, def in ipairs(definitions) do
     if def.type == "class" then
-      output = output .. def.type .. " " .. def.name .. " {\n"
+      output = output .. def.type .. " " .. def.name .. " {"
       for _, property in ipairs(def.properties) do
-        output = output .. "  " .. stringify_variable(property) .. "\n"
+        output = output .. "  " .. stringify_variable(property)
       end
       for _, method in ipairs(def.methods) do
-        output = output .. "  " .. stringify_function(method) .. "\n"
+        output = output .. "  " .. stringify_function(method)
       end
-      output = output .. "}\n"
+      output = output .. "}"
     elseif def.type == "enum" then
-      output = output .. def.type .. " " .. def.name .. " {\n"
+      output = output .. def.type .. " " .. def.name .. " {"
       for _, item in ipairs(def.items) do
-        output = output .. "  " .. stringify_enum_item(item) .. "\n"
+        output = output .. "  " .. stringify_enum_item(item) .. ""
       end
-      output = output .. "}\n"
+      output = output .. "}"
     elseif def.type == "function" then
-      output = output .. stringify_function(def) .. "\n"
+      output = output .. stringify_function(def)
     elseif def.type == "variable" then
-      output = output .. stringify_variable(def) .. "\n"
+      output = output .. stringify_variable(def)
     end
   end
 
