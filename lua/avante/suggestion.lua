@@ -25,24 +25,24 @@ local SUGGESTION_NS = api.nvim_create_namespace("avante_suggestion")
 ---@field _timer? table
 ---@field _contexts table
 local Suggestion = {}
+Suggestion.__index = Suggestion
 
 ---@param id number
 ---@return avante.Suggestion
 function Suggestion:new(id)
-  local o = { id = id, suggestions = {} }
-  setmetatable(o, self)
-  self.__index = self
-  self.extmark_id = 1
-  self._timer = nil
-  self._contexts = {}
+  local instance = setmetatable({}, self)
+  instance.id = id
+  instance.extmark_id = 1
+  instance._timer = nil
+  instance._contexts = {}
   if Config.behaviour.auto_suggestions then
     if not vim.g.avante_login or vim.g.avante_login == false then
       api.nvim_exec_autocmds("User", { pattern = Provider.env.REQUEST_LOGIN_PATTERN })
       vim.g.avante_login = true
     end
-    self:setup_autocmds()
+    instance:setup_autocmds()
   end
-  return o
+  return instance
 end
 
 function Suggestion:destroy()
