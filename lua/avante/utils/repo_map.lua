@@ -562,7 +562,7 @@ function RepoMap.extract_definitions(filepath)
 end
 
 local function stringify_function(def)
-  local res = "func " .. def.name .. def.params .. ": " .. def.return_type .. ";"
+  local res = "func " .. def.name .. def.params .. ":" .. def.return_type .. ";"
   if def.accessibility_modifier and def.accessibility_modifier ~= "" then
     res = def.accessibility_modifier .. " " .. res
   end
@@ -571,13 +571,13 @@ end
 
 local function stringify_variable(def)
   local res = "var " .. def.name
-  if def.value_type and def.value_type ~= "" then res = res .. ": " .. def.value_type end
+  if def.value_type and def.value_type ~= "" then res = res .. ":" .. def.value_type end
   return res .. ";"
 end
 
 local function stringify_enum_item(def)
   local res = def.name
-  if def.value_type and def.value_type ~= "" then res = res .. ": " .. def.value_type end
+  if def.value_type and def.value_type ~= "" then res = res .. ":" .. def.value_type end
   return res .. ";"
 end
 
@@ -592,18 +592,18 @@ function RepoMap.stringify_definitions(filepath)
   -- Print or process the definitions
   for _, def in ipairs(definitions) do
     if def.type == "class" then
-      output = output .. def.type .. " " .. def.name .. " {"
+      output = output .. def.type .. " " .. def.name .. "{"
       for _, property in ipairs(def.properties) do
-        output = output .. "  " .. stringify_variable(property)
+        output = output .. stringify_variable(property)
       end
       for _, method in ipairs(def.methods) do
-        output = output .. "  " .. stringify_function(method)
+        output = output .. stringify_function(method)
       end
       output = output .. "}"
     elseif def.type == "enum" then
-      output = output .. def.type .. " " .. def.name .. " {"
+      output = output .. def.type .. " " .. def.name .. "{"
       for _, item in ipairs(def.items) do
-        output = output .. "  " .. stringify_enum_item(item) .. ""
+        output = output .. stringify_enum_item(item) .. ""
       end
       output = output .. "}"
     elseif def.type == "function" then
