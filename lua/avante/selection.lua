@@ -318,6 +318,7 @@ function Selection:create_editing_input()
   local winid = api.nvim_open_win(bufnr, true, win_opts)
 
   self.editing_input_winid = winid
+  vim.cmd("startinsert")
 
   api.nvim_set_option_value("wrap", false, { win = winid })
   api.nvim_set_option_value("cursorline", true, { win = winid })
