@@ -616,4 +616,17 @@ end
 
 function M.is_first_letter_uppercase(str) return string.match(str, "^[A-Z]") ~= nil end
 
+---@param content string
+---@return { new_content: string, enable_project_context: boolean }
+function M.extract_mentions(content)
+  -- if content contains @codebase, enable project context and remove @codebase
+  local new_content = content
+  local enable_project_context = false
+  if content:match("@codebase") then
+    enable_project_context = true
+    new_content = content:gsub("@codebase", "")
+  end
+  return { new_content = new_content, enable_project_context = enable_project_context }
+end
+
 return M

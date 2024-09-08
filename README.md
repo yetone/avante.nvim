@@ -213,9 +213,6 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     max_tokens = 4096,
   },
   behaviour = {
-    enable_project_context_for_suggestion = false,
-    enable_project_context_for_ask = false,
-    enable_project_context_for_edit = false,
     auto_suggestions = false, -- Experimental stage
     auto_set_highlight_group = true,
     auto_set_keymaps = true,

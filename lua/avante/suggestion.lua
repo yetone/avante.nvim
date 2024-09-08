@@ -67,14 +67,10 @@ function Suggestion:suggest()
 
   local provider = Providers[Config.auto_suggestions_provider]
 
-  local project_context = Config.behaviour.enable_project_context_for_suggestion and Utils.repo_map.get_repo_map()
-    or nil
-
   Llm.stream({
     provider = provider,
     bufnr = bufnr,
     ask = true,
-    project_context = vim.json.encode(project_context),
     file_content = code_content,
     code_lang = filetype,
     instructions = vim.json.encode(doc),

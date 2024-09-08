@@ -1,7 +1,6 @@
 local Utils = require("avante.utils")
 local Config = require("avante.config")
 local Llm = require("avante.llm")
-local Highlights = require("avante.highlights")
 local Provider = require("avante.providers")
 
 local api = vim.api
@@ -391,7 +390,11 @@ function Selection:create_editing_input()
     end
 
     local filetype = api.nvim_get_option_value("filetype", { buf = code_bufnr })
-    local project_context = Config.behaviour.enable_project_context_for_edit and Utils.repo_map.get_repo_map() or nil
+    local file_ext = api.nvim_buf_get_name(code_bufnr):match("^.+%.(.+)$")
+
+    local mentions = Utils.extract_mentions(input)
+    input = mentions.new_content
+    local project_context = mentions.enable_project_context and Utils.repo_map.get_repo_map(file_ext) or nil
 
     Llm.stream({
       bufnr = code_bufnr,
