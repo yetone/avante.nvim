@@ -433,6 +433,7 @@ We would like to express our heartfelt gratitude to the contributors of the foll
 | [img-clip.nvim](https://github.com/HakonHarnes/img-clip.nvim) | MIT License | Clipboard image support | [avante/clipboard.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/clipboard.lua) |
 | [copilot.lua](https://github.com/zbirenbaum/copilot.lua) | MIT License | Copilot support | [avante/providers/copilot.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/copilot.lua) |
 | [jinja.vim](https://github.com/HiPhish/jinja.vim) | MIT License | Template filetype support | [syntax/jinja.vim](https://github.com/yetone/avante.nvim/blob/main/syntax/jinja.vim) |
+| [codecompanion.nvim](https://github.com/olimorris/codecompanion.nvim) | MIT License | Secrets logic support | [avante/providers/init.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/init.lua) |
 
 The high quality and ingenuity of these projects' source code have been immensely beneficial throughout our development process. We extend our sincere thanks and respect to the authors and contributors of these projects. It is the selfless dedication of the open-source community that drives projects like avante.nvim forward.
 
