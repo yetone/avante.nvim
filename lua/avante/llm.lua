@@ -33,6 +33,7 @@ local group = api.nvim_create_augroup("avante_llm", { clear = true })
 ---@field bufnr integer
 ---@field instructions string
 ---@field mode LlmMode
+---@field provider AvanteProviderFunctor | nil
 ---@field on_chunk AvanteChunkParser
 ---@field on_complete AvanteCompleteParser
 
@@ -40,7 +41,7 @@ local group = api.nvim_create_augroup("avante_llm", { clear = true })
 M.stream = function(opts)
   local mode = opts.mode or "planning"
   ---@type AvanteProviderFunctor
-  local Provider = P[Config.provider]
+  local Provider = opts.provider or P[Config.provider]
 
   -- Check if the instructions contains an image path
   local image_paths = {}
