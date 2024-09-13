@@ -1503,17 +1503,13 @@ function Sidebar:render(opts)
   local get_height = function()
     local selected_code_size = self:get_selected_code_size()
 
-    if self:get_layout() == "horizontal" then
-      return math.floor(Config.windows.height / 100 * api.nvim_win_get_height(self.code.winid))
-    end
+    if self:get_layout() == "horizontal" then return math.floor(Config.windows.height / 100 * vim.o.lines) end
 
     return math.max(1, api.nvim_win_get_height(self.code.winid) - selected_code_size - 3 - 8)
   end
 
   local get_width = function()
-    if self:get_layout() == "vertical" then
-      return math.floor(Config.windows.width / 100 * api.nvim_win_get_width(self.code.winid))
-    end
+    if self:get_layout() == "vertical" then return math.floor(Config.windows.width / 100 * vim.o.columns) end
 
     return math.max(1, api.nvim_win_get_width(self.code.winid))
   end
