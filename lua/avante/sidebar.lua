@@ -499,7 +499,41 @@ end
 ---@param lines string[]
 ---@param snippet AvanteCodeSnippet
 ---@return AvanteCodeSnippet?
-local function minimize_snippet(lines, snippet) return snippet end
+local function minimize_snippet(lines, snippet)
+  local start_line = snippet.range[1]
+  local end_line = snippet.range[2]
+  local snippet_lines = vim.split(snippet.content, "\n")
+
+  local start_offset = 0
+  while
+    start_offset < #snippet_lines
+    and start_line + start_offset <= end_line
+    and snippet_lines[start_offset + 1] == lines[start_line + start_offset]
+  do
+    start_offset = start_offset + 1
+  end
+
+  local end_offset = 0
+  while
+    end_offset < (#snippet_lines - start_offset)
+    and (end_line - end_offset) >= start_line
+    and snippet_lines[#snippet_lines - end_offset] == lines[end_line - end_offset]
+  do
+    end_offset = end_offset + 1
+  end
+
+  local minimized_content = table.concat(snippet_lines, "\n", start_offset + 1, #snippet_lines - end_offset)
+  local minimized_range = { start_line + start_offset, end_line - end_offset }
+
+  return {
+    range = minimized_range,
+    content = minimized_content,
+    lang = snippet.lang,
+    explanation = snippet.explanation,
+    start_line_in_response_buf = snippet.start_line_in_response_buf,
+    end_line_in_response_buf = snippet.end_line_in_response_buf,
+  }
+end
 
 ---@param content string
 ---@param snippets AvanteCodeSnippet[]
