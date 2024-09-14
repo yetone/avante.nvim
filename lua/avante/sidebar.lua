@@ -523,7 +523,10 @@ local function minimize_snippet(lines, snippet)
   end
 
   local minimized_content = table.concat(snippet_lines, "\n", start_offset + 1, #snippet_lines - end_offset)
-  local minimized_range = { start_line + start_offset, end_line - end_offset }
+  local minimized_start = start_line + start_offset
+  local minimized_end = end_line - end_offset
+  if minimized_end < minimized_start then return nil end
+  local minimized_range = { minimized_start, minimized_end }
 
   return {
     range = minimized_range,
@@ -544,7 +547,7 @@ local function minimize_snippets(content, snippets)
 
   for _, snippet in ipairs(snippets) do
     local result = minimize_snippet(original_lines, snippet)
-    table.insert(results, result)
+    if result ~= nil then table.insert(results, result) end
   end
 
   return results
