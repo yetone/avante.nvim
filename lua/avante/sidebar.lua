@@ -496,10 +496,25 @@ local function parse_codeblocks(buf)
   return codeblocks
 end
 
+---@param lines string[]
+---@param snippet AvanteCodeSnippet
+---@return AvanteCodeSnippet?
+local function minimize_snippet(lines, snippet) return snippet end
+
 ---@param content string
 ---@param snippets AvanteCodeSnippet[]
 ---@return AvanteCodeSnippet[]
-local function minimize_snippets(content, snippets) return snippets end
+local function minimize_snippets(content, snippets)
+  local original_lines = vim.split(content, "\n")
+  local results = {}
+
+  for _, snippet in ipairs(snippets) do
+    local result = minimize_snippet(original_lines, snippet)
+    if result ~= nil then table.insert(results, result) end
+  end
+
+  return results
+end
 
 ---@param current_cursor boolean
 function Sidebar:apply(current_cursor)
