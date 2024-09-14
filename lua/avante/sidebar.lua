@@ -541,11 +541,69 @@ local function parse_codeblocks(buf)
   return codeblocks
 end
 
+---@param lines string[]
+---@param snippet AvanteCodeSnippet
+---@return AvanteCodeSnippet?
+local function minimize_snippet(lines, snippet)
+  local start_line = snippet.range[1]
+  local end_line = snippet.range[2]
+  local snippet_lines = vim.split(snippet.content, "\n")
+
+  local start_offset = 0
+  while
+    start_offset < #snippet_lines
+    and start_line + start_offset <= end_line
+    and snippet_lines[start_offset + 1] == lines[start_line + start_offset]
+  do
+    start_offset = start_offset + 1
+  end
+
+  local end_offset = 0
+  while
+    end_offset < (#snippet_lines - start_offset)
+    and (end_line - end_offset) >= start_line
+    and snippet_lines[#snippet_lines - end_offset] == lines[end_line - end_offset]
+  do
+    end_offset = end_offset + 1
+  end
+
+  local minimized_content = table.concat(snippet_lines, "\n", start_offset + 1, #snippet_lines - end_offset)
+  local minimized_start = start_line + start_offset
+  local minimized_end = end_line - end_offset
+  if minimized_end < minimized_start then return nil end
+  local minimized_range = { minimized_start, minimized_end }
+
+  return {
+    range = minimized_range,
+    content = minimized_content,
+    lang = snippet.lang,
+    explanation = snippet.explanation,
+    start_line_in_response_buf = snippet.start_line_in_response_buf,
+    end_line_in_response_buf = snippet.end_line_in_response_buf,
+  }
+end
+
+---@param content string
+---@param snippets AvanteCodeSnippet[]
+---@return AvanteCodeSnippet[]
+local function minimize_snippets(content, snippets)
+  local original_lines = vim.split(content, "\n")
+  local results = {}
+
+  for _, snippet in ipairs(snippets) do
+    local result = minimize_snippet(original_lines, snippet)
+    if result ~= nil then table.insert(results, result) end
+  end
+
+  return results
+end
+
 ---@param current_cursor boolean
 function Sidebar:apply(current_cursor)
   local response, response_start_line = self:get_content_between_separators()
   local all_snippets_map = extract_code_snippets_map(response)
   all_snippets_map = ensure_snippets_no_overlap(all_snippets_map)
+  if Config.options.behaviour.minimize_diff then all_snippets_map = minimize_snippets(content, all_snippets_map) end
   local selected_snippets_map = {}
   if current_cursor then
     if self.result and self.result.winid then
