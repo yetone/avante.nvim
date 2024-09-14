@@ -496,12 +496,18 @@ local function parse_codeblocks(buf)
   return codeblocks
 end
 
+---@param content string
+---@param snippets AvanteCodeSnippet[]
+---@return AvanteCodeSnippet[]
+local function minimize_snippets(content, snippets) return snippets end
+
 ---@param current_cursor boolean
 function Sidebar:apply(current_cursor)
   local content = table.concat(Utils.get_buf_lines(0, -1, self.code.bufnr), "\n")
   local response, response_start_line = self:get_content_between_separators()
   local all_snippets = extract_code_snippets(content, response)
   all_snippets = ensure_snippets_no_overlap(content, all_snippets)
+  if Config.options.behaviour.minimize_diff then all_snippets = minimize_snippets(content, all_snippets) end
   local selected_snippets = {}
   if current_cursor then
     if self.result and self.result.winid then
