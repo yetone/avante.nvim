@@ -148,6 +148,10 @@ You are an excellent programming expert.
       hint = "<leader>ah",
       suggestion = "<leader>as",
     },
+    sidebar = {
+      switch_windows = "<Tab>",
+      reverse_switch_windows = "<S-Tab>",
+    },
   },
   windows = {
     ---@alias AvantePosition "right" | "left" | "top" | "bottom"
