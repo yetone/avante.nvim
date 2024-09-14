@@ -231,6 +231,10 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
       normal = "<CR>",
       insert = "<C-s>",
     },
+    sidebar = {
+      switch_windows = "<Tab>",
+      reverse_switch_windows = "<S-Tab>",
+    },
   },
   hints = { enabled = true },
   windows = {
