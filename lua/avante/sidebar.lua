@@ -616,8 +616,12 @@ function Sidebar:render_input(ask)
 
   local code_file_fullpath = api.nvim_buf_get_name(self.code.bufnr)
   local code_filename = fn.fnamemodify(code_file_fullpath, ":t")
-  local header_text =
-    string.format("󱜸 %s %s %s (<Tab>: switch focus)", ask and "Ask" or "Chat with", icon, code_filename)
+  local header_text = string.format(
+    "󱜸 %s %s %s (" .. Config.mappings.sidebar.switch_windows .. ": switch focus)",
+    ask and "Ask" or "Chat with",
+    icon,
+    code_filename
+  )
 
   if self.code.selection ~= nil then
     header_text = string.format(
@@ -887,15 +891,15 @@ function Sidebar:refresh_winids()
 
   for _, winid in ipairs(winids) do
     local buf = api.nvim_win_get_buf(winid)
-    vim.keymap.set(
+    Utils.safe_keymap_set(
       { "n", "i" },
-      "<Tab>",
+      Config.mappings.sidebar.switch_windows,
       function() switch_windows() end,
       { buffer = buf, noremap = true, silent = true }
     )
-    vim.keymap.set(
+    Utils.safe_keymap_set(
       { "n", "i" },
-      "<S-Tab>",
+      Config.mappings.sidebar.reverse_switch_windows,
       function() reverse_switch_windows() end,
       { buffer = buf, noremap = true, silent = true }
     )
