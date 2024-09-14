@@ -544,7 +544,7 @@ local function minimize_snippets(content, snippets)
 
   for _, snippet in ipairs(snippets) do
     local result = minimize_snippet(original_lines, snippet)
-    if result ~= nil then table.insert(results, result) end
+    table.insert(results, result)
   end
 
   return results
