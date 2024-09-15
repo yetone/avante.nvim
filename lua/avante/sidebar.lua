@@ -554,7 +554,6 @@ local base_win_options = {
   breakindent = true,
   wrap = false,
   cursorline = false,
-  -- winhighlight = "Normal:NormalFloat,Border:FloatBorder,VertSplit:NormalFloat,WinSeparator:NormalFloat,CursorLine:NormalFloat",
   fillchars = "eob: ",
   winhighlight = "CursorLine:Normal,CursorColumn:Normal",
   winbar = "",
@@ -1342,7 +1341,6 @@ function Sidebar:create_input(opts)
   end
 
   place_sign_at_first_line(self.input.bufnr)
-  api.nvim_win_set_hl_ns(self.input.winid, Highlights.input_ns)
 
   if Utils.in_visual_mode() then
     -- Exit visual mode
@@ -1401,6 +1399,7 @@ function Sidebar:create_input(opts)
 
     local buf = api.nvim_create_buf(false, true)
     api.nvim_buf_set_lines(buf, 0, -1, false, { hint_text })
+    api.nvim_buf_add_highlight(buf, 0, "AvantePopupHint", 0, 0, -1)
 
     -- Get the current window size
     local win_width = api.nvim_win_get_width(self.input.winid)
@@ -1422,8 +1421,6 @@ function Sidebar:create_input(opts)
 
     -- Create the floating window
     hint_window = api.nvim_open_win(buf, false, win_opts)
-
-    api.nvim_win_set_hl_ns(hint_window, Highlights.hint_ns)
   end
 
   api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "VimResized" }, {

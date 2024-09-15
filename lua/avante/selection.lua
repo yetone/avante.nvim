@@ -66,7 +66,7 @@ function Selection:show_shortcuts_hints_popup()
   local virt_text_line = self:get_virt_text_line()
 
   self.shortcuts_extmark_id = api.nvim_buf_set_extmark(0, NAMESPACE, virt_text_line, -1, {
-    virt_text = { { hint_text, "Keyword" } },
+    virt_text = { { hint_text, "AvanteInlineHint" } },
     virt_text_pos = "eol",
     priority = PRIORITY,
   })
@@ -175,6 +175,7 @@ function Selection:show_editing_input_shortcuts_hints()
 
   local buf = api.nvim_create_buf(false, true)
   api.nvim_buf_set_lines(buf, 0, -1, false, { hint_text })
+  vim.api.nvim_buf_add_highlight(buf, 0, "AvantePopupHint", 0, 0, -1)
 
   local function update_spinner()
     spinner_index = (spinner_index % #spinner_chars) + 1
@@ -254,8 +255,6 @@ function Selection:show_editing_input_shortcuts_hints()
   }
 
   self.editing_input_shortcuts_hints_winid = api.nvim_open_win(buf, false, opts)
-
-  api.nvim_win_set_hl_ns(self.editing_input_shortcuts_hints_winid, Highlights.hint_ns)
 end
 
 function Selection:create_editing_input()
