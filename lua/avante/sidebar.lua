@@ -475,6 +475,8 @@ local function insert_conflict_contents(bufnr, snippets)
 
   local lines = vim.split(content, "\n")
 
+  if Config.options.behaviour.minimize_diff then snippets = minimize_snippets(content, snippets) end
+
   local offset = 0
 
   for _, snippet in ipairs(snippets) do
@@ -559,7 +561,6 @@ function Sidebar:apply(current_cursor)
   local response, response_start_line = self:get_content_between_separators()
   local all_snippets = extract_code_snippets(content, response)
   all_snippets = ensure_snippets_no_overlap(content, all_snippets)
-  if Config.options.behaviour.minimize_diff then all_snippets = minimize_snippets(content, all_snippets) end
   local selected_snippets = {}
   if current_cursor then
     if self.result and self.result.winid then
