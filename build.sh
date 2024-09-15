@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 REPO_OWNER="yetone"
 REPO_NAME="avante.nvim"
