@@ -92,7 +92,10 @@ Plug 'HakonHarnes/img-clip.nvim'
 Plug 'zbirenbaum/copilot.lua'
 
 " Yay, pass source=true if you want to build from source
-Plug 'yetone/avante.nvim', { 'branch': 'main', 'do': { -> avante#build() }, 'on': 'AvanteAsk' }
+Plug 'yetone/avante.nvim', { 'branch': 'main', 'do': 'make' }
+autocmd! User avante.nvim lua << EOF
+require('avante_lib').load()
+EOF
 ```
 
 </details>
