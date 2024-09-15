@@ -37,7 +37,6 @@ local function has_set_colors(hl_group)
 end
 
 M.setup = function()
-
   if Config.behaviour.auto_set_highlight_group then
     vim
       .iter(Highlights)

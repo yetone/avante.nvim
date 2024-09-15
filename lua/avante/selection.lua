@@ -175,7 +175,7 @@ function Selection:show_editing_input_shortcuts_hints()
 
   local buf = api.nvim_create_buf(false, true)
   api.nvim_buf_set_lines(buf, 0, -1, false, { hint_text })
-  vim.api.nvim_buf_add_highlight(buf, 0, 'AvantePopupHint', 0, 0, -1)
+  vim.api.nvim_buf_add_highlight(buf, 0, "AvantePopupHint", 0, 0, -1)
 
   local function update_spinner()
     spinner_index = (spinner_index % #spinner_chars) + 1

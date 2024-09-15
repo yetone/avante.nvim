@@ -1399,7 +1399,7 @@ function Sidebar:create_input(opts)
 
     local buf = api.nvim_create_buf(false, true)
     api.nvim_buf_set_lines(buf, 0, -1, false, { hint_text })
-    api.nvim_buf_add_highlight(buf, 0, 'AvantePopupHint', 0, 0, -1)
+    api.nvim_buf_add_highlight(buf, 0, "AvantePopupHint", 0, 0, -1)
 
     -- Get the current window size
     local win_width = api.nvim_win_get_width(self.input.winid)
