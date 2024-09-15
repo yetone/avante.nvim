@@ -1004,7 +1004,7 @@ local function get_chat_record_prefix(timestamp, provider, model, request)
     .. "/"
     .. model
     .. "\n\n> "
-    .. request:gsub("\n", "\n> ")
+    .. request:gsub("\n", "\n> "):gsub("([%w-_]+)%b[]", "`%0`")
     .. "\n\n"
 end
 
