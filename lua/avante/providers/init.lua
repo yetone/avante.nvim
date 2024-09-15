@@ -302,7 +302,12 @@ M.setup = function()
 
   ---@type AvanteProviderFunctor
   local provider = M[Config.provider]
+  local auto_suggestions_provider = M[Config.auto_suggestions_provider]
   E.setup({ provider = provider })
+
+  if auto_suggestions_provider and auto_suggestions_provider ~= provider then
+    E.setup({ provider = auto_suggestions_provider })
+  end
 end
 
 ---@param provider Provider
