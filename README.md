@@ -352,6 +352,8 @@ The following key bindings are available for use with `avante.nvim`:
 | AvanteConflictIncoming | Incoming conflict highlight | Default to `Config.highlights.diff.incoming` |
 | AvanteConflictCurrentLabel | Current conflict label highlight | Default to shade of `AvanteConflictCurrent` |
 | AvanteConflictIncomingLabel | Incoming conflict label highlight | Default to shade of `AvanteConflictIncoming` |
+| AvantePopupHint | Usage hints in popup menus | |
+| AvanteInlineHint | The end-of-line hint displayed in visual mode | |
 
 See [highlights.lua](./lua/avante/highlights.lua) for more information
 
