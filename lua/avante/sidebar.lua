@@ -330,12 +330,19 @@ local function extract_code_snippets(code_content, response_content)
   local explanation = ""
 
   for idx, line in ipairs(vim.split(response_content, "\n")) do
-    local start_line_str, end_line_str = line:match("^Replace lines: (%d+)-(%d+)")
+    local _, start_line_str, end_line_str =
+      line:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)")
     if start_line_str ~= nil and end_line_str ~= nil then
       start_line = tonumber(start_line_str)
       end_line = tonumber(end_line_str)
+    else
+      _, start_line_str = line:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ine:?%s*(%d+)")
+      if start_line_str ~= nil then
+        start_line = tonumber(start_line_str)
+        end_line = tonumber(start_line_str)
+      end
     end
-    if line:match("^```") then
+    if line:match("^%s*```") then
       if in_code_block then
         if start_line ~= nil and end_line ~= nil then
           local snippet = {
@@ -354,7 +361,7 @@ local function extract_code_snippets(code_content, response_content)
         explanation = ""
         in_code_block = false
       else
-        lang = line:match("^```(%w+)")
+        lang = line:match("^%s*```(%w+)")
         if not lang or lang == "" then lang = "text" end
         in_code_block = true
         start_line_in_response_buf = idx
@@ -479,9 +486,9 @@ local function parse_codeblocks(buf)
 
   local lines = Utils.get_buf_lines(0, -1, buf)
   for i, line in ipairs(lines) do
-    if line:match("^```") then
+    if line:match("^%s*```") then
       -- parse language
-      local lang_ = line:match("^```(%w+)")
+      local lang_ = line:match("^%s*```(%w+)")
       if in_codeblock and not lang_ then
         table.insert(codeblocks, { start_line = start_line, end_line = i - 1, lang = lang })
         in_codeblock = false
