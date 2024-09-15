@@ -90,9 +90,17 @@ Plug 'MunifTanjim/nui.nvim'
 Plug 'nvim-tree/nvim-web-devicons' "or Plug 'echasnovski/mini.icons'
 Plug 'HakonHarnes/img-clip.nvim'
 Plug 'zbirenbaum/copilot.lua'
+Plug 'MeanderingProgrammer/render-markdown.nvim',
 
 " Yay, pass source=true if you want to build from source
 Plug 'yetone/avante.nvim', { 'branch': 'main', 'do': { -> avante#build() }, 'on': 'AvanteAsk' }
+```
+
+```lua
+--- If you are using pure nvim config, you should rename your `init.vim` to `legacy.vim` and
+--- create a `init.lua` file with the following content to load your legacy config:
+vim.cmd('source ~/.config/nvim/legacy.vim')
+--- Then follow the lua below to load avante stuff.
 ```
 
 </details>
@@ -294,6 +302,8 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 >
 > ```sh
 > export OPENAI_API_KEY=your-api-key
+> # Exporting your API_KEY only will cause code 429 (out of quota) even if you have enough balance.
+> export OPENAI_ORG_ID=your-org-id
 > ```
 >
 > For Azure OpenAI:
