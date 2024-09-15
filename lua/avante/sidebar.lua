@@ -1096,13 +1096,19 @@ function Sidebar:get_commands()
       if cb then cb(args) end
     end,
     clear = function(args, cb)
-      local chat_history = {}
-      Path.history.save(self.code.bufnr, chat_history)
-      self:update_content("Chat history cleared", { focus = false, scroll = false })
-      vim.defer_fn(function()
-        self:close()
-        if cb then cb(args) end
-      end, 1000)
+      local chat_history = Path.history.load(self.code.bufnr)
+      if next(chat_history) ~= nil then
+        chat_history = {}
+        Path.history.save(self.code.bufnr, chat_history)
+        self:update_content("Chat history cleared", { focus = false, scroll = false })
+        vim.defer_fn(function()
+          self:close()
+          if cb then cb(args) end
+        end, 1000)
+      else
+        self:update_content("Chat history is already empty", { focus = false, scroll = false })
+        vim.defer_fn(function() self:close() end, 1000)
+      end
     end,
     lines = function(args, cb)
       if cb then cb(args) end
