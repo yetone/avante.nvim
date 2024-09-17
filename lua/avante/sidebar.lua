@@ -330,12 +330,19 @@ local function extract_code_snippets(code_content, response_content)
   local explanation = ""
 
   for idx, line in ipairs(vim.split(response_content, "\n")) do
-    local start_line_str, end_line_str = line:match("^Replace lines: (%d+)-(%d+)")
+    local _, start_line_str, end_line_str =
+      line:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)")
     if start_line_str ~= nil and end_line_str ~= nil then
       start_line = tonumber(start_line_str)
       end_line = tonumber(end_line_str)
+    else
+      _, start_line_str = line:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ine:?%s*(%d+)")
+      if start_line_str ~= nil then
+        start_line = tonumber(start_line_str)
+        end_line = tonumber(start_line_str)
+      end
     end
-    if line:match("^```") then
+    if line:match("^%s*```") then
       if in_code_block then
         if start_line ~= nil and end_line ~= nil then
           local snippet = {
@@ -354,7 +361,7 @@ local function extract_code_snippets(code_content, response_content)
         explanation = ""
         in_code_block = false
       else
-        lang = line:match("^```(%w+)")
+        lang = line:match("^%s*```(%w+)")
         if not lang or lang == "" then lang = "text" end
         in_code_block = true
         start_line_in_response_buf = idx
@@ -479,9 +486,9 @@ local function parse_codeblocks(buf)
 
   local lines = Utils.get_buf_lines(0, -1, buf)
   for i, line in ipairs(lines) do
-    if line:match("^```") then
+    if line:match("^%s*```") then
       -- parse language
-      local lang_ = line:match("^```(%w+)")
+      local lang_ = line:match("^%s*```(%w+)")
       if in_codeblock and not lang_ then
         table.insert(codeblocks, { start_line = start_line, end_line = i - 1, lang = lang })
         in_codeblock = false
@@ -554,7 +561,6 @@ local base_win_options = {
   breakindent = true,
   wrap = false,
   cursorline = false,
-  -- winhighlight = "Normal:NormalFloat,Border:FloatBorder,VertSplit:NormalFloat,WinSeparator:NormalFloat,CursorLine:NormalFloat",
   fillchars = "eob: ",
   winhighlight = "CursorLine:Normal,CursorColumn:Normal",
   winbar = "",
@@ -616,8 +622,12 @@ function Sidebar:render_input(ask)
 
   local code_file_fullpath = api.nvim_buf_get_name(self.code.bufnr)
   local code_filename = fn.fnamemodify(code_file_fullpath, ":t")
-  local header_text =
-    string.format("󱜸 %s %s %s (<Tab>: switch focus)", ask and "Ask" or "Chat with", icon, code_filename)
+  local header_text = string.format(
+    "󱜸 %s %s %s (" .. Config.mappings.sidebar.switch_windows .. ": switch focus)",
+    ask and "Ask" or "Chat with",
+    icon,
+    code_filename
+  )
 
   if self.code.selection ~= nil then
     header_text = string.format(
@@ -887,15 +897,15 @@ function Sidebar:refresh_winids()
 
   for _, winid in ipairs(winids) do
     local buf = api.nvim_win_get_buf(winid)
-    vim.keymap.set(
+    Utils.safe_keymap_set(
       { "n", "i" },
-      "<Tab>",
+      Config.mappings.sidebar.switch_windows,
       function() switch_windows() end,
       { buffer = buf, noremap = true, silent = true }
     )
-    vim.keymap.set(
+    Utils.safe_keymap_set(
       { "n", "i" },
-      "<S-Tab>",
+      Config.mappings.sidebar.reverse_switch_windows,
       function() reverse_switch_windows() end,
       { buffer = buf, noremap = true, silent = true }
     )
@@ -1004,7 +1014,7 @@ local function get_chat_record_prefix(timestamp, provider, model, request)
     .. "/"
     .. model
     .. "\n\n> "
-    .. request:gsub("\n", "\n> ")
+    .. request:gsub("\n", "\n> "):gsub("([%w-_]+)%b[]", "`%0`")
     .. "\n\n"
 end
 
@@ -1093,13 +1103,19 @@ function Sidebar:get_commands()
       if cb then cb(args) end
     end,
     clear = function(args, cb)
-      local chat_history = {}
-      Path.history.save(self.code.bufnr, chat_history)
-      self:update_content("Chat history cleared", { focus = false, scroll = false })
-      vim.defer_fn(function()
-        self:close()
-        if cb then cb(args) end
-      end, 1000)
+      local chat_history = Path.history.load(self.code.bufnr)
+      if next(chat_history) ~= nil then
+        chat_history = {}
+        Path.history.save(self.code.bufnr, chat_history)
+        self:update_content("Chat history cleared", { focus = false, scroll = false })
+        vim.defer_fn(function()
+          self:close()
+          if cb then cb(args) end
+        end, 1000)
+      else
+        self:update_content("Chat history is already empty", { focus = false, scroll = false })
+        vim.defer_fn(function() self:close() end, 1000)
+      end
     end,
     lines = function(args, cb)
       if cb then cb(args) end
@@ -1338,7 +1354,6 @@ function Sidebar:create_input(opts)
   end
 
   place_sign_at_first_line(self.input.bufnr)
-  api.nvim_win_set_hl_ns(self.input.winid, Highlights.input_ns)
 
   if Utils.in_visual_mode() then
     -- Exit visual mode
@@ -1397,6 +1412,7 @@ function Sidebar:create_input(opts)
 
     local buf = api.nvim_create_buf(false, true)
     api.nvim_buf_set_lines(buf, 0, -1, false, { hint_text })
+    api.nvim_buf_add_highlight(buf, 0, "AvantePopupHint", 0, 0, -1)
 
     -- Get the current window size
     local win_width = api.nvim_win_get_width(self.input.winid)
@@ -1418,8 +1434,6 @@ function Sidebar:create_input(opts)
 
     -- Create the floating window
     hint_window = api.nvim_open_win(buf, false, win_opts)
-
-    api.nvim_win_set_hl_ns(hint_window, Highlights.hint_ns)
   end
 
   api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "VimResized" }, {
@@ -1503,17 +1517,13 @@ function Sidebar:render(opts)
   local get_height = function()
     local selected_code_size = self:get_selected_code_size()
 
-    if self:get_layout() == "horizontal" then
-      return math.floor(Config.windows.height / 100 * api.nvim_win_get_height(self.code.winid))
-    end
+    if self:get_layout() == "horizontal" then return math.floor(Config.windows.height / 100 * vim.o.lines) end
 
     return math.max(1, api.nvim_win_get_height(self.code.winid) - selected_code_size - 3 - 8)
   end
 
   local get_width = function()
-    if self:get_layout() == "vertical" then
-      return math.floor(Config.windows.width / 100 * api.nvim_win_get_width(self.code.winid))
-    end
+    if self:get_layout() == "vertical" then return math.floor(Config.windows.width / 100 * vim.o.columns) end
 
     return math.max(1, api.nvim_win_get_width(self.code.winid))
   end

@@ -121,6 +121,7 @@ end
 
 ---@param opts? AskOptions
 M.refresh = function(opts)
+  opts = opts or {}
   local sidebar = require("avante").get()
   if not sidebar then return end
   if not sidebar:is_open() then return end

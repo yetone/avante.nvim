@@ -2,7 +2,7 @@ local Utils = require("avante.utils")
 local Llm = require("avante.llm")
 local Highlights = require("avante.highlights")
 local Config = require("avante.config")
-local Provider = require("avante.providers")
+local Providers = require("avante.providers")
 local api = vim.api
 local fn = vim.fn
 
@@ -37,7 +37,7 @@ function Suggestion:new(id)
   instance._contexts = {}
   if Config.behaviour.auto_suggestions then
     if not vim.g.avante_login or vim.g.avante_login == false then
-      api.nvim_exec_autocmds("User", { pattern = Provider.env.REQUEST_LOGIN_PATTERN })
+      api.nvim_exec_autocmds("User", { pattern = Providers.env.REQUEST_LOGIN_PATTERN })
       vim.g.avante_login = true
     end
     instance:setup_autocmds()
@@ -65,7 +65,10 @@ function Suggestion:suggest()
 
   local full_response = ""
 
+  local provider = Providers[Config.auto_suggestions_provider]
+
   Llm.stream({
+    provider = provider,
     bufnr = bufnr,
     ask = true,
     file_content = code_content,

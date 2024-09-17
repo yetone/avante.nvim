@@ -49,3 +49,19 @@ body:
         platform: ...
     validations:
       required: true
+  - type: textarea
+    attributes:
+      label: Repro
+      description: Minimal `init.lua` to reproduce this issue. Save as `repro.lua` and run with `nvim -u repro.lua`
+      value: |
+        vim.env.LAZY_STDPATH = ".repro"
+        load(vim.fn.system("curl -s https://raw.githubusercontent.com/folke/lazy.nvim/main/bootstrap.lua"))()
+
+        require("lazy.minit").repro({
+          spec = {
+            -- add any other plugins here
+          },
+        })
+      render: lua
+    validations:
+      required: false

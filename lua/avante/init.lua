@@ -167,7 +167,7 @@ H.keymaps = function()
     )
   end
 
-  if Config.behaviour.auto_suggestion then
+  if Config.behaviour.auto_suggestions then
     Utils.safe_keymap_set("i", Config.mappings.suggestion.accept, function()
       local _, _, sg = M.get()
       sg:accept()
@@ -371,9 +371,9 @@ M.toggle.hint = H.api(Utils.toggle_wrap({
 
 M.toggle.suggestion = H.api(Utils.toggle_wrap({
   name = "suggestion",
-  get = function() return Config.behaviour.auto_suggestion end,
+  get = function() return Config.behaviour.auto_suggestions end,
   set = function(state)
-    Config.override({ behaviour = { auto_suggestion = state } })
+    Config.override({ behaviour = { auto_suggestions = state } })
     local _, _, sg = M.get()
     if state ~= false then
       if sg then sg:setup_autocmds() end

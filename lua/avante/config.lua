@@ -11,6 +11,7 @@ M.defaults = {
   debug = false,
   ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | [string]
   provider = "claude", -- Only recommend using Claude
+  auto_suggestions_provider = "claude",
   ---@alias Tokenizer "tiktoken" | "hf"
   -- Used for counting tokens and encoding text.
   -- By default, we will use tiktoken.
@@ -146,6 +147,10 @@ You are an excellent programming expert.
       debug = "<leader>ad",
       hint = "<leader>ah",
       suggestion = "<leader>as",
+    },
+    sidebar = {
+      switch_windows = "<Tab>",
+      reverse_switch_windows = "<S-Tab>",
     },
   },
   windows = {

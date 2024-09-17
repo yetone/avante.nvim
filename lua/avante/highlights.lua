@@ -13,6 +13,8 @@ local Highlights = {
   REVERSED_THIRD_TITLE = { name = "AvanteReversedThirdTitle", fg = "#353B45" },
   SUGGESTION = { name = "AvanteSuggestion", link = "Comment" },
   ANNOTATION = { name = "AvanteAnnotation", link = "Comment" },
+  POPUP_HINT = { name = "AvantePopupHint", link = "NormalFloat" },
+  INLINE_HINT = { name = "AvanteInlineHint", link = "Keyword" },
 }
 
 Highlights.conflict = {
@@ -29,18 +31,12 @@ local H = {}
 
 local M = {}
 
-M.input_ns = api.nvim_create_namespace("avante_input")
-M.hint_ns = api.nvim_create_namespace("avante_hint")
-
 local function has_set_colors(hl_group)
   local hl = api.nvim_get_hl(0, { name = hl_group })
   return next(hl) ~= nil
 end
 
 M.setup = function()
-  local normal = api.nvim_get_hl(0, { name = "Normal" })
-  local normal_float = api.nvim_get_hl(0, { name = "NormalFloat" })
-
   if Config.behaviour.auto_set_highlight_group then
     vim
       .iter(Highlights)
@@ -55,9 +51,6 @@ M.setup = function()
       end)
   end
 
-  api.nvim_set_hl(M.hint_ns, "NormalFloat", { fg = normal_float.fg, bg = normal_float.bg })
-  api.nvim_set_hl(M.input_ns, "NormalFloat", { fg = normal_float.fg, bg = normal_float.bg })
-  api.nvim_set_hl(M.input_ns, "FloatBorder", { fg = normal.fg, bg = normal.bg })
   M.conflict_highlights()
 end
 
