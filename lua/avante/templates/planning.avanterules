@@ -28,7 +28,7 @@ Replace lines: {{start_line}}-{{end_line}}
 ```
 {% endraw %}
 3. Crucial guidelines for suggested code snippets:
-  - The content regarding line numbers MUST strictly follow the format "Replace lines: {{start_line}}-{{end_line}}". Do not be lazy!
+  - The content regarding line numbers MUST strictly follow the format "Replace lines: {%raw%}{{start_line}}{%endraw%}-{%raw%}{{end_line}}{%endraw%}". Do not be lazy!
   - Only apply the change(s) suggested by the most recent assistant message (before your generation).
   - Do not make any unrelated changes to the code.
   - Produce a valid full rewrite of the entire original file without skipping any lines. Do not be lazy!
@@ -40,7 +40,7 @@ Replace lines: {{start_line}}-{{end_line}}
   - Maintain the SAME indentation in the returned code as in the source code
 
 4. Crucial guidelines for line numbers:
-  - The range {{start_line}}-{{end_line}} is INCLUSIVE. Both start_line and end_line are included in the replacement.
+  - The range {%raw%}{{start_line}}{%endraw%}-{%raw%}{{end_line}}{%endraw%} is INCLUSIVE. Both start_line and end_line are included in the replacement.
   - Count EVERY line, including empty lines and comments lines, comments. Do not be lazy!
   - Use the same number for start and end lines for single-line changes.
   - For multi-line changes, ensure the range covers ALL affected lines, from first to last.
