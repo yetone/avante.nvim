@@ -340,6 +340,12 @@ local function extract_code_snippets(code_content, response_content)
       if start_line_str ~= nil then
         start_line = tonumber(start_line_str)
         end_line = tonumber(start_line_str)
+      else
+        start_line_str = line:match("[Aa]fter%s+[Ll]ine:?%s*(%d+)")
+        if start_line_str ~= nil then
+          start_line = tonumber(start_line_str) + 1
+          end_line = tonumber(start_line_str) + 1
+        end
       end
     end
     if line:match("^%s*```") then
@@ -435,8 +441,10 @@ local function insert_conflict_contents(bufnr, snippets)
 
     local result = {}
     table.insert(result, "<<<<<<< HEAD")
-    for i = start_line, end_line do
-      table.insert(result, lines[i])
+    if start_line ~= end_line then
+      for i = start_line, end_line do
+        table.insert(result, lines[i])
+      end
     end
     table.insert(result, "=======")
 
@@ -451,6 +459,8 @@ local function insert_conflict_contents(bufnr, snippets)
       if need_prepend_indentation then line = original_start_line_indentation .. line end
       table.insert(result, line)
     end
+
+    if start_line == end_line then table.insert(result, lines[start_line]) end
 
     table.insert(result, ">>>>>>> Snippet")
 
