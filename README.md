@@ -170,6 +170,14 @@ require('avante').setup ({
 
 > [!NOTE]
 >
+> Recommended **Neovim** options:
+>
+> ```lua
+> -- views can only be fully collapsed with the global statusline
+> vim.opt.laststatus = 3
+
+> [!NOTE]
+>
 > `render-markdown.nvim` is an optional dependency that is used to render the markdown content of the chat history. Make sure to also include `Avante` as a filetype
 > to its setup (e.g. via Lazy):
 >
