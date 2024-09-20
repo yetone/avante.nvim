@@ -26,6 +26,7 @@ For building binary if you wish to build from source, then `cargo` is required. 
   <summary><a href="https://github.com/folke/lazy.nvim">lazy.nvim</a> (recommended)</summary>
 
 ```lua
+-- Create avante.lua in lazyvim lua/plugins folder
 return {
   "yetone/avante.nvim",
   event = "VeryLazy",
