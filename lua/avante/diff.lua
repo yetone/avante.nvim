@@ -292,8 +292,8 @@ local function register_cursor_move_events(bufnr)
     )
 
     show_keybinding_hint_extmark_id = api.nvim_buf_set_extmark(bufnr, KEYBINDING_NAMESPACE, lnum - 1, -1, {
-      hl_group = "Keyword",
-      virt_text = { { hint, "Keyword" } },
+      hl_group = "AvanteInlineHint",
+      virt_text = { { hint, "AvanteInlineHint" } },
       virt_text_pos = "right_align",
       priority = PRIORITY,
     })

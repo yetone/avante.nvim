@@ -703,9 +703,9 @@ function Sidebar:on_mount(opts)
 
     current_apply_extmark_id =
       api.nvim_buf_set_extmark(self.result.bufnr, CODEBLOCK_KEYBINDING_NAMESPACE, block.start_line, -1, {
-        virt_text = { { " [<a>: apply this, <A>: apply all] ", "Keyword" } },
+        virt_text = { { " [<a>: apply this, <A>: apply all] ", "AvanteInlineHint" } },
         virt_text_pos = "right_align",
-        hl_group = "Keyword",
+        hl_group = "AvanteInlineHint",
         priority = PRIORITY,
       })
   end
