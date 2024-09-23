@@ -38,6 +38,7 @@ For building binary if you wish to build from source, then `cargo` is required. 
   build = "make",
   -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- for windows
   dependencies = {
+    "nvim-treesitter/nvim-treesitter",
     "stevearc/dressing.nvim",
     "nvim-lua/plenary.nvim",
     "MunifTanjim/nui.nvim",
@@ -427,7 +428,7 @@ If you have the following structure:
 - [x] Slash commands
 - [x] Edit the selected block
 - [x] Smart Tab (Cursor Flow)
-- [ ] Chat with project
+- [x] Chat with project (You can use `@codebase` to chat with the whole project)
 - [ ] Chat with selected files
 
 ## Roadmap

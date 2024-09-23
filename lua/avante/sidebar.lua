@@ -441,10 +441,8 @@ local function insert_conflict_contents(bufnr, snippets)
 
     local result = {}
     table.insert(result, "<<<<<<< HEAD")
-    if start_line ~= end_line then
-      for i = start_line, end_line do
-        table.insert(result, lines[i])
-      end
+    for i = start_line, end_line do
+      table.insert(result, lines[i])
     end
     table.insert(result, "=======")
 
@@ -459,8 +457,6 @@ local function insert_conflict_contents(bufnr, snippets)
       if need_prepend_indentation then line = original_start_line_indentation .. line end
       table.insert(result, line)
     end
-
-    if start_line == end_line then table.insert(result, lines[start_line]) end
 
     table.insert(result, ">>>>>>> Snippet")
 
@@ -1296,9 +1292,17 @@ function Sidebar:create_input(opts)
       Path.history.save(self.code.bufnr, chat_history)
     end
 
+    local mentions = Utils.extract_mentions(request)
+    request = mentions.new_content
+
+    local file_ext = api.nvim_buf_get_name(self.code.bufnr):match("^.+%.(.+)$")
+
+    local project_context = mentions.enable_project_context and Utils.repo_map.get_repo_map(file_ext) or nil
+
     Llm.stream({
       bufnr = self.code.bufnr,
       ask = opts.ask,
+      project_context = vim.json.encode(project_context),
       file_content = content_with_line_numbers,
       code_lang = filetype,
       selected_code = selected_code_content_with_line_numbers,
@@ -1358,9 +1362,9 @@ function Sidebar:create_input(opts)
   local function place_sign_at_first_line(bufnr)
     local group = "avante_input_prompt_group"
 
-    vim.fn.sign_unplace(group, { buffer = bufnr })
+    fn.sign_unplace(group, { buffer = bufnr })
 
-    vim.fn.sign_place(0, group, "AvanteInputPromptSign", bufnr, { lnum = 1 })
+    fn.sign_place(0, group, "AvanteInputPromptSign", bufnr, { lnum = 1 })
   end
 
   place_sign_at_first_line(self.input.bufnr)
@@ -1387,11 +1391,16 @@ function Sidebar:create_input(opts)
         if not self.registered_cmp then
           self.registered_cmp = true
           cmp.register_source("avante_commands", require("cmp_avante.commands").new(self))
+          cmp.register_source(
+            "avante_mentions",
+            require("cmp_avante.mentions").new(Utils.get_mentions(), self.input.bufnr)
+          )
         end
         cmp.setup.buffer({
           enabled = true,
           sources = {
             { name = "avante_commands" },
+            { name = "avante_mentions" },
           },
         })
       end

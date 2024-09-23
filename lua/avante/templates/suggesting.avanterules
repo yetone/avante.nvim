@@ -17,6 +17,7 @@ Your task is to suggest code modifications at the cursor position. Follow these 
 {% endraw %}
 
 3. When suggesting suggested code:
+  - DO NOT include three backticks: {%raw%}```{%endraw%} in your suggestion. Treat the suggested code AS IS.
   - Each element in the returned list is a COMPLETE and INDEPENDENT code snippet.
   - MUST be a valid json format. Don't be lazy!
   - Only return the new code to be inserted.
@@ -29,4 +30,3 @@ Your task is to suggest code modifications at the cursor position. Follow these 
 
 Remember to ONLY RETURN the suggested code snippet, without any additional formatting or explanation.
 {% endblock %}
-

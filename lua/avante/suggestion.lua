@@ -82,24 +82,26 @@ function Suggestion:suggest()
         return
       end
       Utils.debug("full_response: " .. vim.inspect(full_response))
-      local cursor_row, cursor_col = Utils.get_cursor_pos()
-      if cursor_row ~= doc.position.row or cursor_col ~= doc.position.col then return end
-      local ok, suggestions = pcall(vim.json.decode, full_response)
-      if not ok then
-        Utils.error("Error while decoding suggestions: " .. full_response, { once = true, title = "Avante" })
-        return
-      end
-      if not suggestions then
-        Utils.info("No suggestions found", { once = true, title = "Avante" })
-        return
-      end
-      suggestions = vim
-        .iter(suggestions)
-        :map(function(s) return { row = s.row, col = s.col, content = Utils.trim_all_line_numbers(s.content) } end)
-        :totable()
-      ctx.suggestions = suggestions
-      ctx.current_suggestion_idx = 1
-      self:show()
+      vim.schedule(function()
+        local cursor_row, cursor_col = Utils.get_cursor_pos()
+        if cursor_row ~= doc.position.row or cursor_col ~= doc.position.col then return end
+        local ok, suggestions = pcall(vim.json.decode, full_response)
+        if not ok then
+          Utils.error("Error while decoding suggestions: " .. full_response, { once = true, title = "Avante" })
+          return
+        end
+        if not suggestions then
+          Utils.info("No suggestions found", { once = true, title = "Avante" })
+          return
+        end
+        suggestions = vim
+          .iter(suggestions)
+          :map(function(s) return { row = s.row, col = s.col, content = Utils.trim_all_line_numbers(s.content) } end)
+          :totable()
+        ctx.suggestions = suggestions
+        ctx.current_suggestion_idx = 1
+        self:show()
+      end)
     end,
   })
 end

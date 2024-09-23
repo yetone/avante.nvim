@@ -1,4 +1,6 @@
 {%- if use_xml_format -%}
+<filepath>{{filepath}}</filepath>
+
 {%- if selected_code -%}
 <context>
 ```{{code_lang}}
@@ -19,6 +21,8 @@
 </code>
 {%- endif %}
 {% else %}
+FILEPATH: {{filepath}}
+
 {%- if selected_code -%}
 CONTEXT:
 ```{{code_lang}}
