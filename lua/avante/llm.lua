@@ -122,7 +122,7 @@ M.stream = function(opts)
     headers = spec.headers,
     proxy = spec.proxy,
     insecure = spec.insecure,
-    body = vim.json.encode(spec.body),
+    body = spec.body_file,
     stream = function(err, data, _)
       if err then
         completed = true

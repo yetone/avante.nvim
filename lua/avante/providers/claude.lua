@@ -81,24 +81,33 @@ M.parse_curl_args = function(provider, prompt_opts)
   if not P.env.is_local("claude") then headers["x-api-key"] = provider.parse_api_key() end
 
   local messages = M.parse_message(prompt_opts)
+  local body_content = vim.tbl_deep_extend("force", {
+    model = base.model,
+    system = {
+      {
+        type = "text",
+        text = prompt_opts.system_prompt,
+        cache_control = { type = "ephemeral" },
+      },
+    },
+    messages = messages,
+    stream = true,
+  }, body_opts)
+
+  local id = string.gsub("xxxx4xxx", "[xy]", function(l)
+    local v = (l == "x") and math.random(0, 0xf) or math.random(0, 0xb)
+    return string.format("%x", v)
+  end)
+
+  local body_file_path = string.format("%s\\AppData\\Local\\Temp\\avante_body_%s.json", os.getenv("USERPROFILE"), id)
+  vim.fn.writefile({ vim.fn.json_encode(body_content) }, body_file_path)
 
   return {
     url = Utils.trim(base.endpoint, { suffix = "/" }) .. "/v1/messages",
     proxy = base.proxy,
     insecure = base.allow_insecure,
     headers = headers,
-    body = vim.tbl_deep_extend("force", {
-      model = base.model,
-      system = {
-        {
-          type = "text",
-          text = prompt_opts.system_prompt,
-          cache_control = { type = "ephemeral" },
-        },
-      },
-      messages = messages,
-      stream = true,
-    }, body_opts),
+    body_file = body_file_path,
   }
 end
 
