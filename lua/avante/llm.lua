@@ -76,9 +76,9 @@ M.stream = function(opts)
 
   local user_prompts = vim
     .iter({
-      Path.prompts.render_file("_context.avanterules", template_opts),
       Path.prompts.render_file("_project.avanterules", template_opts),
       Path.prompts.render_file("_memory.avanterules", template_opts),
+      Path.prompts.render_file("_context.avanterules", template_opts),
       Path.prompts.render_mode(mode, template_opts),
     })
     :filter(function(k) return k ~= "" end)
