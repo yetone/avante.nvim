@@ -1,7 +1,6 @@
 local Utils = require("avante.utils")
 local Config = require("avante.config")
 local Llm = require("avante.llm")
-local Highlights = require("avante.highlights")
 local Provider = require("avante.providers")
 
 local api = vim.api
@@ -391,10 +390,16 @@ function Selection:create_editing_input()
     end
 
     local filetype = api.nvim_get_option_value("filetype", { buf = code_bufnr })
+    local file_ext = api.nvim_buf_get_name(code_bufnr):match("^.+%.(.+)$")
+
+    local mentions = Utils.extract_mentions(input)
+    input = mentions.new_content
+    local project_context = mentions.enable_project_context and Utils.repo_map.get_repo_map(file_ext) or nil
 
     Llm.stream({
       bufnr = code_bufnr,
       ask = true,
+      project_context = vim.json.encode(project_context),
       file_content = code_content,
       code_lang = filetype,
       selected_code = self.selection.content,
@@ -449,6 +454,25 @@ function Selection:create_editing_input()
       if close_unfocus then
         api.nvim_del_autocmd(close_unfocus)
         close_unfocus = nil
+      end
+    end,
+  })
+
+  api.nvim_create_autocmd("InsertEnter", {
+    group = self.augroup,
+    buffer = bufnr,
+    once = true,
+    desc = "Setup the completion of helpers in the input buffer",
+    callback = function()
+      local has_cmp, cmp = pcall(require, "cmp")
+      if has_cmp then
+        cmp.register_source("avante_mentions", require("cmp_avante.mentions").new(Utils.get_mentions(), bufnr))
+        cmp.setup.buffer({
+          enabled = true,
+          sources = {
+            { name = "avante_mentions" },
+          },
+        })
       end
     end,
   })

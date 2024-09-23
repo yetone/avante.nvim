@@ -1,24 +1,24 @@
----@class source
+---@class commands_source
 ---@field sidebar avante.Sidebar
-local source = {}
+local commands_source = {}
 
 ---@param sidebar avante.Sidebar
-function source.new(sidebar)
+function commands_source.new(sidebar)
   ---@type cmp.Source
   return setmetatable({
     sidebar = sidebar,
-  }, { __index = source })
+  }, { __index = commands_source })
 end
 
-function source:is_available() return vim.bo.filetype == "AvanteInput" end
+function commands_source:is_available() return vim.bo.filetype == "AvanteInput" end
 
-source.get_position_encoding_kind = function() return "utf-8" end
+commands_source.get_position_encoding_kind = function() return "utf-8" end
 
-function source:get_trigger_characters() return { "/" } end
+function commands_source:get_trigger_characters() return { "/" } end
 
-function source:get_keyword_pattern() return [[\%(@\|#\|/\)\k*]] end
+function commands_source:get_keyword_pattern() return [[\%(@\|#\|/\)\k*]] end
 
-function source:complete(_, callback)
+function commands_source:complete(_, callback)
   local kind = require("cmp").lsp.CompletionItemKind.Variable
 
   local items = {}
@@ -39,4 +39,4 @@ function source:complete(_, callback)
   })
 end
 
-return source
+return commands_source
