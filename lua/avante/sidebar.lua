@@ -1075,20 +1075,6 @@ function Sidebar:get_content_between_separators()
   return content, start_line
 end
 
----@alias AvanteMentions "codebase"
----@alias AvanteMentionCallback fun(args: string, cb?: fun(args: string): nil): nil
----@alias AvanteMention {description: string, command: AvanteMentions, details: string, shorthelp?: string, callback?: AvanteMentionCallback}
----@return AvanteMention[]
-function Sidebar:get_mentions()
-  return {
-    {
-      description = "codebase",
-      command = "codebase",
-      details = "repo map",
-    },
-  }
-end
-
 ---@alias AvanteSlashCommands "clear" | "help" | "lines"
 ---@alias AvanteSlashCallback fun(args: string, cb?: fun(args: string): nil): nil
 ---@alias AvanteSlash {description: string, command: AvanteSlashCommands, details: string, shorthelp?: string, callback?: AvanteSlashCallback}
@@ -1405,7 +1391,10 @@ function Sidebar:create_input(opts)
         if not self.registered_cmp then
           self.registered_cmp = true
           cmp.register_source("avante_commands", require("cmp_avante.commands").new(self))
-          cmp.register_source("avante_mentions", require("cmp_avante.mentions").new(self))
+          cmp.register_source(
+            "avante_mentions",
+            require("cmp_avante.mentions").new(Utils.get_mentions(), self.input.bufnr)
+          )
         end
         cmp.setup.buffer({
           enabled = true,

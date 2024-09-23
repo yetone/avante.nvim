@@ -629,4 +629,18 @@ function M.extract_mentions(content)
   return { new_content = new_content, enable_project_context = enable_project_context }
 end
 
+---@alias AvanteMentions "codebase"
+---@alias AvanteMentionCallback fun(args: string, cb?: fun(args: string): nil): nil
+---@alias AvanteMention {description: string, command: AvanteMentions, details: string, shorthelp?: string, callback?: AvanteMentionCallback}
+---@return AvanteMention[]
+function M.get_mentions()
+  return {
+    {
+      description = "codebase",
+      command = "codebase",
+      details = "repo map",
+    },
+  }
+end
+
 return M

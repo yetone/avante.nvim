@@ -428,7 +428,7 @@ If you have the following structure:
 - [x] Slash commands
 - [x] Edit the selected block
 - [x] Smart Tab (Cursor Flow)
-- [ ] Chat with project
+- [x] Chat with project (You can use `@codebase` to chat with the whole project)
 - [ ] Chat with selected files
 
 ## Roadmap
