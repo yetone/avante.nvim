@@ -182,13 +182,24 @@ local definitions_queries = {
   ]],
   zig = [[
     ;; Capture functions, structs, methods, variable definitions, and unions in Zig
-    (function_declaration) @function
-    (variable_declaration (identifier) @variable)
-    (struct_declaration
-          (container_field) @class_variable)
-    (enum_declaration
-      (container_field
-        type: (identifier) @enum_item))
+
+    (variable_declaration (identifier)
+      (struct_declaration
+            (container_field) @class_variable))
+
+    (variable_declaration (identifier)
+      (struct_declaration
+            (function_declaration
+               name: (identifier) @method)))
+
+    (variable_declaration (identifier)
+      (enum_declaration
+        (container_field
+          type: (identifier) @enum_item)))
+
+    (source_file (function_declaration) @function)
+
+    (source_file (variable_declaration (identifier) @variable))
 
   ]],
   go = [[
@@ -463,6 +474,10 @@ function RepoMap.extract_definitions(filepath)
       elseif type == "method" then
         if name and filetype == "go" and not Utils.is_first_letter_uppercase(name) then goto continue end
         local params_node = node:field("parameters")[1]
+        if filetype == "zig" then
+          local function_node = find_parent_by_type(node, "function_declaration")
+          params_node = find_child_by_type(function_node, "parameters")
+        end
         local params = params_node and get_node_text(params_node, parsed.source) or "()"
         local return_type_node = node:field("return_type")[1] or node:field("result")[1]
         local return_type = return_type_node and get_node_text(return_type_node, parsed.source) or "void"
@@ -476,6 +491,8 @@ function RepoMap.extract_definitions(filepath)
         elseif receiver_node then
           local type_identifier_node = find_child_by_type(receiver_node, "type_identifier")
           class_name = type_identifier_node and get_node_text(type_identifier_node, parsed.source) or ""
+        elseif filetype == "zig" then
+          class_name = find_parent_variable_declaration_name(node, parsed)
         else
           class_name = get_closest_parent_name(node, parsed.source)
         end
@@ -536,9 +553,14 @@ function RepoMap.extract_definitions(filepath)
         if impl_item_node then goto continue end
         local function_node = find_parent_by_type(node, "function_declaration")
             or find_parent_by_type(node, "function_definition")
+
         if function_node then goto continue end
+
         -- Extract function parameters and return type
         local params_node = node:field("parameters")[1]
+        if filetype == "zig" then
+          params_node = find_child_by_type(node, "parameters")
+        end
         local params = params_node and get_node_text(params_node, parsed.source) or "()"
         local return_type_node = node:field("return_type")[1] or node:field("result")[1]
         local return_type = return_type_node and get_node_text(return_type_node, parsed.source) or "void"
