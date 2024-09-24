@@ -361,6 +361,20 @@ local function get_node_type(node, source)
   return node_type
 end
 
+
+-- zig specific function to find the parent variable declaration
+local function find_parent_variable_declaration_name(node, parsed)
+  local vardec = find_parent_by_type(node, "variable_declaration")
+  if vardec then
+    -- Find the identifier child node, which represents the class name
+    local identifier_node = find_child_by_type(vardec, "identifier")
+    if identifier_node then
+      return get_node_text(identifier_node, parsed.source)
+    end
+  end
+  return nil
+end
+
 -- Function to extract definitions from the file
 function RepoMap.extract_definitions(filepath)
   local Utils = require("avante.utils")
@@ -403,6 +417,8 @@ function RepoMap.extract_definitions(filepath)
     end
     return def
   end
+
+
 
   local function get_enum_def(name)
     local def = enum_def_map[name]
@@ -499,14 +515,7 @@ function RepoMap.extract_definitions(filepath)
         -- TODO: this struct can also be defined as function
         -- output
         if filetype == "zig" then
-          local vardec = find_parent_by_type(node, "variable_declaration")
-          if vardec then
-            -- Find the identifier child node, which represents the class name
-            local identifier_node = find_child_by_type(vardec, "identifier")
-            if identifier_node then
-              class_name = get_node_text(identifier_node, parsed.source)
-            end
-          end
+          class_name = find_parent_variable_declaration_name(node, parsed) or class_name
         end
 
         local class_def = get_class_def(class_name)
