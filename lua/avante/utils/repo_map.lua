@@ -186,7 +186,9 @@ local definitions_queries = {
     (variable_declaration (identifier) @variable)
     (struct_declaration
           (container_field) @class_variable)
-
+    (enum_declaration
+      (container_field
+        type: (identifier) @enum_item))
 
   ]],
   go = [[
@@ -448,6 +450,9 @@ function RepoMap.extract_definitions(filepath)
       elseif type == "enum_item" then
         local enum_name = get_closest_parent_name(node, parsed.source)
         if enum_name and filetype == "go" and not Utils.is_first_letter_uppercase(enum_name) then goto continue end
+        if filetype == "zig" then
+          enum_name = find_parent_variable_declaration_name(node, parsed) or enum_name
+        end
         local enum_def = get_enum_def(enum_name)
         local enum_type_node = find_child_by_type(node, "type_identifier")
         local enum_type = enum_type_node and get_node_text(enum_type_node, parsed.source) or ""
