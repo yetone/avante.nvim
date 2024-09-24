@@ -44,6 +44,12 @@ local dependencies_queries = {
       path: (interpreted_string_literal) @import_module)
   ]],
 
+
+  zig = [[
+    (import_spec
+      path: (interpreted_string_literal) @import_module)
+  ]],
+
   rust = [[
     (use_declaration
       (scoped_identifier) @import_module)
@@ -173,6 +179,15 @@ local definitions_queries = {
       )
     )
     (const_item) @variable
+  ]],
+  zig = [[
+    ;; Capture functions, structs, methods, variable definitions, and unions in Zig
+    (function_declaration) @function
+    (variable_declaration (identifier) @variable)
+    (struct_declaration
+          (container_field) @class_variable)
+
+
   ]],
   go = [[
     ;; Capture top-level functions and struct definitions
@@ -407,6 +422,10 @@ function RepoMap.extract_definitions(filepath)
       local type = query_obj.captures[id]
       local name_node = node:field("name")[1]
       local name = name_node and get_node_text(name_node, parsed.source) or ""
+      -- In some cases, there is no name field.
+      if name == "" then
+        name = get_node_text(node, parsed.source)
+      end
 
       if type == "class" then
         if name ~= "" then get_class_def(name) end
@@ -444,7 +463,7 @@ function RepoMap.extract_definitions(filepath)
         local accessibility_modifier_node = find_child_by_type(node, "accessibility_modifier")
         local accessibility_modifier = accessibility_modifier_node
             and get_node_text(accessibility_modifier_node, parsed.source)
-          or ""
+            or ""
 
         table.insert(class_def.methods, {
           type = "function",
@@ -475,6 +494,21 @@ function RepoMap.extract_definitions(filepath)
         local class_name = get_closest_parent_name(node, parsed.source)
         if class_name and filetype == "go" and not Utils.is_first_letter_uppercase(class_name) then goto continue end
 
+        -- in zig we need to look for the variable declartion
+        -- to determine the class_name
+        -- TODO: this struct can also be defined as function
+        -- output
+        if filetype == "zig" then
+          local vardec = find_parent_by_type(node, "variable_declaration")
+          if vardec then
+            -- Find the identifier child node, which represents the class name
+            local identifier_node = find_child_by_type(vardec, "identifier")
+            if identifier_node then
+              class_name = get_node_text(identifier_node, parsed.source)
+            end
+          end
+        end
+
         local class_def = get_class_def(class_name)
 
         table.insert(class_def.properties, {
@@ -487,7 +521,7 @@ function RepoMap.extract_definitions(filepath)
         local impl_item_node = find_parent_by_type(node, "impl_item")
         if impl_item_node then goto continue end
         local function_node = find_parent_by_type(node, "function_declaration")
-          or find_parent_by_type(node, "function_definition")
+            or find_parent_by_type(node, "function_definition")
         if function_node then goto continue end
         -- Extract function parameters and return type
         local params_node = node:field("parameters")[1]
@@ -498,7 +532,7 @@ function RepoMap.extract_definitions(filepath)
         local accessibility_modifier_node = find_child_by_type(node, "accessibility_modifier")
         local accessibility_modifier = accessibility_modifier_node
             and get_node_text(accessibility_modifier_node, parsed.source)
-          or ""
+            or ""
 
         local def = {
           type = "function",
@@ -510,11 +544,11 @@ function RepoMap.extract_definitions(filepath)
         table.insert(definitions, def)
       elseif type == "assignment" then
         local impl_item_node = find_parent_by_type(node, "impl_item")
-          or find_parent_by_type(node, "class_declaration")
-          or find_parent_by_type(node, "class_definition")
+            or find_parent_by_type(node, "class_declaration")
+            or find_parent_by_type(node, "class_definition")
         if impl_item_node then goto continue end
         local function_node = find_parent_by_type(node, "function_declaration")
-          or find_parent_by_type(node, "function_definition")
+            or find_parent_by_type(node, "function_definition")
         if function_node then goto continue end
 
         local left_node = node:field("left")[1]
@@ -532,11 +566,11 @@ function RepoMap.extract_definitions(filepath)
         table.insert(definitions, def)
       elseif type == "variable" then
         local impl_item_node = find_parent_by_type(node, "impl_item")
-          or find_parent_by_type(node, "class_declaration")
-          or find_parent_by_type(node, "class_definition")
+            or find_parent_by_type(node, "class_declaration")
+            or find_parent_by_type(node, "class_definition")
         if impl_item_node then goto continue end
         local function_node = find_parent_by_type(node, "function_declaration")
-          or find_parent_by_type(node, "function_definition")
+            or find_parent_by_type(node, "function_definition")
         if function_node then goto continue end
 
         local value_type = get_node_type(node, parsed.source)
