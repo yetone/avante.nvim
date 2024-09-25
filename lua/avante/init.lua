@@ -397,6 +397,7 @@ function M.setup(opts)
 
   if M.did_setup then return end
 
+  require("avante.repo_map").setup()
   require("avante.path").setup()
   require("avante.highlights").setup()
   require("avante.diff").setup()

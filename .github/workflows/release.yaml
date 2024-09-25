@@ -74,6 +74,7 @@ jobs:
           fi
           cp target/release/libavante_templates.$EXT results/avante_templates.$EXT
           cp target/release/libavante_tokenizers.$EXT results/avante_tokenizers.$EXT
+          cp target/release/libavante_repo_map.$EXT results/avante_repo_map.$EXT
 
           cd results
           tar zcvf avante_lib-${{ matrix.os }}-${{ matrix.feature }}.tar.gz *.${EXT}
@@ -85,6 +86,7 @@ jobs:
 
           Copy-Item -Path "target\release\avante_templates.dll" -Destination "results\avante_templates.dll"
           Copy-Item -Path "target\release\avante_tokenizers.dll" -Destination "results\avante_tokenizers.dll"
+          Copy-Item -Path "target\release\avante_repo_map.dll" -Destination "results\avante_repo_map.dll"
 
           Set-Location -Path results
 
