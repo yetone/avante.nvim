@@ -1181,6 +1181,34 @@ function Sidebar:create_input(opts)
 
   local chat_history = Path.history.load(self.code.bufnr)
 
+  local function get_open_buffers_content()
+    local buffers = vim.api.nvim_list_bufs()
+    local result = {}
+    table.insert(result, "Here is the content of other open files in the project:")
+    table.insert(result, "These files are for context only. Return code to edit from the main file only.")
+    table.insert(result, "")
+
+    for _, bufnr in ipairs(buffers) do
+      if vim.api.nvim_buf_is_loaded(bufnr) and bufnr ~= self.code.bufnr then
+        local bufname = vim.api.nvim_buf_get_name(bufnr)
+        local relative_path = vim.fn.fnamemodify(bufname, ":.")
+        local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+        if #lines > 0 then
+          table.insert(result, "## " .. relative_path)
+          table.insert(result, "")
+          for _, line in ipairs(lines) do
+            table.insert(result, line)
+          end
+          table.insert(result, "")
+          table.insert(result, "---")
+          table.insert(result, "")
+        end
+      end
+    end
+
+    return table.concat(result, "\n")
+  end
+
   ---@param request string
   local function handle_submit(request)
     local model = Config.has_provider(Config.provider) and Config.get_provider(Config.provider).model or "default"
@@ -1296,6 +1324,17 @@ function Sidebar:create_input(opts)
     local file_ext = api.nvim_buf_get_name(self.code.bufnr):match("^.+%.(.+)$")
 
     local project_context = mentions.enable_project_context and Utils.repo_map.get_repo_map(file_ext) or nil
+
+    -- Check if it's the first chat and add open buffers content if so
+    local is_first_chat = next(chat_history) == nil
+    if is_first_chat then
+      local open_buffers_content = get_open_buffers_content()
+      if project_context then
+        project_context.open_buffers = open_buffers_content
+      else
+        project_context = { open_buffers = open_buffers_content }
+      end
+    end
 
     Llm.stream({
       bufnr = self.code.bufnr,
