@@ -11,6 +11,10 @@ version = "0.1.0"
 [workspace.dependencies]
 avante-tokenizers = { path = "crates/avante-tokenizers" }
 avante-templates = { path = "crates/avante-templates" }
+avante-parsers = { path = "crates/avante-parsers" }
+scraper = "0.20.0"
+hyper = { version = "1.4.1", features = ["full"] }
+tokio = { version = "1.40.0", features = ["full"] }
 minijinja = { version = "2.2.0", features = [
   "loader",
   "json",
@@ -22,6 +26,7 @@ minijinja = { version = "2.2.0", features = [
 ] }
 mlua = { version = "0.10.0-beta.1", features = [
   "module",
+  "async",
   "serialize",
 ], git = "https://github.com/mlua-rs/mlua.git", branch = "main" }
 tiktoken-rs = { version = "0.5.9" }
@@ -32,6 +37,9 @@ tokenizers = { version = "0.20.0", features = [
   "onig",
 ], default-features = false }
 serde = { version = "1.0.209", features = ["derive"] }
+
+[profile.release]
+opt-level = 3
 
 [workspace.lints.rust]
 unsafe_code = "warn"
