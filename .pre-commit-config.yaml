@@ -14,4 +14,6 @@ repos:
   rev: master
   hooks:
   - id: fmt
+    files: \.rs$
   - id: cargo-check
+    files: \.rs$
