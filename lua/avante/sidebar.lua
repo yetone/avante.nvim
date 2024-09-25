@@ -27,7 +27,6 @@ local Sidebar = {}
 
 ---@class avante.Sidebar
 ---@field id integer
----@field registered_cmp boolean
 ---@field augroup integer
 ---@field code avante.CodeState
 ---@field winids table<string, integer> this table stores the winids of the sidebar components (result, selected_code, input), even though they are destroyed.
@@ -39,7 +38,6 @@ local Sidebar = {}
 function Sidebar:new(id)
   return setmetatable({
     id = id,
-    registered_cmp = false,
     code = { bufnr = 0, winid = 0, selection = nil },
     winids = {
       result = 0,
@@ -1388,14 +1386,11 @@ function Sidebar:create_input(opts)
     callback = function()
       local has_cmp, cmp = pcall(require, "cmp")
       if has_cmp then
-        if not self.registered_cmp then
-          self.registered_cmp = true
-          cmp.register_source("avante_commands", require("cmp_avante.commands").new(self))
-          cmp.register_source(
-            "avante_mentions",
-            require("cmp_avante.mentions").new(Utils.get_mentions(), self.input.bufnr)
-          )
-        end
+        cmp.register_source("avante_commands", require("cmp_avante.commands").new(self))
+        cmp.register_source(
+          "avante_mentions",
+          require("cmp_avante.mentions").new(Utils.get_mentions(), self.input.bufnr)
+        )
         cmp.setup.buffer({
           enabled = true,
           sources = {
