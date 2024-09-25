@@ -17,3 +17,4 @@ repos:
     files: \.rs$
   - id: cargo-check
     files: \.rs$
+    args: ["--features", "lua54"]
