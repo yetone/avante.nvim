@@ -85,6 +85,7 @@ M.stream = function(opts)
     :totable()
 
   Utils.debug(user_prompts)
+  -- print(user_prompts[1])
 
   ---@type AvantePromptOptions
   local code_opts = {

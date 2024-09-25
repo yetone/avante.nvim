@@ -11,6 +11,7 @@ version = "0.1.0"
 [workspace.dependencies]
 avante-tokenizers = { path = "crates/avante-tokenizers" }
 avante-templates = { path = "crates/avante-templates" }
+avante-repo-map = { path = "crates/avante-repo-map" }
 minijinja = { version = "2.2.0", features = [
   "loader",
   "json",
