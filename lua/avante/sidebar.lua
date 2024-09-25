@@ -11,6 +11,7 @@ local Diff = require("avante.diff")
 local Llm = require("avante.llm")
 local Utils = require("avante.utils")
 local Highlights = require("avante.highlights")
+local RepoMap = require("avante.repo_map")
 
 local RESULT_BUF_NAME = "AVANTE_RESULT"
 local VIEW_BUFFER_UPDATED_PATTERN = "AvanteViewBufferUpdated"
@@ -1295,7 +1296,7 @@ function Sidebar:create_input(opts)
 
     local file_ext = api.nvim_buf_get_name(self.code.bufnr):match("^.+%.(.+)$")
 
-    local project_context = mentions.enable_project_context and Utils.repo_map.get_repo_map(file_ext) or nil
+    local project_context = mentions.enable_project_context and RepoMap.get_repo_map(file_ext) or nil
 
     Llm.stream({
       bufnr = self.code.bufnr,

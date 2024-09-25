@@ -6,6 +6,7 @@ local lsp = vim.lsp
 ---@field tokens avante.utils.tokens
 ---@field root avante.utils.root
 ---@field repo_map avante.utils.repo_map
+---@field file avante.utils.file
 local M = {}
 
 setmetatable(M, {

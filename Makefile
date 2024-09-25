@@ -22,13 +22,15 @@ all: luajit
 define make_definitions
 ifeq ($(BUILD_FROM_SOURCE),true)
 ifeq ($(TARGET_LIBRARY), all)
-$1: $(BUILD_DIR)/libAvanteTokenizers-$1.$(EXT) $(BUILD_DIR)/libAvanteTemplates-$1.$(EXT)
+$1: $(BUILD_DIR)/libAvanteTokenizers-$1.$(EXT) $(BUILD_DIR)/libAvanteTemplates-$1.$(EXT) $(BUILD_DIR)/libAvanteRepoMap-$1.$(EXT)
 else ifeq ($(TARGET_LIBRARY), tokenizers)
 $1: $(BUILD_DIR)/libAvanteTokenizers-$1.$(EXT)
 else ifeq ($(TARGET_LIBRARY), templates)
 $1: $(BUILD_DIR)/libAvanteTemplates-$1.$(EXT)
+else ifeq ($(TARGET_LIBRARY), repo-map)
+$1: $(BUILD_DIR)/libAvanteRepoMap-$1.$(EXT)
 else
-	$$(error TARGET_LIBRARY must be one of all, tokenizers, templates)
+	$$(error TARGET_LIBRARY must be one of all, tokenizers, templates, repo-map)
 endif
 else
 $1:
@@ -41,16 +43,18 @@ $(foreach lua_version,$(LUA_VERSIONS),$(eval $(call make_definitions,$(lua_versi
 define build_package
 $1-$2:
 	cargo build --release --features=$1 -p avante-$2
-	cp target/release/libavante_$2.$(EXT) $(BUILD_DIR)/avante_$2.$(EXT)
+	cp target/release/libavante_$(shell echo $2 | tr - _).$(EXT) $(BUILD_DIR)/avante_$(shell echo $2 | tr - _).$(EXT)
 endef
 
 define build_targets
 $(BUILD_DIR)/libAvanteTokenizers-$1.$(EXT): $(BUILD_DIR) $1-tokenizers
 $(BUILD_DIR)/libAvanteTemplates-$1.$(EXT): $(BUILD_DIR) $1-templates
+$(BUILD_DIR)/libAvanteRepoMap-$1.$(EXT): $(BUILD_DIR) $1-repo-map
 endef
 
 $(foreach lua_version,$(LUA_VERSIONS),$(eval $(call build_package,$(lua_version),tokenizers)))
 $(foreach lua_version,$(LUA_VERSIONS),$(eval $(call build_package,$(lua_version),templates)))
+$(foreach lua_version,$(LUA_VERSIONS),$(eval $(call build_package,$(lua_version),repo-map)))
 $(foreach lua_version,$(LUA_VERSIONS),$(eval $(call build_targets,$(lua_version))))
 
 $(BUILD_DIR):

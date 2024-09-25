@@ -1,0 +1,38 @@
+[lib]
+crate-type = ["cdylib"]
+
+[package]
+name = "avante-repo-map"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+version.workspace = true
+
+[build-dependencies]
+cc="*"
+
+[dependencies]
+mlua = { workspace = true }
+minijinja = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+tree-sitter = "0.23"
+tree-sitter-language = "0.1"
+tree-sitter-rust = "0.23"
+tree-sitter-python = "0.23"
+tree-sitter-javascript = "0.23"
+tree-sitter-typescript = "0.23"
+tree-sitter-go = "0.23"
+tree-sitter-c = "0.23"
+tree-sitter-cpp = "0.23"
+tree-sitter-lua = "0.2"
+tree-sitter-ruby = "0.23"
+
+[lints]
+workspace = true
+
+[features]
+lua51 = ["mlua/lua51"]
+lua52 = ["mlua/lua52"]
+lua53 = ["mlua/lua53"]
+lua54 = ["mlua/lua54"]
+luajit = ["mlua/luajit"]

@@ -2,6 +2,7 @@ local Utils = require("avante.utils")
 local Config = require("avante.config")
 local Llm = require("avante.llm")
 local Provider = require("avante.providers")
+local RepoMap = require("avante.repo_map")
 
 local api = vim.api
 local fn = vim.fn
@@ -394,7 +395,7 @@ function Selection:create_editing_input()
 
     local mentions = Utils.extract_mentions(input)
     input = mentions.new_content
-    local project_context = mentions.enable_project_context and Utils.repo_map.get_repo_map(file_ext) or nil
+    local project_context = mentions.enable_project_context and RepoMap.get_repo_map(file_ext) or nil
 
     Llm.stream({
       bufnr = code_bufnr,
