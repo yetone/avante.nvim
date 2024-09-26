@@ -93,6 +93,9 @@ jobs:
           toolchain: 1.80.0
       - uses: actions/checkout@v1 # for glibc 2.17
         if: ${{ matrix.config.os_name == 'linux' }}
+      - name: Install essential dependencies # for glibc 2.17
+        if: ${{ matrix.config.os_name == 'linux' }}
+        run: yum install -y openssl-devel
       - name: Install rust # for glibc 2.17
         if: ${{ matrix.config.os_name == 'linux' }}
         run: |
