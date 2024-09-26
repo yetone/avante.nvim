@@ -56,12 +56,12 @@ jobs:
             os_name: linux
             arch: x86_64
             rust_target: x86_64-unknown-linux-gnu
-            container: quay.io/pypa/manylinux2014_x86_64
+            container: quay.io/pypa/manylinux2014_x86_64 # for glibc 2.17
           - os: ubuntu-latest
             os_name: linux
             arch: aarch64
             rust_target: aarch64-unknown-linux-gnu
-            container: quay.io/pypa/manylinux2014_aarch64
+            container: quay.io/pypa/manylinux2014_aarch64 # for glibc 2.17
           - os: macos-13
             os_name: darwin
             arch: x86_64
@@ -83,11 +83,20 @@ jobs:
     container: ${{ matrix.config.container }}
     steps:
       - uses: actions/checkout@v4
+        if: ${{ matrix.config.os_name != 'linux' }}
       - uses: Swatinem/rust-cache@v2
+        if: ${{ matrix.config.os_name != 'linux' }}
       - uses: dtolnay/rust-toolchain@master
+        if: ${{ matrix.config.os_name != 'linux' }}
         with:
           targets: ${{ matrix.config.rust_target }}
           toolchain: 1.80.0
+      - uses: actions/checkout@v1 # for glibc 2.17
+        if: ${{ matrix.config.os_name == 'linux' }}
+      - name: Install rust # for glibc 2.17
+        if: ${{ matrix.config.os_name == 'linux' }}
+        run: |
+          curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
       - name: Build all crates
         run: cargo build --release --features ${{ matrix.feature }}
       - name: Handle binaries
