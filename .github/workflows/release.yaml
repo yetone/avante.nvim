@@ -97,6 +97,7 @@ jobs:
         if: ${{ matrix.config.os_name == 'linux' }}
         run: |
           curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+          . "$HOME/.cargo/env"
       - name: Build all crates
         run: cargo build --release --features ${{ matrix.feature }}
       - name: Handle binaries
