@@ -91,16 +91,19 @@ jobs:
         with:
           targets: ${{ matrix.config.rust_target }}
           toolchain: 1.80.0
+      - name: Build all crates
+        if: ${{ matrix.config.os_name != 'linux' }}
+        run: |
+          cargo build --release --features ${{ matrix.feature }}
       - uses: actions/checkout@v1 # for glibc 2.17
         if: ${{ matrix.config.os_name == 'linux' }}
-      - name: Install essential dependencies # for glibc 2.17
-        if: ${{ matrix.config.os_name == 'linux' }}
-        run: yum install -y openssl-devel
       - name: Install rust # for glibc 2.17
         if: ${{ matrix.config.os_name == 'linux' }}
         run: |
+          yum install -y openssl-devel
           curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
-      - name: Build all crates
+      - name: Build all crates # for glibc 2.17
+        if: ${{ matrix.config.os_name == 'linux' }}
         run: |
           . "$HOME/.cargo/env"
           cargo build --release --features ${{ matrix.feature }}
@@ -136,7 +139,7 @@ jobs:
           Compress-Archive -Path $dllFiles -DestinationPath "avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.zip"
 
       - name: Upload Release Asset
-        uses: shogo82148/actions-upload-release-asset@v1
+        uses: shogo82148/actions-upload-release-asset@v1.6.6
         if: ${{ matrix.config.os_name != 'windows' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
