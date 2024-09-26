@@ -73,9 +73,9 @@ M.build = function(opts)
       local output = stdout
       if #output == 0 then
         table.insert(output, "")
-        Utils.debug(output)
+        Utils.debug("build output:", output)
       else
-        Utils.debug(stderr)
+        Utils.debug("build error:", stderr)
       end
     end
   end)

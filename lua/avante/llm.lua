@@ -84,8 +84,7 @@ M.stream = function(opts)
     :filter(function(k) return k ~= "" end)
     :totable()
 
-  Utils.debug(user_prompts)
-  -- print(user_prompts[1])
+  Utils.debug("user prompts:", user_prompts)
 
   ---@type AvantePromptOptions
   local code_opts = {
@@ -102,7 +101,7 @@ M.stream = function(opts)
   ---@type AvanteCurlOutput
   local spec = Provider.parse_curl_args(Provider, code_opts)
 
-  Utils.debug(spec)
+  Utils.debug("curl spec:", spec)
 
   ---@param line string
   local function parse_stream_data(line)
@@ -182,7 +181,7 @@ M.stream = function(opts)
       -- Error: cannot resume dead coroutine
       if active_job then
         xpcall(function() active_job:shutdown() end, function(err) return err end)
-        Utils.debug("LLM request cancelled", { title = "Avante" })
+        Utils.debug("LLM request cancelled")
         active_job = nil
       end
     end,
