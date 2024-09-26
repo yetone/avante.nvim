@@ -56,11 +56,13 @@ jobs:
             os_name: linux
             arch: x86_64
             rust_target: x86_64-unknown-linux-gnu
+            docker_platform: linux/amd64
             container: quay.io/pypa/manylinux2014_x86_64 # for glibc 2.17
           - os: ubuntu-latest
             os_name: linux
             arch: aarch64
             rust_target: aarch64-unknown-linux-gnu
+            docker_platform: linux/arm64
             container: quay.io/pypa/manylinux2014_aarch64 # for glibc 2.17
           - os: macos-13
             os_name: darwin
@@ -80,10 +82,10 @@ jobs:
             rust_target: aarch64-pc-windows-msvc
 
     runs-on: ${{ matrix.config.os }}
-    container: ${{ matrix.config.container }}
+
     steps:
       - uses: actions/checkout@v4
-        if: ${{ matrix.config.os_name != 'linux' }}
+
       - uses: Swatinem/rust-cache@v2
         if: ${{ matrix.config.os_name != 'linux' }}
       - uses: dtolnay/rust-toolchain@master
@@ -95,18 +97,18 @@ jobs:
         if: ${{ matrix.config.os_name != 'linux' }}
         run: |
           cargo build --release --features ${{ matrix.feature }}
-      - uses: actions/checkout@v1 # for glibc 2.17
-        if: ${{ matrix.config.os_name == 'linux' }}
-      - name: Install rust # for glibc 2.17
-        if: ${{ matrix.config.os_name == 'linux' }}
-        run: |
-          yum install -y openssl-devel
-          curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
-      - name: Build all crates # for glibc 2.17
+
+      - name: Build all crates with glibc 2.17 # for glibc 2.17
         if: ${{ matrix.config.os_name == 'linux' }}
         run: |
-          . "$HOME/.cargo/env"
-          cargo build --release --features ${{ matrix.feature }}
+          docker run \
+            --rm \
+            -v $(pwd):/workspace \
+            -w /workspace \
+            --platform ${{ matrix.config.docker_platform }} \
+            ${{ matrix.config.container }} \
+            bash -c "yum install -y openssl-devel && curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && . /root/.cargo/env && cargo build --release --features ${{ matrix.feature }}"
+
       - name: Handle binaries
         if: ${{ matrix.config.os_name != 'windows' }}
         shell: bash
@@ -123,6 +125,7 @@ jobs:
 
           cd results
           tar zcvf avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.tar.gz *.${EXT}
+
       - name: Handle binaries (Windows)
         if: ${{ matrix.config.os_name == 'windows' }}
         shell: pwsh
@@ -139,7 +142,7 @@ jobs:
           Compress-Archive -Path $dllFiles -DestinationPath "avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.zip"
 
       - name: Upload Release Asset
-        uses: shogo82148/actions-upload-release-asset@v1.6.6
+        uses: shogo82148/actions-upload-release-asset@v1
         if: ${{ matrix.config.os_name != 'windows' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
