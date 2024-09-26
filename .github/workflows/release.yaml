@@ -48,28 +48,49 @@ jobs:
   releases-matrix:
     needs: [create-release]
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
         feature: [lua51, luajit]
-    runs-on: ${{ matrix.os }}
+        config:
+          - os: ubuntu-latest
+            os_name: linux
+            arch: x86_64
+            rust_target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            os_name: linux
+            arch: aarch64
+            rust_target: aarch64-unknown-linux-gnu
+          - os: macos-13
+            os_name: darwin
+            arch: x86_64
+            rust_target: x86_64-apple-darwin
+          - os: macos-latest
+            os_name: darwin
+            arch: aarch64
+            rust_target: aarch64-apple-darwin
+          - os: windows-latest
+            os_name: windows
+            arch: x86_64
+            rust_target: x86_64-pc-windows-msvc
+
+    runs-on: ${{ matrix.config.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
       - uses: dtolnay/rust-toolchain@master
         with:
+          targets: ${{ matrix.config.rust_target }}
           toolchain: 1.80.0
       - name: Build all crates
         run: cargo build --release --features ${{ matrix.feature }}
       - name: Handle binaries
-        if: ${{ matrix.os != 'windows-latest' }}
+        if: ${{ matrix.config.os_name != 'windows' }}
         shell: bash
         run: |
           mkdir -p results
-          if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-            OS="linux"
+          if [ "${{ matrix.config.os_name }}" == "linux" ]; then
             EXT="so"
           else
-            OS="macOS"
             EXT="dylib"
           fi
           cp target/release/libavante_templates.$EXT results/avante_templates.$EXT
@@ -77,9 +98,9 @@ jobs:
           cp target/release/libavante_repo_map.$EXT results/avante_repo_map.$EXT
 
           cd results
-          tar zcvf avante_lib-${{ matrix.os }}-${{ matrix.feature }}.tar.gz *.${EXT}
+          tar zcvf avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.tar.gz *.${EXT}
       - name: Handle binaries (Windows)
-        if: ${{ matrix.os == 'windows-latest' }}
+        if: ${{ matrix.config.os_name == 'windows' }}
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path results
@@ -91,26 +112,26 @@ jobs:
           Set-Location -Path results
 
           $dllFiles = Get-ChildItem -Filter "*.dll" | Select-Object -ExpandProperty Name
-          Compress-Archive -Path $dllFiles -DestinationPath "avante_lib-${{ matrix.os }}-${{ matrix.feature }}.zip"
+          Compress-Archive -Path $dllFiles -DestinationPath "avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.zip"
 
       - name: Upload Release Asset
         uses: shogo82148/actions-upload-release-asset@v1
-        if: ${{ matrix.os != 'windows-latest' }}
+        if: ${{ matrix.config.os_name != 'windows' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ASSET_NAME: avante_lib-${{ matrix.os }}-${{ matrix.feature }}.tar.gz
+          ASSET_NAME: avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.tar.gz
         with:
           upload_url: ${{ needs.create-release.outputs.release_upload_url }}
-          asset_path: ./results/avante_lib-${{ matrix.os }}-${{ matrix.feature }}.tar.gz
+          asset_path: ./results/avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.tar.gz
       - name: Upload Release Asset (Windows)
         uses: shogo82148/actions-upload-release-asset@v1
-        if: ${{ matrix.os == 'windows-latest' }}
+        if: ${{ matrix.config.os_name == 'windows' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ASSET_NAME: avante_lib-${{ matrix.os }}-${{ matrix.feature }}.zip
+          ASSET_NAME: avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.zip
         with:
           upload_url: ${{ needs.create-release.outputs.release_upload_url }}
-          asset_path: ./results/avante_lib-${{ matrix.os }}-${{ matrix.feature }}.zip
+          asset_path: ./results/avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.zip
 
   publish-release:
     permissions:
