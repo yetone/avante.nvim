@@ -101,6 +101,7 @@ jobs:
       - name: Build all crates with glibc 2.17 # for glibc 2.17
         if: ${{ matrix.config.os_name == 'linux' }}
         run: |
+          apt-get install -y qemu qemu-user-static
           docker run \
             --rm \
             -v $(pwd):/workspace \
