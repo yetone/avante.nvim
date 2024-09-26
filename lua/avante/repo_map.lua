@@ -53,6 +53,14 @@ end
 local cache = {}
 
 function RepoMap.get_repo_map(file_ext)
+  local repo_map = RepoMap._get_repo_map(file_ext) or {}
+  if not repo_map or next(repo_map) == nil then
+    Utils.warn("The repo map is empty. Maybe do not support this language: " .. file_ext)
+  end
+  return repo_map
+end
+
+function RepoMap._get_repo_map(file_ext)
   file_ext = file_ext or vim.fn.expand("%:e")
   local project_root = Utils.root.get()
   local cache_key = project_root .. "." .. file_ext

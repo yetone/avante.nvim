@@ -40,18 +40,18 @@ pub enum Definition {
     Variable(Variable),
 }
 
-fn get_ts_language(language: &str) -> Result<LanguageFn, String> {
+fn get_ts_language(language: &str) -> Option<LanguageFn> {
     match language {
-        "rust" => Ok(tree_sitter_rust::LANGUAGE),
-        "python" => Ok(tree_sitter_python::LANGUAGE),
-        "javascript" => Ok(tree_sitter_javascript::LANGUAGE),
-        "typescript" => Ok(tree_sitter_typescript::LANGUAGE_TSX),
-        "go" => Ok(tree_sitter_go::LANGUAGE),
-        "c" => Ok(tree_sitter_c::LANGUAGE),
-        "cpp" => Ok(tree_sitter_cpp::LANGUAGE),
-        "lua" => Ok(tree_sitter_lua::LANGUAGE),
-        "ruby" => Ok(tree_sitter_ruby::LANGUAGE),
-        _ => Err(format!("Unsupported language: {language}")),
+        "rust" => Some(tree_sitter_rust::LANGUAGE),
+        "python" => Some(tree_sitter_python::LANGUAGE),
+        "javascript" => Some(tree_sitter_javascript::LANGUAGE),
+        "typescript" => Some(tree_sitter_typescript::LANGUAGE_TSX),
+        "go" => Some(tree_sitter_go::LANGUAGE),
+        "c" => Some(tree_sitter_c::LANGUAGE),
+        "cpp" => Some(tree_sitter_cpp::LANGUAGE),
+        "lua" => Some(tree_sitter_lua::LANGUAGE),
+        "ruby" => Some(tree_sitter_ruby::LANGUAGE),
+        _ => None,
     }
 }
 
@@ -66,7 +66,11 @@ const TYPESCRIPT_QUERY: &str = include_str!("../queries/tree-sitter-typescript-d
 const RUBY_QUERY: &str = include_str!("../queries/tree-sitter-ruby-defs.scm");
 
 fn get_definitions_query(language: &str) -> Result<Query, String> {
-    let ts_language = get_ts_language(language)?;
+    let ts_language = get_ts_language(language);
+    if ts_language.is_none() {
+        return Err(format!("Unsupported language: {language}"));
+    }
+    let ts_language = ts_language.unwrap();
     let contents = match language {
         "c" => C_QUERY,
         "cpp" => CPP_QUERY,
@@ -148,7 +152,13 @@ fn is_first_letter_uppercase(name: &str) -> bool {
 
 // Given a language, parse the given source code and return exported definitions
 fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, String> {
-    let ts_language = get_ts_language(language)?;
+    let ts_language = get_ts_language(language);
+
+    if ts_language.is_none() {
+        return Ok(vec![]);
+    }
+
+    let ts_language = ts_language.unwrap();
 
     let mut definitions = Vec::new();
     let mut parser = Parser::new();
@@ -889,6 +899,17 @@ mod tests {
         let stringified = stringify_definitions(&definitions);
         println!("{stringified}");
         let expected = "var test_var;func test_func(a, b) -> void;";
+        assert_eq!(stringified, expected);
+    }
+
+    #[test]
+    fn test_unsupported_language() {
+        let source = "print('Hello, world!')";
+        let definitions = extract_definitions("unknown", source).unwrap();
+
+        let stringified = stringify_definitions(&definitions);
+        println!("{stringified}");
+        let expected = "";
         assert_eq!(stringified, expected);
     }
 }
