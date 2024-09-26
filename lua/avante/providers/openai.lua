@@ -113,11 +113,12 @@ M.parse_curl_args = function(provider, code_opts)
   }
   if not P.env.is_local("openai") then headers["Authorization"] = "Bearer " .. provider.parse_api_key() end
 
-  -- NOTE: When using "o1" set streaming to false and remove max_tokens from the body
+  -- NOTE: When using "o1" set the supported parameters only
   local stream = true
   if base.model and string.find(base.model, "o1") then
     stream = false
     body_opts.max_tokens = nil
+    body_opts.temperature = 1
   end
 
   return {
