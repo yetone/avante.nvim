@@ -701,7 +701,11 @@ mod tests {
             InnerTestEnumField2,
         }
         pub fn test_fn(a: u32, b: u32) -> u32 {
-            a + b
+            let inner_var_in_func = 1;
+            struct InnerStructInFunc {
+                c: u32,
+            }
+            a + b + c
         }
         fn inner_test_fn(a: u32, b: u32) -> u32 {
             a + b
@@ -729,6 +733,10 @@ mod tests {
             innerTestField string
         }
         func (t *TestStruct) TestMethod(a int, b int) (int, error) {
+            var InnerVarInFunc int = 1
+            type InnerStructInFunc struct {
+                C int
+            }
             return a + b, nil
         }
         func (t *TestStruct) innerTestMethod(a int, b int) (int, error) {
@@ -767,8 +775,18 @@ mod tests {
                 self.a = a
                 self.b = b
             def test_method(self, a: int, b: int) -> int:
+                inner_var_in_method: int = 1
                 return a + b
         def test_func(a: int, b: int) -> int:
+            inner_var_in_func: str = "test"
+            class InnerClassInFunc:
+                def __init__(self, a, b):
+                    self.a = a
+                    self.b = b
+                def test_method(self, a: int, b: int) -> int:
+                    return a + b
+            def inne_func_in_func(a: int, b: int) -> int:
+                return a + b
             return a + b
         "#;
         let definitions = extract_definitions("python", source).unwrap();
@@ -792,6 +810,10 @@ mod tests {
                 this.b = b;
             }
             testMethod(a: number, b: number): number {
+                const innerConstInMethod: number = 1;
+                function innerFuncInMethod(a: number, b: number): number {
+                    return a + b;
+                }
                 return a + b;
             }
         }
@@ -800,6 +822,10 @@ mod tests {
             b: number;
         }
         export function testFunc(a: number, b: number) {
+            const innerConstInFunc: number = 1;
+            function innerFuncInFunc(a: number, b: number): number {
+                return a + b;
+            }
             return a + b;
         }
         export const testFunc2 = (a: number, b: number) => {
@@ -832,6 +858,10 @@ mod tests {
                 this.b = b;
             }
             testMethod(a, b) {
+                const innerConstInMethod = 1;
+                function innerFuncInMethod(a, b) {
+                    return a + b;
+                }
                 return a + b;
             }
         }
@@ -842,6 +872,10 @@ mod tests {
             }
         }
         export const testFunc = function(a, b) {
+            const innerConstInFunc = 1;
+            function innerFuncInFunc(a, b) {
+                return a + b;
+            }
             return a + b;
         }
         export const testFunc2 = (a, b) => {
@@ -865,6 +899,17 @@ mod tests {
         # This is a test comment
         test_var = "test"
         def test_func(a, b)
+            inner_var_in_func = "test"
+            class InnerClassInFunc
+                attr_accessor :a, :b
+                def initialize(a, b)
+                    @a = a
+                    @b = b
+                end
+                def test_method(a, b)
+                    return a + b
+                end
+            end
             return a + b
         end
         class TestClass
@@ -874,6 +919,10 @@ mod tests {
                 @b = b
             end
             def test_method(a, b)
+                inner_var_in_method = 1
+                def inner_func_in_method(a, b)
+                    return a + b
+                end
                 return a + b
             end
         end
@@ -892,6 +941,10 @@ mod tests {
         -- This is a test comment
         local test_var = "test"
         function test_func(a, b)
+            local inner_var_in_func = 1
+            function inner_func_in_func(a, b)
+                return a + b
+            end
             return a + b
         end
         "#;
