@@ -114,6 +114,10 @@ M.stream = function(opts)
     if data_match then Provider.parse_response(data_match, current_event_state, handler_opts) end
   end
 
+  local function parse_response_without_stream(data)
+    Provider.parse_response_without_stream(data, current_event_state, handler_opts)
+  end
+
   local completed = false
 
   local active_job
@@ -168,6 +172,14 @@ M.stream = function(opts)
               "API request failed with status " .. result.status .. ". Body: " .. vim.inspect(result.body)
             )
           end
+        end)
+      end
+
+      -- If stream is not enabled, then handle the response here
+      if spec.body.stream == false and result.status == 200 then
+        vim.schedule(function()
+          completed = true
+          parse_response_without_stream(result.body)
         end)
       end
     end,
