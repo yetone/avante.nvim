@@ -1403,6 +1403,24 @@ function Sidebar:create_input(opts)
     end,
   })
 
+  -- Unregister completion
+  api.nvim_create_autocmd("BufLeave", {
+    group = self.augroup,
+    buffer = self.input.bufnr,
+    once = false,
+    desc = "Unregister the completion of helpers in the input buffer",
+    callback = function()
+      local has_cmp, cmp = pcall(require, "cmp")
+      if has_cmp then
+        for _, source in ipairs(cmp.core:get_sources()) do
+          if source.name == "avante_commands" or source.name == "avante_mentions" then
+            cmp.unregister_source(source.id)
+          end
+        end
+      end
+    end,
+  })
+
   -- Close the floating window
   local function close_hint()
     if hint_window and api.nvim_win_is_valid(hint_window) then
