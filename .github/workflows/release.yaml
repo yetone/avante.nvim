@@ -89,6 +89,9 @@ jobs:
           targets: ${{ matrix.config.rust_target }}
           toolchain: 1.80.0
 
+      - uses: goto-bus-stop/setup-zig@v2
+        if: ${{ matrix.config.os_name == 'linux' }}
+
       - name: Install cargo-zigbuild
         if: ${{ matrix.config.os_name == 'linux' }}
         uses: baptiste0928/cargo-install@v3
