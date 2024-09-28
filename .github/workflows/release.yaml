@@ -56,6 +56,8 @@ jobs:
             os_name: linux
             arch: x86_64
             rust_target: x86_64-unknown-linux-gnu
+            docker_platform: linux/amd64
+            container: quay.io/pypa/manylinux2014_x86_64 # for glibc 2.17
           - os: ubuntu-latest
             os_name: linux
             arch: aarch64
@@ -83,27 +85,28 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: Swatinem/rust-cache@v2
-
+        if: ${{ matrix.config.container == null }}
       - uses: dtolnay/rust-toolchain@master
+        if: ${{ matrix.config.container == null }}
         with:
           targets: ${{ matrix.config.rust_target }}
           toolchain: 1.80.0
-
-      - name: Install cargo-zigbuild
-        if: ${{ matrix.config.os_name == 'linux' }}
-        uses: baptiste0928/cargo-install@v3
-        with:
-          crate: cargo-zigbuild
-
       - name: Build all crates
-        if: ${{ matrix.config.os_name != 'linux' }}
+        if: ${{ matrix.config.container == null }}
         run: |
           cargo build --release --features ${{ matrix.feature }}
 
-      - name: Build all crates with glibc 2.17
-        if: ${{ matrix.config.os_name == 'linux' }}
+      - name: Build all crates with glibc 2.17 # for glibc 2.17
+        if: ${{ matrix.config.container != null }}
         run: |
-          cargo zigbuild --target ${{ matrix.config.rust_target }}.2.17 --release --features ${{ matrix.feature }}
+          # sudo apt-get install -y qemu qemu-user-static
+          docker run \
+            --rm \
+            -v $(pwd):/workspace \
+            -w /workspace \
+            --platform ${{ matrix.config.docker_platform }} \
+            ${{ matrix.config.container }} \
+            bash -c "yum install -y openssl-devel && curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && . /root/.cargo/env && cargo build --release --features ${{ matrix.feature }}"
 
       - name: Handle binaries
         if: ${{ matrix.config.os_name != 'windows' }}
