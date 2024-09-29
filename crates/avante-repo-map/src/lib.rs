@@ -154,15 +154,6 @@ fn zig_find_parent_variable_declaration_name<'a>(
     None
 }
 
-// Zig-specific function to find the parent variable declaration
-fn zig_find_parent_variable_declaration<'a>(node: &'a Node, source: &'a [u8]) -> Option<String> {
-    let vardec = find_ancestor_by_type(node, "variable_declaration");
-    if let Some(vardec) = vardec {
-        return Some(get_node_text(&vardec, source));
-    }
-    None
-}
-
 fn zig_is_declaration_public<'a>(node: &'a Node, declaration_type: &str, source: &'a [u8]) -> bool {
     let declaration = find_ancestor_by_type(node, declaration_type);
     if let Some(declaration) = declaration {
@@ -346,7 +337,7 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                     if !zig_is_variable_declaration_public(&node, source.as_bytes()) {
                         continue;
                     }
-                    let mut union_name =
+                    let union_name =
                         zig_find_parent_variable_declaration_name(&node, source.as_bytes())
                             .unwrap_or_default();
                     ensure_union_def(&union_name, &mut union_def_map);
@@ -497,7 +488,7 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                         continue;
                     }
 
-                    let mut value_type = get_node_type(&node, source.as_bytes());
+                    let value_type = get_node_type(&node, source.as_bytes());
 
                     if language == "zig" {
                         // when top level class is not public, skip
