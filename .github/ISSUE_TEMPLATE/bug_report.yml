@@ -40,12 +40,12 @@ body:
   - type: textarea
     id: how-to-install
     validations:
-      required: false
+      required: true
     attributes:
-      label: How to install
+      label: Installation method
       description: |
         Please share your installation method with us.
-      placeholder: |
+      value: |
         Use lazy.nvim:
         ```lua
         {
