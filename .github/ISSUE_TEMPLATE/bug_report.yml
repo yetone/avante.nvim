@@ -42,7 +42,7 @@ body:
     attributes:
       label: Environment
       description: |
-        Please share your environment with us, including your neovim version using `nvim -v`.
+        Please share your environment with us, including your neovim version using `nvim -v` and `uname -a`.
       placeholder: |
         neovim version: ...
         distribution (if any): ...
