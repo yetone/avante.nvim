@@ -330,12 +330,12 @@ local function extract_code_snippets(code_content, response_content)
 
   for idx, line in ipairs(vim.split(response_content, "\n")) do
     local _, start_line_str, end_line_str =
-      line:match("^%*%*%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)")
+      line:match("^%*?%*?%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)")
     if start_line_str ~= nil and end_line_str ~= nil then
       start_line = tonumber(start_line_str)
       end_line = tonumber(end_line_str)
     else
-      _, start_line_str = line:match("^%*%*%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ine:?%s*(%d+)")
+      _, start_line_str = line:match("^%*?%*?%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ine:?%s*(%d+)")
       if start_line_str ~= nil then
         start_line = tonumber(start_line_str)
         end_line = tonumber(start_line_str)
