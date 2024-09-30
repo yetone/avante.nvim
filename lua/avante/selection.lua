@@ -362,7 +362,13 @@ function Selection:create_editing_input()
     ---@type AvanteChunkParser
     local on_chunk = function(chunk)
       full_response = full_response .. chunk
-      local response_lines = vim.split(full_response, "\n")
+      local response_lines_ = vim.split(full_response, "\n")
+      local response_lines = {}
+      for i, line in ipairs(response_lines_) do
+        if not (string.match(line, "^```") and (i == 1 or i == #response_lines_)) then
+          table.insert(response_lines, line)
+        end
+      end
       if #response_lines == 1 then
         local first_line = response_lines[1]
         local first_line_indentation = Utils.get_indentation(first_line)
