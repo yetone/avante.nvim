@@ -23,7 +23,9 @@ M.defaults = {
   -- You can use `require('avante.config').override({system_prompt = "MY_SYSTEM_PROMPT"}) conditionally
   -- in your own autocmds to do it per directory, or that fit your needs.
   system_prompt = [[
-You are an excellent programming expert.
+Act as an expert software developer.
+Always use best practices when coding.
+Respect and use existing conventions, libraries, etc that are already present in the code base.
 ]],
   ---@type AvanteSupportedProvider
   openai = {

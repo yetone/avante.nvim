@@ -133,51 +133,6 @@ function Sidebar:toggle(opts)
   end
 end
 
-local function realign_line_numbers(code_lines, snippet)
-  local snippet_lines = vim.split(snippet.content, "\n")
-  local snippet_lines_count = #snippet_lines
-
-  local start_line = snippet.range[1]
-
-  local correct_start
-  for i = start_line, math.max(1, start_line - snippet_lines_count + 1), -1 do
-    local matched = true
-    for j = 1, math.min(snippet_lines_count, start_line - i + 1) do
-      if code_lines[i + j - 1] ~= snippet_lines[j] then
-        matched = false
-        break
-      end
-    end
-    if matched then
-      correct_start = i
-      break
-    end
-  end
-
-  local end_line = snippet.range[2]
-
-  local correct_end
-  for i = snippet_lines_count - 1, 1, -1 do
-    local matched = true
-    for j = 1, i do
-      if code_lines[end_line + j - 1] ~= snippet_lines[snippet_lines_count - j] then
-        matched = false
-        break
-      end
-    end
-    if matched then
-      correct_end = end_line + i
-      break
-    end
-  end
-
-  if correct_start then snippet.range[1] = correct_start end
-
-  if correct_end then snippet.range[2] = correct_end end
-
-  return snippet
-end
-
 ---@class AvanteReplacementResult
 ---@field content string
 ---@field is_searching boolean
@@ -317,11 +272,9 @@ end
 ---@field start_line_in_response_buf integer
 ---@field end_line_in_response_buf integer
 
----@param code_content string
 ---@param response_content string
 ---@return AvanteCodeSnippet[]
-local function extract_code_snippets(code_content, response_content)
-  local code_lines = vim.split(code_content, "\n")
+local function extract_code_snippets(response_content)
   local snippets = {}
   local current_snippet = {}
   local in_code_block = false
@@ -358,7 +311,6 @@ local function extract_code_snippets(code_content, response_content)
             start_line_in_response_buf = start_line_in_response_buf,
             end_line_in_response_buf = idx,
           }
-          snippet = realign_line_numbers(code_lines, snippet)
           table.insert(snippets, snippet)
         end
         current_snippet = {}
@@ -448,7 +400,6 @@ local function insert_conflict_contents(bufnr, snippets)
     local snippet_lines = vim.split(snippet.content, "\n")
 
     for idx, line in ipairs(snippet_lines) do
-      line = Utils.trim_line_number(line)
       if idx == 1 then
         local indentation = Utils.get_indentation(line)
         need_prepend_indentation = indentation ~= original_start_line_indentation
@@ -512,7 +463,7 @@ end
 function Sidebar:apply(current_cursor)
   local content = table.concat(Utils.get_buf_lines(0, -1, self.code.bufnr), "\n")
   local response, response_start_line = self:get_content_between_separators()
-  local all_snippets = extract_code_snippets(content, response)
+  local all_snippets = extract_code_snippets(response)
   all_snippets = ensure_snippets_no_overlap(content, all_snippets)
   local selected_snippets = {}
   if current_cursor then
@@ -951,7 +902,7 @@ function Sidebar:is_focused_on(winid)
 end
 
 ---@param content string concatenated content of the buffer
----@param opts? {focus?: boolean, stream?: boolean, scroll?: boolean, callback?: fun(): nil} whether to focus the result view
+---@param opts? {focus?: boolean, stream?: boolean, scroll?: boolean, backspace?: integer, callback?: fun(): nil} whether to focus the result view
 function Sidebar:update_content(content, opts)
   if not self.result or not self.result.bufnr then return end
   opts = vim.tbl_deep_extend("force", { focus = true, scroll = true, stream = false, callback = nil }, opts or {})
@@ -974,8 +925,18 @@ function Sidebar:update_content(content, opts)
     vim.schedule(function()
       if not self.result or not self.result.bufnr or not api.nvim_buf_is_valid(self.result.bufnr) then return end
       scroll_to_bottom()
-      local lines = vim.split(content, "\n")
       Utils.unlock_buf(self.result.bufnr)
+      if opts.backspace ~= nil then
+        -- Delete the specified number of char from the end of the buffer
+        -- sends the buffer to the backend
+        for _ = 1, opts.backspace do
+          api.nvim_buf_call(
+            self.result.bufnr,
+            function() api.nvim_feedkeys(api.nvim_replace_termcodes("<BS>", true, false, true), "n", true) end
+          )
+        end
+      end
+      local lines = vim.split(content, "\n")
       api.nvim_buf_call(self.result.bufnr, function() api.nvim_put(lines, "c", true, true) end)
       Utils.lock_buf(self.result.bufnr)
       api.nvim_set_option_value("filetype", "Avante", { buf = self.result.bufnr })
@@ -1197,15 +1158,11 @@ function Sidebar:create_input(opts)
     self:update_content(content_prefix .. "**Generating response ...**\n")
 
     local content = table.concat(Utils.get_buf_lines(0, -1, self.code.bufnr), "\n")
-    local content_with_line_numbers = Utils.prepend_line_number(content)
 
     local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
 
-    local selected_code_content_with_line_numbers = nil
-    if self.code.selection ~= nil then
-      selected_code_content_with_line_numbers =
-        Utils.prepend_line_number(self.code.selection.content, self.code.selection.range.start.line)
-    end
+    local selected_code_content = nil
+    if self.code.selection ~= nil then selected_code_content = self.code.selection.content end
 
     if request:sub(1, 1) == "/" then
       local command, args = request:match("^/(%S+)%s*(.*)")
@@ -1228,10 +1185,8 @@ function Sidebar:create_input(opts)
               Utils.error("Invalid end line number", { once = true, title = "Avante" })
               return
             end
-            selected_code_content_with_line_numbers = Utils.prepend_line_number(
-              table.concat(api.nvim_buf_get_lines(self.code.bufnr, start_line - 1, end_line, false), "\n"),
-              start_line
-            )
+            selected_code_content =
+              table.concat(api.nvim_buf_get_lines(self.code.bufnr, start_line - 1, end_line, false), "\n")
             request = question
           end)
         else
@@ -1244,20 +1199,36 @@ function Sidebar:create_input(opts)
       end
     end
 
-    local full_response = ""
+    local original_response = ""
+    local transformed_response = ""
+    local displayed_response = ""
 
     local is_first_chunk = true
 
+    local prev_is_searching = false
+
     ---@type AvanteChunkParser
     local on_chunk = function(chunk)
-      full_response = full_response .. chunk
+      original_response = original_response .. chunk
+      local transformed = transform_result_content(content, transformed_response .. chunk, filetype)
+      transformed_response = transformed.content
+      prev_is_searching = transformed.is_searching
+      local cur_displayed_response = generate_display_content(transformed)
       if is_first_chunk then
         is_first_chunk = false
         self:update_content(content_prefix .. chunk, { stream = false, scroll = true })
         return
       end
-      self:update_content(chunk, { stream = true, scroll = true })
-      vim.schedule(function() vim.cmd("redraw") end)
+      if cur_displayed_response ~= displayed_response then
+        local backspace = nil
+        if prev_is_searching and not transformed.is_searching then backspace = #searching_hints[1] end
+        displayed_response = cur_displayed_response
+        self:update_content(
+          content_prefix .. displayed_response,
+          { stream = false, scroll = true, backspace = backspace }
+        )
+        vim.schedule(function() vim.cmd("redraw") end)
+      end
     end
 
     ---@type AvanteCompleteParser
@@ -1286,7 +1257,8 @@ function Sidebar:create_input(opts)
         provider = Config.provider,
         model = model,
         request = request,
-        response = full_response,
+        response = displayed_response,
+        original_response = original_response,
       })
       Path.history.save(self.code.bufnr, chat_history)
     end
@@ -1302,9 +1274,9 @@ function Sidebar:create_input(opts)
       bufnr = self.code.bufnr,
       ask = opts.ask,
       project_context = vim.json.encode(project_context),
-      file_content = content_with_line_numbers,
+      file_content = content,
       code_lang = filetype,
-      selected_code = selected_code_content_with_line_numbers,
+      selected_code = selected_code_content,
       instructions = request,
       mode = "planning",
       on_chunk = on_chunk,
