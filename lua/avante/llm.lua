@@ -122,11 +122,15 @@ M.stream = function(opts)
 
   local active_job
 
+  local temp_file = vim.fn.tempname() .. ".json"
+  local json_content = vim.json.encode(spec.body)
+  vim.fn.writefile(vim.split(json_content, "\n"), temp_file)
+
   active_job = curl.post(spec.url, {
     headers = spec.headers,
     proxy = spec.proxy,
     insecure = spec.insecure,
-    body = vim.json.encode(spec.body),
+    body = temp_file,
     stream = function(err, data, _)
       if err then
         completed = true
