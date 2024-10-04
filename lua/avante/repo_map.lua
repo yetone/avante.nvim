@@ -14,9 +14,9 @@ local RepoMap = {}
 
 function RepoMap.setup()
   vim.defer_fn(function()
-    local ok, core = pcall(require, "avante_repo_map")
+    local ok, core = pcall(require, "avante.repo_map")
     if not ok then
-      error("Failed to load avante_repo_map")
+      error("Failed to load avante.repo_map")
       return
     end
 
