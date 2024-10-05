@@ -159,10 +159,12 @@ M.stream = function(opts)
     on_error = function()
       active_job = nil
       completed = true
+      pcall(os.remove, temp_file)
       opts.on_complete(nil)
     end,
     callback = function(result)
       active_job = nil
+      pcall(os.remove, temp_file)
       if result.status >= 400 then
         if Provider.on_error then
           Provider.on_error(result)
