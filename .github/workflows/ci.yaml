@@ -29,6 +29,18 @@ jobs:
         uses: lunarmodules/luacheck@v1
         with:
           args: ./lua/
+  rust-tests:
+    name: Run Rust tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+      - name: Run rust tests
+        run: cargo test --features luajit
   rust:
     name: Check Rust style
     runs-on: ubuntu-latest

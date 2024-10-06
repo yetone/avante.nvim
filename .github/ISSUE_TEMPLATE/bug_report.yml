@@ -38,11 +38,41 @@ body:
       label: Expected behavior
       description: 'A clear and concise description of what you would expect to happen.'
   - type: textarea
+    id: how-to-install
+    validations:
+      required: true
+    attributes:
+      label: Installation method
+      description: |
+        Please share your installation method with us.
+      value: |
+        Use lazy.nvim:
+        ```lua
+        {
+          "yetone/avante.nvim",
+          event = "VeryLazy",
+          lazy = false,
+          version = false, -- set this if you want to always pull the latest change
+          opts = {
+            -- add any opts here
+          },
+          -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
+          build = "make",
+          -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- for windows
+          dependencies = {
+            "nvim-treesitter/nvim-treesitter",
+            "stevearc/dressing.nvim",
+            "nvim-lua/plenary.nvim",
+            "MunifTanjim/nui.nvim",
+          },
+        }
+        ```
+  - type: textarea
     id: environment-info
     attributes:
       label: Environment
       description: |
-        Please share your environment with us, including your neovim version using `nvim -v`.
+        Please share your environment with us, including your neovim version using `nvim -v` and `uname -a`.
       placeholder: |
         neovim version: ...
         distribution (if any): ...

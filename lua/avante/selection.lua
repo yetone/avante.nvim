@@ -2,6 +2,7 @@ local Utils = require("avante.utils")
 local Config = require("avante.config")
 local Llm = require("avante.llm")
 local Provider = require("avante.providers")
+local RepoMap = require("avante.repo_map")
 
 local api = vim.api
 local fn = vim.fn
@@ -361,7 +362,13 @@ function Selection:create_editing_input()
     ---@type AvanteChunkParser
     local on_chunk = function(chunk)
       full_response = full_response .. chunk
-      local response_lines = vim.split(full_response, "\n")
+      local response_lines_ = vim.split(full_response, "\n")
+      local response_lines = {}
+      for i, line in ipairs(response_lines_) do
+        if not (string.match(line, "^```") and (i == 1 or i == #response_lines_)) then
+          table.insert(response_lines, line)
+        end
+      end
       if #response_lines == 1 then
         local first_line = response_lines[1]
         local first_line_indentation = Utils.get_indentation(first_line)
@@ -394,7 +401,7 @@ function Selection:create_editing_input()
 
     local mentions = Utils.extract_mentions(input)
     input = mentions.new_content
-    local project_context = mentions.enable_project_context and Utils.repo_map.get_repo_map(file_ext) or nil
+    local project_context = mentions.enable_project_context and RepoMap.get_repo_map(file_ext) or nil
 
     Llm.stream({
       bufnr = code_bufnr,

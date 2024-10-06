@@ -35,12 +35,16 @@ function Download-Prebuilt($feature) {
 
     # Set the platform to Windows
     $PLATFORM = "windows"
+    $ARCH = "x86_64"
+    if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") {
+        $ARCH = "aarch64"
+    }
 
     # Set the Lua version (lua51 or luajit)
     $LUA_VERSION = if ($feature) { $feature } else { "luajit" }
 
     # Set the artifact name pattern
-    $ARTIFACT_NAME_PATTERN = "avante_lib-$PLATFORM-latest-$LUA_VERSION"
+    $ARTIFACT_NAME_PATTERN = "avante_lib-$PLATFORM-$ARCH-$LUA_VERSION"
 
     # Get the artifact download URL
     $LATEST_RELEASE = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest"

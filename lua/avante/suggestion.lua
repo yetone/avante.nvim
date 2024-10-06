@@ -81,7 +81,7 @@ function Suggestion:suggest()
         Utils.error("Error while suggesting: " .. vim.inspect(err), { once = true, title = "Avante" })
         return
       end
-      Utils.debug("full_response: " .. vim.inspect(full_response))
+      Utils.debug("full_response:", full_response)
       vim.schedule(function()
         local cursor_row, cursor_col = Utils.get_cursor_pos()
         if cursor_row ~= doc.position.row or cursor_col ~= doc.position.col then return end

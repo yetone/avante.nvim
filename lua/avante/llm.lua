@@ -84,7 +84,7 @@ M.stream = function(opts)
     :filter(function(k) return k ~= "" end)
     :totable()
 
-  Utils.debug(user_prompts)
+  Utils.debug("user prompts:", user_prompts)
 
   ---@type AvantePromptOptions
   local code_opts = {
@@ -101,7 +101,7 @@ M.stream = function(opts)
   ---@type AvanteCurlOutput
   local spec = Provider.parse_curl_args(Provider, code_opts)
 
-  Utils.debug(spec)
+  Utils.debug("curl spec:", spec)
 
   ---@param line string
   local function parse_stream_data(line)
@@ -112,6 +112,10 @@ M.stream = function(opts)
     end
     local data_match = line:match("^data: (.+)$")
     if data_match then Provider.parse_response(data_match, current_event_state, handler_opts) end
+  end
+
+  local function parse_response_without_stream(data)
+    Provider.parse_response_without_stream(data, current_event_state, handler_opts)
   end
 
   local completed = false
@@ -170,6 +174,14 @@ M.stream = function(opts)
           end
         end)
       end
+
+      -- If stream is not enabled, then handle the response here
+      if spec.body.stream == false and result.status == 200 then
+        vim.schedule(function()
+          completed = true
+          parse_response_without_stream(result.body)
+        end)
+      end
     end,
   })
 
@@ -181,7 +193,7 @@ M.stream = function(opts)
       -- Error: cannot resume dead coroutine
       if active_job then
         xpcall(function() active_job:shutdown() end, function(err) return err end)
-        Utils.debug("LLM request cancelled", { title = "Avante" })
+        Utils.debug("LLM request cancelled")
         active_job = nil
       end
     end,

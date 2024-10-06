@@ -1,6 +1,7 @@
 # avante.nvim
 
-[![CI](https://github.com/yetone/avante.nvim/actions/workflows/ci.yaml/badge.svg)](https://github.com/yetone/avante.nvim/actions/workflows/ci.yaml)
+[![neovim: v0.10+](https://img.shields.io/static/v1?style=flat-square&label=neovim&message=v0.10%2b&logo=neovim&labelColor=282828&logoColor=8faa80&color=414b32)](https://neovim.io/)
+[![CI status](https://img.shields.io/github/actions/workflow/status/yetone/avante.nvim/ci.yaml?style=flat-square&logo=github&logoColor=c7c7c7&label=CI&labelColor=282828&event=push)](https://github.com/yetone/avante.nvim/actions/workflows/ci.yaml)
 
 **avante.nvim** is a Neovim plugin designed to emulate the behaviour of the [Cursor](https://www.cursor.com) AI IDE. It provides users with AI-driven code suggestions and the ability to apply these recommendations directly to their source files with minimal effort.
 
@@ -449,11 +450,12 @@ We would like to express our heartfelt gratitude to the contributors of the foll
 | Nvim Plugin | License | Functionality | Location |
 | --- | --- | --- | --- |
 | [git-conflict.nvim](https://github.com/akinsho/git-conflict.nvim) | No License | Diff comparison functionality | [lua/avante/diff.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/diff.lua) |
-| [ChatGPT.nvim](https://github.com/jackMort/ChatGPT.nvim) | Apache 2.0 License | Calculation of tokens count | [avante/utils/tokens.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/utils/tokens.lua) |
-| [img-clip.nvim](https://github.com/HakonHarnes/img-clip.nvim) | MIT License | Clipboard image support | [avante/clipboard.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/clipboard.lua) |
-| [copilot.lua](https://github.com/zbirenbaum/copilot.lua) | MIT License | Copilot support | [avante/providers/copilot.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/copilot.lua) |
+| [ChatGPT.nvim](https://github.com/jackMort/ChatGPT.nvim) | Apache 2.0 License | Calculation of tokens count | [lua/avante/utils/tokens.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/utils/tokens.lua) |
+| [img-clip.nvim](https://github.com/HakonHarnes/img-clip.nvim) | MIT License | Clipboard image support | [lua/avante/clipboard.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/clipboard.lua) |
+| [copilot.lua](https://github.com/zbirenbaum/copilot.lua) | MIT License | Copilot support | [lua/avante/providers/copilot.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/copilot.lua) |
 | [jinja.vim](https://github.com/HiPhish/jinja.vim) | MIT License | Template filetype support | [syntax/jinja.vim](https://github.com/yetone/avante.nvim/blob/main/syntax/jinja.vim) |
-| [codecompanion.nvim](https://github.com/olimorris/codecompanion.nvim) | MIT License | Secrets logic support | [avante/providers/init.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/init.lua) |
+| [codecompanion.nvim](https://github.com/olimorris/codecompanion.nvim) | MIT License | Secrets logic support | [lua/avante/providers/init.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/init.lua) |
+| [aider](https://github.com/paul-gauthier/aider) | Apache 2.0 License | Planning mode user prompt | [lua/avante/templates/planning.avanterules](https://github.com/yetone/avante.nvim/blob/main/lua/avante/templates/planning.avanterules) |
 
 The high quality and ingenuity of these projects' source code have been immensely beneficial throughout our development process. We extend our sincere thanks and respect to the authors and contributors of these projects. It is the selfless dedication of the open-source community that drives projects like avante.nvim forward.
 

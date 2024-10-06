@@ -6,6 +6,7 @@ local lsp = vim.lsp
 ---@field tokens avante.utils.tokens
 ---@field root avante.utils.root
 ---@field repo_map avante.utils.repo_map
+---@field file avante.utils.file
 local M = {}
 
 setmetatable(M, {
@@ -122,7 +123,7 @@ M.safe_keymap_set = function(mode, lhs, rhs, opts)
 
   ok, H = pcall(require, "lazy.core.handler")
   if not ok then
-    M.debug("lazy.nvim is not available. Avante will use vim.keymap.set", { once = true })
+    M.debug("lazy.nvim is not available. Avante will use vim.keymap.set")
     vim.keymap.set(mode, lhs, rhs, opts)
     return
   end
@@ -323,18 +324,21 @@ function M.warn(msg, opts)
   M.notify(msg, opts)
 end
 
----@param msg string|table
----@param opts? LazyNotifyOpts
-function M.debug(msg, opts)
+function M.debug(...)
   if not require("avante.config").options.debug then return end
-  opts = opts or {}
-  if opts.title then opts.title = "avante.nvim: " .. opts.title end
-  if type(msg) == "string" then
-    M.notify(msg, opts)
-  else
-    opts.lang = "lua"
-    M.notify(vim.inspect(msg), opts)
+
+  local args = { ... }
+  if #args == 0 then return end
+  local timestamp = os.date("%Y-%m-%d %H:%M:%S")
+  local formated_args = { "[" .. timestamp .. "] [AVANTE] [DEBUG]" }
+  for _, arg in ipairs(args) do
+    if type(arg) == "string" then
+      table.insert(formated_args, arg)
+    else
+      table.insert(formated_args, vim.inspect(arg))
+    end
   end
+  print(unpack(formated_args))
 end
 
 function M.tbl_indexof(tbl, value)
