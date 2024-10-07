@@ -450,11 +450,12 @@ We would like to express our heartfelt gratitude to the contributors of the foll
 | Nvim Plugin | License | Functionality | Location |
 | --- | --- | --- | --- |
 | [git-conflict.nvim](https://github.com/akinsho/git-conflict.nvim) | No License | Diff comparison functionality | [lua/avante/diff.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/diff.lua) |
-| [ChatGPT.nvim](https://github.com/jackMort/ChatGPT.nvim) | Apache 2.0 License | Calculation of tokens count | [avante/utils/tokens.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/utils/tokens.lua) |
-| [img-clip.nvim](https://github.com/HakonHarnes/img-clip.nvim) | MIT License | Clipboard image support | [avante/clipboard.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/clipboard.lua) |
-| [copilot.lua](https://github.com/zbirenbaum/copilot.lua) | MIT License | Copilot support | [avante/providers/copilot.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/copilot.lua) |
+| [ChatGPT.nvim](https://github.com/jackMort/ChatGPT.nvim) | Apache 2.0 License | Calculation of tokens count | [lua/avante/utils/tokens.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/utils/tokens.lua) |
+| [img-clip.nvim](https://github.com/HakonHarnes/img-clip.nvim) | MIT License | Clipboard image support | [lua/avante/clipboard.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/clipboard.lua) |
+| [copilot.lua](https://github.com/zbirenbaum/copilot.lua) | MIT License | Copilot support | [lua/avante/providers/copilot.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/copilot.lua) |
 | [jinja.vim](https://github.com/HiPhish/jinja.vim) | MIT License | Template filetype support | [syntax/jinja.vim](https://github.com/yetone/avante.nvim/blob/main/syntax/jinja.vim) |
-| [codecompanion.nvim](https://github.com/olimorris/codecompanion.nvim) | MIT License | Secrets logic support | [avante/providers/init.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/init.lua) |
+| [codecompanion.nvim](https://github.com/olimorris/codecompanion.nvim) | MIT License | Secrets logic support | [lua/avante/providers/init.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/init.lua) |
+| [aider](https://github.com/paul-gauthier/aider) | Apache 2.0 License | Planning mode user prompt | [lua/avante/templates/planning.avanterules](https://github.com/yetone/avante.nvim/blob/main/lua/avante/templates/planning.avanterules) |
 
 The high quality and ingenuity of these projects' source code have been immensely beneficial throughout our development process. We extend our sincere thanks and respect to the authors and contributors of these projects. It is the selfless dedication of the open-source community that drives projects like avante.nvim forward.
 
