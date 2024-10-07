@@ -297,7 +297,7 @@ local function extract_code_snippets(response_content)
         start_line = tonumber(start_line_str)
         end_line = tonumber(start_line_str)
       else
-        start_line_str = clean_line:match("after%s+line:?%s*(%d+)")
+        start_line_str = clean_line:match("[Aa]fter%s+[Ll]ine:?%s*(%d+)")
         if start_line_str ~= nil then
           start_line = tonumber(start_line_str) + 1
           end_line = tonumber(start_line_str) + 1
