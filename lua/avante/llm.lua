@@ -1,4 +1,5 @@
 local api = vim.api
+local fn = vim.fn
 
 local curl = require("plenary.curl")
 
@@ -101,8 +102,6 @@ M.stream = function(opts)
   ---@type AvanteCurlOutput
   local spec = Provider.parse_curl_args(Provider, code_opts)
 
-  Utils.debug("curl spec:", spec)
-
   ---@param line string
   local function parse_stream_data(line)
     local event = line:match("^event: (.+)$")
@@ -122,11 +121,22 @@ M.stream = function(opts)
 
   local active_job
 
+  local curl_body_file = fn.tempname() .. ".json"
+  local json_content = vim.json.encode(spec.body)
+  fn.writefile(vim.split(json_content, "\n"), curl_body_file)
+
+  Utils.debug("curl body file:", curl_body_file)
+
+  local function cleanup()
+    if Config.debug then return end
+    vim.schedule(function() fn.delete(curl_body_file) end)
+  end
+
   active_job = curl.post(spec.url, {
     headers = spec.headers,
     proxy = spec.proxy,
     insecure = spec.insecure,
-    body = vim.json.encode(spec.body),
+    body = curl_body_file,
     stream = function(err, data, _)
       if err then
         completed = true
@@ -155,10 +165,12 @@ M.stream = function(opts)
     on_error = function()
       active_job = nil
       completed = true
+      cleanup()
       opts.on_complete(nil)
     end,
     callback = function(result)
       active_job = nil
+      cleanup()
       if result.status >= 400 then
         if Provider.on_error then
           Provider.on_error(result)
