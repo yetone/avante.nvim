@@ -1218,11 +1218,7 @@ function Sidebar:create_input(opts)
       transformed_response = transformed.content
       prev_is_searching = transformed.is_searching
       local cur_displayed_response = generate_display_content(transformed)
-      if is_first_chunk then
-        is_first_chunk = false
-        self:update_content(content_prefix .. chunk, { stream = false, scroll = true })
-        return
-      end
+      if is_first_chunk then is_first_chunk = false end
       if cur_displayed_response ~= displayed_response then
         local backspace = nil
         if prev_is_searching and not transformed.is_searching then backspace = #searching_hints[1] end
