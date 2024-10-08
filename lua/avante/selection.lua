@@ -274,6 +274,11 @@ function Selection:create_editing_input()
 
   self.selection = Utils.get_visual_selection_and_range()
 
+  if self.selection == nil then
+    Utils.error("No visual selection found", { once = true, title = "Avante" })
+    return
+  end
+
   local start_row
   local start_col
   local end_row
