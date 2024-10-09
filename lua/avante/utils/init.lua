@@ -168,17 +168,14 @@ end
 ---Get the selected content and range in Visual mode
 ---@return avante.SelectionResult | nil Selected content and range
 function M.get_visual_selection_and_range()
+  if not M.in_visual_mode() then return nil end
+
   local Range = require("avante.range")
   local SelectionResult = require("avante.selection_result")
 
   -- Get the start and end positions of Visual mode
   local start_pos = fn.getpos("v")
   local end_pos = fn.getpos(".")
-
-  if not M.in_visual_mode() then
-    start_pos = fn.getpos("'<")
-    end_pos = fn.getpos("'>")
-  end
 
   -- Get the start and end line and column numbers
   local start_line = start_pos[2]
