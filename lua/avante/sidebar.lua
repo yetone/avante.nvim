@@ -282,18 +282,22 @@ local function extract_code_snippets(response_content)
   local explanation = ""
 
   for idx, line in ipairs(vim.split(response_content, "\n")) do
+    -- Remove bold formatting markers for consistent matching
+    local clean_line = line:gsub("%*%*", "")
+    clean_line = clean_line:gsub("%`", "")
+
     local _, start_line_str, end_line_str =
-      line:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)")
+      clean_line:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)")
     if start_line_str ~= nil and end_line_str ~= nil then
       start_line = tonumber(start_line_str)
       end_line = tonumber(end_line_str)
     else
-      _, start_line_str = line:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ine:?%s*(%d+)")
+      _, start_line_str = clean_line:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ine:?%s*(%d+)")
       if start_line_str ~= nil then
         start_line = tonumber(start_line_str)
         end_line = tonumber(start_line_str)
       else
-        start_line_str = line:match("[Aa]fter%s+[Ll]ine:?%s*(%d+)")
+        start_line_str = clean_line:match("[Aa]fter%s+[Ll]ine:?%s*(%d+)")
         if start_line_str ~= nil then
           start_line = tonumber(start_line_str) + 1
           end_line = tonumber(start_line_str) + 1
@@ -1214,11 +1218,7 @@ function Sidebar:create_input(opts)
       transformed_response = transformed.content
       prev_is_searching = transformed.is_searching
       local cur_displayed_response = generate_display_content(transformed)
-      if is_first_chunk then
-        is_first_chunk = false
-        self:update_content(content_prefix .. chunk, { stream = false, scroll = true })
-        return
-      end
+      if is_first_chunk then is_first_chunk = false end
       if cur_displayed_response ~= displayed_response then
         local backspace = nil
         if prev_is_searching and not transformed.is_searching then backspace = #searching_hints[1] end
