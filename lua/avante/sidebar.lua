@@ -145,7 +145,8 @@ end
 ---@param code_lang string
 ---@return AvanteReplacementResult
 local function transform_result_content(original_content, result_content, code_lang)
-  local transformed = ""
+  local transformed_lines = {}
+
   local original_lines = vim.split(original_content, "\n")
   local result_lines = vim.split(result_content, "\n")
 
@@ -154,50 +155,21 @@ local function transform_result_content(original_content, result_content, code_l
   local last_search_tag_start_line = 0
   local last_replace_tag_start_line = 0
 
-  local trim_breakline_suffix = false
+  local search_start = 0
 
   local i = 1
   while i <= #result_lines do
-    if result_lines[i] == "<SEARCH>" then
+    local line_content = result_lines[i]
+    if line_content == "<SEARCH>" then
       is_searching = true
+      search_start = i + 1
       last_search_tag_start_line = i
-      local search_start = i + 1
-      local search_end = search_start
-      while search_end <= #result_lines and result_lines[search_end] ~= "</SEARCH>" do
-        search_end = search_end + 1
-      end
+    elseif line_content == "</SEARCH>" then
+      is_searching = false
+      local search_end = i
 
-      if search_end > #result_lines then
-        trim_breakline_suffix = false
-        -- <SEARCH> tag is not closed, add remaining content and return
-        transformed = transformed .. table.concat(result_lines, "\n", i)
-        break
-      end
-
-      local replace_start = search_end + 2 -- Skip </SEARCH> and <REPLACE>
-      if replace_start > #result_lines or result_lines[replace_start - 1] ~= "<REPLACE>" then
-        trim_breakline_suffix = false
-        -- <REPLACE> tag is missing, add remaining content and return
-        transformed = transformed .. table.concat(result_lines, "\n", i)
-        break
-      end
-
-      is_replacing = true
-      last_replace_tag_start_line = replace_start - 1
-      local replace_end = replace_start
-      while replace_end <= #result_lines and result_lines[replace_end] ~= "</REPLACE>" do
-        replace_end = replace_end + 1
-      end
-
-      if replace_end > #result_lines then
-        trim_breakline_suffix = false
-        -- </REPLACE> tag is missing, add remaining content and return
-        transformed = transformed .. table.concat(result_lines, "\n", i)
-        break
-      end
-
-      -- Find the corresponding lines in the original content
-      local start_line, end_line
+      local start_line = 0
+      local end_line = 0
       for j = 1, #original_lines - (search_end - search_start) + 1 do
         local match = true
         for k = 0, search_end - search_start - 1 do
@@ -215,26 +187,37 @@ local function transform_result_content(original_content, result_content, code_l
         end
       end
 
-      if start_line and end_line then
-        transformed = transformed .. string.format("Replace lines: %d-%d\n```%s\n", start_line, end_line, code_lang)
-        for j = replace_start, replace_end - 1 do
-          transformed = transformed .. result_lines[j] .. "\n"
+      local search_start_tag_idx_in_transformed_lines = 0
+      for j = 1, #transformed_lines do
+        if transformed_lines[j] == "<SEARCH>" then
+          search_start_tag_idx_in_transformed_lines = j
+          break
         end
-        transformed = transformed .. "```\n"
       end
-
-      i = replace_end + 1 -- Move to the line after </REPLACE>
-      is_searching = false
+      if search_start_tag_idx_in_transformed_lines > 0 then
+        transformed_lines = vim.list_slice(transformed_lines, 1, search_start_tag_idx_in_transformed_lines - 1)
+      end
+      vim.list_extend(transformed_lines, {
+        string.format("Replace lines: %d-%d", start_line, end_line),
+        string.format("```%s", code_lang),
+      })
+      goto continue
+    elseif line_content == "<REPLACE>" then
+      is_replacing = true
+      last_replace_tag_start_line = i
+      goto continue
+    elseif line_content == "</REPLACE>" then
       is_replacing = false
-    else
-      trim_breakline_suffix = true
-      transformed = transformed .. result_lines[i] .. "\n"
-      i = i + 1
+      table.insert(transformed_lines, "```")
+      goto continue
     end
+    table.insert(transformed_lines, line_content)
+    ::continue::
+    i = i + 1
   end
 
   return {
-    content = trim_breakline_suffix and transformed:sub(1, -2) or transformed, -- Remove trailing newline
+    content = table.concat(transformed_lines, "\n"),
     is_searching = is_searching,
     is_replacing = is_replacing,
     last_search_tag_start_line = last_search_tag_start_line,
@@ -242,25 +225,69 @@ local function transform_result_content(original_content, result_content, code_l
   }
 end
 
-local searching_hints = { "\n 🔍   Searching...", "\n  🔍  Searching...", "\n   🔍 Searching..." }
-local searching_hint_idx = 1
+local spinner_chars = {
+  "⡀",
+  "⠄",
+  "⠂",
+  "⠁",
+  "⠈",
+  "⠐",
+  "⠠",
+  "⢀",
+  "⣀",
+  "⢄",
+  "⢂",
+  "⢁",
+  "⢈",
+  "⢐",
+  "⢠",
+  "⣠",
+  "⢤",
+  "⢢",
+  "⢡",
+  "⢨",
+  "⢰",
+  "⣰",
+  "⢴",
+  "⢲",
+  "⢱",
+  "⢸",
+  "⣸",
+  "⢼",
+  "⢺",
+  "⢹",
+  "⣹",
+  "⢽",
+  "⢻",
+  "⣻",
+  "⢿",
+  "⣿",
+  "⣶",
+  "⣤",
+  "⣀",
+}
+local spinner_index = 1
+
+local function get_searching_hint()
+  spinner_index = (spinner_index % #spinner_chars) + 1
+  local spinner = spinner_chars[spinner_index]
+  return "\n" .. spinner .. " Searching..."
+end
+
+local function get_display_content_suffix(replacement)
+  if replacement.is_searching then return get_searching_hint() end
+  return ""
+end
 
 ---@param replacement AvanteReplacementResult
 ---@return string
 local function generate_display_content(replacement)
-  local searching_hint = searching_hints[searching_hint_idx]
-  if searching_hint_idx >= #searching_hints then
-    searching_hint_idx = 1
-  else
-    searching_hint_idx = searching_hint_idx + 1
-  end
   if replacement.is_searching then
     return table.concat(
       vim.list_slice(vim.split(replacement.content, "\n"), 1, replacement.last_search_tag_start_line - 1),
       "\n"
-    ) .. searching_hint
+    )
   end
-  if replacement.is_replacing then return replacement.content .. "\n```" end
   return replacement.content
 end
 
@@ -901,6 +928,34 @@ function Sidebar:is_focused_on(winid)
   return false
 end
 
+local function delete_last_n_chars(bufnr, n)
+  bufnr = bufnr or api.nvim_get_current_buf()
+
+  local line_count = api.nvim_buf_line_count(bufnr)
+
+  while n > 0 and line_count > 0 do
+    local last_line = api.nvim_buf_get_lines(bufnr, line_count - 1, line_count, false)[1]
+
+    local total_chars_in_line = #last_line + 1
+
+    if total_chars_in_line > n then
+      local chars_to_keep = total_chars_in_line - n - 1 - 1
+      local new_last_line = last_line:sub(1, chars_to_keep)
+      if new_last_line == "" then
+        api.nvim_buf_set_lines(bufnr, line_count - 1, line_count, false, {})
+        line_count = line_count - 1
+      else
+        api.nvim_buf_set_lines(bufnr, line_count - 1, line_count, false, { new_last_line })
+      end
+      n = 0
+    else
+      n = n - total_chars_in_line
+      api.nvim_buf_set_lines(bufnr, line_count - 1, line_count, false, {})
+      line_count = line_count - 1
+    end
+  end
+end
+
 ---@param content string concatenated content of the buffer
 ---@param opts? {focus?: boolean, stream?: boolean, scroll?: boolean, backspace?: integer, callback?: fun(): nil} whether to focus the result view
 function Sidebar:update_content(content, opts)
@@ -924,18 +979,9 @@ function Sidebar:update_content(content, opts)
 
     vim.schedule(function()
       if not self.result or not self.result.bufnr or not api.nvim_buf_is_valid(self.result.bufnr) then return end
-      scroll_to_bottom()
       Utils.unlock_buf(self.result.bufnr)
-      if opts.backspace ~= nil then
-        -- Delete the specified number of char from the end of the buffer
-        -- sends the buffer to the backend
-        for _ = 1, opts.backspace do
-          api.nvim_buf_call(
-            self.result.bufnr,
-            function() api.nvim_feedkeys(api.nvim_replace_termcodes("<BS>", true, false, true), "n", true) end
-          )
-        end
-      end
+      if opts.backspace ~= nil and opts.backspace > 0 then delete_last_n_chars(self.result.bufnr, opts.backspace) end
+      scroll_to_bottom()
       local lines = vim.split(content, "\n")
       api.nvim_buf_call(self.result.bufnr, function() api.nvim_put(lines, "c", true, true) end)
       Utils.lock_buf(self.result.bufnr)
@@ -1133,6 +1179,8 @@ function Sidebar:create_selected_code()
   end
 end
 
+local generating_text = "**Generating response ...**\n"
+
 local hint_window = nil
 
 ---@param opts AskOptions
@@ -1155,7 +1203,7 @@ function Sidebar:create_input(opts)
     --- prevent the cursor from jumping to the bottom of the
     --- buffer at the beginning
     self:update_content("", { focus = true, scroll = false })
-    self:update_content(content_prefix .. "**Generating response ...**\n")
+    self:update_content(content_prefix .. generating_text)
 
     local content = table.concat(Utils.get_buf_lines(0, -1, self.code.bufnr), "\n")
 
@@ -1205,30 +1253,21 @@ function Sidebar:create_input(opts)
 
     local is_first_chunk = true
 
-    local prev_is_searching = false
-
     ---@type AvanteChunkParser
     local on_chunk = function(chunk)
       original_response = original_response .. chunk
       local transformed = transform_result_content(content, transformed_response .. chunk, filetype)
       transformed_response = transformed.content
-      prev_is_searching = transformed.is_searching
       local cur_displayed_response = generate_display_content(transformed)
       if is_first_chunk then
         is_first_chunk = false
         self:update_content(content_prefix .. chunk, { stream = false, scroll = true })
         return
       end
-      if cur_displayed_response ~= displayed_response then
-        local backspace = nil
-        if prev_is_searching and not transformed.is_searching then backspace = #searching_hints[1] end
-        displayed_response = cur_displayed_response
-        self:update_content(
-          content_prefix .. displayed_response,
-          { stream = false, scroll = true, backspace = backspace }
-        )
-        vim.schedule(function() vim.cmd("redraw") end)
-      end
+      local suffix = get_display_content_suffix(transformed)
+      self:update_content(content_prefix .. cur_displayed_response .. suffix, { stream = false, scroll = true })
+      vim.schedule(function() vim.cmd("redraw") end)
+      displayed_response = cur_displayed_response
     end
 
     ---@type AvanteCompleteParser

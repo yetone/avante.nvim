@@ -128,6 +128,7 @@ Keep *SEARCH/REPLACE* blocks concise.
 Break large *SEARCH/REPLACE* blocks into a series of smaller blocks that each change a small portion of the file.
 Include just the changing lines, and a few surrounding lines if needed for uniqueness.
 Do not include long runs of unchanging lines in *SEARCH/REPLACE* blocks.
+*DO NOT* include three backticks: {%raw%}```{%endraw%} in your response!
 
 Only create *SEARCH/REPLACE* blocks for files that the user has added to the chat!
 
