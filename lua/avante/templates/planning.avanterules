@@ -51,7 +51,7 @@ from flask import Flask
 <REPLACE>
 import math
 from flask import Flask
-<REPLACE>
+</REPLACE>
 
 mathweb/flask/app.py
 <SEARCH>
@@ -130,7 +130,7 @@ Include just the changing lines, and a few surrounding lines if needed for uniqu
 Do not include long runs of unchanging lines in *SEARCH/REPLACE* blocks.
 *DO NOT* include three backticks: {%raw%}```{%endraw%} in your response!
 {% if use_xml_format -%}
-ONLY change the <code>, DO NOT change the <conext>!
+ONLY change the <code>, DO NOT change the <context>!
 {% else -%}
 ONLY change the CODE, DO NOT change the CONTEXT!
 {% endif %}
