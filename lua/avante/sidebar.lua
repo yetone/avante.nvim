@@ -415,6 +415,7 @@ local function insert_conflict_contents(bufnr, snippets)
     local start_line, end_line = unpack(snippet.range)
 
     local need_prepend_indentation = false
+    local start_line_indentation = ""
     local original_start_line_indentation = Utils.get_indentation(lines[start_line] or "")
 
     local result = {}
@@ -428,10 +429,15 @@ local function insert_conflict_contents(bufnr, snippets)
 
     for idx, line in ipairs(snippet_lines) do
       if idx == 1 then
-        local indentation = Utils.get_indentation(line)
-        need_prepend_indentation = indentation ~= original_start_line_indentation
+        start_line_indentation = Utils.get_indentation(line)
+        need_prepend_indentation = start_line_indentation ~= original_start_line_indentation
       end
-      if need_prepend_indentation then line = original_start_line_indentation .. line end
+      if need_prepend_indentation then
+        if line:sub(1, #start_line_indentation) == start_line_indentation then
+          line = line:sub(#start_line_indentation + 1)
+        end
+        line = original_start_line_indentation .. line
+      end
       table.insert(result, line)
     end
 
@@ -445,7 +451,7 @@ end
 ---@param codeblocks table<integer, any>
 local function is_cursor_in_codeblock(codeblocks)
   local cursor_line, _ = Utils.get_cursor_pos()
-  cursor_line = cursor_line - 1 -- 转换为 0-indexed 行号
+  cursor_line = cursor_line - 1 -- transform to 0-indexed line number
 
   for _, block in ipairs(codeblocks) do
     if cursor_line >= block.start_line and cursor_line <= block.end_line then return block end

@@ -446,10 +446,16 @@ end
 
 ---@param code string
 ---@return string
-function M.get_indentation(code) return code:match("^%s*") or "" end
+function M.get_indentation(code)
+  if not code then return "" end
+  return code:match("^%s*") or ""
+end
 
 --- remove indentation from code: spaces or tabs
-function M.remove_indentation(code) return code:gsub("^%s*", "") end
+function M.remove_indentation(code)
+  if not code then return code end
+  return code:gsub("^%s*", "")
+end
 
 function M.relative_path(absolute)
   local relative = fn.fnamemodify(absolute, ":.")
