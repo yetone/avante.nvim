@@ -20,7 +20,7 @@ local P = require("avante.providers")
 ---
 ---@class OpenAIResponseChoiceComplete
 ---@field message OpenAIMessage
----@field finish_reason "stop" | "length"
+---@field finish_reason "stop" | "length" | "eos_token"
 ---@field index integer
 ---@field logprobs integer
 ---
@@ -84,7 +84,7 @@ M.parse_response = function(data_stream, _, opts)
     local json = vim.json.decode(data_stream)
     if json.choices and json.choices[1] then
       local choice = json.choices[1]
-      if choice.finish_reason == "stop" then
+      if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" then
         opts.on_complete(nil)
       elseif choice.delta.content then
         if choice.delta.content ~= vim.NIL then opts.on_chunk(choice.delta.content) end
