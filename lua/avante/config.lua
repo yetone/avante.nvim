@@ -144,6 +144,7 @@ Respect and use existing conventions, libraries, etc that are already present in
     ask = "<leader>aa",
     edit = "<leader>ae",
     refresh = "<leader>ar",
+    focus = "<leader>af",
     toggle = {
       default = "<leader>at",
       debug = "<leader>ad",

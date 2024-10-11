@@ -141,6 +141,32 @@ M.refresh = function(opts)
   sidebar:render(opts)
 end
 
+---@param opts? AskOptions
+M.focus = function(opts)
+  opts = opts or {}
+  local sidebar = require("avante").get()
+  if not sidebar then return end
+
+  local curbuf = vim.api.nvim_get_current_buf()
+  local curwin = vim.api.nvim_get_current_win()
+
+  if sidebar:is_open() then
+    if curbuf == sidebar.input.bufnr then
+      if sidebar.code.winid and sidebar.code.winid ~= curwin then vim.api.nvim_set_current_win(sidebar.code.winid) end
+    elseif curbuf == sidebar.result.bufnr then
+      if sidebar.code.winid and sidebar.code.winid ~= curwin then vim.api.nvim_set_current_win(sidebar.code.winid) end
+    else
+      if sidebar.input.winid and sidebar.input.winid ~= curwin then
+        vim.api.nvim_set_current_win(sidebar.input.winid)
+      end
+    end
+  else
+    if sidebar.code.winid then vim.api.nvim_set_current_win(sidebar.code.winid) end
+    sidebar:open(opts)
+    if sidebar.input.winid then vim.api.nvim_set_current_win(sidebar.input.winid) end
+  end
+end
+
 return setmetatable(M, {
   __index = function(t, k)
     local module = require("avante")
