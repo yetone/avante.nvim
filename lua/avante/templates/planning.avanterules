@@ -124,11 +124,11 @@ If the file contains code or other data wrapped/escaped in json/xml/quotes or ot
 *SEARCH/REPLACE* blocks will replace *all* matching occurrences.
 Include enough lines to make the SEARCH blocks uniquely match the lines to change.
 
+*DO NOT* include three backticks: {%raw%}```{%endraw%} in your response!
 Keep *SEARCH/REPLACE* blocks concise.
 Break large *SEARCH/REPLACE* blocks into a series of smaller blocks that each change a small portion of the file.
 Include just the changing lines, and a few surrounding lines if needed for uniqueness.
 Do not include long runs of unchanging lines in *SEARCH/REPLACE* blocks.
-*DO NOT* include three backticks: {%raw%}```{%endraw%} in your response!
 {% if use_xml_format -%}
 ONLY change the <code>, DO NOT change the <conext>!
 {% else -%}
