@@ -246,6 +246,8 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
       insert = "<C-s>",
     },
     sidebar = {
+      apply_all = "A",
+      apply_cursor = "a",
       switch_windows = "<Tab>",
       reverse_switch_windows = "<S-Tab>",
     },
