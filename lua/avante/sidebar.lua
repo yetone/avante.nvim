@@ -682,7 +682,16 @@ function Sidebar:on_mount(opts)
 
     current_apply_extmark_id =
       api.nvim_buf_set_extmark(self.result.bufnr, CODEBLOCK_KEYBINDING_NAMESPACE, block.start_line, -1, {
-        virt_text = { { " [<a>: apply this, <A>: apply all] ", "AvanteInlineHint" } },
+        virt_text = {
+          {
+            string.format(
+              " [<%s>: apply this, <%s>: apply all] ",
+              Config.mappings.sidebar.apply_cursor,
+              Config.mappings.sidebar.apply_all
+            ),
+            "AvanteInlineHint",
+          },
+        },
         virt_text_pos = "right_align",
         hl_group = "AvanteInlineHint",
         priority = PRIORITY,
@@ -692,19 +701,15 @@ function Sidebar:on_mount(opts)
   local function bind_apply_key()
     vim.keymap.set(
       "n",
-      "a",
+      Config.mappings.sidebar.apply_cursor,
       function() self:apply(true) end,
-      { buffer = self.result.bufnr, noremap = true, silent = true }
-    )
-    vim.keymap.set(
-      "n",
-      "A",
-      function() self:apply(false) end,
       { buffer = self.result.bufnr, noremap = true, silent = true }
     )
   end
 
-  local function unbind_apply_key() pcall(vim.keymap.del, "n", "A", { buffer = self.result.bufnr }) end
+  local function unbind_apply_key()
+    pcall(vim.keymap.del, "n", Config.mappings.sidebar.apply_cursor, { buffer = self.result.bufnr })
+  end
 
   ---@type AvanteCodeblock[]
   local codeblocks = {}
@@ -739,7 +744,13 @@ function Sidebar:on_mount(opts)
     end
   end
 
-  local function bind_jump_keys()
+  local function bind_sidebar_keys()
+    vim.keymap.set(
+      "n",
+      Config.mappings.sidebar.apply_all,
+      function() self:apply(false) end,
+      { buffer = self.result.bufnr, noremap = true, silent = true }
+    )
     vim.keymap.set(
       "n",
       Config.mappings.jump.next,
@@ -754,8 +765,9 @@ function Sidebar:on_mount(opts)
     )
   end
 
-  local function unbind_jump_keys()
+  local function unbind_sidebar_keys()
     if self.result and self.result.bufnr and api.nvim_buf_is_valid(self.result.bufnr) then
+      pcall(vim.keymap.del, "n", Config.mappings.sidebar.apply_all, { buffer = self.result.bufnr })
       pcall(vim.keymap.del, "n", Config.mappings.jump.next, { buffer = self.result.bufnr })
       pcall(vim.keymap.del, "n", Config.mappings.jump.prev, { buffer = self.result.bufnr })
     end
@@ -780,7 +792,7 @@ function Sidebar:on_mount(opts)
     buffer = self.result.bufnr,
     callback = function(ev)
       codeblocks = parse_codeblocks(ev.buf)
-      bind_jump_keys()
+      bind_sidebar_keys()
     end,
   })
 
@@ -789,13 +801,13 @@ function Sidebar:on_mount(opts)
     callback = function()
       if not self.result or not self.result.bufnr or not api.nvim_buf_is_valid(self.result.bufnr) then return end
       codeblocks = parse_codeblocks(self.result.bufnr)
-      bind_jump_keys()
+      bind_sidebar_keys()
     end,
   })
 
   api.nvim_create_autocmd("BufLeave", {
     buffer = self.result.bufnr,
-    callback = function() unbind_jump_keys() end,
+    callback = function() unbind_sidebar_keys() end,
   })
 
   self:render_result()
