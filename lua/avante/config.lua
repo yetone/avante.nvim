@@ -151,6 +151,8 @@ Respect and use existing conventions, libraries, etc that are already present in
       suggestion = "<leader>as",
     },
     sidebar = {
+      apply_all = "A",
+      apply_cursor = "a",
       switch_windows = "<Tab>",
       reverse_switch_windows = "<S-Tab>",
     },
