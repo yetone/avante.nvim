@@ -373,6 +373,12 @@ function M.get_win_options(winid, opt_name, key)
   end
 end
 
+function M.get_winid(bufnr)
+  for _, winid in ipairs(api.nvim_list_wins()) do
+    if api.nvim_win_get_buf(winid) == bufnr then return winid end
+  end
+end
+
 function M.unlock_buf(bufnr)
   vim.bo[bufnr].modified = false
   vim.bo[bufnr].modifiable = true
@@ -653,6 +659,27 @@ function M.get_mentions()
       details = "repo map",
     },
   }
+end
+
+function M.get_opened_buffer(filepath)
+  for _, buf in ipairs(api.nvim_list_bufs()) do
+    if fn.buflisted(buf) == 1 and fn.bufname(buf) == filepath then return buf end
+  end
+  return nil
+end
+
+function M.create_new_buffer_with_file(filepath)
+  local buf = api.nvim_create_buf(false, true)
+
+  api.nvim_buf_set_name(buf, filepath)
+
+  api.nvim_set_option_value("buftype", "", { buf = buf })
+
+  api.nvim_set_current_buf(buf)
+
+  vim.cmd("edit " .. filepath)
+
+  return buf
 end
 
 return M
