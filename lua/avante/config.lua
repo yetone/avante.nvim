@@ -172,6 +172,12 @@ Respect and use existing conventions, libraries, etc that are already present in
     },
     edit = {
       border = "rounded",
+      start_insert = true,
+    },
+    ask = {
+      floating = false,
+      border = "rounded",
+      start_insert = true,
     },
   },
   --- @class AvanteConflictConfig
