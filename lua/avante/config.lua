@@ -172,12 +172,12 @@ Respect and use existing conventions, libraries, etc that are already present in
     },
     edit = {
       border = "rounded",
-      start_insert = true,
+      start_insert = true, -- Start insert mode when opening the edit window
     },
     ask = {
-      floating = false,
+      floating = false, -- Open the 'AvanteAsk' prompt in a floating window
       border = "rounded",
-      start_insert = true,
+      start_insert = true, -- Start insert mode when opening the ask window
     },
   },
   --- @class AvanteConflictConfig
