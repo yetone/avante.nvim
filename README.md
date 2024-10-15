@@ -159,12 +159,10 @@ require('avante').setup ({
 
 </details>
 
-
 > [!IMPORTANT]
 >
 > For `avante.tokenizers` and templates to work, make sure to call `require('avante_lib').load()` somewhere when entering the editor.
 > We will leave the users to decide where it fits to do this, as this varies among configurations. (But we do recommend running this after where you set your colorscheme)
-
 
 > [!IMPORTANT]
 >
@@ -341,21 +339,22 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 
 The following key bindings are available for use with `avante.nvim`:
 
-| Key Binding | Description |
-|-------------|-------------|
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>a</kbd> | show sidebar |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>r</kbd> | refresh sidebar |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>e</kbd> | edit selected blocks |
-| <kbd>c</kbd><kbd>o</kbd> | choose ours |
-| <kbd>c</kbd><kbd>t</kbd> | choose theirs |
-| <kbd>c</kbd><kbd>a</kbd> | choose all theirs |
-| <kbd>c</kbd><kbd>0</kbd> | choose none |
-| <kbd>c</kbd><kbd>b</kbd> | choose both |
-| <kbd>c</kbd><kbd>c</kbd> | choose cursor |
-| <kbd>]</kbd><kbd>x</kbd> | move to previous conflict |
-| <kbd>[</kbd><kbd>x</kbd> | move to next conflict |
-| <kbd>[</kbd><kbd>[</kbd> | jump to previous codeblocks (results window) |
-| <kbd>]</kbd><kbd>]</kbd> | jump to next codeblocks (results windows) |
+| Key Binding                               | Description                                  |
+| ----------------------------------------- | -------------------------------------------- |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>a</kbd> | show sidebar                                 |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>r</kbd> | refresh sidebar                              |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>f</kbd> | switch sidebar focus                         |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>e</kbd> | edit selected blocks                         |
+| <kbd>c</kbd><kbd>o</kbd>                  | choose ours                                  |
+| <kbd>c</kbd><kbd>t</kbd>                  | choose theirs                                |
+| <kbd>c</kbd><kbd>a</kbd>                  | choose all theirs                            |
+| <kbd>c</kbd><kbd>0</kbd>                  | choose none                                  |
+| <kbd>c</kbd><kbd>b</kbd>                  | choose both                                  |
+| <kbd>c</kbd><kbd>c</kbd>                  | choose cursor                                |
+| <kbd>]</kbd><kbd>x</kbd>                  | move to previous conflict                    |
+| <kbd>[</kbd><kbd>x</kbd>                  | move to next conflict                        |
+| <kbd>[</kbd><kbd>[</kbd>                  | jump to previous codeblocks (results window) |
+| <kbd>]</kbd><kbd>]</kbd>                  | jump to next codeblocks (results windows)    |
 
 > [!NOTE]
 >
@@ -364,21 +363,20 @@ The following key bindings are available for use with `avante.nvim`:
 
 ## Highlight Groups
 
-
-| Highlight Group | Description | Notes |
-|-----------------|-------------|-------|
-| AvanteTitle | Title | |
-| AvanteReversedTitle | Used for rounded border | |
-| AvanteSubtitle | Selected code title | |
-| AvanteReversedSubtitle | Used for rounded border | |
-| AvanteThirdTitle | Prompt title | |
-| AvanteReversedThirdTitle | Used for rounded border | |
-| AvanteConflictCurrent | Current conflict highlight | Default to `Config.highlights.diff.current` |
-| AvanteConflictIncoming | Incoming conflict highlight | Default to `Config.highlights.diff.incoming` |
-| AvanteConflictCurrentLabel | Current conflict label highlight | Default to shade of `AvanteConflictCurrent` |
-| AvanteConflictIncomingLabel | Incoming conflict label highlight | Default to shade of `AvanteConflictIncoming` |
-| AvantePopupHint | Usage hints in popup menus | |
-| AvanteInlineHint | The end-of-line hint displayed in visual mode | |
+| Highlight Group             | Description                                   | Notes                                        |
+| --------------------------- | --------------------------------------------- | -------------------------------------------- |
+| AvanteTitle                 | Title                                         |                                              |
+| AvanteReversedTitle         | Used for rounded border                       |                                              |
+| AvanteSubtitle              | Selected code title                           |                                              |
+| AvanteReversedSubtitle      | Used for rounded border                       |                                              |
+| AvanteThirdTitle            | Prompt title                                  |                                              |
+| AvanteReversedThirdTitle    | Used for rounded border                       |                                              |
+| AvanteConflictCurrent       | Current conflict highlight                    | Default to `Config.highlights.diff.current`  |
+| AvanteConflictIncoming      | Incoming conflict highlight                   | Default to `Config.highlights.diff.incoming` |
+| AvanteConflictCurrentLabel  | Current conflict label highlight              | Default to shade of `AvanteConflictCurrent`  |
+| AvanteConflictIncomingLabel | Incoming conflict label highlight             | Default to shade of `AvanteConflictIncoming` |
+| AvantePopupHint             | Usage hints in popup menus                    |                                              |
+| AvanteInlineHint            | The end-of-line hint displayed in visual mode |                                              |
 
 See [highlights.lua](./lua/avante/highlights.lua) for more information
 
@@ -405,6 +403,7 @@ If one wish to custom prompts for each mode, `avante.nvim` will check for projec
 the following patterns: `*.{mode}.avanterules`.
 
 The rules for root hierarchy:
+
 - lsp workspace folders
 - lsp root_dir
 - root pattern of filename of the current buffer
@@ -415,14 +414,15 @@ The rules for root hierarchy:
   <summary>Example folder structure for custom prompt</summary>
 
 If you have the following structure:
-  ```bash
+
+```bash
 .
 ├── .git/
 ├── typescript.planning.avanterules
 ├── snippets.editing.avanterules
 └── src/
 
-  ```
+```
 
 - `typescript.planning.avanterules` will be used for `planning` mode
 - `snippets.editing.avanterules`` will be used for `editing` mode
@@ -433,7 +433,6 @@ If you have the following structure:
 > [!important]
 >
 > `*.avanterules` is a jinja template file, in which will be rendered using [minijinja](https://github.com/mitsuhiko/minijinja). See [templates](https://github.com/yetone/avante.nvim/blob/main/lua/avante/templates) for example on how to extend current templates.
-
 
 ## TODOs
 
@@ -461,15 +460,15 @@ See [wiki](https://github.com/yetone/avante.nvim/wiki) for more recipes and tric
 
 We would like to express our heartfelt gratitude to the contributors of the following open-source projects, whose code has provided invaluable inspiration and reference for the development of avante.nvim:
 
-| Nvim Plugin | License | Functionality | Location |
-| --- | --- | --- | --- |
-| [git-conflict.nvim](https://github.com/akinsho/git-conflict.nvim) | No License | Diff comparison functionality | [lua/avante/diff.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/diff.lua) |
-| [ChatGPT.nvim](https://github.com/jackMort/ChatGPT.nvim) | Apache 2.0 License | Calculation of tokens count | [lua/avante/utils/tokens.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/utils/tokens.lua) |
-| [img-clip.nvim](https://github.com/HakonHarnes/img-clip.nvim) | MIT License | Clipboard image support | [lua/avante/clipboard.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/clipboard.lua) |
-| [copilot.lua](https://github.com/zbirenbaum/copilot.lua) | MIT License | Copilot support | [lua/avante/providers/copilot.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/copilot.lua) |
-| [jinja.vim](https://github.com/HiPhish/jinja.vim) | MIT License | Template filetype support | [syntax/jinja.vim](https://github.com/yetone/avante.nvim/blob/main/syntax/jinja.vim) |
-| [codecompanion.nvim](https://github.com/olimorris/codecompanion.nvim) | MIT License | Secrets logic support | [lua/avante/providers/init.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/init.lua) |
-| [aider](https://github.com/paul-gauthier/aider) | Apache 2.0 License | Planning mode user prompt | [lua/avante/templates/planning.avanterules](https://github.com/yetone/avante.nvim/blob/main/lua/avante/templates/planning.avanterules) |
+| Nvim Plugin                                                           | License            | Functionality                 | Location                                                                                                                               |
+| --------------------------------------------------------------------- | ------------------ | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| [git-conflict.nvim](https://github.com/akinsho/git-conflict.nvim)     | No License         | Diff comparison functionality | [lua/avante/diff.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/diff.lua)                                             |
+| [ChatGPT.nvim](https://github.com/jackMort/ChatGPT.nvim)              | Apache 2.0 License | Calculation of tokens count   | [lua/avante/utils/tokens.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/utils/tokens.lua)                             |
+| [img-clip.nvim](https://github.com/HakonHarnes/img-clip.nvim)         | MIT License        | Clipboard image support       | [lua/avante/clipboard.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/clipboard.lua)                                   |
+| [copilot.lua](https://github.com/zbirenbaum/copilot.lua)              | MIT License        | Copilot support               | [lua/avante/providers/copilot.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/copilot.lua)                   |
+| [jinja.vim](https://github.com/HiPhish/jinja.vim)                     | MIT License        | Template filetype support     | [syntax/jinja.vim](https://github.com/yetone/avante.nvim/blob/main/syntax/jinja.vim)                                                   |
+| [codecompanion.nvim](https://github.com/olimorris/codecompanion.nvim) | MIT License        | Secrets logic support         | [lua/avante/providers/init.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/init.lua)                         |
+| [aider](https://github.com/paul-gauthier/aider)                       | Apache 2.0 License | Planning mode user prompt     | [lua/avante/templates/planning.avanterules](https://github.com/yetone/avante.nvim/blob/main/lua/avante/templates/planning.avanterules) |
 
 The high quality and ingenuity of these projects' source code have been immensely beneficial throughout our development process. We extend our sincere thanks and respect to the authors and contributors of these projects. It is the selfless dedication of the open-source community that drives projects like avante.nvim forward.
 
