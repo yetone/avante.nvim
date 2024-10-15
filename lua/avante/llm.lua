@@ -85,8 +85,6 @@ M.stream = function(opts)
     :filter(function(k) return k ~= "" end)
     :totable()
 
-  Utils.debug("user prompts:", user_prompts)
-
   ---@type AvantePromptOptions
   local code_opts = {
     system_prompt = Config.system_prompt,
