@@ -159,7 +159,7 @@ Respect and use existing conventions, libraries, etc that are already present in
     },
   },
   windows = {
-    ---@alias AvantePosition "right" | "left" | "top" | "bottom"
+    ---@alias AvantePosition "right" | "left" | "top" | "bottom" | "smart"
     position = "right",
     wrap = true, -- similar to vim.o.wrap
     width = 30, -- default % based on available width in vertical layout

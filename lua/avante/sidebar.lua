@@ -1084,8 +1084,26 @@ local function get_chat_record_prefix(timestamp, provider, model, request)
     .. "\n\n"
 end
 
+local function calculate_config_window_position()
+  local position = Config.windows.position
+  if position == "smart" then
+    -- get editor width
+    local editor_width = vim.o.columns
+    -- get editor height
+    local editor_height = vim.o.lines * 3
+
+    if editor_width > editor_height then
+      position = "right"
+    else
+      position = "bottom"
+    end
+  end
+
+  return position
+end
+
 function Sidebar:get_layout()
-  return vim.tbl_contains({ "left", "right" }, Config.windows.position) and "vertical" or "horizontal"
+  return vim.tbl_contains({ "left", "right" }, calculate_config_window_position()) and "vertical" or "horizontal"
 end
 
 function Sidebar:update_content_with_history(history)
@@ -1610,7 +1628,7 @@ function Sidebar:render(opts)
   local chat_history = Path.history.load(self.code.bufnr)
 
   local get_position = function()
-    return (opts and opts.win and opts.win.position) and opts.win.position or Config.windows.position
+    return (opts and opts.win and opts.win.position) and opts.win.position or calculate_config_window_position()
   end
 
   local get_height = function()
