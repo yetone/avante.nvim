@@ -271,7 +271,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     },
     ask = {
       floating = false, -- Open the 'AvanteAsk' prompt in a floating window
-      start_insert = true, -- Start insert mode when opening the ask window
+      start_insert = true, -- Start insert mode when opening the ask window, only effective if floating = true.
       border = "rounded",
     },
   },
