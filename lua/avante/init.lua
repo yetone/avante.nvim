@@ -357,6 +357,27 @@ M.toggle_sidebar = function(opts)
   return sidebar:toggle(opts)
 end
 
+M.is_sidebar_open = function()
+  local sidebar = M.get()
+  if not sidebar then return false end
+  return sidebar:is_open()
+end
+
+---@param opts? AskOptions
+M.open_sidebar = function(opts)
+  opts = opts or {}
+  if opts.ask == nil then opts.ask = true end
+  local sidebar = M.get()
+  if not sidebar then M._init(api.nvim_get_current_tabpage()) end
+  M.current.sidebar:open(opts)
+end
+
+M.close_sidebar = function()
+  local sidebar = M.get()
+  if not sidebar then return end
+  sidebar:close()
+end
+
 M.toggle.debug = H.api(Utils.toggle_wrap({
   name = "debug",
   get = function() return Config.debug end,

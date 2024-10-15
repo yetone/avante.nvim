@@ -65,18 +65,24 @@ function Sidebar:reset()
   self.input = nil
 end
 
----@param opts AskOptions
+---@class SidebarOpenOptions: AskOptions
+---@field selection? avante.SelectionResult
+
+---@param opts SidebarOpenOptions
 function Sidebar:open(opts)
+  opts = opts or {}
   local in_visual_mode = Utils.in_visual_mode() and self:in_code_win()
   if not self:is_open() then
     self:reset()
     self:initialize()
+    if opts.selection then self.code.selection = opts.selection end
     self:render(opts)
   else
-    if in_visual_mode then
+    if in_visual_mode or opts.selection then
       self:close()
       self:reset()
       self:initialize()
+      if opts.selection then self.code.selection = opts.selection end
       self:render(opts)
       return self
     end
@@ -92,12 +98,19 @@ function Sidebar:open(opts)
   return self
 end
 
-function Sidebar:close()
+---@class SidebarCloseOptions
+---@field goto_code_win? boolean
+
+---@param opts? SidebarCloseOptions
+function Sidebar:close(opts)
+  opts = vim.tbl_extend("force", { goto_code_win = true }, opts or {})
   self:delete_autocmds()
   for _, comp in pairs(self) do
     if comp and type(comp) == "table" and comp.unmount then comp:unmount() end
   end
-  if self.code and self.code.winid and api.nvim_win_is_valid(self.code.winid) then fn.win_gotoid(self.code.winid) end
+  if opts.goto_code_win and self.code and self.code.winid and api.nvim_win_is_valid(self.code.winid) then
+    fn.win_gotoid(self.code.winid)
+  end
 
   vim.cmd("wincmd =")
 end
@@ -839,8 +852,6 @@ function Sidebar:on_mount(opts)
   self:render_input(opts.ask)
   self:render_selected_code()
 
-  self.augroup = api.nvim_create_augroup("avante_sidebar_" .. self.id .. self.result.winid, { clear = true })
-
   local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
 
   if self.selected_code ~= nil then
@@ -1570,6 +1581,7 @@ function Sidebar:create_input(opts)
   })
 
   api.nvim_create_autocmd("User", {
+    group = self.augroup,
     pattern = "AvanteInputSubmitted",
     callback = function(ev)
       if ev.data and ev.data.request then handle_submit(ev.data.request) end
@@ -1634,6 +1646,8 @@ function Sidebar:render(opts)
   })
 
   self.result:mount()
+
+  self.augroup = api.nvim_create_augroup("avante_sidebar_" .. self.id .. self.result.winid, { clear = true })
 
   self.result:on(event.BufWinEnter, function()
     xpcall(function() api.nvim_buf_set_name(self.result.bufnr, RESULT_BUF_NAME) end, function(_) end)
