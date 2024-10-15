@@ -1048,7 +1048,7 @@ function Sidebar:update_content(content, opts)
       if not self.result or not self.result.bufnr or not api.nvim_buf_is_valid(self.result.bufnr) then return end
       local lines = vim.split(content, "\n")
       Utils.unlock_buf(self.result.bufnr)
-      api.nvim_buf_set_lines(self.result.bufnr, 0, -1, false, lines)
+      Utils.update_buffer_content(self.result.bufnr, lines)
       Utils.lock_buf(self.result.bufnr)
       api.nvim_set_option_value("filetype", "Avante", { buf = self.result.bufnr })
       if opts.focus and not self:is_focused_on_result() then
@@ -1332,7 +1332,7 @@ function Sidebar:create_input(opts)
       end
 
       -- Execute when the stream request is actually completed
-      self:update_content("\n\n**Generation complete!** Please review the code suggestions above.", {
+      self:update_content("\n\n**Generation complete!** Please review the code suggestions above.\n", {
         stream = true,
         scroll = true,
         callback = function() api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN }) end,
