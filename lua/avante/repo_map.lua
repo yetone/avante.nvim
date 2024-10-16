@@ -141,7 +141,8 @@ function RepoMap._get_repo_map(file_ext)
   vim.api.nvim_create_autocmd({ "BufReadPost", "BufNewFile" }, {
     callback = function(ev)
       vim.defer_fn(function()
-        local filepath = vim.api.nvim_buf_get_name(ev.buf)
+        local ok, filepath = pcall(vim.api.nvim_buf_get_name, ev.buf)
+        if not ok or not filepath then return end
         if not vim.startswith(filepath, project_root) then return end
         local rel_filepath = Utils.relative_path(filepath)
         update_repo_map(rel_filepath)
