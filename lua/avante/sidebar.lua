@@ -175,11 +175,17 @@ local function transform_result_content(original_content, result_content, code_l
     local line_content = result_lines[i]
     if line_content == "<SEARCH>" then
       is_searching = true
+      local next_line = result_lines[i + 1]
+      if next_line and next_line:match("^%s*```%w+$") then i = i + 1 end
       search_start = i + 1
       last_search_tag_start_line = i
     elseif line_content == "</SEARCH>" then
       is_searching = false
+
       local search_end = i
+
+      local prev_line = result_lines[i - 1]
+      if prev_line and prev_line:match("^%s*```$") then search_end = i - 1 end
 
       local start_line = 0
       local end_line = 0
@@ -217,11 +223,14 @@ local function transform_result_content(original_content, result_content, code_l
       goto continue
     elseif line_content == "<REPLACE>" then
       is_replacing = true
+      local next_line = result_lines[i + 1]
+      if next_line and next_line:match("^%s*```%w+$") then i = i + 1 end
       last_replace_tag_start_line = i
       goto continue
     elseif line_content == "</REPLACE>" then
       is_replacing = false
-      table.insert(transformed_lines, "```")
+      local prev_line = result_lines[i - 1]
+      if not (prev_line and prev_line:match("^%s*```$")) then table.insert(transformed_lines, "```") end
       goto continue
     end
     table.insert(transformed_lines, line_content)
