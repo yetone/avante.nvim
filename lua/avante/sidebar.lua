@@ -559,8 +559,7 @@ function Sidebar:apply(current_cursor)
 
   vim.defer_fn(function()
     for filepath, snippets in pairs(selected_snippets_map) do
-      local bufnr = Utils.get_opened_buffer(filepath)
-      if not bufnr then bufnr = Utils.create_new_buffer_with_file(filepath) end
+      local bufnr = Utils.get_or_create_buffer_with_filepath(filepath)
       insert_conflict_contents(bufnr, snippets)
       local winid = Utils.get_winid(bufnr)
       if not winid then goto continue end
