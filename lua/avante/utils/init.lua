@@ -669,7 +669,7 @@ function M.get_opened_buffer(filepath)
 end
 
 function M.create_new_buffer_with_file(filepath)
-  local buf = api.nvim_create_buf(false, true)
+  local buf = api.nvim_create_buf(true, false)
 
   api.nvim_buf_set_name(buf, filepath)
 
