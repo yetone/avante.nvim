@@ -661,23 +661,29 @@ function M.get_mentions()
   }
 end
 
-function M.get_opened_buffer(filepath)
+local function get_opened_buffer_by_filepath(filepath)
   for _, buf in ipairs(api.nvim_list_bufs()) do
-    if fn.buflisted(buf) == 1 and fn.bufname(buf) == filepath then return buf end
+    if fn.bufname(buf) == filepath then return buf end
   end
   return nil
 end
 
-function M.create_new_buffer_with_file(filepath)
+function M.get_or_create_buffer_with_filepath(filepath)
+  -- Check if a buffer with this filepath already exists
+  local existing_buf = get_opened_buffer_by_filepath(filepath)
+  if existing_buf then return existing_buf end
+
+  -- Create a new buffer without setting its name
   local buf = api.nvim_create_buf(true, false)
 
-  api.nvim_buf_set_name(buf, filepath)
-
+  -- Set the buffer options
   api.nvim_set_option_value("buftype", "", { buf = buf })
 
+  -- Set the current buffer to the new buffer
   api.nvim_set_current_buf(buf)
 
-  vim.cmd("edit " .. filepath)
+  -- Use the edit command to load the file content and set the buffer name
+  vim.cmd("edit " .. vim.fn.fnameescape(filepath))
 
   return buf
 end
