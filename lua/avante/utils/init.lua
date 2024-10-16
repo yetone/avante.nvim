@@ -1,3 +1,5 @@
+local Path = require("plenary.path")
+
 local api = vim.api
 local fn = vim.fn
 local lsp = vim.lsp
@@ -662,8 +664,9 @@ function M.get_mentions()
 end
 
 local function get_opened_buffer_by_filepath(filepath)
+  local absolute_path = Path:new(filepath):absolute()
   for _, buf in ipairs(api.nvim_list_bufs()) do
-    if fn.bufname(buf) == filepath then return buf end
+    if Path:new(fn.bufname(buf)):absolute() == absolute_path then return buf end
   end
   return nil
 end
