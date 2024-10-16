@@ -141,7 +141,8 @@ function RepoMap._get_repo_map(file_ext)
   vim.api.nvim_create_autocmd({ "BufReadPost", "BufNewFile" }, {
     callback = function(ev)
       vim.defer_fn(function()
-        local filepath = vim.api.nvim_buf_get_name(ev.buf)
+        local ok, filepath = pcall(vim.api.nvim_buf_get_name, ev.buf)
+        if not ok or not filepath then return end
         if not vim.startswith(filepath, project_root) then return end
         local rel_filepath = Utils.relative_path(filepath)
         update_repo_map(rel_filepath)
@@ -150,6 +151,43 @@ function RepoMap._get_repo_map(file_ext)
   })
 
   return repo_map
+end
+
+function RepoMap.show()
+  local file_ext = vim.fn.expand("%:e")
+  local repo_map = RepoMap.get_repo_map(file_ext)
+
+  if not repo_map or next(repo_map) == nil then
+    Utils.warn("The repo map is empty or not supported for this language: " .. file_ext)
+    return
+  end
+
+  -- Create a new buffer and window to display the repo map
+  local buf = vim.api.nvim_create_buf(false, true)
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = 'editor',
+    width = math.floor(vim.o.columns * 0.8),
+    height = math.floor(vim.o.lines * 0.8),
+    row = math.floor(vim.o.lines * 0.1),
+    col = math.floor(vim.o.columns * 0.1),
+    style = 'minimal',
+    border = 'rounded',
+  })
+
+  -- Format the repo map for display
+  local lines = {}
+  for _, entry in ipairs(repo_map) do
+    table.insert(lines, string.format("Path: %s", entry.path))
+    table.insert(lines, string.format("Lang: %s", entry.lang))
+    table.insert(lines, "Defs:")
+    for def_line in entry.defs:gmatch("[^\r\n]+") do
+      table.insert(lines, def_line)
+    end
+    table.insert(lines, "") -- Add an empty line between entries
+  end
+
+  -- Set the buffer content
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
 end
 
 return RepoMap

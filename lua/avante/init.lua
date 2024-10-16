@@ -174,6 +174,16 @@ H.keymaps = function()
       function() M.toggle.suggestion() end,
       { desc = "avante: toggle suggestion" }
     )
+    Utils.safe_keymap_set(
+      "n",
+      Config.mappings.toggle.repomap,
+      function() require("avante.repo_map").show() end,
+      {
+        desc = "avante: display repo map",
+        noremap = true,
+        silent = true,
+      }
+    )
   end
 
   if Config.behaviour.auto_suggestions then
