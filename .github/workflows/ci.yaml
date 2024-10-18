@@ -61,7 +61,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: "1.80.1"
           components: clippy, rustfmt
       - name: Run rustfmt
         run: make rustlint

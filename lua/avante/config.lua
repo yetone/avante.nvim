@@ -150,6 +150,7 @@ Respect and use existing conventions, libraries, etc that are already present in
       debug = "<leader>ad",
       hint = "<leader>ah",
       suggestion = "<leader>as",
+      repomap = "<leader>ar",
     },
     sidebar = {
       apply_all = "A",
