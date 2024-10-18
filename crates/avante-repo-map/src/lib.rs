@@ -274,13 +274,13 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
 
             let node_id = node.id();
             if captured_nodes
-                .get(&capture_name.to_string())
+                .get(*capture_name)
                 .map_or(false, |v| v.contains(&node_id))
             {
                 continue;
             }
             captured_nodes
-                .entry(capture_name.to_string())
+                .entry(String::from(*capture_name))
                 .or_default()
                 .push(node_id);
 
@@ -588,7 +588,7 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                             .and_then(|n| n.child_by_field_name("name"))
                             .and_then(|n| n.utf8_text(source.as_bytes()).ok())
                             .unwrap_or("")
-                            .to_string()
+                            .to_string();
                     }
                     if language == "zig" {
                         class_name =
