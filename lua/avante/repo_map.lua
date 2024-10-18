@@ -1,4 +1,6 @@
+local Popup = require("nui.popup")
 local Utils = require("avante.utils")
+local event = require("nui.utils.autocmd").event
 
 local filetype_map = {
   ["javascriptreact"] = "javascript",
@@ -38,6 +40,10 @@ function RepoMap._build_repo_map(project_root, file_ext)
   local filepaths = Utils.scan_directory(project_root, ignore_patterns, negate_patterns)
   vim.iter(filepaths):each(function(filepath)
     if not Utils.is_same_file_ext(file_ext, filepath) then return end
+    if not repo_map_lib then
+      Utils.error("Failed to load avante_repo_map")
+      return
+    end
     local definitions =
       repo_map_lib.stringify_definitions(RepoMap.get_ts_lang(filepath), Utils.file.read_content(filepath) or "")
     if definitions == "" then return end
@@ -162,17 +168,29 @@ function RepoMap.show()
     return
   end
 
-  -- Create a new buffer and window to display the repo map
-  local buf = vim.api.nvim_create_buf(false, true)
-  local win = vim.api.nvim_open_win(buf, true, {
-    relative = "editor",
-    width = math.floor(vim.o.columns * 0.8),
-    height = math.floor(vim.o.lines * 0.8),
-    row = math.floor(vim.o.lines * 0.1),
-    col = math.floor(vim.o.columns * 0.1),
-    style = "minimal",
-    border = "rounded",
+  local popup = Popup({
+    position = "50%",
+    enter = true,
+    focusable = true,
+    border = {
+      style = "rounded",
+      padding = { 1, 1 },
+      text = {
+        top = " Avante Repo Map ",
+        top_align = "center",
+      },
+    },
+    size = {
+      width = math.floor(vim.o.columns * 0.8),
+      height = math.floor(vim.o.lines * 0.8),
+    },
   })
+
+  popup:mount()
+
+  popup:map("n", "q", function() popup:unmount() end, { noremap = true, silent = true })
+
+  popup:on(event.BufLeave, function() popup:unmount() end)
 
   -- Format the repo map for display
   local lines = {}
@@ -187,7 +205,7 @@ function RepoMap.show()
   end
 
   -- Set the buffer content
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  vim.api.nvim_buf_set_lines(popup.bufnr, 0, -1, false, lines)
 end
 
 return RepoMap
