@@ -296,7 +296,7 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                             .or_else(|| find_descendant_by_type(&node, "operator_name"))
                             .or_else(|| find_descendant_by_type(&node, "identifier"))
                             .map(|n| n.utf8_text(source.as_bytes()).unwrap());
-                        if ident.is_some() {
+                        if let Some(ident) = ident {
                             let scope = node
                                 .child_by_field_name("declarator")
                                 .and_then(|n| n.child_by_field_name("declarator"))
@@ -306,10 +306,10 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                                 format!(
                                     "{}::{}",
                                     scope_node.utf8_text(source.as_bytes()).unwrap(),
-                                    ident.unwrap()
+                                    ident
                                 )
                             } else {
-                                ident.unwrap().to_string()
+                                ident.to_string()
                             }
                         } else {
                             node_text.to_string()
