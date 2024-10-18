@@ -45,6 +45,7 @@ pub enum Definition {
     Enum(Enum),
     Variable(Variable),
     Union(Union),
+    // TODO: Namespace support
 }
 
 fn get_ts_language(language: &str) -> Option<LanguageFn> {
