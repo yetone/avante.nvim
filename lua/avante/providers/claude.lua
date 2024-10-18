@@ -2,6 +2,21 @@ local Utils = require("avante.utils")
 local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
 
+---@class AvanteClaudeBaseMessage
+---@field cache_control {type: "ephemeral"}?
+---
+---@class AvanteClaudeTextMessage: AvanteClaudeBaseMessage
+---@field type "text"
+---@field text string
+---
+---@class AvanteClaudeImageMessage: AvanteClaudeBaseMessage
+---@field type "image"
+---@field source {type: "base64", media_type: string, data: string}
+---
+---@class AvanteClaudeMessage: AvanteBaseMessage
+---@field role "user"
+---@field content [AvanteClaudeTextMessage | AvanteClaudeImageMessage][]
+
 ---@class AvanteProviderFunctor
 local M = {}
 
@@ -9,6 +24,7 @@ M.api_key_name = "ANTHROPIC_API_KEY"
 M.use_xml_format = true
 
 M.parse_message = function(opts)
+  ---@type AvanteClaudeMessage[]
   local message_content = {}
 
   if Clipboard.support_paste_image() and opts.image_paths then
