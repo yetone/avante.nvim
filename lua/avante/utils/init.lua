@@ -1,3 +1,5 @@
+local Path = require("plenary.path")
+
 local api = vim.api
 local fn = vim.fn
 local lsp = vim.lsp
@@ -373,6 +375,12 @@ function M.get_win_options(winid, opt_name, key)
   end
 end
 
+function M.get_winid(bufnr)
+  for _, winid in ipairs(api.nvim_list_wins()) do
+    if api.nvim_win_get_buf(winid) == bufnr then return winid end
+  end
+end
+
 function M.unlock_buf(bufnr)
   vim.bo[bufnr].modified = false
   vim.bo[bufnr].modifiable = true
@@ -653,6 +661,76 @@ function M.get_mentions()
       details = "repo map",
     },
   }
+end
+
+local function get_opened_buffer_by_filepath(filepath)
+  local absolute_path = Path:new(filepath):absolute()
+  for _, buf in ipairs(api.nvim_list_bufs()) do
+    if Path:new(fn.bufname(buf)):absolute() == absolute_path then return buf end
+  end
+  return nil
+end
+
+function M.get_or_create_buffer_with_filepath(filepath)
+  -- Check if a buffer with this filepath already exists
+  local existing_buf = get_opened_buffer_by_filepath(filepath)
+  if existing_buf then return existing_buf end
+
+  -- Create a new buffer without setting its name
+  local buf = api.nvim_create_buf(true, false)
+
+  -- Set the buffer options
+  api.nvim_set_option_value("buftype", "", { buf = buf })
+
+  -- Set the current buffer to the new buffer
+  api.nvim_set_current_buf(buf)
+
+  -- Use the edit command to load the file content and set the buffer name
+  vim.cmd("edit " .. vim.fn.fnameescape(filepath))
+
+  return buf
+end
+
+---@param bufnr integer
+---@param new_lines string[]
+---@return { start_line: integer, end_line: integer, content: string[] }[]
+local function get_buffer_content_diffs(bufnr, new_lines)
+  local old_lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local diffs = {}
+  local prev_diff_idx = nil
+  for i, line in ipairs(new_lines) do
+    if line ~= old_lines[i] then
+      if prev_diff_idx == nil then prev_diff_idx = i end
+    else
+      if prev_diff_idx ~= nil then
+        local content = vim.list_slice(new_lines, prev_diff_idx, i - 1)
+        table.insert(diffs, { start_line = prev_diff_idx, end_line = i, content = content })
+        prev_diff_idx = nil
+      end
+    end
+  end
+  if prev_diff_idx ~= nil then
+    table.insert(
+      diffs,
+      { start_line = prev_diff_idx, end_line = #new_lines + 1, content = vim.list_slice(new_lines, prev_diff_idx) }
+    )
+  end
+  if #new_lines < #old_lines then
+    table.insert(diffs, { start_line = #new_lines + 1, end_line = #old_lines + 1, content = {} })
+  end
+  table.sort(diffs, function(a, b) return a.start_line > b.start_line end)
+  return diffs
+end
+
+--- Update the buffer content more efficiently by only updating the changed lines
+---@param bufnr integer
+---@param new_lines string[]
+function M.update_buffer_content(bufnr, new_lines)
+  local diffs = get_buffer_content_diffs(bufnr, new_lines)
+  if #diffs == 0 then return end
+  for _, diff in ipairs(diffs) do
+    api.nvim_buf_set_lines(bufnr, diff.start_line - 1, diff.end_line - 1, false, diff.content)
+  end
 end
 
 return M

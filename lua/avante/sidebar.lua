@@ -65,18 +65,24 @@ function Sidebar:reset()
   self.input = nil
 end
 
----@param opts AskOptions
+---@class SidebarOpenOptions: AskOptions
+---@field selection? avante.SelectionResult
+
+---@param opts SidebarOpenOptions
 function Sidebar:open(opts)
+  opts = opts or {}
   local in_visual_mode = Utils.in_visual_mode() and self:in_code_win()
   if not self:is_open() then
     self:reset()
     self:initialize()
+    if opts.selection then self.code.selection = opts.selection end
     self:render(opts)
   else
-    if in_visual_mode then
+    if in_visual_mode or opts.selection then
       self:close()
       self:reset()
       self:initialize()
+      if opts.selection then self.code.selection = opts.selection end
       self:render(opts)
       return self
     end
@@ -92,12 +98,19 @@ function Sidebar:open(opts)
   return self
 end
 
-function Sidebar:close()
+---@class SidebarCloseOptions
+---@field goto_code_win? boolean
+
+---@param opts? SidebarCloseOptions
+function Sidebar:close(opts)
+  opts = vim.tbl_extend("force", { goto_code_win = true }, opts or {})
   self:delete_autocmds()
   for _, comp in pairs(self) do
     if comp and type(comp) == "table" and comp.unmount then comp:unmount() end
   end
-  if self.code and self.code.winid and api.nvim_win_is_valid(self.code.winid) then fn.win_gotoid(self.code.winid) end
+  if opts.goto_code_win and self.code and self.code.winid and api.nvim_win_is_valid(self.code.winid) then
+    fn.win_gotoid(self.code.winid)
+  end
 
   vim.cmd("wincmd =")
 end
@@ -162,11 +175,17 @@ local function transform_result_content(original_content, result_content, code_l
     local line_content = result_lines[i]
     if line_content == "<SEARCH>" then
       is_searching = true
+      local next_line = result_lines[i + 1]
+      if next_line and next_line:match("^%s*```%w+$") then i = i + 1 end
       search_start = i + 1
       last_search_tag_start_line = i
     elseif line_content == "</SEARCH>" then
       is_searching = false
+
       local search_end = i
+
+      local prev_line = result_lines[i - 1]
+      if prev_line and prev_line:match("^%s*```$") then search_end = i - 1 end
 
       local start_line = 0
       local end_line = 0
@@ -204,11 +223,14 @@ local function transform_result_content(original_content, result_content, code_l
       goto continue
     elseif line_content == "<REPLACE>" then
       is_replacing = true
+      local next_line = result_lines[i + 1]
+      if next_line and next_line:match("^%s*```%w+$") then i = i + 1 end
       last_replace_tag_start_line = i
       goto continue
     elseif line_content == "</REPLACE>" then
       is_replacing = false
-      table.insert(transformed_lines, "```")
+      local prev_line = result_lines[i - 1]
+      if not (prev_line and prev_line:match("^%s*```$")) then table.insert(transformed_lines, "```") end
       goto continue
     end
     table.insert(transformed_lines, line_content)
@@ -298,17 +320,20 @@ end
 ---@field explanation string
 ---@field start_line_in_response_buf integer
 ---@field end_line_in_response_buf integer
+---@field filepath string
 
 ---@param response_content string
----@return AvanteCodeSnippet[]
-local function extract_code_snippets(response_content)
+---@return table<string, AvanteCodeSnippet[]>
+local function extract_code_snippets_map(response_content)
   local snippets = {}
   local current_snippet = {}
   local in_code_block = false
   local lang, start_line, end_line, start_line_in_response_buf
   local explanation = ""
 
-  for idx, line in ipairs(vim.split(response_content, "\n")) do
+  local lines = vim.split(response_content, "\n")
+
+  for idx, line in ipairs(lines) do
     local _, start_line_str, end_line_str =
       line:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)")
     if start_line_str ~= nil and end_line_str ~= nil then
@@ -337,6 +362,7 @@ local function extract_code_snippets(response_content)
             explanation = explanation,
             start_line_in_response_buf = start_line_in_response_buf,
             end_line_in_response_buf = idx,
+            filepath = lines[start_line_in_response_buf - 2],
           }
           table.insert(snippets, snippet)
         end
@@ -357,48 +383,62 @@ local function extract_code_snippets(response_content)
     end
   end
 
-  return snippets
-end
-
----@param snippets AvanteCodeSnippet[]
----@return AvanteCodeSnippet[]
-local function ensure_snippets_no_overlap(original_content, snippets)
-  table.sort(snippets, function(a, b) return a.range[1] < b.range[1] end)
-
-  local original_lines = vim.split(original_content, "\n")
-
-  local result = {}
-  local last_end_line = 0
+  local snippets_map = {}
   for _, snippet in ipairs(snippets) do
-    if snippet.range[1] > last_end_line then
-      table.insert(result, snippet)
-      last_end_line = snippet.range[2]
-    else
-      local snippet_lines = vim.split(snippet.content, "\n")
-      -- Trim the overlapping part
-      local new_start_line = nil
-      for i = snippet.range[1], math.min(snippet.range[2], last_end_line) do
-        if
-          Utils.remove_indentation(original_lines[i])
-          == Utils.remove_indentation(snippet_lines[i - snippet.range[1] + 1])
-        then
-          new_start_line = i + 1
-        else
-          break
-        end
-      end
-      if new_start_line ~= nil then
-        snippet.content = table.concat(vim.list_slice(snippet_lines, new_start_line - snippet.range[1] + 1), "\n")
-        snippet.range[1] = new_start_line
-        table.insert(result, snippet)
-        last_end_line = snippet.range[2]
-      else
-        Utils.error("Failed to ensure snippets no overlap", { once = true, title = "Avante" })
-      end
-    end
+    snippets_map[snippet.filepath] = snippets_map[snippet.filepath] or {}
+    table.insert(snippets_map[snippet.filepath], snippet)
   end
 
-  return result
+  return snippets_map
+end
+
+---@param snippets_map table<string, AvanteCodeSnippet[]>
+---@return table<string, AvanteCodeSnippet[]>
+local function ensure_snippets_no_overlap(snippets_map)
+  local new_snippets_map = {}
+
+  for filepath, snippets in pairs(snippets_map) do
+    table.sort(snippets, function(a, b) return a.range[1] < b.range[1] end)
+
+    local original_content = ""
+    if Utils.file.exists(filepath) then original_content = Utils.file.read_content(filepath) or "" end
+
+    local original_lines = vim.split(original_content, "\n")
+
+    local new_snippets = {}
+    local last_end_line = 0
+    for _, snippet in ipairs(snippets) do
+      if snippet.range[1] > last_end_line then
+        table.insert(new_snippets, snippet)
+        last_end_line = snippet.range[2]
+      else
+        local snippet_lines = vim.split(snippet.content, "\n")
+        -- Trim the overlapping part
+        local new_start_line = nil
+        for i = snippet.range[1], math.min(snippet.range[2], last_end_line) do
+          if
+            Utils.remove_indentation(original_lines[i])
+            == Utils.remove_indentation(snippet_lines[i - snippet.range[1] + 1])
+          then
+            new_start_line = i + 1
+          else
+            break
+          end
+        end
+        if new_start_line ~= nil then
+          snippet.content = table.concat(vim.list_slice(snippet_lines, new_start_line - snippet.range[1] + 1), "\n")
+          snippet.range[1] = new_start_line
+          table.insert(new_snippets, snippet)
+          last_end_line = snippet.range[2]
+        else
+          Utils.error("Failed to ensure snippets no overlap", { once = true, title = "Avante" })
+        end
+      end
+    end
+    new_snippets_map[filepath] = new_snippets
+  end
+
+  return new_snippets_map
 end
 
 local function insert_conflict_contents(bufnr, snippets)
@@ -494,40 +534,46 @@ end
 
 ---@param current_cursor boolean
 function Sidebar:apply(current_cursor)
-  local content = table.concat(Utils.get_buf_lines(0, -1, self.code.bufnr), "\n")
   local response, response_start_line = self:get_content_between_separators()
-  local all_snippets = extract_code_snippets(response)
-  all_snippets = ensure_snippets_no_overlap(content, all_snippets)
-  local selected_snippets = {}
+  local all_snippets_map = extract_code_snippets_map(response)
+  all_snippets_map = ensure_snippets_no_overlap(all_snippets_map)
+  local selected_snippets_map = {}
   if current_cursor then
     if self.result and self.result.winid then
       local cursor_line = Utils.get_cursor_pos(self.result.winid)
-      for _, snippet in ipairs(all_snippets) do
-        if
-          cursor_line >= snippet.start_line_in_response_buf + response_start_line - 1
-          and cursor_line <= snippet.end_line_in_response_buf + response_start_line - 1
-        then
-          selected_snippets = { snippet }
-          break
+      for filepath, snippets in pairs(all_snippets_map) do
+        for _, snippet in ipairs(snippets) do
+          if
+            cursor_line >= snippet.start_line_in_response_buf + response_start_line - 1
+            and cursor_line <= snippet.end_line_in_response_buf + response_start_line - 1
+          then
+            selected_snippets_map[filepath] = { snippet }
+            break
+          end
         end
       end
     end
   else
-    selected_snippets = all_snippets
+    selected_snippets_map = all_snippets_map
   end
 
   vim.defer_fn(function()
-    insert_conflict_contents(self.code.bufnr, selected_snippets)
-
-    api.nvim_set_current_win(self.code.winid)
-    api.nvim_feedkeys(api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
-    Diff.add_visited_buffer(self.code.bufnr)
-    Diff.process(self.code.bufnr)
-    api.nvim_win_set_cursor(self.code.winid, { 1, 0 })
-    vim.defer_fn(function()
-      Diff.find_next("ours")
-      vim.cmd("normal! zz")
-    end, 100)
+    for filepath, snippets in pairs(selected_snippets_map) do
+      local bufnr = Utils.get_or_create_buffer_with_filepath(filepath)
+      insert_conflict_contents(bufnr, snippets)
+      local winid = Utils.get_winid(bufnr)
+      if not winid then goto continue end
+      api.nvim_set_current_win(winid)
+      api.nvim_feedkeys(api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
+      Diff.add_visited_buffer(bufnr)
+      Diff.process(bufnr)
+      api.nvim_win_set_cursor(winid, { 1, 0 })
+      vim.defer_fn(function()
+        Diff.find_next("ours")
+        vim.cmd("normal! zz")
+      end, 100)
+      ::continue::
+    end
   end, 10)
 end
 
@@ -814,8 +860,6 @@ function Sidebar:on_mount(opts)
   self:render_input(opts.ask)
   self:render_selected_code()
 
-  self.augroup = api.nvim_create_augroup("avante_sidebar_" .. self.id .. self.result.winid, { clear = true })
-
   local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
 
   if self.selected_code ~= nil then
@@ -1012,7 +1056,7 @@ function Sidebar:update_content(content, opts)
       if not self.result or not self.result.bufnr or not api.nvim_buf_is_valid(self.result.bufnr) then return end
       local lines = vim.split(content, "\n")
       Utils.unlock_buf(self.result.bufnr)
-      api.nvim_buf_set_lines(self.result.bufnr, 0, -1, false, lines)
+      Utils.update_buffer_content(self.result.bufnr, lines)
       Utils.lock_buf(self.result.bufnr)
       api.nvim_set_option_value("filetype", "Avante", { buf = self.result.bufnr })
       if opts.focus and not self:is_focused_on_result() then
@@ -1048,8 +1092,26 @@ local function get_chat_record_prefix(timestamp, provider, model, request)
     .. "\n\n"
 end
 
+local function calculate_config_window_position()
+  local position = Config.windows.position
+  if position == "smart" then
+    -- get editor width
+    local editor_width = vim.o.columns
+    -- get editor height
+    local editor_height = vim.o.lines * 3
+
+    if editor_width > editor_height then
+      position = "right"
+    else
+      position = "bottom"
+    end
+  end
+
+  return position
+end
+
 function Sidebar:get_layout()
-  return vim.tbl_contains({ "left", "right" }, Config.windows.position) and "vertical" or "horizontal"
+  return vim.tbl_contains({ "left", "right" }, calculate_config_window_position()) and "vertical" or "horizontal"
 end
 
 function Sidebar:update_content_with_history(history)
@@ -1296,7 +1358,7 @@ function Sidebar:create_input(opts)
       end
 
       -- Execute when the stream request is actually completed
-      self:update_content("\n\n**Generation complete!** Please review the code suggestions above.", {
+      self:update_content("\n\n**Generation complete!** Please review the code suggestions above.\n", {
         stream = true,
         scroll = true,
         callback = function() api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN }) end,
@@ -1561,6 +1623,7 @@ function Sidebar:create_input(opts)
   })
 
   api.nvim_create_autocmd("User", {
+    group = self.augroup,
     pattern = "AvanteInputSubmitted",
     callback = function(ev)
       if ev.data and ev.data.request then handle_submit(ev.data.request) end
@@ -1589,7 +1652,7 @@ function Sidebar:render(opts)
   local chat_history = Path.history.load(self.code.bufnr)
 
   local get_position = function()
-    return (opts and opts.win and opts.win.position) and opts.win.position or Config.windows.position
+    return (opts and opts.win and opts.win.position) and opts.win.position or calculate_config_window_position()
   end
 
   local get_height = function()
@@ -1625,6 +1688,8 @@ function Sidebar:render(opts)
   })
 
   self.result:mount()
+
+  self.augroup = api.nvim_create_augroup("avante_sidebar_" .. self.id .. self.result.winid, { clear = true })
 
   self.result:on(event.BufWinEnter, function()
     xpcall(function() api.nvim_buf_set_name(self.result.bufnr, RESULT_BUF_NAME) end, function(_) end)

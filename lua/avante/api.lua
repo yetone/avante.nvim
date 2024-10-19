@@ -1,5 +1,6 @@
 local Config = require("avante.config")
 local Utils = require("avante.utils")
+local PromptInput = require("avante.prompt_input")
 
 ---@class avante.ApiToggle
 ---@operator call(): boolean
@@ -88,6 +89,7 @@ end
 ---@field question? string optional questions
 ---@field win? table<string, any> windows options similar to |nvim_open_win()|
 ---@field ask? boolean
+---@field floating? boolean whether to open a floating input to enter the question
 
 ---@param opts? AskOptions
 M.ask = function(opts)
@@ -97,10 +99,42 @@ M.ask = function(opts)
     opts = { question = opts }
   end
 
-  if not require("avante").toggle_sidebar(opts) then return false end
-  if opts.question == nil or opts.question == "" then return true end
-  vim.api.nvim_exec_autocmds("User", { pattern = "AvanteInputSubmitted", data = { request = opts.question } })
-  return true
+  local has_question = opts.question ~= nil and opts.question ~= ""
+
+  if Utils.is_sidebar_buffer(0) and not has_question then
+    require("avante").close_sidebar()
+    return false
+  end
+
+  opts = vim.tbl_extend("force", { selection = Utils.get_visual_selection_and_range() }, opts)
+
+  local function ask(input)
+    if input == nil or input == "" then input = opts.question end
+    local sidebar = require("avante").get()
+    if sidebar and sidebar:is_open() and sidebar.code.bufnr ~= vim.api.nvim_get_current_buf() then
+      sidebar:close({ goto_code_win = false })
+    end
+    require("avante").open_sidebar(opts)
+    if input == nil or input == "" then return true end
+    vim.api.nvim_exec_autocmds("User", { pattern = "AvanteInputSubmitted", data = { request = input } })
+    return true
+  end
+
+  if opts.floating == true or (Config.windows.ask.floating == true and not has_question and opts.floating == nil) then
+    local prompt_input = PromptInput:new({
+      submit_callback = function(input) ask(input) end,
+      close_on_submit = true,
+      win_opts = {
+        border = Config.options.windows.ask.border,
+        title = { { "ask", "FloatTitle" } },
+      },
+      start_insert = Config.options.windows.ask.start_insert,
+    })
+    prompt_input:open()
+    return true
+  end
+
+  return ask()
 end
 
 ---@param question? string
@@ -139,6 +173,32 @@ M.refresh = function(opts)
   sidebar.code.winid = curwin
   sidebar.code.bufnr = curbuf
   sidebar:render(opts)
+end
+
+---@param opts? AskOptions
+M.focus = function(opts)
+  opts = opts or {}
+  local sidebar = require("avante").get()
+  if not sidebar then return end
+
+  local curbuf = vim.api.nvim_get_current_buf()
+  local curwin = vim.api.nvim_get_current_win()
+
+  if sidebar:is_open() then
+    if curbuf == sidebar.input.bufnr then
+      if sidebar.code.winid and sidebar.code.winid ~= curwin then vim.api.nvim_set_current_win(sidebar.code.winid) end
+    elseif curbuf == sidebar.result.bufnr then
+      if sidebar.code.winid and sidebar.code.winid ~= curwin then vim.api.nvim_set_current_win(sidebar.code.winid) end
+    else
+      if sidebar.input.winid and sidebar.input.winid ~= curwin then
+        vim.api.nvim_set_current_win(sidebar.input.winid)
+      end
+    end
+  else
+    if sidebar.code.winid then vim.api.nvim_set_current_win(sidebar.code.winid) end
+    sidebar:open(opts)
+    if sidebar.input.winid then vim.api.nvim_set_current_win(sidebar.input.winid) end
+  end
 end
 
 return setmetatable(M, {

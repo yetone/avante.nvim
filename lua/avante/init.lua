@@ -77,6 +77,7 @@ H.commands = function()
     { desc = "avante: edit selected block", nargs = "*" }
   )
   cmd("Refresh", function() require("avante.api").refresh() end, { desc = "avante: refresh windows" })
+  cmd("Focus", function() require("avante.api").focus() end, { desc = "avante: switch focus windows" })
   cmd("Build", function(opts)
     local args = {}
     for _, arg in ipairs(opts.fargs) do
@@ -113,6 +114,7 @@ H.keymaps = function()
   )
   vim.keymap.set("v", "<Plug>(AvanteEdit)", function() require("avante.api").edit() end, { noremap = true })
   vim.keymap.set("n", "<Plug>(AvanteRefresh)", function() require("avante.api").refresh() end, { noremap = true })
+  vim.keymap.set("n", "<Plug>(AvanteFocus)", function() require("avante.api").focus() end, { noremap = true })
   vim.keymap.set("n", "<Plug>(AvanteBuild)", function() require("avante.api").build() end, { noremap = true })
   vim.keymap.set("n", "<Plug>(AvanteToggle)", function() M.toggle() end, { noremap = true })
   vim.keymap.set("n", "<Plug>(AvanteToggleDebug)", function() M.toggle.debug() end)
@@ -146,6 +148,13 @@ H.keymaps = function()
       function() require("avante.api").refresh() end,
       { desc = "avante: refresh" }
     )
+    Utils.safe_keymap_set(
+      "n",
+      Config.mappings.focus,
+      function() require("avante.api").focus() end,
+      { desc = "avante: focus" }
+    )
+
     Utils.safe_keymap_set("n", Config.mappings.toggle.default, function() M.toggle() end, { desc = "avante: toggle" })
     Utils.safe_keymap_set(
       "n",
@@ -165,6 +174,11 @@ H.keymaps = function()
       function() M.toggle.suggestion() end,
       { desc = "avante: toggle suggestion" }
     )
+    Utils.safe_keymap_set("n", Config.mappings.toggle.repomap, function() require("avante.repo_map").show() end, {
+      desc = "avante: display repo map",
+      noremap = true,
+      silent = true,
+    })
   end
 
   if Config.behaviour.auto_suggestions then
@@ -355,6 +369,27 @@ M.toggle_sidebar = function(opts)
   end
 
   return sidebar:toggle(opts)
+end
+
+M.is_sidebar_open = function()
+  local sidebar = M.get()
+  if not sidebar then return false end
+  return sidebar:is_open()
+end
+
+---@param opts? AskOptions
+M.open_sidebar = function(opts)
+  opts = opts or {}
+  if opts.ask == nil then opts.ask = true end
+  local sidebar = M.get()
+  if not sidebar then M._init(api.nvim_get_current_tabpage()) end
+  M.current.sidebar:open(opts)
+end
+
+M.close_sidebar = function()
+  local sidebar = M.get()
+  if not sidebar then return end
+  sidebar:close()
 end
 
 M.toggle.debug = H.api(Utils.toggle_wrap({

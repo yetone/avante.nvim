@@ -144,11 +144,13 @@ Respect and use existing conventions, libraries, etc that are already present in
     ask = "<leader>aa",
     edit = "<leader>ae",
     refresh = "<leader>ar",
+    focus = "<leader>af",
     toggle = {
       default = "<leader>at",
       debug = "<leader>ad",
       hint = "<leader>ah",
       suggestion = "<leader>as",
+      repomap = "<leader>ar",
     },
     sidebar = {
       apply_all = "A",
@@ -158,7 +160,7 @@ Respect and use existing conventions, libraries, etc that are already present in
     },
   },
   windows = {
-    ---@alias AvantePosition "right" | "left" | "top" | "bottom"
+    ---@alias AvantePosition "right" | "left" | "top" | "bottom" | "smart"
     position = "right",
     wrap = true, -- similar to vim.o.wrap
     width = 30, -- default % based on available width in vertical layout
@@ -172,6 +174,12 @@ Respect and use existing conventions, libraries, etc that are already present in
     },
     edit = {
       border = "rounded",
+      start_insert = true, -- Start insert mode when opening the edit window
+    },
+    ask = {
+      floating = false, -- Open the 'AvanteAsk' prompt in a floating window
+      border = "rounded",
+      start_insert = true, -- Start insert mode when opening the ask window
     },
   },
   --- @class AvanteConflictConfig

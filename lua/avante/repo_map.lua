@@ -1,4 +1,6 @@
+local Popup = require("nui.popup")
 local Utils = require("avante.utils")
+local event = require("nui.utils.autocmd").event
 
 local filetype_map = {
   ["javascriptreact"] = "javascript",
@@ -38,6 +40,10 @@ function RepoMap._build_repo_map(project_root, file_ext)
   local filepaths = Utils.scan_directory(project_root, ignore_patterns, negate_patterns)
   vim.iter(filepaths):each(function(filepath)
     if not Utils.is_same_file_ext(file_ext, filepath) then return end
+    if not repo_map_lib then
+      Utils.error("Failed to load avante_repo_map")
+      return
+    end
     local definitions =
       repo_map_lib.stringify_definitions(RepoMap.get_ts_lang(filepath), Utils.file.read_content(filepath) or "")
     if definitions == "" then return end
@@ -141,7 +147,8 @@ function RepoMap._get_repo_map(file_ext)
   vim.api.nvim_create_autocmd({ "BufReadPost", "BufNewFile" }, {
     callback = function(ev)
       vim.defer_fn(function()
-        local filepath = vim.api.nvim_buf_get_name(ev.buf)
+        local ok, filepath = pcall(vim.api.nvim_buf_get_name, ev.buf)
+        if not ok or not filepath then return end
         if not vim.startswith(filepath, project_root) then return end
         local rel_filepath = Utils.relative_path(filepath)
         update_repo_map(rel_filepath)
@@ -150,6 +157,55 @@ function RepoMap._get_repo_map(file_ext)
   })
 
   return repo_map
+end
+
+function RepoMap.show()
+  local file_ext = vim.fn.expand("%:e")
+  local repo_map = RepoMap.get_repo_map(file_ext)
+
+  if not repo_map or next(repo_map) == nil then
+    Utils.warn("The repo map is empty or not supported for this language: " .. file_ext)
+    return
+  end
+
+  local popup = Popup({
+    position = "50%",
+    enter = true,
+    focusable = true,
+    border = {
+      style = "rounded",
+      padding = { 1, 1 },
+      text = {
+        top = " Avante Repo Map ",
+        top_align = "center",
+      },
+    },
+    size = {
+      width = math.floor(vim.o.columns * 0.8),
+      height = math.floor(vim.o.lines * 0.8),
+    },
+  })
+
+  popup:mount()
+
+  popup:map("n", "q", function() popup:unmount() end, { noremap = true, silent = true })
+
+  popup:on(event.BufLeave, function() popup:unmount() end)
+
+  -- Format the repo map for display
+  local lines = {}
+  for _, entry in ipairs(repo_map) do
+    table.insert(lines, string.format("Path: %s", entry.path))
+    table.insert(lines, string.format("Lang: %s", entry.lang))
+    table.insert(lines, "Defs:")
+    for def_line in entry.defs:gmatch("[^\r\n]+") do
+      table.insert(lines, def_line)
+    end
+    table.insert(lines, "") -- Add an empty line between entries
+  end
+
+  -- Set the buffer content
+  vim.api.nvim_buf_set_lines(popup.bufnr, 0, -1, false, lines)
 end
 
 return RepoMap
