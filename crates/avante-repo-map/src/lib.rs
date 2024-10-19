@@ -263,7 +263,6 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
 
     // Sometimes, multiple queries capture the same node with the same capture name.
     // We need to ensure that we only add the node to the definition map once.
-    // let mut captured_nodes: HashMap<String, Vec<usize>> = HashMap::new();
     let mut captured_nodes: BTreeMap<String, Vec<usize>> = BTreeMap::new();
 
     for (m, _) in captures {
