@@ -182,6 +182,7 @@ Respect and use existing conventions, libraries, etc that are already present in
   hints = {
     enabled = true,
   },
+  additional_cmp_sources = {}, -- Additional cmp sources to be used in the sidebar and selection buffers
 }
 
 ---@type avante.Config

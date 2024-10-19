@@ -270,6 +270,12 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
       incoming = "DiffAdd",
     },
   },
+
+  additional_cmp_sources = {
+    { name = "path" },
+    { name = "nvim_lsp" },
+    { name = "buffer" },
+  }, -- Additional cmp sources to be used in the sidebar and selection buffers
   --- @class AvanteConflictUserConfig
   diff = {
     autojump = true,

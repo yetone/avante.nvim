@@ -1421,12 +1421,19 @@ function Sidebar:create_input(opts)
           "avante_mentions",
           require("cmp_avante.mentions").new(Utils.get_mentions(), self.input.bufnr)
         )
+        local sources = {
+          { name = "avante_commands" },
+          { name = "avante_mentions" },
+        }
+        local additional_cmp_sources = Config.additional_cmp_sources
+        if additional_cmp_sources then
+          for _, source in ipairs(additional_cmp_sources) do
+            table.insert(sources, source)
+          end
+        end
         cmp.setup.buffer({
           enabled = true,
-          sources = {
-            { name = "avante_commands" },
-            { name = "avante_mentions" },
-          },
+          sources = sources,
         })
       end
     end,
@@ -1441,10 +1448,19 @@ function Sidebar:create_input(opts)
     callback = function()
       local has_cmp, cmp = pcall(require, "cmp")
       if has_cmp then
-        for _, source in ipairs(cmp.core:get_sources()) do
-          if source.name == "avante_commands" or source.name == "avante_mentions" then
-            cmp.unregister_source(source.id)
+        local sources = {
+          "avante_commands",
+          "avante_mentions",
+        }
+        local additional_cmp_sources = Config.additional_cmp_sources
+        if additional_cmp_sources then
+          for _, source in ipairs(additional_cmp_sources) do
+            table.insert(sources, source.name)
           end
+        end
+
+        for _, source in ipairs(cmp.core:get_sources()) do
+          if vim.tbl_contains(sources, source.name) then cmp.unregister_source(source.id) end
         end
       end
     end,

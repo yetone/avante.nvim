@@ -478,12 +478,19 @@ function Selection:create_editing_input()
     callback = function()
       local has_cmp, cmp = pcall(require, "cmp")
       if has_cmp then
+        local sources = {
+          { name = "avante_mentions" },
+        }
+        local additional_cmp_sources = Config.additional_cmp_sources
+        if additional_cmp_sources then
+          for _, source in ipairs(additional_cmp_sources) do
+            table.insert(sources, source)
+          end
+        end
         cmp.register_source("avante_mentions", require("cmp_avante.mentions").new(Utils.get_mentions(), bufnr))
         cmp.setup.buffer({
           enabled = true,
-          sources = {
-            { name = "avante_mentions" },
-          },
+          sources = sources,
         })
       end
     end,
