@@ -545,8 +545,8 @@ function M.get_project_root() return M.root.get() end
 
 function M.is_same_file_ext(target_ext, filepath)
   local ext = fn.fnamemodify(filepath, ":e")
-  if target_ext == "tsx" and ext == "ts" then return true end
-  if target_ext == "jsx" and ext == "js" then return true end
+  if (target_ext == "tsx" and ext == "ts") or (target_ext == "ts" and ext == "tsx") then return true end
+  if (target_ext == "jsx" and ext == "js") or (target_ext == "js" and ext == "jsx") then return true end
   return ext == target_ext
 end
 

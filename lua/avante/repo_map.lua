@@ -1,6 +1,7 @@
 local Popup = require("nui.popup")
 local Utils = require("avante.utils")
 local event = require("nui.utils.autocmd").event
+local fn = vim.fn
 
 local filetype_map = {
   ["javascriptreact"] = "javascript",
@@ -27,11 +28,25 @@ function RepoMap.setup()
 end
 
 function RepoMap.get_ts_lang(filepath)
-  local filetype = vim.filetype.match({ filename = filepath })
+  local filetype = RepoMap.get_filetype(filepath)
   return filetype_map[filetype] or filetype
 end
 
-function RepoMap.get_filetype(filepath) return vim.filetype.match({ filename = filepath }) end
+function RepoMap.get_filetype(filepath)
+  local filetype = vim.filetype.match({ filename = filepath })
+  -- TypeScript files are sometimes not detected correctly
+  -- https://github.com/neovim/neovim/issues/27265
+  if not filetype then
+    local ext = fn.fnamemodify(filepath, ":e")
+    if ext == "tsx" then
+      filetype = "typescriptreact"
+    end
+    if ext == "ts" then
+      filetype = "typescript"
+    end
+  end
+  return filetype
+end
 
 function RepoMap._build_repo_map(project_root, file_ext)
   local output = {}
@@ -44,8 +59,9 @@ function RepoMap._build_repo_map(project_root, file_ext)
       Utils.error("Failed to load avante_repo_map")
       return
     end
-    local definitions =
-      repo_map_lib.stringify_definitions(RepoMap.get_ts_lang(filepath), Utils.file.read_content(filepath) or "")
+    local filetype = RepoMap.get_ts_lang(filepath)
+    local definitions = filetype and
+        repo_map_lib.stringify_definitions(filetype, Utils.file.read_content(filepath) or "") or ""
     if definitions == "" then return end
     table.insert(output, {
       path = Utils.relative_path(filepath),
