@@ -257,6 +257,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     wrap = true, -- similar to vim.o.wrap
     width = 30, -- default % based on available width
     sidebar_header = {
+      enabled = true, -- true, false to enable/disable the header
       align = "center", -- left, center, right for title
       rounded = true,
     },
