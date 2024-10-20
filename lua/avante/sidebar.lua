@@ -605,6 +605,8 @@ local base_win_options = {
 function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl)
   if not bufnr or not api.nvim_buf_is_valid(bufnr) then return end
 
+  if not Config.windows.sidebar_header.enabled then return end
+
   if not Config.windows.sidebar_header.rounded then header_text = " " .. header_text .. " " end
 
   local winbar_text = "%#Normal#"
