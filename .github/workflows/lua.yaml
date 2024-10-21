@@ -1,0 +1,37 @@
+name: Lua CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "**/*.lua"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "**/*.lua"
+
+jobs:
+  stylua:
+    name: Check Lua style
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # ratchet:actions/checkout@v4
+      - name: Install stylua
+        uses: baptiste0928/cargo-install@v3
+        with:
+          crate: stylua
+          features: lua54
+      - run: stylua --version
+      - run: stylua --check ./lua/ ./plugin/
+  luacheck:
+    name: Lint Lua
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # ratchet:actions/checkout@v4
+      - name: Luacheck linter
+        uses: lunarmodules/luacheck@cc089e3f65acdd1ef8716cc73a3eca24a6b845e4 # ratchet:lunarmodules/luacheck@v1
+        with:
+          args: ./lua/

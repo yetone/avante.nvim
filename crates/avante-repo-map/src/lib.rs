@@ -1,6 +1,6 @@
 use mlua::prelude::*;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use tree_sitter::{Node, Parser, Query, QueryCursor};
 use tree_sitter_language::LanguageFn;
 
@@ -14,6 +14,7 @@ pub struct Func {
 
 #[derive(Debug, Clone)]
 pub struct Class {
+    pub type_name: String,
     pub name: String,
     pub methods: Vec<Func>,
     pub properties: Vec<Variable>,
@@ -45,6 +46,7 @@ pub enum Definition {
     Enum(Enum),
     Variable(Variable),
     Union(Union),
+    // TODO: Namespace support
 }
 
 fn get_ts_language(language: &str) -> Option<LanguageFn> {
@@ -59,6 +61,8 @@ fn get_ts_language(language: &str) -> Option<LanguageFn> {
         "lua" => Some(tree_sitter_lua::LANGUAGE),
         "ruby" => Some(tree_sitter_ruby::LANGUAGE),
         "zig" => Some(tree_sitter_zig::LANGUAGE),
+        "scala" => Some(tree_sitter_scala::LANGUAGE),
+        "elixir" => Some(tree_sitter_elixir::LANGUAGE),
         _ => None,
     }
 }
@@ -73,6 +77,8 @@ const RUST_QUERY: &str = include_str!("../queries/tree-sitter-rust-defs.scm");
 const ZIG_QUERY: &str = include_str!("../queries/tree-sitter-zig-defs.scm");
 const TYPESCRIPT_QUERY: &str = include_str!("../queries/tree-sitter-typescript-defs.scm");
 const RUBY_QUERY: &str = include_str!("../queries/tree-sitter-ruby-defs.scm");
+const SCALA_QUERY: &str = include_str!("../queries/tree-sitter-scala-defs.scm");
+const ELIXIR_QUERY: &str = include_str!("../queries/tree-sitter-elixir-defs.scm");
 
 fn get_definitions_query(language: &str) -> Result<Query, String> {
     let ts_language = get_ts_language(language);
@@ -91,10 +97,12 @@ fn get_definitions_query(language: &str) -> Result<Query, String> {
         "zig" => ZIG_QUERY,
         "typescript" => TYPESCRIPT_QUERY,
         "ruby" => RUBY_QUERY,
+        "scala" => SCALA_QUERY,
+        "elixir" => ELIXIR_QUERY,
         _ => return Err(format!("Unsupported language: {language}")),
     };
     let query = Query::new(&ts_language.into(), contents)
-        .unwrap_or_else(|_| panic!("Failed to parse query for {language}"));
+        .unwrap_or_else(|e| panic!("Failed to parse query for {language}: {e}"));
     Ok(query)
 }
 
@@ -181,6 +189,23 @@ fn zig_find_type_in_parent<'a>(node: &'a Node, source: &'a [u8]) -> Option<Strin
     None
 }
 
+fn ex_find_parent_module_declaration_name<'a>(node: &'a Node, source: &'a [u8]) -> Option<String> {
+    let mut parent = node.parent();
+    while let Some(parent_node) = parent {
+        if parent_node.kind() == "call" {
+            let text = get_node_text(&parent_node, source);
+            if text.starts_with("defmodule ") {
+                let arguments_node = find_child_by_type(&parent_node, "arguments");
+                if let Some(arguments_node) = arguments_node {
+                    return Some(get_node_text(&arguments_node, source));
+                }
+            }
+        }
+        parent = parent_node.parent();
+    }
+    None
+}
+
 fn get_node_text<'a>(node: &'a Node, source: &'a [u8]) -> String {
     node.utf8_text(source).unwrap_or_default().to_string()
 }
@@ -227,22 +252,28 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
     let mut query_cursor = QueryCursor::new();
     let captures = query_cursor.captures(&query, root_node, source.as_bytes());
 
-    let mut class_def_map: HashMap<String, RefCell<Class>> = HashMap::new();
-    let mut enum_def_map: HashMap<String, RefCell<Enum>> = HashMap::new();
-    let mut union_def_map: HashMap<String, RefCell<Union>> = HashMap::new();
+    let mut class_def_map: BTreeMap<String, RefCell<Class>> = BTreeMap::new();
+    let mut enum_def_map: BTreeMap<String, RefCell<Enum>> = BTreeMap::new();
+    let mut union_def_map: BTreeMap<String, RefCell<Union>> = BTreeMap::new();
 
-    let ensure_class_def = |name: &str, class_def_map: &mut HashMap<String, RefCell<Class>>| {
-        class_def_map.entry(name.to_string()).or_insert_with(|| {
-            RefCell::new(Class {
-                name: name.to_string(),
-                methods: vec![],
-                properties: vec![],
-                visibility_modifier: None,
-            })
-        });
-    };
+    let ensure_class_def =
+        |language: &str, name: &str, class_def_map: &mut BTreeMap<String, RefCell<Class>>| {
+            let mut type_name = "class";
+            if language == "elixir" {
+                type_name = "module";
+            }
+            class_def_map.entry(name.to_string()).or_insert_with(|| {
+                RefCell::new(Class {
+                    type_name: type_name.to_string(),
+                    name: name.to_string(),
+                    methods: vec![],
+                    properties: vec![],
+                    visibility_modifier: None,
+                })
+            });
+        };
 
-    let ensure_enum_def = |name: &str, enum_def_map: &mut HashMap<String, RefCell<Enum>>| {
+    let ensure_enum_def = |name: &str, enum_def_map: &mut BTreeMap<String, RefCell<Enum>>| {
         enum_def_map.entry(name.to_string()).or_insert_with(|| {
             RefCell::new(Enum {
                 name: name.to_string(),
@@ -251,7 +282,7 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
         });
     };
 
-    let ensure_union_def = |name: &str, union_def_map: &mut HashMap<String, RefCell<Union>>| {
+    let ensure_union_def = |name: &str, union_def_map: &mut BTreeMap<String, RefCell<Union>>| {
         union_def_map.entry(name.to_string()).or_insert_with(|| {
             RefCell::new(Union {
                 name: name.to_string(),
@@ -260,30 +291,86 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
         });
     };
 
+    // Sometimes, multiple queries capture the same node with the same capture name.
+    // We need to ensure that we only add the node to the definition map once.
+    let mut captured_nodes: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+
     for (m, _) in captures {
         for capture in m.captures {
             let capture_name = &query.capture_names()[capture.index as usize];
             let node = capture.node;
             let node_text = node.utf8_text(source.as_bytes()).unwrap();
 
-            let name_node = node.child_by_field_name("name");
-            let name = name_node
-                .map(|n| n.utf8_text(source.as_bytes()).unwrap())
-                .unwrap_or(node_text);
+            let node_id = node.id();
+            if captured_nodes
+                .get(*capture_name)
+                .map_or(false, |v| v.contains(&node_id))
+            {
+                continue;
+            }
+            captured_nodes
+                .entry(String::from(*capture_name))
+                .or_default()
+                .push(node_id);
+
+            let name = match language {
+                "cpp" => {
+                    if *capture_name == "class" {
+                        node.child_by_field_name("name")
+                            .map(|n| n.utf8_text(source.as_bytes()).unwrap())
+                            .unwrap_or(node_text)
+                            .to_string()
+                    } else {
+                        let ident = find_descendant_by_type(&node, "field_identifier")
+                            .or_else(|| find_descendant_by_type(&node, "operator_name"))
+                            .or_else(|| find_descendant_by_type(&node, "identifier"))
+                            .map(|n| n.utf8_text(source.as_bytes()).unwrap());
+                        if let Some(ident) = ident {
+                            let scope = node
+                                .child_by_field_name("declarator")
+                                .and_then(|n| n.child_by_field_name("declarator"))
+                                .and_then(|n| n.child_by_field_name("scope"));
+
+                            if let Some(scope_node) = scope {
+                                format!(
+                                    "{}::{}",
+                                    scope_node.utf8_text(source.as_bytes()).unwrap(),
+                                    ident
+                                )
+                            } else {
+                                ident.to_string()
+                            }
+                        } else {
+                            node_text.to_string()
+                        }
+                    }
+                }
+                "scala" => node
+                    .child_by_field_name("name")
+                    .or_else(|| node.child_by_field_name("pattern"))
+                    .map(|n| n.utf8_text(source.as_bytes()).unwrap())
+                    .unwrap_or(node_text)
+                    .to_string(),
+                _ => node
+                    .child_by_field_name("name")
+                    .map(|n| n.utf8_text(source.as_bytes()).unwrap())
+                    .unwrap_or(node_text)
+                    .to_string(),
+            };
 
             match *capture_name {
                 "class" => {
                     if !name.is_empty() {
-                        if language == "go" && !is_first_letter_uppercase(name) {
+                        if language == "go" && !is_first_letter_uppercase(&name) {
                             continue;
                         }
-                        ensure_class_def(name, &mut class_def_map);
+                        ensure_class_def(language, &name, &mut class_def_map);
                         let visibility_modifier_node =
                             find_child_by_type(&node, "visibility_modifier");
                         let visibility_modifier = visibility_modifier_node
                             .map(|n| n.utf8_text(source.as_bytes()).unwrap())
                             .unwrap_or("");
-                        let class_def = class_def_map.get_mut(name).unwrap();
+                        let class_def = class_def_map.get_mut(&name).unwrap();
                         class_def.borrow_mut().visibility_modifier =
                             if visibility_modifier.is_empty() {
                                 None
@@ -311,6 +398,14 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                         enum_name =
                             zig_find_parent_variable_declaration_name(&node, source.as_bytes())
                                 .unwrap_or_default();
+                    }
+                    if language == "scala" {
+                        if let Some(enum_node) = find_ancestor_by_type(&node, "enum_definition") {
+                            if let Some(name_node) = enum_node.child_by_field_name("name") {
+                                enum_name =
+                                    name_node.utf8_text(source.as_bytes()).unwrap().to_string();
+                            }
+                        }
                     }
                     if !enum_name.is_empty()
                         && language == "go"
@@ -353,6 +448,7 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                     union_def.borrow_mut().items.push(variable);
                 }
                 "method" => {
+                    // TODO: C++: Skip private/protected class/struct methods
                     let visibility_modifier_node =
                         find_descendant_by_type(&node, "visibility_modifier");
                     let visibility_modifier = visibility_modifier_node
@@ -367,27 +463,59 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                     {
                         continue;
                     }
-
-                    if !name.is_empty() && language == "go" && !is_first_letter_uppercase(name) {
+                    if language == "cpp"
+                        && find_descendant_by_type(&node, "destructor_name").is_some()
+                    {
                         continue;
                     }
-                    let mut params_node = node.child_by_field_name("parameters");
 
-                    let function_node = find_ancestor_by_type(&node, "function_declaration");
+                    if !name.is_empty() && language == "go" && !is_first_letter_uppercase(&name) {
+                        continue;
+                    }
+                    let mut params_node = node
+                        .child_by_field_name("parameters")
+                        .or_else(|| find_descendant_by_type(&node, "parameter_list"));
+
+                    let zig_function_node = find_ancestor_by_type(&node, "function_declaration");
                     if language == "zig" {
-                        params_node = function_node
+                        params_node = zig_function_node
                             .as_ref()
                             .and_then(|n| find_child_by_type(n, "parameters"));
+                    }
+                    let ex_function_node = find_ancestor_by_type(&node, "call");
+                    if language == "elixir" {
+                        params_node = ex_function_node
+                            .as_ref()
+                            .and_then(|n| find_child_by_type(n, "arguments"));
                     }
 
                     let params = params_node
                         .map(|n| n.utf8_text(source.as_bytes()).unwrap())
                         .unwrap_or("()");
-                    let mut return_type_node = node.child_by_field_name("return_type");
+                    let mut return_type_node = match language {
+                        "cpp" => node.child_by_field_name("type"),
+                        _ => node.child_by_field_name("return_type"),
+                    };
+                    if language == "cpp" {
+                        let class_specifier_node = find_ancestor_by_type(&node, "class_specifier");
+                        let type_identifier_node =
+                            class_specifier_node.and_then(|n| n.child_by_field_name("name"));
+
+                        if let Some(type_identifier_node) = type_identifier_node {
+                            let type_identifier_text =
+                                type_identifier_node.utf8_text(source.as_bytes()).unwrap();
+                            if name == type_identifier_text {
+                                return_type_node = Some(type_identifier_node);
+                            }
+                        }
+                    }
                     if return_type_node.is_none() {
                         return_type_node = node.child_by_field_name("result");
                     }
                     let mut return_type = "void".to_string();
+                    if language == "elixir" {
+                        return_type = String::new();
+                    }
                     if return_type_node.is_some() {
                         return_type = get_node_type(&return_type_node.unwrap(), source.as_bytes());
                         if return_type.is_empty() {
@@ -404,6 +532,16 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                     let class_name = if language == "zig" {
                         zig_find_parent_variable_declaration_name(&node, source.as_bytes())
                             .unwrap_or_default()
+                    } else if language == "elixir" {
+                        ex_find_parent_module_declaration_name(&node, source.as_bytes())
+                            .unwrap_or_default()
+                    } else if language == "cpp" {
+                        find_ancestor_by_type(&node, "class_specifier")
+                            .or_else(|| find_ancestor_by_type(&node, "struct_specifier"))
+                            .and_then(|n| n.child_by_field_name("name"))
+                            .and_then(|n| n.utf8_text(source.as_bytes()).ok())
+                            .unwrap_or("")
+                            .to_string()
                     } else if let Some(impl_item) = impl_item_node {
                         let impl_type_node = impl_item.child_by_field_name("type");
                         impl_type_node
@@ -425,7 +563,7 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                         continue;
                     }
 
-                    ensure_class_def(&class_name, &mut class_def_map);
+                    ensure_class_def(language, &class_name, &mut class_def_map);
                     let class_def = class_def_map.get_mut(&class_name).unwrap();
 
                     let accessibility_modifier_node =
@@ -470,7 +608,7 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                     if class_name.is_empty() {
                         continue;
                     }
-                    ensure_class_def(&class_name, &mut class_def_map);
+                    ensure_class_def(language, &class_name, &mut class_def_map);
                     let class_def = class_def_map.get_mut(&class_name).unwrap();
                     let variable = Variable {
                         name: left.to_string(),
@@ -479,6 +617,7 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                     class_def.borrow_mut().properties.push(variable);
                 }
                 "class_variable" => {
+                    // TODO: C++: Skip private/protected class/struct variables
                     let visibility_modifier_node =
                         find_descendant_by_type(&node, "visibility_modifier");
                     let visibility_modifier = visibility_modifier_node
@@ -498,6 +637,14 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                     }
 
                     let mut class_name = get_closest_ancestor_name(&node, source);
+                    if language == "cpp" {
+                        class_name = find_ancestor_by_type(&node, "class_specifier")
+                            .or_else(|| find_ancestor_by_type(&node, "struct_specifier"))
+                            .and_then(|n| n.child_by_field_name("name"))
+                            .and_then(|n| n.utf8_text(source.as_bytes()).ok())
+                            .unwrap_or("")
+                            .to_string();
+                    }
                     if language == "zig" {
                         class_name =
                             zig_find_parent_variable_declaration_name(&node, source.as_bytes())
@@ -512,10 +659,10 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                     if class_name.is_empty() {
                         continue;
                     }
-                    if !name.is_empty() && language == "go" && !is_first_letter_uppercase(name) {
+                    if !name.is_empty() && language == "go" && !is_first_letter_uppercase(&name) {
                         continue;
                     }
-                    ensure_class_def(&class_name, &mut class_def_map);
+                    ensure_class_def(language, &class_name, &mut class_def_map);
                     let class_def = class_def_map.get_mut(&class_name).unwrap();
                     let variable = Variable {
                         name: name.to_string(),
@@ -542,11 +689,19 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                         }
                     }
 
-                    if !name.is_empty() && language == "go" && !is_first_letter_uppercase(name) {
+                    if !name.is_empty() && language == "go" && !is_first_letter_uppercase(&name) {
                         continue;
                     }
                     let impl_item_node = find_ancestor_by_type(&node, "impl_item");
                     if impl_item_node.is_some() {
+                        continue;
+                    }
+                    let class_specifier_node = find_ancestor_by_type(&node, "class_specifier");
+                    if class_specifier_node.is_some() {
+                        continue;
+                    }
+                    let struct_specifier_node = find_ancestor_by_type(&node, "struct_specifier");
+                    if struct_specifier_node.is_some() {
                         continue;
                     }
                     let function_node = find_ancestor_by_type(&node, "function_declaration")
@@ -554,15 +709,20 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                     if function_node.is_some() {
                         continue;
                     }
-                    let params_node = node.child_by_field_name("parameters");
+                    let params_node = node
+                        .child_by_field_name("parameters")
+                        .or_else(|| find_descendant_by_type(&node, "parameter_list"));
                     let params = params_node
                         .map(|n| n.utf8_text(source.as_bytes()).unwrap())
                         .unwrap_or("()");
-                    let mut return_type_node = node.child_by_field_name("return_type");
-                    if return_type_node.is_none() {
-                        return_type_node = node.child_by_field_name("result");
-                    }
+
                     let mut return_type = "void".to_string();
+                    let return_type_node = match language {
+                        "cpp" => node.child_by_field_name("type"),
+                        _ => node
+                            .child_by_field_name("return_type")
+                            .or_else(|| node.child_by_field_name("result")),
+                    };
                     if return_type_node.is_some() {
                         return_type = get_node_type(&return_type_node.unwrap(), source.as_bytes());
                         if return_type.is_empty() {
@@ -689,7 +849,7 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                             continue;
                         };
                     }
-                    if !name.is_empty() && language == "go" && !is_first_letter_uppercase(name) {
+                    if !name.is_empty() && language == "go" && !is_first_letter_uppercase(&name) {
                         continue;
                     }
                     let variable = Variable {
@@ -767,7 +927,7 @@ fn stringify_union_item(item: &Variable) -> String {
 }
 
 fn stringify_class(class: &Class) -> String {
-    let mut res = format!("class {}{{", class.name);
+    let mut res = format!("{} {}{{", class.type_name, class.name);
     for method in &class.methods {
         let method_str = stringify_function(method);
         res = format!("{res}{method_str}");
@@ -836,6 +996,7 @@ fn avante_repo_map(lua: &Lua) -> LuaResult<LuaTable> {
 mod tests {
     use super::*;
 
+    #[test]
     fn test_rust() {
         let source = r#"
         // This is a test comment
@@ -1198,6 +1359,151 @@ mod tests {
         let stringified = stringify_definitions(&definitions);
         println!("{stringified}");
         let expected = "var test_var;func test_func(a, b) -> void;";
+        assert_eq!(stringified, expected);
+    }
+
+    #[test]
+    fn test_cpp() {
+        let source = r#"
+        // This is a test comment
+        #include <iostream>
+
+        namespace {
+        constexpr int TEST_CONSTEXPR = 1;
+        const int TEST_CONST = 1;
+        }; // namespace
+
+        int test_var = 2;
+
+        int TestFunc(bool b) { return b ? 42 : -1; }
+
+        template <typename T> class TestClass {
+        public:
+          TestClass();
+          TestClass(T a, T b);
+          ~TestClass();
+          bool operator==(const TestClass &other);
+          T testMethod(T x, T y) { return x + y; }
+          T c;
+
+        private:
+          void privateMethod();
+          T a = 0;
+          T b;
+        };
+
+        struct TestStruct {
+        public:
+          TestStruct(int a, int b);
+          ~TestStruct();
+          bool operator==(const TestStruct &other);
+          int testMethod(int x, int y) { return x + y; }
+          static int c;
+
+        private:
+          int a = 0;
+          int b;
+        };
+
+        bool TestStruct::operator==(const TestStruct &other) { return true; }
+
+        int TestStruct::c = 0;
+
+        int testFunction(int a, int b) { return a + b; }
+
+        namespace TestNamespace {
+        class InnerClass {
+        public:
+          bool innerMethod(int a) const;
+        };
+        bool InnerClass::innerMethod(int a) const { return doSomething(a * 2); }
+        } // namespace TestNamespace
+
+        enum TestEnum { ENUM_VALUE_1, ENUM_VALUE_2 };
+        "#;
+        let definitions = extract_definitions("cpp", source).unwrap();
+        let stringified = stringify_definitions(&definitions);
+        println!("{}", stringified);
+        let expected = "var TEST_CONSTEXPR:int;var TEST_CONST:int;var test_var:int;func TestFunc(bool b) -> int;func TestStruct::operator==(const TestStruct &other) -> bool;var TestStruct::c:int;func testFunction(int a, int b) -> int;func InnerClass::innerMethod(int a) -> bool;class InnerClass{func innerMethod(int a) -> bool;};class TestClass{func TestClass() -> TestClass;func operator==(const TestClass &other) -> bool;func testMethod(T x, T y) -> T;func privateMethod() -> void;func TestClass(T a, T b) -> TestClass;var c:T;var a:T;var b:T;};class TestStruct{func TestStruct(int a, int b) -> void;func operator==(const TestStruct &other) -> bool;func testMethod(int x, int y) -> int;var c:int;var a:int;var b:int;};enum TestEnum{ENUM_VALUE_1;ENUM_VALUE_2;};";
+        assert_eq!(stringified, expected);
+    }
+
+    #[test]
+    fn test_scala() {
+        let source = r#"
+        object Main {
+          def main(args: Array[String]): Unit = {
+            println("Hello, World!")
+          }
+        }
+
+        class TestClass {
+          val testVal: String = "test"
+          var testVar = 42
+
+          def testMethod(a: Int, b: Int): Int = {
+            a + b
+          }
+        }
+
+        // braceless syntax is also supported
+        trait TestTrait:
+          def abstractMethod(x: Int): Int
+          def concreteMethod(y: Int): Int = y * 2
+
+        case class TestCaseClass(name: String, age: Int)
+
+        enum TestEnum {
+          case First, Second, Third
+        }
+
+        val foo: TestClass = ???
+        "#;
+
+        let definitions = extract_definitions("scala", source).unwrap();
+        let stringified = stringify_definitions(&definitions);
+        println!("{stringified}");
+        let expected = "var foo:TestClass;class Main{func main(args: Array[String]) -> Unit;};class TestCaseClass{};class TestClass{func testMethod(a: Int, b: Int) -> Int;var testVal:String;var testVar;};class TestTrait{func abstractMethod(x: Int) -> Int;func concreteMethod(y: Int) -> Int;};enum TestEnum{First;Second;Third;};";
+        assert_eq!(stringified, expected);
+    }
+
+    #[test]
+    fn test_elixir() {
+        let source = r#"
+        defmodule TestModule do
+          @moduledoc """
+          This is a test module
+          """
+
+          @test_const "test"
+          @other_const 123
+
+          def test_func(a, b) do
+            a + b
+          end
+
+          defp private_func(x) do
+            x * 2
+          end
+
+          defmacro test_macro(expr) do
+            quote do
+              unquote(expr)
+            end
+          end
+        end
+
+        defmodule AnotherModule do
+          def another_func() do
+            :ok
+          end
+        end
+        "#;
+        let definitions = extract_definitions("elixir", source).unwrap();
+        let stringified = stringify_definitions(&definitions);
+        println!("{stringified}");
+        let expected =
+            "module AnotherModule{func another_func();};module TestModule{func test_func(a, b);};";
         assert_eq!(stringified, expected);
     }
 

@@ -1,7 +1,7 @@
 local Popup = require("nui.popup")
 local Utils = require("avante.utils")
 local event = require("nui.utils.autocmd").event
-local fn = vim.fn
+local Config = require("avante.config")
 
 local filetype_map = {
   ["javascriptreact"] = "javascript",
@@ -15,17 +15,18 @@ local repo_map_lib = nil
 ---@class avante.utils.repo_map
 local RepoMap = {}
 
-function RepoMap.setup()
-  vim.defer_fn(function()
-    local ok, core = pcall(require, "avante_repo_map")
-    if not ok then
-      error("Failed to load avante_repo_map")
-      return
-    end
+---@return AvanteRepoMap|nil
+function RepoMap._init_repo_map_lib()
+  if repo_map_lib ~= nil then return repo_map_lib end
 
-    if repo_map_lib == nil then repo_map_lib = core end
-  end, 1000)
+  local ok, core = pcall(require, "avante_repo_map")
+  if not ok then return nil end
+
+  repo_map_lib = core
+  return repo_map_lib
 end
+
+function RepoMap.setup() vim.defer_fn(RepoMap._init_repo_map_lib, 1000) end
 
 function RepoMap.get_ts_lang(filepath)
   local filetype = RepoMap.get_filetype(filepath)
@@ -33,35 +34,35 @@ function RepoMap.get_ts_lang(filepath)
 end
 
 function RepoMap.get_filetype(filepath)
-  local filetype = vim.filetype.match({ filename = filepath })
-  -- TypeScript files are sometimes not detected correctly
+  -- Some files are sometimes not detected correctly when buffer is not included
   -- https://github.com/neovim/neovim/issues/27265
-  if not filetype then
-    local ext = fn.fnamemodify(filepath, ":e")
-    if ext == "tsx" then
-      filetype = "typescriptreact"
-    end
-    if ext == "ts" then
-      filetype = "typescript"
-    end
-  end
+
+  local buf = vim.api.nvim_create_buf(false, true)
+  local filetype = vim.filetype.match({ filename = filepath, buf = buf })
+  vim.api.nvim_buf_delete(buf, { force = true })
+
   return filetype
 end
 
 function RepoMap._build_repo_map(project_root, file_ext)
   local output = {}
   local gitignore_path = project_root .. "/.gitignore"
-  local ignore_patterns, negate_patterns = Utils.parse_gitignore(gitignore_path)
+  local gitignore_patterns, gitignore_negate_patterns = Utils.parse_gitignore(gitignore_path)
+  local ignore_patterns = vim.list_extend(gitignore_patterns, Config.repo_map.ignore_patterns)
+  local negate_patterns = vim.list_extend(gitignore_negate_patterns, Config.repo_map.negate_patterns)
+
   local filepaths = Utils.scan_directory(project_root, ignore_patterns, negate_patterns)
+  if filepaths and not RepoMap._init_repo_map_lib() then
+    -- or just throw an error if we don't want to execute request without codebase
+    Utils.error("Failed to load avante_repo_map")
+    return
+  end
   vim.iter(filepaths):each(function(filepath)
     if not Utils.is_same_file_ext(file_ext, filepath) then return end
-    if not repo_map_lib then
-      Utils.error("Failed to load avante_repo_map")
-      return
-    end
     local filetype = RepoMap.get_ts_lang(filepath)
-    local definitions = filetype and
-        repo_map_lib.stringify_definitions(filetype, Utils.file.read_content(filepath) or "") or ""
+    local definitions = filetype
+        and repo_map_lib.stringify_definitions(filetype, Utils.file.read_content(filepath) or "")
+      or ""
     if definitions == "" then return end
     table.insert(output, {
       path = Utils.relative_path(filepath),

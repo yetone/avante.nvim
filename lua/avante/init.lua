@@ -23,85 +23,32 @@ M.did_setup = false
 
 local H = {}
 
-H.commands = function()
-  ---@param n string
-  ---@param c vim.api.keyset.user_command.callback
-  ---@param o vim.api.keyset.user_command.opts
-  local cmd = function(n, c, o)
-    o = vim.tbl_extend("force", { nargs = 0 }, o or {})
-    api.nvim_create_user_command("Avante" .. n, c, o)
+H.load_path = function()
+  local ok, LazyConfig = pcall(require, "lazy.core.config")
+
+  if ok then
+    local name = "avante.nvim"
+    local load_path = function() require("avante_lib").load() end
+
+    if LazyConfig.plugins[name] and LazyConfig.plugins[name]._.loaded then
+      vim.schedule(load_path)
+    else
+      api.nvim_create_autocmd("User", {
+        pattern = "LazyLoad",
+        callback = function(event)
+          if event.data == name then
+            load_path()
+            return true
+          end
+        end,
+      })
+    end
+
+    api.nvim_create_autocmd("User", {
+      pattern = "VeryLazy",
+      callback = load_path,
+    })
   end
-
-  cmd("Ask", function(opts)
-    ---@type AskOptions
-    local args = { question = nil, win = {} }
-    local q_parts = {}
-    local q_ask = nil
-    for _, arg in ipairs(opts.fargs) do
-      local value = arg:match("position=(%w+)")
-      local ask = arg:match("ask=(%w+)")
-      if ask ~= nil then
-        q_ask = ask == "true"
-      elseif value then
-        args.win.position = value
-      else
-        table.insert(q_parts, arg)
-      end
-    end
-    require("avante.api").ask(
-      vim.tbl_deep_extend(
-        "force",
-        args,
-        { ask = q_ask, question = #q_parts > 0 and table.concat(q_parts, " ") or nil }
-      )
-    )
-  end, {
-    desc = "avante: ask AI for code suggestions",
-    nargs = "*",
-    complete = function(_, _, _)
-      local candidates = {} ---@type string[]
-      vim.list_extend(
-        candidates,
-        ---@param x string
-        vim.tbl_map(function(x) return "position=" .. x end, { "left", "right", "top", "bottom" })
-      )
-      vim.list_extend(candidates, vim.tbl_map(function(x) return "ask=" .. x end, { "true", "false" }))
-      return candidates
-    end,
-  })
-  cmd("Chat", function() require("avante.api").ask({ ask = false }) end, { desc = "avante: chat with the codebase" })
-  cmd("Toggle", function() M.toggle() end, { desc = "avante: toggle AI panel" })
-  cmd(
-    "Edit",
-    function(opts) require("avante.api").edit(vim.trim(opts.args)) end,
-    { desc = "avante: edit selected block", nargs = "*" }
-  )
-  cmd("Refresh", function() require("avante.api").refresh() end, { desc = "avante: refresh windows" })
-  cmd("Focus", function() require("avante.api").focus() end, { desc = "avante: switch focus windows" })
-  cmd("Build", function(opts)
-    local args = {}
-    for _, arg in ipairs(opts.fargs) do
-      local key, value = arg:match("(%w+)=(%w+)")
-      if key and value then args[key] = value == "true" end
-    end
-    if args.source == nil then args.source = false end
-
-    require("avante.api").build(args)
-  end, {
-    desc = "avante: build dependencies",
-    nargs = "*",
-    complete = function(_, _, _) return { "source=true", "source=false" } end,
-  })
-  cmd("SwitchProvider", function(opts) require("avante.api").switch_provider(vim.trim(opts.args or "")) end, {
-    nargs = 1,
-    desc = "avante: switch provider",
-    complete = function(_, line, _)
-      local prefix = line:match("AvanteSwitchProvider%s*(.*)$") or ""
-      ---@param key string
-      return vim.tbl_filter(function(key) return key:find(prefix, 1, true) == 1 end, Config.providers)
-    end,
-  })
-  cmd("Clear", function() require("avante.path").clear() end, { desc = "avante: clear all chat history" })
 end
 
 H.keymaps = function()
@@ -234,32 +181,6 @@ H.signs = function() vim.fn.sign_define("AvanteInputPromptSign", { text = Config
 H.augroup = api.nvim_create_augroup("avante_autocmds", { clear = true })
 
 H.autocmds = function()
-  local ok, LazyConfig = pcall(require, "lazy.core.config")
-
-  if ok then
-    local name = "avante.nvim"
-    local load_path = function() require("avante_lib").load() end
-
-    if LazyConfig.plugins[name] and LazyConfig.plugins[name]._.loaded then
-      vim.schedule(load_path)
-    else
-      api.nvim_create_autocmd("User", {
-        pattern = "LazyLoad",
-        callback = function(event)
-          if event.data == name then
-            load_path()
-            return true
-          end
-        end,
-      })
-    end
-
-    api.nvim_create_autocmd("User", {
-      pattern = "VeryLazy",
-      callback = load_path,
-    })
-  end
-
   api.nvim_create_autocmd("TabEnter", {
     group = H.augroup,
     pattern = "*",
@@ -300,6 +221,11 @@ H.autocmds = function()
   end)
 
   api.nvim_create_autocmd("ColorSchemePre", {
+    group = H.augroup,
+    callback = function() require("avante.highlights").setup() end,
+  })
+
+  api.nvim_create_autocmd("ColorScheme", {
     group = H.augroup,
     callback = function() require("avante.highlights").setup() end,
   })
@@ -432,6 +358,8 @@ function M.setup(opts)
 
   if M.did_setup then return end
 
+  H.load_path()
+
   require("avante.repo_map").setup()
   require("avante.path").setup()
   require("avante.highlights").setup()
@@ -441,7 +369,6 @@ function M.setup(opts)
 
   -- setup helpers
   H.autocmds()
-  H.commands()
   H.keymaps()
   H.signs()
 

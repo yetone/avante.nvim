@@ -1,16 +1,23 @@
----@class commands_source
----@field sidebar avante.Sidebar
-local commands_source = {}
+local api = vim.api
 
----@param sidebar avante.Sidebar
-function commands_source.new(sidebar)
-  ---@type cmp.Source
-  return setmetatable({
-    sidebar = sidebar,
-  }, { __index = commands_source })
+---@class commands_source : cmp.Source
+---@field commands AvanteSlashCommand[]
+---@field bufnr integer
+local commands_source = {}
+commands_source.__index = commands_source
+
+---@param commands AvanteSlashCommand[]
+---@param bufnr integer
+function commands_source:new(commands, bufnr)
+  local instance = setmetatable({}, commands_source)
+
+  instance.commands = commands
+  instance.bufnr = bufnr
+
+  return instance
 end
 
-function commands_source:is_available() return vim.bo.filetype == "AvanteInput" end
+function commands_source:is_available() return api.nvim_get_current_buf() == self.bufnr end
 
 commands_source.get_position_encoding_kind = function() return "utf-8" end
 
@@ -23,9 +30,7 @@ function commands_source:complete(_, callback)
 
   local items = {}
 
-  local commands = self.sidebar:get_commands()
-
-  for _, command in ipairs(commands) do
+  for _, command in ipairs(self.commands) do
     table.insert(items, {
       label = "/" .. command.command,
       kind = kind,
