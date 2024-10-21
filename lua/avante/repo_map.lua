@@ -38,12 +38,8 @@ function RepoMap.get_filetype(filepath)
   -- https://github.com/neovim/neovim/issues/27265
   if not filetype then
     local ext = fn.fnamemodify(filepath, ":e")
-    if ext == "tsx" then
-      filetype = "typescriptreact"
-    end
-    if ext == "ts" then
-      filetype = "typescript"
-    end
+    if ext == "tsx" then filetype = "typescriptreact" end
+    if ext == "ts" then filetype = "typescript" end
   end
   return filetype
 end
@@ -60,8 +56,9 @@ function RepoMap._build_repo_map(project_root, file_ext)
       return
     end
     local filetype = RepoMap.get_ts_lang(filepath)
-    local definitions = filetype and
-        repo_map_lib.stringify_definitions(filetype, Utils.file.read_content(filepath) or "") or ""
+    local definitions = filetype
+        and repo_map_lib.stringify_definitions(filetype, Utils.file.read_content(filepath) or "")
+      or ""
     if definitions == "" then return end
     table.insert(output, {
       path = Utils.relative_path(filepath),
