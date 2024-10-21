@@ -157,6 +157,7 @@ Respect and use existing conventions, libraries, etc that are already present in
       apply_cursor = "a",
       switch_windows = "<Tab>",
       reverse_switch_windows = "<S-Tab>",
+      clear = "<C-l>",
     },
   },
   windows = {
