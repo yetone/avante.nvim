@@ -1,7 +1,7 @@
 local Popup = require("nui.popup")
 local Utils = require("avante.utils")
 local event = require("nui.utils.autocmd").event
-local fn = vim.fn
+local Config = require("avante.config")
 
 local filetype_map = {
   ["javascriptreact"] = "javascript",
@@ -33,25 +33,23 @@ function RepoMap.get_ts_lang(filepath)
 end
 
 function RepoMap.get_filetype(filepath)
-  local filetype = vim.filetype.match({ filename = filepath })
-  -- TypeScript files are sometimes not detected correctly
+  -- Some files are sometimes not detected correctly when buffer is not included
   -- https://github.com/neovim/neovim/issues/27265
-  if not filetype then
-    local ext = fn.fnamemodify(filepath, ":e")
-    if ext == "tsx" then
-      filetype = "typescriptreact"
-    end
-    if ext == "ts" then
-      filetype = "typescript"
-    end
-  end
+
+  local buf = vim.api.nvim_create_buf(false, true)
+  local filetype = vim.filetype.match({ filename = filepath, buf = buf })
+  vim.api.nvim_buf_delete(buf, { force = true })
+
   return filetype
 end
 
 function RepoMap._build_repo_map(project_root, file_ext)
   local output = {}
   local gitignore_path = project_root .. "/.gitignore"
-  local ignore_patterns, negate_patterns = Utils.parse_gitignore(gitignore_path)
+  local gitignore_patterns, gitignore_negate_patterns = Utils.parse_gitignore(gitignore_path)
+  local ignore_patterns = vim.list_extend(gitignore_patterns, Config.repo_map.ignore_patterns)
+  local negate_patterns = vim.list_extend(gitignore_negate_patterns, Config.repo_map.negate_patterns)
+
   local filepaths = Utils.scan_directory(project_root, ignore_patterns, negate_patterns)
   vim.iter(filepaths):each(function(filepath)
     if not Utils.is_same_file_ext(file_ext, filepath) then return end
@@ -60,8 +58,9 @@ function RepoMap._build_repo_map(project_root, file_ext)
       return
     end
     local filetype = RepoMap.get_ts_lang(filepath)
-    local definitions = filetype and
-        repo_map_lib.stringify_definitions(filetype, Utils.file.read_content(filepath) or "") or ""
+    local definitions = filetype
+        and repo_map_lib.stringify_definitions(filetype, Utils.file.read_content(filepath) or "")
+      or ""
     if definitions == "" then return end
     table.insert(output, {
       path = Utils.relative_path(filepath),

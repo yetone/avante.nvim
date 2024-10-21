@@ -19,13 +19,12 @@ impl<'a> State<'a> {
 struct TemplateContext {
     use_xml_format: bool,
     ask: bool,
-    question: String,
     code_lang: String,
     filepath: String,
     file_content: String,
     selected_code: Option<String>,
     project_context: Option<String>,
-    memory_context: Option<String>,
+    diagnostics: Option<String>,
 }
 
 // Given the file name registered after add, the context table in Lua, resulted in a formatted
@@ -44,13 +43,12 @@ fn render(state: &State, template: &str, context: TemplateContext) -> LuaResult<
                 .render(context! {
                   use_xml_format => context.use_xml_format,
                   ask => context.ask,
-                  question => context.question,
                   code_lang => context.code_lang,
                   filepath => context.filepath,
                   file_content => context.file_content,
                   selected_code => context.selected_code,
                   project_context => context.project_context,
-                  memory_context => context.memory_context,
+                  diagnostics => context.diagnostics,
                 })
                 .map_err(LuaError::external)
                 .unwrap())

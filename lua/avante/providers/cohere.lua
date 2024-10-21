@@ -2,57 +2,70 @@ local Utils = require("avante.utils")
 local P = require("avante.providers")
 
 ---@alias CohereFinishReason "COMPLETE" | "LENGTH" | "ERROR"
+---@alias CohereStreamType "message-start" | "content-start" | "content-delta" | "content-end" | "message-end"
 ---
----@class CohereChatStreamResponse
----@field event_type "stream-start" | "text-generation" | "stream-end"
----@field is_finished boolean
----
----@class CohereTextGenerationResponse: CohereChatStreamResponse
+---@class CohereChatContent
+---@field type? CohereStreamType
 ---@field text string
 ---
----@class CohereStreamEndResponse: CohereChatStreamResponse
----@field response CohereChatResponse
----@field finish_reason CohereFinishReason
+---@class CohereChatMessage
+---@field content CohereChatContent
 ---
----@class CohereChatResponse
----@field text string
----@field generation_id string
----@field chat_history CohereMessage[]
----@field finish_reason CohereFinishReason
----@field meta {api_version: {version: integer}, billed_units: {input_tokens: integer, output_tokens: integer}, tokens: {input_tokens: integer, output_tokens: integer}}
+---@class CohereChatStreamBase
+---@field type CohereStreamType
+---@field index integer
+---
+---@class CohereChatContentDelta: CohereChatStreamBase
+---@field type "content-delta" | "content-start" | "content-end"
+---@field delta? { message: CohereChatMessage }
+---
+---@class CohereChatMessageStart: CohereChatStreamBase
+---@field type "message-start"
+---@field delta { message: { role: "assistant" } }
+---
+---@class CohereChatMessageEnd: CohereChatStreamBase
+---@field type "message-end"
+---@field delta { finish_reason: CohereFinishReason, usage: CohereChatUsage }
+---
+---@class CohereChatUsage
+---@field billed_units { input_tokens: integer, output_tokens: integer }
+---@field tokens { input_tokens: integer, output_tokens: integer }
+---
+---@alias CohereChatResponse CohereChatContentDelta | CohereChatMessageStart | CohereChatMessageEnd
 ---
 ---@class CohereMessage
----@field role? "USER" | "SYSTEM" | "CHATBOT"
----@field message string
+---@field type "text"
+---@field text string
 ---
 ---@class AvanteProviderFunctor
 local M = {}
 
 M.api_key_name = "CO_API_KEY"
-M.tokenizer_id = "CohereForAI/c4ai-command-r-plus-08-2024"
+M.tokenizer_id = "https://storage.googleapis.com/cohere-public/tokenizers/command-r-08-2024.json"
+M.role_map = {
+  user = "user",
+  assistant = "assistant",
+}
 
-M.parse_message = function(opts)
-  return {
-    preamble = opts.system_prompt,
-    message = table.concat(opts.user_prompts, "\n"),
+M.parse_messages = function(opts)
+  local messages = {
+    { role = "system", content = opts.system_prompt },
   }
+  vim
+    .iter(opts.messages)
+    :each(function(msg) table.insert(messages, { role = M.role_map[msg.role], content = msg.content }) end)
+  return { messages = messages }
 end
 
 M.parse_stream_data = function(data, opts)
-  ---@type CohereChatStreamResponse
+  ---@type CohereChatResponse
   local json = vim.json.decode(data)
-  if json.is_finished then
-    opts.on_complete(nil)
-    return
-  end
-  if json.event_type ~= nil then
-    ---@cast json CohereStreamEndResponse
-    if json.event_type == "stream-end" and json.finish_reason == "COMPLETE" then
+  if json.type ~= nil then
+    if json.type == "message-end" and json.delta.finish_reason == "COMPLETE" then
       opts.on_complete(nil)
       return
     end
-    ---@cast json CohereTextGenerationResponse
-    if json.event_type == "text-generation" then opts.on_chunk(json.text) end
+    if json.type == "content-delta" then opts.on_chunk(json.delta.message.content.text) end
   end
 end
 
@@ -69,18 +82,24 @@ M.parse_curl_args = function(provider, code_opts)
       .. "."
       .. vim.version().patch,
   }
-  if not P.env.is_local("cohere") then headers["Authorization"] = "Bearer " .. provider.parse_api_key() end
+  if P.env.require_api_key(base) then headers["Authorization"] = "Bearer " .. provider.parse_api_key() end
 
   return {
-    url = Utils.trim(base.endpoint, { suffix = "/" }) .. "/chat",
+    url = Utils.url_join(base.endpoint, "/chat"),
     proxy = base.proxy,
     insecure = base.allow_insecure,
     headers = headers,
     body = vim.tbl_deep_extend("force", {
       model = base.model,
       stream = true,
-    }, M.parse_message(code_opts), body_opts),
+    }, M.parse_messages(code_opts), body_opts),
   }
+end
+
+M.setup = function()
+  P.env.parse_envvar(M)
+  require("avante.tokenizers").setup(M.tokenizer_id, false)
+  vim.g.avante_login = true
 end
 
 return M

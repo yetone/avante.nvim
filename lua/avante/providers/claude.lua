@@ -2,16 +2,65 @@ local Utils = require("avante.utils")
 local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
 
+---@class AvanteClaudeBaseMessage
+---@field cache_control {type: "ephemeral"}?
+---
+---@class AvanteClaudeTextMessage: AvanteClaudeBaseMessage
+---@field type "text"
+---@field text string
+---
+---@class AvanteClaudeImageMessage: AvanteClaudeBaseMessage
+---@field type "image"
+---@field source {type: "base64", media_type: string, data: string}
+---
+---@class AvanteClaudeMessage
+---@field role "user" | "assistant"
+---@field content [AvanteClaudeTextMessage | AvanteClaudeImageMessage][]
+
 ---@class AvanteProviderFunctor
 local M = {}
 
 M.api_key_name = "ANTHROPIC_API_KEY"
 M.use_xml_format = true
 
-M.parse_message = function(opts)
-  local message_content = {}
+M.role_map = {
+  user = "user",
+  assistant = "assistant",
+}
 
-  if Clipboard.support_paste_image() and opts.image_paths then
+M.parse_messages = function(opts)
+  ---@type AvanteClaudeMessage[]
+  local messages = {}
+
+  ---@type {idx: integer, length: integer}[]
+  local messages_with_length = {}
+  for idx, message in ipairs(opts.messages) do
+    table.insert(messages_with_length, { idx = idx, length = Utils.tokens.calculate_tokens(message.content) })
+  end
+
+  table.sort(messages_with_length, function(a, b) return a.length > b.length end)
+
+  ---@type table<integer, boolean>
+  local top_three = {}
+  for i = 1, math.min(3, #messages_with_length) do
+    top_three[messages_with_length[i].idx] = true
+  end
+
+  for idx, message in ipairs(opts.messages) do
+    table.insert(messages, {
+      role = M.role_map[message.role],
+      content = {
+        {
+          type = "text",
+          text = message.content,
+          cache_control = top_three[idx] and { type = "ephemeral" } or nil,
+        },
+      },
+    })
+  end
+
+  if Clipboard.support_paste_image() and opts.image_paths and #opts.image_paths > 0 then
+    local message_content = messages[#messages].content
     for _, image_path in ipairs(opts.image_paths) do
       table.insert(message_content, {
         type = "image",
@@ -22,39 +71,20 @@ M.parse_message = function(opts)
         },
       })
     end
+    messages[#messages].content = message_content
   end
 
-  ---@type {idx: integer, length: integer}[]
-  local user_prompts_with_length = {}
-  for idx, user_prompt in ipairs(opts.user_prompts) do
-    table.insert(user_prompts_with_length, { idx = idx, length = Utils.tokens.calculate_tokens(user_prompt) })
-  end
-
-  table.sort(user_prompts_with_length, function(a, b) return a.length > b.length end)
-
-  ---@type table<integer, boolean>
-  local top_three = {}
-  for i = 1, math.min(3, #user_prompts_with_length) do
-    top_three[user_prompts_with_length[i].idx] = true
-  end
-
-  for idx, prompt_data in ipairs(opts.user_prompts) do
-    table.insert(message_content, {
-      type = "text",
-      text = prompt_data,
-      cache_control = top_three[idx] and { type = "ephemeral" } or nil,
-    })
-  end
-
-  return {
-    {
-      role = "user",
-      content = message_content,
-    },
-  }
+  return messages
 end
 
 M.parse_response = function(data_stream, event_state, opts)
+  if event_state == nil then
+    if data_stream:match('"content_block_delta"') then
+      event_state = "content_block_delta"
+    elseif data_stream:match('"message_stop"') then
+      event_state = "message_stop"
+    end
+  end
   if event_state == "content_block_delta" then
     local ok, json = pcall(vim.json.decode, data_stream)
     if not ok then return end
@@ -78,12 +108,13 @@ M.parse_curl_args = function(provider, prompt_opts)
     ["anthropic-version"] = "2023-06-01",
     ["anthropic-beta"] = "prompt-caching-2024-07-31",
   }
-  if not P.env.is_local("claude") then headers["x-api-key"] = provider.parse_api_key() end
 
-  local messages = M.parse_message(prompt_opts)
+  if P.env.require_api_key(base) then headers["x-api-key"] = provider.parse_api_key() end
+
+  local messages = M.parse_messages(prompt_opts)
 
   return {
-    url = Utils.trim(base.endpoint, { suffix = "/" }) .. "/v1/messages",
+    url = Utils.url_join(base.endpoint, "/v1/messages"),
     proxy = base.proxy,
     insecure = base.allow_insecure,
     headers = headers,

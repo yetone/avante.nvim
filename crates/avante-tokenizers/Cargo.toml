@@ -12,6 +12,10 @@ license = { workspace = true }
 workspace = true
 
 [dependencies]
+dirs = "5.0.1"
+regex = "1.11.1"
+hf-hub = { version = "0.3.2", features = ["default"] }
+ureq = { version = "2.10.1", features = ["json", "socks-proxy"] }
 mlua = { workspace = true }
 tiktoken-rs = { workspace = true }
 tokenizers = { workspace = true }

@@ -35,6 +35,8 @@ local O = require("avante.providers").openai
 
 local H = {}
 
+local copilot_path = vim.fn.stdpath("data") .. "/avante/github-copilot.json"
+
 ---@class OAuthToken
 ---@field user string
 ---@field oauth_token string
@@ -77,7 +79,7 @@ H.get_oauth_token = function()
 end
 
 H.chat_auth_url = "https://api.github.com/copilot_internal/v2/token"
-H.chat_completion_url = function(base_url) return Utils.trim(base_url, { prefix = "/" }) .. "/chat/completions" end
+H.chat_completion_url = function(base_url) return Utils.url_join(base_url, "/chat/completions") end
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -89,7 +91,7 @@ H.refresh_token = function()
     not M.state.github_token
     or (M.state.github_token.expires_at and M.state.github_token.expires_at < math.floor(os.time()))
   then
-    curl.get(H.chat_auth_url, {
+    local response = curl.get(H.chat_auth_url, {
       headers = {
         ["Authorization"] = "token " .. M.state.oauth_token,
         ["Accept"] = "application/json",
@@ -97,12 +99,16 @@ H.refresh_token = function()
       timeout = Config.copilot.timeout,
       proxy = Config.copilot.proxy,
       insecure = Config.copilot.allow_insecure,
-      on_error = function(err) error("Failed to get response: " .. vim.inspect(err)) end,
-      callback = function(output)
-        M.state.github_token = vim.json.decode(output.body)
-        if not vim.g.avante_login then vim.g.avante_login = true end
-      end,
     })
+
+    if response.status == 200 then
+      M.state.github_token = vim.json.decode(response.body)
+      local file = Path:new(copilot_path)
+      file:write(vim.json.encode(M.state.github_token), "w")
+      if not vim.g.avante_login then vim.g.avante_login = true end
+    else
+      error("Failed to get success response: " .. vim.inspect(response))
+    end
   end
 end
 
@@ -112,14 +118,21 @@ end
 ---@field github_token CopilotToken?
 M.state = nil
 
-M.api_key_name = P.AVANTE_INTERNAL_KEY
+M.api_key_name = ""
 M.tokenizer_id = "gpt-4o"
+M.role_map = {
+  user = "user",
+  assistant = "assistant",
+}
 
-M.parse_message = function(opts)
-  return {
+M.parse_messages = function(opts)
+  local messages = {
     { role = "system", content = opts.system_prompt },
-    { role = "user", content = table.concat(opts.user_prompts, "\n") },
   }
+  vim
+    .iter(opts.messages)
+    :each(function(msg) table.insert(messages, { role = M.role_map[msg.role], content = msg.content }) end)
+  return messages
 end
 
 M.parse_response = O.parse_response
@@ -142,17 +155,24 @@ M.parse_curl_args = function(provider, code_opts)
     },
     body = vim.tbl_deep_extend("force", {
       model = base.model,
-      messages = M.parse_message(code_opts),
+      messages = M.parse_messages(code_opts),
       stream = true,
     }, body_opts),
   }
 end
 
 M.setup = function()
+  local copilot_token_file = Path:new(copilot_path)
+
   if not M.state then
-    M.state = { github_token = nil, oauth_token = H.get_oauth_token() }
-    H.refresh_token()
+    M.state = {
+      github_token = copilot_token_file:exists() and vim.json.decode(copilot_token_file:read()) or nil,
+      oauth_token = H.get_oauth_token(),
+    }
   end
+
+  vim.schedule(function() H.refresh_token() end)
+
   require("avante.tokenizers").setup(M.tokenizer_id)
   vim.g.avante_login = true
 end
