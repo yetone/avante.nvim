@@ -207,7 +207,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
   auto_suggestions_provider = "claude", -- Since auto-suggestions are a high-frequency operation and therefore expensive, it is recommended to specify an inexpensive provider or even a free provider: copilot
   claude = {
     endpoint = "https://api.anthropic.com",
-    model = "claude-3-5-sonnet-20240620",
+    model = "claude-3-5-sonnet-20241022",
     temperature = 0,
     max_tokens = 4096,
   },
