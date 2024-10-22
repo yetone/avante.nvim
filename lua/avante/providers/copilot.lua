@@ -35,6 +35,8 @@ local O = require("avante.providers").openai
 
 local H = {}
 
+local copilot_path = vim.fn.stdpath("data") .. "/avante/github-copilot.json"
+
 ---@class OAuthToken
 ---@field user string
 ---@field oauth_token string
@@ -100,6 +102,8 @@ H.refresh_token = function()
       on_error = function(err) error("Failed to get response: " .. vim.inspect(err)) end,
       callback = function(output)
         M.state.github_token = vim.json.decode(output.body)
+        local file = Path:new(copilot_path)
+        file:write(vim.json.encode(M.state.github_token), "w")
         if not vim.g.avante_login then vim.g.avante_login = true end
       end,
     })
@@ -149,10 +153,16 @@ M.parse_curl_args = function(provider, code_opts)
 end
 
 M.setup = function()
+  local copilot_token_file = Path:new(copilot_path)
+
   if not M.state then
-    M.state = { github_token = nil, oauth_token = H.get_oauth_token() }
-    H.refresh_token()
+    M.state = {
+      github_token = copilot_token_file:exists() and vim.json.decode(copilot_token_file:read()) or nil,
+      oauth_token = H.get_oauth_token(),
+    }
   end
+  H.refresh_token()
+
   require("avante.tokenizers").setup(M.tokenizer_id)
   vim.g.avante_login = true
 end
