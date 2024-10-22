@@ -304,6 +304,11 @@ H.autocmds = function()
     callback = function() require("avante.highlights").setup() end,
   })
 
+  api.nvim_create_autocmd("ColorScheme", {
+    group = H.augroup,
+    callback = function() require("avante.highlights").setup() end,
+  })
+
   -- automatically setup Avante filetype to markdown
   vim.treesitter.language.register("markdown", "Avante")
 
