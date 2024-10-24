@@ -351,6 +351,7 @@ local avante_explain_code = 'Explain the following code'
 local avante_complete_code = 'Complete the following codes written in ' .. vim.bo.filetype
 local avante_add_docstring = 'Add docstring to the following codes'
 local avante_fix_bugs = 'Fix the bugs inside the following codes if any'
+local avante_add_tests = 'Implement tests for the following code'
 
 require('which-key').add {
   { '<leader>a', group = 'Avante' }, -- NOTE: add for avante.nvim
@@ -426,6 +427,13 @@ require('which-key').add {
       end,
       desc = 'Fix Bugs(ask)',
     },
+    {
+      '<leader>au',
+      function()
+        require('avante.api').ask { question = avante_add_tests }
+      end,
+      desc = 'Add Tests(ask)',
+    },
   },
 }
 
@@ -474,6 +482,13 @@ require('which-key').add {
         prefill_edit_window(avante_fix_bugs)
       end,
       desc = 'Fix Bugs(edit)',
+    },
+    {
+      '<leader>aU',
+      function()
+        prefill_edit_window(avante_add_tests)
+      end,
+      desc = 'Add Tests(edit)',
     },
   },
 }
