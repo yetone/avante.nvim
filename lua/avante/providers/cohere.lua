@@ -29,7 +29,9 @@ local P = require("avante.providers")
 local M = {}
 
 M.api_key_name = "CO_API_KEY"
-M.tokenizer_id = "CohereForAI/c4ai-command-r-plus-08-2024"
+-- FIXME: The tokenizer should also be fetched from Cohere to avoid a dependency on HuggingFace
+-- https://docs.cohere.com/v2/docs/tokens-and-tokenizers#downloading-a-tokenizer
+-- M.tokenizer_id = "CohereForAI/c4ai-command-r-plus-08-2024"
 
 M.parse_message = function(opts)
   return {
