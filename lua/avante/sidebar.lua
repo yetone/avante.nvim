@@ -933,12 +933,18 @@ function Sidebar:on_mount(opts)
       function() jump_to_codeblock("prev") end,
       { buffer = self.result_container.bufnr, noremap = true, silent = true }
     )
-    vim.keymap.set(
-      { "n", "i" },
-      Config.mappings.sidebar.clear,
-      function() self:clear() end,
-      { buffer = self.result.bufnr, noremap = true, silent = true }
-    )
+    vim.g.clear_warning_shown = false
+
+    vim.keymap.set({ "n", "i" }, Config.mappings.sidebar.clear, function()
+      if vim.g.clear_warning_shown then
+        self:clear()
+        vim.g.clear_warning_shown = false
+      else
+        Utils.warn("Press again to confirm clearing the chat history", { title = "Avante" })
+        vim.g.clear_warning_shown = true
+        vim.defer_fn(function() vim.g.clear_warning_shown = false end, 2000) -- Reset after 2 seconds
+      end
+    end, { buffer = self.result.bufnr, noremap = true, silent = true })
   end
 
   local function unbind_sidebar_keys()
