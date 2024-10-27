@@ -12,7 +12,7 @@ version = "0.1.0"
 avante-tokenizers = { path = "crates/avante-tokenizers" }
 avante-templates = { path = "crates/avante-templates" }
 avante-repo-map = { path = "crates/avante-repo-map" }
-minijinja = { version = "2.2.0", features = [
+minijinja = { version = "2.4.0", features = [
   "loader",
   "json",
   "fuel",
@@ -21,11 +21,8 @@ minijinja = { version = "2.2.0", features = [
   "custom_syntax",
   "loop_controls",
 ] }
-mlua = { version = "0.10.0-beta.1", features = [
-  "module",
-  "serialize",
-], git = "https://github.com/mlua-rs/mlua.git", branch = "main" }
-tiktoken-rs = { version = "0.5.9" }
+mlua = { version = "0.10.0", features = ["module", "serialize"] }
+tiktoken-rs = { version = "0.6.0" }
 tokenizers = { version = "0.20.0", features = [
   "esaxx_fast",
   "http",

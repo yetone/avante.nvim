@@ -76,7 +76,7 @@ Respect and use existing conventions, libraries, etc that are already present in
   },
   ---@type AvanteSupportedProvider
   cohere = {
-    endpoint = "https://api.cohere.com/v1",
+    endpoint = "https://api.cohere.com/v2",
     model = "command-r-plus-08-2024",
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
