@@ -23,10 +23,6 @@ local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 ---@field role "user" | "system"
 ---@field content string
 ---
----@class AvanteClaudeMessage: AvanteBaseMessage
----@field role "user"
----@field content {type: "text", text: string, cache_control?: {type: "ephemeral"}}[]
----
 ---@class AvanteGeminiMessage
 ---@field role "user"
 ---@field parts { text: string }[]
@@ -75,16 +71,17 @@ local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 ---@field setup fun(): nil
 ---@field has fun(): boolean
 ---@field api_key_name string
----@field tokenizer_id string | "gpt-4o"
+---@field tokenizer_id [string] | "gpt-4o"
 ---@field use_xml_format boolean
 ---@field model? string
 ---@field parse_api_key fun(): string | nil
 ---@field parse_stream_data? AvanteStreamParser
----@field on_error? fun(result: table): nil
+---@field on_error? fun(result: table<string, any>): nil
 ---
 ---@class avante.Providers
 ---@field openai AvanteProviderFunctor
 ---@field claude AvanteProviderFunctor
+---@field copilot AvanteProviderFunctor
 ---@field azure AvanteProviderFunctor
 ---@field gemini AvanteProviderFunctor
 ---@field cohere AvanteProviderFunctor
