@@ -32,6 +32,7 @@ jobs:
   rust-tests:
     name: Run Rust tests
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' || contains(github.event.pull_request.files.*.path, 'crates/') || contains(github.event.pull_request.files.*.path, '.cargo/')
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
@@ -44,6 +45,7 @@ jobs:
   rust:
     name: Check Rust style
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' || contains(github.event.pull_request.files.*.path, 'crates/') || contains(github.event.pull_request.files.*.path, '.cargo/')
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
@@ -56,6 +58,7 @@ jobs:
   rustlint:
     name: Lint Rust
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' || contains(github.event.pull_request.files.*.path, 'crates/') || contains(github.event.pull_request.files.*.path, '.cargo/')
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
