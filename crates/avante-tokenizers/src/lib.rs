@@ -174,8 +174,12 @@ mod tests {
     }
 
     // For example: https://storage.googleapis.com/cohere-public/tokenizers/command-r-08-2024.json
+    // Disable testing on GitHub Actions to avoid rate limiting and file size limits
     #[test]
     fn test_public_url() {
+        if std::env::var("GITHUB_ACTIONS").is_ok() {
+            return;
+        }
         let state = State::new();
         let source = "Hello, world!";
         let model =
