@@ -8,7 +8,9 @@ local tokenizers = nil
 local M = {}
 
 ---@param model "gpt-4o" | string
-M.setup = function(model)
+---@param warning? boolean
+M.setup = function(model, warning)
+  warning = warning or true
   vim.defer_fn(function()
     local ok, core = pcall(require, "avante_tokenizers")
     if not ok then return end
@@ -19,14 +21,15 @@ M.setup = function(model)
     core.from_pretrained(model)
   end, 1000)
 
-  local HF_TOKEN = os.getenv("HF_TOKEN")
-  if HF_TOKEN == nil and model ~= "gpt-4o" then
-    Utils.warn(
-      "Please set HF_TOKEN environment variable to use HuggingFace tokenizer if " .. model .. " is gated",
-      { once = true }
-    )
+  if warning then
+    local HF_TOKEN = os.getenv("HF_TOKEN")
+    if HF_TOKEN == nil and model ~= "gpt-4o" then
+      Utils.warn(
+        "Please set HF_TOKEN environment variable to use HuggingFace tokenizer if " .. model .. " is gated",
+        { once = true }
+      )
+    end
   end
-  vim.env.HF_HUB_DISABLE_PROGRESS_BARS = 1
 end
 
 M.available = function() return tokenizers ~= nil end
