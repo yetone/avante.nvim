@@ -1343,7 +1343,7 @@ function Sidebar:create_input(opts)
       local cur_displayed_response = generate_display_content(transformed)
       if is_first_chunk then
         is_first_chunk = false
-        self:update_content(content_prefix .. chunk, { stream = false, scroll = true })
+        self:update_content(content_prefix .. cur_displayed_response, { stream = false, scroll = true })
         return
       end
       local suffix = get_display_content_suffix(transformed)
