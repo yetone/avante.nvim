@@ -6,13 +6,6 @@ local Config = require("avante.config")
 M.check = function()
   H.start("avante.nvim")
 
-  -- Check Neovim version
-  if vim.fn.has("nvim-0.10.0") == 1 then
-    H.ok("Using neovim >= 0.10.0")
-  else
-    H.error("Recommend to use neovim >= 0.10.0")
-  end
-
   -- Required dependencies
   local required_plugins = {
     ["nvim-treesitter"] = "nvim-treesitter/nvim-treesitter",
