@@ -84,7 +84,7 @@ Respect and use existing conventions, libraries, etc that are already present in
     ["local"] = false,
   },
   ---To add support for custom provider, follow the format below
-  ---See https://github.com/yetone/avante.nvim/README.md#custom-providers for more details
+  ---See https://github.com/yetone/avante.nvim/wiki#custom-providers for more details
   ---@type {[string]: AvanteProvider}
   vendors = {},
   ---Specify the behaviour of avante.nvim
