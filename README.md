@@ -157,12 +157,12 @@ require('avante').setup ({
 })
 ```
 
-</details>
-
 > [!IMPORTANT]
 >
 > For `avante.tokenizers` and templates to work, make sure to call `require('avante_lib').load()` somewhere when entering the editor.
 > We will leave the users to decide where it fits to do this, as this varies among configurations. (But we do recommend running this after where you set your colorscheme)
+
+</details>
 
 > [!IMPORTANT]
 >
@@ -185,9 +185,7 @@ require('avante').setup ({
 > ```lua
 > {
 >   "MeanderingProgrammer/render-markdown.nvim",
->   opts = {
->     file_types = { "markdown", "Avante" },
->   },
+>   opts = { file_types = { "markdown", "Avante" } },
 >   ft = { "markdown", "Avante" },
 > }
 > ```
