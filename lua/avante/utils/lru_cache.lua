@@ -1,3 +1,4 @@
+---@class avante.utils.lru_cache
 local LRUCache = {}
 LRUCache.__index = LRUCache
 

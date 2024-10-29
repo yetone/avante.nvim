@@ -9,9 +9,17 @@ license.workspace = true
 version.workspace = true
 
 [dependencies]
-mlua = { workspace = true }
-minijinja = { workspace = true }
+mlua.workspace = true
 serde = { workspace = true, features = ["derive"] }
+minijinja = { version = "2.4.0", features = [
+  "loader",
+  "json",
+  "fuel",
+  "unicode",
+  "speedups",
+  "custom_syntax",
+  "loop_controls",
+] }
 
 [lints]
 workspace = true

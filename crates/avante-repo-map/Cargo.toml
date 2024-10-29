@@ -9,11 +9,10 @@ license.workspace = true
 version.workspace = true
 
 [build-dependencies]
-cc="*"
+cc = "*"
 
 [dependencies]
-mlua = { workspace = true }
-minijinja = { workspace = true }
+mlua.workspace = true
 serde = { workspace = true, features = ["derive"] }
 tree-sitter = "0.23"
 tree-sitter-language = "0.1"

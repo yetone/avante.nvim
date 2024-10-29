@@ -2,7 +2,7 @@
 crate-type = ["cdylib"]
 
 [package]
-name = "avante-parsers"
+name = "avante-providers"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -10,9 +10,6 @@ version.workspace = true
 
 [dependencies]
 mlua.workspace = true
-scraper = "0.20.0"
-hyper = { version = "1.5.0", features = ["full"] }
-tokio = { version = "1.41.0", features = ["full"] }
 
 [lints]
 workspace = true
