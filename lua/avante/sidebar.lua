@@ -884,6 +884,7 @@ function Sidebar:on_mount(opts)
       self:focus()
       if self.input and self.input.winid and api.nvim_win_is_valid(self.input.winid) then
         api.nvim_set_current_win(self.input.winid)
+        if Config.windows.ask.start_insert then vim.cmd("startinsert") end
       end
       return true
     end,
