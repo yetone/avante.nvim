@@ -186,6 +186,10 @@ Respect and use existing conventions, libraries, etc that are already present in
   --- @class AvanteConflictConfig
   diff = {
     autojump = true,
+    --- Override the 'timeoutlen' setting while hovering over a diff (see :help timeoutlen).
+    --- Helps to avoid entering operator-pending mode with diff mappings starting with `c`.
+    --- Disable by setting to -1.
+    override_timeoutlen = 500,
   },
   --- @class AvanteHintsConfig
   hints = {
