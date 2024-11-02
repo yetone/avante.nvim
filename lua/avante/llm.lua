@@ -1,5 +1,6 @@
 local api = vim.api
 local fn = vim.fn
+local uv = vim.uv
 
 local curl = require("plenary.curl")
 
@@ -160,7 +161,25 @@ M.stream = function(opts)
         end
       end)
     end,
-    on_error = function()
+    on_error = function(err)
+      if err.exit == 23 then
+        local xdg_runtime_dir = os.getenv("XDG_RUNTIME_DIR")
+        if fn.isdirectory(xdg_runtime_dir) == 0 then
+          Utils.error(
+            "$XDG_RUNTIME_DIR="
+              .. xdg_runtime_dir
+              .. "is set but does not exist. curl could not write output. Please make sure it exists, or unset.",
+            { once = true, title = "Avante" }
+          )
+        elseif not uv.fs_access(xdg_runtime_dir, "w") then
+          Utils.error(
+            "$XDG_RUNTIME_DIR="
+              .. xdg_runtime_dir
+              .. "exists but is not writable. curl could not write output. Please make sure it is writable, or unset.",
+            { title = "Avante" }
+          )
+        end
+      end
       active_job = nil
       completed = true
       cleanup()
