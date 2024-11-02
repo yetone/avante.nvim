@@ -569,7 +569,7 @@ function Sidebar:apply(current_cursor)
       Diff.process(bufnr)
       api.nvim_win_set_cursor(winid, { 1, 0 })
       vim.defer_fn(function()
-        Diff.find_next("ours")
+        Diff.find_next(Config.windows.ask.focus_on_apply)
         vim.cmd("normal! zz")
       end, 100)
       ::continue::

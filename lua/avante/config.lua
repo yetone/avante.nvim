@@ -181,6 +181,8 @@ Respect and use existing conventions, libraries, etc that are already present in
       floating = false, -- Open the 'AvanteAsk' prompt in a floating window
       border = "rounded",
       start_insert = true, -- Start insert mode when opening the ask window
+      ---@alias AvanteInitialDiff "ours" | "theirs"
+      focus_on_apply = "ours", -- which diff to focus after applying
     },
   },
   --- @class AvanteConflictConfig
