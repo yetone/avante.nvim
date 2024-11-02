@@ -284,6 +284,10 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     autojump = true,
     ---@type string | fun(): any
     list_opener = "copen",
+    --- Override the 'timeoutlen' setting while hovering over a diff (see :help timeoutlen).
+    --- Helps to avoid entering operator-pending mode with diff mappings starting with `c`.
+    --- Disable by setting to -1.
+    override_timeoutlen = 500,
   },
 }
 ```
