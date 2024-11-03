@@ -169,7 +169,7 @@ M.stream = function(opts)
             "$XDG_RUNTIME_DIR="
               .. xdg_runtime_dir
               .. " is set but does not exist. curl could not write output. Please make sure it exists, or unset.",
-            { once = true, title = "Avante" }
+            { title = "Avante" }
           )
         elseif not uv.fs_access(xdg_runtime_dir, "w") then
           Utils.error(
