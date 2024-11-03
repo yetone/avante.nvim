@@ -1415,7 +1415,7 @@ function Sidebar:create_input(opts)
 
   local get_size = function()
     if self:get_layout() == "vertical" then return {
-      height = 8,
+      height = Config.windows.input.height,
     } end
 
     local selected_code_size = self:get_selected_code_size()

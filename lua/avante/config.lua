@@ -172,6 +172,7 @@ Respect and use existing conventions, libraries, etc that are already present in
     },
     input = {
       prefix = "> ",
+      height = 8, -- Height of the input window in vertical layout
     },
     edit = {
       border = "rounded",

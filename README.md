@@ -261,6 +261,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     },
     input = {
       prefix = "> ",
+      height = 8, -- Height of the input window in vertical layout
     },
     edit = {
       border = "rounded",
