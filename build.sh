@@ -38,6 +38,9 @@ aarch64)
 arm64)
   ARCH="aarch64"
   ;;
+riscv64)
+  ARCH="riscv64"
+  ;;
 *)
   echo "Unsupported architecture"
   exit 1
