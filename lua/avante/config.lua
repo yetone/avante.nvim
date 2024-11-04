@@ -18,15 +18,6 @@ M.defaults = {
   -- For most providers that we support we will determine this automatically.
   -- If you wish to use a given implementation, then you can override it here.
   tokenizer = "tiktoken",
-  ---@alias AvanteSystemPrompt string
-  -- Default system prompt. Users can override this with their own prompt
-  -- You can use `require('avante.config').override({system_prompt = "MY_SYSTEM_PROMPT"}) conditionally
-  -- in your own autocmds to do it per directory, or that fit your needs.
-  system_prompt = [[
-Act as an expert software developer.
-Always use best practices when coding.
-Respect and use existing conventions, libraries, etc that are already present in the code base.
-]],
   ---@type AvanteSupportedProvider
   openai = {
     endpoint = "https://api.openai.com/v1",
@@ -102,6 +93,7 @@ Respect and use existing conventions, libraries, etc that are already present in
     support_paste_from_clipboard = false,
   },
   history = {
+    max_tokens = 4096,
     storage_path = vim.fn.stdpath("state") .. "/avante",
     paste = {
       extension = "png",
@@ -315,6 +307,7 @@ M.BASE_PROVIDER_KEYS = {
   "_shellenv",
   "tokenizer_id",
   "use_xml_format",
+  "role_map",
 }
 
 return M
