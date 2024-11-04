@@ -2,11 +2,11 @@ name: Release
 
 on:
   push:
-    tags: [ v\d+\.\d+\.\d+ ]
+    tags: [v\d+\.\d+\.\d+]
 
 permissions:
-    contents: write
-    packages: write
+  contents: write
+  packages: write
 
 env:
   CARGO_TERM_COLOR: always
@@ -22,11 +22,11 @@ jobs:
       release_body: "${{ steps.tag.outputs.message }}"
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # ratchet:actions/checkout@v4
 
       - name: Get version
         id: get_version
-        uses: battila7/get-version-action@v2
+        uses: battila7/get-version-action@d97fbc34ceb64d1f5d95f4dfd6dce33521ccccf5 # ratchet:battila7/get-version-action@v2
 
       - name: Get tag message
         id: tag
@@ -38,7 +38,7 @@ jobs:
 
       - name: Create Release
         id: create-release
-        uses: ncipollo/release-action@v1
+        uses: ncipollo/release-action@2c591bcc8ecdcd2db72b97d6147f871fcd833ba5 # ratchet:ncipollo/release-action@v1
         with:
           draft: true
           name: ${{ steps.get_version.outputs.version }}
@@ -82,11 +82,11 @@ jobs:
     runs-on: ${{ matrix.config.os }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # ratchet:actions/checkout@v4
 
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@82a92a6e8fbeee089604da2575dc567ae9ddeaab # ratchet:Swatinem/rust-cache@v2
         if: ${{ matrix.config.container == null }}
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@7b1c307e0dcbda6122208f10795a713336a9b35a # ratchet:dtolnay/rust-toolchain@master
         if: ${{ matrix.config.container == null }}
         with:
           targets: ${{ matrix.config.rust_target }}
@@ -141,7 +141,7 @@ jobs:
           Compress-Archive -Path $dllFiles -DestinationPath "avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.zip"
 
       - name: Upload Release Asset
-        uses: shogo82148/actions-upload-release-asset@v1
+        uses: shogo82148/actions-upload-release-asset@8482bd769644976d847e96fb4b9354228885e7b4 # ratchet:shogo82148/actions-upload-release-asset@v1
         if: ${{ matrix.config.os_name != 'windows' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -150,7 +150,7 @@ jobs:
           upload_url: ${{ needs.create-release.outputs.release_upload_url }}
           asset_path: ./results/avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.tar.gz
       - name: Upload Release Asset (Windows)
-        uses: shogo82148/actions-upload-release-asset@v1
+        uses: shogo82148/actions-upload-release-asset@8482bd769644976d847e96fb4b9354228885e7b4 # ratchet:shogo82148/actions-upload-release-asset@v1
         if: ${{ matrix.config.os_name == 'windows' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -168,7 +168,7 @@ jobs:
     steps:
       - name: publish release
         id: publish-release
-        uses: actions/github-script@v6
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # ratchet:actions/github-script@v6
         env:
           release_id: ${{ needs.create-release.outputs.release_id }}
         with:
