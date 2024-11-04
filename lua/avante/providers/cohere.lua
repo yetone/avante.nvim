@@ -42,17 +42,18 @@ local M = {}
 
 M.api_key_name = "CO_API_KEY"
 M.tokenizer_id = "https://storage.googleapis.com/cohere-public/tokenizers/command-r-08-2024.json"
+M.role_map = {
+  user = "user",
+  assistant = "assistant",
+}
 
-M.parse_message = function(opts)
-  ---@type CohereMessage[]
-  local user_content = vim.iter(opts.user_prompts):fold({}, function(acc, prompt)
-    table.insert(acc, { type = "text", text = prompt })
-    return acc
-  end)
+M.parse_messages = function(opts)
   local messages = {
     { role = "system", content = opts.system_prompt },
-    { role = "user", content = user_content },
   }
+  vim
+    .iter(opts.messages)
+    :each(function(msg) table.insert(messages, { role = M.role_map[msg.role], content = msg.content }) end)
   return { messages = messages }
 end
 
@@ -91,7 +92,7 @@ M.parse_curl_args = function(provider, code_opts)
     body = vim.tbl_deep_extend("force", {
       model = base.model,
       stream = true,
-    }, M.parse_message(code_opts), body_opts),
+    }, M.parse_messages(code_opts), body_opts),
   }
 end
 

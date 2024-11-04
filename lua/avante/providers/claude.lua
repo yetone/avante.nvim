@@ -13,8 +13,8 @@ local P = require("avante.providers")
 ---@field type "image"
 ---@field source {type: "base64", media_type: string, data: string}
 ---
----@class AvanteClaudeMessage: AvanteBaseMessage
----@field role "user"
+---@class AvanteClaudeMessage
+---@field role "user" | "assistant"
 ---@field content [AvanteClaudeTextMessage | AvanteClaudeImageMessage][]
 
 ---@class AvanteProviderFunctor
@@ -23,11 +23,44 @@ local M = {}
 M.api_key_name = "ANTHROPIC_API_KEY"
 M.use_xml_format = true
 
-M.parse_message = function(opts)
-  ---@type AvanteClaudeMessage[]
-  local message_content = {}
+M.role_map = {
+  user = "user",
+  assistant = "assistant",
+}
 
-  if Clipboard.support_paste_image() and opts.image_paths then
+M.parse_messages = function(opts)
+  ---@type AvanteClaudeMessage[]
+  local messages = {}
+
+  ---@type {idx: integer, length: integer}[]
+  local messages_with_length = {}
+  for idx, message in ipairs(opts.messages) do
+    table.insert(messages_with_length, { idx = idx, length = Utils.tokens.calculate_tokens(message.content) })
+  end
+
+  table.sort(messages_with_length, function(a, b) return a.length > b.length end)
+
+  ---@type table<integer, boolean>
+  local top_three = {}
+  for i = 1, math.min(3, #messages_with_length) do
+    top_three[messages_with_length[i].idx] = true
+  end
+
+  for idx, message in ipairs(opts.messages) do
+    table.insert(messages, {
+      role = M.role_map[message.role],
+      content = {
+        {
+          type = "text",
+          text = message.content,
+          cache_control = top_three[idx] and { type = "ephemeral" } or nil,
+        },
+      },
+    })
+  end
+
+  if Clipboard.support_paste_image() and opts.image_paths and #opts.image_paths > 0 then
+    local message_content = messages[#messages].content
     for _, image_path in ipairs(opts.image_paths) do
       table.insert(message_content, {
         type = "image",
@@ -38,36 +71,10 @@ M.parse_message = function(opts)
         },
       })
     end
+    messages[#messages].content = message_content
   end
 
-  ---@type {idx: integer, length: integer}[]
-  local user_prompts_with_length = {}
-  for idx, user_prompt in ipairs(opts.user_prompts) do
-    table.insert(user_prompts_with_length, { idx = idx, length = Utils.tokens.calculate_tokens(user_prompt) })
-  end
-
-  table.sort(user_prompts_with_length, function(a, b) return a.length > b.length end)
-
-  ---@type table<integer, boolean>
-  local top_three = {}
-  for i = 1, math.min(3, #user_prompts_with_length) do
-    top_three[user_prompts_with_length[i].idx] = true
-  end
-
-  for idx, prompt_data in ipairs(opts.user_prompts) do
-    table.insert(message_content, {
-      type = "text",
-      text = prompt_data,
-      cache_control = top_three[idx] and { type = "ephemeral" } or nil,
-    })
-  end
-
-  return {
-    {
-      role = "user",
-      content = message_content,
-    },
-  }
+  return messages
 end
 
 M.parse_response = function(data_stream, event_state, opts)
@@ -96,7 +103,7 @@ M.parse_curl_args = function(provider, prompt_opts)
   }
   if not P.env.is_local("claude") then headers["x-api-key"] = provider.parse_api_key() end
 
-  local messages = M.parse_message(prompt_opts)
+  local messages = M.parse_messages(prompt_opts)
 
   return {
     url = Utils.trim(base.endpoint, { suffix = "/" }) .. "/v1/messages",
