@@ -198,6 +198,10 @@ Respect and use existing conventions, libraries, etc that are already present in
   hints = {
     enabled = true,
   },
+  --- @class AvanteRepoMapConfig
+  repo_map = {
+    ignore_patterns = { "%.git", "%.worktree", "__pycache__", "node_modules" }, -- ignore files matching these
+  },
 }
 
 ---@type avante.Config
