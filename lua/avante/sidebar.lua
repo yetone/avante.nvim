@@ -1392,17 +1392,26 @@ function Sidebar:create_input(opts)
 
     local project_context = mentions.enable_project_context and RepoMap.get_repo_map(file_ext) or nil
 
-    local history_messages = vim.tbl_map(
-      function(history)
-        return {
-          { role = "user", content = history.request },
-          { role = "assistant", content = history.original_response },
-        }
-      end,
-      chat_history
-    )
-
-    history_messages = vim.iter(history_messages):flatten():totable()
+    local history_messages = vim
+      .iter(chat_history)
+      :filter(
+        function(history)
+          return history.request ~= nil
+            and history.original_response ~= nil
+            and history.request ~= ""
+            and history.original_response ~= ""
+        end
+      )
+      :map(
+        function(history)
+          return {
+            { role = "user", content = history.request },
+            { role = "assistant", content = history.original_response },
+          }
+        end
+      )
+      :flatten()
+      :totable()
 
     Llm.stream({
       bufnr = self.code.bufnr,
