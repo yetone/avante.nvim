@@ -85,12 +85,14 @@ Prompt.get = function(bufnr)
   local scanner = Scan.scan_dir(directory:absolute(), { depth = 1, add_dirs = true })
   for _, entry in ipairs(scanner) do
     local file = Path:new(entry)
-    if entry:find("planning") and Prompt.templates.planning == nil then
-      Prompt.templates.planning = file:read()
-    elseif entry:find("editing") and Prompt.templates.editing == nil then
-      Prompt.templates.editing = file:read()
-    elseif entry:find("suggesting") and Prompt.templates.suggesting == nil then
-      Prompt.templates.suggesting = file:read()
+    if file:is_file() then
+      if entry:find("planning") and Prompt.templates.planning == nil then
+        Prompt.templates.planning = file:read()
+      elseif entry:find("editing") and Prompt.templates.editing == nil then
+        Prompt.templates.editing = file:read()
+      elseif entry:find("suggesting") and Prompt.templates.suggesting == nil then
+        Prompt.templates.suggesting = file:read()
+      end
     end
   end
 
