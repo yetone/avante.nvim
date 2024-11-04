@@ -7,10 +7,11 @@
   "file_content": "local Config = require('avante.config')"
 }
 #}
+Act as an expert software developer.
+Always use best practices when coding.
+Respect and use existing conventions, libraries, etc that are already present in the code base.
+
 {%- if ask %}
-{%- if not use_xml_format -%}
-INSTRUCTION:{% else -%}
-<instruction>{% endif -%}
 {% block user_prompt %}
 Take requests for changes to the supplied code.
 If the request is ambiguous, ask questions.
@@ -150,19 +151,4 @@ To rename files which have been added to the chat, use shell commands at the end
 
 ONLY EVER RETURN CODE IN A *SEARCH/REPLACE BLOCK*!
 {% endblock %}
-{%- if use_xml_format -%}
-</instruction>
-
-<question>{{question}}</question>
-{%- else %}
-QUESTION:
-{{question}}
-{%- endif %}
-{% else %}
-{% if use_xml_format -%}
-<question>{{question}}</question>
-{% else %}
-QUESTION:
-{{question}}
-{%- endif %}
 {%- endif %}

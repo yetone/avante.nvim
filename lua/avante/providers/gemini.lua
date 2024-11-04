@@ -6,10 +6,34 @@ local Clipboard = require("avante.clipboard")
 local M = {}
 
 M.api_key_name = "GEMINI_API_KEY"
+M.role_map = {
+  user = "user",
+  assistant = "model",
+}
 -- M.tokenizer_id = "google/gemma-2b"
 
-M.parse_message = function(opts)
-  local message_content = {}
+M.parse_messages = function(opts)
+  local contents = {}
+  local prev_role = nil
+
+  vim.iter(opts.messages):each(function(message)
+    local role = message.role
+    if role == prev_role then
+      if role == "user" then
+        table.insert(contents, { role = "model", parts = {
+          { text = "Ok, I understand." },
+        } })
+      else
+        table.insert(contents, { role = "user", parts = {
+          { text = "Ok" },
+        } })
+      end
+    end
+    prev_role = role
+    table.insert(contents, { role = M.role_map[role] or role, parts = {
+      { text = message.content },
+    } })
+  end)
 
   if Clipboard.support_paste_image() and opts.image_paths then
     for _, image_path in ipairs(opts.image_paths) do
@@ -20,12 +44,9 @@ M.parse_message = function(opts)
         },
       }
 
-      table.insert(message_content, image_data)
+      table.insert(contents[#contents].parts, image_data)
     end
   end
-
-  -- insert a part into parts
-  table.insert(message_content, { text = table.concat(opts.user_prompts, "\n") })
 
   return {
     systemInstruction = {
@@ -36,12 +57,7 @@ M.parse_message = function(opts)
         },
       },
     },
-    contents = {
-      {
-        role = "user",
-        parts = message_content,
-      },
-    },
+    contents = contents,
   }
 end
 
@@ -78,7 +94,7 @@ M.parse_curl_args = function(provider, code_opts)
     proxy = base.proxy,
     insecure = base.allow_insecure,
     headers = { ["Content-Type"] = "application/json" },
-    body = vim.tbl_deep_extend("force", {}, M.parse_message(code_opts), body_opts),
+    body = vim.tbl_deep_extend("force", {}, M.parse_messages(code_opts), body_opts),
   }
 end
 
