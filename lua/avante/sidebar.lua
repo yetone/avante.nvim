@@ -1022,10 +1022,14 @@ local function delete_last_n_chars(bufnr, n)
 end
 
 ---@param content string concatenated content of the buffer
----@param opts? {focus?: boolean, stream?: boolean, scroll?: boolean, backspace?: integer, callback?: fun(): nil} whether to focus the result view
+---@param opts? {focus?: boolean, scroll?: boolean, backspace?: integer, ignore_history?: boolean, callback?: fun(): nil} whether to focus the result view
 function Sidebar:update_content(content, opts)
   if not self.result or not self.result.bufnr then return end
   opts = vim.tbl_deep_extend("force", { focus = true, scroll = true, stream = false, callback = nil }, opts or {})
+  if not opts.ignore_history then
+    local chat_history = Path.history.load(self.code.bufnr)
+    content = self:get_history_content(chat_history) .. "---\n\n" .. content
+  end
   if opts.stream then
     local scroll_to_bottom = function()
       local last_line = api.nvim_buf_line_count(self.result.bufnr)
@@ -1117,7 +1121,7 @@ function Sidebar:get_layout()
   return vim.tbl_contains({ "left", "right" }, calculate_config_window_position()) and "vertical" or "horizontal"
 end
 
-function Sidebar:update_content_with_history(history)
+function Sidebar:get_history_content(history)
   local content = ""
   for idx, entry in ipairs(history) do
     local prefix =
@@ -1126,7 +1130,12 @@ function Sidebar:update_content_with_history(history)
     content = content .. entry.response .. "\n\n"
     if idx < #history then content = content .. "---\n\n" end
   end
-  self:update_content(content)
+  return content
+end
+
+function Sidebar:update_content_with_history(history)
+  local content = self:get_history_content(history)
+  self:update_content(content, { ignore_history = true })
 end
 
 ---@return string, integer
@@ -1344,11 +1353,11 @@ function Sidebar:create_input(opts)
       local cur_displayed_response = generate_display_content(transformed)
       if is_first_chunk then
         is_first_chunk = false
-        self:update_content(content_prefix .. chunk, { stream = false, scroll = true })
+        self:update_content(content_prefix .. chunk, { scroll = true })
         return
       end
       local suffix = get_display_content_suffix(transformed)
-      self:update_content(content_prefix .. cur_displayed_response .. suffix, { stream = false, scroll = true })
+      self:update_content(content_prefix .. cur_displayed_response .. suffix, { scroll = true })
       vim.schedule(function() vim.cmd("redraw") end)
       displayed_response = cur_displayed_response
     end
@@ -1356,16 +1365,23 @@ function Sidebar:create_input(opts)
     ---@type AvanteCompleteParser
     local on_complete = function(err)
       if err ~= nil then
-        self:update_content("\n\nError: " .. vim.inspect(err), { stream = true, scroll = true })
+        self:update_content(
+          content_prefix .. displayed_response .. "\n\nError: " .. vim.inspect(err),
+          { scroll = true }
+        )
         return
       end
 
       -- Execute when the stream request is actually completed
-      self:update_content("\n\n**Generation complete!** Please review the code suggestions above.\n", {
-        stream = true,
-        scroll = true,
-        callback = function() api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN }) end,
-      })
+      self:update_content(
+        content_prefix
+          .. displayed_response
+          .. "\n\n**Generation complete!** Please review the code suggestions above.\n",
+        {
+          scroll = true,
+          callback = function() api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN }) end,
+        }
+      )
 
       vim.defer_fn(function()
         if self.result and self.result.winid and api.nvim_win_is_valid(self.result.winid) then
