@@ -77,7 +77,26 @@ M.defaults = {
   ---To add support for custom provider, follow the format below
   ---See https://github.com/yetone/avante.nvim/wiki#custom-providers for more details
   ---@type {[string]: AvanteProvider}
-  vendors = {},
+  vendors = {
+    ---@type AvanteSupportedProvider
+    ["claude-haiku"] = {
+      endpoint = "https://api.anthropic.com",
+      model = "claude-3-5-haiku-20241022",
+      timeout = 30000, -- Timeout in milliseconds
+      temperature = 0,
+      max_tokens = 8000,
+      ["local"] = false,
+    },
+    ---@type AvanteSupportedProvider
+    ["claude-opus"] = {
+      endpoint = "https://api.anthropic.com",
+      model = "claude-3-opus-20240229",
+      timeout = 30000, -- Timeout in milliseconds
+      temperature = 0,
+      max_tokens = 8000,
+      ["local"] = false,
+    },
+  },
   ---Specify the behaviour of avante.nvim
   ---1. auto_apply_diff_after_generation: Whether to automatically apply diff after LLM response.
   ---                                     This would simulate similar behaviour to cursor. Default to false.
