@@ -85,6 +85,20 @@ end, {
 })
 cmd("Chat", function() require("avante.api").ask({ ask = false }) end, { desc = "avante: chat with the codebase" })
 cmd("Toggle", function() require("avante").toggle() end, { desc = "avante: toggle AI panel" })
+cmd("Build", function(opts)
+  local args = {}
+  for _, arg in ipairs(opts.fargs) do
+    local key, value = arg:match("(%w+)=(%w+)")
+    if key and value then args[key] = value == "true" end
+  end
+  if args.source == nil then args.source = false end
+
+  require("avante.api").build(args)
+end, {
+  desc = "avante: build dependencies",
+  nargs = "*",
+  complete = function(_, _, _) return { "source=true", "source=false" } end,
+})
 cmd(
   "Edit",
   function(opts) require("avante.api").edit(vim.trim(opts.args)) end,
