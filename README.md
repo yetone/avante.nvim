@@ -11,7 +11,7 @@
     <img src="https://img.shields.io/github/actions/workflow/status/yetone/avante.nvim/ci.yaml?style=flat-square&logo=github&logoColor=c7c7c7&label=CI&labelColor=282828&color=347D39&event=push" alt="CI status" />
   </a>
   <a href="https://discordapp.com/channels/1302530866362323016" target="_blank">
-    <img src="https://img.shields.io/discord/1302530866362323016?style=flat-square&logo=discord&label=Discord&logoColor=ffffff&labelColor=757DC1&color=268165" alt="Discord" />
+    <img src="https://img.shields.io/discord/1302530866362323016?style=flat-square&logo=discord&label=Discord&logoColor=ffffff&labelColor=7376CF&color=268165" alt="Discord" />
   </a>
 </div>
 
