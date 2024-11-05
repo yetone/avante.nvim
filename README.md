@@ -3,13 +3,15 @@
   <h1>avante.nvim</h1>
 </div>
 
-
 <div align="center">
-  <a href="https://neovim.io/">
-    <img src="https://img.shields.io/static/v1?style=flat-square&label=neovim&message=v0.10%2b&logo=neovim&labelColor=282828&logoColor=8faa80&color=414b32" alt="neovim: v0.10+">
+  <a href="https://neovim.io/" target="_blank">
+    <img src="https://img.shields.io/static/v1?style=flat-square&label=Neovim&message=v0.10%2b&logo=neovim&labelColor=282828&logoColor=8faa80&color=414b32" alt="Neovim: v0.10+" />
   </a>
-  <a href="https://github.com/yetone/avante.nvim/actions/workflows/ci.yaml">
-    <img src="https://img.shields.io/github/actions/workflow/status/yetone/avante.nvim/ci.yaml?style=flat-square&logo=github&logoColor=c7c7c7&label=CI&labelColor=282828&event=push" alt="CI status">
+  <a href="https://github.com/yetone/avante.nvim/actions/workflows/ci.yaml" target="_blank">
+    <img src="https://img.shields.io/github/actions/workflow/status/yetone/avante.nvim/ci.yaml?style=flat-square&logo=github&logoColor=c7c7c7&label=CI&labelColor=282828&color=347D39&event=push" alt="CI status" />
+  </a>
+  <a href="https://discordapp.com/channels/1302530866362323016" target="_blank">
+    <img src="https://img.shields.io/discord/1302530866362323016?style=flat-square&logo=discord&label=Discord&logoColor=ffffff&labelColor=747DF8&color=259B6B" alt="Discord" />
   </a>
 </div>
 
