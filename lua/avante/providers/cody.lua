@@ -8,6 +8,21 @@ local Utils = require("avante.utils")
 local M = {}
 
 M.api_key_name = "SRC_ACCESS_TOKEN"
+M.role_map = {
+  user = "human",
+  assistant = "assistant",
+  system = "system",
+}
+
+M.parse_messages = function(opts)
+  local messages = {
+    { role = "system", content = opts.system_prompt },
+  }
+  vim
+    .iter(opts.messages)
+    :each(function(msg) table.insert(messages, { speaker = M.role_map[msg.role], text = msg.content }) end)
+  return messages
+end
 
 M.parse_response = function(data_stream, event_state, opts)
   if event_state == "done" then
@@ -25,9 +40,9 @@ M.parse_response = function(data_stream, event_state, opts)
 end
 
 ---@param provider AvanteProviderFunctor
----@param prompt_opts AvantePromptOptions
+---@param code_opts AvantePromptOptions
 ---@return table
-M.parse_curl_args = function(provider, prompt_opts)
+M.parse_curl_args = function(provider, code_opts)
   local base, body_opts = P.parse_config(provider)
 
   local api_key = provider.parse_api_key()
@@ -54,16 +69,7 @@ M.parse_curl_args = function(provider, prompt_opts)
       topP = body_opts.topP,
       maxTokensToSample = body_opts.max_tokens,
       stream = true,
-      messages = {
-        {
-          speaker = "system",
-          text = prompt_opts.system_prompt,
-        },
-        {
-          speaker = "human",
-          text = table.concat(prompt_opts.user_prompts, "\n"),
-        },
-      },
+      messages = M.parse_messages(code_opts),
     }, {}),
   }
 end
