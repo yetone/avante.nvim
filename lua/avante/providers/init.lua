@@ -86,6 +86,7 @@ local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 ---@field azure AvanteProviderFunctor
 ---@field gemini AvanteProviderFunctor
 ---@field cohere AvanteProviderFunctor
+---@field cody AvanteProviderFunctor
 local M = {}
 
 ---@class EnvironmentHandler

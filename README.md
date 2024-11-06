@@ -212,7 +212,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
 
 ```lua
 {
-  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | string
+  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | "cody" | string
   provider = "claude", -- Recommend using Claude
   auto_suggestions_provider = "claude", -- Since auto-suggestions are a high-frequency operation and therefore expensive, it is recommended to specify an inexpensive provider or even a free provider: copilot
   claude = {
@@ -344,6 +344,11 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 >
 > ```sh
 > export AZURE_OPENAI_API_KEY=your-api-key
+> ```
+> For Cody:
+>
+> ```sh
+> export SRC_ACCESS_TOKEN=your-api-key
 > ```
 
 1. Open a code file in Neovim.

@@ -9,7 +9,7 @@ local M = {}
 ---@class avante.Config
 M.defaults = {
   debug = false,
-  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | [string]
+  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | "cody" | [string]
   provider = "claude", -- Only recommend using Claude
   auto_suggestions_provider = "claude",
   ---@alias Tokenizer "tiktoken" | "hf"
@@ -73,6 +73,17 @@ M.defaults = {
     temperature = 0,
     max_tokens = 4096,
     ["local"] = false,
+  },
+  ---@type AvanteSupportedProvider
+  cody = {
+    endpoint = "https://sourcegraph.com",
+    model = "anthropic::2024-10-22::claude-3-5-sonnet-latest",
+    timeout = 30000,
+    max_tokens = 4000,
+    temperature = 0,
+    stream = true,
+    topK = -1,
+    topP = -1,
   },
   ---To add support for custom provider, follow the format below
   ---See https://github.com/yetone/avante.nvim/wiki#custom-providers for more details
