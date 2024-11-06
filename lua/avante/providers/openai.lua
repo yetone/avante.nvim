@@ -39,7 +39,10 @@ M.role_map = {
 }
 
 ---@param opts AvantePromptOptions
-M.get_user_message = function(opts) return table.concat(opts.messages, "\n") end
+M.get_user_message = function(opts)
+  local content = vim.tbl_map(function(message) return message.content end, opts.messages)
+  return table.concat(content, "\n")
+end
 
 M.parse_messages = function(opts)
   local messages = {}
