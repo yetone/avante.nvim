@@ -569,7 +569,7 @@ function Sidebar:apply(current_cursor)
       Diff.process(bufnr)
       api.nvim_win_set_cursor(winid, { 1, 0 })
       vim.defer_fn(function()
-        Diff.find_next("ours")
+        Diff.find_next(Config.windows.ask.focus_on_apply)
         vim.cmd("normal! zz")
       end, 100)
       ::continue::
@@ -884,6 +884,7 @@ function Sidebar:on_mount(opts)
       self:focus()
       if self.input and self.input.winid and api.nvim_win_is_valid(self.input.winid) then
         api.nvim_set_current_win(self.input.winid)
+        if Config.windows.ask.start_insert then vim.cmd("startinsert") end
       end
       return true
     end,
@@ -1021,10 +1022,14 @@ local function delete_last_n_chars(bufnr, n)
 end
 
 ---@param content string concatenated content of the buffer
----@param opts? {focus?: boolean, stream?: boolean, scroll?: boolean, backspace?: integer, callback?: fun(): nil} whether to focus the result view
+---@param opts? {focus?: boolean, scroll?: boolean, backspace?: integer, ignore_history?: boolean, callback?: fun(): nil} whether to focus the result view
 function Sidebar:update_content(content, opts)
   if not self.result or not self.result.bufnr then return end
   opts = vim.tbl_deep_extend("force", { focus = true, scroll = true, stream = false, callback = nil }, opts or {})
+  if not opts.ignore_history then
+    local chat_history = Path.history.load(self.code.bufnr)
+    content = self:get_history_content(chat_history) .. "---\n\n" .. content
+  end
   if opts.stream then
     local scroll_to_bottom = function()
       local last_line = api.nvim_buf_line_count(self.result.bufnr)
@@ -1116,7 +1121,7 @@ function Sidebar:get_layout()
   return vim.tbl_contains({ "left", "right" }, calculate_config_window_position()) and "vertical" or "horizontal"
 end
 
-function Sidebar:update_content_with_history(history)
+function Sidebar:get_history_content(history)
   local content = ""
   for idx, entry in ipairs(history) do
     local prefix =
@@ -1125,7 +1130,12 @@ function Sidebar:update_content_with_history(history)
     content = content .. entry.response .. "\n\n"
     if idx < #history then content = content .. "---\n\n" end
   end
-  self:update_content(content)
+  return content
+end
+
+function Sidebar:update_content_with_history(history)
+  local content = self:get_history_content(history)
+  self:update_content(content, { ignore_history = true })
 end
 
 ---@return string, integer
@@ -1347,7 +1357,7 @@ function Sidebar:create_input(opts)
         return
       end
       local suffix = get_display_content_suffix(transformed)
-      self:update_content(content_prefix .. cur_displayed_response .. suffix, { stream = false, scroll = true })
+      self:update_content(content_prefix .. cur_displayed_response .. suffix, { scroll = true })
       vim.schedule(function() vim.cmd("redraw") end)
       displayed_response = cur_displayed_response
     end
@@ -1355,16 +1365,23 @@ function Sidebar:create_input(opts)
     ---@type AvanteCompleteParser
     local on_complete = function(err)
       if err ~= nil then
-        self:update_content("\n\nError: " .. vim.inspect(err), { stream = true, scroll = true })
+        self:update_content(
+          content_prefix .. displayed_response .. "\n\nError: " .. vim.inspect(err),
+          { scroll = true }
+        )
         return
       end
 
       -- Execute when the stream request is actually completed
-      self:update_content("\n\n**Generation complete!** Please review the code suggestions above.\n", {
-        stream = true,
-        scroll = true,
-        callback = function() api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN }) end,
-      })
+      self:update_content(
+        content_prefix
+          .. displayed_response
+          .. "\n\n**Generation complete!** Please review the code suggestions above.\n",
+        {
+          scroll = true,
+          callback = function() api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN }) end,
+        }
+      )
 
       vim.defer_fn(function()
         if self.result and self.result.winid and api.nvim_win_is_valid(self.result.winid) then
@@ -1391,10 +1408,32 @@ function Sidebar:create_input(opts)
 
     local project_context = mentions.enable_project_context and RepoMap.get_repo_map(file_ext) or nil
 
+    local history_messages = vim
+      .iter(chat_history)
+      :filter(
+        function(history)
+          return history.request ~= nil
+            and history.original_response ~= nil
+            and history.request ~= ""
+            and history.original_response ~= ""
+        end
+      )
+      :map(
+        function(history)
+          return {
+            { role = "user", content = history.request },
+            { role = "assistant", content = history.original_response },
+          }
+        end
+      )
+      :flatten()
+      :totable()
+
     Llm.stream({
       bufnr = self.code.bufnr,
       ask = opts.ask,
       project_context = vim.json.encode(project_context),
+      history_messages = history_messages,
       file_content = content,
       code_lang = filetype,
       selected_code = selected_code_content,
@@ -1414,7 +1453,7 @@ function Sidebar:create_input(opts)
 
   local get_size = function()
     if self:get_layout() == "vertical" then return {
-      height = 8,
+      height = Config.windows.input.height,
     } end
 
     local selected_code_size = self:get_selected_code_size()

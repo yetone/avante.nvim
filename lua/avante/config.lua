@@ -18,15 +18,6 @@ M.defaults = {
   -- For most providers that we support we will determine this automatically.
   -- If you wish to use a given implementation, then you can override it here.
   tokenizer = "tiktoken",
-  ---@alias AvanteSystemPrompt string
-  -- Default system prompt. Users can override this with their own prompt
-  -- You can use `require('avante.config').override({system_prompt = "MY_SYSTEM_PROMPT"}) conditionally
-  -- in your own autocmds to do it per directory, or that fit your needs.
-  system_prompt = [[
-Act as an expert software developer.
-Always use best practices when coding.
-Respect and use existing conventions, libraries, etc that are already present in the code base.
-]],
   ---@type AvanteSupportedProvider
   openai = {
     endpoint = "https://api.openai.com/v1",
@@ -84,9 +75,28 @@ Respect and use existing conventions, libraries, etc that are already present in
     ["local"] = false,
   },
   ---To add support for custom provider, follow the format below
-  ---See https://github.com/yetone/avante.nvim/README.md#custom-providers for more details
+  ---See https://github.com/yetone/avante.nvim/wiki#custom-providers for more details
   ---@type {[string]: AvanteProvider}
-  vendors = {},
+  vendors = {
+    ---@type AvanteSupportedProvider
+    ["claude-haiku"] = {
+      endpoint = "https://api.anthropic.com",
+      model = "claude-3-5-haiku-20241022",
+      timeout = 30000, -- Timeout in milliseconds
+      temperature = 0,
+      max_tokens = 8000,
+      ["local"] = false,
+    },
+    ---@type AvanteSupportedProvider
+    ["claude-opus"] = {
+      endpoint = "https://api.anthropic.com",
+      model = "claude-3-opus-20240229",
+      timeout = 30000, -- Timeout in milliseconds
+      temperature = 0,
+      max_tokens = 8000,
+      ["local"] = false,
+    },
+  },
   ---Specify the behaviour of avante.nvim
   ---1. auto_apply_diff_after_generation: Whether to automatically apply diff after LLM response.
   ---                                     This would simulate similar behaviour to cursor. Default to false.
@@ -102,6 +112,7 @@ Respect and use existing conventions, libraries, etc that are already present in
     support_paste_from_clipboard = false,
   },
   history = {
+    max_tokens = 4096,
     storage_path = vim.fn.stdpath("state") .. "/avante",
     paste = {
       extension = "png",
@@ -172,6 +183,7 @@ Respect and use existing conventions, libraries, etc that are already present in
     },
     input = {
       prefix = "> ",
+      height = 8, -- Height of the input window in vertical layout
     },
     edit = {
       border = "rounded",
@@ -181,11 +193,17 @@ Respect and use existing conventions, libraries, etc that are already present in
       floating = false, -- Open the 'AvanteAsk' prompt in a floating window
       border = "rounded",
       start_insert = true, -- Start insert mode when opening the ask window
+      ---@alias AvanteInitialDiff "ours" | "theirs"
+      focus_on_apply = "ours", -- which diff to focus after applying
     },
   },
   --- @class AvanteConflictConfig
   diff = {
     autojump = true,
+    --- Override the 'timeoutlen' setting while hovering over a diff (see :help timeoutlen).
+    --- Helps to avoid entering operator-pending mode with diff mappings starting with `c`.
+    --- Disable by setting to -1.
+    override_timeoutlen = 500,
   },
   --- @class AvanteHintsConfig
   hints = {
@@ -308,6 +326,7 @@ M.BASE_PROVIDER_KEYS = {
   "_shellenv",
   "tokenizer_id",
   "use_xml_format",
+  "role_map",
 }
 
 return M

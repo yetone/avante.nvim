@@ -60,6 +60,7 @@ fn get_ts_language(language: &str) -> Option<LanguageFn> {
         "lua" => Some(tree_sitter_lua::LANGUAGE),
         "ruby" => Some(tree_sitter_ruby::LANGUAGE),
         "zig" => Some(tree_sitter_zig::LANGUAGE),
+        "scala" => Some(tree_sitter_scala::LANGUAGE),
         _ => None,
     }
 }
@@ -74,6 +75,7 @@ const RUST_QUERY: &str = include_str!("../queries/tree-sitter-rust-defs.scm");
 const ZIG_QUERY: &str = include_str!("../queries/tree-sitter-zig-defs.scm");
 const TYPESCRIPT_QUERY: &str = include_str!("../queries/tree-sitter-typescript-defs.scm");
 const RUBY_QUERY: &str = include_str!("../queries/tree-sitter-ruby-defs.scm");
+const SCALA_QUERY: &str = include_str!("../queries/tree-sitter-scala-defs.scm");
 
 fn get_definitions_query(language: &str) -> Result<Query, String> {
     let ts_language = get_ts_language(language);
@@ -92,10 +94,11 @@ fn get_definitions_query(language: &str) -> Result<Query, String> {
         "zig" => ZIG_QUERY,
         "typescript" => TYPESCRIPT_QUERY,
         "ruby" => RUBY_QUERY,
+        "scala" => SCALA_QUERY,
         _ => return Err(format!("Unsupported language: {language}")),
     };
     let query = Query::new(&ts_language.into(), contents)
-        .unwrap_or_else(|_| panic!("Failed to parse query for {language}"));
+        .unwrap_or_else(|e| panic!("Failed to parse query for {language}: {e}"));
     Ok(query)
 }
 
@@ -315,6 +318,12 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                         }
                     }
                 }
+                "scala" => node
+                    .child_by_field_name("name")
+                    .or_else(|| node.child_by_field_name("pattern"))
+                    .map(|n| n.utf8_text(source.as_bytes()).unwrap())
+                    .unwrap_or(node_text)
+                    .to_string(),
                 _ => node
                     .child_by_field_name("name")
                     .map(|n| n.utf8_text(source.as_bytes()).unwrap())
@@ -362,6 +371,14 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                         enum_name =
                             zig_find_parent_variable_declaration_name(&node, source.as_bytes())
                                 .unwrap_or_default();
+                    }
+                    if language == "scala" {
+                        if let Some(enum_node) = find_ancestor_by_type(&node, "enum_definition") {
+                            if let Some(name_node) = enum_node.child_by_field_name("name") {
+                                enum_name =
+                                    name_node.utf8_text(source.as_bytes()).unwrap().to_string();
+                            }
+                        }
                     }
                     if !enum_name.is_empty()
                         && language == "go"
@@ -1369,6 +1386,45 @@ mod tests {
         let stringified = stringify_definitions(&definitions);
         println!("{}", stringified);
         let expected = "var TEST_CONSTEXPR:int;var TEST_CONST:int;var test_var:int;func TestFunc(bool b) -> int;func TestStruct::operator==(const TestStruct &other) -> bool;var TestStruct::c:int;func testFunction(int a, int b) -> int;func InnerClass::innerMethod(int a) -> bool;class InnerClass{func innerMethod(int a) -> bool;};class TestClass{func TestClass() -> TestClass;func operator==(const TestClass &other) -> bool;func testMethod(T x, T y) -> T;func privateMethod() -> void;func TestClass(T a, T b) -> TestClass;var c:T;var a:T;var b:T;};class TestStruct{func TestStruct(int a, int b) -> void;func operator==(const TestStruct &other) -> bool;func testMethod(int x, int y) -> int;var c:int;var a:int;var b:int;};enum TestEnum{ENUM_VALUE_1;ENUM_VALUE_2;};";
+        assert_eq!(stringified, expected);
+    }
+
+    #[test]
+    fn test_scala() {
+        let source = r#"
+        object Main {
+          def main(args: Array[String]): Unit = {
+            println("Hello, World!")
+          }
+        }
+
+        class TestClass {
+          val testVal: String = "test"
+          var testVar = 42
+
+          def testMethod(a: Int, b: Int): Int = {
+            a + b
+          }
+        }
+
+        // braceless syntax is also supported
+        trait TestTrait:
+          def abstractMethod(x: Int): Int
+          def concreteMethod(y: Int): Int = y * 2
+
+        case class TestCaseClass(name: String, age: Int)
+
+        enum TestEnum {
+          case First, Second, Third
+        }
+
+        val foo: TestClass = ???
+        "#;
+
+        let definitions = extract_definitions("scala", source).unwrap();
+        let stringified = stringify_definitions(&definitions);
+        println!("{stringified}");
+        let expected = "var foo:TestClass;class Main{func main(args: Array[String]) -> Unit;};class TestCaseClass{};class TestClass{func testMethod(a: Int, b: Int) -> Int;var testVal:String;var testVar;};class TestTrait{func abstractMethod(x: Int) -> Int;func concreteMethod(y: Int) -> Int;};enum TestEnum{First;Second;Third;};";
         assert_eq!(stringified, expected);
     }
 
