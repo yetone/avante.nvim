@@ -1,5 +1,6 @@
 local fn, api = vim.fn, vim.api
 local Utils = require("avante.utils")
+local LRUCache = require("avante.utils.lru_cache")
 local Path = require("plenary.path")
 local Scan = require("plenary.scandir")
 local Config = require("avante.config")
@@ -27,6 +28,8 @@ end
 ---@param mode LlmMode
 H.get_mode_file = function(mode) return string.format("custom.%s.avanterules", mode) end
 
+local history_file_cache = LRUCache:new(12)
+
 -- History path
 local History = {}
 
@@ -39,11 +42,16 @@ History.get = function(bufnr) return Path:new(Config.history.storage_path):joinp
 ---@param bufnr integer
 History.load = function(bufnr)
   local history_file = History.get(bufnr)
+  local cached_key = tostring(history_file:absolute())
+  local cached_value = history_file_cache:get(cached_key)
+  if cached_value ~= nil then return cached_value end
+  local value = {}
   if history_file:exists() then
     local content = history_file:read()
-    return content ~= nil and vim.json.decode(content) or {}
+    value = content ~= nil and vim.json.decode(content) or {}
   end
-  return {}
+  history_file_cache:set(cached_key, value)
+  return value
 end
 
 -- Saves the chat history for the given buffer.
@@ -51,7 +59,9 @@ end
 ---@param history table
 History.save = vim.schedule_wrap(function(bufnr, history)
   local history_file = History.get(bufnr)
+  local cached_key = tostring(history_file:absolute())
   history_file:write(vim.json.encode(history), "w")
+  history_file_cache:set(cached_key, history)
 end)
 
 P.history = History
@@ -85,12 +95,14 @@ Prompt.get = function(bufnr)
   local scanner = Scan.scan_dir(directory:absolute(), { depth = 1, add_dirs = true })
   for _, entry in ipairs(scanner) do
     local file = Path:new(entry)
-    if entry:find("planning") and Prompt.templates.planning == nil then
-      Prompt.templates.planning = file:read()
-    elseif entry:find("editing") and Prompt.templates.editing == nil then
-      Prompt.templates.editing = file:read()
-    elseif entry:find("suggesting") and Prompt.templates.suggesting == nil then
-      Prompt.templates.suggesting = file:read()
+    if file:is_file() then
+      if entry:find("planning") and Prompt.templates.planning == nil then
+        Prompt.templates.planning = file:read()
+      elseif entry:find("editing") and Prompt.templates.editing == nil then
+        Prompt.templates.editing = file:read()
+      elseif entry:find("suggesting") and Prompt.templates.suggesting == nil then
+        Prompt.templates.suggesting = file:read()
+      end
     end
   end
 

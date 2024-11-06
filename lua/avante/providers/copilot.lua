@@ -120,12 +120,19 @@ M.state = nil
 
 M.api_key_name = P.AVANTE_INTERNAL_KEY
 M.tokenizer_id = "gpt-4o"
+M.role_map = {
+  user = "user",
+  assistant = "assistant",
+}
 
-M.parse_message = function(opts)
-  return {
+M.parse_messages = function(opts)
+  local messages = {
     { role = "system", content = opts.system_prompt },
-    { role = "user", content = table.concat(opts.user_prompts, "\n") },
   }
+  vim
+    .iter(opts.messages)
+    :each(function(msg) table.insert(messages, { role = M.role_map[msg.role], content = msg.content }) end)
+  return messages
 end
 
 M.parse_response = O.parse_response
@@ -148,7 +155,7 @@ M.parse_curl_args = function(provider, code_opts)
     },
     body = vim.tbl_deep_extend("force", {
       model = base.model,
-      messages = M.parse_message(code_opts),
+      messages = M.parse_messages(code_opts),
       stream = true,
     }, body_opts),
   }
