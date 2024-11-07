@@ -25,10 +25,13 @@ M.parse_messages = function(opts)
 end
 
 M.parse_response = function(data_stream, event_state, opts)
+  -- vim.api.nvim_notify(vim.inspect(data_stream) .. "\n\n\n\n", 1, {})
   if event_state == "done" then
     opts.on_complete()
     return
   end
+
+  if data_stream == nil or data_stream == "" then return end
 
   local json = vim.json.decode(data_stream)
   local delta = json.deltaText
