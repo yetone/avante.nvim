@@ -44,7 +44,7 @@ M.get_user_message = function(opts)
   return table.concat(
     vim.iter(opts.messages):filter(function(_, value) return value.role == "user" end):fold({}, function(acc, value)
       acc = vim.list_extend({}, acc)
-      acc = vim.list_extend(acc, { value })
+      acc = vim.list_extend(acc, { value.content })
       return acc
     end),
     "\n"
