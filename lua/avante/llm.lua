@@ -181,7 +181,7 @@ M.stream = function(opts)
         if Config.options[Config.provider] == nil and Provider.parse_stream_data ~= nil then
           if Provider.parse_response ~= nil then
             Utils.warn(
-              "parse_stream_data and parse_response_data are mutually exclusive, and thus parse_response_data will be ignored. Make sure that you handle the incoming data correctly.",
+              "parse_stream_data and parse_response are mutually exclusive, and thus parse_response_data will be ignored. Make sure that you handle the incoming data correctly.",
               { once = true }
             )
           end
