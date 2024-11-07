@@ -186,19 +186,6 @@ require('avante').setup ({
 > vim.opt.laststatus = 3
 > ```
 
-> [!NOTE]
->
-> `render-markdown.nvim` is an optional dependency that is used to render the markdown content of the chat history. Make sure to also include `Avante` as a filetype
-> to its setup (e.g. via Lazy):
->
-> ```lua
-> {
->   "MeanderingProgrammer/render-markdown.nvim",
->   opts = { file_types = { "markdown", "Avante" } },
->   ft = { "markdown", "Avante" },
-> }
-> ```
-
 > [!TIP]
 >
 > Any rendering plugins that support markdown should work with Avante as long as you add the supported filetype `Avante`. See https://github.com/yetone/avante.nvim/issues/175 and [this comment](https://github.com/yetone/avante.nvim/issues/175#issuecomment-2313749363) for more information.
