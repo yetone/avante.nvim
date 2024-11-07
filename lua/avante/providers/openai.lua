@@ -40,8 +40,15 @@ M.role_map = {
 
 ---@param opts AvantePromptOptions
 M.get_user_message = function(opts)
-  local content = vim.tbl_map(function(message) return message.content end, opts.messages)
-  return table.concat(content, "\n")
+  vim.deprecate("get_user_message", "parse_messages", "0.1.0", "avante.nvim")
+  return table.concat(
+    vim.iter(opts.messages):filter(function(_, value) return value.role == "user" end):fold({}, function(acc, value)
+      acc = vim.list_extend({}, acc)
+      acc = vim.list_extend(acc, { value })
+      return acc
+    end),
+    "\n"
+  )
 end
 
 M.parse_messages = function(opts)
