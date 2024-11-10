@@ -1,4 +1,4 @@
-name: CI
+name: Lua CI
 
 on:
   push:
@@ -13,8 +13,8 @@ jobs:
     name: Check Lua style
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: JohnnyMorganz/stylua-action@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # ratchet:actions/checkout@v4
+      - uses: JohnnyMorganz/stylua-action@b6661824b86c9c33121bed87a778b660ba90cf77 # ratchet:JohnnyMorganz/stylua-action@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           version: latest
@@ -24,47 +24,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # ratchet:actions/checkout@v4
       - name: Luacheck linter
-        uses: lunarmodules/luacheck@v1
+        uses: lunarmodules/luacheck@cc089e3f65acdd1ef8716cc73a3eca24a6b845e4 # ratchet:lunarmodules/luacheck@v1
         with:
           args: ./lua/
-  rust-tests:
-    name: Run Rust tests
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' || contains(github.event.pull_request.files.*.path, 'crates/') || contains(github.event.pull_request.files.*.path, '.cargo/')
-    steps:
-      - uses: actions/checkout@v4
-      - uses: Swatinem/rust-cache@v2
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-          components: clippy, rustfmt
-      - name: Run rust tests
-        run: cargo test --features luajit
-  rust:
-    name: Check Rust style
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' || contains(github.event.pull_request.files.*.path, 'crates/') || contains(github.event.pull_request.files.*.path, '.cargo/')
-    steps:
-      - uses: actions/checkout@v4
-      - uses: Swatinem/rust-cache@v2
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-          components: clippy, rustfmt
-      - name: Run rustfmt
-        run: make ruststylecheck
-  rustlint:
-    name: Lint Rust
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' || contains(github.event.pull_request.files.*.path, 'crates/') || contains(github.event.pull_request.files.*.path, '.cargo/')
-    steps:
-      - uses: actions/checkout@v4
-      - uses: Swatinem/rust-cache@v2
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: "1.80.1"
-          components: clippy, rustfmt
-      - name: Run rustfmt
-        run: make rustlint
