@@ -13,6 +13,9 @@
   <a href="https://discordapp.com/channels/1302530866362323016" target="_blank">
     <img src="https://img.shields.io/discord/1302530866362323016?style=flat-square&logo=discord&label=Discord&logoColor=ffffff&labelColor=7376CF&color=268165" alt="Discord" />
   </a>
+  <a href="https://dotfyle.com/plugins/yetone/avante.nvim">
+    <img src="https://dotfyle.com/plugins/yetone/avante.nvim/shield?style=flat-square" />
+  </a>
 </div>
 
 **avante.nvim** is a Neovim plugin designed to emulate the behaviour of the [Cursor](https://www.cursor.com) AI IDE. It provides users with AI-driven code suggestions and the ability to apply these recommendations directly to their source files with minimal effort.
