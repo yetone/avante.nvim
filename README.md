@@ -14,7 +14,7 @@
     <img src="https://img.shields.io/discord/1302530866362323016?style=flat-square&logo=discord&label=Discord&logoColor=ffffff&labelColor=7376CF&color=268165" alt="Discord" />
   </a>
   <a href="https://dotfyle.com/plugins/yetone/avante.nvim">
-	  <img src="https://dotfyle.com/plugins/yetone/avante.nvim/shield?style=flat-square" />
+    <img src="https://dotfyle.com/plugins/yetone/avante.nvim/shield?style=flat-square" />
   </a>
 </div>
 
