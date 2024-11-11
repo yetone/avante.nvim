@@ -1,6 +1,7 @@
 local Popup = require("nui.popup")
 local Utils = require("avante.utils")
 local event = require("nui.utils.autocmd").event
+local Config = require("avante.config")
 local fn = vim.fn
 
 local filetype_map = {
@@ -47,7 +48,9 @@ end
 function RepoMap._build_repo_map(project_root, file_ext)
   local output = {}
   local gitignore_path = project_root .. "/.gitignore"
-  local ignore_patterns, negate_patterns = Utils.parse_gitignore(gitignore_path)
+  local gitignore_patterns, negate_patterns = Utils.parse_gitignore(gitignore_path)
+  local ignore_patterns = vim.list_extend(gitignore_patterns, Config.repo_map.ignore_patterns)
+
   local filepaths = Utils.scan_directory(project_root, ignore_patterns, negate_patterns)
   vim.iter(filepaths):each(function(filepath)
     if not Utils.is_same_file_ext(file_ext, filepath) then return end
