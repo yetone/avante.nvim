@@ -583,7 +583,7 @@ local function pattern_to_lua(pattern)
 end
 
 function M.parse_gitignore(gitignore_path)
-  local ignore_patterns = { "%.git", "%.worktree", "__pycache__", "node_modules", "vendor" }
+  local ignore_patterns = {}
   local negate_patterns = {}
   local file = io.open(gitignore_path, "r")
   if not file then return ignore_patterns, negate_patterns end
