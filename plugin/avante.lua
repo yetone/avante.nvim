@@ -116,3 +116,4 @@ cmd("SwitchProvider", function(opts) require("avante.api").switch_provider(vim.t
   end,
 })
 cmd("Clear", function() require("avante.path").clear() end, { desc = "avante: clear all chat history" })
+cmd("ShowRepoMap", function() require("avante.repo_map").show() end, { desc = "avante: show repo map" })
