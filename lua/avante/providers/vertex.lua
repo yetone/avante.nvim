@@ -32,18 +32,12 @@ end
 
 M.parse_curl_args = function(provider, code_opts)
   local base, body_opts = P.parse_config(provider)
-
   local location = vim.fn.getenv("LOCATION") or "default-location"
   local project_id = vim.fn.getenv("PROJECT_ID") or "default-project-id"
   local model_id = base.model or "default-model-id"
+  local url = base.endpoint:gsub("LOCATION", location):gsub("PROJECT_ID", project_id)
 
-  local url = string.format(
-    "https://%s-aiplatform.googleapis.com/v1/projects/%s/locations/%s/publishers/google/models/%s:streamGenerateContent?alt=sse",
-    location,
-    project_id,
-    location,
-    model_id
-  )
+  url = string.format("%s/%s:streamGenerateContent?alt=sse", url, model_id)
 
   body_opts = vim.tbl_deep_extend("force", body_opts, {
     generationConfig = {
@@ -53,7 +47,6 @@ M.parse_curl_args = function(provider, code_opts)
   })
   body_opts.temperature = nil
   body_opts.max_tokens = nil
-
   return {
     url = url,
     headers = {
