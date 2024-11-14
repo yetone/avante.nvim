@@ -5,11 +5,10 @@ local Utils = require("avante.utils")
 
 ---@class avante.CoreConfig: avante.Config
 local M = {}
-
 ---@class avante.Config
 M.defaults = {
   debug = false,
-  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | [string]
+  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | [string]
   provider = "claude", -- Only recommend using Claude
   auto_suggestions_provider = "claude",
   ---@alias Tokenizer "tiktoken" | "hf"
@@ -59,6 +58,15 @@ M.defaults = {
   ---@type AvanteSupportedProvider
   gemini = {
     endpoint = "https://generativelanguage.googleapis.com/v1beta/models",
+    model = "gemini-1.5-flash-latest",
+    timeout = 30000, -- Timeout in milliseconds
+    temperature = 0,
+    max_tokens = 4096,
+    ["local"] = false,
+  },
+  ---@type AvanteSupportedProvider
+  vertex = {
+    endpoint = "https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/google/models",
     model = "gemini-1.5-flash-latest",
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
