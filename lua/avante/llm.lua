@@ -18,32 +18,29 @@ M.CANCEL_PATTERN = "AvanteLLMEscape"
 
 local group = api.nvim_create_augroup("avante_llm", { clear = true })
 
----@alias LlmMode "planning" | "editing" | "suggesting"
----
----@class TemplateOptions
----@field use_xml_format boolean
----@field ask boolean
----@field question string
----@field code_lang string
----@field file_content string
----@field selected_code string | nil
----@field project_context string | nil
----@field history_messages AvanteLLMMessage[]
----
----@class StreamOptions: TemplateOptions
----@field ask boolean
----@field bufnr integer
----@field instructions string
----@field mode LlmMode
----@field provider AvanteProviderFunctor | nil
----@field on_chunk AvanteChunkParser
----@field on_complete AvanteCompleteParser
+local function convert_message_format_copy(original_message, opts)
+  -- Create a new table and copy the contents of the original message
+  local new_message = {
+    role = original_message.role,
+    content = original_message.content,
+  }
 
----@param opts StreamOptions
-M.stream = function(opts)
+  -- Modify the copy based on the format option
+  if opts.use_xml_format then
+    -- Convert plain text to XML format in the copy
+    new_message.content = string.format("<question>%s</question>", new_message.content:match("QUESTION:%s*(.*)"))
+  else
+    -- Convert XML format to plain text in the copy
+    new_message.content = "QUESTION:\n" .. new_message.content:match("<question>(.*)</question>")
+  end
+
+  return new_message
+end
+
+M._stream = function(opts, Provider)
+  -- print opts
   local mode = opts.mode or "planning"
   ---@type AvanteProviderFunctor
-  local Provider = opts.provider or P[Config.provider]
   local _, body_opts = P.parse_config(Provider)
   local max_tokens = body_opts.max_tokens or 4096
 
@@ -126,7 +123,6 @@ M.stream = function(opts)
     messages = messages,
     image_paths = image_paths,
   }
-
   ---@type string
   local current_event_state = nil
 
@@ -263,6 +259,85 @@ M.stream = function(opts)
   })
 
   return active_job
+end
+
+M._dual_boost_stream = function(opts, Provider, Provider1, Provider2)
+  Utils.debug("Dual Boost Stream")
+  ----------- TESTING ------------
+  local first_response = ""
+
+  local second_response = ""
+
+  local response_count = 0
+
+  local new_opts_1 = {
+    on_chunk = function(chunk) first_response = first_response .. chunk end,
+    on_complete = function(err)
+      Utils.debug("first_response hit")
+      response_count = response_count + 1
+      if response_count == 2 then M._merged_response(first_response, second_response, opts, Provider) end
+    end,
+  }
+
+  local new_opts_2 = {
+    on_chunk = function(chunk) second_response = second_response .. chunk end,
+    on_complete = function(err)
+      Utils.debug("second_response hit")
+      response_count = response_count + 1
+      if response_count == 2 then M._merged_response(first_response, second_response, opts, Provider) end
+    end,
+  }
+
+  new_opts_1 = vim.tbl_extend("force", opts, new_opts_1)
+  new_opts_2 = vim.tbl_extend("force", opts, new_opts_2)
+
+  M._stream(new_opts_1, Provider1)
+  M._stream(new_opts_2, Provider2)
+end
+
+M._merged_response = function(first_response, second_response, opts, Provider)
+  local reference_prompt = "\n Based on the two reference outputs below, give your response to the previouse QUESTION, try to utlilize the godd points from the references. Do not provide any explanation, just give the response directly. Reference Output 1: ["
+    .. first_response
+    .. "]\n Reference Output 2: ["
+    .. second_response
+    .. "]"
+
+  -- append this reference prompt to the code_opts messages at last
+  opts.instructions = opts.instructions .. reference_prompt
+
+  M._stream(opts, Provider)
+end
+
+---@alias LlmMode "planning" | "editing" | "suggesting"
+---
+---@class TemplateOptions
+---@field use_xml_format boolean
+---@field ask boolean
+---@field question string
+---@field code_lang string
+---@field file_content string
+---@field selected_code string | nil
+---@field project_context string | nil
+---@field history_messages AvanteLLMMessage[]
+---
+---@class StreamOptions: TemplateOptions
+---@field ask boolean
+---@field bufnr integer
+---@field instructions string
+---@field mode LlmMode
+---@field provider AvanteProviderFunctor | nil
+---@field on_chunk AvanteChunkParser
+---@field on_complete AvanteCompleteParser
+
+---@param opts StreamOptions
+M.stream = function(opts)
+  local Provider = opts.provider or P[Config.provider]
+  Utils.debug(Config.dual_boost)
+  if Config.dual_boost.enabled then
+    M._dual_boost_stream(opts, Provider, P[Config.dual_boost.first_provider], P[Config.dual_boost.second_provider])
+  else
+    M._stream(opts, Provider)
+  end
 end
 
 function M.cancel_inflight_request() api.nvim_exec_autocmds("User", { pattern = M.CANCEL_PATTERN }) end
