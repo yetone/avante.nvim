@@ -48,8 +48,9 @@ end
 function RepoMap._build_repo_map(project_root, file_ext)
   local output = {}
   local gitignore_path = project_root .. "/.gitignore"
-  local gitignore_patterns, negate_patterns = Utils.parse_gitignore(gitignore_path)
+  local gitignore_patterns, gitignore_negate_patterns = Utils.parse_gitignore(gitignore_path)
   local ignore_patterns = vim.list_extend(gitignore_patterns, Config.repo_map.ignore_patterns)
+  local negate_patterns = vim.list_extend(gitignore_negate_patterns, Config.repo_map.negate_patterns)
 
   local filepaths = Utils.scan_directory(project_root, ignore_patterns, negate_patterns)
   vim.iter(filepaths):each(function(filepath)
