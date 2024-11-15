@@ -8,7 +8,7 @@ local M = {}
 ---@class avante.Config
 M.defaults = {
   debug = false,
-  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | [string]
+  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | string
   provider = "claude", -- Only recommend using Claude
   auto_suggestions_provider = "claude",
   ---@alias Tokenizer "tiktoken" | "hf"
@@ -88,7 +88,7 @@ M.defaults = {
   vendors = {
     ---@type AvanteSupportedProvider
     ["claude-haiku"] = {
-      endpoint = "https://api.anthropic.com",
+      __inherited_from = "claude",
       model = "claude-3-5-haiku-20241022",
       timeout = 30000, -- Timeout in milliseconds
       temperature = 0,
@@ -97,7 +97,7 @@ M.defaults = {
     },
     ---@type AvanteSupportedProvider
     ["claude-opus"] = {
-      endpoint = "https://api.anthropic.com",
+      __inherited_from = "claude",
       model = "claude-3-opus-20240229",
       timeout = 30000, -- Timeout in milliseconds
       temperature = 0,
@@ -340,6 +340,7 @@ M.BASE_PROVIDER_KEYS = {
   "tokenizer_id",
   "use_xml_format",
   "role_map",
+  "__inherited_from",
 }
 
 return M
