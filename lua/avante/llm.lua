@@ -261,52 +261,125 @@ M._stream = function(opts, Provider)
   return active_job
 end
 
-M._dual_boost_stream = function(opts, Provider, Provider1, Provider2)
-  Utils.debug("Dual Boost Stream")
-  ----------- TESTING ------------
-  local first_response = ""
+local function _merge_response(first_response, second_response, opts, Provider)
+  local prompt = "\n" .. Config.dual_boost.prompt
+  prompt = prompt
+    :gsub("{%%[%s]*provider1_output[%s]*%%}", first_response)
+    :gsub("{%%[%s]*provider2_output[%s]*%%}", second_response)
 
-  local second_response = ""
+  prompt = prompt .. "\n"
 
-  local response_count = 0
-
-  local new_opts_1 = {
-    on_chunk = function(chunk) first_response = first_response .. chunk end,
-    on_complete = function(err)
-      Utils.debug("first_response hit")
-      response_count = response_count + 1
-      if response_count == 2 then M._merged_response(first_response, second_response, opts, Provider) end
-    end,
-  }
-
-  local new_opts_2 = {
-    on_chunk = function(chunk) second_response = second_response .. chunk end,
-    on_complete = function(err)
-      Utils.debug("second_response hit")
-      response_count = response_count + 1
-      if response_count == 2 then M._merged_response(first_response, second_response, opts, Provider) end
-    end,
-  }
-
-  new_opts_1 = vim.tbl_extend("force", opts, new_opts_1)
-  new_opts_2 = vim.tbl_extend("force", opts, new_opts_2)
-
-  M._stream(new_opts_1, Provider1)
-  M._stream(new_opts_2, Provider2)
-end
-
-M._merged_response = function(first_response, second_response, opts, Provider)
-  local reference_prompt = "\n Based on the two reference outputs below, give your response to the previouse QUESTION, try to utlilize the godd points from the references. Do not provide any explanation, just give the response directly. Reference Output 1: ["
-    .. first_response
-    .. "]\n Reference Output 2: ["
-    .. second_response
-    .. "]"
+  Utils.debug("Dual Boost Prompt:", prompt)
 
   -- append this reference prompt to the code_opts messages at last
-  opts.instructions = opts.instructions .. reference_prompt
+  opts.instructions = opts.instructions .. prompt
 
   M._stream(opts, Provider)
 end
+
+local function _collector_process_responses(collector, opts, Provider)
+  if not collector[1] or not collector[2] then
+    Utils.error("One or both responses failed to complete")
+    return
+  end
+  _merge_response(collector[1], collector[2], opts, Provider)
+end
+
+local function _collector_add_response(collector, index, response, opts, Provider)
+  collector[index] = response
+  collector.count = collector.count + 1
+
+  if collector.count == 2 then
+    collector.timer:stop()
+    _collector_process_responses(collector, opts, Provider)
+  end
+end
+
+M._dual_boost_stream = function(opts, Provider, Provider1, Provider2)
+  Utils.debug("Starting Dual Boost Stream")
+
+  local collector = {
+    count = 0,
+    responses = {},
+    timer = uv.new_timer(),
+    timeout_ms = 2 * 3600 * 1000,
+  }
+
+  -- Setup timeout
+  collector.timer:start(
+    collector.timeout_ms,
+    0,
+    vim.schedule_wrap(function()
+      if collector.count < 2 then
+        Utils.warn("Dual boost stream timeout reached")
+        collector.timer:stop()
+        -- Process whatever responses we have
+        _collector_process_responses(collector, opts, Provider)
+      end
+    end)
+  )
+
+  Utils.debug(collector)
+
+  -- Create options for both streams
+  local function create_stream_opts(index)
+    local response = ""
+    return vim.tbl_extend("force", opts, {
+      on_chunk = function(chunk)
+        if chunk then response = response .. chunk end
+      end,
+      on_complete = function(err)
+        if err then
+          Utils.error(string.format("Stream %d failed: %s", index, err))
+          return
+        end
+        Utils.debug(string.format("Response %d completed", index))
+        _collector_add_response(collector, index, response, opts, Provider)
+      end,
+    })
+  end
+
+  -- Start both streams
+  local success, err = xpcall(function()
+    M._stream(create_stream_opts(1), Provider1)
+    M._stream(create_stream_opts(2), Provider2)
+  end, function(err) return err end)
+  if not success then Utils.error("Failed to start dual_boost streams: " .. tostring(err)) end
+end
+
+-- M._dual_boost_stream = function(opts, Provider, Provider1, Provider2)
+--   Utils.debug("Dual Boost Stream")
+--   ----------- TESTING ------------
+--   local first_response = ""
+--
+--   local second_response = ""
+--
+--   local response_count = 0
+--
+--   local new_opts_1 = {
+--     on_chunk = function(chunk) first_response = first_response .. chunk end,
+--     on_complete = function(err)
+--       Utils.debug("first_response hit")
+--       response_count = response_count + 1
+--       if response_count == 2 then M._merged_response(first_response, second_response, opts, Provider) end
+--     end,
+--   }
+--
+--   local new_opts_2 = {
+--     on_chunk = function(chunk) second_response = second_response .. chunk end,
+--     on_complete = function(err)
+--       Utils.debug("second_response hit")
+--       response_count = response_count + 1
+--       if response_count == 2 then M._merged_response(first_response, second_response, opts, Provider) end
+--     end,
+--   }
+--
+--   new_opts_1 = vim.tbl_extend("force", opts, new_opts_1)
+--   new_opts_2 = vim.tbl_extend("force", opts, new_opts_2)
+--
+--   M._stream(new_opts_1, Provider1)
+--   M._stream(new_opts_2, Provider2)
+-- end
 
 ---@alias LlmMode "planning" | "editing" | "suggesting"
 ---
