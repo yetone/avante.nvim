@@ -18,25 +18,6 @@ M.CANCEL_PATTERN = "AvanteLLMEscape"
 
 local group = api.nvim_create_augroup("avante_llm", { clear = true })
 
-local function convert_message_format_copy(original_message, opts)
-  -- Create a new table and copy the contents of the original message
-  local new_message = {
-    role = original_message.role,
-    content = original_message.content,
-  }
-
-  -- Modify the copy based on the format option
-  if opts.use_xml_format then
-    -- Convert plain text to XML format in the copy
-    new_message.content = string.format("<question>%s</question>", new_message.content:match("QUESTION:%s*(.*)"))
-  else
-    -- Convert XML format to plain text in the copy
-    new_message.content = "QUESTION:\n" .. new_message.content:match("<question>(.*)</question>")
-  end
-
-  return new_message
-end
-
 M._stream = function(opts, Provider)
   -- print opts
   local mode = opts.mode or "planning"
@@ -269,8 +250,6 @@ local function _merge_response(first_response, second_response, opts, Provider)
 
   prompt = prompt .. "\n"
 
-  Utils.debug("Dual Boost Prompt:", prompt)
-
   -- append this reference prompt to the code_opts messages at last
   opts.instructions = opts.instructions .. prompt
 
@@ -302,7 +281,7 @@ M._dual_boost_stream = function(opts, Provider, Provider1, Provider2)
     count = 0,
     responses = {},
     timer = uv.new_timer(),
-    timeout_ms = 2 * 3600 * 1000,
+    timeout_ms = Config.dual_boost.timeout,
   }
 
   -- Setup timeout
@@ -318,8 +297,6 @@ M._dual_boost_stream = function(opts, Provider, Provider1, Provider2)
       end
     end)
   )
-
-  Utils.debug(collector)
 
   -- Create options for both streams
   local function create_stream_opts(index)
@@ -347,40 +324,6 @@ M._dual_boost_stream = function(opts, Provider, Provider1, Provider2)
   if not success then Utils.error("Failed to start dual_boost streams: " .. tostring(err)) end
 end
 
--- M._dual_boost_stream = function(opts, Provider, Provider1, Provider2)
---   Utils.debug("Dual Boost Stream")
---   ----------- TESTING ------------
---   local first_response = ""
---
---   local second_response = ""
---
---   local response_count = 0
---
---   local new_opts_1 = {
---     on_chunk = function(chunk) first_response = first_response .. chunk end,
---     on_complete = function(err)
---       Utils.debug("first_response hit")
---       response_count = response_count + 1
---       if response_count == 2 then M._merged_response(first_response, second_response, opts, Provider) end
---     end,
---   }
---
---   local new_opts_2 = {
---     on_chunk = function(chunk) second_response = second_response .. chunk end,
---     on_complete = function(err)
---       Utils.debug("second_response hit")
---       response_count = response_count + 1
---       if response_count == 2 then M._merged_response(first_response, second_response, opts, Provider) end
---     end,
---   }
---
---   new_opts_1 = vim.tbl_extend("force", opts, new_opts_1)
---   new_opts_2 = vim.tbl_extend("force", opts, new_opts_2)
---
---   M._stream(new_opts_1, Provider1)
---   M._stream(new_opts_2, Provider2)
--- end
-
 ---@alias LlmMode "planning" | "editing" | "suggesting"
 ---
 ---@class TemplateOptions
@@ -405,7 +348,6 @@ end
 ---@param opts StreamOptions
 M.stream = function(opts)
   local Provider = opts.provider or P[Config.provider]
-  Utils.debug(Config.dual_boost)
   if Config.dual_boost.enabled then
     M._dual_boost_stream(opts, Provider, P[Config.dual_boost.first_provider], P[Config.dual_boost.second_provider])
   else

@@ -5,11 +5,10 @@ local Utils = require("avante.utils")
 
 ---@class avante.CoreConfig: avante.Config
 local M = {}
-
 ---@class avante.Config
 M.defaults = {
   debug = false,
-  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | [string]
+  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | string
   provider = "claude", -- Only recommend using Claude
   auto_suggestions_provider = "claude",
   ---@alias Tokenizer "tiktoken" | "hf"
@@ -66,6 +65,15 @@ M.defaults = {
     ["local"] = false,
   },
   ---@type AvanteSupportedProvider
+  vertex = {
+    endpoint = "https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/google/models",
+    model = "gemini-1.5-flash-latest",
+    timeout = 30000, -- Timeout in milliseconds
+    temperature = 0,
+    max_tokens = 4096,
+    ["local"] = false,
+  },
+  ---@type AvanteSupportedProvider
   cohere = {
     endpoint = "https://api.cohere.com/v2",
     model = "command-r-plus-08-2024",
@@ -80,7 +88,7 @@ M.defaults = {
   vendors = {
     ---@type AvanteSupportedProvider
     ["claude-haiku"] = {
-      endpoint = "https://api.anthropic.com",
+      __inherited_from = "claude",
       model = "claude-3-5-haiku-20241022",
       timeout = 30000, -- Timeout in milliseconds
       temperature = 0,
@@ -89,7 +97,7 @@ M.defaults = {
     },
     ---@type AvanteSupportedProvider
     ["claude-opus"] = {
-      endpoint = "https://api.anthropic.com",
+      __inherited_from = "claude",
       model = "claude-3-opus-20240229",
       timeout = 30000, -- Timeout in milliseconds
       temperature = 0,
@@ -105,10 +113,11 @@ M.defaults = {
   --- When dual_boost is enabled, avante will generate two responses from the first_provider and second_provider respectively. Then use  the response from the first_provider as provider1_output and the response from the second_provider as provider2_output. Finally, avante will generate a response based on the prompt and the two reference outputs, with the default Provider as normal.
   ---Note: This is an experimental feature and may not work as expected.
   dual_boost = {
+    enabled = true,
     first_provider = "openai",
     second_provider = "claude",
     prompt = "Based on the two reference outputs below, generate a response that incorporates elements from both but reflects your own judgment and unique perspective. Do not provide any explanation, just give the response directly. Reference Output 1: [{% provider1_output %}], Reference Output 2: [{% provider2_output %}]",
-    enabled = true,
+    timeout = 60000, -- Timeout in milliseconds
   },
   ---Specify the behaviour of avante.nvim
   ---1. auto_apply_diff_after_generation: Whether to automatically apply diff after LLM response.
@@ -225,6 +234,7 @@ M.defaults = {
   --- @class AvanteRepoMapConfig
   repo_map = {
     ignore_patterns = { "%.git", "%.worktree", "__pycache__", "node_modules" }, -- ignore files matching these
+    negate_patterns = {}, -- negate ignore files matching these.
   },
 }
 
@@ -344,6 +354,7 @@ M.BASE_PROVIDER_KEYS = {
   "tokenizer_id",
   "use_xml_format",
   "role_map",
+  "__inherited_from",
 }
 
 return M
