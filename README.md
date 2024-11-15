@@ -481,3 +481,14 @@ The high quality and ingenuity of these projects' source code have been immensel
 ## License
 
 avante.nvim is licensed under the Apache 2.0 License. For more details, please refer to the [LICENSE](./LICENSE) file.
+
+# Star History
+
+<p align="center">
+  <a target="_blank" href="https://star-history.com/#yetone/avante.nvim&Date">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=yetone/avante.nvim&type=Date&theme=dark">
+      <img alt="NebulaGraph Data Intelligence Suite(ngdi)" src="https://api.star-history.com/svg?repos=yetone/avante.nvim&type=Date">
+    </picture>
+  </a>
+</p>
