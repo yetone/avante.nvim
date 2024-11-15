@@ -50,6 +50,7 @@ local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 ---@field _shellenv? string
 ---
 ---@class AvanteSupportedProvider: AvanteDefaultBaseProvider
+---@field __inherited_from? string
 ---@field temperature? number
 ---@field max_tokens? number
 ---
@@ -267,7 +268,15 @@ M = setmetatable(M, {
     ---@diagnostic disable: undefined-field,no-unknown,inject-field
     if Config.vendors[k] ~= nil then
       Opts.parse_response = Opts.parse_response_data
-      t[k] = Opts
+      if Opts.__inherited_from ~= nil then
+        local BaseOpts = M.get_config(Opts.__inherited_from)
+        local ok, module = pcall(require, "avante.providers." .. Opts.__inherited_from)
+        if not ok then error("Failed to load provider: " .. Opts.__inherited_from) end
+        Opts._shellenv = module.api_key_name ~= M.AVANTE_INTERNAL_KEY and module.api_key_name or nil
+        t[k] = vim.tbl_deep_extend("keep", BaseOpts, Opts, module)
+      else
+        t[k] = Opts
+      end
     else
       local ok, module = pcall(require, "avante.providers." .. k)
       if not ok then error("Failed to load provider: " .. k) end
