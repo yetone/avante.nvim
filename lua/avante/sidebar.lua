@@ -1388,6 +1388,7 @@ function Sidebar:create_input(opts)
         if self.result and self.result.winid and api.nvim_win_is_valid(self.result.winid) then
           api.nvim_set_current_win(self.result.winid)
         end
+        if Config.behaviour.auto_apply_diff_after_generation then self:apply(false) end
       end, 0)
 
       -- Save chat history
@@ -1443,8 +1444,6 @@ function Sidebar:create_input(opts)
       on_chunk = on_chunk,
       on_complete = on_complete,
     })
-
-    if Config.behaviour.auto_apply_diff_after_generation then self:apply(false) end
   end
 
   local get_position = function()
