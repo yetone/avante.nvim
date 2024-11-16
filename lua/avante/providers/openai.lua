@@ -135,6 +135,9 @@ M.parse_curl_args = function(provider, code_opts)
     body_opts.temperature = 1
   end
 
+  Utils.debug("endpoint", base.endpoint)
+  Utils.debug("model", base.model)
+
   return {
     url = Utils.url_join(base.endpoint, "/chat/completions"),
     proxy = base.proxy,
