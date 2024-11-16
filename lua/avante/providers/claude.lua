@@ -101,7 +101,8 @@ M.parse_curl_args = function(provider, prompt_opts)
     ["anthropic-version"] = "2023-06-01",
     ["anthropic-beta"] = "prompt-caching-2024-07-31",
   }
-  if not P.env.is_local("claude") then headers["x-api-key"] = provider.parse_api_key() end
+
+  if P.env.require_api_key(base) then headers["x-api-key"] = provider.parse_api_key() end
 
   local messages = M.parse_messages(prompt_opts)
 

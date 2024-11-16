@@ -16,6 +16,7 @@ M.parse_response = Gemini.parse_response
 
 local function execute_command(command)
   local handle = io.popen(command)
+  if not handle then error("Failed to execute command: " .. command) end
   local result = handle:read("*a")
   handle:close()
   return result:match("^%s*(.-)%s*$")
