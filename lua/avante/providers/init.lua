@@ -273,7 +273,7 @@ M = setmetatable(M, {
         local ok, module = pcall(require, "avante.providers." .. Opts.__inherited_from)
         if not ok then error("Failed to load provider: " .. Opts.__inherited_from) end
         Opts._shellenv = module.api_key_name ~= M.AVANTE_INTERNAL_KEY and module.api_key_name or nil
-        t[k] = vim.tbl_deep_extend("keep", BaseOpts, Opts, module)
+        t[k] = vim.tbl_deep_extend("keep", Opts, BaseOpts, module)
       else
         t[k] = Opts
       end
