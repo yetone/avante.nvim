@@ -125,7 +125,8 @@ M.parse_curl_args = function(provider, code_opts)
   local headers = {
     ["Content-Type"] = "application/json",
   }
-  if not P.env.is_local("openai") then headers["Authorization"] = "Bearer " .. provider.parse_api_key() end
+
+  if P.env.require_api_key(base) then headers["Authorization"] = "Bearer " .. provider.parse_api_key() end
 
   -- NOTE: When using "o1" set the supported parameters only
   local stream = true
