@@ -86,11 +86,10 @@ M.parse_curl_args = function(provider, code_opts)
   body_opts.max_tokens = nil
 
   return {
-    url = Utils.trim(base.endpoint, { suffix = "/" })
-      .. "/"
-      .. base.model
-      .. ":streamGenerateContent?alt=sse&key="
-      .. provider.parse_api_key(),
+    url = Utils.url_join(
+      base.endpoint,
+      base.model .. ":streamGenerateContent?alt=sse&key=" .. provider.parse_api_key()
+    ),
     proxy = base.proxy,
     insecure = base.allow_insecure,
     headers = { ["Content-Type"] = "application/json" },
