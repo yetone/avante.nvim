@@ -14,11 +14,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # ratchet:actions/checkout@v4
-      - uses: JohnnyMorganz/stylua-action@b6661824b86c9c33121bed87a778b660ba90cf77 # ratchet:JohnnyMorganz/stylua-action@v4
+      - name: Install stylua
+        uses: baptiste0928/cargo-install@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          version: latest
-          args: --check ./lua/ ./plugin/
+          crate: stylua
+          features: lua54
+      - run: stylua --check ./lua/ ./plugin/
   luacheck:
     name: Lint Lua
     runs-on: ubuntu-latest

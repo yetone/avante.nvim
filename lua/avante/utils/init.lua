@@ -438,6 +438,32 @@ function M.trim_spaces(s) return s:match("^%s*(.-)%s*$") end
 
 function M.fallback(v, default_value) return type(v) == "nil" and default_value or v end
 
+---Join URL parts together, handling slashes correctly
+---@param ... string URL parts to join
+---@return string Joined URL
+function M.url_join(...)
+  local parts = { ... }
+  local result = parts[1] or ""
+
+  for i = 2, #parts do
+    local part = parts[i]
+    if not part or part == "" then goto continue end
+
+    -- Remove trailing slash from result if present
+    if result:sub(-1) == "/" then result = result:sub(1, -2) end
+
+    -- Remove leading slash from part if present
+    if part:sub(1, 1) == "/" then part = part:sub(2) end
+
+    -- Join with slash
+    result = result .. "/" .. part
+
+    ::continue::
+  end
+
+  return result
+end
+
 -- luacheck: push no max comment line length
 ---@param type_name "'nil'" | "'number'" | "'string'" | "'boolean'" | "'table'" | "'function'" | "'thread'" | "'userdata'" | "'list'" | '"map"'
 ---@return boolean

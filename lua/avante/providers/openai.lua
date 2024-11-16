@@ -136,7 +136,7 @@ M.parse_curl_args = function(provider, code_opts)
   end
 
   return {
-    url = Utils.trim(base.endpoint, { suffix = "/" }) .. "/chat/completions",
+    url = Utils.url_join(base.endpoint, "/chat/completions"),
     proxy = base.proxy,
     insecure = base.allow_insecure,
     headers = headers,
