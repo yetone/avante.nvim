@@ -19,12 +19,15 @@ M.parse_messages = function(opts)
   vim.iter(opts.messages):each(function(message)
     local role = message.role
     if role == prev_role then
-      if role == "user" then
-        table.insert(contents, { role = "model", parts = {
-          { text = "Ok, I understand." },
-        } })
+      if role == M.role_map["user"] then
+        table.insert(
+          contents,
+          { role = M.role_map["assistant"], parts = {
+            { text = "Ok, I understand." },
+          } }
+        )
       else
-        table.insert(contents, { role = "user", parts = {
+        table.insert(contents, { role = M.role_map["user"], parts = {
           { text = "Ok" },
         } })
       end
