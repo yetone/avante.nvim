@@ -118,7 +118,7 @@ end
 ---@field github_token CopilotToken?
 M.state = nil
 
-M.api_key_name = P.AVANTE_INTERNAL_KEY
+M.api_key_name = ""
 M.tokenizer_id = "gpt-4o"
 M.role_map = {
   user = "user",

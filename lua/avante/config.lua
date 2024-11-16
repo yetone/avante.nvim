@@ -24,7 +24,6 @@ M.defaults = {
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
     max_tokens = 4096,
-    ["local"] = false,
   },
   ---@type AvanteSupportedProvider
   copilot = {
@@ -44,7 +43,6 @@ M.defaults = {
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
     max_tokens = 4096,
-    ["local"] = false,
   },
   ---@type AvanteSupportedProvider
   claude = {
@@ -53,7 +51,6 @@ M.defaults = {
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
     max_tokens = 8000,
-    ["local"] = false,
   },
   ---@type AvanteSupportedProvider
   gemini = {
@@ -62,7 +59,6 @@ M.defaults = {
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
     max_tokens = 4096,
-    ["local"] = false,
   },
   ---@type AvanteSupportedProvider
   vertex = {
@@ -71,7 +67,6 @@ M.defaults = {
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
     max_tokens = 4096,
-    ["local"] = false,
   },
   ---@type AvanteSupportedProvider
   cohere = {
@@ -80,7 +75,6 @@ M.defaults = {
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
     max_tokens = 4096,
-    ["local"] = false,
   },
   ---To add support for custom provider, follow the format below
   ---See https://github.com/yetone/avante.nvim/wiki#custom-providers for more details
@@ -93,7 +87,6 @@ M.defaults = {
       timeout = 30000, -- Timeout in milliseconds
       temperature = 0,
       max_tokens = 8000,
-      ["local"] = false,
     },
     ---@type AvanteSupportedProvider
     ["claude-opus"] = {
@@ -102,7 +95,6 @@ M.defaults = {
       timeout = 30000, -- Timeout in milliseconds
       temperature = 0,
       max_tokens = 8000,
-      ["local"] = false,
     },
   },
   ---Specify the behaviour of avante.nvim

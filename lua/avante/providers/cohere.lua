@@ -82,7 +82,7 @@ M.parse_curl_args = function(provider, code_opts)
       .. "."
       .. vim.version().patch,
   }
-  if not P.env.is_local("cohere") then headers["Authorization"] = "Bearer " .. provider.parse_api_key() end
+  if P.env.require_api_key(base) then headers["Authorization"] = "Bearer " .. provider.parse_api_key() end
 
   return {
     url = Utils.url_join(base.endpoint, "/chat"),
