@@ -103,7 +103,7 @@ M.defaults = {
   ---3. second_provider: The second provider to generate response. Default to "claude".
   ---4. prompt: The prompt to generate response based on the two reference outputs.
   ---5. timeout: Timeout in milliseconds. Default to 60000.
-  ---Whow it works:
+  ---How it works:
   --- When dual_boost is enabled, avante will generate two responses from the first_provider and second_provider respectively. Then use the response from the first_provider as provider1_output and the response from the second_provider as provider2_output. Finally, avante will generate a response based on the prompt and the two reference outputs, with the default Provider as normal.
   ---Note: This is an experimental feature and may not work as expected.
   dual_boost = {
