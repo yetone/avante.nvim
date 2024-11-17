@@ -208,6 +208,22 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     temperature = 0,
     max_tokens = 4096,
   },
+  ---Specify the special dual_boost mode
+  ---1. enabled: Whether to enable dual_boost mode. Default to false.
+  ---2. first_provider: The first provider to generate response. Default to "openai".
+  ---3. second_provider: The second provider to generate response. Default to "claude".
+  ---4. prompt: The prompt to generate response based on the two reference outputs.
+  ---5. timeout: Timeout in milliseconds. Default to 60000.
+  ---Whow it works:
+  --- When dual_boost is enabled, avante will generate two responses from the first_provider and second_provider respectively. Then use the response from the first_provider as provider1_output and the response from the second_provider as provider2_output. Finally, avante will generate a response based on the prompt and the two reference outputs, with the default Provider as normal.
+  ---Note: This is an experimental feature and may not work as expected.
+  dual_boost = {
+    enabled = false,
+    first_provider = "openai",
+    second_provider = "claude",
+    prompt = "Based on the two reference outputs below, generate a response that incorporates elements from both but reflects your own judgment and unique perspective. Do not provide any explanation, just give the response directly. Reference Output 1: [{{provider1_output}}], Reference Output 2: [{{provider2_output}}]",
+    timeout = 60000, -- Timeout in milliseconds
+  },
   behaviour = {
     auto_suggestions = false, -- Experimental stage
     auto_set_highlight_group = true,
