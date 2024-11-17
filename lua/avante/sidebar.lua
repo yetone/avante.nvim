@@ -173,6 +173,13 @@ local function transform_result_content(original_content, result_content, code_l
   local i = 1
   while i <= #result_lines do
     local line_content = result_lines[i]
+    if line_content:match("<FILEPATH>.+</FILEPATH>") then
+      local filepath = line_content:match("<FILEPATH>(.+)</FILEPATH>")
+      if filepath then
+        table.insert(transformed_lines, string.format("Filepath: %s", filepath))
+        goto continue
+      end
+    end
     if line_content == "<SEARCH>" then
       is_searching = true
       local next_line = result_lines[i + 1]
@@ -355,6 +362,8 @@ local function extract_code_snippets_map(response_content)
     if line:match("^%s*```") then
       if in_code_block then
         if start_line ~= nil and end_line ~= nil then
+          local filepath = lines[start_line_in_response_buf - 2]
+          if filepath:match("^[Ff]ilepath:") then filepath = filepath:match("^[Ff]ilepath:%s*(.+)") end
           local snippet = {
             range = { start_line, end_line },
             content = table.concat(current_snippet, "\n"),
@@ -362,7 +371,7 @@ local function extract_code_snippets_map(response_content)
             explanation = explanation,
             start_line_in_response_buf = start_line_in_response_buf,
             end_line_in_response_buf = idx,
-            filepath = lines[start_line_in_response_buf - 2],
+            filepath = filepath,
           }
           table.insert(snippets, snippet)
         end
@@ -558,6 +567,7 @@ function Sidebar:apply(current_cursor)
   end
 
   vim.defer_fn(function()
+    api.nvim_set_current_win(self.code.winid)
     for filepath, snippets in pairs(selected_snippets_map) do
       local bufnr = Utils.get_or_create_buffer_with_filepath(filepath)
       insert_conflict_contents(bufnr, snippets)

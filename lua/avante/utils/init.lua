@@ -272,7 +272,9 @@ end
 ---@param msg string|string[]
 ---@param opts? LazyNotifyOpts
 function M.notify(msg, opts)
-  if vim.in_fast_event() then return vim.schedule(function() M.notify(msg, opts) end) end
+  if vim.in_fast_event() then
+    return vim.schedule(function() M.notify(msg, opts) end)
+  end
 
   opts = opts or {}
   if type(msg) == "table" then

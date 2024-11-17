@@ -45,7 +45,7 @@ ONLY EVER RETURN CODE IN A *SEARCH/REPLACE BLOCK*!
 
 Here are the *SEARCH/REPLACE* blocks:
 
-mathweb/flask/app.py
+<FILEPATH>mathweb/flask/app.py</FILEPATH>
 <SEARCH>
 from flask import Flask
 </SEARCH>
@@ -68,7 +68,7 @@ def factorial(n):
 <REPLACE>
 </REPLACE>
 
-mathweb/flask/app.py
+<FILEPATH>mathweb/flask/app.py</FILEPATH>
 <SEARCH>
     return str(factorial(n))
 </SEARCH>
@@ -86,7 +86,7 @@ mathweb/flask/app.py
 
 Here are the *SEARCH/REPLACE* blocks:
 
-hello.py
+<FILEPATH>hello.py</FILEPATH>
 <SEARCH>
 </SEARCH>
 <REPLACE>
@@ -96,7 +96,7 @@ def hello():
     print("hello")
 </REPLACE>
 
-main.py
+<FILEPATH>main.py</FILEPATH>
 <SEARCH>
 def hello():
     "print a greeting"
