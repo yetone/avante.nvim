@@ -19,6 +19,7 @@ jobs:
         with:
           crate: stylua
           features: lua54
+      - run: stylua --version
       - run: stylua --check ./lua/ ./plugin/
   luacheck:
     name: Lint Lua
