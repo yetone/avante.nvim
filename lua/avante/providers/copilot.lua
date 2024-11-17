@@ -119,6 +119,7 @@ end
 M.state = nil
 
 M.api_key_name = ""
+M.setup_without_api_key = true
 M.tokenizer_id = "gpt-4o"
 M.role_map = {
   user = "user",

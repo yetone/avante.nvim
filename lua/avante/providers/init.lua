@@ -78,6 +78,7 @@ local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 ---@field model? string
 ---@field parse_api_key fun(): string | nil
 ---@field parse_stream_data? AvanteStreamParser
+---@field setup_without_api_key? boolean
 ---@field on_error? fun(result: table<string, any>): nil
 ---
 ---@class avante.Providers
@@ -162,8 +163,9 @@ end
 ---@private
 E.setup = function(opts)
   local var = opts.provider.api_key_name
+  local must_setup = opts.provider.setup_without_api_key
 
-  if var == nil or var == "" then
+  if not must_setup and (var == nil or var == "") then
     vim.g.avante_login = true
     return
   end
