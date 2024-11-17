@@ -245,8 +245,8 @@ end
 local function _merge_response(first_response, second_response, opts, Provider)
   local prompt = "\n" .. Config.dual_boost.prompt
   prompt = prompt
-    :gsub("{%%[%s]*provider1_output[%s]*%%}", first_response)
-    :gsub("{%%[%s]*provider2_output[%s]*%%}", second_response)
+    :gsub("{{[%s]*provider1_output[%s]*}}", first_response)
+    :gsub("{{[%s]*provider2_output[%s]*}}", second_response)
 
   prompt = prompt .. "\n"
 
