@@ -1544,9 +1544,11 @@ function Sidebar:create_input(opts)
     callback = function()
       local has_cmp, cmp = pcall(require, "cmp")
       if has_cmp then
-        for _, source in ipairs(cmp.core:get_sources()) do
-          if source.name == "avante_commands" or source.name == "avante_mentions" then
-            cmp.unregister_source(source.id)
+        if type(cmp.core.get_sources) == "function" then
+          for _, source in ipairs(cmp.core:get_sources()) do
+            if source.name == "avante_commands" or source.name == "avante_mentions" then
+              cmp.unregister_source(source.id)
+            end
           end
         end
       end
