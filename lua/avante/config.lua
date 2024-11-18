@@ -28,7 +28,7 @@ M.defaults = {
   ---@type AvanteSupportedProvider
   copilot = {
     endpoint = "https://api.githubcopilot.com",
-    model = "gpt-4o-2024-05-13",
+    model = "gpt-4o-2024-08-06",
     proxy = nil, -- [protocol://]host[:port] Use this proxy
     allow_insecure = false, -- Allow insecure server connections
     timeout = 30000, -- Timeout in milliseconds
