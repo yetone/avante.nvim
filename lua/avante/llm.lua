@@ -93,9 +93,9 @@ M._stream = function(opts, Provider)
         break
       end
     end
-    if #history_messages > 0 and history_messages[1].role == "assistant" then table.remove(history_messages, 1) end
     -- prepend the history messages to the messages table
     vim.iter(history_messages):each(function(msg) table.insert(messages, 1, msg) end)
+    if #messages > 0 and messages[1].role == "assistant" then table.remove(messages, 1) end
   end
 
   ---@type AvantePromptOptions
