@@ -1039,7 +1039,7 @@ function Sidebar:update_content(content, opts)
   opts = vim.tbl_deep_extend("force", { focus = true, scroll = true, stream = false, callback = nil }, opts or {})
   if not opts.ignore_history then
     local chat_history = Path.history.load(self.code.bufnr)
-    content = self:get_history_content(chat_history) .. "---\n\n" .. content
+    content = self:render_history_content(chat_history) .. "---\n\n" .. content
   end
   if opts.stream then
     local scroll_to_bottom = function()
@@ -1095,19 +1095,28 @@ end
 -- Function to get current timestamp
 local function get_timestamp() return os.date("%Y-%m-%d %H:%M:%S") end
 
-local function get_chat_record_prefix(timestamp, provider, model, request)
+---@param timestamp string|osdate
+---@param provider string
+---@param model string
+---@param request string
+---@param selected_file {filepath: string, content: string}?
+---@param selected_code {filetype: string, content: string}?
+---@return string
+local function render_chat_record_prefix(timestamp, provider, model, request, selected_file, selected_code)
   provider = provider or "unknown"
   model = model or "unknown"
-  return "- Datetime: "
-    .. timestamp
-    .. "\n\n"
-    .. "- Model: "
-    .. provider
-    .. "/"
-    .. model
-    .. "\n\n> "
-    .. request:gsub("\n", "\n> "):gsub("([%w-_]+)%b[]", "`%0`")
-    .. "\n\n"
+  local res = "- Datetime: " .. timestamp .. "\n\n" .. "- Model: " .. provider .. "/" .. model
+  if selected_file ~= nil then res = res .. "\n\n- Selected file: " .. selected_file.filepath end
+  if selected_code ~= nil then
+    res = res
+      .. "\n\n- Selected code: "
+      .. "\n\n```"
+      .. selected_code.filetype
+      .. "\n"
+      .. selected_code.content
+      .. "\n```"
+  end
+  return res .. "\n\n> " .. request:gsub("\n", "\n> "):gsub("([%w-_]+)%b[]", "`%0`") .. "\n\n"
 end
 
 local function calculate_config_window_position()
@@ -1132,20 +1141,34 @@ function Sidebar:get_layout()
   return vim.tbl_contains({ "left", "right" }, calculate_config_window_position()) and "vertical" or "horizontal"
 end
 
-function Sidebar:get_history_content(history)
+---@param history avante.ChatHistoryEntry[]
+---@return string
+function Sidebar:render_history_content(history)
   local content = ""
   for idx, entry in ipairs(history) do
-    local prefix =
-      get_chat_record_prefix(entry.timestamp, entry.provider, entry.model, entry.request or entry.requirement or "")
+    if entry.reset_memory then
+      content = content .. "***MEMORY RESET***\n\n"
+      if idx < #history then content = content .. "---\n\n" end
+      goto continue
+    end
+    local prefix = render_chat_record_prefix(
+      entry.timestamp,
+      entry.provider,
+      entry.model,
+      entry.request or "",
+      entry.selected_file,
+      entry.selected_code
+    )
     content = content .. prefix
     content = content .. entry.response .. "\n\n"
     if idx < #history then content = content .. "---\n\n" end
+    ::continue::
   end
   return content
 end
 
 function Sidebar:update_content_with_history(history)
-  local content = self:get_history_content(history)
+  local content = self:render_history_content(history)
   self:update_content(content, { ignore_history = true })
 end
 
@@ -1184,7 +1207,7 @@ function Sidebar:get_content_between_separators()
   return content, start_line
 end
 
----@alias AvanteSlashCommands "clear" | "help" | "lines"
+---@alias AvanteSlashCommands "clear" | "help" | "lines" | "reset"
 ---@alias AvanteSlashCallback fun(args: string, cb?: fun(args: string): nil): nil
 ---@alias AvanteSlash {description: string, command: AvanteSlashCommands, details: string, shorthelp?: string, callback?: AvanteSlashCallback}
 ---@return AvanteSlash[]
@@ -1203,6 +1226,7 @@ function Sidebar:get_commands()
   local items = {
     { description = "Show help message", command = "help" },
     { description = "Clear chat history", command = "clear" },
+    { description = "Reset memory", command = "reset" },
     {
       shorthelp = "Ask a question about specific lines",
       description = "/lines <start>-<end> <question>",
@@ -1223,13 +1247,31 @@ function Sidebar:get_commands()
         chat_history = {}
         Path.history.save(self.code.bufnr, chat_history)
         self:update_content("Chat history cleared", { focus = false, scroll = false })
-        vim.defer_fn(function()
-          self:close()
-          if cb then cb(args) end
-        end, 1000)
+        if cb then cb(args) end
       else
         self:update_content("Chat history is already empty", { focus = false, scroll = false })
-        vim.defer_fn(function() self:close() end, 1000)
+      end
+    end,
+    reset = function(args, cb)
+      local chat_history = Path.history.load(self.code.bufnr)
+      if next(chat_history) ~= nil then
+        table.insert(chat_history, {
+          timestamp = get_timestamp(),
+          provider = Config.provider,
+          model = Config.get_provider(Config.provider).model,
+          request = "",
+          response = "",
+          original_response = "",
+          selected_file = nil,
+          selected_code = nil,
+          reset_memory = true,
+        })
+        Path.history.save(self.code.bufnr, chat_history)
+        local history_content = self:render_history_content(chat_history)
+        self:update_content(history_content, { focus = false, scroll = true })
+        if cb then cb(args) end
+      else
+        self:update_content("Chat history is already empty", { focus = false, scroll = false })
       end
     end,
     lines = function(args, cb)
@@ -1300,7 +1342,22 @@ function Sidebar:create_input(opts)
 
     local timestamp = get_timestamp()
 
-    local content_prefix = get_chat_record_prefix(timestamp, Config.provider, model, request)
+    local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
+
+    local selected_file = {
+      filepath = api.nvim_buf_get_name(self.code.bufnr),
+    }
+
+    local selected_code = nil
+    if self.code.selection ~= nil then
+      selected_code = {
+        filetype = filetype,
+        content = self.code.selection.content,
+      }
+    end
+
+    local content_prefix =
+      render_chat_record_prefix(timestamp, Config.provider, model, request, selected_file, selected_code)
 
     --- HACK: we need to set focus to true and scroll to false to
     --- prevent the cursor from jumping to the bottom of the
@@ -1309,8 +1366,6 @@ function Sidebar:create_input(opts)
     self:update_content(content_prefix .. generating_text)
 
     local content = table.concat(Utils.get_buf_lines(0, -1, self.code.bufnr), "\n")
-
-    local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
 
     local selected_code_content = nil
     if self.code.selection ~= nil then selected_code_content = self.code.selection.content end
@@ -1409,6 +1464,8 @@ function Sidebar:create_input(opts)
         request = request,
         response = displayed_response,
         original_response = original_response,
+        selected_file = selected_file,
+        selected_code = selected_code,
       })
       Path.history.save(self.code.bufnr, chat_history)
     end
@@ -1420,26 +1477,34 @@ function Sidebar:create_input(opts)
 
     local project_context = mentions.enable_project_context and RepoMap.get_repo_map(file_ext) or nil
 
-    local history_messages = vim
-      .iter(chat_history)
-      :filter(
-        function(history)
-          return history.request ~= nil
-            and history.original_response ~= nil
-            and history.request ~= ""
-            and history.original_response ~= ""
-        end
-      )
-      :map(
-        function(history)
-          return {
-            { role = "user", content = history.request },
-            { role = "assistant", content = history.original_response },
-          }
-        end
-      )
-      :flatten()
-      :totable()
+    local history_messages = {}
+    for i = #chat_history, 1, -1 do
+      local entry = chat_history[i]
+      if entry.reset_memory then break end
+      if
+        entry.request == nil
+        or entry.original_response == nil
+        or entry.request == ""
+        or entry.original_response == ""
+      then
+        break
+      end
+      table.insert(history_messages, 1, { role = "assistant", content = entry.original_response })
+      local user_content = ""
+      if entry.selected_file ~= nil then
+        user_content = user_content .. "SELECTED FILE: " .. entry.selected_file.filepath .. "\n\n"
+      end
+      if entry.selected_code ~= nil then
+        user_content = user_content
+          .. "SELECTED CODE:\n\n```"
+          .. entry.selected_code.filetype
+          .. "\n"
+          .. entry.selected_code.content
+          .. "\n```\n\n"
+      end
+      user_content = user_content .. "USER PROMPT:\n\n" .. entry.request
+      table.insert(history_messages, 1, { role = "user", content = user_content })
+    end
 
     Llm.stream({
       bufnr = self.code.bufnr,
