@@ -1099,7 +1099,7 @@ local function get_timestamp() return os.date("%Y-%m-%d %H:%M:%S") end
 ---@param provider string
 ---@param model string
 ---@param request string
----@param selected_file {filepath: string, content: string}?
+---@param selected_file {filepath: string}?
 ---@param selected_code {filetype: string, content: string}?
 ---@return string
 local function render_chat_record_prefix(timestamp, provider, model, request, selected_file, selected_code)
@@ -1207,10 +1207,10 @@ function Sidebar:get_content_between_separators()
   return content, start_line
 end
 
----@alias AvanteSlashCommands "clear" | "help" | "lines" | "reset"
----@alias AvanteSlashCallback fun(args: string, cb?: fun(args: string): nil): nil
----@alias AvanteSlash {description: string, command: AvanteSlashCommands, details: string, shorthelp?: string, callback?: AvanteSlashCallback}
----@return AvanteSlash[]
+---@alias AvanteSlashCommandType "clear" | "help" | "lines" | "reset"
+---@alias AvanteSlashCommandCallback fun(args: string, cb?: fun(args: string): nil): nil
+---@alias AvanteSlashCommand {description: string, command: AvanteSlashCommandType, details: string, shorthelp?: string, callback?: AvanteSlashCommandCallback}
+---@return AvanteSlashCommand[]
 function Sidebar:get_commands()
   ---@param items_ {command: string, description: string, shorthelp?: string}[]
   ---@return string
@@ -1222,7 +1222,7 @@ function Sidebar:get_commands()
     return help_text
   end
 
-  ---@type AvanteSlash[]
+  ---@type AvanteSlashCommand[]
   local items = {
     { description = "Show help message", command = "help" },
     { description = "Clear chat history", command = "clear" },
@@ -1234,7 +1234,7 @@ function Sidebar:get_commands()
     },
   }
 
-  ---@type {[AvanteSlashCommands]: AvanteSlashCallback}
+  ---@type {[AvanteSlashCommandType]: AvanteSlashCommandCallback}
   local cbs = {
     help = function(args, cb)
       local help_text = get_help_text(items)
@@ -1282,7 +1282,7 @@ function Sidebar:get_commands()
   return vim
     .iter(items)
     :map(
-      ---@param item AvanteSlash
+      ---@param item AvanteSlashCommand
       function(item)
         return {
           command = item.command,
@@ -1377,7 +1377,7 @@ function Sidebar:create_input(opts)
         return
       end
       local cmds = self:get_commands()
-      ---@type AvanteSlash
+      ---@type AvanteSlashCommand
       local cmd = vim.iter(cmds):filter(function(_) return _.command == command end):totable()[1]
       if cmd then
         if command == "lines" then
@@ -1594,7 +1594,10 @@ function Sidebar:create_input(opts)
     callback = function()
       local has_cmp, cmp = pcall(require, "cmp")
       if has_cmp then
-        cmp.register_source("avante_commands", require("cmp_avante.commands").new(self))
+        cmp.register_source(
+          "avante_commands",
+          require("cmp_avante.commands").new(self:get_commands(), self.input.bufnr)
+        )
         cmp.register_source(
           "avante_mentions",
           require("cmp_avante.mentions").new(Utils.get_mentions(), self.input.bufnr)
@@ -1606,24 +1609,6 @@ function Sidebar:create_input(opts)
             { name = "avante_mentions" },
           },
         })
-      end
-    end,
-  })
-
-  -- Unregister completion
-  api.nvim_create_autocmd("BufLeave", {
-    group = self.augroup,
-    buffer = self.input.bufnr,
-    once = false,
-    desc = "Unregister the completion of helpers in the input buffer",
-    callback = function()
-      local has_cmp, cmp = pcall(require, "cmp")
-      if has_cmp then
-        for _, source in ipairs(cmp.core:get_sources()) do
-          if source.name == "avante_commands" or source.name == "avante_mentions" then
-            cmp.unregister_source(source.id)
-          end
-        end
       end
     end,
   })
