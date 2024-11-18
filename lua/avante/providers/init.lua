@@ -161,14 +161,14 @@ end
 ---@param opts {refresh: boolean, provider: AvanteProviderFunctor}
 ---@private
 E.setup = function(opts)
+  opts.provider.setup()
+
   local var = opts.provider.api_key_name
 
   if var == nil or var == "" then
     vim.g.avante_login = true
     return
   end
-
-  opts.provider.setup()
 
   -- check if var is a all caps string
   if type(var) == "table" or var:match("^cmd:(.*)") then return end
