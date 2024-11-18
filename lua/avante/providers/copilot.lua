@@ -79,7 +79,7 @@ H.get_oauth_token = function()
 end
 
 H.chat_auth_url = "https://api.github.com/copilot_internal/v2/token"
-H.chat_completion_url = function(base_url) return Utils.trim(base_url, { prefix = "/" }) .. "/chat/completions" end
+H.chat_completion_url = function(base_url) return Utils.url_join(base_url, "/chat/completions") end
 
 ---@class AvanteProviderFunctor
 local M = {}
