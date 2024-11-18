@@ -78,6 +78,13 @@ M.parse_messages = function(opts)
 end
 
 M.parse_response = function(data_stream, event_state, opts)
+  if event_state == nil then
+    if data_stream:match('"content_block_delta"') then
+      event_state = "content_block_delta"
+    elseif data_stream:match('"message_stop"') then
+      event_state = "message_stop"
+    end
+  end
   if event_state == "content_block_delta" then
     local ok, json = pcall(vim.json.decode, data_stream)
     if not ok then return end
