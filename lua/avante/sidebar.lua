@@ -1345,7 +1345,7 @@ function Sidebar:create_input(opts)
     local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
 
     local selected_file = {
-      filepath = api.nvim_buf_get_name(self.code.bufnr),
+      filepath = Utils.relative_path(api.nvim_buf_get_name(self.code.bufnr)),
     }
 
     local selected_code = nil
