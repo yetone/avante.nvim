@@ -194,7 +194,7 @@ M._stream = function(opts, Provider)
       active_job = nil
       completed = true
       cleanup()
-      opts.on_complete(nil)
+      opts.on_complete(err)
     end,
     callback = function(result)
       active_job = nil
