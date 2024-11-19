@@ -347,6 +347,8 @@ end
 
 ---@param opts StreamOptions
 M.stream = function(opts)
+  if opts.on_chunk ~= nil then opts.on_chunk = vim.schedule_wrap(opts.on_chunk) end
+  if opts.on_complete ~= nil then opts.on_complete = vim.schedule_wrap(opts.on_complete) end
   local Provider = opts.provider or P[Config.provider]
   if Config.dual_boost.enabled then
     M._dual_boost_stream(opts, Provider, P[Config.dual_boost.first_provider], P[Config.dual_boost.second_provider])
