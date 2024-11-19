@@ -112,6 +112,7 @@ Plug 'zbirenbaum/copilot.lua'
 Plug 'yetone/avante.nvim', { 'branch': 'main', 'do': 'make' }
 autocmd! User avante.nvim lua << EOF
 require('avante_lib').load()
+require('avante').setup()
 EOF
 ```
 
