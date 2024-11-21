@@ -541,11 +541,68 @@ local function parse_codeblocks(buf)
   return codeblocks
 end
 
+---@param original_lines string[]
+---@param snippet AvanteCodeSnippet
+---@return AvanteCodeSnippet[]
+local function minimize_snippet(original_lines, snippet)
+  local start_line = snippet.range[1]
+  local end_line = snippet.range[2]
+  local original_snippet_lines = vim.list_slice(original_lines, start_line, end_line)
+  local original_snippet_content = table.concat(original_snippet_lines, "\n")
+  local snippet_content = snippet.content
+  local snippet_lines = vim.split(snippet_content, "\n")
+  ---@diagnostic disable-next-line: missing-fields, assign-type-mismatch
+  local patch = vim.diff(
+    original_snippet_content,
+    snippet_content,
+    { algorithm = "histogram", result_type = "indices", ctxlen = vim.o.scrolloff }
+  ) ---@type integer[][]
+  ---@type AvanteCodeSnippet[]
+  local new_snippets = {}
+  for _, hunk in ipairs(patch) do
+    local start_a, count_a, start_b, count_b = unpack(hunk)
+    ---@type AvanteCodeSnippet
+    local new_snippet = {
+      range = { start_line + start_a - 1, start_line + start_a + count_a - 2 },
+      content = table.concat(vim.list_slice(snippet_lines, start_b, start_b + count_b - 1), "\n"),
+      lang = snippet.lang,
+      explanation = snippet.explanation,
+      start_line_in_response_buf = snippet.start_line_in_response_buf,
+      end_line_in_response_buf = snippet.end_line_in_response_buf,
+      filepath = snippet.filepath,
+    }
+    table.insert(new_snippets, new_snippet)
+  end
+  return new_snippets
+end
+
+---@param snippets_map table<string, AvanteCodeSnippet[]>
+---@return table<string, AvanteCodeSnippet[]>
+function Sidebar:minimize_snippets(snippets_map)
+  local original_lines = api.nvim_buf_get_lines(self.code.bufnr, 0, -1, false)
+  local results = {}
+
+  for filepath, snippets in pairs(snippets_map) do
+    for _, snippet in ipairs(snippets) do
+      local new_snippets = minimize_snippet(original_lines, snippet)
+      if new_snippets then
+        results[filepath] = results[filepath] or {}
+        for _, new_snippet in ipairs(new_snippets) do
+          table.insert(results[filepath], new_snippet)
+        end
+      end
+    end
+  end
+
+  return results
+end
+
 ---@param current_cursor boolean
 function Sidebar:apply(current_cursor)
   local response, response_start_line = self:get_content_between_separators()
   local all_snippets_map = extract_code_snippets_map(response)
   all_snippets_map = ensure_snippets_no_overlap(all_snippets_map)
+  if Config.options.behaviour.minimize_diff then all_snippets_map = self:minimize_snippets(all_snippets_map) end
   local selected_snippets_map = {}
   if current_cursor then
     if self.result and self.result.winid then
