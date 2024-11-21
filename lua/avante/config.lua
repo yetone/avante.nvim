@@ -120,12 +120,14 @@ M.defaults = {
   ---                                     Note that avante will safely set these keymap. See https://github.com/yetone/avante.nvim/wiki#keymaps-and-api-i-guess for more details.
   ---3. auto_set_highlight_group        : Whether to automatically set the highlight group for the current line. Default to true.
   ---4. support_paste_from_clipboard    : Whether to support pasting image from clipboard. This will be determined automatically based whether img-clip is available or not.
+  ---5. minimize_diff                   : Whether to remove unchanged lines when applying a code block
   behaviour = {
     auto_suggestions = false, -- Experimental stage
     auto_set_highlight_group = true,
     auto_set_keymaps = true,
     auto_apply_diff_after_generation = false,
     support_paste_from_clipboard = false,
+    minimize_diff = true,
   },
   history = {
     max_tokens = 4096,
