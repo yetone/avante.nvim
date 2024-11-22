@@ -530,7 +530,7 @@ local function parse_codeblocks(buf)
       if in_codeblock and not lang_ then
         table.insert(codeblocks, { start_line = start_line, end_line = i - 1, lang = lang })
         in_codeblock = false
-      elseif lang_ then
+      elseif lang_ and lines[i - 1]:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)") then
         lang = lang_
         start_line = i - 1
         in_codeblock = true
