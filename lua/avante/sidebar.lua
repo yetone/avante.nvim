@@ -1653,11 +1653,11 @@ function Sidebar:create_input(opts)
       if has_cmp then
         cmp.register_source(
           "avante_commands",
-          require("cmp_avante.commands").new(self:get_commands(), self.input.bufnr)
+          require("cmp_avante.commands"):new(self:get_commands(), self.input.bufnr)
         )
         cmp.register_source(
           "avante_mentions",
-          require("cmp_avante.mentions").new(Utils.get_mentions(), self.input.bufnr)
+          require("cmp_avante.mentions"):new(Utils.get_mentions(), self.input.bufnr)
         )
         cmp.setup.buffer({
           enabled = true,

@@ -11,11 +11,11 @@ Range.__index = Range
 ---Create a selection range
 ---@param start avante.RangeSelection Selection start point
 ---@param finish avante.RangeSelection Selection end point
-function Range.new(start, finish)
-  local self = setmetatable({}, Range)
-  self.start = start
-  self.finish = finish
-  return self
+function Range:new(start, finish)
+  local instance = setmetatable({}, Range)
+  instance.start = start
+  instance.finish = finish
+  return instance
 end
 
 return Range

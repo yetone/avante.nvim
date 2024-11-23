@@ -7,11 +7,11 @@ SelectionResult.__index = SelectionResult
 -- Create a selection content and range
 ---@param content string Selected content
 ---@param range avante.Range Selection range
-function SelectionResult.new(content, range)
-  local self = setmetatable({}, SelectionResult)
-  self.content = content
-  self.range = range
-  return self
+function SelectionResult:new(content, range)
+  local instance = setmetatable({}, SelectionResult)
+  instance.content = content
+  instance.range = range
+  return instance
 end
 
 return SelectionResult

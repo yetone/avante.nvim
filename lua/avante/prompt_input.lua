@@ -18,6 +18,7 @@ local Utils = require("avante.utils")
 ---@field spinner_timer uv_timer_t | nil
 ---@field spinner_active boolean
 local PromptInput = {}
+PromptInput.__index = PromptInput
 
 ---@class PromptInputOptions
 ---@field start_insert? boolean
@@ -29,7 +30,7 @@ local PromptInput = {}
 ---@param opts? PromptInputOptions
 function PromptInput:new(opts)
   opts = opts or {}
-  local obj = setmetatable({}, { __index = self })
+  local obj = setmetatable({}, PromptInput)
   obj.bufnr = nil
   obj.winid = nil
   obj.shortcuts_hints_winid = nil
@@ -235,6 +236,7 @@ function PromptInput:setup_keymaps()
   local bufnr = self.bufnr
 
   local function get_input()
+    if not bufnr or not api.nvim_buf_is_valid(bufnr) then return "" end
     local lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
     return lines[1] or ""
   end
