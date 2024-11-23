@@ -23,12 +23,12 @@ local function execute_command(command)
 end
 
 M.parse_api_key = function()
-  if M.api_key_name:match("^cmd:") then
-    local command = M.api_key_name:sub(5)
-    return execute_command(command)
-  else
-    return vim.fn.getenv(M.api_key_name)
+  if not M.api_key_name:match("^cmd:") then
+    error("Invalid api_key_name: Expected 'cmd:<command>' format, got '" .. M.api_key_name .. "'")
   end
+  local command = M.api_key_name:sub(5)
+  local direct_output = execute_command(command)
+  return direct_output
 end
 
 M.parse_curl_args = function(provider, code_opts)
@@ -48,10 +48,12 @@ M.parse_curl_args = function(provider, code_opts)
   })
   body_opts.temperature = nil
   body_opts.max_tokens = nil
+  local bearer_token = M.parse_api_key()
+
   return {
     url = url,
     headers = {
-      ["Authorization"] = "Bearer " .. M.parse_api_key(),
+      ["Authorization"] = "Bearer " .. bearer_token,
       ["Content-Type"] = "application/json; charset=utf-8",
     },
     proxy = base.proxy,
