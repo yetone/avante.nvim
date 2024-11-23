@@ -190,7 +190,7 @@ function M.get_visual_selection_and_range()
     start_col, end_col = end_col, start_col
   end
   local content = "" -- luacheck: ignore
-  local range = Range.new({ line = start_line, col = start_col }, { line = end_line, col = end_col })
+  local range = Range:new({ line = start_line, col = start_col }, { line = end_line, col = end_col })
   -- Check if it's a single-line selection
   if start_line == end_line then
     -- Get partial content of a single line
@@ -213,7 +213,7 @@ function M.get_visual_selection_and_range()
   end
   if not content then return nil end
   -- Return the selected content and range
-  return SelectionResult.new(content, range)
+  return SelectionResult:new(content, range)
 end
 
 ---Wrapper around `api.nvim_buf_get_lines` which defaults to the current buffer

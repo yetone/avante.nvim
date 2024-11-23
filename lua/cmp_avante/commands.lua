@@ -1,18 +1,20 @@
 local api = vim.api
 
----@class commands_source
+---@class commands_source : cmp.Source
 ---@field commands AvanteSlashCommand[]
 ---@field bufnr integer
 local commands_source = {}
+commands_source.__index = commands_source
 
 ---@param commands AvanteSlashCommand[]
 ---@param bufnr integer
-function commands_source.new(commands, bufnr)
-  ---@type cmp.Source
-  return setmetatable({
-    commands = commands,
-    bufnr = bufnr,
-  }, { __index = commands_source })
+function commands_source:new(commands, bufnr)
+  local instance = setmetatable({}, commands_source)
+
+  instance.commands = commands
+  instance.bufnr = bufnr
+
+  return instance
 end
 
 function commands_source:is_available() return api.nvim_get_current_buf() == self.bufnr end
