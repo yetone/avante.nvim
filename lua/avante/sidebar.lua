@@ -551,12 +551,13 @@ local function minimize_snippet(original_lines, snippet)
   local original_snippet_content = table.concat(original_snippet_lines, "\n")
   local snippet_content = snippet.content
   local snippet_lines = vim.split(snippet_content, "\n")
-  ---@diagnostic disable-next-line: missing-fields, assign-type-mismatch
-  local patch = vim.diff(
+  ---@diagnostic disable-next-line: assign-type-mismatch
+  local patch = vim.diff( ---@type integer[][]
     original_snippet_content,
     snippet_content,
+    ---@diagnostic disable-next-line: missing-fields
     { algorithm = "histogram", result_type = "indices", ctxlen = vim.o.scrolloff }
-  ) ---@type integer[][]
+  )
   ---@type AvanteCodeSnippet[]
   local new_snippets = {}
   for _, hunk in ipairs(patch) do
@@ -602,7 +603,6 @@ function Sidebar:apply(current_cursor)
   local response, response_start_line = self:get_content_between_separators()
   local all_snippets_map = extract_code_snippets_map(response)
   all_snippets_map = ensure_snippets_no_overlap(all_snippets_map)
-  if Config.options.behaviour.minimize_diff then all_snippets_map = self:minimize_snippets(all_snippets_map) end
   local selected_snippets_map = {}
   if current_cursor then
     if self.result and self.result.winid then
@@ -621,6 +621,10 @@ function Sidebar:apply(current_cursor)
     end
   else
     selected_snippets_map = all_snippets_map
+  end
+
+  if Config.options.behaviour.minimize_diff then
+    selected_snippets_map = self:minimize_snippets(selected_snippets_map)
   end
 
   vim.defer_fn(function()
@@ -740,8 +744,8 @@ function Sidebar:render_input(ask)
       ask and "Ask" or "Chat with",
       icon,
       code_filename,
-      self.code.selection.range.start.line,
-      self.code.selection.range.finish.line
+      self.code.selection.range.start.lnum,
+      self.code.selection.range.finish.lnum
     )
   end
 
@@ -1536,6 +1540,15 @@ function Sidebar:create_input(opts)
 
     local project_context = mentions.enable_project_context and RepoMap.get_repo_map(file_ext) or nil
 
+    local diagnostics = nil
+    if mentions.enable_diagnostics then
+      if self.selected_code ~= nil then
+        diagnostics = Utils.get_current_selection_diagnostics()
+      else
+        diagnostics = Utils.get_diagnostics(self.code.bufnr)
+      end
+    end
+
     local history_messages = {}
     for i = #chat_history, 1, -1 do
       local entry = chat_history[i]
@@ -1569,6 +1582,7 @@ function Sidebar:create_input(opts)
       bufnr = self.code.bufnr,
       ask = opts.ask,
       project_context = vim.json.encode(project_context),
+      diagnostics = vim.json.encode(diagnostics),
       history_messages = history_messages,
       file_content = content,
       code_lang = filetype,

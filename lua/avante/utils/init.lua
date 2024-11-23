@@ -190,7 +190,7 @@ function M.get_visual_selection_and_range()
     start_col, end_col = end_col, start_col
   end
   local content = "" -- luacheck: ignore
-  local range = Range:new({ line = start_line, col = start_col }, { line = end_line, col = end_col })
+  local range = Range:new({ lnum = start_line, col = start_col }, { lnum = end_line, col = end_col })
   -- Check if it's a single-line selection
   if start_line == end_line then
     -- Get partial content of a single line
@@ -665,19 +665,25 @@ end
 function M.is_first_letter_uppercase(str) return string.match(str, "^[A-Z]") ~= nil end
 
 ---@param content string
----@return { new_content: string, enable_project_context: boolean }
+---@return { new_content: string, enable_project_context: boolean, enable_diagnostics: boolean }
 function M.extract_mentions(content)
   -- if content contains @codebase, enable project context and remove @codebase
   local new_content = content
   local enable_project_context = false
+  local enable_diagnostics = false
   if content:match("@codebase") then
     enable_project_context = true
     new_content = content:gsub("@codebase", "")
   end
-  return { new_content = new_content, enable_project_context = enable_project_context }
+  if content:match("@diagnostics") then enable_diagnostics = true end
+  return {
+    new_content = new_content,
+    enable_project_context = enable_project_context,
+    enable_diagnostics = enable_diagnostics,
+  }
 end
 
----@alias AvanteMentions "codebase"
+---@alias AvanteMentions "codebase" | "diagnostics"
 ---@alias AvanteMentionCallback fun(args: string, cb?: fun(args: string): nil): nil
 ---@alias AvanteMention {description: string, command: AvanteMentions, details: string, shorthelp?: string, callback?: AvanteMentionCallback}
 ---@return AvanteMention[]
@@ -687,6 +693,11 @@ function M.get_mentions()
       description = "codebase",
       command = "codebase",
       details = "repo map",
+    },
+    {
+      description = "diagnostics",
+      command = "diagnostics",
+      details = "diagnostics",
     },
   }
 end
@@ -759,6 +770,24 @@ function M.update_buffer_content(bufnr, new_lines)
   for _, diff in ipairs(diffs) do
     api.nvim_buf_set_lines(bufnr, diff.start_line - 1, diff.end_line - 1, false, diff.content)
   end
+end
+
+function M.get_diagnostics(bufnr)
+  if bufnr == nil then bufnr = api.nvim_get_current_buf() end
+  return vim.diagnostic.get(bufnr, { severity = { vim.diagnostic.severity.ERROR, vim.diagnostic.severity.WARN } })
+end
+
+function M.get_current_selection_diagnostics()
+  local selection = M.get_visual_selection_and_range()
+  if not selection then return {} end
+  local diagnostics = M.get_diagnostics()
+  local selection_diagnostics = {}
+  for _, diagnostic in ipairs(diagnostics) do
+    if selection.range:contains(diagnostic.lnum, diagnostic.col) then
+      table.insert(selection_diagnostics, diagnostic)
+    end
+  end
+  return selection_diagnostics
 end
 
 return M
