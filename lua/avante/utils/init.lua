@@ -772,18 +772,31 @@ function M.update_buffer_content(bufnr, new_lines)
   end
 end
 
+---@param bufnr integer
+---@return vim.Diagnostic[]
 function M.get_diagnostics(bufnr)
   if bufnr == nil then bufnr = api.nvim_get_current_buf() end
-  return vim.diagnostic.get(bufnr, { severity = { vim.diagnostic.severity.ERROR, vim.diagnostic.severity.WARN } })
+  local diagnositcs = ---@type vim.Diagnostic[]
+    vim.diagnostic.get(bufnr, { severity = { vim.diagnostic.severity.ERROR, vim.diagnostic.severity.WARN } })
+  return vim
+    .iter(diagnositcs)
+    :map(function(diagnostic)
+      diagnostic.lnum = diagnostic.lnum + 1
+      diagnostic.end_lnum = diagnostic.end_lnum + 1
+      diagnostic.col = diagnostic.col + 1
+      diagnostic.end_col = diagnostic.end_col + 1
+      return diagnostic
+    end)
+    :totable()
 end
 
-function M.get_current_selection_diagnostics()
-  local selection = M.get_visual_selection_and_range()
-  if not selection then return {} end
-  local diagnostics = M.get_diagnostics()
+---@param bufnr integer
+---@param selection avante.SelectionResult
+function M.get_current_selection_diagnostics(bufnr, selection)
+  local diagnostics = M.get_diagnostics(bufnr)
   local selection_diagnostics = {}
   for _, diagnostic in ipairs(diagnostics) do
-    if selection.range:contains(diagnostic.lnum, diagnostic.col) then
+    if selection.range.start.lnum <= diagnostic.lnum and selection.range.finish.lnum >= diagnostic.end_lnum then
       table.insert(selection_diagnostics, diagnostic)
     end
   end
