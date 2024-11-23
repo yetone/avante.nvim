@@ -21,6 +21,7 @@ local PRIORITY = vim.highlight.priorities.user
 ---@field code_winid integer | nil
 ---@field prompt_input PromptInput | nil
 local Selection = {}
+Selection.__index = Selection
 
 Selection.did_setup = false
 
@@ -34,7 +35,7 @@ function Selection:new(id)
     cursor_pos = nil,
     code_winid = nil,
     prompt_input = nil,
-  }, { __index = self })
+  }, Selection)
 end
 
 function Selection:get_virt_text_line()
@@ -238,7 +239,7 @@ function Selection:create_editing_input()
       if has_cmp then
         cmp.register_source(
           "avante_mentions",
-          require("cmp_avante.mentions").new(Utils.get_mentions(), prompt_input.bufnr)
+          require("cmp_avante.mentions"):new(Utils.get_mentions(), prompt_input.bufnr)
         )
         cmp.setup.buffer({
           enabled = true,
