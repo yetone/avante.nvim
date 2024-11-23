@@ -18,6 +18,8 @@ M.CANCEL_PATTERN = "AvanteLLMEscape"
 
 local group = api.nvim_create_augroup("avante_llm", { clear = true })
 
+---@param opts StreamOptions
+---@param Provider AvanteProviderFunctor
 M._stream = function(opts, Provider)
   -- print opts
   local mode = opts.mode or "planning"
@@ -52,6 +54,7 @@ M._stream = function(opts, Provider)
     file_content = opts.file_content,
     selected_code = opts.selected_code,
     project_context = opts.project_context,
+    diagnostics = opts.diagnostics,
   }
 
   local system_prompt = Path.prompts.render_mode(mode, template_opts)
@@ -62,6 +65,11 @@ M._stream = function(opts, Provider)
   if opts.project_context ~= nil and opts.project_context ~= "" and opts.project_context ~= "null" then
     local project_context = Path.prompts.render_file("_project.avanterules", template_opts)
     if project_context ~= "" then table.insert(messages, { role = "user", content = project_context }) end
+  end
+
+  if opts.diagnostics ~= nil and opts.diagnostics ~= "" and opts.diagnostics ~= "null" then
+    local diagnostics = Path.prompts.render_file("_diagnostics.avanterules", template_opts)
+    if diagnostics ~= "" then table.insert(messages, { role = "user", content = diagnostics }) end
   end
 
   local code_context = Path.prompts.render_file("_context.avanterules", template_opts)
@@ -334,6 +342,7 @@ end
 ---@field file_content string
 ---@field selected_code string | nil
 ---@field project_context string | nil
+---@field diagnostics string | nil
 ---@field history_messages AvanteLLMMessage[]
 ---
 ---@class StreamOptions: TemplateOptions
