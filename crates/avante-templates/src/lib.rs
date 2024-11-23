@@ -24,6 +24,7 @@ struct TemplateContext {
     file_content: String,
     selected_code: Option<String>,
     project_context: Option<String>,
+    diagnostics: Option<String>,
 }
 
 // Given the file name registered after add, the context table in Lua, resulted in a formatted
@@ -47,6 +48,7 @@ fn render(state: &State, template: &str, context: TemplateContext) -> LuaResult<
                   file_content => context.file_content,
                   selected_code => context.selected_code,
                   project_context => context.project_context,
+                  diagnostics => context.diagnostics,
                 })
                 .map_err(LuaError::external)
                 .unwrap())

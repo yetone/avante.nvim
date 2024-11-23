@@ -127,15 +127,15 @@ function Selection:create_editing_input()
   local end_row
   local end_col
   if vim.fn.mode() == "V" then
-    start_row = self.selection.range.start.line - 1
+    start_row = self.selection.range.start.lnum - 1
     start_col = 0
-    end_row = self.selection.range.finish.line - 1
-    end_col = #code_lines[self.selection.range.finish.line]
+    end_row = self.selection.range.finish.lnum - 1
+    end_col = #code_lines[self.selection.range.finish.lnum]
   else
-    start_row = self.selection.range.start.line - 1
+    start_row = self.selection.range.start.lnum - 1
     start_col = self.selection.range.start.col - 1
-    end_row = self.selection.range.finish.line - 1
-    end_col = math.min(self.selection.range.finish.col, #code_lines[self.selection.range.finish.line])
+    end_row = self.selection.range.finish.lnum - 1
+    end_col = math.min(self.selection.range.finish.col, #code_lines[self.selection.range.finish.lnum])
   end
 
   self.selected_code_extmark_id = api.nvim_buf_set_extmark(code_bufnr, SELECTED_CODE_NAMESPACE, start_row, start_col, {
@@ -148,10 +148,10 @@ function Selection:create_editing_input()
 
   local submit_input = function(input)
     local full_response = ""
-    local start_line = self.selection.range.start.line
-    local finish_line = self.selection.range.finish.line
+    local start_line = self.selection.range.start.lnum
+    local finish_line = self.selection.range.finish.lnum
 
-    local original_first_line_indentation = Utils.get_indentation(code_lines[self.selection.range.start.line])
+    local original_first_line_indentation = Utils.get_indentation(code_lines[self.selection.range.start.lnum])
 
     local need_prepend_indentation = false
 
@@ -201,10 +201,13 @@ function Selection:create_editing_input()
     input = mentions.new_content
     local project_context = mentions.enable_project_context and RepoMap.get_repo_map(file_ext) or nil
 
+    local diagnostics = Utils.get_current_selection_diagnostics()
+
     Llm.stream({
       bufnr = code_bufnr,
       ask = true,
       project_context = vim.json.encode(project_context),
+      diagnostics = vim.json.encode(diagnostics),
       file_content = code_content,
       code_lang = filetype,
       selected_code = self.selection.content,

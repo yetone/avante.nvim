@@ -1,0 +1,12 @@
+{%- if use_xml_format -%}
+{%- if diagnostics -%}
+<diagnostics>
+{{diagnostics}}
+</diagnostics>
+{%- endif %}
+{%- else -%}
+{%- if diagnostics -%}
+DIAGNOSTICS:
+{{diagnostics}}
+{%- endif %}
+{%- endif %}
