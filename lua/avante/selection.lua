@@ -201,7 +201,7 @@ function Selection:create_editing_input()
     input = mentions.new_content
     local project_context = mentions.enable_project_context and RepoMap.get_repo_map(file_ext) or nil
 
-    local diagnostics = Utils.get_current_selection_diagnostics()
+    local diagnostics = Utils.get_current_selection_diagnostics(code_bufnr, self.selection)
 
     Llm.stream({
       bufnr = code_bufnr,

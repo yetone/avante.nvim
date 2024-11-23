@@ -1,11 +1,29 @@
 {%- if use_xml_format -%}
 {%- if diagnostics -%}
+<diagnostic_field_description>
+lnum: The starting line of the diagnostic (1-indexed)
+end_lnum: The final line of the diagnostic (1-indexed)
+col: The starting column of the diagnostic (1-indexed)
+end_col: The final column of the diagnostic (1-indexed)
+severity: The severity of the diagnostic
+message: The diagnostic text
+source: The source of the diagnostic
+</diagnostic_field_description>
 <diagnostics>
 {{diagnostics}}
 </diagnostics>
 {%- endif %}
 {%- else -%}
 {%- if diagnostics -%}
+DIAGNOSTIC_FIELD_DESCRIPTION:
+lnum: The starting line of the diagnostic (1-indexed)
+end_lnum: The final line of the diagnostic (1-indexed)
+col: The starting column of the diagnostic (1-indexed)
+end_col: The final column of the diagnostic (1-indexed)
+severity: The severity of the diagnostic
+message: The diagnostic text
+source: The source of the diagnostic
+
 DIAGNOSTICS:
 {{diagnostics}}
 {%- endif %}
