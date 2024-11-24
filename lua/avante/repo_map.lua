@@ -2,7 +2,6 @@ local Popup = require("nui.popup")
 local Utils = require("avante.utils")
 local event = require("nui.utils.autocmd").event
 local Config = require("avante.config")
-local fn = vim.fn
 
 local filetype_map = {
   ["javascriptreact"] = "javascript",
@@ -34,14 +33,13 @@ function RepoMap.get_ts_lang(filepath)
 end
 
 function RepoMap.get_filetype(filepath)
-  local filetype = vim.filetype.match({ filename = filepath })
-  -- TypeScript files are sometimes not detected correctly
+  -- Some files are sometimes not detected correctly when buffer is not included
   -- https://github.com/neovim/neovim/issues/27265
-  if not filetype then
-    local ext = fn.fnamemodify(filepath, ":e")
-    if ext == "tsx" then filetype = "typescriptreact" end
-    if ext == "ts" then filetype = "typescript" end
-  end
+
+  local buf = vim.api.nvim_create_buf(false, true)
+  local filetype = vim.filetype.match({ filename = filepath, buf = buf })
+  vim.api.nvim_buf_delete(buf, { force = true })
+
   return filetype
 end
 
