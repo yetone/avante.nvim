@@ -147,7 +147,6 @@ M.parse_curl_args = function(provider, code_opts)
   -- NOTE: When using "o1" set the supported parameters only
   local stream = true
   if base.model and string.find(base.model, "o1") then
-    stream = false
     body_opts.max_tokens = nil
     body_opts.temperature = 1
   end
