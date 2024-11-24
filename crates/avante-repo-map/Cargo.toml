@@ -28,6 +28,7 @@ tree-sitter-lua = "0.2"
 tree-sitter-ruby = "0.23"
 tree-sitter-zig = "1.0.2"
 tree-sitter-scala = "0.23"
+tree-sitter-elixir = "0.3.1"
 
 [lints]
 workspace = true
