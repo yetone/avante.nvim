@@ -85,7 +85,10 @@ function Suggestion:suggest()
       vim.schedule(function()
         local cursor_row, cursor_col = Utils.get_cursor_pos()
         if cursor_row ~= doc.position.row or cursor_col ~= doc.position.col then return end
+        -- Clean up markdown code blocks
         full_response = full_response:gsub("^```%w*\n(.-)\n```$", "%1")
+        -- Remove everything before the first '[' to ensure we get just the JSON array
+        full_response = full_response:gsub("^.-(%[.*)", "%1")
         local ok, suggestions = pcall(vim.json.decode, full_response)
         if not ok then
           Utils.error("Error while decoding suggestions: " .. full_response, { once = true, title = "Avante" })
