@@ -157,6 +157,7 @@ function PromptInput:show_shortcuts_hints()
   if not self.winid or not api.nvim_win_is_valid(self.winid) then return end
 
   local win_width = api.nvim_win_get_width(self.winid)
+  local win_height = api.nvim_win_get_height(self.winid)
   local buf_height = api.nvim_buf_line_count(self.bufnr)
 
   local hint_text = (vim.fn.mode() ~= "i" and Config.mappings.submit.normal or Config.mappings.submit.insert)
@@ -180,7 +181,7 @@ function PromptInput:show_shortcuts_hints()
     win = self.winid,
     width = width,
     height = 1,
-    row = buf_height,
+    row = math.min(buf_height, win_height),
     col = math.max(win_width - width, 0),
     style = "minimal",
     border = "none",
