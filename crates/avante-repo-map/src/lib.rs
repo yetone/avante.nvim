@@ -189,7 +189,7 @@ fn zig_find_type_in_parent<'a>(node: &'a Node, source: &'a [u8]) -> Option<Strin
     None
 }
 
-fn ex_find_parent_module_declaration_name<'a>(node: &'a Node, source: &'a [u8],) -> Option<String> {
+fn ex_find_parent_module_declaration_name<'a>(node: &'a Node, source: &'a [u8]) -> Option<String> {
     let mut parent = node.parent();
     while let Some(parent_node) = parent {
         if parent_node.kind() == "call" {
@@ -256,21 +256,22 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
     let mut enum_def_map: BTreeMap<String, RefCell<Enum>> = BTreeMap::new();
     let mut union_def_map: BTreeMap<String, RefCell<Union>> = BTreeMap::new();
 
-    let ensure_class_def = |language: &str, name: &str, class_def_map: &mut BTreeMap<String, RefCell<Class>>| {
-        let mut type_name = "class";
-        if language == "elixir" {
-            type_name = "module"
-        }
-        class_def_map.entry(name.to_string()).or_insert_with(|| {
-            RefCell::new(Class {
-                type_name: type_name.to_string(),
-                name: name.to_string(),
-                methods: vec![],
-                properties: vec![],
-                visibility_modifier: None,
-            })
-        });
-    };
+    let ensure_class_def =
+        |language: &str, name: &str, class_def_map: &mut BTreeMap<String, RefCell<Class>>| {
+            let mut type_name = "class";
+            if language == "elixir" {
+                type_name = "module";
+            }
+            class_def_map.entry(name.to_string()).or_insert_with(|| {
+                RefCell::new(Class {
+                    type_name: type_name.to_string(),
+                    name: name.to_string(),
+                    methods: vec![],
+                    properties: vec![],
+                    visibility_modifier: None,
+                })
+            });
+        };
 
     let ensure_enum_def = |name: &str, enum_def_map: &mut BTreeMap<String, RefCell<Enum>>| {
         enum_def_map.entry(name.to_string()).or_insert_with(|| {
@@ -363,7 +364,7 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                         if language == "go" && !is_first_letter_uppercase(&name) {
                             continue;
                         }
-                        ensure_class_def(&language, &name, &mut class_def_map);
+                        ensure_class_def(language, &name, &mut class_def_map);
                         let visibility_modifier_node =
                             find_child_by_type(&node, "visibility_modifier");
                         let visibility_modifier = visibility_modifier_node
@@ -513,7 +514,7 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                     }
                     let mut return_type = "void".to_string();
                     if language == "elixir" {
-                        return_type = "".to_string();
+                        return_type = String::new();
                     }
                     if return_type_node.is_some() {
                         return_type = get_node_type(&return_type_node.unwrap(), source.as_bytes());
@@ -562,7 +563,7 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                         continue;
                     }
 
-                    ensure_class_def(&language, &class_name, &mut class_def_map);
+                    ensure_class_def(language, &class_name, &mut class_def_map);
                     let class_def = class_def_map.get_mut(&class_name).unwrap();
 
                     let accessibility_modifier_node =
@@ -607,7 +608,7 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                     if class_name.is_empty() {
                         continue;
                     }
-                    ensure_class_def(&language, &class_name, &mut class_def_map);
+                    ensure_class_def(language, &class_name, &mut class_def_map);
                     let class_def = class_def_map.get_mut(&class_name).unwrap();
                     let variable = Variable {
                         name: left.to_string(),
@@ -661,7 +662,7 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                     if !name.is_empty() && language == "go" && !is_first_letter_uppercase(&name) {
                         continue;
                     }
-                    ensure_class_def(&language, &class_name, &mut class_def_map);
+                    ensure_class_def(language, &class_name, &mut class_def_map);
                     let class_def = class_def_map.get_mut(&class_name).unwrap();
                     let variable = Variable {
                         name: name.to_string(),
@@ -1501,7 +1502,8 @@ mod tests {
         let definitions = extract_definitions("elixir", source).unwrap();
         let stringified = stringify_definitions(&definitions);
         println!("{stringified}");
-        let expected = "module AnotherModule{func another_func();};module TestModule{func test_func(a, b);};";
+        let expected =
+            "module AnotherModule{func another_func();};module TestModule{func test_func(a, b);};";
         assert_eq!(stringified, expected);
     }
 
