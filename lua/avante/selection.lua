@@ -184,6 +184,8 @@ function Selection:create_editing_input()
     ---@type AvanteCompleteParser
     local on_complete = function(err)
       if err then
+        -- NOTE: in Ubuntu 22.04+ you will see this ignorable error from ~/.local/share/nvim/lazy/avante.nvim/lua/avante/llm.lua `on_error = function(err)`, check to avoid showing this error.
+        if type(err) == "table" and err.exit == nil and err.stderr == "{}" then return end
         Utils.error(
           "Error occurred while processing the response: " .. vim.inspect(err),
           { once = true, title = "Avante" }
