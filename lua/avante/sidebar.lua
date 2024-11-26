@@ -462,6 +462,10 @@ local function insert_conflict_contents(bufnr, snippets)
 
   for _, snippet in ipairs(snippets) do
     local start_line, end_line = unpack(snippet.range)
+    if start_line > end_line then
+      start_line = start_line + 1
+      end_line = end_line + 1
+    end
 
     local need_prepend_indentation = false
     local start_line_indentation = ""
@@ -530,7 +534,7 @@ local function parse_codeblocks(buf)
       if in_codeblock and not lang_ then
         table.insert(codeblocks, { start_line = start_line, end_line = i - 1, lang = lang })
         in_codeblock = false
-      elseif lang_ then
+      elseif lang_ and lines[i - 1]:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)") then
         lang = lang_
         start_line = i - 1
         in_codeblock = true
@@ -551,12 +555,13 @@ local function minimize_snippet(original_lines, snippet)
   local original_snippet_content = table.concat(original_snippet_lines, "\n")
   local snippet_content = snippet.content
   local snippet_lines = vim.split(snippet_content, "\n")
-  ---@diagnostic disable-next-line: missing-fields, assign-type-mismatch
-  local patch = vim.diff(
+  ---@diagnostic disable-next-line: assign-type-mismatch
+  local patch = vim.diff( ---@type integer[][]
     original_snippet_content,
     snippet_content,
+    ---@diagnostic disable-next-line: missing-fields
     { algorithm = "histogram", result_type = "indices", ctxlen = vim.o.scrolloff }
-  ) ---@type integer[][]
+  )
   ---@type AvanteCodeSnippet[]
   local new_snippets = {}
   for _, hunk in ipairs(patch) do
@@ -602,7 +607,6 @@ function Sidebar:apply(current_cursor)
   local response, response_start_line = self:get_content_between_separators()
   local all_snippets_map = extract_code_snippets_map(response)
   all_snippets_map = ensure_snippets_no_overlap(all_snippets_map)
-  if Config.options.behaviour.minimize_diff then all_snippets_map = self:minimize_snippets(all_snippets_map) end
   local selected_snippets_map = {}
   if current_cursor then
     if self.result and self.result.winid then
@@ -621,6 +625,10 @@ function Sidebar:apply(current_cursor)
     end
   else
     selected_snippets_map = all_snippets_map
+  end
+
+  if Config.options.behaviour.minimize_diff then
+    selected_snippets_map = self:minimize_snippets(selected_snippets_map)
   end
 
   vim.defer_fn(function()
@@ -740,8 +748,8 @@ function Sidebar:render_input(ask)
       ask and "Ask" or "Chat with",
       icon,
       code_filename,
-      self.code.selection.range.start.line,
-      self.code.selection.range.finish.line
+      self.code.selection.range.start.lnum,
+      self.code.selection.range.finish.lnum
     )
   end
 
@@ -1368,7 +1376,9 @@ function Sidebar:create_selected_code()
         winid = self.input.winid,
       },
       buf_options = buf_options,
-      win_options = base_win_options,
+      win_options = vim.tbl_deep_extend("force", base_win_options, {
+        wrap = Config.windows.wrap,
+      }),
       position = "top",
       size = {
         height = selected_code_size + 3,
@@ -1534,6 +1544,15 @@ function Sidebar:create_input(opts)
 
     local project_context = mentions.enable_project_context and RepoMap.get_repo_map(file_ext) or nil
 
+    local diagnostics = nil
+    if mentions.enable_diagnostics then
+      if self.code ~= nil and self.code.bufnr ~= nil and self.code.selection ~= nil then
+        diagnostics = Utils.get_current_selection_diagnostics(self.code.bufnr, self.code.selection)
+      else
+        diagnostics = Utils.get_diagnostics(self.code.bufnr)
+      end
+    end
+
     local history_messages = {}
     for i = #chat_history, 1, -1 do
       local entry = chat_history[i]
@@ -1567,6 +1586,7 @@ function Sidebar:create_input(opts)
       bufnr = self.code.bufnr,
       ask = opts.ask,
       project_context = vim.json.encode(project_context),
+      diagnostics = vim.json.encode(diagnostics),
       history_messages = history_messages,
       file_content = content,
       code_lang = filetype,
@@ -1602,7 +1622,7 @@ function Sidebar:create_input(opts)
       type = "win",
       winid = self.result.winid,
     },
-    win_options = vim.tbl_deep_extend("force", base_win_options, { signcolumn = "yes" }),
+    win_options = vim.tbl_deep_extend("force", base_win_options, { signcolumn = "yes", wrap = Config.windows.wrap }),
     position = get_position(),
     size = get_size(),
   })
@@ -1653,11 +1673,11 @@ function Sidebar:create_input(opts)
       if has_cmp then
         cmp.register_source(
           "avante_commands",
-          require("cmp_avante.commands").new(self:get_commands(), self.input.bufnr)
+          require("cmp_avante.commands"):new(self:get_commands(), self.input.bufnr)
         )
         cmp.register_source(
           "avante_mentions",
-          require("cmp_avante.mentions").new(Utils.get_mentions(), self.input.bufnr)
+          require("cmp_avante.mentions"):new(Utils.get_mentions(), self.input.bufnr)
         )
         cmp.setup.buffer({
           enabled = true,
@@ -1822,7 +1842,9 @@ function Sidebar:render(opts)
       bufhidden = "wipe",
       filetype = "Avante",
     }),
-    win_options = base_win_options,
+    win_options = vim.tbl_deep_extend("force", base_win_options, {
+      wrap = Config.windows.wrap,
+    }),
     size = {
       width = get_width(),
       height = get_height(),

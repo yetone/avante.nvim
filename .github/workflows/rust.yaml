@@ -5,14 +5,14 @@ on:
     branches:
       - main
     paths:
-      - "crates/*"
+      - "crates/**/*"
       - "Cargo.lock"
       - "Cargo.toml"
   pull_request:
     branches:
       - main
     paths:
-      - "crates/*"
+      - "crates/**/*"
       - "Cargo.lock"
       - "Cargo.toml"
 

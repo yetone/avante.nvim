@@ -21,6 +21,7 @@ local PRIORITY = vim.highlight.priorities.user
 ---@field code_winid integer | nil
 ---@field prompt_input PromptInput | nil
 local Selection = {}
+Selection.__index = Selection
 
 Selection.did_setup = false
 
@@ -34,7 +35,7 @@ function Selection:new(id)
     cursor_pos = nil,
     code_winid = nil,
     prompt_input = nil,
-  }, { __index = self })
+  }, Selection)
 end
 
 function Selection:get_virt_text_line()
@@ -126,15 +127,15 @@ function Selection:create_editing_input()
   local end_row
   local end_col
   if vim.fn.mode() == "V" then
-    start_row = self.selection.range.start.line - 1
+    start_row = self.selection.range.start.lnum - 1
     start_col = 0
-    end_row = self.selection.range.finish.line - 1
-    end_col = #code_lines[self.selection.range.finish.line]
+    end_row = self.selection.range.finish.lnum - 1
+    end_col = #code_lines[self.selection.range.finish.lnum]
   else
-    start_row = self.selection.range.start.line - 1
+    start_row = self.selection.range.start.lnum - 1
     start_col = self.selection.range.start.col - 1
-    end_row = self.selection.range.finish.line - 1
-    end_col = math.min(self.selection.range.finish.col, #code_lines[self.selection.range.finish.line])
+    end_row = self.selection.range.finish.lnum - 1
+    end_col = math.min(self.selection.range.finish.col, #code_lines[self.selection.range.finish.lnum])
   end
 
   self.selected_code_extmark_id = api.nvim_buf_set_extmark(code_bufnr, SELECTED_CODE_NAMESPACE, start_row, start_col, {
@@ -147,10 +148,10 @@ function Selection:create_editing_input()
 
   local submit_input = function(input)
     local full_response = ""
-    local start_line = self.selection.range.start.line
-    local finish_line = self.selection.range.finish.line
+    local start_line = self.selection.range.start.lnum
+    local finish_line = self.selection.range.finish.lnum
 
-    local original_first_line_indentation = Utils.get_indentation(code_lines[self.selection.range.start.line])
+    local original_first_line_indentation = Utils.get_indentation(code_lines[self.selection.range.start.lnum])
 
     local need_prepend_indentation = false
 
@@ -183,6 +184,8 @@ function Selection:create_editing_input()
     ---@type AvanteCompleteParser
     local on_complete = function(err)
       if err then
+        -- NOTE: in Ubuntu 22.04+ you will see this ignorable error from ~/.local/share/nvim/lazy/avante.nvim/lua/avante/llm.lua `on_error = function(err)`, check to avoid showing this error.
+        if type(err) == "table" and err.exit == nil and err.stderr == "{}" then return end
         Utils.error(
           "Error occurred while processing the response: " .. vim.inspect(err),
           { once = true, title = "Avante" }
@@ -200,10 +203,13 @@ function Selection:create_editing_input()
     input = mentions.new_content
     local project_context = mentions.enable_project_context and RepoMap.get_repo_map(file_ext) or nil
 
+    local diagnostics = Utils.get_current_selection_diagnostics(code_bufnr, self.selection)
+
     Llm.stream({
       bufnr = code_bufnr,
       ask = true,
       project_context = vim.json.encode(project_context),
+      diagnostics = vim.json.encode(diagnostics),
       file_content = code_content,
       code_lang = filetype,
       selected_code = self.selection.content,
@@ -238,7 +244,7 @@ function Selection:create_editing_input()
       if has_cmp then
         cmp.register_source(
           "avante_mentions",
-          require("cmp_avante.mentions").new(Utils.get_mentions(), prompt_input.bufnr)
+          require("cmp_avante.mentions"):new(Utils.get_mentions(), prompt_input.bufnr)
         )
         cmp.setup.buffer({
           enabled = true,
