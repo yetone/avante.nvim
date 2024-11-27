@@ -72,6 +72,13 @@ M._stream = function(opts, Provider)
     if diagnostics ~= "" then table.insert(messages, { role = "user", content = diagnostics }) end
   end
 
+  if opts.code_context ~= nil then
+    for key, ctx in pairs(opts.code_context) do
+      local pj_ctx = key .. " " .. ctx
+      table.insert(messages, { role = "user", content = "PROJECT CONTEXT: " .. pj_ctx })
+    end
+  end
+
   local code_context = Path.prompts.render_file("_context.avanterules", template_opts)
   if code_context ~= "" then table.insert(messages, { role = "user", content = code_context }) end
 
@@ -342,6 +349,7 @@ end
 ---@field file_content string
 ---@field selected_code string | nil
 ---@field project_context string | nil
+---@field code_context table | nil
 ---@field diagnostics string | nil
 ---@field history_messages AvanteLLMMessage[]
 ---

@@ -12,6 +12,7 @@ local Llm = require("avante.llm")
 local Utils = require("avante.utils")
 local Highlights = require("avante.highlights")
 local RepoMap = require("avante.repo_map")
+local Context = require("avante.context")
 
 local RESULT_BUF_NAME = "AVANTE_RESULT"
 local VIEW_BUFFER_UPDATED_PATTERN = "AvanteViewBufferUpdated"
@@ -34,6 +35,7 @@ local Sidebar = {}
 ---@field result NuiSplit | nil
 ---@field selected_code NuiSplit | nil
 ---@field input NuiSplit | nil
+---@field context avante.Context
 
 ---@param id integer the tabpage id retrieved from api.nvim_get_current_tabpage()
 function Sidebar:new(id)
@@ -48,6 +50,7 @@ function Sidebar:new(id)
     result = nil,
     selected_code = nil,
     input = nil,
+    context = Context:new(id),
   }, { __index = self })
 end
 
@@ -156,12 +159,20 @@ end
 ---@param original_content string
 ---@param result_content string
 ---@param code_lang string
+---@param context_code table
 ---@return AvanteReplacementResult
-local function transform_result_content(original_content, result_content, code_lang)
+local function transform_result_content(original_content, result_content, code_lang, context_code)
   local transformed_lines = {}
 
   local original_lines = vim.split(original_content, "\n")
   local result_lines = vim.split(result_content, "\n")
+
+  local context_lines = {}
+  table.insert(context_lines, original_lines)
+  for _, code in pairs(context_code) do
+    local code_lines = vim.split(code, "\n")
+    table.insert(context_lines, code_lines)
+  end
 
   local is_searching = false
   local is_replacing = false
@@ -196,20 +207,21 @@ local function transform_result_content(original_content, result_content, code_l
 
       local start_line = 0
       local end_line = 0
-      for j = 1, #original_lines - (search_end - search_start) + 1 do
-        local match = true
-        for k = 0, search_end - search_start - 1 do
-          if
-            Utils.remove_indentation(original_lines[j + k]) ~= Utils.remove_indentation(result_lines[search_start + k])
-          then
-            match = false
+      for _, v in ipairs(context_lines) do
+        if start_line ~= 0 or end_line ~= 0 then break end
+        for j = 1, #v - (search_end - search_start) + 1 do
+          local match = true
+          for k = 0, search_end - search_start - 1 do
+            if Utils.remove_indentation(v[j + k]) ~= Utils.remove_indentation(result_lines[search_start + k]) then
+              match = false
+              break
+            end
+          end
+          if match then
+            start_line = j
+            end_line = j + (search_end - search_start) - 1
             break
           end
-        end
-        if match then
-          start_line = j
-          end_line = j + (search_end - search_start) - 1
-          break
         end
       end
 
@@ -887,6 +899,12 @@ function Sidebar:on_mount(opts)
       function() jump_to_codeblock("prev") end,
       { buffer = self.result.bufnr, noremap = true, silent = true }
     )
+    vim.keymap.set(
+      "n",
+      Config.mappings.sidebar.context,
+      function() self.context:open() end,
+      { buffer = self.result.bufnr, noremap = true, silent = true }
+    )
   end
 
   local function unbind_sidebar_keys()
@@ -894,6 +912,7 @@ function Sidebar:on_mount(opts)
       pcall(vim.keymap.del, "n", Config.mappings.sidebar.apply_all, { buffer = self.result.bufnr })
       pcall(vim.keymap.del, "n", Config.mappings.jump.next, { buffer = self.result.bufnr })
       pcall(vim.keymap.del, "n", Config.mappings.jump.prev, { buffer = self.result.bufnr })
+      pcall(vim.keymap.del, "n", Config.mappings.sidebar.context, { buffer = self.result.bufnr })
     end
   end
 
@@ -1167,7 +1186,15 @@ local function get_timestamp() return os.date("%Y-%m-%d %H:%M:%S") end
 ---@param selected_file {filepath: string}?
 ---@param selected_code {filetype: string, content: string}?
 ---@return string
-local function render_chat_record_prefix(timestamp, provider, model, request, selected_file, selected_code)
+local function render_chat_record_prefix(
+  timestamp,
+  provider,
+  model,
+  request,
+  selected_file,
+  selected_code,
+  context_summary
+)
   provider = provider or "unknown"
   model = model or "unknown"
   local res = "- Datetime: " .. timestamp .. "\n\n" .. "- Model: " .. provider .. "/" .. model
@@ -1181,6 +1208,9 @@ local function render_chat_record_prefix(timestamp, provider, model, request, se
       .. selected_code.content
       .. "\n```"
   end
+
+  if context_summary ~= nil and context_summary ~= "" then res = res .. "\n\n" .. context_summary end
+
   return res .. "\n\n> " .. request:gsub("\n", "\n> "):gsub("([%w-_]+)%b[]", "`%0`") .. "\n\n"
 end
 
@@ -1222,7 +1252,8 @@ function Sidebar:render_history_content(history)
       entry.model,
       entry.request or "",
       entry.selected_file,
-      entry.selected_code
+      entry.selected_code,
+      entry.context_summary
     )
     content = content .. prefix
     content = content .. entry.response .. "\n\n"
@@ -1423,8 +1454,17 @@ function Sidebar:create_input(opts)
       }
     end
 
-    local content_prefix =
-      render_chat_record_prefix(timestamp, Config.provider, model, request, selected_file, selected_code)
+    local context_summary = self.context:get_context_summary()
+
+    local content_prefix = render_chat_record_prefix(
+      timestamp,
+      Config.provider,
+      model,
+      request,
+      selected_file,
+      selected_code,
+      context_summary
+    )
 
     --- HACK: we need to set focus to true and scroll to false to
     --- prevent the cursor from jumping to the bottom of the
@@ -1481,7 +1521,12 @@ function Sidebar:create_input(opts)
     ---@type AvanteChunkParser
     local on_chunk = function(chunk)
       original_response = original_response .. chunk
-      local transformed = transform_result_content(content, transformed_response .. chunk, filetype)
+      local transformed = transform_result_content(
+        content,
+        transformed_response .. chunk,
+        filetype,
+        self.context:get_context_file_content()
+      )
       transformed_response = transformed.content
       local cur_displayed_response = generate_display_content(transformed)
       if is_first_chunk then
@@ -1533,6 +1578,7 @@ function Sidebar:create_input(opts)
         original_response = original_response,
         selected_file = selected_file,
         selected_code = selected_code,
+        context_summary = context_summary,
       })
       Path.history.save(self.code.bufnr, chat_history)
     end
@@ -1543,6 +1589,8 @@ function Sidebar:create_input(opts)
     local file_ext = api.nvim_buf_get_name(self.code.bufnr):match("^.+%.(.+)$")
 
     local project_context = mentions.enable_project_context and RepoMap.get_repo_map(file_ext) or nil
+
+    local context_files = self.context:get_context_file_content()
 
     local diagnostics = nil
     if mentions.enable_diagnostics then
@@ -1586,6 +1634,7 @@ function Sidebar:create_input(opts)
       bufnr = self.code.bufnr,
       ask = opts.ask,
       project_context = vim.json.encode(project_context),
+      code_context = context_files,
       diagnostics = vim.json.encode(diagnostics),
       history_messages = history_messages,
       file_content = content,
@@ -1659,6 +1708,8 @@ function Sidebar:create_input(opts)
 
   self.input:map("n", Config.mappings.submit.normal, on_submit)
   self.input:map("i", Config.mappings.submit.insert, on_submit)
+  self.input:map("n", Config.mappings.sidebar.context, function() self.context:open() end)
+  self.input:map("i", Config.mappings.sidebar.insert_context, function() self.context:open() end)
 
   api.nvim_set_option_value("filetype", "AvanteInput", { buf = self.input.bufnr })
 
