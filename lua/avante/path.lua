@@ -209,7 +209,7 @@ P.setup = function()
   vim.defer_fn(P._init_templates_lib, 1000)
 end
 
-P.available = function() return templates ~= nil end
+P.available = function() return P._init_templates_lib() ~= nil end
 
 P.clear = function()
   P.cache_path:rm({ recursive = true })

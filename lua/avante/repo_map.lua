@@ -23,7 +23,6 @@ function RepoMap._init_repo_map_lib()
 
   local ok, core = pcall(require, "avante_repo_map")
   if not ok then
-    error("Failed to load avante_repo_map")
     return nil
   end
 
@@ -59,12 +58,13 @@ function RepoMap._build_repo_map(project_root, file_ext)
   local negate_patterns = vim.list_extend(gitignore_negate_patterns, Config.repo_map.negate_patterns)
 
   local filepaths = Utils.scan_directory(project_root, ignore_patterns, negate_patterns)
+  if filepaths and not RepoMap._init_repo_map_lib() then
+    -- or just throw an error if we don't want to execute request without codebase
+    Utils.error("Failed to load avante_repo_map")
+    return
+  end
   vim.iter(filepaths):each(function(filepath)
     if not Utils.is_same_file_ext(file_ext, filepath) then return end
-    if not repo_map_lib then
-      Utils.error("Failed to load avante_repo_map")
-      return
-    end
     local filetype = RepoMap.get_ts_lang(filepath)
     local definitions = filetype
         and repo_map_lib.stringify_definitions(filetype, Utils.file.read_content(filepath) or "")
