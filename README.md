@@ -57,11 +57,11 @@ For building binary if you wish to build from source, then `cargo` is required. 
   build = "make",
   -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- for windows
   dependencies = {
-    "nvim-treesitter/nvim-treesitter",
     "stevearc/dressing.nvim",
     "nvim-lua/plenary.nvim",
     "MunifTanjim/nui.nvim",
     --- The below dependencies are optional,
+    "hrsh7th/nvim-cmp", -- autocompletion for avante commands and mentions
     "nvim-tree/nvim-web-devicons", -- or echasnovski/mini.icons
     "zbirenbaum/copilot.lua", -- for providers='copilot'
     {
@@ -107,6 +107,7 @@ Plug 'nvim-lua/plenary.nvim'
 Plug 'MunifTanjim/nui.nvim'
 
 " Optional deps
+Plug "hrsh7th/nvim-cmp"
 Plug 'nvim-tree/nvim-web-devicons' "or Plug 'echasnovski/mini.icons'
 Plug 'HakonHarnes/img-clip.nvim'
 Plug 'zbirenbaum/copilot.lua'
@@ -140,6 +141,7 @@ add({
   hooks = { post_checkout = function() vim.cmd('make') end }
 })
 --- optional
+add({ source = 'hrsh7th/nvim-cmp' })
 add({ source = 'zbirenbaum/copilot.lua' })
 add({ source = 'HakonHarnes/img-clip.nvim' })
 add({ source = 'MeanderingProgrammer/render-markdown.nvim' })
@@ -161,6 +163,9 @@ end)
 
 ```lua
 -- deps:
+require('cmp').setup ({
+  -- use recommended settings from above
+})
 require('img-clip').setup ({
   -- use recommended settings from above
 })
