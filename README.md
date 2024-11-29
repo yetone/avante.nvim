@@ -423,7 +423,7 @@ Users can customize the system prompts via `Config.system_prompt`. We recommend 
 
 ```lua
 vim.api.nvim_create_autocmd("User", {
-  pattern = "ToggleMyPrompt"
+  pattern = "ToggleMyPrompt",
   callback = function() require("avante.config").override({system_prompt = "MY CUSTOM SYSTEM PROMPT"}) end,
 })
 
