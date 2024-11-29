@@ -1722,6 +1722,8 @@ function Sidebar:create_input(opts)
     callback = function()
       local has_cmp, cmp = pcall(require, "cmp")
       if has_cmp then
+        local files_source = require("cmp_avante.files"):new(self.context:get_files(), self.input.bufnr)
+
         cmp.register_source(
           "avante_commands",
           require("cmp_avante.commands"):new(self:get_commands(), self.input.bufnr)
@@ -1730,13 +1732,33 @@ function Sidebar:create_input(opts)
           "avante_mentions",
           require("cmp_avante.mentions"):new(Utils.get_mentions(), self.input.bufnr)
         )
+        cmp.register_source("avante_files", files_source)
+
         cmp.setup.buffer({
           enabled = true,
           sources = {
             { name = "avante_commands" },
             { name = "avante_mentions" },
+            { name = "avante_files" },
           },
         })
+
+        cmp.event:on("confirm_done", function(ev)
+          local entry = ev.entry
+          local source = entry.source
+
+          if source.name == "avante_files" then
+            files_source:on_complete(entry:get_completion_item())
+            if files_source.stage == "file_selection" then cmp.complete() end
+          end
+        end)
+
+        cmp.event:on("complete_done", function(ev)
+          if ev.completion_item == nil then
+            -- Completion was cancelled
+            files_source:reset()
+          end
+        end)
       end
     end,
   })

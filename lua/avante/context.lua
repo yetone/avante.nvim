@@ -329,4 +329,16 @@ function Context:get_context_summary()
   return summary
 end
 
+function Context:get_files()
+  self:update_file_cache()
+
+  local files = {}
+
+  for _, file in ipairs(self.file_cache) do
+    table.insert(files, { description = file, command = file })
+  end
+
+  return files
+end
+
 return Context
