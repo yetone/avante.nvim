@@ -91,7 +91,7 @@ H.refresh_token = function()
     not M.state.github_token
     or (M.state.github_token.expires_at and M.state.github_token.expires_at < math.floor(os.time()))
   then
-    local response = curl.get(H.chat_auth_url, {
+    curl.get(H.chat_auth_url, {
       headers = {
         ["Authorization"] = "token " .. M.state.oauth_token,
         ["Accept"] = "application/json",
@@ -99,16 +99,17 @@ H.refresh_token = function()
       timeout = Config.copilot.timeout,
       proxy = Config.copilot.proxy,
       insecure = Config.copilot.allow_insecure,
+      callback = function(response)
+        if response.status == 200 then
+          M.state.github_token = vim.json.decode(response.body)
+          local file = Path:new(copilot_path)
+          file:write(vim.json.encode(M.state.github_token), "w")
+          if not vim.g.avante_login then vim.g.avante_login = true end
+        else
+          error("Failed to get success response: " .. vim.inspect(response))
+        end
+      end,
     })
-
-    if response.status == 200 then
-      M.state.github_token = vim.json.decode(response.body)
-      local file = Path:new(copilot_path)
-      file:write(vim.json.encode(M.state.github_token), "w")
-      if not vim.g.avante_login then vim.g.avante_login = true end
-    else
-      error("Failed to get success response: " .. vim.inspect(response))
-    end
   end
 end
 
