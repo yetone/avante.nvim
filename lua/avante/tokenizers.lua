@@ -8,17 +8,31 @@ local tokenizers = nil
 local M = {}
 
 ---@param model "gpt-4o" | string
+---@return AvanteTokenizer|nil
+M._init_tokenizers_lib = function(model)
+  if tokenizers ~= nil then
+    return tokenizers
+  end
+
+  local ok, core = pcall(require, "avante_tokenizers")
+  if not ok then
+    return nil
+  end
+
+  ---@cast core AvanteTokenizer
+  tokenizers = core
+
+  core.from_pretrained(model)
+
+  return tokenizers
+end
+
+---@param model "gpt-4o" | string
 ---@param warning? boolean
 M.setup = function(model, warning)
   warning = warning or true
   vim.defer_fn(function()
-    local ok, core = pcall(require, "avante_tokenizers")
-    if not ok then return end
-
-    ---@cast core AvanteTokenizer
-    if tokenizers == nil then tokenizers = core end
-
-    core.from_pretrained(model)
+    M._init_tokenizers_lib(model)
   end, 1000)
 
   if warning then

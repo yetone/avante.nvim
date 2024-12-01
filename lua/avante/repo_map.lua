@@ -15,16 +15,24 @@ local repo_map_lib = nil
 ---@class avante.utils.repo_map
 local RepoMap = {}
 
-function RepoMap.setup()
-  vim.defer_fn(function()
-    local ok, core = pcall(require, "avante_repo_map")
-    if not ok then
-      error("Failed to load avante_repo_map")
-      return
-    end
+---@return AvanteRepoMap|nil
+function RepoMap._init_repo_map_lib()
+  if repo_map_lib ~= nil then
+    return repo_map_lib
+  end
 
-    if repo_map_lib == nil then repo_map_lib = core end
-  end, 1000)
+  local ok, core = pcall(require, "avante_repo_map")
+  if not ok then
+    error("Failed to load avante_repo_map")
+    return nil
+  end
+
+  repo_map_lib = core
+  return repo_map_lib
+end
+
+function RepoMap.setup()
+  vim.defer_fn(RepoMap._init_repo_map_lib, 1000)
 end
 
 function RepoMap.get_ts_lang(filepath)
