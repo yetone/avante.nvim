@@ -156,21 +156,18 @@ end
 ---@field last_search_tag_start_line integer
 ---@field last_replace_tag_start_line integer
 
----@param selected_files string
+---@param selected_files {path: string, content: string}[]
 ---@param result_content string
 ---@param code_lang string
----@param context_code table
 ---@return AvanteReplacementResult
-local function transform_result_content(selected_files, result_content, code_lang, context_code)
+local function transform_result_content(selected_files, result_content, code_lang)
   local transformed_lines = {}
 
-  local original_lines = vim.split(selected_files, "\n")
   local result_lines = vim.split(result_content, "\n")
 
   local context_lines = {}
-  table.insert(context_lines, original_lines)
-  for _, code in pairs(context_code) do
-    local code_lines = vim.split(code, "\n")
+  for _, file in ipairs(selected_files) do
+    local code_lines = vim.split(file.content, "\n")
     table.insert(context_lines, code_lines)
   end
 
@@ -1511,12 +1508,12 @@ function Sidebar:create_input(opts)
     ---@type AvanteChunkParser
     local on_chunk = function(chunk)
       original_response = original_response .. chunk
-      local transformed = transform_result_content(
-        content,
-        transformed_response .. chunk,
-        filetype,
-        self.context:get_context_file_content()
-      )
+
+      local selected_files = self.context:get_context_file_content()
+
+      table.insert(selected_files, { path = "", content = content })
+
+      local transformed = transform_result_content(selected_files, transformed_response .. chunk, filetype)
       transformed_response = transformed.content
       local cur_displayed_response = generate_display_content(transformed)
       if is_first_chunk then
@@ -1624,7 +1621,7 @@ function Sidebar:create_input(opts)
       bufnr = self.code.bufnr,
       ask = opts.ask,
       project_context = vim.json.encode(project_context),
-      code_context = context_files,
+      selected_files = context_files,
       diagnostics = vim.json.encode(diagnostics),
       history_messages = history_messages,
       file_content = content,

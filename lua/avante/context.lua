@@ -85,7 +85,7 @@ function Context:remove_context_file(id)
   return false
 end
 
----@return table<string, string>
+---@return { path: string, content: string }[]
 function Context:get_context_file_content()
   local contents = {}
   for _, file_path in ipairs(self.context_files) do
@@ -93,7 +93,7 @@ function Context:get_context_file_content()
     if file then
       local content = file:read("*all")
       file:close()
-      contents[file_path] = content
+      table.insert(contents, { path = file_path, content = content })
     end
   end
   return contents

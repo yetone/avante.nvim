@@ -72,10 +72,16 @@ M._stream = function(opts, Provider)
     if diagnostics ~= "" then table.insert(messages, { role = "user", content = diagnostics }) end
   end
 
-  if opts.code_context ~= nil then
-    for key, ctx in pairs(opts.code_context) do
-      local pj_ctx = key .. " " .. ctx
-      table.insert(messages, { role = "user", content = "PROJECT CONTEXT: " .. pj_ctx })
+  if opts.selected_files ~= nil then
+    for _, selected_file in ipairs(opts.selected_files) do
+      local code_context = Path.prompts.render_file(
+        "_context.avanterules",
+        vim.tbl_extend("force", template_opts, {
+          filepath = selected_file.path,
+          file_content = selected_file.content,
+        })
+      )
+      if code_context ~= "" then table.insert(messages, { role = "user", content = code_context }) end
     end
   end
 
@@ -341,6 +347,10 @@ end
 
 ---@alias LlmMode "planning" | "editing" | "suggesting"
 ---
+---@class SelectedFiles
+---@field path string
+---@field content string
+---
 ---@class TemplateOptions
 ---@field use_xml_format boolean
 ---@field ask boolean
@@ -349,7 +359,7 @@ end
 ---@field file_content string
 ---@field selected_code string | nil
 ---@field project_context string | nil
----@field code_context table | nil
+---@field selected_files SelectedFiles[] | nil
 ---@field diagnostics string | nil
 ---@field history_messages AvanteLLMMessage[]
 ---
