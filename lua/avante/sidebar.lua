@@ -1710,17 +1710,20 @@ function Sidebar:create_input(opts)
     callback = function()
       local has_cmp, cmp = pcall(require, "cmp")
       if has_cmp then
-        local files_source = require("cmp_avante.files"):new(function() self.context:open() end, self.input.bufnr)
+        local mentions = Utils.get_mentions()
+
+        table.insert(mentions, {
+          description = "file",
+          command = "file",
+          details = "add context...",
+          callback = function() self.context:open() end,
+        })
 
         cmp.register_source(
           "avante_commands",
           require("cmp_avante.commands"):new(self:get_commands(), self.input.bufnr)
         )
-        cmp.register_source(
-          "avante_mentions",
-          require("cmp_avante.mentions"):new(Utils.get_mentions(), self.input.bufnr)
-        )
-        cmp.register_source("avante_files", files_source)
+        cmp.register_source("avante_mentions", require("cmp_avante.mentions"):new(mentions, self.input.bufnr))
 
         cmp.setup.buffer({
           enabled = true,
