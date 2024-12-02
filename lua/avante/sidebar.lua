@@ -1001,6 +1001,7 @@ function Sidebar:refresh_winids()
 
   local winids = {}
   if self.winids.result then table.insert(winids, self.winids.result) end
+  if self.winids.context_view then table.insert(winids, self.winids.context_view) end
   if self.winids.selected_code then table.insert(winids, self.winids.selected_code) end
   if self.winids.input then table.insert(winids, self.winids.input) end
 
@@ -1400,6 +1401,7 @@ function Sidebar:create_selected_code()
       size = {
         height = selected_code_size + 3,
       },
+      position = "top",
     })
     self.selected_code:mount()
     if self:get_layout() == "horizontal" then
