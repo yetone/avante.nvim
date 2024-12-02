@@ -1,6 +1,3 @@
-local api = vim.api
-local Config = require("avante.config")
-local Utils = require("avante.utils")
 local scan = require("plenary.scandir")
 
 --- @class avante.Context
