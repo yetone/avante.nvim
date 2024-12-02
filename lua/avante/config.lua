@@ -186,8 +186,6 @@ M.defaults = {
       apply_cursor = "a",
       switch_windows = "<Tab>",
       reverse_switch_windows = "<S-Tab>",
-      context = "c",
-      insert_context = "<C-c>",
     },
   },
   windows = {
