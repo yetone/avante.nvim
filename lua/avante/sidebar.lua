@@ -903,7 +903,6 @@ function Sidebar:on_mount(opts)
       pcall(vim.keymap.del, "n", Config.mappings.sidebar.apply_all, { buffer = self.result.bufnr })
       pcall(vim.keymap.del, "n", Config.mappings.jump.next, { buffer = self.result.bufnr })
       pcall(vim.keymap.del, "n", Config.mappings.jump.prev, { buffer = self.result.bufnr })
-      pcall(vim.keymap.del, "n", Config.mappings.sidebar.context, { buffer = self.result.bufnr })
     end
   end
 
