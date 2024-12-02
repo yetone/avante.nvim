@@ -156,15 +156,15 @@ end
 ---@field last_search_tag_start_line integer
 ---@field last_replace_tag_start_line integer
 
----@param original_content string
+---@param selected_files string
 ---@param result_content string
 ---@param code_lang string
 ---@param context_code table
 ---@return AvanteReplacementResult
-local function transform_result_content(original_content, result_content, code_lang, context_code)
+local function transform_result_content(selected_files, result_content, code_lang, context_code)
   local transformed_lines = {}
 
-  local original_lines = vim.split(original_content, "\n")
+  local original_lines = vim.split(selected_files, "\n")
   local result_lines = vim.split(result_content, "\n")
 
   local context_lines = {}
@@ -899,12 +899,6 @@ function Sidebar:on_mount(opts)
       function() jump_to_codeblock("prev") end,
       { buffer = self.result.bufnr, noremap = true, silent = true }
     )
-    vim.keymap.set(
-      "n",
-      Config.mappings.sidebar.context,
-      function() self.context:open() end,
-      { buffer = self.result.bufnr, noremap = true, silent = true }
-    )
   end
 
   local function unbind_sidebar_keys()
@@ -1127,7 +1121,7 @@ function Sidebar:update_content(content, opts)
   end
   if opts.stream then
     local scroll_to_bottom = function()
-      local last_line = api.nvim_buf_line_count(self.result.bufnr)
+      local last_line = api.nvim_buf_line_coun(self.result.bufnr)
 
       local current_lines = Utils.get_buf_lines(last_line - 1, last_line, self.result.bufnr)
 
@@ -1407,10 +1401,6 @@ function Sidebar:create_selected_code()
         winid = self.input.winid,
       },
       buf_options = buf_options,
-      win_options = vim.tbl_deep_extend("force", base_win_options, {
-        wrap = Config.windows.wrap,
-      }),
-      position = "top",
       size = {
         height = selected_code_size + 3,
       },
@@ -1671,6 +1661,10 @@ function Sidebar:create_input(opts)
       type = "win",
       winid = self.result.winid,
     },
+    buf_options = {
+      swapfile = false,
+      buftype = "nofile",
+    },
     win_options = vim.tbl_deep_extend("force", base_win_options, { signcolumn = "yes", wrap = Config.windows.wrap }),
     position = get_position(),
     size = get_size(),
@@ -1708,8 +1702,6 @@ function Sidebar:create_input(opts)
 
   self.input:map("n", Config.mappings.submit.normal, on_submit)
   self.input:map("i", Config.mappings.submit.insert, on_submit)
-  self.input:map("n", Config.mappings.sidebar.context, function() self.context:open() end)
-  self.input:map("i", Config.mappings.sidebar.insert_context, function() self.context:open() end)
 
   api.nvim_set_option_value("filetype", "AvanteInput", { buf = self.input.bufnr })
 
@@ -1722,7 +1714,7 @@ function Sidebar:create_input(opts)
     callback = function()
       local has_cmp, cmp = pcall(require, "cmp")
       if has_cmp then
-        local files_source = require("cmp_avante.files"):new(self.context:get_files(), self.input.bufnr)
+        local files_source = require("cmp_avante.files"):new(function() self.context:open() end, self.input.bufnr)
 
         cmp.register_source(
           "avante_commands",
@@ -1742,23 +1734,6 @@ function Sidebar:create_input(opts)
             { name = "avante_files" },
           },
         })
-
-        cmp.event:on("confirm_done", function(ev)
-          local entry = ev.entry
-          local source = entry.source
-
-          if source.name == "avante_files" then
-            files_source:on_complete(entry:get_completion_item())
-            if files_source.stage == "file_selection" then cmp.complete() end
-          end
-        end)
-
-        cmp.event:on("complete_done", function(ev)
-          if ev.completion_item == nil then
-            -- Completion was cancelled
-            files_source:reset()
-          end
-        end)
       end
     end,
   })
@@ -1944,6 +1919,8 @@ function Sidebar:render(opts)
 
   self:create_input(opts)
 
+  self:create_context(opts)
+
   self:update_content_with_history(chat_history)
 
   -- reset states when buffer is closed
@@ -1956,6 +1933,70 @@ function Sidebar:render(opts)
   self:on_mount(opts)
 
   return self
+end
+
+function Sidebar:create_context(opts)
+  if self.context_view then self.context_view:unmount() end
+
+  self.context_view = Split({
+    enter = false,
+    relative = {
+      type = "win",
+      winid = self.input.winid,
+    },
+    buf_options = vim.tbl_deep_extend("force", buf_options, {
+      modifiable = false,
+      swapfile = false,
+      buftype = "nofile",
+      bufhidden = "wipe",
+      filetype = "Avante",
+    }),
+    win_options = vim.tbl_deep_extend("force", base_win_options, {
+      wrap = Config.windows.wrap,
+    }),
+    position = "top",
+    size = {
+      width = "40%",
+      height = 2,
+    },
+  })
+
+  self.context_view:mount()
+
+  local render = function(content)
+    local context_view_buf = api.nvim_win_get_buf(self.context_view.winid)
+    Utils.unlock_buf(context_view_buf)
+    api.nvim_buf_set_lines(context_view_buf, 0, -1, true, content)
+    Utils.lock_buf(context_view_buf)
+  end
+
+  local context_update = function()
+    local content = self.context:get_context_files()
+
+    if #content == 0 then
+      render({ "@file add context..." })
+      return
+    end
+
+    render(content)
+  end
+
+  -- Function to remove a file from the context
+  local remove_file = function(line_number)
+    if self.context:remove_context_file(line_number) then context_update() end
+  end
+
+  -- Set up keybinding to remove files
+  self.context_view:map("n", "d", function()
+    local line_number = api.nvim_win_get_cursor(self.context_view.winid)[1]
+    remove_file(line_number)
+  end, { noremap = true, silent = true })
+
+  self.context_view:map("n", "@", function() self.context:open() end, { noremap = true, silent = true })
+
+  self.context:event("on_update", context_update)
+
+  context_update()
 end
 
 return Sidebar

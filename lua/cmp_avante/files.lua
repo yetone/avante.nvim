@@ -3,17 +3,17 @@ local api = vim.api
 ---@class files_source : cmp.Source
 ---@field files {description: string, command: AvanteFiles, details: string, shorthelp?: string, callback?: AvanteFileCallback}[]
 ---@field bufnr integer
+---@field callback fun(completion_item: table)
 local files_source = {}
 files_source.__index = files_source
 
----@param files {description: string, command: AvanteFiles, details: string, shorthelp?: string, callback?: AvanteFileCallback}[]
+---@param callback fun(completion_item: table)
 ---@param bufnr integer
-function files_source:new(files, bufnr)
+function files_source:new(callback, bufnr)
   local instance = setmetatable({}, files_source)
 
-  instance.files = files
   instance.bufnr = bufnr
-  instance.stage = "initial" -- Add a stage property
+  instance.callback = callback
 
   return instance
 end
@@ -27,42 +27,24 @@ function files_source:get_trigger_characters() return { "@", ":" } end
 function files_source:get_keyword_pattern() return [[\%(@\|#\|/\)\k*]] end
 
 function files_source:complete(params, callback)
-  local input = string.sub(params.context.cursor_before_line, params.offset)
-  local cursor_before_line = params.context.cursor_before_line
   local kind = require("cmp").lsp.CompletionItemKind.File
 
   local items = {}
 
-  if self.stage == "initial" then
-    table.insert(items, {
-      label = "@file",
-      kind = kind,
-      insertText = "@",
-    })
-  elseif self.stage == "file_selection" then
-    for _, file in ipairs(self.files) do
-      table.insert(items, {
-        label = "@" .. file.command,
-        kind = kind,
-        detail = file.details,
-      })
-    end
-  end
+  table.insert(items, {
+    label = "@file",
+    kind = kind,
+    insertText = " ",
+  })
 
   callback({ items = items })
 end
 
-function files_source:on_complete(completion_item)
-  if completion_item.label == "@file" then
-    self.stage = "file_selection"
-  else
-    self.stage = "initial"
-  end
-end
-
+---@param completion_item table
+---@param callback fun(response: {behavior: number})
 function files_source:execute(completion_item, callback)
-  self:on_complete(completion_item)
-  callback({ behavior = require("cmp").ConfirmBehavior.Insert })
+  if type(self.callback) == "function" then self.callback(completion_item) end
+  callback({ behavior = require("cmp").ConfirmBehavior.Nothing })
 end
 
 function files_source:reset() self.stage = "initial" end
