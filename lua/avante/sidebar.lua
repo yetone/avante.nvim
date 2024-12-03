@@ -1580,6 +1580,8 @@ function Sidebar:create_input(opts)
 
     local context_files = self.context:get_context_file_content()
 
+    table.insert(context_files, { path = selected_file.filepath, content = content })
+
     local diagnostics = nil
     if mentions.enable_diagnostics then
       if self.code ~= nil and self.code.bufnr ~= nil and self.code.selection ~= nil then
@@ -1625,7 +1627,6 @@ function Sidebar:create_input(opts)
       selected_files = context_files,
       diagnostics = vim.json.encode(diagnostics),
       history_messages = history_messages,
-      file_content = content,
       code_lang = filetype,
       selected_code = selected_code_content,
       instructions = request,
