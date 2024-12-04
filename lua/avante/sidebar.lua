@@ -1987,7 +1987,7 @@ function Sidebar:create_context(opts)
   end
 
   -- Set up keybinding to remove files
-  self.context_view:map("n", "d", function()
+  self.context_view:map("n", Config.mappings.sidebar.remove_context_file, function()
     local line_number = api.nvim_win_get_cursor(self.context_view.winid)[1]
     remove_file(line_number)
   end, { noremap = true, silent = true })
