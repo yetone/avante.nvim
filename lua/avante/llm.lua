@@ -155,6 +155,7 @@ M._stream = function(opts, Provider)
     proxy = spec.proxy,
     insecure = spec.insecure,
     body = curl_body_file,
+    raw = spec.rawArgs,
     stream = function(err, data, _)
       if err then
         completed = true
