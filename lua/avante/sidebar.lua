@@ -1986,6 +1986,36 @@ function Sidebar:create_context(opts)
     if self.context:remove_context_file(line_number) then context_update() end
   end
 
+  -- Function to show hint
+  local function show_hint()
+    local cursor_pos = vim.api.nvim_win_get_cursor(self.context_view.winid)
+    local line_number = cursor_pos[1]
+    local col_number = cursor_pos[2]
+
+    local content = self.context:get_context_files()
+    local hint
+    if #content == 0 then
+      hint = string.format(" [%s: add] ", Config.mappings.sidebar.add_context_file)
+    else
+      hint = string.format(
+        " [%s: delete, %s: add] ",
+        Config.mappings.sidebar.remove_context_file,
+        Config.mappings.sidebar.add_context_file
+      )
+    end
+
+    local hint_ns = vim.api.nvim_create_namespace("avante_context_hint")
+
+    vim.api.nvim_buf_clear_namespace(self.context_view.bufnr, hint_ns, 0, -1)
+
+    vim.api.nvim_buf_set_extmark(self.context_view.bufnr, hint_ns, line_number - 1, col_number, {
+      virt_text = { { hint, "AvanteInlineHint" } },
+      virt_text_pos = "right_align",
+      hl_group = "AvanteInlineHint",
+      priority = PRIORITY,
+    })
+  end
+
   -- Set up keybinding to remove files
   self.context_view:map("n", Config.mappings.sidebar.remove_context_file, function()
     local line_number = api.nvim_win_get_cursor(self.context_view.winid)[1]
@@ -2001,47 +2031,16 @@ function Sidebar:create_context(opts)
 
   self.context:event("on_update", context_update)
 
-  context_update()
-
-  -- Function to show hint
-  local function show_hint()
-    local cursor_pos = vim.api.nvim_win_get_cursor(self.context_view.winid)
-    local line_number = cursor_pos[1]
-    local col_number = cursor_pos[2]
-
-    local hint = string.format(
-      " [%s: delete, %s: add] ",
-      Config.mappings.sidebar.remove_context_file,
-      Config.mappings.sidebar.add_context_file
-    )
-    local hint_ns = vim.api.nvim_create_namespace("avante_context_hint")
-
-    vim.api.nvim_buf_clear_namespace(self.context_view.bufnr, hint_ns, 0, -1)
-
-    if line_number <= #self.context:get_context_files() then
-      vim.api.nvim_buf_set_extmark(self.context_view.bufnr, hint_ns, line_number - 1, col_number, {
-        virt_text = { { hint, "AvanteInlineHint" } },
-        virt_text_pos = "right_align",
-        hl_group = "AvanteInlineHint",
-        priority = PRIORITY,
-      })
-    end
-  end
-
   -- Set up autocmd to show hint on cursor move
-  vim.api.nvim_create_autocmd("CursorMoved", {
-    buffer = self.context_view.bufnr,
-    callback = show_hint,
-  })
+  self.context_view:on({ event.CursorMoved }, show_hint, {})
 
   -- Clear hint when leaving the window
-  vim.api.nvim_create_autocmd("BufLeave", {
-    buffer = self.context_view.bufnr,
-    callback = function()
-      local hint_ns = vim.api.nvim_create_namespace("avante_context_hint")
-      vim.api.nvim_buf_clear_namespace(self.context_view.bufnr, hint_ns, 0, -1)
-    end,
-  })
+  self.context_view:on(event.BufLeave, function()
+    local hint_ns = vim.api.nvim_create_namespace("avante_context_hint")
+    vim.api.nvim_buf_clear_namespace(self.context_view.bufnr, hint_ns, 0, -1)
+  end, {})
+
+  context_update()
 end
 
 return Sidebar
