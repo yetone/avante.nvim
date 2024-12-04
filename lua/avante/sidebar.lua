@@ -156,20 +156,13 @@ end
 ---@field last_search_tag_start_line integer
 ---@field last_replace_tag_start_line integer
 
----@param selected_files {path: string, content: string}[]
+---@param selected_files {path: string, content: string, file_type: string | nil}[]
 ---@param result_content string
----@param code_lang string
 ---@return AvanteReplacementResult
-local function transform_result_content(selected_files, result_content, code_lang)
+local function transform_result_content(selected_files, result_content)
   local transformed_lines = {}
 
   local result_lines = vim.split(result_content, "\n")
-
-  local context_lines = {}
-  for _, file in ipairs(selected_files) do
-    local code_lines = vim.split(file.content, "\n")
-    table.insert(context_lines, code_lines)
-  end
 
   local is_searching = false
   local is_replacing = false
@@ -204,12 +197,16 @@ local function transform_result_content(selected_files, result_content, code_lan
 
       local start_line = 0
       local end_line = 0
-      for _, v in ipairs(context_lines) do
+      local match_filetype = nil
+      for _, file in ipairs(selected_files) do
+        local file_content = vim.split(file.content, "\n")
         if start_line ~= 0 or end_line ~= 0 then break end
-        for j = 1, #v - (search_end - search_start) + 1 do
+        for j = 1, #file_content - (search_end - search_start) + 1 do
           local match = true
           for k = 0, search_end - search_start - 1 do
-            if Utils.remove_indentation(v[j + k]) ~= Utils.remove_indentation(result_lines[search_start + k]) then
+            if
+              Utils.remove_indentation(file_content[j + k]) ~= Utils.remove_indentation(result_lines[search_start + k])
+            then
               match = false
               break
             end
@@ -217,6 +214,7 @@ local function transform_result_content(selected_files, result_content, code_lan
           if match then
             start_line = j
             end_line = j + (search_end - search_start) - 1
+            match_filetype = file.file_type
             break
           end
         end
@@ -234,7 +232,7 @@ local function transform_result_content(selected_files, result_content, code_lan
       end
       vim.list_extend(transformed_lines, {
         string.format("Replace lines: %d-%d", start_line, end_line),
-        string.format("```%s", code_lang),
+        string.format("```%s", match_filetype),
       })
       goto continue
     elseif line_content == "<REPLACE>" then
@@ -1512,9 +1510,9 @@ function Sidebar:create_input(opts)
 
       local selected_files = self.context:get_context_file_content()
 
-      table.insert(selected_files, { path = "", content = content })
+      table.insert(selected_files, { path = "", content = content, file_type = filetype })
 
-      local transformed = transform_result_content(selected_files, transformed_response .. chunk, filetype)
+      local transformed = transform_result_content(selected_files, transformed_response .. chunk)
       transformed_response = transformed.content
       local cur_displayed_response = generate_display_content(transformed)
       if is_first_chunk then

@@ -82,7 +82,7 @@ function Context:remove_context_file(id)
   return false
 end
 
----@return { path: string, content: string }[]
+---@return { path: string, content: string, file_type: string }[]
 function Context:get_context_file_content()
   local contents = {}
   for _, file_path in ipairs(self.context_files) do
@@ -90,7 +90,11 @@ function Context:get_context_file_content()
     if file then
       local content = file:read("*all")
       file:close()
-      table.insert(contents, { path = file_path, content = content })
+
+      -- Detect the file type
+      local filetype = vim.filetype.match({ filename = file_path, contents = contents }) or "unknown"
+
+      table.insert(contents, { path = file_path, content = content, file_type = filetype })
     end
   end
   return contents
