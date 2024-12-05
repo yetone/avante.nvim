@@ -12,6 +12,7 @@ local Llm = require("avante.llm")
 local Utils = require("avante.utils")
 local Highlights = require("avante.highlights")
 local RepoMap = require("avante.repo_map")
+local Context = require("avante.context")
 
 local RESULT_BUF_NAME = "AVANTE_RESULT"
 local VIEW_BUFFER_UPDATED_PATTERN = "AvanteViewBufferUpdated"
@@ -34,6 +35,7 @@ local Sidebar = {}
 ---@field result NuiSplit | nil
 ---@field selected_code NuiSplit | nil
 ---@field input NuiSplit | nil
+---@field context avante.Context
 
 ---@param id integer the tabpage id retrieved from api.nvim_get_current_tabpage()
 function Sidebar:new(id)
@@ -48,6 +50,7 @@ function Sidebar:new(id)
     result = nil,
     selected_code = nil,
     input = nil,
+    context = Context:new(id),
   }, { __index = self })
 end
 
@@ -153,14 +156,12 @@ end
 ---@field last_search_tag_start_line integer
 ---@field last_replace_tag_start_line integer
 
----@param original_content string
+---@param selected_files {path: string, content: string, file_type: string | nil}[]
 ---@param result_content string
----@param code_lang string
 ---@return AvanteReplacementResult
-local function transform_result_content(original_content, result_content, code_lang)
+local function transform_result_content(selected_files, result_content)
   local transformed_lines = {}
 
-  local original_lines = vim.split(original_content, "\n")
   local result_lines = vim.split(result_content, "\n")
 
   local is_searching = false
@@ -196,20 +197,26 @@ local function transform_result_content(original_content, result_content, code_l
 
       local start_line = 0
       local end_line = 0
-      for j = 1, #original_lines - (search_end - search_start) + 1 do
-        local match = true
-        for k = 0, search_end - search_start - 1 do
-          if
-            Utils.remove_indentation(original_lines[j + k]) ~= Utils.remove_indentation(result_lines[search_start + k])
-          then
-            match = false
+      local match_filetype = nil
+      for _, file in ipairs(selected_files) do
+        local file_content = vim.split(file.content, "\n")
+        if start_line ~= 0 or end_line ~= 0 then break end
+        for j = 1, #file_content - (search_end - search_start) + 1 do
+          local match = true
+          for k = 0, search_end - search_start - 1 do
+            if
+              Utils.remove_indentation(file_content[j + k]) ~= Utils.remove_indentation(result_lines[search_start + k])
+            then
+              match = false
+              break
+            end
+          end
+          if match then
+            start_line = j
+            end_line = j + (search_end - search_start) - 1
+            match_filetype = file.file_type
             break
           end
-        end
-        if match then
-          start_line = j
-          end_line = j + (search_end - search_start) - 1
-          break
         end
       end
 
@@ -225,7 +232,7 @@ local function transform_result_content(original_content, result_content, code_l
       end
       vim.list_extend(transformed_lines, {
         string.format("Replace lines: %d-%d", start_line, end_line),
-        string.format("```%s", code_lang),
+        string.format("```%s", match_filetype),
       })
       goto continue
     elseif line_content == "<REPLACE>" then
@@ -992,6 +999,7 @@ function Sidebar:refresh_winids()
 
   local winids = {}
   if self.winids.result then table.insert(winids, self.winids.result) end
+  if self.winids.context_view then table.insert(winids, self.winids.context_view) end
   if self.winids.selected_code then table.insert(winids, self.winids.selected_code) end
   if self.winids.input then table.insert(winids, self.winids.input) end
 
@@ -1108,7 +1116,7 @@ function Sidebar:update_content(content, opts)
   end
   if opts.stream then
     local scroll_to_bottom = function()
-      local last_line = api.nvim_buf_line_count(self.result.bufnr)
+      local last_line = api.nvim_buf_line_coun(self.result.bufnr)
 
       local current_lines = Utils.get_buf_lines(last_line - 1, last_line, self.result.bufnr)
 
@@ -1167,7 +1175,15 @@ local function get_timestamp() return os.date("%Y-%m-%d %H:%M:%S") end
 ---@param selected_file {filepath: string}?
 ---@param selected_code {filetype: string, content: string}?
 ---@return string
-local function render_chat_record_prefix(timestamp, provider, model, request, selected_file, selected_code)
+local function render_chat_record_prefix(
+  timestamp,
+  provider,
+  model,
+  request,
+  selected_file,
+  selected_code,
+  context_summary
+)
   provider = provider or "unknown"
   model = model or "unknown"
   local res = "- Datetime: " .. timestamp .. "\n\n" .. "- Model: " .. provider .. "/" .. model
@@ -1181,6 +1197,9 @@ local function render_chat_record_prefix(timestamp, provider, model, request, se
       .. selected_code.content
       .. "\n```"
   end
+
+  if context_summary ~= nil and context_summary ~= "" then res = res .. "\n\n" .. context_summary end
+
   return res .. "\n\n> " .. request:gsub("\n", "\n> "):gsub("([%w-_]+)%b[]", "`%0`") .. "\n\n"
 end
 
@@ -1222,7 +1241,8 @@ function Sidebar:render_history_content(history)
       entry.model,
       entry.request or "",
       entry.selected_file,
-      entry.selected_code
+      entry.selected_code,
+      entry.context_summary
     )
     content = content .. prefix
     content = content .. entry.response .. "\n\n"
@@ -1376,13 +1396,10 @@ function Sidebar:create_selected_code()
         winid = self.input.winid,
       },
       buf_options = buf_options,
-      win_options = vim.tbl_deep_extend("force", base_win_options, {
-        wrap = Config.windows.wrap,
-      }),
-      position = "top",
       size = {
         height = selected_code_size + 3,
       },
+      position = "top",
     })
     self.selected_code:mount()
     if self:get_layout() == "horizontal" then
@@ -1423,8 +1440,17 @@ function Sidebar:create_input(opts)
       }
     end
 
-    local content_prefix =
-      render_chat_record_prefix(timestamp, Config.provider, model, request, selected_file, selected_code)
+    local context_summary = self.context:get_context_summary()
+
+    local content_prefix = render_chat_record_prefix(
+      timestamp,
+      Config.provider,
+      model,
+      request,
+      selected_file,
+      selected_code,
+      context_summary
+    )
 
     --- HACK: we need to set focus to true and scroll to false to
     --- prevent the cursor from jumping to the bottom of the
@@ -1481,7 +1507,12 @@ function Sidebar:create_input(opts)
     ---@type AvanteChunkParser
     local on_chunk = function(chunk)
       original_response = original_response .. chunk
-      local transformed = transform_result_content(content, transformed_response .. chunk, filetype)
+
+      local selected_files = self.context:get_context_file_content()
+
+      table.insert(selected_files, { path = "", content = content, file_type = filetype })
+
+      local transformed = transform_result_content(selected_files, transformed_response .. chunk)
       transformed_response = transformed.content
       local cur_displayed_response = generate_display_content(transformed)
       if is_first_chunk then
@@ -1533,6 +1564,7 @@ function Sidebar:create_input(opts)
         original_response = original_response,
         selected_file = selected_file,
         selected_code = selected_code,
+        context_summary = context_summary,
       })
       Path.history.save(self.code.bufnr, chat_history)
     end
@@ -1543,6 +1575,10 @@ function Sidebar:create_input(opts)
     local file_ext = api.nvim_buf_get_name(self.code.bufnr):match("^.+%.(.+)$")
 
     local project_context = mentions.enable_project_context and RepoMap.get_repo_map(file_ext) or nil
+
+    local context_files = self.context:get_context_file_content()
+
+    table.insert(context_files, { path = selected_file.filepath, content = content })
 
     local diagnostics = nil
     if mentions.enable_diagnostics then
@@ -1586,9 +1622,9 @@ function Sidebar:create_input(opts)
       bufnr = self.code.bufnr,
       ask = opts.ask,
       project_context = vim.json.encode(project_context),
+      selected_files = context_files,
       diagnostics = vim.json.encode(diagnostics),
       history_messages = history_messages,
-      file_content = content,
       code_lang = filetype,
       selected_code = selected_code_content,
       instructions = request,
@@ -1621,6 +1657,10 @@ function Sidebar:create_input(opts)
     relative = {
       type = "win",
       winid = self.result.winid,
+    },
+    buf_options = {
+      swapfile = false,
+      buftype = "nofile",
     },
     win_options = vim.tbl_deep_extend("force", base_win_options, { signcolumn = "yes", wrap = Config.windows.wrap }),
     position = get_position(),
@@ -1671,19 +1711,27 @@ function Sidebar:create_input(opts)
     callback = function()
       local has_cmp, cmp = pcall(require, "cmp")
       if has_cmp then
+        local mentions = Utils.get_mentions()
+
+        table.insert(mentions, {
+          description = "file",
+          command = "file",
+          details = "add context...",
+          callback = function() self.context:open() end,
+        })
+
         cmp.register_source(
           "avante_commands",
           require("cmp_avante.commands"):new(self:get_commands(), self.input.bufnr)
         )
-        cmp.register_source(
-          "avante_mentions",
-          require("cmp_avante.mentions"):new(Utils.get_mentions(), self.input.bufnr)
-        )
+        cmp.register_source("avante_mentions", require("cmp_avante.mentions"):new(mentions, self.input.bufnr))
+
         cmp.setup.buffer({
           enabled = true,
           sources = {
             { name = "avante_commands" },
             { name = "avante_mentions" },
+            { name = "avante_files" },
           },
         })
       end
@@ -1871,6 +1919,8 @@ function Sidebar:render(opts)
 
   self:create_input(opts)
 
+  self:create_context(opts)
+
   self:update_content_with_history(chat_history)
 
   -- reset states when buffer is closed
@@ -1883,6 +1933,114 @@ function Sidebar:render(opts)
   self:on_mount(opts)
 
   return self
+end
+
+function Sidebar:create_context(opts)
+  if self.context_view then self.context_view:unmount() end
+
+  self.context_view = Split({
+    enter = false,
+    relative = {
+      type = "win",
+      winid = self.input.winid,
+    },
+    buf_options = vim.tbl_deep_extend("force", buf_options, {
+      modifiable = false,
+      swapfile = false,
+      buftype = "nofile",
+      bufhidden = "wipe",
+      filetype = "Avante",
+    }),
+    win_options = vim.tbl_deep_extend("force", base_win_options, {
+      wrap = Config.windows.wrap,
+    }),
+    position = "top",
+    size = {
+      width = "40%",
+      height = 2,
+    },
+  })
+
+  self.context_view:mount()
+
+  local render = function(content)
+    local context_view_buf = api.nvim_win_get_buf(self.context_view.winid)
+    Utils.unlock_buf(context_view_buf)
+    api.nvim_buf_set_lines(context_view_buf, 0, -1, true, content)
+    Utils.lock_buf(context_view_buf)
+  end
+
+  local context_update = function()
+    local content = self.context:get_context_files()
+
+    if #content == 0 then
+      render({ "@file add context..." })
+      return
+    end
+
+    render(content)
+  end
+
+  -- Function to remove a file from the context
+  local remove_file = function(line_number)
+    if self.context:remove_context_file(line_number) then context_update() end
+  end
+
+  -- Function to show hint
+  local function show_hint()
+    local cursor_pos = vim.api.nvim_win_get_cursor(self.context_view.winid)
+    local line_number = cursor_pos[1]
+    local col_number = cursor_pos[2]
+
+    local content = self.context:get_context_files()
+    local hint
+    if #content == 0 then
+      hint = string.format(" [%s: add] ", Config.mappings.sidebar.add_context_file)
+    else
+      hint = string.format(
+        " [%s: delete, %s: add] ",
+        Config.mappings.sidebar.remove_context_file,
+        Config.mappings.sidebar.add_context_file
+      )
+    end
+
+    local hint_ns = vim.api.nvim_create_namespace("avante_context_hint")
+
+    vim.api.nvim_buf_clear_namespace(self.context_view.bufnr, hint_ns, 0, -1)
+
+    vim.api.nvim_buf_set_extmark(self.context_view.bufnr, hint_ns, line_number - 1, col_number, {
+      virt_text = { { hint, "AvanteInlineHint" } },
+      virt_text_pos = "right_align",
+      hl_group = "AvanteInlineHint",
+      priority = PRIORITY,
+    })
+  end
+
+  -- Set up keybinding to remove files
+  self.context_view:map("n", Config.mappings.sidebar.remove_context_file, function()
+    local line_number = api.nvim_win_get_cursor(self.context_view.winid)[1]
+    remove_file(line_number)
+  end, { noremap = true, silent = true })
+
+  self.context_view:map(
+    "n",
+    Config.mappings.sidebar.add_context_file,
+    function() self.context:open() end,
+    { noremap = true, silent = true }
+  )
+
+  self.context:event("on_update", context_update)
+
+  -- Set up autocmd to show hint on cursor move
+  self.context_view:on({ event.CursorMoved }, show_hint, {})
+
+  -- Clear hint when leaving the window
+  self.context_view:on(event.BufLeave, function()
+    local hint_ns = vim.api.nvim_create_namespace("avante_context_hint")
+    vim.api.nvim_buf_clear_namespace(self.context_view.bufnr, hint_ns, 0, -1)
+  end, {})
+
+  context_update()
 end
 
 return Sidebar
