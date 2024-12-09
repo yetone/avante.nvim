@@ -1116,7 +1116,7 @@ function Sidebar:update_content(content, opts)
   end
   if opts.stream then
     local scroll_to_bottom = function()
-      local last_line = api.nvim_buf_line_coun(self.result.bufnr)
+      local last_line = api.nvim_buf_line_count(self.result.bufnr)
 
       local current_lines = Utils.get_buf_lines(last_line - 1, last_line, self.result.bufnr)
 
