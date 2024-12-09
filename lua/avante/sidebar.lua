@@ -1578,7 +1578,7 @@ function Sidebar:create_input(opts)
 
     local context_files = self.context:get_context_file_content()
 
-    table.insert(context_files, { path = selected_file.filepath, content = content })
+    table.insert(context_files, { path = selected_file.filepath, content = content, file_type = filetype })
 
     local diagnostics = nil
     if mentions.enable_diagnostics then

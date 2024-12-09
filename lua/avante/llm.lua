@@ -50,13 +50,13 @@ M._stream = function(opts, Provider)
     use_xml_format = Provider.use_xml_format,
     ask = opts.ask, -- TODO: add mode without ask instruction
     code_lang = opts.code_lang,
-    filepath = filepath,
+    selected_files = opts.selected_files,
     selected_code = opts.selected_code,
     project_context = opts.project_context,
     diagnostics = opts.diagnostics,
   }
 
-  local system_prompt = Path.prompts.render_mode(mode, vim.tbl_extend("force", template_opts, { file_content = "" }))
+  local system_prompt = Path.prompts.render_mode(mode, template_opts)
 
   ---@type AvanteLLMMessage[]
   local messages = {}
@@ -71,18 +71,8 @@ M._stream = function(opts, Provider)
     if diagnostics ~= "" then table.insert(messages, { role = "user", content = diagnostics }) end
   end
 
-  if opts.selected_files ~= nil then
-    for _, selected_file in ipairs(opts.selected_files) do
-      local code_context = Path.prompts.render_file(
-        "_context.avanterules",
-        vim.tbl_extend("force", template_opts, {
-          filepath = selected_file.path,
-          file_content = selected_file.content,
-        })
-      )
-      if code_context ~= "" then table.insert(messages, { role = "user", content = code_context }) end
-    end
-  end
+  local code_context = Path.prompts.render_file("_context.avanterules", template_opts)
+  if code_context ~= "" then table.insert(messages, { role = "user", content = code_context }) end
 
   if opts.use_xml_format then
     table.insert(messages, { role = "user", content = string.format("<question>%s</question>", instructions) })
@@ -346,6 +336,7 @@ end
 ---@class SelectedFiles
 ---@field path string
 ---@field content string
+---@field file_type string
 ---
 ---@class TemplateOptions
 ---@field use_xml_format boolean
