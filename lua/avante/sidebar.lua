@@ -1272,6 +1272,41 @@ function Sidebar:get_content_between_separators()
   return content, start_line
 end
 
+function Sidebar:clear_history(args, cb)
+  local chat_history = Path.history.load(self.code.bufnr)
+  if next(chat_history) ~= nil then
+    chat_history = {}
+    Path.history.save(self.code.bufnr, chat_history)
+    self:update_content("Chat history cleared", { focus = false, scroll = false })
+    if cb then cb(args) end
+  else
+    self:update_content("Chat history is already empty", { focus = false, scroll = false })
+  end
+end
+
+function Sidebar:reset_memory(args, cb)
+  local chat_history = Path.history.load(self.code.bufnr)
+  if next(chat_history) ~= nil then
+    table.insert(chat_history, {
+      timestamp = get_timestamp(),
+      provider = Config.provider,
+      model = Config.get_provider(Config.provider).model,
+      request = "",
+      response = "",
+      original_response = "",
+      selected_file = nil,
+      selected_code = nil,
+      reset_memory = true,
+    })
+    Path.history.save(self.code.bufnr, chat_history)
+    local history_content = self:render_history_content(chat_history)
+    self:update_content(history_content, { focus = false, scroll = true })
+    if cb then cb(args) end
+  else
+    self:update_content("Chat history is already empty", { focus = false, scroll = false })
+  end
+end
+
 ---@alias AvanteSlashCommandType "clear" | "help" | "lines" | "reset"
 ---@alias AvanteSlashCommandCallback fun(args: string, cb?: fun(args: string): nil): nil
 ---@alias AvanteSlashCommand {description: string, command: AvanteSlashCommandType, details: string, shorthelp?: string, callback?: AvanteSlashCommandCallback}
@@ -1306,39 +1341,8 @@ function Sidebar:get_commands()
       self:update_content(help_text, { focus = false, scroll = false })
       if cb then cb(args) end
     end,
-    clear = function(args, cb)
-      local chat_history = Path.history.load(self.code.bufnr)
-      if next(chat_history) ~= nil then
-        chat_history = {}
-        Path.history.save(self.code.bufnr, chat_history)
-        self:update_content("Chat history cleared", { focus = false, scroll = false })
-        if cb then cb(args) end
-      else
-        self:update_content("Chat history is already empty", { focus = false, scroll = false })
-      end
-    end,
-    reset = function(args, cb)
-      local chat_history = Path.history.load(self.code.bufnr)
-      if next(chat_history) ~= nil then
-        table.insert(chat_history, {
-          timestamp = get_timestamp(),
-          provider = Config.provider,
-          model = Config.get_provider(Config.provider).model,
-          request = "",
-          response = "",
-          original_response = "",
-          selected_file = nil,
-          selected_code = nil,
-          reset_memory = true,
-        })
-        Path.history.save(self.code.bufnr, chat_history)
-        local history_content = self:render_history_content(chat_history)
-        self:update_content(history_content, { focus = false, scroll = true })
-        if cb then cb(args) end
-      else
-        self:update_content("Chat history is already empty", { focus = false, scroll = false })
-      end
-    end,
+    clear = function(args, cb) self:clear_history(args, cb) end,
+    reset = function(args, cb) self:reset_memory(args, cb) end,
     lines = function(args, cb)
       if cb then cb(args) end
     end,
