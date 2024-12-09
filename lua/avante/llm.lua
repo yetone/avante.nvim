@@ -50,8 +50,7 @@ M._stream = function(opts, Provider)
     use_xml_format = Provider.use_xml_format,
     ask = opts.ask, -- TODO: add mode without ask instruction
     code_lang = opts.code_lang,
-    filepath = filepath,
-    file_content = opts.file_content,
+    selected_files = opts.selected_files,
     selected_code = opts.selected_code,
     project_context = opts.project_context,
     diagnostics = opts.diagnostics,
@@ -335,14 +334,19 @@ end
 
 ---@alias LlmMode "planning" | "editing" | "suggesting"
 ---
+---@class SelectedFiles
+---@field path string
+---@field content string
+---@field file_type string
+---
 ---@class TemplateOptions
 ---@field use_xml_format boolean
 ---@field ask boolean
 ---@field question string
 ---@field code_lang string
----@field file_content string
 ---@field selected_code string | nil
 ---@field project_context string | nil
+---@field selected_files SelectedFiles[] | nil
 ---@field diagnostics string | nil
 ---@field history_messages AvanteLLMMessage[]
 ---
