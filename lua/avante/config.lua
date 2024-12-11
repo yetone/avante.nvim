@@ -189,6 +189,9 @@ M.defaults = {
       remove_file = "d",
       add_file = "@",
     },
+    files = {
+      add_current = "<leader>ac", -- Add current buffer to selected files
+    },
   },
   windows = {
     ---@alias AvantePosition "right" | "left" | "top" | "bottom" | "smart"
