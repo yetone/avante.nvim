@@ -58,17 +58,17 @@ M.shell_run = function(input_cmd)
   -- powershell then we can just run the cmd
   if shell:match("powershell") or shell:match("pwsh") then
     cmd = input_cmd
-  elseif vim.fn.has("wsl") > 0 then
+  elseif fn.has("wsl") > 0 then
     -- wsl: powershell.exe -Command 'command "/path"'
     cmd = "powershell.exe -NoProfile -Command '" .. input_cmd:gsub("'", '"') .. "'"
-  elseif vim.fn.has("win32") > 0 then
+  elseif fn.has("win32") > 0 then
     cmd = 'powershell.exe -NoProfile -Command "' .. input_cmd:gsub('"', "'") .. '"'
   else
     -- linux and macos we wil just do sh -c
-    cmd = "sh -c " .. vim.fn.shellescape(input_cmd)
+    cmd = "sh -c " .. fn.shellescape(input_cmd)
   end
 
-  local output = vim.fn.system(cmd)
+  local output = fn.system(cmd)
   local code = vim.v.shell_error
 
   return { stdout = output, code = code }
@@ -562,10 +562,10 @@ function M.debounce(func, delay)
 end
 
 function M.winline(winid)
-  local current_win = vim.api.nvim_get_current_win()
-  vim.api.nvim_set_current_win(winid)
-  local line = vim.fn.winline()
-  vim.api.nvim_set_current_win(current_win)
+  local current_win = api.nvim_get_current_win()
+  api.nvim_set_current_win(winid)
+  local line = fn.winline()
+  api.nvim_set_current_win(current_win)
   return line
 end
 
@@ -725,7 +725,7 @@ function M.get_or_create_buffer_with_filepath(filepath)
   api.nvim_set_current_buf(buf)
 
   -- Use the edit command to load the file content and set the buffer name
-  vim.cmd("edit " .. vim.fn.fnameescape(filepath))
+  vim.cmd("edit " .. fn.fnameescape(filepath))
 
   return buf
 end
@@ -822,5 +822,14 @@ function M.get_current_selection_diagnostics(bufnr, selection)
   end
   return selection_diagnostics
 end
+
+function M.uniform_path(path)
+  local project_root = M.get_project_root()
+  local abs_path = Path:new(project_root):joinpath(path):absolute()
+  local relative_path = Path:new(abs_path):make_relative(project_root)
+  return relative_path
+end
+
+function M.is_same_file(filepath_a, filepath_b) return M.uniform_path(filepath_a) == M.uniform_path(filepath_b) end
 
 return M

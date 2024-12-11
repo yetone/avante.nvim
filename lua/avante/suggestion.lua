@@ -71,7 +71,7 @@ function Suggestion:suggest()
     provider = provider,
     bufnr = bufnr,
     ask = true,
-    file_content = code_content,
+    selected_files = { { content = code_content, file_type = filetype, path = "" } },
     code_lang = filetype,
     instructions = vim.json.encode(doc),
     mode = "suggesting",

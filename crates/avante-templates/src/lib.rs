@@ -16,12 +16,18 @@ impl<'a> State<'a> {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+struct SelectedFile {
+    path: String,
+    content: String,
+    file_type: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 struct TemplateContext {
     use_xml_format: bool,
     ask: bool,
     code_lang: String,
-    filepath: String,
-    file_content: String,
+    selected_files: Vec<SelectedFile>,
     selected_code: Option<String>,
     project_context: Option<String>,
     diagnostics: Option<String>,
@@ -44,8 +50,7 @@ fn render(state: &State, template: &str, context: TemplateContext) -> LuaResult<
                   use_xml_format => context.use_xml_format,
                   ask => context.ask,
                   code_lang => context.code_lang,
-                  filepath => context.filepath,
-                  file_content => context.file_content,
+                  selected_files => context.selected_files,
                   selected_code => context.selected_code,
                   project_context => context.project_context,
                   diagnostics => context.diagnostics,

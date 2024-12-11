@@ -2,7 +2,6 @@ local api = vim.api
 
 local Config = require("avante.config")
 local Utils = require("avante.utils")
-local Highlights = require("avante.highlights")
 
 local H = {}
 local M = {}
@@ -558,7 +557,7 @@ end
 ---@param enable_autojump boolean
 function M.process_position(bufnr, side, position, enable_autojump)
   local lines = {}
-  if vim.tbl_contains({ SIDES.OURS, SIDES.THEIRS, SIDES.BASE }, side) then
+  if vim.tbl_contains({ SIDES.OURS, SIDES.THEIRS }, side) then
     local data = position[name_map[side]]
     lines = Utils.get_buf_lines(data.content_start, data.content_end + 1)
   elseif side == SIDES.BOTH then
@@ -569,7 +568,7 @@ function M.process_position(bufnr, side, position, enable_autojump)
     lines = {}
   elseif side == SIDES.CURSOR then
     local cursor_line = Utils.get_cursor_pos()
-    for _, pos in ipairs({ SIDES.OURS, SIDES.THEIRS, SIDES.BASE }) do
+    for _, pos in ipairs({ SIDES.OURS, SIDES.THEIRS }) do
       local data = position[name_map[pos]] or {}
       if data.range_start and data.range_start + 1 <= cursor_line and data.range_end + 1 >= cursor_line then
         side = pos
