@@ -7,11 +7,11 @@
   <a href="https://neovim.io/" target="_blank">
     <img src="https://img.shields.io/static/v1?style=flat-square&label=Neovim&message=v0.10%2b&logo=neovim&labelColor=282828&logoColor=8faa80&color=414b32" alt="Neovim: v0.10+" />
   </a>
-  <a href="https://github.com/yetone/avante.nvim/actions/workflows/ci.yaml" target="_blank">
+  <a href="https://github.com/yetone/avante.nvim/actions/workflows/lua.yaml" target="_blank">
     <img src="https://img.shields.io/github/actions/workflow/status/yetone/avante.nvim/lua.yaml?style=flat-square&logo=lua&logoColor=c7c7c7&label=Lua+CI&labelColor=1E40AF&color=347D39&event=push" alt="Lua CI status" />
   </a>
-  <a href="https://github.com/yetone/avante.nvim/actions/workflows/ci.yaml" target="_blank">
-    <img src="https://img.shields.io/github/actions/workflow/status/yetone/avante.nvim/rust.yaml?style=flat-square&logo=rust&logoColor=545455&label=Rust+CI&labelColor=BC826A&color=347D39&event=push" alt="Rust CI status" />
+  <a href="https://github.com/yetone/avante.nvim/actions/workflows/rust.yaml" target="_blank">
+    <img src="https://img.shields.io/github/actions/workflow/status/yetone/avante.nvim/rust.yaml?style=flat-square&logo=rust&logoColor=ffffff&label=Rust+CI&labelColor=BC826A&color=347D39&event=push" alt="Rust CI status" />
   </a>
   <a href="https://discord.com/invite/wUuZz7VxXD" target="_blank">
     <img src="https://img.shields.io/discord/1302530866362323016?style=flat-square&logo=discord&label=Discord&logoColor=ffffff&labelColor=7376CF&color=268165" alt="Discord" />
