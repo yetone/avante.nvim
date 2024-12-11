@@ -44,8 +44,6 @@ M._stream = function(opts, Provider)
 
   Path.prompts.initialize(Path.prompts.get(opts.bufnr))
 
-  local filepath = Utils.relative_path(api.nvim_buf_get_name(opts.bufnr))
-
   local template_opts = {
     use_xml_format = Provider.use_xml_format,
     ask = opts.ask, -- TODO: add mode without ask instruction
@@ -360,8 +358,22 @@ end
 
 ---@param opts StreamOptions
 M.stream = function(opts)
-  if opts.on_chunk ~= nil then opts.on_chunk = vim.schedule_wrap(opts.on_chunk) end
-  if opts.on_complete ~= nil then opts.on_complete = vim.schedule_wrap(opts.on_complete) end
+  local is_completed = false
+  if opts.on_chunk ~= nil then
+    local original_on_chunk = opts.on_chunk
+    opts.on_chunk = vim.schedule_wrap(function(chunk)
+      if is_completed then return end
+      return original_on_chunk(chunk)
+    end)
+  end
+  if opts.on_complete ~= nil then
+    local original_on_complete = opts.on_complete
+    opts.on_complete = vim.schedule_wrap(function(err)
+      if is_completed then return end
+      is_completed = true
+      return original_on_complete(err)
+    end)
+  end
   local Provider = opts.provider or P[Config.provider]
   if Config.dual_boost.enabled then
     M._dual_boost_stream(opts, Provider, P[Config.dual_boost.first_provider], P[Config.dual_boost.second_provider])
