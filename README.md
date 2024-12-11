@@ -392,6 +392,20 @@ The following key bindings are available for use with `avante.nvim`:
 > If you are using `lazy.nvim`, then all keymap here will be safely set, meaning if `<leader>aa` is already binded, then avante.nvim won't bind this mapping.
 > In this case, user will be responsible for setting up their own. See [notes on keymaps](https://github.com/yetone/avante.nvim/wiki#keymaps-and-api-i-guess) for more details.
 
+## Commands
+
+| Command | Description | Examples
+|---------|-------------| ------------------
+| `:AvanteAsk [question] [position]` | Ask AI about your code. Optional `position` set window position and `ask` enable/disable direct asking mode | `:AvanteAsk position=right Refactor this code here`
+| `:AvanteBuild` | Build dependencies for the project |
+| `:AvanteChat` | Start a chat session with AI about your codebase. Default is `ask`=false |
+| `:AvanteEdit` | Edit the selected code blocks |
+| `:AvanteFocus` | Switch focus to/from the sidebar |
+| `:AvanteRefresh` | Refresh all Avante windows |
+| `:AvanteSwitchProvider` | Switch AI provider (e.g. openai) |
+| `:AvanteShowRepoMap` | Show repo map for project's structure |
+| `:AvanteToggle` | Toggle the Avante sidebar |
+
 ## Highlight Groups
 
 | Highlight Group             | Description                                   | Notes                                        |
