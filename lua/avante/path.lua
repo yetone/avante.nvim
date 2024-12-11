@@ -15,6 +15,7 @@ local Config = require("avante.config")
 ---@field selected_file {filepath: string}?
 ---@field selected_code {filetype: string, content: string}?
 ---@field reset_memory boolean?
+---@field selected_filepaths string[] | nil
 
 ---@class avante.Path
 ---@field history_path Path

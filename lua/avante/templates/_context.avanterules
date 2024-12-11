@@ -1,12 +1,15 @@
 {%- if use_xml_format -%}
-<filepath>{{filepath}}</filepath>
 
 {% if selected_code -%}
+{% for file in selected_files %}
+<filepath>{{file.path}}</filepath>
+
 <context>
-```{{code_lang}}
-{{file_content}}
+```{{file.file_type}}
+{{file.content}}
 ```
 </context>
+{% endfor %}
 
 <code>
 ```{{code_lang}}
@@ -14,28 +17,38 @@
 ```
 </code>
 {%- else -%}
+{% for file in selected_files %}
+<filepath>{{file.path}}</filepath>
+
 <code>
-```{{code_lang}}
-{{file_content}}
+```{{file.file_type}}
+{{file.content}}
 ```
 </code>
+{% endfor %}
 {%- endif %}
 {% else %}
-FILEPATH: {{filepath}}
-
 {% if selected_code -%}
+{% for file in selected_files %}
+FILEPATH: {{file.path}}
+
 CONTEXT:
-```{{code_lang}}
-{{file_content}}
+```{{file.file_type}}
+{{file.content}}
 ```
+{% endfor %}
 
 CODE:
 ```{{code_lang}}
 {{selected_code}}
 ```
 {%- else -%}
+{% for file in selected_files %}
+FILEPATH: {{file.path}}
+
 CODE:
-```{{code_lang}}
-{{file_content}}
+```{{file.file_type}}
+{{file.content}}
 ```
+{% endfor %}
 {%- endif %}{%- endif %}

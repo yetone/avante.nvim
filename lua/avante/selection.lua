@@ -210,7 +210,7 @@ function Selection:create_editing_input()
       ask = true,
       project_context = vim.json.encode(project_context),
       diagnostics = vim.json.encode(diagnostics),
-      file_content = code_content,
+      selected_files = { { content = code_content, file_type = filetype, path = "" } },
       code_lang = filetype,
       selected_code = self.selection.content,
       instructions = input,
