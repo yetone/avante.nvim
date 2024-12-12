@@ -755,25 +755,6 @@ function Sidebar:render_result()
   )
 end
 
-function Sidebar:get_file_icon(filepath)
-  local filetype = vim.filetype.match({ filename = filepath }) or "unknown"
-  ---@type string
-  local icon
-  ---@diagnostic disable-next-line: undefined-field
-  if _G.MiniIcons ~= nil then
-    ---@diagnostic disable-next-line: undefined-global
-    icon, _, _ = MiniIcons.get("filetype", filetype) -- luacheck: ignore
-  else
-    local ok, devicons = pcall(require, "nvim-web-devicons")
-    if ok then
-      icon = devicons.get_icon_by_filetype(filetype, {})
-    else
-      icon = ""
-    end
-  end
-  return icon
-end
-
 ---@param ask? boolean
 function Sidebar:render_input(ask)
   if ask == nil then ask = true end
@@ -2050,7 +2031,7 @@ function Sidebar:create_selected_files_container()
 
     local selected_filepaths_with_icon = {}
     for _, filepath in ipairs(selected_filepaths_) do
-      local icon = self:get_file_icon(filepath)
+      local icon = Utils.file.get_file_icon(filepath)
       table.insert(selected_filepaths_with_icon, string.format("%s %s", icon, filepath))
     end
 
