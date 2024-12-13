@@ -134,6 +134,7 @@ function FileSelector:fzf_ui(handler)
 
   local close_action = function() handler(nil) end
   fzf_lua.files(vim.tbl_deep_extend("force", Config.file_selector.provider_opts, {
+    file_ignore_patterns = self.selected_filepaths,
     prompt = string.format("%s> ", PROMPT_TITLE),
     fzf_opts = {},
     git_icons = false,
@@ -165,6 +166,7 @@ function FileSelector:telescope_ui(handler)
     .new(
       {},
       vim.tbl_extend("force", Config.file_selector.provider_opts, {
+        file_ignore_patterns = self.selected_filepaths,
         prompt_title = string.format("%s> ", PROMPT_TITLE),
         finder = finders.new_oneshot_job({ "git", "ls-files" }, { cwd = Utils.get_project_root() }),
         sorter = conf.file_sorter(),
