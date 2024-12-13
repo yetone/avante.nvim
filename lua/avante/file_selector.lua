@@ -1,6 +1,9 @@
 local Utils = require("avante.utils")
 local Path = require("plenary.path")
 local scan = require("plenary.scandir")
+local Config = require("avante.config")
+
+local PROMPT_TITLE = "(Avante) Add a file"
 
 --- @class FileSelector
 local FileSelector = {}
@@ -10,6 +13,8 @@ local FileSelector = {}
 --- @field selected_filepaths string[]
 --- @field file_cache string[]
 --- @field event_handlers table<string, function[]>
+
+---@alias FileSelectorHandler fun(self: FileSelector, on_select: fun(on_select: fun(filepath: string)|nil)): nil
 
 ---@param id integer
 ---@return FileSelector
@@ -66,7 +71,7 @@ end
 
 ---@return nil
 function FileSelector:open()
-  self:update_file_cache()
+  if Config.file_selector.provider == "native" then self:update_file_cache() end
   self:show_select_ui()
 end
 
@@ -87,22 +92,105 @@ function FileSelector:update_file_cache()
     :totable()
 end
 
+---@type FileSelectorHandler
+function FileSelector:fzf_ui(handler)
+  local success, fzf_lua = pcall(require, "fzf-lua")
+  if not success then
+    Utils.error("fzf-lua is not installed. Please install fzf-lua to use it as a file selector.")
+    return
+  end
+
+  local close_action = function() handler(nil) end
+  fzf_lua.files(vim.tbl_deep_extend("force", Config.file_selector.provider_opts, {
+    prompt = string.format("%s> ", PROMPT_TITLE),
+    fzf_opts = {},
+    git_icons = false,
+    actions = {
+      ["default"] = function(selected)
+        local file = fzf_lua.path.entry_to_file(selected[1])
+        handler(file.path)
+      end,
+      ["esc"] = close_action,
+      ["ctrl-c"] = close_action,
+    },
+  }))
+end
+
+function FileSelector:telescope_ui(handler)
+  local success, _ = pcall(require, "telescope")
+  if not success then
+    Utils.error("telescope is not installed. Please install telescope to use it as a file selector.")
+    return
+  end
+
+  local pickers = require("telescope.pickers")
+  local finders = require("telescope.finders")
+  local conf = require("telescope.config").values
+  local actions = require("telescope.actions")
+  local action_state = require("telescope.actions.state")
+
+  pickers
+    .new(
+      {},
+      vim.tbl_extend("force", Config.file_selector.provider_opts, {
+        prompt_title = string.format("%s> ", PROMPT_TITLE),
+        finder = finders.new_oneshot_job({ "git", "ls-files" }, { cwd = Utils.get_project_root() }),
+        sorter = conf.file_sorter(),
+        attach_mappings = function(prompt_bufnr, map)
+          map("i", "<esc>", require("telescope.actions").close)
+
+          actions.select_default:replace(function()
+            actions.close(prompt_bufnr)
+            local selection = action_state.get_selected_entry()
+            handler(selection[1])
+          end)
+          return true
+        end,
+      })
+    )
+    :find()
+end
+
+---@type FileSelectorHandler
+function FileSelector:native_ui(handler)
+  local filepaths = vim
+    .iter(self.file_cache)
+    :filter(function(filepath) return not vim.tbl_contains(self.selected_filepaths, filepath) end)
+    :totable()
+
+  vim.ui.select(filepaths, {
+    prompt = string.format("%s:", PROMPT_TITLE),
+    format_item = function(item) return item end,
+  }, handler)
+end
+
 ---@return nil
 function FileSelector:show_select_ui()
-  vim.schedule(function()
-    local filepaths = vim
-      .iter(self.file_cache)
-      :filter(function(filepath) return not vim.tbl_contains(self.selected_filepaths, filepath) end)
-      :totable()
-
-    vim.ui.select(filepaths, {
-      prompt = "(Avante) Add a file:",
-      format_item = function(item) return item end,
-    }, function(filepath)
-      if not filepath then return end
-      table.insert(self.selected_filepaths, Utils.uniform_path(filepath))
+  local handler = function(filepath)
+    if not filepath then return end
+    local uniform_path = Utils.uniform_path(filepath)
+    if Config.file_selector.provider == "native" then
+      -- Native handler filters out already selected files
+      table.insert(self.selected_filepaths, uniform_path)
       self:emit("update")
-    end)
+    else
+      if not vim.tbl_contains(self.selected_filepaths, uniform_path) then
+        table.insert(self.selected_filepaths, uniform_path)
+        self:emit("update")
+      end
+    end
+  end
+
+  vim.schedule(function()
+    if Config.file_selector.provider == "native" then
+      self:native_ui(handler)
+    elseif Config.file_selector.provider == "fzf" then
+      self:fzf_ui(handler)
+    elseif Config.file_selector.provider == "telescope" then
+      self:telescope_ui(handler)
+    else
+      Utils.error("Unknown file selector provider: " .. Config.file_selector.provider)
+    end
   end)
 
   -- unlist the current buffer as vim.ui.select will be listed
