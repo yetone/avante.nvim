@@ -13,14 +13,10 @@ local M = {}
 ---@param model "gpt-4o" | string
 ---@return AvanteTokenizer|nil
 M._init_tokenizers_lib = function(model)
-  if tokenizers ~= nil then
-    return tokenizers
-  end
+  if tokenizers ~= nil then return tokenizers end
 
   local ok, core = pcall(require, "avante_tokenizers")
-  if not ok then
-    return nil
-  end
+  if not ok then return nil end
 
   ---@cast core AvanteTokenizer
   tokenizers = core
@@ -35,9 +31,7 @@ end
 M.setup = function(model, warning)
   current_model = model
   warning = warning or true
-  vim.defer_fn(function()
-    M._init_tokenizers_lib(model)
-  end, 1000)
+  vim.defer_fn(function() M._init_tokenizers_lib(model) end, 1000)
 
   if warning then
     local HF_TOKEN = os.getenv("HF_TOKEN")
