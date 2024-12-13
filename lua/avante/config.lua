@@ -234,6 +234,13 @@ M.defaults = {
     ignore_patterns = { "%.git", "%.worktree", "__pycache__", "node_modules" }, -- ignore files matching these
     negate_patterns = {}, -- negate ignore files matching these.
   },
+  --- @class AvanteFileSelectorConfig
+  --- @field provider "native" | "fzf" | "telescope"
+  file_selector = {
+    provider = "native",
+    -- Options override for custom providers
+    provider_opts = {},
+  },
 }
 
 ---@type avante.Config
