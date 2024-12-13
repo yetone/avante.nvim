@@ -178,6 +178,22 @@ end
 
 P.repo_map = RepoMap
 
+---@return AvanteTemplates|nil
+P._init_templates_lib = function()
+  if templates ~= nil then
+    return templates
+  end
+  local ok, module = pcall(require, "avante_templates")
+  ---@cast module AvanteTemplates
+  ---@cast ok boolean
+  if not ok then
+    return nil
+  end
+  templates = module
+
+  return templates
+end
+
 P.setup = function()
   local history_path = Path:new(Config.history.storage_path)
   if not history_path:exists() then history_path:mkdir({ parents = true }) end
@@ -191,16 +207,10 @@ P.setup = function()
   if not data_path:exists() then data_path:mkdir({ parents = true }) end
   P.data_path = data_path
 
-  vim.defer_fn(function()
-    local ok, module = pcall(require, "avante_templates")
-    ---@cast module AvanteTemplates
-    ---@cast ok boolean
-    if not ok then return end
-    if templates == nil then templates = module end
-  end, 1000)
+  vim.defer_fn(P._init_templates_lib, 1000)
 end
 
-P.available = function() return templates ~= nil end
+P.available = function() return P._init_templates_lib() ~= nil end
 
 P.clear = function()
   P.cache_path:rm({ recursive = true })
