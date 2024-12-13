@@ -33,37 +33,37 @@ function FileSelector:reset()
 end
 
 function FileSelector:add_selected_file(filepath)
-    local uniform_path = Utils.uniform_path(filepath)
-    -- Avoid duplicates
-    if not vim.tbl_contains(self.selected_filepaths, uniform_path) then
-        table.insert(self.selected_filepaths, uniform_path)
-        self:emit("update")
-    end
+  local uniform_path = Utils.uniform_path(filepath)
+  -- Avoid duplicates
+  if not vim.tbl_contains(self.selected_filepaths, uniform_path) then
+    table.insert(self.selected_filepaths, uniform_path)
+    self:emit("update")
+  end
 end
 
 function FileSelector:add_current_buffer()
-    local current_buf = vim.api.nvim_get_current_buf()
-    local filepath = vim.api.nvim_buf_get_name(current_buf)
+  local current_buf = vim.api.nvim_get_current_buf()
+  local filepath = vim.api.nvim_buf_get_name(current_buf)
 
-    -- Only process if it's a real file buffer
-    if filepath and filepath ~= "" and not vim.startswith(filepath, "avante://") then
-        local relative_path = require("avante.utils").relative_path(filepath)
+  -- Only process if it's a real file buffer
+  if filepath and filepath ~= "" and not vim.startswith(filepath, "avante://") then
+    local relative_path = require("avante.utils").relative_path(filepath)
 
-        -- Check if file is already in list
-        for i, path in ipairs(self.selected_filepaths) do
-            if path == relative_path then
-                -- Remove if found
-                table.remove(self.selected_filepaths, i)
-                self:emit("update")
-                return true
-            end
-        end
-
-        -- Add if not found
-        self:add_selected_file(relative_path)
+    -- Check if file is already in list
+    for i, path in ipairs(self.selected_filepaths) do
+      if path == relative_path then
+        -- Remove if found
+        table.remove(self.selected_filepaths, i)
+        self:emit("update")
         return true
+      end
     end
-    return false
+
+    -- Add if not found
+    self:add_selected_file(relative_path)
+    return true
+  end
+  return false
 end
 
 function FileSelector:on(event, callback)
