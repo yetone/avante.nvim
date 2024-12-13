@@ -180,15 +180,11 @@ P.repo_map = RepoMap
 
 ---@return AvanteTemplates|nil
 P._init_templates_lib = function()
-  if templates ~= nil then
-    return templates
-  end
+  if templates ~= nil then return templates end
   local ok, module = pcall(require, "avante_templates")
   ---@cast module AvanteTemplates
   ---@cast ok boolean
-  if not ok then
-    return nil
-  end
+  if not ok then return nil end
   templates = module
 
   return templates
