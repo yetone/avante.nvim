@@ -933,6 +933,18 @@ function Sidebar:on_mount(opts)
       function() jump_to_codeblock("prev") end,
       { buffer = self.result_container.bufnr, noremap = true, silent = true }
     )
+    vim.g.clear_warning_shown = false
+
+    vim.keymap.set({ "n", "i" }, Config.mappings.sidebar.clear, function()
+      if vim.g.clear_warning_shown then
+        self:clear()
+        vim.g.clear_warning_shown = false
+      else
+        Utils.warn("Press again to confirm clearing the chat history", { title = "Avante" })
+        vim.g.clear_warning_shown = true
+        vim.defer_fn(function() vim.g.clear_warning_shown = false end, 2000) -- Reset after 2 seconds
+      end
+    end, { buffer = self.result.bufnr, noremap = true, silent = true })
   end
 
   local function unbind_sidebar_keys()
@@ -1448,10 +1460,24 @@ function Sidebar:get_commands()
     :totable()
 end
 
-function Sidebar:create_selected_code_container()
-  if self.selected_code_container ~= nil then
-    self.selected_code_container:unmount()
-    self.selected_code_container = nil
+function Sidebar:clear(opts)
+  local chat_history = Path.history.load(self.code.bufnr)
+  if next(chat_history) ~= nil then
+    chat_history = {}
+    Path.history.save(self.code.bufnr, chat_history)
+    self:update_content("Chat history cleared", { focus = false, scroll = false })
+  end
+  -- Focus the input window in insert mode
+  if Config.windows.ask.start_insert then
+    api.nvim_set_current_win(self.input.winid)
+    vim.defer_fn(function() vim.cmd([[startinsert]]) end, 100) -- Delay of 100 milliseconds
+  end
+end
+
+function Sidebar:create_selected_code()
+  if self.selected_code ~= nil then
+    self.selected_code:unmount()
+    self.selected_code = nil
   end
 
   local selected_code_size = self:get_selected_code_size()
@@ -1764,8 +1790,10 @@ function Sidebar:create_input_container(opts)
     api.nvim_feedkeys(api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
   end
 
-  self.input_container:map("n", Config.mappings.submit.normal, on_submit)
-  self.input_container:map("i", Config.mappings.submit.insert, on_submit)
+  self.input:map("n", Config.mappings.submit.normal, on_submit)
+  self.input:map("i", Config.mappings.submit.insert, on_submit)
+  self.input:map("n", Config.mappings.sidebar.clear, function() self:clear() end)
+  self.input:map("i", Config.mappings.sidebar.clear, function() self:clear() end)
 
   api.nvim_set_option_value("filetype", "AvanteInput", { buf = self.input_container.bufnr })
 
@@ -1982,7 +2010,9 @@ function Sidebar:render(opts)
     self:close()
   end)
 
-  self.result_container:map("n", "<Esc>", function()
+  self.result:map("n", Config.mappings.sidebar.clear, function() self:clear() end)
+
+  self.result:map("n", "<Esc>", function()
     Llm.cancel_inflight_request()
     self:close()
   end)
