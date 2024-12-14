@@ -189,7 +189,7 @@ fn zig_find_type_in_parent<'a>(node: &'a Node, source: &'a [u8]) -> Option<Strin
     None
 }
 
-fn ex_find_parent_module_declaration_name<'a>(node: &'a Node, source: &'a [u8],) -> Option<String> {
+fn ex_find_parent_module_declaration_name<'a>(node: &'a Node, source: &'a [u8]) -> Option<String> {
     let mut parent = node.parent();
     while let Some(parent_node) = parent {
         if parent_node.kind() == "call" {
@@ -256,21 +256,22 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
     let mut enum_def_map: BTreeMap<String, RefCell<Enum>> = BTreeMap::new();
     let mut union_def_map: BTreeMap<String, RefCell<Union>> = BTreeMap::new();
 
-    let ensure_class_def = |language: &str, name: &str, class_def_map: &mut BTreeMap<String, RefCell<Class>>| {
-        let mut type_name = "class";
-        if language == "elixir" {
-            type_name = "module"
-        }
-        class_def_map.entry(name.to_string()).or_insert_with(|| {
-            RefCell::new(Class {
-                type_name: type_name.to_string(),
-                name: name.to_string(),
-                methods: vec![],
-                properties: vec![],
-                visibility_modifier: None,
-            })
-        });
-    };
+    let ensure_class_def =
+        |language: &str, name: &str, class_def_map: &mut BTreeMap<String, RefCell<Class>>| {
+            let mut type_name = "class";
+            if language == "elixir" {
+                type_name = "module"
+            }
+            class_def_map.entry(name.to_string()).or_insert_with(|| {
+                RefCell::new(Class {
+                    type_name: type_name.to_string(),
+                    name: name.to_string(),
+                    methods: vec![],
+                    properties: vec![],
+                    visibility_modifier: None,
+                })
+            });
+        };
 
     let ensure_enum_def = |name: &str, enum_def_map: &mut BTreeMap<String, RefCell<Enum>>| {
         enum_def_map.entry(name.to_string()).or_insert_with(|| {
@@ -1501,7 +1502,8 @@ mod tests {
         let definitions = extract_definitions("elixir", source).unwrap();
         let stringified = stringify_definitions(&definitions);
         println!("{stringified}");
-        let expected = "module AnotherModule{func another_func();};module TestModule{func test_func(a, b);};";
+        let expected =
+            "module AnotherModule{func another_func();};module TestModule{func test_func(a, b);};";
         assert_eq!(stringified, expected);
     }
 
