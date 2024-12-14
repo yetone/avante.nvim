@@ -1,17 +1,17 @@
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v2.3.0
+  rev: v5.0.0
   hooks:
     - id: check-yaml
     - id: end-of-file-fixer
     - id: trailing-whitespace
 - repo: https://github.com/JohnnyMorganz/StyLua
-  rev: v0.20.0
+  rev: v2.0.2
   hooks:
     - id: stylua-system # or stylua-system / stylua-github
       files: \.lua$
 - repo: https://github.com/doublify/pre-commit-rust
-  rev: master
+  rev: v1.0
   hooks:
   - id: fmt
     files: \.rs$
