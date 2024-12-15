@@ -228,6 +228,7 @@ M._stream = function(opts, Provider)
           parse_response_without_stream(result.body)
         end)
       end
+      opts.on_complete(nil)
     end,
   })
 
