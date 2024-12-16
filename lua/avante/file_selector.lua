@@ -239,7 +239,7 @@ function FileSelector:telescope_ui(handler)
       prompt_title = string.format("%s> ", PROMPT_TITLE),
       finder = finders.new_table({
         results = relative_paths,
- a     }),
+      }),
       sorter = conf.generic_sorter({}),
       attach_mappings = function(prompt_bufnr, map)
         map("i", "<esc>", require("telescope.actions").close)
