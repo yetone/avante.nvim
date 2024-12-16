@@ -16,6 +16,54 @@ local FileSelector = {}
 
 ---@alias FileSelectorHandler fun(self: FileSelector, on_select: fun(filepaths: string[] | nil)): nil
 
+function FileSelector:process_directory(absolute_path, project_root)
+  local files = scan.scan_dir(absolute_path, {
+    hidden = false,
+    depth = math.huge,
+    add_dirs = false,
+    respect_gitignore = true,
+  })
+
+  for _, file in ipairs(files) do
+    local rel_path = Path:new(file):make_relative(project_root)
+    if not vim.tbl_contains(self.selected_filepaths, rel_path) then table.insert(self.selected_filepaths, rel_path) end
+  end
+  self:emit("update")
+end
+
+function FileSelector:handle_path_selection(selected_path)
+  if not selected_path then return end
+  local project_root = Utils.get_project_root()
+  local absolute_path = Path:new(project_root):joinpath(selected_path):absolute()
+
+  local stat = vim.loop.fs_stat(absolute_path)
+  if stat and stat.type == "directory" then
+    self.process_directory(self, absolute_path, project_root)
+  else
+    local uniform_path = Utils.uniform_path(selected_path)
+    if not vim.tbl_contains(self.selected_filepaths, uniform_path) then
+      table.insert(self.selected_filepaths, uniform_path)
+      self:emit("update")
+    end
+  end
+end
+
+local function get_project_files()
+  local project_root = Utils.get_project_root()
+  local files = scan.scan_dir(project_root, {
+    hidden = true,
+    add_dirs = true,
+    respect_gitignore = true,
+  })
+
+  return vim.tbl_map(function(path)
+    local rel_path = Path:new(path):make_relative(project_root)
+    local stat = vim.loop.fs_stat(path)
+    if stat and stat.type == "directory" then rel_path = rel_path .. "/" end
+    return rel_path
+  end, files)
+end
+
 ---@param id integer
 ---@return FileSelector
 function FileSelector:new(id)
@@ -35,6 +83,13 @@ end
 function FileSelector:add_selected_file(filepath)
   if not filepath or filepath == "" then return end
 
+  local absolute_path = Path:new(Utils.get_project_root()):joinpath(filepath):absolute()
+  local stat = vim.loop.fs_stat(absolute_path)
+
+  if stat and stat.type == "directory" then
+    self.process_directory(self, absolute_path, Utils.get_project_root())
+    return
+  end
   local uniform_path = Utils.uniform_path(filepath)
 
   -- Avoid duplicates
@@ -104,26 +159,42 @@ function FileSelector:off(event, callback)
   end
 end
 
----@return nil
 function FileSelector:open()
   if Config.file_selector.provider == "native" then self:update_file_cache() end
   self:show_select_ui()
 end
 
----@return nil
 function FileSelector:update_file_cache()
   local project_root = Path:new(Utils.get_project_root()):absolute()
 
   local filepaths = scan.scan_dir(project_root, {
     respect_gitignore = true,
+    add_dirs = true,
   })
 
-  -- Sort buffer names alphabetically
-  table.sort(filepaths, function(a, b) return a < b end)
+  table.sort(filepaths, function(a, b)
+    local a_stat = vim.loop.fs_stat(a)
+    local b_stat = vim.loop.fs_stat(b)
+    local a_is_dir = a_stat and a_stat.type == "directory"
+    local b_is_dir = b_stat and b_stat.type == "directory"
+
+    if a_is_dir and not b_is_dir then
+      return true
+    elseif not a_is_dir and b_is_dir then
+      return false
+    else
+      return a < b
+    end
+  end)
 
   self.file_cache = vim
     .iter(filepaths)
-    :map(function(filepath) return Path:new(filepath):make_relative(project_root) end)
+    :map(function(filepath)
+      local rel_path = Path:new(filepath):make_relative(project_root)
+      local stat = vim.loop.fs_stat(filepath)
+      if stat and stat.type == "directory" then rel_path = rel_path .. "/" end
+      return rel_path
+    end)
     :totable()
 end
 
@@ -208,7 +279,6 @@ function FileSelector:telescope_ui(handler)
         sorter = conf.file_sorter(),
         attach_mappings = function(prompt_bufnr, map)
           map("i", "<esc>", require("telescope.actions").close)
-
           actions.select_default:replace(function()
             local picker = action_state.get_current_picker(prompt_bufnr)
 
