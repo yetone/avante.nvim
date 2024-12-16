@@ -54,15 +54,13 @@ local function get_project_files()
   local files = scan.scan_dir(project_root, {
     hidden = true,
     add_dirs = true,
-    respect_gitignore = true
+    respect_gitignore = true,
   })
 
   return vim.tbl_map(function(path)
     local rel_path = Path:new(path):make_relative(project_root)
     local stat = vim.loop.fs_stat(path)
-    if stat and stat.type == "directory" then
-      rel_path = rel_path .. "/"
-    end
+    if stat and stat.type == "directory" then rel_path = rel_path .. "/" end
     return rel_path
   end, files)
 end
@@ -206,19 +204,27 @@ function FileSelector:fzf_ui(handler)
     return
   end
 
-  local relative_paths = get_project_files()
-
   local close_action = function() handler(nil) end
 
-  fzf_lua.fzf_exec(relative_paths, {
-    prompt = string.format("%s> ", PROMPT_TITLE),
-    actions = {
-      ["default"] = function(selected) handle_path_selection(self, selected[1]) end,
-      ["esc"] = close_action,
-      ["ctrl-c"] = close_action,
-    },
-  })
+  local files = vim.tbl_filter(function(file)
+    return not vim.tbl_contains(self.selected_filepaths, file)
+  end, get_project_files())
+
+  fzf_lua.fzf_exec(
+    files,
+    vim.tbl_deep_extend("force", Config.file_selector.provider_opts, {
+      fzf_opts = {},
+      git_icons = false,
+      prompt = string.format("%s> ", PROMPT_TITLE),
+      actions = {
+        ["default"] = function(selected) handle_path_selection(self, selected[1]) end,
+        ["esc"] = close_action,
+        ["ctrl-c"] = close_action,
+      },
+    })
+  )
 end
+
 function FileSelector:telescope_ui(handler)
   local success, _ = pcall(require, "telescope")
   if not success then
@@ -232,41 +238,45 @@ function FileSelector:telescope_ui(handler)
   local actions = require("telescope.actions")
   local action_state = require("telescope.actions.state")
 
-  local relative_paths = get_project_files()
-
   pickers
-    .new({}, {
-      prompt_title = string.format("%s> ", PROMPT_TITLE),
-      finder = finders.new_table({
-        results = relative_paths,
-      }),
-      sorter = conf.generic_sorter({}),
-      attach_mappings = function(prompt_bufnr, map)
-        map("i", "<esc>", require("telescope.actions").close)
-        actions.select_default:replace(function()
-          actions.close(prompt_bufnr)
-          local selection = action_state.get_selected_entry()
-          handle_path_selection(self, selection[1])
-        end)
-        return true
-      end,
-    })
+    .new(
+      {},
+      vim.tbl_deep_extend("force", Config.file_selector.provider_opts, {
+        prompt_title = string.format("%s> ", PROMPT_TITLE),
+        finder = finders.new_table({ results = get_project_files() }),
+        sorter = conf.generic_sorter({}),
+        file_ignore_patterns = self.selected_filepaths,
+        attach_mappings = function(prompt_bufnr, map)
+          map("i", "<esc>", require("telescope.actions").close)
+          actions.select_default:replace(function()
+            actions.close(prompt_bufnr)
+            local selection = action_state.get_selected_entry()
+            handle_path_selection(self, selection[1])
+          end)
+          return true
+        end,
+      })
+    )
     :find()
 end
 
+---@type FileSelectorHandler
 function FileSelector:native_ui(handler)
   local filepaths = vim
     .iter(self.file_cache)
     :filter(function(filepath) return not vim.tbl_contains(self.selected_filepaths, filepath) end)
     :totable()
 
-  vim.ui.select(filepaths, {
-    prompt = string.format("%s:", PROMPT_TITLE),
-    format_item = function(item) return item end,
-  }, function(selected_path)
-    handle_path_selection(self, selected_path)
-  end)
+  vim.ui.select(
+    filepaths,
+    vim.tbl_deep_extend("force", Config.file_selector.provider_opts, {
+      prompt = string.format("%s:", PROMPT_TITLE),
+      format_item = function(item) return item end,
+    }),
+    function(selected_path) handle_path_selection(self, selected_path) end
+  )
 end
+
 ---@return nil
 function FileSelector:show_select_ui()
   local handler = function(filepath)
