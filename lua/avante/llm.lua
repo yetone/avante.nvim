@@ -69,8 +69,10 @@ M._stream = function(opts, Provider)
     if diagnostics ~= "" then table.insert(messages, { role = "user", content = diagnostics }) end
   end
 
-  local code_context = Path.prompts.render_file("_context.avanterules", template_opts)
-  if code_context ~= "" then table.insert(messages, { role = "user", content = code_context }) end
+  if #opts.selected_files > 0 or opts.selected_code ~= nil then
+    local code_context = Path.prompts.render_file("_context.avanterules", template_opts)
+    if code_context ~= "" then table.insert(messages, { role = "user", content = code_context }) end
+  end
 
   if opts.use_xml_format then
     table.insert(messages, { role = "user", content = string.format("<question>%s</question>", instructions) })
