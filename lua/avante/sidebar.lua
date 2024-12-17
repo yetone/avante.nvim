@@ -1598,15 +1598,7 @@ function Sidebar:create_input_container(opts)
       if cmd then
         if command == "lines" then
           cmd.callback(args, function(args_)
-            local start_line, end_line, question = args_:match("(%d+)-(%d+)%s+(.*)")
-            ---@cast start_line integer
-            start_line = tonumber(start_line)
-            ---@cast end_line integer
-            end_line = tonumber(end_line)
-            if end_line == nil then
-              Utils.error("Invalid end line number", { once = true, title = "Avante" })
-              return
-            end
+            local _, _, question = args_:match("(%d+)-(%d+)%s+(.*)")
             request = question
           end)
         else
