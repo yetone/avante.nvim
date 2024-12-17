@@ -1482,6 +1482,48 @@ end
 local generating_text = "**Generating response ...**\n"
 
 local hint_window = nil
+local token_stats_extmark_id = nil
+
+local function update_token_stats(self)
+  -- Clear existing token stats
+  if token_stats_extmark_id then
+    api.nvim_buf_del_extmark(self.input_container.bufnr, SELECTED_FILES_HINT_NAMESPACE, token_stats_extmark_id)
+  end
+
+  if not self.input_container or not self.input_container.bufnr then return end
+
+  -- Get current input content
+  local lines = api.nvim_buf_get_lines(self.input_container.bufnr, 0, -1, false)
+  local input_text = table.concat(lines, "\n")
+  local total_tokens = Utils.tokens.calculate_tokens(input_text)
+
+  -- Add tokens from selected files
+  local selected_files = self.file_selector:get_selected_files_contents()
+  for _, file in ipairs(selected_files) do
+    local formatted_file =
+      string.format("\nFILEPATH: %s\n\nCODE:\n```%s\n%s\n```", file.path, file.file_type, file.content)
+    total_tokens = total_tokens + Utils.tokens.calculate_tokens(formatted_file)
+  end
+
+  -- Add tokens from selected code if exists
+  if self.code.selection then
+    local selection_text = string.format(
+      "\nSELECTED CODE:\n```%s\n%s\n```",
+      api.nvim_get_option_value("filetype", { buf = self.code.bufnr }),
+      self.code.selection.content
+    )
+    total_tokens = total_tokens + Utils.tokens.calculate_tokens(selection_text)
+  end
+
+  -- Add extmark for token stats
+  local stats_text = string.format(" Tokens: %d ", total_tokens)
+  token_stats_extmark_id = api.nvim_buf_set_extmark(self.input_container.bufnr, SELECTED_FILES_HINT_NAMESPACE, 0, 0, {
+    virt_text = { { stats_text, "AvanteInlineHint" } },
+    virt_text_pos = "right_align",
+    hl_group = "AvanteInlineHint",
+    priority = PRIORITY,
+  })
+end
 
 ---@param opts AskOptions
 function Sidebar:create_input_container(opts)
@@ -1862,6 +1904,7 @@ function Sidebar:create_input_container(opts)
     callback = function()
       show_hint()
       place_sign_at_first_line(self.input_container.bufnr)
+      update_token_stats(self)
     end,
   })
 
@@ -2067,6 +2110,8 @@ function Sidebar:create_selected_files_container()
       Highlights.SUBTITLE,
       Highlights.REVERSED_SUBTITLE
     )
+    -- Update token count after file list changes
+    update_token_stats(self)
   end
 
   self.file_selector:on("update", render)
