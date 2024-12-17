@@ -11,6 +11,15 @@ local PromptInput = require("avante.prompt_input")
 ---@field toggle avante.ApiToggle
 local M = {}
 
+---@param target_provider FileSelectorProvider
+M.switch_file_selector_provider = function(target_provider)
+  require("avante.config").override({
+    file_selector = {
+      provider = target_provider,
+    },
+  })
+end
+
 ---@param target Provider
 M.switch_provider = function(target) require("avante.providers").refresh(target) end
 

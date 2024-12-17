@@ -238,8 +238,8 @@ M.defaults = {
     negate_patterns = {}, -- negate ignore files matching these.
   },
   --- @class AvanteFileSelectorConfig
-  --- @field provider "native" | "fzf" | "telescope"
   file_selector = {
+    --- @alias FileSelectorProvider "native" | "fzf" | "telescope" | string
     provider = "native",
     -- Options override for custom providers
     provider_opts = {},
