@@ -69,7 +69,6 @@ function Suggestion:suggest()
 
   Llm.stream({
     provider = provider,
-    bufnr = bufnr,
     ask = true,
     selected_files = { { content = code_content, file_type = filetype, path = "" } },
     code_lang = filetype,
