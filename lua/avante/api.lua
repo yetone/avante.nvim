@@ -201,6 +201,10 @@ M.focus = function(opts)
   end
 end
 
+M.select_model = function()
+  require("avante.model_select").open()
+end
+
 return setmetatable(M, {
   __index = function(t, k)
     local module = require("avante")
