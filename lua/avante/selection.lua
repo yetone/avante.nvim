@@ -206,7 +206,6 @@ function Selection:create_editing_input()
     local diagnostics = Utils.get_current_selection_diagnostics(code_bufnr, self.selection)
 
     Llm.stream({
-      bufnr = code_bufnr,
       ask = true,
       project_context = vim.json.encode(project_context),
       diagnostics = vim.json.encode(diagnostics),

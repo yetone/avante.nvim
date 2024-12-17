@@ -18,7 +18,7 @@ impl<'a> State<'a> {
 #[derive(Debug, Serialize, Deserialize)]
 struct SelectedFile {
     path: String,
-    content: String,
+    content: Option<String>,
     file_type: String,
 }
 

@@ -1482,48 +1482,6 @@ end
 local generating_text = "**Generating response ...**\n"
 
 local hint_window = nil
-local token_stats_extmark_id = nil
-
-local function update_token_stats(self)
-  -- Clear existing token stats
-  if token_stats_extmark_id then
-    api.nvim_buf_del_extmark(self.input_container.bufnr, SELECTED_FILES_HINT_NAMESPACE, token_stats_extmark_id)
-  end
-
-  if not self.input_container or not self.input_container.bufnr then return end
-
-  -- Get current input content
-  local lines = api.nvim_buf_get_lines(self.input_container.bufnr, 0, -1, false)
-  local input_text = table.concat(lines, "\n")
-  local total_tokens = Utils.tokens.calculate_tokens(input_text)
-
-  -- Add tokens from selected files
-  local selected_files = self.file_selector:get_selected_files_contents()
-  for _, file in ipairs(selected_files) do
-    local formatted_file =
-      string.format("\nFILEPATH: %s\n\nCODE:\n```%s\n%s\n```", file.path, file.file_type, file.content)
-    total_tokens = total_tokens + Utils.tokens.calculate_tokens(formatted_file)
-  end
-
-  -- Add tokens from selected code if exists
-  if self.code.selection then
-    local selection_text = string.format(
-      "\nSELECTED CODE:\n```%s\n%s\n```",
-      api.nvim_get_option_value("filetype", { buf = self.code.bufnr }),
-      self.code.selection.content
-    )
-    total_tokens = total_tokens + Utils.tokens.calculate_tokens(selection_text)
-  end
-
-  -- Add extmark for token stats
-  local stats_text = string.format(" Tokens: %d ", total_tokens)
-  token_stats_extmark_id = api.nvim_buf_set_extmark(self.input_container.bufnr, SELECTED_FILES_HINT_NAMESPACE, 0, 0, {
-    virt_text = { { stats_text, "AvanteInlineHint" } },
-    virt_text_pos = "right_align",
-    hl_group = "AvanteInlineHint",
-    priority = PRIORITY,
-  })
-end
 
 ---@param opts AskOptions
 function Sidebar:create_input_container(opts)
@@ -1532,6 +1490,74 @@ function Sidebar:create_input_container(opts)
   if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then return end
 
   local chat_history = Path.history.load(self.code.bufnr)
+
+  ---@param request string
+  ---@return GeneratePromptsOptions
+  local function get_generate_prompts_options(request)
+    local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
+
+    local selected_code_content = nil
+    if self.code.selection ~= nil then selected_code_content = self.code.selection.content end
+
+    local mentions = Utils.extract_mentions(request)
+    request = mentions.new_content
+
+    local file_ext = api.nvim_buf_get_name(self.code.bufnr):match("^.+%.(.+)$")
+
+    local project_context = mentions.enable_project_context and RepoMap.get_repo_map(file_ext) or nil
+
+    local selected_files_contents = self.file_selector:get_selected_files_contents()
+
+    local diagnostics = nil
+    if mentions.enable_diagnostics then
+      if self.code ~= nil and self.code.bufnr ~= nil and self.code.selection ~= nil then
+        diagnostics = Utils.get_current_selection_diagnostics(self.code.bufnr, self.code.selection)
+      else
+        diagnostics = Utils.get_diagnostics(self.code.bufnr)
+      end
+    end
+
+    local history_messages = {}
+    for i = #chat_history, 1, -1 do
+      local entry = chat_history[i]
+      if entry.reset_memory then break end
+      if
+        entry.request == nil
+        or entry.original_response == nil
+        or entry.request == ""
+        or entry.original_response == ""
+      then
+        break
+      end
+      table.insert(history_messages, 1, { role = "assistant", content = entry.original_response })
+      local user_content = ""
+      if entry.selected_file ~= nil then
+        user_content = user_content .. "SELECTED FILE: " .. entry.selected_file.filepath .. "\n\n"
+      end
+      if entry.selected_code ~= nil then
+        user_content = user_content
+          .. "SELECTED CODE:\n\n```"
+          .. entry.selected_code.filetype
+          .. "\n"
+          .. entry.selected_code.content
+          .. "\n```\n\n"
+      end
+      user_content = user_content .. "USER PROMPT:\n\n" .. entry.request
+      table.insert(history_messages, 1, { role = "user", content = user_content })
+    end
+
+    return {
+      ask = opts.ask,
+      project_context = vim.json.encode(project_context),
+      selected_files = selected_files_contents,
+      diagnostics = vim.json.encode(diagnostics),
+      history_messages = history_messages,
+      code_lang = filetype,
+      selected_code = selected_code_content,
+      instructions = request,
+      mode = "planning",
+    }
+  end
 
   ---@param request string
   local function handle_submit(request)
@@ -1560,9 +1586,6 @@ function Sidebar:create_input_container(opts)
     self:update_content("", { focus = true, scroll = false })
     self:update_content(content_prefix .. generating_text)
 
-    local selected_code_content = nil
-    if self.code.selection ~= nil then selected_code_content = self.code.selection.content end
-
     if request:sub(1, 1) == "/" then
       local command, args = request:match("^/(%S+)%s*(.*)")
       if command == nil then
@@ -1584,8 +1607,6 @@ function Sidebar:create_input_container(opts)
               Utils.error("Invalid end line number", { once = true, title = "Avante" })
               return
             end
-            selected_code_content =
-              table.concat(api.nvim_buf_get_lines(self.code.bufnr, start_line - 1, end_line, false), "\n")
             request = question
           end)
         else
@@ -1674,67 +1695,15 @@ function Sidebar:create_input_container(opts)
       Path.history.save(self.code.bufnr, chat_history)
     end
 
-    local mentions = Utils.extract_mentions(request)
-    request = mentions.new_content
-
-    local file_ext = api.nvim_buf_get_name(self.code.bufnr):match("^.+%.(.+)$")
-
-    local project_context = mentions.enable_project_context and RepoMap.get_repo_map(file_ext) or nil
-
-    local selected_files_contents = self.file_selector:get_selected_files_contents()
-
-    local diagnostics = nil
-    if mentions.enable_diagnostics then
-      if self.code ~= nil and self.code.bufnr ~= nil and self.code.selection ~= nil then
-        diagnostics = Utils.get_current_selection_diagnostics(self.code.bufnr, self.code.selection)
-      else
-        diagnostics = Utils.get_diagnostics(self.code.bufnr)
-      end
-    end
-
-    local history_messages = {}
-    for i = #chat_history, 1, -1 do
-      local entry = chat_history[i]
-      if entry.reset_memory then break end
-      if
-        entry.request == nil
-        or entry.original_response == nil
-        or entry.request == ""
-        or entry.original_response == ""
-      then
-        break
-      end
-      table.insert(history_messages, 1, { role = "assistant", content = entry.original_response })
-      local user_content = ""
-      if entry.selected_file ~= nil then
-        user_content = user_content .. "SELECTED FILE: " .. entry.selected_file.filepath .. "\n\n"
-      end
-      if entry.selected_code ~= nil then
-        user_content = user_content
-          .. "SELECTED CODE:\n\n```"
-          .. entry.selected_code.filetype
-          .. "\n"
-          .. entry.selected_code.content
-          .. "\n```\n\n"
-      end
-      user_content = user_content .. "USER PROMPT:\n\n" .. entry.request
-      table.insert(history_messages, 1, { role = "user", content = user_content })
-    end
-
-    Llm.stream({
-      bufnr = self.code.bufnr,
-      ask = opts.ask,
-      project_context = vim.json.encode(project_context),
-      selected_files = selected_files_contents,
-      diagnostics = vim.json.encode(diagnostics),
-      history_messages = history_messages,
-      code_lang = filetype,
-      selected_code = selected_code_content,
-      instructions = request,
-      mode = "planning",
+    local generate_prompts_options = get_generate_prompts_options(request)
+    ---@type StreamOptions
+    ---@diagnostic disable-next-line: assign-type-mismatch
+    local stream_options = vim.tbl_deep_extend("force", generate_prompts_options, {
       on_chunk = on_chunk,
       on_complete = on_complete,
     })
+
+    Llm.stream(stream_options)
   end
 
   local get_position = function()
@@ -1869,7 +1838,15 @@ function Sidebar:create_input_container(opts)
   local function show_hint()
     close_hint() -- Close the existing hint window
 
-    local hint_text = (fn.mode() ~= "i" and Config.mappings.submit.normal or Config.mappings.submit.insert)
+    local input_value = table.concat(api.nvim_buf_get_lines(self.input_container.bufnr, 0, -1, false), "\n")
+
+    local generate_prompts_options = get_generate_prompts_options(input_value)
+    local tokens = Llm.calculate_tokens(generate_prompts_options)
+
+    local hint_text = "Tokens: "
+      .. tostring(tokens)
+      .. "; "
+      .. (fn.mode() ~= "i" and Config.mappings.submit.normal or Config.mappings.submit.insert)
       .. ": submit"
 
     local buf = api.nvim_create_buf(false, true)
@@ -1904,7 +1881,6 @@ function Sidebar:create_input_container(opts)
     callback = function()
       show_hint()
       place_sign_at_first_line(self.input_container.bufnr)
-      update_token_stats(self)
     end,
   })
 
@@ -2110,8 +2086,6 @@ function Sidebar:create_selected_files_container()
       Highlights.SUBTITLE,
       Highlights.REVERSED_SUBTITLE
     )
-    -- Update token count after file list changes
-    update_token_stats(self)
   end
 
   self.file_selector:on("update", render)
