@@ -116,6 +116,14 @@ cmd("SwitchProvider", function(opts) require("avante.api").switch_provider(vim.t
     return vim.tbl_filter(function(key) return key:find(prefix, 1, true) == 1 end, Config.providers)
   end,
 })
+cmd(
+  "SwitchFileSelectorProvider",
+  function(opts) require("avante.api").switch_file_selector_provider(vim.trim(opts.args or "")) end,
+  {
+    nargs = 1,
+    desc = "avante: switch file selector provider",
+  }
+)
 cmd("Clear", function(opts)
   local arg = vim.trim(opts.args or "")
   arg = arg == "" and "history" or arg
