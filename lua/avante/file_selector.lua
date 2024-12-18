@@ -16,7 +16,7 @@ local FileSelector = {}
 
 ---@alias FileSelectorHandler fun(self: FileSelector, on_select: fun(on_select: fun(filepath: string)|nil)): nil
 
-local function process_directory(self, absolute_path, project_root)
+local function FileSelector:process_directory(absolute_path, project_root)
   local files = scan.scan_dir(absolute_path, {
     hidden = false,
     depth = math.huge,
