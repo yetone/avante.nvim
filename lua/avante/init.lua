@@ -361,6 +361,7 @@ function M.setup(opts)
   H.load_path()
 
   require("avante.repo_map").setup()
+  require("avante.tools").setup()
   require("avante.path").setup()
   require("avante.highlights").setup()
   require("avante.diff").setup()

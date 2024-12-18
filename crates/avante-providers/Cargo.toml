@@ -2,7 +2,7 @@
 crate-type = ["cdylib"]
 
 [package]
-name = "avante-templates"
+name = "avante-providers"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -10,16 +10,6 @@ version.workspace = true
 
 [dependencies]
 mlua.workspace = true
-serde = { workspace = true, features = ["derive"] }
-minijinja = { version = "2.4.0", features = [
-  "loader",
-  "json",
-  "fuel",
-  "unicode",
-  "speedups",
-  "custom_syntax",
-  "loop_controls",
-] }
 
 [lints]
 workspace = true
