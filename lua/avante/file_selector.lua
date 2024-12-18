@@ -16,7 +16,7 @@ local FileSelector = {}
 
 ---@alias FileSelectorHandler fun(self: FileSelector, on_select: fun(on_select: fun(filepath: string)|nil)): nil
 
-local function FileSelector:process_directory(absolute_path, project_root)
+function FileSelector:process_directory(absolute_path, project_root)
   local files = scan.scan_dir(absolute_path, {
     hidden = false,
     depth = math.huge,
@@ -31,7 +31,7 @@ local function FileSelector:process_directory(absolute_path, project_root)
   self:emit("update")
 end
 
-local function FileSelector:handle_path_selection(selected_path)
+function FileSelector:handle_path_selection(selected_path)
   if not selected_path then return end
   local project_root = Utils.get_project_root()
   local absolute_path = Path:new(project_root):joinpath(selected_path):absolute()
@@ -39,7 +39,7 @@ local function FileSelector:handle_path_selection(selected_path)
   local stat = vim.loop.fs_stat(absolute_path)
   if stat and stat.type == "directory" then
     selected_path = selected_path:gsub("/$", "")
-    process_directory(self, absolute_path, project_root)
+    self.process_directory(self, absolute_path, project_root)
   else
     local uniform_path = Utils.uniform_path(selected_path)
     if not vim.tbl_contains(self.selected_filepaths, uniform_path) then
@@ -86,7 +86,7 @@ function FileSelector:add_selected_file(filepath)
   local stat = vim.loop.fs_stat(absolute_path)
 
   if stat and stat.type == "directory" then
-    process_directory(self, absolute_path, Utils.get_project_root())
+    self.process_directory(self, absolute_path, Utils.get_project_root())
     return
   end
   local uniform_path = Utils.uniform_path(filepath)
@@ -206,9 +206,10 @@ function FileSelector:fzf_ui(handler)
 
   local close_action = function() handler(nil) end
 
-  local files = vim.tbl_filter(function(file)
-    return not vim.tbl_contains(self.selected_filepaths, file)
-  end, get_project_files())
+  local files = vim.tbl_filter(
+    function(file) return not vim.tbl_contains(self.selected_filepaths, file) end,
+    get_project_files()
+  )
 
   fzf_lua.fzf_exec(
     files,
@@ -217,7 +218,7 @@ function FileSelector:fzf_ui(handler)
       git_icons = false,
       prompt = string.format("%s> ", PROMPT_TITLE),
       actions = {
-        ["default"] = function(selected) handle_path_selection(self, selected[1]) end,
+        ["default"] = function(selected) self.handle_path_selection(self, selected[1]) end,
         ["esc"] = close_action,
         ["ctrl-c"] = close_action,
       },
@@ -251,7 +252,7 @@ function FileSelector:telescope_ui(handler)
           actions.select_default:replace(function()
             actions.close(prompt_bufnr)
             local selection = action_state.get_selected_entry()
-            handle_path_selection(self, selection[1])
+            self.handle_path_selection(self, selection[1])
           end)
           return true
         end,
@@ -273,7 +274,7 @@ function FileSelector:native_ui(handler)
       prompt = string.format("%s:", PROMPT_TITLE),
       format_item = function(item) return item end,
     }),
-    function(selected_path) handle_path_selection(self, selected_path) end
+    function(selected_path) self.handle_path_selection(self, selected_path) end
   )
 end
 
