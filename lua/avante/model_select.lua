@@ -11,10 +11,9 @@ local function create_model_entry(provider, cfg)
   return cfg.model and {
     name = provider .. "/" .. cfg.model,
     provider = provider,
-    model = cfg.model
+    model = cfg.model,
   }
 end
-
 
 function M.open()
   local models = {}
@@ -39,24 +38,19 @@ function M.open()
 
   vim.ui.select(models, {
     prompt = "Select Model:",
-    format_item = function(item) return item.name end
+    format_item = function(item) return item.name end,
   }, function(choice)
     if not choice then return end
 
     -- Switch provider if needed
-    if choice.provider ~= Config.provider then
-      require("avante.providers").refresh(choice.provider)
-    end
+    if choice.provider ~= Config.provider then require("avante.providers").refresh(choice.provider) end
 
-      -- Update config with new model
-      Config.override({
-        [choice.provider] = vim.tbl_deep_extend("force",
-          Config.get_provider(choice.provider),
-          { model = choice.model }
-        )
-      })
+    -- Update config with new model
+    Config.override({
+      [choice.provider] = vim.tbl_deep_extend("force", Config.get_provider(choice.provider), { model = choice.model }),
+    })
 
-      Utils.info("Switched to model: " .. choice.name)
+    Utils.info("Switched to model: " .. choice.name)
   end)
 end
 
