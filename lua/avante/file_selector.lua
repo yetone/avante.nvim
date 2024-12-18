@@ -33,6 +33,8 @@ function FileSelector:reset()
 end
 
 function FileSelector:add_selected_file(filepath)
+  if not filepath or filepath == "" then return end
+
   local uniform_path = Utils.uniform_path(filepath)
   -- Avoid duplicates
   if not vim.tbl_contains(self.selected_filepaths, uniform_path) then
