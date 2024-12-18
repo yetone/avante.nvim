@@ -31,7 +31,7 @@ local function process_directory(self, absolute_path, project_root)
   self:emit("update")
 end
 
-local function handle_path_selection(self, selected_path)
+local function FileSelector:handle_path_selection(selected_path)
   if not selected_path then return end
   local project_root = Utils.get_project_root()
   local absolute_path = Path:new(project_root):joinpath(selected_path):absolute()
