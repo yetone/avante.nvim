@@ -1,7 +1,7 @@
 local Utils = require("avante.utils")
 local Config = require("avante.config")
 
----@class avante.ModelSelect
+---@class avante.ModelSelector
 local M = {}
 
 ---@param provider string
