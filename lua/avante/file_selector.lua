@@ -38,7 +38,6 @@ function FileSelector:handle_path_selection(selected_path)
 
   local stat = vim.loop.fs_stat(absolute_path)
   if stat and stat.type == "directory" then
-    selected_path = selected_path:gsub("/$", "")
     self.process_directory(self, absolute_path, project_root)
   else
     local uniform_path = Utils.uniform_path(selected_path)
