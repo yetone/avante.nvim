@@ -142,7 +142,13 @@ M.parse_curl_args = function(provider, code_opts)
     ["Content-Type"] = "application/json",
   }
 
-  if P.env.require_api_key(base) then headers["Authorization"] = "Bearer " .. provider.parse_api_key() end
+  if P.env.require_api_key(base) then
+    local api_key = provider.parse_api_key()
+    if api_key == nil then
+      error(Config.provider .. " API key is not set, please set it in your environment variable or config file")
+    end
+    headers["Authorization"] = "Bearer " .. api_key
+  end
 
   -- NOTE: When using "o1" set the supported parameters only
   local stream = true
