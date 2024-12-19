@@ -223,7 +223,6 @@ function FileSelector:show_select_ui()
     for _, filepath in ipairs(paths) do
       local uniform_path = Utils.uniform_path(filepath)
       if Config.file_selector.provider == "native" then
-        -- Native handler filters out already selected files
         table.insert(self.selected_filepaths, uniform_path)
       else
         if not vim.tbl_contains(self.selected_filepaths, uniform_path) then
