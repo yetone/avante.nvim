@@ -163,6 +163,7 @@ function FileSelector:telescope_ui(handler)
   local conf = require("telescope.config").values
   local actions = require("telescope.actions")
   local action_state = require("telescope.actions.state")
+  local action_utils = require("telescope.actions.utils")
 
   pickers
     .new(
@@ -176,9 +177,21 @@ function FileSelector:telescope_ui(handler)
           map("i", "<esc>", require("telescope.actions").close)
 
           actions.select_default:replace(function()
+            local picker = action_state.get_current_picker(prompt_bufnr)
+
+            if #picker:get_multi_selection() ~= 0 then
+              local selections = {}
+
+              action_utils.map_selections(prompt_bufnr, function(selection) table.insert(selections, selection[1]) end)
+
+              if #selections > 0 then handler(selections) end
+            else
+              local selection = action_state.get_selected_entry()
+
+              handler(selection[1])
+            end
+
             actions.close(prompt_bufnr)
-            local selection = action_state.get_selected_entry()
-            handler(selection[1])
           end)
           return true
         end,
@@ -202,19 +215,24 @@ end
 
 ---@return nil
 function FileSelector:show_select_ui()
-  local handler = function(filepath)
-    if not filepath then return end
-    local uniform_path = Utils.uniform_path(filepath)
-    if Config.file_selector.provider == "native" then
-      -- Native handler filters out already selected files
-      table.insert(self.selected_filepaths, uniform_path)
-      self:emit("update")
-    else
-      if not vim.tbl_contains(self.selected_filepaths, uniform_path) then
+  local handler = function(filepaths)
+    if not filepaths then return end
+    -- Convert single filepath to array for unified handling
+    local paths = type(filepaths) == "string" and { filepaths } or filepaths
+
+    for _, filepath in ipairs(paths) do
+      local uniform_path = Utils.uniform_path(filepath)
+      if Config.file_selector.provider == "native" then
+        -- Native handler filters out already selected files
         table.insert(self.selected_filepaths, uniform_path)
-        self:emit("update")
+      else
+        if not vim.tbl_contains(self.selected_filepaths, uniform_path) then
+          table.insert(self.selected_filepaths, uniform_path)
+        end
       end
     end
+
+    self:emit("update")
   end
 
   vim.schedule(function()
