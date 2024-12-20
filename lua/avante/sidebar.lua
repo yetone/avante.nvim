@@ -2054,11 +2054,6 @@ function Sidebar:create_selected_files_container()
   local render = function()
     local selected_filepaths_ = self.file_selector:get_selected_filepaths()
 
-    if #selected_filepaths_ == 0 then
-      self.selected_files_container:unmount()
-      return
-    end
-
     local selected_filepaths_with_icon = {}
     for _, filepath in ipairs(selected_filepaths_) do
       local icon = Utils.file.get_file_icon(filepath)
