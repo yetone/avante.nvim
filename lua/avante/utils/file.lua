@@ -39,6 +39,15 @@ function M.exists(filepath)
   return stat ~= nil
 end
 
+function M.is_in_cwd(filepath)
+  local cwd = vim.fn.getcwd()
+  -- Make both paths absolute for comparison
+  local abs_filepath = vim.fn.fnamemodify(filepath, ":p")
+  local abs_cwd = vim.fn.fnamemodify(cwd, ":p")
+  -- Check if filepath starts with cwd
+  return abs_filepath:sub(1, #abs_cwd) == abs_cwd
+end
+
 function M.get_file_icon(filepath)
   local filetype = Filetype.detect(filepath, {}) or "unknown"
   ---@type string
