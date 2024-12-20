@@ -36,6 +36,7 @@ function FileSelector:add_selected_file(filepath)
   if not filepath or filepath == "" then return end
 
   local uniform_path = Utils.uniform_path(filepath)
+
   -- Avoid duplicates
   if not vim.tbl_contains(self.selected_filepaths, uniform_path) then
     table.insert(self.selected_filepaths, uniform_path)
@@ -273,10 +274,15 @@ end
 function FileSelector:get_selected_files_contents()
   local contents = {}
   for _, file_path in ipairs(self.selected_filepaths) do
-    local file = io.open(file_path, "r")
+    local file, open_err = io.open(file_path, "r")
+
+    if open_err then Utils.debug("error reading file:", open_err) end
+
     if file then
-      local content = file:read("*all")
+      local content, read_err = file:read("*all")
       file:close()
+
+      if read_err then Utils.debug("failed to read:", file_path, read_err) end
 
       -- Detect the file type
       local filetype = vim.filetype.match({ filename = file_path, contents = contents }) or "unknown"
