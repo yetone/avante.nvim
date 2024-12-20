@@ -35,9 +35,8 @@ end
 function FileSelector:add_selected_file(filepath)
   if not filepath or filepath == "" then return end
 
-  local uniform_path = filepath
-  -- if the file is in the current working directory then we can uniformize the path
-  if Utils.file.is_in_cwd(filepath) then uniform_path = Utils.uniform_path(filepath) end
+  -- if the file is in the current working directory then we can make it uniform the path
+  local uniform_path = Utils.file.is_in_cwd(filepath) and Utils.uniform_path(filepath) or filepath
 
   -- Avoid duplicates
   if not vim.tbl_contains(self.selected_filepaths, uniform_path) then
