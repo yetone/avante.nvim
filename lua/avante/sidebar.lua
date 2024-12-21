@@ -1013,10 +1013,16 @@ function Sidebar:on_mount(opts)
     group = self.augroup,
     buffer = self.result_container.bufnr,
     callback = function()
-      self:focus()
-      if self.input_container and self.input_container.winid and api.nvim_win_is_valid(self.input_container.winid) then
-        api.nvim_set_current_win(self.input_container.winid)
-        if Config.windows.ask.start_insert then vim.cmd("startinsert") end
+      if Config.behaviour.auto_focus_sidebar then
+        self:focus()
+        if
+          self.input_container
+          and self.input_container.winid
+          and api.nvim_win_is_valid(self.input_container.winid)
+        then
+          api.nvim_set_current_win(self.input_container.winid)
+          if Config.windows.ask.start_insert then vim.cmd("startinsert") end
+        end
       end
       return true
     end,
@@ -1218,11 +1224,9 @@ function Sidebar:update_content(content, opts)
       Utils.update_buffer_content(self.result_container.bufnr, lines)
       Utils.lock_buf(self.result_container.bufnr)
       api.nvim_set_option_value("filetype", "Avante", { buf = self.result_container.bufnr })
-      if opts.focus and not self:is_focused_on_result() then
-        xpcall(function()
-          --- set cursor to bottom of result view
-          api.nvim_set_current_win(self.result_container.winid)
-        end, function(err) return err end)
+      if opts.focus and Config.behaviour.auto_focus_sidebar and not self:is_focused_on_result() then
+        --- set cursor to bottom of result view
+        xpcall(function() api.nvim_set_current_win(self.result_container.winid) end, function(err) return err end)
       end
 
       if opts.scroll then Utils.buf_scroll_to_end(self.result_container.bufnr) end
@@ -1667,6 +1671,7 @@ function Sidebar:create_input_container(opts)
           self.result_container
           and self.result_container.winid
           and api.nvim_win_is_valid(self.result_container.winid)
+          and Config.behaviour.auto_focus_sidebar
         then
           api.nvim_set_current_win(self.result_container.winid)
         end
