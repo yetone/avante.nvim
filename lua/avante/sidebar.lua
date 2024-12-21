@@ -1225,6 +1225,7 @@ function Sidebar:update_content(content, opts)
       Utils.lock_buf(self.result_container.bufnr)
       api.nvim_set_option_value("filetype", "Avante", { buf = self.result_container.bufnr })
       if opts.focus and Config.behaviour.auto_focus_sidebar and not self:is_focused_on_result() then
+        --- set cursor to bottom of result view
         xpcall(function() api.nvim_set_current_win(self.result_container.winid) end, function(err) return err end)
       end
 
