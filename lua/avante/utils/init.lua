@@ -58,17 +58,17 @@ M.shell_run = function(input_cmd)
   -- powershell then we can just run the cmd
   if shell:match("powershell") or shell:match("pwsh") then
     cmd = input_cmd
-  elseif vim.fn.has("wsl") > 0 then
+  elseif fn.has("wsl") > 0 then
     -- wsl: powershell.exe -Command 'command "/path"'
     cmd = "powershell.exe -NoProfile -Command '" .. input_cmd:gsub("'", '"') .. "'"
-  elseif vim.fn.has("win32") > 0 then
+  elseif fn.has("win32") > 0 then
     cmd = 'powershell.exe -NoProfile -Command "' .. input_cmd:gsub('"', "'") .. '"'
   else
     -- linux and macos we wil just do sh -c
-    cmd = "sh -c " .. vim.fn.shellescape(input_cmd)
+    cmd = "sh -c " .. fn.shellescape(input_cmd)
   end
 
-  local output = vim.fn.system(cmd)
+  local output = fn.system(cmd)
   local code = vim.v.shell_error
 
   return { stdout = output, code = code }
@@ -190,7 +190,7 @@ function M.get_visual_selection_and_range()
     start_col, end_col = end_col, start_col
   end
   local content = "" -- luacheck: ignore
-  local range = Range.new({ line = start_line, col = start_col }, { line = end_line, col = end_col })
+  local range = Range:new({ lnum = start_line, col = start_col }, { lnum = end_line, col = end_col })
   -- Check if it's a single-line selection
   if start_line == end_line then
     -- Get partial content of a single line
@@ -213,7 +213,7 @@ function M.get_visual_selection_and_range()
   end
   if not content then return nil end
   -- Return the selected content and range
-  return SelectionResult.new(content, range)
+  return SelectionResult:new(content, range)
 end
 
 ---Wrapper around `api.nvim_buf_get_lines` which defaults to the current buffer
@@ -272,7 +272,9 @@ end
 ---@param msg string|string[]
 ---@param opts? LazyNotifyOpts
 function M.notify(msg, opts)
-  if vim.in_fast_event() then return vim.schedule(function() M.notify(msg, opts) end) end
+  if vim.in_fast_event() then
+    return vim.schedule(function() M.notify(msg, opts) end)
+  end
 
   opts = opts or {}
   if type(msg) == "table" then
@@ -438,6 +440,32 @@ function M.trim_spaces(s) return s:match("^%s*(.-)%s*$") end
 
 function M.fallback(v, default_value) return type(v) == "nil" and default_value or v end
 
+---Join URL parts together, handling slashes correctly
+---@param ... string URL parts to join
+---@return string Joined URL
+function M.url_join(...)
+  local parts = { ... }
+  local result = parts[1] or ""
+
+  for i = 2, #parts do
+    local part = parts[i]
+    if not part or part == "" then goto continue end
+
+    -- Remove trailing slash from result if present
+    if result:sub(-1) == "/" then result = result:sub(1, -2) end
+
+    -- Remove leading slash from part if present
+    if part:sub(1, 1) == "/" then part = part:sub(2) end
+
+    -- Join with slash
+    result = result .. "/" .. part
+
+    ::continue::
+  end
+
+  return result
+end
+
 -- luacheck: push no max comment line length
 ---@param type_name "'nil'" | "'number'" | "'string'" | "'boolean'" | "'table'" | "'function'" | "'thread'" | "'userdata'" | "'list'" | '"map"'
 ---@return boolean
@@ -534,10 +562,10 @@ function M.debounce(func, delay)
 end
 
 function M.winline(winid)
-  local current_win = vim.api.nvim_get_current_win()
-  vim.api.nvim_set_current_win(winid)
-  local line = vim.fn.winline()
-  vim.api.nvim_set_current_win(current_win)
+  local current_win = api.nvim_get_current_win()
+  api.nvim_set_current_win(winid)
+  local line = fn.winline()
+  api.nvim_set_current_win(current_win)
   return line
 end
 
@@ -583,7 +611,7 @@ local function pattern_to_lua(pattern)
 end
 
 function M.parse_gitignore(gitignore_path)
-  local ignore_patterns = { "%.git", "%.worktree", "__pycache__", "node_modules", "vendor" }
+  local ignore_patterns = {}
   local negate_patterns = {}
   local file = io.open(gitignore_path, "r")
   if not file then return ignore_patterns, negate_patterns end
@@ -637,19 +665,25 @@ end
 function M.is_first_letter_uppercase(str) return string.match(str, "^[A-Z]") ~= nil end
 
 ---@param content string
----@return { new_content: string, enable_project_context: boolean }
+---@return { new_content: string, enable_project_context: boolean, enable_diagnostics: boolean }
 function M.extract_mentions(content)
   -- if content contains @codebase, enable project context and remove @codebase
   local new_content = content
   local enable_project_context = false
+  local enable_diagnostics = false
   if content:match("@codebase") then
     enable_project_context = true
     new_content = content:gsub("@codebase", "")
   end
-  return { new_content = new_content, enable_project_context = enable_project_context }
+  if content:match("@diagnostics") then enable_diagnostics = true end
+  return {
+    new_content = new_content,
+    enable_project_context = enable_project_context,
+    enable_diagnostics = enable_diagnostics,
+  }
 end
 
----@alias AvanteMentions "codebase"
+---@alias AvanteMentions "codebase" | "diagnostics"
 ---@alias AvanteMentionCallback fun(args: string, cb?: fun(args: string): nil): nil
 ---@alias AvanteMention {description: string, command: AvanteMentions, details: string, shorthelp?: string, callback?: AvanteMentionCallback}
 ---@return AvanteMention[]
@@ -659,6 +693,11 @@ function M.get_mentions()
       description = "codebase",
       command = "codebase",
       details = "repo map",
+    },
+    {
+      description = "diagnostics",
+      command = "diagnostics",
+      details = "diagnostics",
     },
   }
 end
@@ -686,7 +725,7 @@ function M.get_or_create_buffer_with_filepath(filepath)
   api.nvim_set_current_buf(buf)
 
   -- Use the edit command to load the file content and set the buffer name
-  vim.cmd("edit " .. vim.fn.fnameescape(filepath))
+  vim.cmd("edit " .. fn.fnameescape(filepath))
 
   return buf
 end
@@ -732,5 +771,65 @@ function M.update_buffer_content(bufnr, new_lines)
     api.nvim_buf_set_lines(bufnr, diff.start_line - 1, diff.end_line - 1, false, diff.content)
   end
 end
+
+local severity = {
+  [1] = "ERROR",
+  [2] = "WARNING",
+  [3] = "INFORMATION",
+  [4] = "HINT",
+}
+
+---@class AvanteDiagnostic
+---@field content string
+---@field start_line number
+---@field end_line number
+---@field severity string
+---@field source string
+
+---@param bufnr integer
+---@return AvanteDiagnostic[]
+function M.get_diagnostics(bufnr)
+  if bufnr == nil then bufnr = api.nvim_get_current_buf() end
+  local diagnositcs = ---@type vim.Diagnostic[]
+    vim.diagnostic.get(
+      bufnr,
+      { severity = { vim.diagnostic.severity.ERROR, vim.diagnostic.severity.WARN, vim.diagnostic.severity.HINT } }
+    )
+  return vim
+    .iter(diagnositcs)
+    :map(function(diagnostic)
+      local d = {
+        content = diagnostic.message,
+        start_line = diagnostic.lnum + 1,
+        end_line = diagnostic.end_lnum and diagnostic.end_lnum + 1 or diagnostic.lnum + 1,
+        severity = severity[diagnostic.severity],
+        source = diagnostic.source,
+      }
+      return d
+    end)
+    :totable()
+end
+
+---@param bufnr integer
+---@param selection avante.SelectionResult
+function M.get_current_selection_diagnostics(bufnr, selection)
+  local diagnostics = M.get_diagnostics(bufnr)
+  local selection_diagnostics = {}
+  for _, diagnostic in ipairs(diagnostics) do
+    if selection.range.start.lnum <= diagnostic.start_line and selection.range.finish.lnum >= diagnostic.end_line then
+      table.insert(selection_diagnostics, diagnostic)
+    end
+  end
+  return selection_diagnostics
+end
+
+function M.uniform_path(path)
+  local project_root = M.get_project_root()
+  local abs_path = Path:new(project_root):joinpath(path):absolute()
+  local relative_path = Path:new(abs_path):make_relative(project_root)
+  return relative_path
+end
+
+function M.is_same_file(filepath_a, filepath_b) return M.uniform_path(filepath_a) == M.uniform_path(filepath_b) end
 
 return M

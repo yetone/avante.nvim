@@ -7,11 +7,17 @@
   <a href="https://neovim.io/" target="_blank">
     <img src="https://img.shields.io/static/v1?style=flat-square&label=Neovim&message=v0.10%2b&logo=neovim&labelColor=282828&logoColor=8faa80&color=414b32" alt="Neovim: v0.10+" />
   </a>
-  <a href="https://github.com/yetone/avante.nvim/actions/workflows/ci.yaml" target="_blank">
-    <img src="https://img.shields.io/github/actions/workflow/status/yetone/avante.nvim/ci.yaml?style=flat-square&logo=github&logoColor=c7c7c7&label=CI&labelColor=282828&color=347D39&event=push" alt="CI status" />
+  <a href="https://github.com/yetone/avante.nvim/actions/workflows/lua.yaml" target="_blank">
+    <img src="https://img.shields.io/github/actions/workflow/status/yetone/avante.nvim/lua.yaml?style=flat-square&logo=lua&logoColor=c7c7c7&label=Lua+CI&labelColor=1E40AF&color=347D39&event=push" alt="Lua CI status" />
   </a>
-  <a href="https://discordapp.com/channels/1302530866362323016" target="_blank">
+  <a href="https://github.com/yetone/avante.nvim/actions/workflows/rust.yaml" target="_blank">
+    <img src="https://img.shields.io/github/actions/workflow/status/yetone/avante.nvim/rust.yaml?style=flat-square&logo=rust&logoColor=ffffff&label=Rust+CI&labelColor=BC826A&color=347D39&event=push" alt="Rust CI status" />
+  </a>
+  <a href="https://discord.com/invite/wUuZz7VxXD" target="_blank">
     <img src="https://img.shields.io/discord/1302530866362323016?style=flat-square&logo=discord&label=Discord&logoColor=ffffff&labelColor=7376CF&color=268165" alt="Discord" />
+  </a>
+  <a href="https://dotfyle.com/plugins/yetone/avante.nvim">
+    <img src="https://dotfyle.com/plugins/yetone/avante.nvim/shield?style=flat-square" />
   </a>
 </div>
 
@@ -51,11 +57,11 @@ For building binary if you wish to build from source, then `cargo` is required. 
   build = "make",
   -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- for windows
   dependencies = {
-    "nvim-treesitter/nvim-treesitter",
     "stevearc/dressing.nvim",
     "nvim-lua/plenary.nvim",
     "MunifTanjim/nui.nvim",
     --- The below dependencies are optional,
+    "hrsh7th/nvim-cmp", -- autocompletion for avante commands and mentions
     "nvim-tree/nvim-web-devicons", -- or echasnovski/mini.icons
     "zbirenbaum/copilot.lua", -- for providers='copilot'
     {
@@ -101,6 +107,7 @@ Plug 'nvim-lua/plenary.nvim'
 Plug 'MunifTanjim/nui.nvim'
 
 " Optional deps
+Plug "hrsh7th/nvim-cmp"
 Plug 'nvim-tree/nvim-web-devicons' "or Plug 'echasnovski/mini.icons'
 Plug 'HakonHarnes/img-clip.nvim'
 Plug 'zbirenbaum/copilot.lua'
@@ -109,6 +116,7 @@ Plug 'zbirenbaum/copilot.lua'
 Plug 'yetone/avante.nvim', { 'branch': 'main', 'do': 'make' }
 autocmd! User avante.nvim lua << EOF
 require('avante_lib').load()
+require('avante').setup()
 EOF
 ```
 
@@ -130,9 +138,10 @@ add({
     'MunifTanjim/nui.nvim',
     'echasnovski/mini.icons'
   },
-  hooks = { post_checkout = function() vim.cmd('AvanteBuild source=false') end }
+  hooks = { post_checkout = function() vim.cmd('make') end }
 })
 --- optional
+add({ source = 'hrsh7th/nvim-cmp' })
 add({ source = 'zbirenbaum/copilot.lua' })
 add({ source = 'HakonHarnes/img-clip.nvim' })
 add({ source = 'MeanderingProgrammer/render-markdown.nvim' })
@@ -154,6 +163,9 @@ end)
 
 ```lua
 -- deps:
+require('cmp').setup ({
+  -- use recommended settings from above
+})
 require('img-clip').setup ({
   -- use recommended settings from above
 })
@@ -169,10 +181,7 @@ require('avante').setup ({
 })
 ```
 
-> [!IMPORTANT]
->
-> For `avante.tokenizers` and templates to work, make sure to call `require('avante_lib').load()` somewhere when entering the editor.
-> We will leave the users to decide where it fits to do this, as this varies among configurations. (But we do recommend running this after where you set your colorscheme)
+**NOTE**: For <code>avante.tokenizers</code> and templates to work, make sure to call <code>require('avante_lib').load()</code> somewhere when entering the editor. We will leave the users to decide where it fits to do this, as this varies among configurations. (But we do recommend running this after where you set your colorscheme)
 
 </details>
 
@@ -187,19 +196,6 @@ require('avante').setup ({
 > ```lua
 > -- views can only be fully collapsed with the global statusline
 > vim.opt.laststatus = 3
-> ```
-
-> [!NOTE]
->
-> `render-markdown.nvim` is an optional dependency that is used to render the markdown content of the chat history. Make sure to also include `Avante` as a filetype
-> to its setup (e.g. via Lazy):
->
-> ```lua
-> {
->   "MeanderingProgrammer/render-markdown.nvim",
->   opts = { file_types = { "markdown", "Avante" } },
->   ft = { "markdown", "Avante" },
-> }
 > ```
 
 > [!TIP]
@@ -221,12 +217,29 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     temperature = 0,
     max_tokens = 4096,
   },
+  ---Specify the special dual_boost mode
+  ---1. enabled: Whether to enable dual_boost mode. Default to false.
+  ---2. first_provider: The first provider to generate response. Default to "openai".
+  ---3. second_provider: The second provider to generate response. Default to "claude".
+  ---4. prompt: The prompt to generate response based on the two reference outputs.
+  ---5. timeout: Timeout in milliseconds. Default to 60000.
+  ---How it works:
+  --- When dual_boost is enabled, avante will generate two responses from the first_provider and second_provider respectively. Then use the response from the first_provider as provider1_output and the response from the second_provider as provider2_output. Finally, avante will generate a response based on the prompt and the two reference outputs, with the default Provider as normal.
+  ---Note: This is an experimental feature and may not work as expected.
+  dual_boost = {
+    enabled = false,
+    first_provider = "openai",
+    second_provider = "claude",
+    prompt = "Based on the two reference outputs below, generate a response that incorporates elements from both but reflects your own judgment and unique perspective. Do not provide any explanation, just give the response directly. Reference Output 1: [{{provider1_output}}], Reference Output 2: [{{provider2_output}}]",
+    timeout = 60000, -- Timeout in milliseconds
+  },
   behaviour = {
     auto_suggestions = false, -- Experimental stage
     auto_set_highlight_group = true,
     auto_set_keymaps = true,
     auto_apply_diff_after_generation = false,
     support_paste_from_clipboard = false,
+    minimize_diff = true, -- Whether to remove unchanged lines when applying a code block
   },
   mappings = {
     --- @class AvanteConflictMappings
@@ -379,6 +392,20 @@ The following key bindings are available for use with `avante.nvim`:
 > If you are using `lazy.nvim`, then all keymap here will be safely set, meaning if `<leader>aa` is already binded, then avante.nvim won't bind this mapping.
 > In this case, user will be responsible for setting up their own. See [notes on keymaps](https://github.com/yetone/avante.nvim/wiki#keymaps-and-api-i-guess) for more details.
 
+## Commands
+
+| Command | Description | Examples
+|---------|-------------| ------------------
+| `:AvanteAsk [question] [position]` | Ask AI about your code. Optional `position` set window position and `ask` enable/disable direct asking mode | `:AvanteAsk position=right Refactor this code here`
+| `:AvanteBuild` | Build dependencies for the project |
+| `:AvanteChat` | Start a chat session with AI about your codebase. Default is `ask`=false |
+| `:AvanteEdit` | Edit the selected code blocks |
+| `:AvanteFocus` | Switch focus to/from the sidebar |
+| `:AvanteRefresh` | Refresh all Avante windows |
+| `:AvanteSwitchProvider` | Switch AI provider (e.g. openai) |
+| `:AvanteShowRepoMap` | Show repo map for project's structure |
+| `:AvanteToggle` | Toggle the Avante sidebar |
+
 ## Highlight Groups
 
 | Highlight Group             | Description                                   | Notes                                        |
@@ -410,7 +437,7 @@ Users can customize the system prompts via `Config.system_prompt`. We recommend 
 
 ```lua
 vim.api.nvim_create_autocmd("User", {
-  pattern = "ToggleMyPrompt"
+  pattern = "ToggleMyPrompt",
   callback = function() require("avante.config").override({system_prompt = "MY CUSTOM SYSTEM PROMPT"}) end,
 })
 
@@ -494,3 +521,14 @@ The high quality and ingenuity of these projects' source code have been immensel
 ## License
 
 avante.nvim is licensed under the Apache 2.0 License. For more details, please refer to the [LICENSE](./LICENSE) file.
+
+# Star History
+
+<p align="center">
+  <a target="_blank" href="https://star-history.com/#yetone/avante.nvim&Date">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=yetone/avante.nvim&type=Date&theme=dark">
+      <img alt="NebulaGraph Data Intelligence Suite(ngdi)" src="https://api.star-history.com/svg?repos=yetone/avante.nvim&type=Date">
+    </picture>
+  </a>
+</p>

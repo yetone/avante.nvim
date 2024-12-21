@@ -19,12 +19,15 @@ M.parse_messages = function(opts)
   vim.iter(opts.messages):each(function(message)
     local role = message.role
     if role == prev_role then
-      if role == "user" then
-        table.insert(contents, { role = "model", parts = {
-          { text = "Ok, I understand." },
-        } })
+      if role == M.role_map["user"] then
+        table.insert(
+          contents,
+          { role = M.role_map["assistant"], parts = {
+            { text = "Ok, I understand." },
+          } }
+        )
       else
-        table.insert(contents, { role = "user", parts = {
+        table.insert(contents, { role = M.role_map["user"], parts = {
           { text = "Ok" },
         } })
       end
@@ -86,11 +89,10 @@ M.parse_curl_args = function(provider, code_opts)
   body_opts.max_tokens = nil
 
   return {
-    url = Utils.trim(base.endpoint, { suffix = "/" })
-      .. "/"
-      .. base.model
-      .. ":streamGenerateContent?alt=sse&key="
-      .. provider.parse_api_key(),
+    url = Utils.url_join(
+      base.endpoint,
+      base.model .. ":streamGenerateContent?alt=sse&key=" .. provider.parse_api_key()
+    ),
     proxy = base.proxy,
     insecure = base.allow_insecure,
     headers = { ["Content-Type"] = "application/json" },

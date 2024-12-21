@@ -11,6 +11,15 @@ local PromptInput = require("avante.prompt_input")
 ---@field toggle avante.ApiToggle
 local M = {}
 
+---@param target_provider FileSelectorProvider
+M.switch_file_selector_provider = function(target_provider)
+  require("avante.config").override({
+    file_selector = {
+      provider = target_provider,
+    },
+  })
+end
+
 ---@param target Provider
 M.switch_provider = function(target) require("avante.providers").refresh(target) end
 
@@ -161,7 +170,7 @@ M.refresh = function(opts)
   if not sidebar:is_open() then return end
   local curbuf = vim.api.nvim_get_current_buf()
 
-  local focused = sidebar.result.bufnr == curbuf or sidebar.input.bufnr == curbuf
+  local focused = sidebar.result_container.bufnr == curbuf or sidebar.input_container.bufnr == curbuf
   if focused or not sidebar:is_open() then return end
   local listed = vim.api.nvim_get_option_value("buflisted", { buf = curbuf })
 
@@ -185,19 +194,19 @@ M.focus = function(opts)
   local curwin = vim.api.nvim_get_current_win()
 
   if sidebar:is_open() then
-    if curbuf == sidebar.input.bufnr then
+    if curbuf == sidebar.input_container.bufnr then
       if sidebar.code.winid and sidebar.code.winid ~= curwin then vim.api.nvim_set_current_win(sidebar.code.winid) end
-    elseif curbuf == sidebar.result.bufnr then
+    elseif curbuf == sidebar.result_container.bufnr then
       if sidebar.code.winid and sidebar.code.winid ~= curwin then vim.api.nvim_set_current_win(sidebar.code.winid) end
     else
-      if sidebar.input.winid and sidebar.input.winid ~= curwin then
-        vim.api.nvim_set_current_win(sidebar.input.winid)
+      if sidebar.input_container.winid and sidebar.input_container.winid ~= curwin then
+        vim.api.nvim_set_current_win(sidebar.input_container.winid)
       end
     end
   else
     if sidebar.code.winid then vim.api.nvim_set_current_win(sidebar.code.winid) end
     sidebar:open(opts)
-    if sidebar.input.winid then vim.api.nvim_set_current_win(sidebar.input.winid) end
+    if sidebar.input_container.winid then vim.api.nvim_set_current_win(sidebar.input_container.winid) end
   end
 end
 
