@@ -1495,7 +1495,6 @@ function Sidebar:create_input_container(opts)
   ---@return GeneratePromptsOptions
   local function get_generate_prompts_options(request)
     local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
-    local filepath = api.nvim_buf_get_name(self.code.bufnr)
 
     local selected_code_content = nil
     if self.code.selection ~= nil then selected_code_content = self.code.selection.content end
@@ -1554,7 +1553,6 @@ function Sidebar:create_input_container(opts)
       diagnostics = vim.json.encode(diagnostics),
       history_messages = history_messages,
       code_lang = filetype,
-      filepath = filepath,
       selected_code = selected_code_content,
       instructions = request,
       mode = "planning",
@@ -1637,7 +1635,6 @@ function Sidebar:create_input_container(opts)
         self:update_content(content_prefix .. chunk, { scroll = true })
         return
       end
-
       local suffix = get_display_content_suffix(transformed)
       self:update_content(content_prefix .. cur_displayed_response .. suffix, { scroll = true })
       vim.schedule(function() vim.cmd("redraw") end)
