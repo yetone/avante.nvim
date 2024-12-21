@@ -15,6 +15,7 @@ vim.g.avante = 1
 --- NOTE: We will override vim.paste if img-clip.nvim is available to work with avante.nvim internal logic paste
 local Clipboard = require("avante.clipboard")
 local Config = require("avante.config")
+local Utils = require("avante.utils")
 local api = vim.api
 
 if Config.support_paste_image() then
@@ -115,4 +116,41 @@ cmd("SwitchProvider", function(opts) require("avante.api").switch_provider(vim.t
     return vim.tbl_filter(function(key) return key:find(prefix, 1, true) == 1 end, Config.providers)
   end,
 })
-cmd("Clear", function() require("avante.path").clear() end, { desc = "avante: clear all chat history" })
+cmd(
+  "SwitchFileSelectorProvider",
+  function(opts) require("avante.api").switch_file_selector_provider(vim.trim(opts.args or "")) end,
+  {
+    nargs = 1,
+    desc = "avante: switch file selector provider",
+  }
+)
+cmd("Clear", function(opts)
+  local arg = vim.trim(opts.args or "")
+  arg = arg == "" and "history" or arg
+  if arg == "history" or arg == "memory" then
+    local sidebar = require("avante").get()
+    if not sidebar then
+      Utils.error("No sidebar found")
+      return
+    end
+    if arg == "history" then
+      sidebar:clear_history()
+    else
+      sidebar:reset_memory()
+    end
+  elseif arg == "cache" then
+    local P = require("avante.path")
+    local history_path = P.history_path:absolute()
+    local cache_path = P.cache_path:absolute()
+    local prompt = string.format("Recursively delete %s and %s?", history_path, cache_path)
+    if vim.fn.confirm(prompt, "&Yes\n&No", 2) == 1 then require("avante.path").clear() end
+  else
+    Utils.error("Invalid argument. Valid arguments: 'history', 'memory', 'cache'")
+    return
+  end
+end, {
+  desc = "avante: clear history, memory or cache",
+  nargs = "?",
+  complete = function(_, _, _) return { "history", "memory", "cache" } end,
+})
+cmd("ShowRepoMap", function() require("avante.repo_map").show() end, { desc = "avante: show repo map" })
