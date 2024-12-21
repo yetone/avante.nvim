@@ -122,6 +122,7 @@ M.defaults = {
   ---4. support_paste_from_clipboard    : Whether to support pasting image from clipboard. This will be determined automatically based whether img-clip is available or not.
   ---5. minimize_diff                   : Whether to remove unchanged lines when applying a code block
   behaviour = {
+    auto_focus_sidebar = true,
     auto_suggestions = false, -- Experimental stage
     auto_set_highlight_group = true,
     auto_set_keymaps = true,
