@@ -1988,12 +1988,7 @@ function Sidebar:render(opts)
     xpcall(function() api.nvim_buf_set_name(self.result_container.bufnr, RESULT_BUF_NAME) end, function(_) end)
   end)
 
-  self.result_container:map("n", "q", function()
-    Llm.cancel_inflight_request()
-    self:close()
-  end)
-
-  self.result_container:map("n", "<Esc>", function()
+  self.result_container:map("n", Config.mappings.sidebar.close, function()
     Llm.cancel_inflight_request()
     self:close()
   end)
