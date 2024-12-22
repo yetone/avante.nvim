@@ -253,15 +253,15 @@ end
 function FileSelector:get_selected_files_contents()
   local contents = {}
   for _, file_path in ipairs(self.selected_filepaths) do
-    local file, err = io.open(file_path, "r")
+    local file, open_err = io.open(file_path, "r")
 
-    if err then Utils.debug("error reading file:", err) end
+    if open_err then Utils.debug("error reading file:", open_err) end
 
     if file then
-      local content, err = file:read("*all")
+      local content, read_err = file:read("*all")
       file:close()
 
-      if err then Utils.debug("failed to read:", file_path, err) end
+      if read_err then Utils.debug("failed to read:", file_path, read_err) end
 
       -- Detect the file type
       local filetype = vim.filetype.match({ filename = file_path, contents = contents }) or "unknown"
