@@ -631,7 +631,7 @@ function M.parse_gitignore(gitignore_path)
   return ignore_patterns, negate_patterns
 end
 
-local function is_ignored(file, ignore_patterns, negate_patterns)
+function M.is_ignored(file, ignore_patterns, negate_patterns)
   for _, pattern in ipairs(negate_patterns) do
     if file:match(pattern) then return false end
   end
@@ -655,7 +655,7 @@ function M.scan_directory(directory, ignore_patterns, negate_patterns)
     if type == "directory" then
       vim.list_extend(files, M.scan_directory(full_path, ignore_patterns, negate_patterns))
     elseif type == "file" then
-      if not is_ignored(full_path, ignore_patterns, negate_patterns) then table.insert(files, full_path) end
+      if not M.is_ignored(full_path, ignore_patterns, negate_patterns) then table.insert(files, full_path) end
     end
   end
 
