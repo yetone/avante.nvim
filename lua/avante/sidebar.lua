@@ -1803,6 +1803,13 @@ function Sidebar:create_input_container(opts)
           callback = function() self.file_selector:open() end,
         })
 
+        table.insert(mentions, {
+          description = "quickfix",
+          command = "quickfix",
+          details = "add files in quickfix list to chat context",
+          callback = function() self.file_selector:add_quickfix_files() end,
+        })
+
         cmp.register_source(
           "avante_commands",
           require("cmp_avante.commands"):new(self:get_commands(), self.input_container.bufnr)
