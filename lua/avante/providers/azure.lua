@@ -15,6 +15,7 @@ M.api_key_name = "AZURE_OPENAI_API_KEY"
 
 M.parse_messages = O.parse_messages
 M.parse_response = O.parse_response
+M.parse_response_without_stream = O.parse_response_without_stream
 
 M.parse_curl_args = function(provider, code_opts)
   local base, body_opts = P.parse_config(provider)
@@ -23,6 +24,14 @@ M.parse_curl_args = function(provider, code_opts)
     ["Content-Type"] = "application/json",
   }
   if P.env.require_api_key(base) then headers["api-key"] = provider.parse_api_key() end
+
+  -- NOTE: When using "o1" set the supported parameters only
+  local stream = true
+  if base.model and string.find(base.model, "o1") then
+    body_opts.max_tokens = nil
+    body_opts.temperature = 1
+    stream = false
+  end
 
   return {
     url = Utils.url_join(
@@ -34,7 +43,7 @@ M.parse_curl_args = function(provider, code_opts)
     headers = headers,
     body = vim.tbl_deep_extend("force", {
       messages = M.parse_messages(code_opts),
-      stream = true,
+      stream = stream,
     }, body_opts),
   }
 end
