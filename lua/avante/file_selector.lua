@@ -267,4 +267,16 @@ end
 
 function FileSelector:get_selected_filepaths() return vim.deepcopy(self.selected_filepaths) end
 
+---@return nil
+function FileSelector:add_quickfix_files()
+  local quickfix_files = vim
+    .iter(vim.fn.getqflist({ items = 0 }).items)
+    :filter(function(item) return item.bufnr ~= 0 end)
+    :map(function(item) return Utils.relative_path(vim.api.nvim_buf_get_name(item.bufnr)) end)
+    :totable()
+  for _, filepath in ipairs(quickfix_files) do
+    self:add_selected_file(filepath)
+  end
+end
+
 return FileSelector
