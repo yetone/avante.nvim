@@ -35,7 +35,63 @@ local O = require("avante.providers").openai
 
 local H = {}
 
+---@class AvanteProviderFunctor
+local M = {}
+
 local copilot_path = vim.fn.stdpath("data") .. "/avante/github-copilot.json"
+local lockfile_path = vim.fn.stdpath("data") .. "/avante/copilot-timer.lock"
+
+-- Lockfile management
+local function is_process_running(pid)
+  if vim.fn.has("win32") == 1 then
+    return vim.fn.system('tasklist /FI "PID eq ' .. pid .. '" 2>NUL | find /I "' .. pid .. '"') ~= ""
+  else
+    return vim.fn.system("ps -p " .. pid .. " > /dev/null 2>&1; echo $?") == "0\n"
+  end
+end
+
+local function try_acquire_timer_lock()
+  local lockfile = Path:new(lockfile_path)
+
+  local tmp_lockfile = lockfile_path .. ".tmp." .. vim.fn.getpid()
+
+  Path:new(tmp_lockfile):write(tostring(vim.fn.getpid()), "w")
+
+  -- Check existing lock
+  if lockfile:exists() then
+    local content = lockfile:read()
+    local pid = tonumber(content)
+    if pid and is_process_running(pid) then
+      os.remove(tmp_lockfile)
+      return false -- Another instance is already managing
+    end
+  end
+
+  -- Attempt to take ownership
+  local success = os.rename(tmp_lockfile, lockfile_path)
+  if not success then
+    os.remove(tmp_lockfile)
+    return false
+  end
+
+  return true
+end
+
+local function start_manager_check_timer()
+  if M._manager_check_timer then
+    M._manager_check_timer:stop()
+    M._manager_check_timer:close()
+  end
+
+  M._manager_check_timer = vim.uv.new_timer()
+  M._manager_check_timer:start(
+    30000,
+    30000,
+    vim.schedule_wrap(function()
+      if not M._refresh_timer and try_acquire_timer_lock() then M.setup_timer() end
+    end)
+  )
+end
 
 ---@class OAuthToken
 ---@field user string
@@ -81,35 +137,59 @@ end
 H.chat_auth_url = "https://api.github.com/copilot_internal/v2/token"
 H.chat_completion_url = function(base_url) return Utils.url_join(base_url, "/chat/completions") end
 
----@class AvanteProviderFunctor
-local M = {}
-
-H.refresh_token = function()
+H.refresh_token = function(async, force)
   if not M.state then error("internal initialization error") end
 
+  async = async == nil and true or async
+  force = force or false
+
+  -- Do not refresh token if not forced or not expired
   if
-    not M.state.github_token
-    or (M.state.github_token.expires_at and M.state.github_token.expires_at < math.floor(os.time()))
+    not force
+    and M.state.github_token
+    and M.state.github_token.expires_at
+    and M.state.github_token.expires_at > math.floor(os.time())
   then
-    curl.get(H.chat_auth_url, {
-      headers = {
-        ["Authorization"] = "token " .. M.state.oauth_token,
-        ["Accept"] = "application/json",
-      },
-      timeout = Config.copilot.timeout,
-      proxy = Config.copilot.proxy,
-      insecure = Config.copilot.allow_insecure,
-      callback = function(response)
-        if response.status == 200 then
-          M.state.github_token = vim.json.decode(response.body)
-          local file = Path:new(copilot_path)
-          file:write(vim.json.encode(M.state.github_token), "w")
-          if not vim.g.avante_login then vim.g.avante_login = true end
-        else
-          error("Failed to get success response: " .. vim.inspect(response))
-        end
-      end,
-    })
+    return false
+  end
+
+  local curl_opts = {
+    headers = {
+      ["Authorization"] = "token " .. M.state.oauth_token,
+      ["Accept"] = "application/json",
+    },
+    timeout = Config.copilot.timeout,
+    proxy = Config.copilot.proxy,
+    insecure = Config.copilot.allow_insecure,
+  }
+
+  local handle_response = function(response)
+    if response.status == 200 then
+      M.state.github_token = vim.json.decode(response.body)
+      local file = Path:new(copilot_path)
+      file:write(vim.json.encode(M.state.github_token), "w")
+      if not vim.g.avante_login then vim.g.avante_login = true end
+
+      -- If triggered synchronously, reset timer
+      if not async and M._refresh_timer then M.setup_timer() end
+
+      return true
+    else
+      error("Failed to get success response: " .. vim.inspect(response))
+      return false
+    end
+  end
+
+  if async then
+    curl.get(
+      H.chat_auth_url,
+      vim.tbl_deep_extend("force", {
+        callback = handle_response,
+      }, curl_opts)
+    )
+  else
+    local response = curl.get(H.chat_auth_url, curl_opts)
+    handle_response(response)
   end
 end
 
@@ -139,7 +219,9 @@ end
 M.parse_response = O.parse_response
 
 M.parse_curl_args = function(provider, code_opts)
-  H.refresh_token()
+  -- refresh token synchronously, only if it has expired
+  -- (this should rarely happen, as we refresh the token in the background)
+  H.refresh_token(false, false)
 
   local base, body_opts = P.parse_config(provider)
 
@@ -162,20 +244,110 @@ M.parse_curl_args = function(provider, code_opts)
   }
 end
 
+M._refresh_timer = nil
+
+M.setup_timer = function()
+  if M._refresh_timer then
+    M._refresh_timer:stop()
+    M._refresh_timer:close()
+  end
+
+  -- Calculate time until token expires
+  local now = math.floor(os.time())
+  local expires_at = M.state.github_token and M.state.github_token.expires_at or now
+  local time_until_expiry = math.max(0, expires_at - now)
+  -- Refresh 2 minutes before expiration
+  local initial_interval = math.max(0, (time_until_expiry - 120) * 1000)
+  -- Regular interval of 28 minutes after the first refresh
+  local repeat_interval = 28 * 60 * 1000
+
+  M._refresh_timer = vim.uv.new_timer()
+  M._refresh_timer:start(
+    initial_interval,
+    repeat_interval,
+    vim.schedule_wrap(function() H.refresh_token(true, true) end)
+  )
+end
+
+M.setup_file_watcher = function()
+  if M._file_watcher then return end
+
+  local copilot_token_file = Path:new(copilot_path)
+  M._file_watcher = vim.uv.new_fs_event()
+
+  M._file_watcher:start(
+    copilot_path,
+    {},
+    vim.schedule_wrap(function()
+      -- Reload token from file
+      if copilot_token_file:exists() then M.state.github_token = vim.json.decode(copilot_token_file:read()) end
+    end)
+  )
+end
+
 M.setup = function()
   local copilot_token_file = Path:new(copilot_path)
 
-  if not M.state then
-    M.state = {
-      github_token = copilot_token_file:exists() and vim.json.decode(copilot_token_file:read()) or nil,
-      oauth_token = H.get_oauth_token(),
-    }
+  if not M.state then M.state = {
+    github_token = nil,
+    oauth_token = H.get_oauth_token(),
+  } end
+
+  -- Load and validate existing token
+  if copilot_token_file:exists() then
+    local ok, token = pcall(vim.json.decode, copilot_token_file:read())
+    if ok and token.expires_at and token.expires_at > math.floor(os.time()) then M.state.github_token = token end
   end
 
-  vim.schedule(function() H.refresh_token() end)
+  -- Setup timer management
+  local timer_lock_acquired = try_acquire_timer_lock()
+  if timer_lock_acquired then
+    M.setup_timer()
+  else
+    vim.schedule(function() H.refresh_token(true, false) end)
+  end
+
+  M.setup_file_watcher()
+
+  start_manager_check_timer()
 
   require("avante.tokenizers").setup(M.tokenizer_id)
   vim.g.avante_login = true
 end
+
+M.cleanup = function()
+  -- Cleanup refresh timer
+  if M._refresh_timer then
+    M._refresh_timer:stop()
+    M._refresh_timer:close()
+    M._refresh_timer = nil
+
+    -- Remove lockfile if we were the manager
+    local lockfile = Path:new(lockfile_path)
+    if lockfile:exists() then
+      local content = lockfile:read()
+      local pid = tonumber(content)
+      if pid and pid == vim.fn.getpid() then lockfile:rm() end
+    end
+  end
+
+  -- Cleanup manager check timer
+  if M._manager_check_timer then
+    M._manager_check_timer:stop()
+    M._manager_check_timer:close()
+    M._manager_check_timer = nil
+  end
+
+  -- Cleanup file watcher
+  if M._file_watcher then
+    M._file_watcher:stop()
+    M._file_watcher = nil
+  end
+end
+
+-- Register cleanup on Neovim exit
+vim.api.nvim_create_autocmd("VimLeavePre", {
+  callback = function() M.cleanup() end,
+})
 
 return M
