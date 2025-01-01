@@ -50,11 +50,32 @@ LUA_VERSION="${LUA_VERSION:-luajit}"
 # Set the artifact name pattern
 ARTIFACT_NAME_PATTERN="avante_lib-$PLATFORM-$ARCH-$LUA_VERSION"
 
-# Get the artifact download URL
-ARTIFACT_URL=$(curl -s "https://api.github.com/repos/yetone/avante.nvim/releases/latest" | grep "browser_download_url" | cut -d '"' -f 4 | grep $ARTIFACT_NAME_PATTERN)
+test_command() {
+    command -v "$1" >/dev/null 2>&1
+}
 
-set -x
+test_gh_auth() {
+    if gh api user >/dev/null 2>&1; then
+        return 0
+    else
+        return 1
+    fi
+}
 
-mkdir -p "$TARGET_DIR"
+if [ ! -d "$TARGET_DIR" ]; then
+    mkdir -p "$TARGET_DIR"
+fi
 
-curl -L "$ARTIFACT_URL" | tar -zxv -C "$TARGET_DIR"
+if test_command "gh" && test_gh_auth; then
+    gh release download --repo "$REPO_OWNER/$REPO_NAME" --pattern "*$ARTIFACT_NAME_PATTERN*" --clobber --output - | tar -zxv -C "$TARGET_DIR"
+else
+    # Get the artifact download URL
+    ARTIFACT_URL=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest" | grep "browser_download_url" | cut -d '"' -f 4 | grep $ARTIFACT_NAME_PATTERN)
+
+    set -x
+
+    mkdir -p "$TARGET_DIR"
+
+    curl -L "$ARTIFACT_URL" | tar -zxv -C "$TARGET_DIR"
+fi
+
