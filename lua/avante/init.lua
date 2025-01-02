@@ -75,6 +75,7 @@ H.keymaps = function()
   vim.keymap.set({ "n", "v" }, "<Plug>(AvanteConflictCursor)", function() Diff.choose("cursor") end)
   vim.keymap.set("n", "<Plug>(AvanteConflictNextConflict)", function() Diff.find_next("ours") end)
   vim.keymap.set("n", "<Plug>(AvanteConflictPrevConflict)", function() Diff.find_prev("ours") end)
+  vim.keymap.set("n", "<Plug>(AvanteSelectModel)", function() require("avante.api").select_model() end)
 
   if Config.behaviour.auto_set_keymaps then
     Utils.safe_keymap_set(
@@ -126,6 +127,12 @@ H.keymaps = function()
       noremap = true,
       silent = true,
     })
+    Utils.safe_keymap_set(
+      "n",
+      Config.mappings.select_model,
+      function() require("avante.api").select_model() end,
+      { desc = "avante: select model" }
+    )
   end
 
   if Config.behaviour.auto_suggestions then
