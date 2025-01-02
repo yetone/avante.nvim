@@ -193,6 +193,15 @@ local function transform_result_content(selected_files, result_content, prev_fil
     end
     if line_content == "<SEARCH>" then
       is_searching = true
+      local prev_line = result_lines[i - 1]
+      if
+        prev_line
+        and prev_filepath
+        and not prev_line:match("Filepath:.+")
+        and not prev_line:match("<FILEPATH>.+</FILEPATH>")
+      then
+        table.insert(transformed_lines, string.format("Filepath: %s", prev_filepath))
+      end
       local next_line = result_lines[i + 1]
       if next_line and next_line:match("^%s*```%w+$") then i = i + 1 end
       search_start = i + 1
