@@ -17,6 +17,10 @@ BUILD_DIR := build
 BUILD_FROM_SOURCE ?= false
 TARGET_LIBRARY ?= all
 
+ifeq ($(ARCH), riscv64)
+	BUILD_FROM_SOURCE := true
+endif
+
 all: luajit
 
 define make_definitions
