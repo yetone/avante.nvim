@@ -123,6 +123,7 @@ M.defaults = {
   ---5. minimize_diff                   : Whether to remove unchanged lines when applying a code block
   behaviour = {
     auto_suggestions = false, -- Experimental stage
+    auto_suggestions_respect_ignore = false,
     auto_set_highlight_group = true,
     auto_set_keymaps = true,
     auto_apply_diff_after_generation = false,
