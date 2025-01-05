@@ -49,7 +49,7 @@ For building binary if you wish to build from source, then `cargo` is required. 
   "yetone/avante.nvim",
   event = "VeryLazy",
   lazy = false,
-  version = false, -- set this if you want to always pull the latest change
+  version = false, -- set this to "*" if you want to always pull the latest change, false to update on release
   opts = {
     -- add any opts here
   },
