@@ -54,9 +54,7 @@ M.get_user_message = function(opts)
   )
 end
 
-M.is_o_series_model = function(model)
-  return model and string.match(model, "^o%d+") ~= nil
-end
+M.is_o_series_model = function(model) return model and string.match(model, "^o%d+") ~= nil end
 
 M.parse_messages = function(opts)
   local messages = {}
