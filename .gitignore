@@ -44,3 +44,16 @@ temp/
 config.personal.lua
 
 target
+
+.codegpt
+
+# Test error logs
+tests/errorlog.txt
+tests/*.log
+
+# Test documentation
+tests/README.md
+
+# Cursor rule files
+.cursorrules
+*.cursorrules
