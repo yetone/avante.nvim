@@ -163,9 +163,10 @@ function Selection:create_editing_input()
       local response_lines_ = vim.split(full_response, "\n")
       local response_lines = {}
       for i, line in ipairs(response_lines_) do
-        if not (string.match(line, "^```") and (i == 1 or i == #response_lines_)) then
-          table.insert(response_lines, line)
-        end
+        if string.match(line, "^```") and (i == 1 or i == #response_lines_) then goto continue end
+        if string.match(line, "^```$") then goto continue end
+        table.insert(response_lines, line)
+        ::continue::
       end
       if #response_lines == 1 then
         local first_line = response_lines[1]
@@ -194,6 +195,7 @@ function Selection:create_editing_input()
       end
       self.prompt_input:stop_spinner()
       vim.defer_fn(function() self:close_editing_input() end, 0)
+      Utils.debug("full response:", full_response)
     end
 
     local filetype = api.nvim_get_option_value("filetype", { buf = code_bufnr })
