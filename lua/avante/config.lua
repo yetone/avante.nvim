@@ -76,6 +76,15 @@ M.defaults = {
     temperature = 0,
     max_tokens = 4096,
   },
+  ---@type AvanteSupportedProvider
+  deepseek = {
+    endpoint = "https://api.deepseek.com/v1",
+    model = "deepseek-chat-v3", -- or "deepseek-coder-v3" for coding tasks
+    timeout = 30000, -- Timeout in milliseconds
+    temperature = 0,
+    max_tokens = 8000,
+    allow_insecure = false,
+  },
   ---To add support for custom provider, follow the format below
   ---See https://github.com/yetone/avante.nvim/wiki#custom-providers for more details
   ---@type {[string]: AvanteProvider}
