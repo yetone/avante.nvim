@@ -54,6 +54,10 @@ M.get_user_message = function(opts)
   )
 end
 
+M.is_o_series_model = function(model)
+  return model and string.match(model, "^o%d+") ~= nil
+end
+
 M.parse_messages = function(opts)
   local messages = {}
   local provider = P[Config.provider]
@@ -61,7 +65,7 @@ M.parse_messages = function(opts)
 
   -- NOTE: Handle the case where the selected model is the `o1` model
   -- "o1" models are "smart" enough to understand user prompt as a system prompt in this context
-  if base.model and string.find(base.model, "o1") then
+  if M.is_o_series_model(base.model) then
     table.insert(messages, { role = "user", content = opts.system_prompt })
   else
     table.insert(messages, { role = "system", content = opts.system_prompt })
@@ -150,9 +154,10 @@ M.parse_curl_args = function(provider, code_opts)
     headers["Authorization"] = "Bearer " .. api_key
   end
 
-  -- NOTE: When using "o1" set the supported parameters only
+  -- NOTE: When using "o" series set the supported parameters only
   local stream = true
-  if base.model and string.find(base.model, "o1") then
+  if M.is_o_series_model(base.model) then
+    body_opts.max_completion_tokens = body_opts.max_tokens
     body_opts.max_tokens = nil
     body_opts.temperature = 1
   end
