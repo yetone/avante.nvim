@@ -331,7 +331,7 @@ function M.warn(msg, opts)
 end
 
 function M.debug(...)
-  if not require("avante.config").options.debug then return end
+  if not require("avante.config").debug then return end
 
   local args = { ... }
   if #args == 0 then return end

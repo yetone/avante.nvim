@@ -183,7 +183,7 @@ M._stream = function(opts)
       end
       if not data then return end
       vim.schedule(function()
-        if Config.options[Config.provider] == nil and Provider.parse_stream_data ~= nil then
+        if Config[Config.provider] == nil and Provider.parse_stream_data ~= nil then
           if Provider.parse_response ~= nil then
             Utils.warn(
               "parse_stream_data and parse_response are mutually exclusive, and thus parse_response will be ignored. Make sure that you handle the incoming data correctly.",

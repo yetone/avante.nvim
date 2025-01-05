@@ -134,10 +134,10 @@ M.ask = function(opts)
       submit_callback = function(input) ask(input) end,
       close_on_submit = true,
       win_opts = {
-        border = Config.options.windows.ask.border,
+        border = Config.windows.ask.border,
         title = { { "ask", "FloatTitle" } },
       },
-      start_insert = Config.options.windows.ask.start_insert,
+      start_insert = Config.windows.ask.start_insert,
     })
     prompt_input:open()
     return true

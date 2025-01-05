@@ -669,9 +669,7 @@ function Sidebar:apply(current_cursor)
     selected_snippets_map = all_snippets_map
   end
 
-  if Config.options.behaviour.minimize_diff then
-    selected_snippets_map = self:minimize_snippets(selected_snippets_map)
-  end
+  if Config.behaviour.minimize_diff then selected_snippets_map = self:minimize_snippets(selected_snippets_map) end
 
   vim.defer_fn(function()
     api.nvim_set_current_win(self.code.winid)

@@ -6,7 +6,7 @@ local Utils = require("avante.utils")
 ---@class avante.CoreConfig: avante.Config
 local M = {}
 ---@class avante.Config
-M.defaults = {
+M._defaults = {
   debug = false,
   ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | string
   provider = "claude", -- Only recommend using Claude
@@ -247,7 +247,7 @@ M.defaults = {
 }
 
 ---@type avante.Config
-M.options = {}
+M._options = {}
 
 ---@class avante.ConflictConfig: AvanteConflictConfig
 ---@field mappings AvanteConflictMappings
@@ -261,9 +261,9 @@ M.providers = {}
 function M.setup(opts)
   vim.validate({ opts = { opts, "table", true } })
 
-  M.options = vim.tbl_deep_extend(
+  M._options = vim.tbl_deep_extend(
     "force",
-    M.defaults,
+    M._defaults,
     opts or {},
     ---@type avante.Config
     {
@@ -273,7 +273,7 @@ function M.setup(opts)
     }
   )
   M.providers = vim
-    .iter(M.defaults)
+    .iter(M._defaults)
     :filter(function(_, value) return type(value) == "table" and value.endpoint ~= nil end)
     :fold({}, function(acc, k)
       acc = vim.list_extend({}, acc)
@@ -281,21 +281,21 @@ function M.setup(opts)
       return acc
     end)
 
-  vim.validate({ provider = { M.options.provider, "string", false } })
+  vim.validate({ provider = { M._options.provider, "string", false } })
 
   M.diff = vim.tbl_deep_extend(
     "force",
     {},
-    M.options.diff,
-    { mappings = M.options.mappings.diff, highlights = M.options.highlights.diff }
+    M._options.diff,
+    { mappings = M._options.mappings.diff, highlights = M._options.highlights.diff }
   )
 
-  if next(M.options.vendors) ~= nil then
-    for k, v in pairs(M.options.vendors) do
-      M.options.vendors[k] = type(v) == "function" and v() or v
+  if next(M._options.vendors) ~= nil then
+    for k, v in pairs(M._options.vendors) do
+      M._options.vendors[k] = type(v) == "function" and v() or v
     end
-    vim.validate({ vendors = { M.options.vendors, "table", true } })
-    M.providers = vim.list_extend(M.providers, vim.tbl_keys(M.options.vendors))
+    vim.validate({ vendors = { M._options.vendors, "table", true } })
+    M.providers = vim.list_extend(M.providers, vim.tbl_keys(M._options.vendors))
   end
 end
 
@@ -303,26 +303,26 @@ end
 function M.override(opts)
   vim.validate({ opts = { opts, "table", true } })
 
-  M.options = vim.tbl_deep_extend("force", M.options, opts or {})
+  M._options = vim.tbl_deep_extend("force", M._options, opts or {})
   M.diff = vim.tbl_deep_extend(
     "force",
     {},
-    M.options.diff,
-    { mappings = M.options.mappings.diff, highlights = M.options.highlights.diff }
+    M._options.diff,
+    { mappings = M._options.mappings.diff, highlights = M._options.highlights.diff }
   )
 
-  if next(M.options.vendors) ~= nil then
-    for k, v in pairs(M.options.vendors) do
-      M.options.vendors[k] = type(v) == "function" and v() or v
+  if next(M._options.vendors) ~= nil then
+    for k, v in pairs(M._options.vendors) do
+      M._options.vendors[k] = type(v) == "function" and v() or v
       if not vim.tbl_contains(M.providers, k) then M.providers = vim.list_extend(M.providers, { k }) end
     end
-    vim.validate({ vendors = { M.options.vendors, "table", true } })
+    vim.validate({ vendors = { M._options.vendors, "table", true } })
   end
 end
 
 M = setmetatable(M, {
   __index = function(_, k)
-    if M.options[k] then return M.options[k] end
+    if M._options[k] then return M._options[k] end
   end,
 })
 
@@ -332,14 +332,14 @@ M.get_window_width = function() return math.ceil(vim.o.columns * (M.windows.widt
 
 ---@param provider Provider
 ---@return boolean
-M.has_provider = function(provider) return M.options[provider] ~= nil or M.vendors[provider] ~= nil end
+M.has_provider = function(provider) return M._options[provider] ~= nil or M.vendors[provider] ~= nil end
 
 ---get supported providers
 ---@param provider Provider
 ---@return AvanteProviderFunctor
 M.get_provider = function(provider)
-  if M.options[provider] ~= nil then
-    return vim.deepcopy(M.options[provider], true)
+  if M._options[provider] ~= nil then
+    return vim.deepcopy(M._options[provider], true)
   elseif M.vendors[provider] ~= nil then
     return vim.deepcopy(M.vendors[provider], true)
   else
