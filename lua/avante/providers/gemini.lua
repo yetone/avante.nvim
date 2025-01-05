@@ -71,7 +71,7 @@ M.parse_response = function(data_stream, _, opts)
     if #json.candidates > 0 then
       if json.candidates[1].finishReason and json.candidates[1].finishReason == "STOP" then
         opts.on_chunk(json.candidates[1].content.parts[1].text)
-        vim.schedule(function() opts.on_complete(nil) end)
+        opts.on_complete(nil)
       else
         opts.on_chunk(json.candidates[1].content.parts[1].text)
       end
