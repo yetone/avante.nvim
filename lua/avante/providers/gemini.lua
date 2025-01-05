@@ -69,8 +69,13 @@ M.parse_response = function(data_stream, _, opts)
   if not ok then opts.on_complete(json) end
   if json.candidates then
     if #json.candidates > 0 then
-      opts.on_chunk(json.candidates[1].content.parts[1].text)
-    elseif json.candidates.finishReason and json.candidates.finishReason == "STOP" then
+      if json.candidates[1].finishReason and json.candidates[1].finishReason == "STOP" then
+        opts.on_chunk(json.candidates[1].content.parts[1].text)
+        opts.on_complete(nil)
+      else
+        opts.on_chunk(json.candidates[1].content.parts[1].text)
+      end
+    else
       opts.on_complete(nil)
     end
   end
