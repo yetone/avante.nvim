@@ -1104,13 +1104,13 @@ function Sidebar:refresh_winids()
       { "n", "i" },
       Config.mappings.sidebar.switch_windows,
       function() switch_windows() end,
-      { buffer = buf, noremap = true, silent = true }
+      { buffer = buf, noremap = true, silent = true, nowait = true }
     )
     Utils.safe_keymap_set(
       { "n", "i" },
       Config.mappings.sidebar.reverse_switch_windows,
       function() reverse_switch_windows() end,
-      { buffer = buf, noremap = true, silent = true }
+      { buffer = buf, noremap = true, silent = true, nowait = true }
     )
   end
 end
