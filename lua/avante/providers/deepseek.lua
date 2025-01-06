@@ -1,4 +1,4 @@
--- New file for DeepSeek provider implementation 
+-- New file for DeepSeek provider implementation
 
 local Utils = require("avante.utils")
 local P = require("avante.providers")
@@ -9,15 +9,13 @@ local M = {}
 M.api_key_name = "DEEPSEEK_API_KEY"
 M.role_map = {
   user = "user",
-  assistant = "assistant"
+  assistant = "assistant",
 }
 
 -- Helper function to determine if content is code-related
 local function is_code_context(content)
   -- Early returns for edge cases
-  if not content or content:match("^%s*$") then
-    return false
-  end
+  if not content or content:match("^%s*$") then return false end
 
   -- Common programming patterns that should immediately identify as code
   local immediate_code_patterns = {
@@ -37,45 +35,39 @@ local function is_code_context(content)
   local code_patterns = {
     -- Existing patterns...
     "^%s*[%w_]+%s+[%w_]+%s*%(", -- Function definition
-    "^%s*class%s+[%w_]+",       -- Class definition
-    "^%s*import%s+",            -- Import statement
-    
+    "^%s*class%s+[%w_]+", -- Class definition
+    "^%s*import%s+", -- Import statement
+
     -- New patterns for edge cases
-    "[%w_]+%s*=%s*[%w%p]",      -- Variable assignment
-    "^%s*print%s*%(.*%)",       -- Print statements
-    "^%s*console%.",            -- Console methods
-    "%s*<%/?[%w_]+>",          -- HTML tags
-    "^%s*@[%w_]+",             -- Decorators
-    "^%s*#include",            -- C/C++ includes
-    "^%s*package%s+",          -- Java/Kotlin packages
-    "^%s*using%s+",           -- C# using statements
-    "^%s*module%s+",          -- Node.js modules
-    "^%s*require%s*[%(%'\"]",  -- Require statements
-    "^%s*export%s+",          -- Export statements
+    "[%w_]+%s*=%s*[%w%p]", -- Variable assignment
+    "^%s*print%s*%(.*%)", -- Print statements
+    "^%s*console%.", -- Console methods
+    "%s*<%/?[%w_]+>", -- HTML tags
+    "^%s*@[%w_]+", -- Decorators
+    "^%s*#include", -- C/C++ includes
+    "^%s*package%s+", -- Java/Kotlin packages
+    "^%s*using%s+", -- C# using statements
+    "^%s*module%s+", -- Node.js modules
+    "^%s*require%s*[%(%'\"]", -- Require statements
+    "^%s*export%s+", -- Export statements
     "%{%s*[%w_]+%s*:%s*[%w%p]", -- Object literals
-    "^%s*async%s+",           -- Async functions
-    "^%s*await%s+",           -- Await statements
-    "^%s*try%s*{",            -- Try blocks
-    "^%s*catch%s*%(",         -- Catch blocks
-    "^%s*finally%s*{",        -- Finally blocks
-    "^%s*throw%s+",           -- Throw statements
-    "^%s*yield%s+",           -- Generator functions
+    "^%s*async%s+", -- Async functions
+    "^%s*await%s+", -- Await statements
+    "^%s*try%s*{", -- Try blocks
+    "^%s*catch%s*%(", -- Catch blocks
+    "^%s*finally%s*{", -- Finally blocks
+    "^%s*throw%s+", -- Throw statements
+    "^%s*yield%s+", -- Generator functions
   }
 
   -- Check for code blocks in markdown
-  if content:match("```[%w_]*[^`]*```") then
-    return true
-  end
+  if content:match("```[%w_]*[^`]*```") then return true end
 
   -- Check for single backtick code that spans the whole line
-  if content:match("^%s*`[^`]+`%s*$") then
-    return true
-  end
+  if content:match("^%s*`[^`]+`%s*$") then return true end
 
   for _, pattern in ipairs(code_patterns) do
-    if content:match(pattern) then
-      return true
-    end
+    if content:match(pattern) then return true end
   end
 
   -- Check for high concentration of programming symbols
@@ -83,11 +75,9 @@ local function is_code_context(content)
   for symbol in content:gmatch("[{}%[%]%(%)%+%-%*/%=<>!&|;:]") do
     symbol_count = symbol_count + 1
   end
-  
+
   -- If more than 15% of content is programming symbols, likely code
-  if symbol_count > 0 and symbol_count / #content > 0.15 then
-    return true
-  end
+  if symbol_count > 0 and symbol_count / #content > 0.15 then return true end
 
   return false
 end
@@ -96,9 +86,9 @@ end
 M.parse_messages = function(opts)
   Utils.debug("DeepSeek: Parsing messages with opts:", vim.inspect(opts))
   local messages = {
-    { role = "system", content = opts.system_prompt }
+    { role = "system", content = opts.system_prompt },
   }
-  
+
   -- Analyze content to determine model type
   local is_coding = false
   -- Only check the last message for model switching
@@ -106,19 +96,21 @@ M.parse_messages = function(opts)
     local last_message = opts.messages[#opts.messages]
     is_coding = is_code_context(last_message.content)
   end
-  
-  vim.iter(opts.messages):each(function(msg)
-    table.insert(messages, { 
-      role = M.role_map[msg.role], 
-      content = msg.content 
-    })
-  end)
-  
+
+  vim.iter(opts.messages):each(
+    function(msg)
+      table.insert(messages, {
+        role = M.role_map[msg.role],
+        content = msg.content,
+      })
+    end
+  )
+
   -- Set model based on last message content
   opts.model = is_coding and "deepseek-coder" or "deepseek-chat"
-  
+
   Utils.debug("DeepSeek: Switching to model:", opts.model)
-  
+
   return messages
 end
 
@@ -144,12 +136,11 @@ M.on_error = function(result)
     [422] = "Invalid parameters",
     [429] = "Rate limit exceeded",
     [500] = "Server error",
-    [503] = "Service temporarily unavailable"
+    [503] = "Service temporarily unavailable",
   }
 
   local error_type = error_types[error_code] or "Unknown error"
-  Utils.error(string.format("%s: %s", error_type, error_msg), 
-    { once = true, title = "Avante" })
+  Utils.error(string.format("%s: %s", error_type, error_msg), { once = true, title = "Avante" })
 end
 
 M.parse_response = function(data_stream, _, opts)
@@ -157,13 +148,13 @@ M.parse_response = function(data_stream, _, opts)
     opts.on_complete(nil)
     return
   end
-  
+
   local ok, json = pcall(vim.json.decode, data_stream)
-  if not ok then 
+  if not ok then
     opts.on_complete("Failed to parse response: " .. data_stream)
     return
   end
-  
+
   if json.choices and json.choices[1] then
     local choice = json.choices[1]
     if choice.finish_reason == "stop" or choice.finish_reason == "length" then
@@ -177,27 +168,28 @@ end
 M.parse_curl_args = function(provider, code_opts)
   Utils.debug("DeepSeek: Preparing curl args with opts:", vim.inspect(code_opts))
   local base, body_opts = P.parse_config(provider)
-  
+
   -- Validate API key
   local api_key = provider.parse_api_key()
-  if not api_key then
-    error("DeepSeek API key not found. Please set DEEPSEEK_API_KEY environment variable.")
-  end
+  if not api_key then error("DeepSeek API key not found. Please set DEEPSEEK_API_KEY environment variable.") end
 
   -- Use dynamically determined model from parse_messages
   local model = code_opts.model or base.model or "deepseek-chat"
   local endpoint = "/v1/chat/completions"
 
   Utils.debug("DeepSeek: Using model:", model)
-  
+
   local url = Utils.url_join(base.endpoint, endpoint)
   local messages = M.parse_messages(code_opts)
-  
-  Utils.debug("DeepSeek: Final curl args:", vim.inspect({
-    url = url,
-    model = model,
-    messages_count = #messages
-  }))
+
+  Utils.debug(
+    "DeepSeek: Final curl args:",
+    vim.inspect({
+      url = url,
+      model = model,
+      messages_count = #messages,
+    })
+  )
 
   return {
     url = url,
@@ -205,16 +197,16 @@ M.parse_curl_args = function(provider, code_opts)
     insecure = base.allow_insecure,
     headers = {
       ["Content-Type"] = "application/json",
-      ["Authorization"] = "Bearer " .. api_key
+      ["Authorization"] = "Bearer " .. api_key,
     },
     body = vim.tbl_deep_extend("force", {
       model = model,
       messages = messages,
       stream = true,
       max_tokens = base.max_tokens or 8000,
-      temperature = base.temperature or 0
-    }, body_opts)
+      temperature = base.temperature or 0,
+    }, body_opts),
   }
 end
 
-return M 
+return M

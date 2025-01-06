@@ -1,13 +1,13 @@
-local deepseek = require('avante.providers.deepseek')
-local Config = require('avante.config')
+local deepseek = require("avante.providers.deepseek")
+local Config = require("avante.config")
 
 -- Mock Utils and other dependencies
 local mock = {
   Utils = {
     error = function(msg) print("ERROR: " .. msg) end,
     url_join = function(base, path) return base .. path end,
-    debug = function(...) print(...) end
-  }
+    debug = function(...) print(...) end,
+  },
 }
 
 -- Test helper function
@@ -23,22 +23,22 @@ describe("DeepSeek Provider", function()
   local errors = {}
 
   before_each(function()
-    errors = {}  -- Clear errors array
-    
+    errors = {} -- Clear errors array
+
     -- Create hybrid mock that preserves original functions
     package.loaded["avante.utils"] = vim.tbl_extend("force", original_utils, {
       -- Override only the functions we need to test
-      error = function(msg, opts) 
+      error = function(msg, opts)
         table.insert(errors, {
           msg = msg,
-          opts = opts or {}  -- Ensure opts is never nil
+          opts = opts or {}, -- Ensure opts is never nil
         })
         print("Captured error:", msg, vim.inspect(opts)) -- Debug print
       end,
-      debug = function(...) 
+      debug = function(...)
         -- Keep original debug but add our test tracking
         print("Debug:", ...)
-      end
+      end,
     })
   end)
 
@@ -51,7 +51,7 @@ describe("DeepSeek Provider", function()
   local mock_chat_response = [[
     {"choices":[{"delta":{"content":"Hello"},"finish_reason":null}]}
   ]]
-  
+
   local mock_coder_response = [[
     {"choices":[{"delta":{"content":"def hello():"},"finish_reason":null}]}
   ]]
@@ -67,25 +67,22 @@ describe("DeepSeek Provider", function()
     local test_cases = {
       {
         model = "deepseek-chat-v3",
-        expected = "deepseek-chat-v3"
+        expected = "deepseek-chat-v3",
       },
       {
         model = "deepseek-coder-v3",
-        expected = "deepseek-coder-v3"
-      }
+        expected = "deepseek-coder-v3",
+      },
     }
 
     for _, case in ipairs(test_cases) do
-      local args = deepseek.parse_curl_args(
-        { 
-          parse_api_key = function() return "test_key" end 
-        }, 
-        {
-          system_prompt = "test",
-          messages = {},
-          model = case.model
-        }
-      )
+      local args = deepseek.parse_curl_args({
+        parse_api_key = function() return "test_key" end,
+      }, {
+        system_prompt = "test",
+        messages = {},
+        model = case.model,
+      })
       assert.equals(args.body.model, case.expected)
     end
   end)
@@ -95,7 +92,7 @@ describe("DeepSeek Provider", function()
     local received_chunks = {}
     local opts = {
       on_chunk = function(chunk) table.insert(received_chunks, chunk) end,
-      on_complete = function() end
+      on_complete = function() end,
     }
 
     -- Test chat response
@@ -112,7 +109,7 @@ describe("DeepSeek Provider", function()
   it("should handle errors correctly", function()
     deepseek.on_error({
       status = 401,
-      body = [[{"error":{"message":"Invalid API key","code":401}}]]
+      body = [[{"error":{"message":"Invalid API key","code":401}}]],
     })
 
     assert(#errors > 0, "Expected error message to be captured")
@@ -126,42 +123,41 @@ describe("DeepSeek Provider", function()
     local test_cases = {
       {
         content = "What is the weather like?",
-        expected_model = "deepseek-chat"
+        expected_model = "deepseek-chat",
       },
       {
         content = "function calculateSum(a, b) {\n  return a + b;\n}",
-        expected_model = "deepseek-coder"
+        expected_model = "deepseek-coder",
       },
       {
         content = "class MyClass:\n    def __init__(self):\n        pass",
-        expected_model = "deepseek-coder"
+        expected_model = "deepseek-coder",
       },
       {
         content = "Tell me a story",
-        expected_model = "deepseek-chat"
-      }
+        expected_model = "deepseek-chat",
+      },
     }
 
     for _, case in ipairs(test_cases) do
       local code_opts = {
         system_prompt = "test",
         messages = {
-          { role = "user", content = case.content }
-        }
+          { role = "user", content = case.content },
+        },
       }
-      
+
       deepseek.parse_messages(code_opts) -- This sets the model
-      local args = deepseek.parse_curl_args(
-        { 
-          parse_api_key = function() return "test_key" end 
-        }, 
-        code_opts
-      )
-      
+      local args = deepseek.parse_curl_args({
+        parse_api_key = function() return "test_key" end,
+      }, code_opts)
+
       local model_prefix = args.body.model:match("^(deepseek%-%w+)")
-      assert.equals(model_prefix, case.expected_model, 
-        string.format("Expected model %s but got %s for content: %s", 
-          case.expected_model, model_prefix, case.content))
+      assert.equals(
+        model_prefix,
+        case.expected_model,
+        string.format("Expected model %s but got %s for content: %s", case.expected_model, model_prefix, case.content)
+      )
     end
   end)
 
@@ -172,18 +168,15 @@ describe("DeepSeek Provider", function()
       messages = {
         { role = "user", content = "Hi there!" },
         { role = "assistant", content = "Hello! How can I help?" },
-        { role = "user", content = "function test() {\n  console.log('test');\n}" }
-      }
+        { role = "user", content = "function test() {\n  console.log('test');\n}" },
+      },
     }
-    
+
     local messages = deepseek.parse_messages(code_opts)
-    local args = deepseek.parse_curl_args(
-      { 
-        parse_api_key = function() return "test_key" end 
-      }, 
-      code_opts
-    )
-    
+    local args = deepseek.parse_curl_args({
+      parse_api_key = function() return "test_key" end,
+    }, code_opts)
+
     -- Should switch to coder model when code is detected
     assert.equals(args.body.model:match("^deepseek%-coder"), "deepseek-coder")
   end)
@@ -193,48 +186,52 @@ describe("DeepSeek Provider", function()
     local edge_cases = {
       {
         content = "```python\nprint('hello')\n```\nWhat does this code do?",
-        expected_model = "deepseek-coder",  -- Should detect code in markdown
+        expected_model = "deepseek-coder", -- Should detect code in markdown
       },
       {
         content = "const x = 5; // Just a variable",
-        expected_model = "deepseek-coder",  -- Single line code
+        expected_model = "deepseek-coder", -- Single line code
       },
       {
         content = "Here's some text with `code` inline",
-        expected_model = "deepseek-chat",   -- Inline code shouldn't trigger coder mode
+        expected_model = "deepseek-chat", -- Inline code shouldn't trigger coder mode
       },
       {
         content = "",
-        expected_model = "deepseek-chat",   -- Empty content
+        expected_model = "deepseek-chat", -- Empty content
       },
       {
         content = "   \n  \t  ",
-        expected_model = "deepseek-chat",   -- Whitespace only
+        expected_model = "deepseek-chat", -- Whitespace only
       },
       {
         content = "print('hello')",
-        expected_model = "deepseek-coder",  -- Single line without terminator
-      }
+        expected_model = "deepseek-coder", -- Single line without terminator
+      },
     }
 
     for _, case in ipairs(edge_cases) do
       local code_opts = {
         system_prompt = "test",
         messages = {
-          { role = "user", content = case.content }
-        }
+          { role = "user", content = case.content },
+        },
       }
-      
+
       deepseek.parse_messages(code_opts)
-      local args = deepseek.parse_curl_args(
-        { parse_api_key = function() return "test_key" end }, 
-        code_opts
-      )
-      
+      local args = deepseek.parse_curl_args({ parse_api_key = function() return "test_key" end }, code_opts)
+
       local model_prefix = args.body.model:match("^(deepseek%-%w+)")
-      assert.equals(model_prefix, case.expected_model, 
-        string.format("Edge case failed - Expected %s but got %s for: %s", 
-          case.expected_model, model_prefix, case.content))
+      assert.equals(
+        model_prefix,
+        case.expected_model,
+        string.format(
+          "Edge case failed - Expected %s but got %s for: %s",
+          case.expected_model,
+          model_prefix,
+          case.content
+        )
+      )
     end
   end)
 
@@ -245,32 +242,29 @@ describe("DeepSeek Provider", function()
         messages = {
           { role = "user", content = "Hi there!" },
           { role = "assistant", content = "Hello! How can I help?" },
-          { role = "user", content = "What is programming?" }
+          { role = "user", content = "What is programming?" },
         },
-        expected_model = "deepseek-chat"
+        expected_model = "deepseek-chat",
       },
       {
         messages = {
-          { role = "user", content = "function test() {}" }
+          { role = "user", content = "function test() {}" },
         },
-        expected_model = "deepseek-coder"
-      }
+        expected_model = "deepseek-coder",
+      },
     }
 
     for _, case in ipairs(conversation) do
       local code_opts = {
         system_prompt = "test",
-        messages = case.messages
+        messages = case.messages,
       }
-      
+
       deepseek.parse_messages(code_opts)
-      local args = deepseek.parse_curl_args(
-        { parse_api_key = function() return "test_key" end },
-        code_opts
-      )
-      
+      local args = deepseek.parse_curl_args({ parse_api_key = function() return "test_key" end }, code_opts)
+
       local model_prefix = args.body.model:match("^(deepseek%-%w+)")
       assert.equals(model_prefix, case.expected_model)
     end
   end)
-end) 
+end)
