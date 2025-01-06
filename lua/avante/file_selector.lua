@@ -142,8 +142,14 @@ function FileSelector:fzf_ui(handler)
     git_icons = false,
     actions = {
       ["default"] = function(selected)
-        local file = fzf_lua.path.entry_to_file(selected[1])
-        handler(file.path)
+        if not selected or #selected == 0 then return close_action() end
+        local selections = {}
+        for _, entry in ipairs(selected) do
+          local file = fzf_lua.path.entry_to_file(entry)
+          if file and file.path then table.insert(selections, file.path) end
+        end
+
+        if #selections > 0 then handler(#selections == 1 and selections[1] or selections) end
       end,
       ["esc"] = close_action,
       ["ctrl-c"] = close_action,
@@ -200,7 +206,6 @@ function FileSelector:telescope_ui(handler)
     :find()
 end
 
----@type FileSelectorHandler
 function FileSelector:native_ui(handler)
   local filepaths = vim
     .iter(self.file_cache)
