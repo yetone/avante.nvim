@@ -133,6 +133,13 @@ function Sidebar:focus()
   return false
 end
 
+function Sidebar:focus_input()
+  if self.input_container and self.input_container.winid and api.nvim_win_is_valid(self.input_container.winid) then
+    api.nvim_set_current_win(self.input_container.winid)
+    api.nvim_feedkeys("i", "n", false)
+  end
+end
+
 function Sidebar:is_open()
   return self.result_container
     and self.result_container.bufnr
@@ -1381,10 +1388,16 @@ function Sidebar:clear_history(args, cb)
   if next(chat_history) ~= nil then
     chat_history = {}
     Path.history.save(self.code.bufnr, chat_history)
-    self:update_content("Chat history cleared", { focus = false, scroll = false })
+    self:update_content(
+      "Chat history cleared",
+      { focus = false, scroll = false, callback = function() self:focus_input() end }
+    )
     if cb then cb(args) end
   else
-    self:update_content("Chat history is already empty", { focus = false, scroll = false })
+    self:update_content(
+      "Chat history is already empty",
+      { focus = false, scroll = false, callback = function() self:focus_input() end }
+    )
   end
 end
 
@@ -1404,10 +1417,17 @@ function Sidebar:reset_memory(args, cb)
     })
     Path.history.save(self.code.bufnr, chat_history)
     local history_content = self:render_history_content(chat_history)
-    self:update_content(history_content, { focus = false, scroll = true })
+    self:update_content(history_content, {
+      focus = false,
+      scroll = true,
+      callback = function() self:focus_input() end,
+    })
     if cb then cb(args) end
   else
-    self:update_content("Chat history is already empty", { focus = false, scroll = false })
+    self:update_content(
+      "Chat history is already empty",
+      { focus = false, scroll = false, callback = function() self:focus_input() end }
+    )
   end
 end
 
