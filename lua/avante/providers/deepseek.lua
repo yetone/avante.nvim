@@ -72,7 +72,7 @@ local function is_code_context(content)
 
   -- Check for high concentration of programming symbols
   local symbol_count = 0
-  for symbol in content:gmatch("[{}%[%]%(%)%+%-%*/%=<>!&|;:]") do
+  for _ in content:gmatch("[{}%[%]%(%)%+%-%*/%=<>!&|;:]") do
     symbol_count = symbol_count + 1
   end
 
