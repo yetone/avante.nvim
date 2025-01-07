@@ -66,8 +66,8 @@ clean:
 luacheck:
 	@luacheck `find -name "*.lua"` --codes
 
-stylecheck:
-	@stylua --check lua/ plugin/
+luastylecheck:
+	@stylua --check lua/ plugin/ tests/
 
 stylefix:
 	@stylua lua/ plugin/
@@ -81,3 +81,14 @@ ruststylecheck:
 rustlint:
 	@rustup component add clippy 2> /dev/null
 	@cargo clippy -F luajit --all -- -F clippy::dbg-macro -D warnings
+
+.PHONY: rusttest
+rusttest:
+	@cargo test --features luajit
+
+.PHONY: luatest
+luatest:
+	nvim --headless -c "PlenaryBustedDirectory tests/"
+
+.PHONY: lint
+lint: luacheck luastylecheck ruststylecheck rustlint
