@@ -79,7 +79,7 @@ M.defaults = {
   ---@type AvanteSupportedProvider
   deepseek = {
     endpoint = "https://api.deepseek.com/v1",
-    model = "deepseek-chat-v3", -- or "deepseek-coder-v3" for coding tasks
+    model = "deepseek-chat", -- or "deepseek-coder" for coding tasks
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
     max_tokens = 8000,

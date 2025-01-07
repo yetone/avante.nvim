@@ -175,7 +175,7 @@ M.parse_curl_args = function(provider, code_opts)
 
   -- Use dynamically determined model from parse_messages
   local model = code_opts.model or base.model or "deepseek-chat"
-  local endpoint = "/v1/chat/completions"
+  local endpoint = "/chat/completions"
 
   Utils.debug("DeepSeek: Using model:", model)
 
