@@ -1,14 +1,4 @@
 local deepseek = require("avante.providers.deepseek")
-local Config = require("avante.config")
-
--- Mock Utils and other dependencies
-local mock = {
-  Utils = {
-    error = function(msg) print("ERROR: " .. msg) end,
-    url_join = function(base, path) return base .. path end,
-    debug = function(...) print(...) end,
-  },
-}
 
 -- Test helper function
 local function assert_contains(str, pattern)
@@ -25,21 +15,13 @@ describe("DeepSeek Provider", function()
   before_each(function()
     errors = {} -- Clear errors array
 
-    -- Create hybrid mock that preserves original functions
-    package.loaded["avante.utils"] = vim.tbl_extend("force", original_utils, {
-      -- Override only the functions we need to test
-      error = function(msg, opts)
-        table.insert(errors, {
-          msg = msg,
-          opts = opts or {}, -- Ensure opts is never nil
-        })
-        print("Captured error:", msg, vim.inspect(opts)) -- Debug print
-      end,
-      debug = function(...)
-        -- Keep original debug but add our test tracking
-        print("Debug:", ...)
-      end,
-    })
+    original_utils.error = function(msg, opts)
+      table.insert(errors, {
+        msg = msg,
+        opts = opts or {}, -- Ensure opts is never nil
+      })
+      print("Captured error:", msg, vim.inspect(opts)) -- Debug print
+    end
   end)
 
   after_each(function()
