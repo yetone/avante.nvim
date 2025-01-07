@@ -24,7 +24,7 @@ jobs:
           crate: stylua
           features: lua54
       - run: stylua --version
-      - run: stylua --check ./lua/ ./plugin/
+      - run: stylua --check ./lua/ ./plugin/ ./tests/
   luacheck:
     name: Lint Lua
     runs-on: ubuntu-latest
@@ -34,4 +34,4 @@ jobs:
       - name: Luacheck linter
         uses: lunarmodules/luacheck@cc089e3f65acdd1ef8716cc73a3eca24a6b845e4 # ratchet:lunarmodules/luacheck@v1
         with:
-          args: ./lua/
+          args: ./lua/ ./tests/
