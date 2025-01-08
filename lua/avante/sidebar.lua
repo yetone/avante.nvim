@@ -224,8 +224,9 @@ local function transform_result_content(selected_files, result_content, prev_fil
       local start_line = 0
       local end_line = 0
       local match_filetype = nil
+      local filepath = current_filepath or prev_filepath or ""
       for _, file in ipairs(selected_files) do
-        if not Utils.is_same_file(file.path, prev_filepath or "") then goto continue1 end
+        if not Utils.is_same_file(file.path, filepath) then goto continue1 end
         local file_content = vim.split(file.content, "\n")
         if start_line ~= 0 or end_line ~= 0 then break end
         for j = 1, #file_content - (search_end - search_start) + 1 do
