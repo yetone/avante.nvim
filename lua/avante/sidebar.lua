@@ -18,7 +18,7 @@ local RESULT_BUF_NAME = "AVANTE_RESULT"
 local VIEW_BUFFER_UPDATED_PATTERN = "AvanteViewBufferUpdated"
 local CODEBLOCK_KEYBINDING_NAMESPACE = api.nvim_create_namespace("AVANTE_CODEBLOCK_KEYBINDING")
 local SELECTED_FILES_HINT_NAMESPACE = api.nvim_create_namespace("AVANTE_SELECTED_FILES_HINT")
-local PRIORITY = vim.highlight.priorities.user
+local PRIORITY = vim.hl.priorities.user
 
 ---@class avante.Sidebar
 local Sidebar = {}

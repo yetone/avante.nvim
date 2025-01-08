@@ -10,7 +10,7 @@ local fn = vim.fn
 
 local NAMESPACE = api.nvim_create_namespace("avante_selection")
 local SELECTED_CODE_NAMESPACE = api.nvim_create_namespace("avante_selected_code")
-local PRIORITY = vim.highlight.priorities.user
+local PRIORITY = vim.hl.priorities.user
 
 ---@class avante.Selection
 ---@field selection avante.SelectionResult | nil
