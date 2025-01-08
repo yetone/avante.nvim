@@ -116,6 +116,7 @@ Every *SEARCH/REPLACE block* must use this format:
 5. The start of replace block: <REPLACE>
 6. The lines to replace into the source code
 7. The end of the replace block: </REPLACE>
+8. Please *DO NOT* put *SEARCH/REPLACE block* inside three backticks: {%raw%}```{%endraw%}
 
 Use the *FULL* file path, as shown to you by the user.
 
