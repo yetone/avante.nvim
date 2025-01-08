@@ -1327,13 +1327,15 @@ function Sidebar:render_history_content(history)
       goto continue
     end
     local selected_filepaths = entry.selected_filepaths
-    if not selected_filepaths then selected_filepaths = { entry.selected_file.filepath } end
+    if not selected_filepaths and entry.selected_file ~= nil then
+      selected_filepaths = { entry.selected_file.filepath }
+    end
     local prefix = render_chat_record_prefix(
       entry.timestamp,
       entry.provider,
       entry.model,
       entry.request or "",
-      selected_filepaths,
+      selected_filepaths or {},
       entry.selected_code
     )
     content = content .. prefix
