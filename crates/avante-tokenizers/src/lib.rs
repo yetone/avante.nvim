@@ -71,7 +71,9 @@ impl HuggingFaceTokenizer {
 
         if !cached_path.exists() {
             let response = ureq::get(url).call().unwrap();
-            let _ = std::fs::write(&cached_path, response.into_string().unwrap());
+            let mut file = std::fs::File::create(&cached_path).unwrap();
+            let mut reader = response.into_reader();
+            std::io::copy(&mut reader, &mut file).unwrap();
         }
         cached_path
     }
