@@ -1,18 +1,6 @@
-{# Uses https://mitsuhiko.github.io/minijinja-playground/ for testing:
-{
-  "ask": true,
-  "use_xml_format": true,
-  "question": "Refactor to include tab flow",
-  "code_lang": "lua",
-  "file_content": "local Config = require('avante.config')"
-}
-#}
-Act as an expert software developer.
-Always use best practices when coding.
-Respect and use existing conventions, libraries, etc that are already present in the code base.
-
+{% extends "base.avanterules" %}
 {%- if ask %}
-{% block user_prompt %}
+{% block extra_prompt %}
 Take requests for changes to the supplied code.
 If the request is ambiguous, ask questions.
 
@@ -106,6 +94,7 @@ def hello():
 <REPLACE>
 from hello import hello
 </REPLACE>
+
 # *SEARCH/REPLACE block* Rules:
 
 Every *SEARCH/REPLACE block* must use this format:

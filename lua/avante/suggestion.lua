@@ -67,11 +67,43 @@ function Suggestion:suggest()
 
   local provider = Providers[Config.auto_suggestions_provider]
 
+  ---@type AvanteLLMMessage[]
+  local history_messages = {
+    {
+      role = "user",
+      content = [[
+<filepath>a.py</filepath>
+<code>def fib</code>
+      ]],
+    },
+    {
+      role = "assistant",
+      content = "ok",
+    },
+    {
+      role = "user",
+      content = '<question>{ "indentSize": 4, "position": { "row": 1, "col": 2 } }</question>',
+    },
+    {
+      role = "assistant",
+      content = [[
+[
+  {
+    "row": 1,
+    "col": 8,
+    "content": "(n):\n    if n < 2:\n        return n\n    return fib(n - 1) + fib(n - 2)"
+  }
+]
+      ]],
+    },
+  }
+
   Llm.stream({
     provider = provider,
     ask = true,
     selected_files = { { content = code_content, file_type = filetype, path = "" } },
     code_lang = filetype,
+    history_messages = history_messages,
     instructions = vim.json.encode(doc),
     mode = "suggesting",
     on_chunk = function(chunk) full_response = full_response .. chunk end,
@@ -86,6 +118,7 @@ function Suggestion:suggest()
         if cursor_row ~= doc.position.row or cursor_col ~= doc.position.col then return end
         -- Clean up markdown code blocks
         full_response = full_response:gsub("^```%w*\n(.-)\n```$", "%1")
+        full_response = full_response:gsub("(.-)\n```\n?$", "%1")
         -- Remove everything before the first '[' to ensure we get just the JSON array
         full_response = full_response:gsub("^.-(%[.*)", "%1")
         local ok, suggestions = pcall(vim.json.decode, full_response)
