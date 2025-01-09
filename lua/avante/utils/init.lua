@@ -153,12 +153,12 @@ end
 ---@param str string
 ---@param opts? {suffix?: string, prefix?: string}
 function M.trim(str, opts)
-  if not opts then return str end
   local res = str
+  if not opts then return res end
   if opts.suffix then
-    res = str:sub(#str - #opts.suffix + 1) == opts.suffix and str:sub(1, #str - #opts.suffix) or str
+    res = res:sub(#res - #opts.suffix + 1) == opts.suffix and res:sub(1, #res - #opts.suffix) or res
   end
-  if opts.prefix then res = str:sub(1, #opts.prefix) == opts.prefix and str:sub(#opts.prefix + 1) or str end
+  if opts.prefix then res = res:sub(1, #opts.prefix) == opts.prefix and res:sub(#opts.prefix + 1) or res end
   return res
 end
 
@@ -462,6 +462,8 @@ function M.url_join(...)
 
     ::continue::
   end
+
+  if result:sub(-1) == "/" then result = result:sub(1, -2) end
 
   return result
 end
