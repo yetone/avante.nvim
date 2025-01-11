@@ -1,5 +1,5 @@
-{% extends "planning.avanterules" %}
-{% block user_prompt %}
+{% extends "base.avanterules" %}
+{% block extra_prompt %}
 Your task is to modify the provided code according to the user's request. Follow these instructions precisely:
 
 1. Return *ONLY* the complete modified code.
