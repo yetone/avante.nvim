@@ -1148,8 +1148,13 @@ function Sidebar:initialize()
 
   if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then return self end
 
+  local buf_path = api.nvim_buf_get_name(self.code.bufnr)
+  -- if the filepath is outside of the current working directory then we want the absolute path
+  local file_path = Utils.file.is_in_cwd(buf_path) and Utils.relative_path(buf_path) or buf_path
+  Utils.debug("Sidebar:initialize adding buffer to file selector", buf_path)
+
   self.file_selector:reset()
-  self.file_selector:add_selected_file(Utils.relative_path(api.nvim_buf_get_name(self.code.bufnr)))
+  self.file_selector:add_selected_file(file_path)
 
   return self
 end

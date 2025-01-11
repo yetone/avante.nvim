@@ -826,6 +826,7 @@ function M.get_current_selection_diagnostics(bufnr, selection)
 end
 
 function M.uniform_path(path)
+  if not M.file.is_in_cwd(path) then return path end
   local project_root = M.get_project_root()
   local abs_path = Path:new(project_root):joinpath(path):absolute()
   local relative_path = Path:new(abs_path):make_relative(project_root)
