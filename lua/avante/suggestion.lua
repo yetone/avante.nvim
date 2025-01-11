@@ -22,6 +22,8 @@ local SUGGESTION_NS = api.nvim_create_namespace("avante_suggestion")
 ---@field id number
 ---@field augroup integer
 ---@field extmark_id integer
+---@field ignore_patterns table
+---@field negate_patterns table
 ---@field _timer? table
 ---@field _contexts table
 local Suggestion = {}
@@ -31,10 +33,15 @@ Suggestion.__index = Suggestion
 ---@return avante.Suggestion
 function Suggestion:new(id)
   local instance = setmetatable({}, self)
+  local gitignore_path = Utils.get_project_root() .. "/.gitignore"
+  local gitignore_patterns, gitignore_negate_patterns = Utils.parse_gitignore(gitignore_path)
+
   instance.id = id
   instance.extmark_id = 1
   instance._timer = nil
   instance._contexts = {}
+  instance.ignore_patterns = gitignore_patterns
+  instance.negate_patterns = gitignore_negate_patterns
   if Config.behaviour.auto_suggestions then
     if not vim.g.avante_login or vim.g.avante_login == false then
       api.nvim_exec_autocmds("User", { pattern = Providers.env.REQUEST_LOGIN_PATTERN })
@@ -289,6 +296,14 @@ function Suggestion:setup_autocmds()
     if not vim.bo.buflisted then return end
 
     if vim.bo.buftype ~= "" then return end
+
+    local full_path = api.nvim_buf_get_name(0)
+    if
+      Config.behaviour.auto_suggestions_respect_ignore
+      and Utils.is_ignored(full_path, self.ignore_patterns, self.negate_patterns)
+    then
+      return
+    end
 
     local ctx = self:ctx()
 
