@@ -6,6 +6,7 @@ local Config = require("avante.config")
 local filetype_map = {
   ["javascriptreact"] = "javascript",
   ["typescriptreact"] = "typescript",
+  ["cs"] = "csharp",
 }
 
 ---@class AvanteRepoMap
