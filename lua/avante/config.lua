@@ -263,7 +263,7 @@ M.providers = {}
 function M.setup(opts)
   vim.validate({ opts = { opts, "table", true } })
 
-  M._options = vim.tbl_deep_extend(
+  local merged = vim.tbl_deep_extend(
     "force",
     M._defaults,
     opts or {},
@@ -274,6 +274,14 @@ function M.setup(opts)
       },
     }
   )
+
+  -- Check if provider is copilot and warn user
+  if merged.auto_suggestions_provider == "copilot" then
+    Utils.warn("Warning: Copilot is not recommended as the default auto suggestion provider. Switching to Claude.")
+    merged.auto_suggestions_provider = "claude"
+  end
+
+  M._options = merged
   M.providers = vim
     .iter(M._defaults)
     :filter(function(_, value) return type(value) == "table" and value.endpoint ~= nil end)
