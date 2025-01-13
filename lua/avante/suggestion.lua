@@ -21,7 +21,6 @@ local SUGGESTION_NS = api.nvim_create_namespace("avante_suggestion")
 ---@class avante.Suggestion
 ---@field id number
 ---@field augroup integer
----@field extmark_id integer
 ---@field ignore_patterns table
 ---@field negate_patterns table
 ---@field _timer? table
@@ -37,7 +36,6 @@ function Suggestion:new(id)
   local gitignore_patterns, gitignore_negate_patterns = Utils.parse_gitignore(gitignore_path)
 
   instance.id = id
-  instance.extmark_id = 1
   instance._timer = nil
   instance._contexts = {}
   instance.ignore_patterns = gitignore_patterns
@@ -80,7 +78,13 @@ function Suggestion:suggest()
       role = "user",
       content = [[
 <filepath>a.py</filepath>
-<code>def fib</code>
+<code>
+def fib
+
+if __name__ == "__main__":
+    # just pass
+    pass
+</code>
       ]],
     },
     {
@@ -95,11 +99,30 @@ function Suggestion:suggest()
       role = "assistant",
       content = [[
 [
-  {
-    "row": 1,
-    "col": 8,
-    "content": "(n):\n    if n < 2:\n        return n\n    return fib(n - 1) + fib(n - 2)"
-  }
+  [
+    {
+      "start_row": 1,
+      "end_row": 1,
+      "content": "def fib(n):\n    if n < 2:\n        return n\n    return fib(n - 1) + fib(n - 2)"
+    },
+    {
+      "start_row": 4,
+      "end_row": 5,
+      "content": "    fib(int(input()))"
+    },
+  ],
+  [
+    {
+      "start_row": 1,
+      "end_row": 1,
+      "content": "def fib(n):\n    a, b = 0, 1\n    for _ in range(n):\n        yield a\n        a, b = b, a + b"
+    },
+    {
+      "start_row": 4,
+      "end_row": 5,
+      "content": "    list(fib(int(input())))"
+    },
+  ]
 ]
       ]],
     },
@@ -128,21 +151,49 @@ function Suggestion:suggest()
         full_response = full_response:gsub("(.-)\n```\n?$", "%1")
         -- Remove everything before the first '[' to ensure we get just the JSON array
         full_response = full_response:gsub("^.-(%[.*)", "%1")
-        local ok, suggestions = pcall(vim.json.decode, full_response)
+        local ok, suggestions_list = pcall(vim.json.decode, full_response)
         if not ok then
           Utils.error("Error while decoding suggestions: " .. full_response, { once = true, title = "Avante" })
           return
         end
-        if not suggestions then
+        if not suggestions_list then
           Utils.info("No suggestions found", { once = true, title = "Avante" })
           return
         end
-        suggestions = vim
-          .iter(suggestions)
-          :map(function(s) return { row = s.row, col = s.col, content = Utils.trim_all_line_numbers(s.content) } end)
+        local current_lines = Utils.get_buf_lines(0, -1, bufnr)
+        suggestions_list = vim
+          .iter(suggestions_list)
+          :map(function(suggestions)
+            local new_suggestions = vim
+              .iter(suggestions)
+              :map(function(s)
+                local lines = vim.split(s.content, "\n")
+                local new_start_row = s.start_row
+                local new_content_lines = lines
+                for i = s.start_row, s.start_row + #lines - 1 do
+                  if current_lines[i] == lines[1] then
+                    new_start_row = i + 1
+                    new_content_lines = vim.list_slice(new_content_lines, 2)
+                  else
+                    break
+                  end
+                end
+                return {
+                  id = s.start_row,
+                  original_start_row = s.start_row,
+                  start_row = new_start_row,
+                  end_row = s.end_row,
+                  content = Utils.trim_all_line_numbers(table.concat(new_content_lines, "\n")),
+                }
+              end)
+              :totable()
+            --- sort the suggestions by start_row
+            table.sort(new_suggestions, function(a, b) return a.start_row < b.start_row end)
+            return new_suggestions
+          end)
           :totable()
-        ctx.suggestions = suggestions
-        ctx.current_suggestion_idx = 1
+        ctx.suggestions_list = suggestions_list
+        ctx.current_suggestions_idx = 1
         self:show()
       end)
     end,
@@ -155,74 +206,92 @@ function Suggestion:show()
   if not fn.mode():match("^[iR]") then return end
 
   local ctx = self:ctx()
-  local suggestion = ctx.suggestions[ctx.current_suggestion_idx]
-  if not suggestion then return end
-
-  local cursor_row, cursor_col = Utils.get_cursor_pos()
-
-  if suggestion.row < cursor_row then return end
 
   local bufnr = api.nvim_get_current_buf()
-  local row = suggestion.row
-  local col = suggestion.col
-  local content = suggestion.content
 
-  local lines = vim.split(content, "\n")
+  local suggestions = ctx.suggestions_list and ctx.suggestions_list[ctx.current_suggestions_idx] or nil
 
-  local extmark_col = cursor_col
+  if not suggestions then return end
 
-  if cursor_row < row then extmark_col = 0 end
+  for _, suggestion in ipairs(suggestions) do
+    local start_row = suggestion.start_row
+    local end_row = suggestion.end_row
+    local content = suggestion.content
 
-  local current_lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
+    local lines = vim.split(content, "\n")
 
-  if cursor_row == row then
-    local cursor_line_col = #current_lines[cursor_row] - 1
-    if cursor_col ~= cursor_line_col then
-      local current_line = current_lines[cursor_row]
-      lines[1] = lines[1] .. current_line:sub(col + 1, -1)
+    local current_lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
+
+    local virt_text_win_col = 0
+
+    if
+      start_row == end_row
+      and current_lines[start_row]
+      and #lines > 0
+      and vim.startswith(lines[1], current_lines[start_row])
+    then
+      virt_text_win_col = #current_lines[start_row]
+      lines[1] = string.sub(lines[1], #current_lines[start_row] + 1)
+    end
+
+    local virt_lines = {}
+
+    for _, line in ipairs(lines) do
+      table.insert(virt_lines, { { line, Highlights.SUGGESTION } })
+    end
+
+    local extmark = {
+      id = suggestion.id,
+      virt_text_win_col = virt_text_win_col,
+      virt_lines = virt_lines,
+    }
+
+    if virt_text_win_col > 0 then
+      extmark.virt_text = { { lines[1], Highlights.SUGGESTION } }
+      extmark.virt_lines = vim.list_slice(virt_lines, 2)
+    end
+
+    extmark.hl_mode = "combine"
+
+    local buf_lines = Utils.get_buf_lines(0, -1, bufnr)
+    local buf_lines_count = #buf_lines
+
+    while buf_lines_count < end_row do
+      api.nvim_buf_set_lines(bufnr, buf_lines_count, -1, false, { "" })
+      buf_lines_count = buf_lines_count + 1
+    end
+
+    if virt_text_win_col > 0 or start_row - 2 < 0 then
+      api.nvim_buf_set_extmark(bufnr, SUGGESTION_NS, start_row - 1, 0, extmark)
+    else
+      api.nvim_buf_set_extmark(bufnr, SUGGESTION_NS, start_row - 2, 0, extmark)
+    end
+
+    for i = start_row, end_row do
+      if i == start_row and virt_text_win_col > 0 then goto continue end
+      Utils.debug("add highlight", i - 1)
+      api.nvim_buf_add_highlight(bufnr, SUGGESTION_NS, Highlights.TO_BE_DELETED, i - 1, 0, -1)
+      ::continue::
     end
   end
-
-  local extmark = {
-    id = self.extmark_id,
-    virt_text_win_col = col,
-    virt_text = { { lines[1], Highlights.SUGGESTION } },
-  }
-
-  if #lines > 1 then
-    extmark.virt_lines = {}
-    for i = 2, #lines do
-      extmark.virt_lines[i - 1] = { { lines[i], Highlights.SUGGESTION } }
-    end
-  end
-
-  extmark.hl_mode = "combine"
-
-  local buf_lines = Utils.get_buf_lines(0, -1, bufnr)
-  local buf_lines_count = #buf_lines
-
-  while buf_lines_count < row do
-    api.nvim_buf_set_lines(bufnr, buf_lines_count, -1, false, { "" })
-    buf_lines_count = buf_lines_count + 1
-  end
-
-  api.nvim_buf_set_extmark(bufnr, SUGGESTION_NS, row - 1, extmark_col, extmark)
 end
 
 function Suggestion:is_visible()
-  return not not api.nvim_buf_get_extmark_by_id(0, SUGGESTION_NS, self.extmark_id, { details = false })[1]
+  local extmarks = api.nvim_buf_get_extmarks(0, SUGGESTION_NS, 0, -1, { details = false })
+  return #extmarks > 0
 end
 
-function Suggestion:hide() api.nvim_buf_del_extmark(0, SUGGESTION_NS, self.extmark_id) end
+function Suggestion:hide() api.nvim_buf_clear_namespace(0, SUGGESTION_NS, 0, -1) end
 
 function Suggestion:ctx()
   local bufnr = api.nvim_get_current_buf()
   local ctx = self._contexts[bufnr]
   if not ctx then
     ctx = {
-      suggestions = {},
-      current_suggestion_idx = 0,
+      suggestions_list = {},
+      current_suggestions_idx = 0,
       prev_doc = {},
+      internal_move = false,
     }
     self._contexts[bufnr] = ctx
   end
@@ -244,15 +313,15 @@ end
 
 function Suggestion:next()
   local ctx = self:ctx()
-  if #ctx.suggestions == 0 then return end
-  ctx.current_suggestion_idx = (ctx.current_suggestion_idx % #ctx.suggestions) + 1
+  if #ctx.suggestions_list == 0 then return end
+  ctx.current_suggestions_idx = (ctx.current_suggestions_idx % #ctx.suggestions_list) + 1
   self:show()
 end
 
 function Suggestion:prev()
   local ctx = self:ctx()
-  if #ctx.suggestions == 0 then return end
-  ctx.current_suggestion_idx = ((ctx.current_suggestion_idx - 2 + #ctx.suggestions) % #ctx.suggestions) + 1
+  if #ctx.suggestions_list == 0 then return end
+  ctx.current_suggestions_idx = ((ctx.current_suggestions_idx - 2 + #ctx.suggestions_list) % #ctx.suggestions_list) + 1
   self:show()
 end
 
@@ -262,56 +331,122 @@ function Suggestion:dismiss()
   self:reset()
 end
 
+function Suggestion:get_current_suggestion()
+  local ctx = self:ctx()
+  local suggestions = ctx.suggestions_list and ctx.suggestions_list[ctx.current_suggestions_idx] or nil
+  if not suggestions then return nil end
+  local cursor_row, _ = Utils.get_cursor_pos(0)
+  Utils.debug("cursor row", cursor_row)
+  for _, suggestion in ipairs(suggestions) do
+    if suggestion.original_start_row - 1 <= cursor_row and suggestion.end_row >= cursor_row then return suggestion end
+  end
+end
+
+function Suggestion:get_next_suggestion()
+  local ctx = self:ctx()
+  local suggestions = ctx.suggestions_list and ctx.suggestions_list[ctx.current_suggestions_idx] or nil
+  if not suggestions then return nil end
+  local cursor_row, _ = Utils.get_cursor_pos()
+  local new_suggestions = {}
+  for _, suggestion in ipairs(suggestions) do
+    table.insert(new_suggestions, suggestion)
+  end
+  --- sort the suggestions by cursor distance
+  table.sort(
+    new_suggestions,
+    function(a, b) return math.abs(a.start_row - cursor_row) < math.abs(b.start_row - cursor_row) end
+  )
+  --- get the closest suggestion to the cursor
+  return new_suggestions[1]
+end
+
 function Suggestion:accept()
   -- Llm.cancel_inflight_request()
-  api.nvim_buf_del_extmark(0, SUGGESTION_NS, self.extmark_id)
   local ctx = self:ctx()
-  local suggestion = ctx.suggestions and ctx.suggestions[ctx.current_suggestion_idx] or nil
-  if not suggestion then
+  local suggestions = ctx.suggestions_list and ctx.suggestions_list[ctx.current_suggestions_idx] or nil
+  Utils.debug("suggestions", suggestions)
+  if not suggestions then
     if Config.mappings.suggestion and Config.mappings.suggestion.accept == "<Tab>" then
       api.nvim_feedkeys(api.nvim_replace_termcodes("<Tab>", true, false, true), "n", true)
     end
     return
   end
-  local bufnr = api.nvim_get_current_buf()
-  local current_lines = Utils.get_buf_lines(0, -1, bufnr)
-  local row = suggestion.row
-  local col = suggestion.col
-  local content = suggestion.content
-  local lines = vim.split(content, "\n")
-  local cursor_row, cursor_col = Utils.get_cursor_pos()
-  if row > cursor_row then api.nvim_buf_set_lines(bufnr, row - 1, row - 1, false, { "" }) end
-  local line_count = #lines
-  if line_count > 0 then
-    if cursor_row == row then
-      local cursor_line_col = #current_lines[cursor_row] - 1
-      if cursor_col ~= cursor_line_col then
-        local current_line_ = current_lines[cursor_row]
-        lines[1] = lines[1] .. current_line_:sub(col + 1, -1)
-      end
-    end
-    local current_line = current_lines[row] or ""
-    local current_line_max_col = #current_line - 1
-    local start_col = col
-    if start_col > current_line_max_col then
-      lines[1] = string.rep(" ", start_col - current_line_max_col - 1) .. lines[1]
-      start_col = -1
-    end
-    api.nvim_buf_set_text(bufnr, row - 1, start_col, row - 1, -1, { lines[1] })
-    if #lines > 1 then
-      local insert_lines = vim.list_slice(lines, 2)
-      api.nvim_buf_set_lines(bufnr, row, row, true, insert_lines)
+  local suggestion = self:get_current_suggestion()
+  Utils.debug("current suggestion", suggestion)
+  if not suggestion then
+    suggestion = self:get_next_suggestion()
+    if suggestion then
+      local lines = api.nvim_buf_get_lines(0, 0, -1, false)
+      local line = lines[suggestion.start_row - 1]
+      self:set_internal_move(true)
+      api.nvim_win_set_cursor(0, { suggestion.start_row - 1, #line })
+      self:set_internal_move(false)
+      return
     end
   end
+  if not suggestion then return end
+  api.nvim_buf_del_extmark(0, SUGGESTION_NS, suggestion.id)
+  local bufnr = api.nvim_get_current_buf()
+  local start_row = suggestion.start_row
+  local end_row = suggestion.end_row
+  local content = suggestion.content
+  local lines = vim.split(content, "\n")
+  local cursor_row, _ = Utils.get_cursor_pos()
+
+  local replaced_line_count = end_row - start_row + 1
+
+  if replaced_line_count > #lines then
+    Utils.debug("delete lines")
+    api.nvim_buf_set_lines(bufnr, start_row + #lines - 1, end_row, false, {})
+    api.nvim_buf_set_lines(bufnr, start_row - 1, start_row + #lines, false, lines)
+  else
+    Utils.debug("replace lines", start_row - 1, end_row, lines)
+    api.nvim_buf_set_lines(bufnr, start_row - 1, end_row, false, lines)
+  end
+
+  local line_count = #lines
 
   local down_count = line_count - 1
-  if row > cursor_row then down_count = down_count + 1 end
+  if start_row > cursor_row then down_count = down_count + 1 end
 
   local cursor_keys = string.rep("<Down>", down_count) .. "<End>"
+  self:set_internal_move(true)
   api.nvim_feedkeys(api.nvim_replace_termcodes(cursor_keys, true, false, true), "n", false)
+  self:set_internal_move(false)
 
-  self:hide()
-  self:reset()
+  local row_diff = #lines - replaced_line_count
+
+  ctx.suggestions_list[ctx.current_suggestions_idx] = vim
+    .iter(suggestions)
+    :filter(function(s) return s.start_row ~= suggestion.start_row end)
+    :map(function(s)
+      if s.start_row > suggestion.start_row then
+        s.original_start_row = s.original_start_row + row_diff
+        s.start_row = s.start_row + row_diff
+        s.end_row = s.end_row + row_diff
+      end
+      return s
+    end)
+    :totable()
+end
+
+function Suggestion:is_internal_move()
+  local ctx = self:ctx()
+  Utils.debug("is internal move", ctx and ctx.internal_move)
+  return ctx and ctx.internal_move
+end
+
+function Suggestion:set_internal_move(internal_move)
+  local ctx = self:ctx()
+  if not internal_move then
+    vim.schedule(function()
+      Utils.debug("set internal move", internal_move)
+      ctx.internal_move = internal_move
+    end)
+  else
+    Utils.debug("set internal move", internal_move)
+    ctx.internal_move = internal_move
+  end
 end
 
 function Suggestion:setup_autocmds()
@@ -326,6 +461,8 @@ function Suggestion:setup_autocmds()
   end, 700)
 
   local function suggest_callback()
+    if self:is_internal_move() then return end
+
     if not vim.bo.buflisted then return end
 
     if vim.bo.buftype ~= "" then return end
