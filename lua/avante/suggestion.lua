@@ -173,7 +173,7 @@ L5:    pass
                 local new_start_row = s.start_row
                 local new_content_lines = lines
                 for i = s.start_row, s.start_row + #lines - 1 do
-                  if current_lines[i] == lines[1] then
+                  if current_lines[i] == lines[i - s.start_row + 1] then
                     new_start_row = i + 1
                     new_content_lines = vim.list_slice(new_content_lines, 2)
                   else
@@ -363,7 +363,6 @@ function Suggestion:get_next_suggestion()
 end
 
 function Suggestion:accept()
-  -- Llm.cancel_inflight_request()
   local ctx = self:ctx()
   local suggestions = ctx.suggestions_list and ctx.suggestions_list[ctx.current_suggestions_idx] or nil
   Utils.debug("suggestions", suggestions)
@@ -409,8 +408,11 @@ function Suggestion:accept()
     api.nvim_buf_set_lines(bufnr, start_row + #lines - 1, end_row, false, {})
     api.nvim_buf_set_lines(bufnr, start_row - 1, start_row + #lines, false, lines)
   else
-    Utils.debug("replace lines", start_row - 1, end_row, lines)
-    api.nvim_buf_set_lines(bufnr, start_row - 1, end_row, false, lines)
+    local start_line = start_row - 1
+    local end_line = end_row
+    if end_line < start_line then end_line = start_line end
+    Utils.debug("replace lines", start_line, end_line, lines)
+    api.nvim_buf_set_lines(bufnr, start_line, end_line, false, lines)
   end
 
   local row_diff = #lines - replaced_line_count
