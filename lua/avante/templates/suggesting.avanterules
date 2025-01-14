@@ -41,7 +41,7 @@ Guidelines:
   2. Each segment in the returned list must be non-overlapping, and together they constitute this code modification.
   3. DO NOT include three backticks: {%raw%}```{%endraw%} in your suggestion. Treat the suggested code AS IS.
   4. Each element in the returned list is a COMPLETE code snippet.
-  5. MUST be a valid JSON format. DON NOT be lazy!
+  5. MUST be a valid JSON format. DO NOT be lazy!
   6. Only return the new code to be inserted. DON NOT be lazy!
   7. Please strictly check the code around the position and ensure that the complete code after insertion is correct. DO NOT be lazy!
   8. Do not return the entire file content or any surrounding code.

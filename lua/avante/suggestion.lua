@@ -25,6 +25,7 @@ local SUGGESTION_NS = api.nvim_create_namespace("avante_suggestion")
 ---@field negate_patterns table
 ---@field _timer? table
 ---@field _contexts table
+---@field is_on_throttle boolean
 local Suggestion = {}
 Suggestion.__index = Suggestion
 
@@ -40,6 +41,7 @@ function Suggestion:new(id)
   instance._contexts = {}
   instance.ignore_patterns = gitignore_patterns
   instance.negate_patterns = gitignore_negate_patterns
+  instance.is_on_throttle = false
   if Config.behaviour.auto_suggestions then
     if not vim.g.avante_login or vim.g.avante_login == false then
       api.nvim_exec_autocmds("User", { pattern = Providers.env.REQUEST_LOGIN_PATTERN })
@@ -79,11 +81,11 @@ function Suggestion:suggest()
       content = [[
 <filepath>a.py</filepath>
 <code>
-def fib
-
-if __name__ == "__main__":
-    # just pass
-    pass
+L1: def fib
+L2:
+L3: if __name__ == "__main__":
+L4:    # just pass
+L5:    pass
 </code>
       ]],
     },
@@ -376,10 +378,17 @@ function Suggestion:accept()
   if not suggestion then
     suggestion = self:get_next_suggestion()
     if suggestion then
+      Utils.debug("next suggestion", suggestion)
       local lines = api.nvim_buf_get_lines(0, 0, -1, false)
-      local line = lines[suggestion.start_row - 1]
+      local first_line_row = suggestion.start_row
+      if first_line_row > 1 then first_line_row = first_line_row - 1 end
+      local line = lines[first_line_row]
+      local col = 0
+      if line ~= nil then col = #line end
       self:set_internal_move(true)
-      api.nvim_win_set_cursor(0, { suggestion.start_row - 1, #line })
+      api.nvim_win_set_cursor(0, { first_line_row, col })
+      vim.cmd("normal! zz")
+      vim.cmd("startinsert")
       self:set_internal_move(false)
       return
     end
@@ -404,16 +413,6 @@ function Suggestion:accept()
     api.nvim_buf_set_lines(bufnr, start_row - 1, end_row, false, lines)
   end
 
-  local line_count = #lines
-
-  local down_count = line_count - 1
-  if start_row > cursor_row then down_count = down_count + 1 end
-
-  local cursor_keys = string.rep("<Down>", down_count) .. "<End>"
-  self:set_internal_move(true)
-  api.nvim_feedkeys(api.nvim_replace_termcodes(cursor_keys, true, false, true), "n", false)
-  self:set_internal_move(false)
-
   local row_diff = #lines - replaced_line_count
 
   ctx.suggestions_list[ctx.current_suggestions_idx] = vim
@@ -428,6 +427,18 @@ function Suggestion:accept()
       return s
     end)
     :totable()
+
+  local line_count = #lines
+
+  local down_count = line_count - 1
+  if start_row > cursor_row then down_count = down_count + 1 end
+
+  local cursor_keys = string.rep("<Down>", down_count) .. "<End>"
+  suggestions = ctx.suggestions_list and ctx.suggestions_list[ctx.current_suggestions_idx] or {}
+
+  if #suggestions > 0 then self:set_internal_move(true) end
+  api.nvim_feedkeys(api.nvim_replace_termcodes(cursor_keys, true, false, true), "n", false)
+  if #suggestions > 0 then self:set_internal_move(false) end
 end
 
 function Suggestion:is_internal_move()
@@ -454,13 +465,18 @@ function Suggestion:setup_autocmds()
   local last_cursor_pos = {}
 
   local check_for_suggestion = Utils.debounce(function()
+    if self.is_on_throttle then return end
     local current_cursor_pos = api.nvim_win_get_cursor(0)
     if last_cursor_pos[1] == current_cursor_pos[1] and last_cursor_pos[2] == current_cursor_pos[2] then
+      self.is_on_throttle = true
+      vim.defer_fn(function() self.is_on_throttle = false end, Config.suggestion.throttle)
       self:suggest()
     end
-  end, 700)
+  end, Config.suggestion.debounce)
 
   local function suggest_callback()
+    if self.is_on_throttle then return end
+
     if self:is_internal_move() then return end
 
     if not vim.bo.buflisted then return end

@@ -246,6 +246,10 @@ M._defaults = {
     -- Options override for custom providers
     provider_opts = {},
   },
+  suggestion = {
+    debounce = 600,
+    throttle = 600,
+  },
 }
 
 ---@type avante.Config
