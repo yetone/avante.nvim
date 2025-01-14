@@ -285,7 +285,9 @@ function FileSelector:get_selected_files_contents()
       if read_err then Utils.debug("failed to read:", file_path, read_err) end
 
       -- Detect the file type
-      local filetype = vim.filetype.match({ filename = file_path, contents = contents }) or "unknown"
+      local filetype = Utils.file.detect_filetype(file_path, {
+        contents = vim.split(content, "\n"),
+      })
 
       table.insert(contents, { path = file_path, content = content, file_type = filetype })
     end
