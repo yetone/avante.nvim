@@ -274,6 +274,16 @@ end
 function FileSelector:get_selected_files_contents()
   local contents = {}
   for _, file_path in ipairs(self.selected_filepaths) do
+    --- lookup loaded buffer firstly
+    local bufnr = vim.fn.bufnr(file_path)
+    if bufnr ~= -1 then
+      local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+      local content = table.concat(lines, "\n")
+      local filetype = vim.api.nvim_get_option_value("filetype", { buf = bufnr })
+      table.insert(contents, { path = file_path, content = content, file_type = filetype })
+      goto continue
+    end
+
     local file, open_err = io.open(file_path, "r")
 
     if open_err then Utils.debug("error reading file:", open_err) end
@@ -289,6 +299,7 @@ function FileSelector:get_selected_files_contents()
 
       table.insert(contents, { path = file_path, content = content, file_type = filetype })
     end
+    ::continue::
   end
   return contents
 end
