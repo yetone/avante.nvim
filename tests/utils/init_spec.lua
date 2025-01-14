@@ -120,4 +120,57 @@ describe("Utils", function()
       assert.equals("diagnostics", mentions[2].command)
     end)
   end)
+
+  describe("debounce", function()
+    it("should debounce function calls", function()
+      local count = 0
+      local debounced = Utils.debounce(function() count = count + 1 end, 100)
+
+      -- Call multiple times in quick succession
+      debounced()
+      debounced()
+      debounced()
+
+      -- Should not have executed yet
+      assert.equals(0, count)
+
+      -- Wait for debounce timeout
+      vim.wait(200, function() return false end)
+
+      -- Should have executed once
+      assert.equals(1, count)
+    end)
+
+    it("should cancel previous timer on new calls", function()
+      local count = 0
+      local debounced = Utils.debounce(function(c) count = c end, 100)
+
+      -- First call
+      debounced(1)
+
+      -- Wait partial time
+      vim.wait(50, function() return false end)
+
+      -- Second call should cancel first
+      debounced(233)
+
+      -- Wait for timeout
+      vim.wait(200, function() return false end)
+
+      -- Should only execute the latest once
+      assert.equals(233, count)
+    end)
+
+    it("should pass arguments correctly", function()
+      local result
+      local debounced = Utils.debounce(function(x, y) result = x + y end, 100)
+
+      debounced(2, 3)
+
+      -- Wait for timeout
+      vim.wait(200, function() return false end)
+
+      assert.equals(5, result)
+    end)
+  end)
 end)
