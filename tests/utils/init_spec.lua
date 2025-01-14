@@ -154,6 +154,9 @@ describe("Utils", function()
       -- Second call should cancel first
       debounced(233)
 
+      -- Count should still be 0
+      assert.equals(0, count)
+
       -- Wait for timeout
       vim.wait(200, function() return false end)
 
