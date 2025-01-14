@@ -544,8 +544,8 @@ If you have the following structure:
 - [x] Edit the selected block
 - [x] Smart Tab (Cursor Flow)
 - [x] Chat with project (You can use `@codebase` to chat with the whole project)
+- [x] Chat with selected files
 - [ ] CoT
-- [ ] Chat with selected files
 
 ## Roadmap
 

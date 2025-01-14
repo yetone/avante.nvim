@@ -15,6 +15,7 @@ local Highlights = {
   ANNOTATION = { name = "AvanteAnnotation", link = "Comment" },
   POPUP_HINT = { name = "AvantePopupHint", link = "NormalFloat" },
   INLINE_HINT = { name = "AvanteInlineHint", link = "Keyword" },
+  TO_BE_DELETED = { name = "AvanteToBeDeleted", bg = "#ffcccc", strikethrough = true },
 }
 
 Highlights.conflict = {
@@ -46,7 +47,11 @@ M.setup = function()
       end)
       :each(function(_, hl)
         if not has_set_colors(hl.name) then
-          api.nvim_set_hl(0, hl.name, { fg = hl.fg or nil, bg = hl.bg or nil, link = hl.link or nil })
+          api.nvim_set_hl(
+            0,
+            hl.name,
+            { fg = hl.fg or nil, bg = hl.bg or nil, link = hl.link or nil, strikethrough = hl.strikethrough }
+          )
         end
       end)
   end
