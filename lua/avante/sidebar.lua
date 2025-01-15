@@ -1599,7 +1599,7 @@ function Sidebar:create_input_container(opts)
     end
 
     return {
-      ask = opts.ask,
+      ask = opts.ask or true,
       project_context = vim.json.encode(project_context),
       selected_files = selected_files_contents,
       diagnostics = vim.json.encode(diagnostics),
