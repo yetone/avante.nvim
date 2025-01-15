@@ -263,6 +263,9 @@ M.diff = {}
 ---@type Provider[]
 M.providers = {}
 
+---@type AvanteProvider[]
+M.vendors = {}
+
 ---@param opts? avante.Config
 function M.setup(opts)
   vim.validate({ opts = { opts, "table", true } })
