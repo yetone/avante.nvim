@@ -32,8 +32,8 @@ Your task is to suggest code modifications at the cursor position. Follow these 
     {% endraw %}
 
     JSON fields explanation:
-      start_row: The starting row of the code snippet you want to replace (1-indexed), inclusive
-      end_row: The ending row of the code snippet you want to replace (1-indexed), inclusive
+      start_row: The starting row of the code snippet you want to replace, start from 1, inclusive
+      end_row: The ending row of the code snippet you want to replace, start from 1, inclusive
       content: The suggested code you want to replace the original code with
 
 Guidelines:
@@ -52,4 +52,5 @@ Guidelines:
   13. If there are no recommended modifications, return an empty list.
   14. Remember to ONLY RETURN the suggested code snippet, without any additional formatting or explanation.
   15. The returned code must satisfy the context, especially the context where the current cursor is located.
+  16. Each line in the returned code snippet is complete code; do not include incomplete code.
 {% endblock %}

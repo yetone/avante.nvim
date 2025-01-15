@@ -213,6 +213,8 @@ function Suggestion:show()
 
   local suggestions = ctx.suggestions_list and ctx.suggestions_list[ctx.current_suggestions_idx] or nil
 
+  Utils.debug("show suggestions", suggestions)
+
   if not suggestions then return end
 
   for _, suggestion in ipairs(suggestions) do
