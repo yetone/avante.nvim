@@ -383,7 +383,7 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 > [!IMPORTANT]
 >
 > Avante will only support Claude, and OpenAI (and its variants including azure)out-of-the-box due to its high code quality generation.
-> For all OpenAI-compatible providers, see [wiki](https://github.com/yetone/avante.nvim/wiki) for more details.
+> For all OpenAI-compatible providers, see [wiki](https://github.com/yetone/avante.nvim/wiki/Custom-providers) for more details.
 
 > [!IMPORTANT]
 >
