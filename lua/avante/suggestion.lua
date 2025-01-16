@@ -130,9 +130,12 @@ L5:    pass
     },
   }
 
+  local diagnostics = Utils.get_diagnostics(bufnr)
+
   Llm.stream({
     provider = provider,
     ask = true,
+    diagnostics = vim.json.encode(diagnostics),
     selected_files = { { content = code_content, file_type = filetype, path = "" } },
     code_lang = filetype,
     history_messages = history_messages,
