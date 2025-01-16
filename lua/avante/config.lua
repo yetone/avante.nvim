@@ -263,9 +263,6 @@ M.diff = {}
 ---@type Provider[]
 M.providers = {}
 
----@type AvanteProvider[]
-M.vendors = {}
-
 ---@param opts? avante.Config
 function M.setup(opts)
   vim.validate({ opts = { opts, "table", true } })
@@ -357,7 +354,7 @@ M.has_provider = function(provider) return M._options[provider] ~= nil or M.vend
 M.get_provider = function(provider)
   if M._options[provider] ~= nil then
     return vim.deepcopy(M._options[provider], true)
-  elseif M.vendors[provider] ~= nil then
+  elseif M.vendors and M.vendors[provider] ~= nil then
     return vim.deepcopy(M.vendors[provider], true)
   else
     error("Failed to find provider: " .. provider, 2)
