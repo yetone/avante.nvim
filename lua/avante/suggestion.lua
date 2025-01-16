@@ -206,6 +206,8 @@ L5:    pass
 end
 
 function Suggestion:show()
+  Utils.debug("showing suggestions, mode:", fn.mode())
+
   self:hide()
 
   if not fn.mode():match("^[iR]") then return end
@@ -231,14 +233,23 @@ function Suggestion:show()
 
     local virt_text_win_col = 0
 
-    if
-      start_row == end_row
-      and current_lines[start_row]
-      and #lines > 0
-      and vim.startswith(lines[1], current_lines[start_row])
-    then
-      virt_text_win_col = #current_lines[start_row]
-      lines[1] = string.sub(lines[1], #current_lines[start_row] + 1)
+    if start_row == end_row and current_lines[start_row] and #lines > 0 then
+      if vim.startswith(lines[1], current_lines[start_row]) then
+        virt_text_win_col = #current_lines[start_row]
+        lines[1] = string.sub(lines[1], #current_lines[start_row] + 1)
+      else
+        local patch = vim.diff(
+          current_lines[start_row],
+          lines[1],
+          ---@diagnostic disable-next-line: missing-fields
+          { algorithm = "histogram", result_type = "indices", ctxlen = vim.o.scrolloff }
+        )
+        Utils.debug("patch", patch)
+        if patch and #patch > 0 then
+          virt_text_win_col = patch[1][3]
+          lines[1] = string.sub(lines[1], patch[1][3] + 1)
+        end
+      end
     end
 
     local virt_lines = {}
