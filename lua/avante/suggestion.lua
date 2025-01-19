@@ -183,6 +183,7 @@ L5:    pass
                     break
                   end
                 end
+                if #new_content_lines == 0 then return nil end
                 return {
                   id = s.start_row,
                   original_start_row = s.start_row,
@@ -191,6 +192,7 @@ L5:    pass
                   content = Utils.trim_all_line_numbers(table.concat(new_content_lines, "\n")),
                 }
               end)
+              :filter(function(s) return s ~= nil end)
               :totable()
             --- sort the suggestions by start_row
             table.sort(new_suggestions, function(a, b) return a.start_row < b.start_row end)
