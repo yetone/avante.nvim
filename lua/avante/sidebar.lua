@@ -86,6 +86,7 @@ function Sidebar:open(opts)
     self:initialize()
     if opts.selection then self.code.selection = opts.selection end
     self:render(opts)
+    self:focus()
   else
     if in_visual_mode or opts.selection then
       self:close()
@@ -1049,7 +1050,9 @@ function Sidebar:on_mount(opts)
           and api.nvim_win_is_valid(self.input_container.winid)
         then
           api.nvim_set_current_win(self.input_container.winid)
-          if Config.windows.ask.start_insert then vim.cmd("startinsert") end
+          vim.schedule(function()
+            if Config.windows.ask.start_insert then vim.cmd("startinsert") end
+          end)
         end
       end
       return true
@@ -1202,7 +1205,7 @@ end
 ---@param opts? {focus?: boolean, scroll?: boolean, backspace?: integer, ignore_history?: boolean, callback?: fun(): nil} whether to focus the result view
 function Sidebar:update_content(content, opts)
   if not self.result_container or not self.result_container.bufnr then return end
-  opts = vim.tbl_deep_extend("force", { focus = true, scroll = true, stream = false, callback = nil }, opts or {})
+  opts = vim.tbl_deep_extend("force", { focus = false, scroll = true, stream = false, callback = nil }, opts or {})
   if not opts.ignore_history then
     local chat_history = Path.history.load(self.code.bufnr)
     content = self:render_history_content(chat_history) .. "---\n\n" .. content
@@ -1257,7 +1260,7 @@ function Sidebar:update_content(content, opts)
       Utils.update_buffer_content(self.result_container.bufnr, lines)
       Utils.lock_buf(self.result_container.bufnr)
       api.nvim_set_option_value("filetype", "Avante", { buf = self.result_container.bufnr })
-      if opts.focus and Config.behaviour.auto_focus_sidebar and not self:is_focused_on_result() then
+      if opts.focus and not self:is_focused_on_result() then
         --- set cursor to bottom of result view
         xpcall(function() api.nvim_set_current_win(self.result_container.winid) end, function(err) return err end)
       end
@@ -1719,7 +1722,7 @@ function Sidebar:create_input_container(opts)
           self.result_container
           and self.result_container.winid
           and api.nvim_win_is_valid(self.result_container.winid)
-          and Config.behaviour.auto_focus_sidebar
+          and Config.behaviour.jump_result_buffer_on_finish
         then
           api.nvim_set_current_win(self.result_container.winid)
         end
