@@ -234,8 +234,9 @@ function Suggestion:show()
     local current_lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
 
     local virt_text_win_col = 0
+    local cursor_row, _ = Utils.get_cursor_pos()
 
-    if start_row == end_row and current_lines[start_row] and #lines > 0 then
+    if start_row == end_row and start_row == cursor_row and current_lines[start_row] and #lines > 0 then
       if vim.startswith(lines[1], current_lines[start_row]) then
         virt_text_win_col = #current_lines[start_row]
         lines[1] = string.sub(lines[1], #current_lines[start_row] + 1)
@@ -288,7 +289,7 @@ function Suggestion:show()
     end
 
     for i = start_row, end_row do
-      if i == start_row and virt_text_win_col > 0 then goto continue end
+      if i == start_row and start_row == cursor_row and virt_text_win_col > 0 then goto continue end
       Utils.debug("add highlight", i - 1)
       api.nvim_buf_add_highlight(bufnr, SUGGESTION_NS, Highlights.TO_BE_DELETED, i - 1, 0, -1)
       ::continue::
