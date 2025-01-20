@@ -1050,9 +1050,12 @@ function Sidebar:on_mount(opts)
           and api.nvim_win_is_valid(self.input_container.winid)
         then
           api.nvim_set_current_win(self.input_container.winid)
-          vim.schedule(function()
-            if Config.windows.ask.start_insert then vim.cmd("startinsert") end
-          end)
+          vim.defer_fn(function()
+            if Config.windows.ask.start_insert then
+              Utils.debug("starting insert")
+              vim.cmd("startinsert")
+            end
+          end, 300)
         end
       end
       return true
@@ -1672,6 +1675,30 @@ function Sidebar:create_input_container(opts)
     local current_path = ""
 
     local is_first_chunk = true
+    local scroll = true
+
+    ---stop scroll when user presses j/k keys
+    local function on_j()
+      scroll = false
+      ---perform scroll
+      vim.cmd("normal! j")
+    end
+
+    local function on_k()
+      scroll = false
+      ---perform scroll
+      vim.cmd("normal! k")
+    end
+
+    local function on_G()
+      scroll = true
+      ---perform scroll
+      vim.cmd("normal! G")
+    end
+
+    vim.keymap.set("n", "j", on_j, { buffer = self.result_container.bufnr })
+    vim.keymap.set("n", "k", on_k, { buffer = self.result_container.bufnr })
+    vim.keymap.set("n", "G", on_G, { buffer = self.result_container.bufnr })
 
     ---@type AvanteChunkParser
     local on_chunk = function(chunk)
@@ -1687,32 +1714,36 @@ function Sidebar:create_input_container(opts)
       local cur_displayed_response = generate_display_content(transformed)
       if is_first_chunk then
         is_first_chunk = false
-        self:update_content(content_prefix .. chunk, { scroll = true })
+        self:update_content(content_prefix .. chunk, { scroll = scroll })
         return
       end
       local suffix = get_display_content_suffix(transformed)
-      self:update_content(content_prefix .. cur_displayed_response .. suffix, { scroll = true })
+      self:update_content(content_prefix .. cur_displayed_response .. suffix, { scroll = scroll })
       vim.schedule(function() vim.cmd("redraw") end)
       displayed_response = cur_displayed_response
     end
 
     ---@type AvanteCompleteParser
     local on_complete = function(err)
+      ---remove keymaps
+      vim.keymap.del("n", "j", { buffer = self.result_container.bufnr })
+      vim.keymap.del("n", "k", { buffer = self.result_container.bufnr })
+      vim.keymap.del("n", "G", { buffer = self.result_container.bufnr })
+
       if err ~= nil then
         self:update_content(
           content_prefix .. displayed_response .. "\n\nError: " .. vim.inspect(err),
-          { scroll = true }
+          { scroll = scroll }
         )
         return
       end
 
-      -- Execute when the stream request is actually completed
       self:update_content(
         content_prefix
           .. displayed_response
           .. "\n\n**Generation complete!** Please review the code suggestions above.\n",
         {
-          scroll = true,
+          scroll = scroll,
           callback = function() api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN }) end,
         }
       )
