@@ -158,6 +158,15 @@ function FileSelector:fzf_ui(handler)
   }))
 end
 
+function FileSelector:mini_pick_ui(handler)
+  local success, mini_pick = pcall(require, "mini.pick")
+  if not success then
+    Utils.error("mini.pick is not installed. Please install mini.pick to use it as a file selector.")
+    return
+  end
+  handler(mini_pick.builtin.files())
+end
+
 function FileSelector:telescope_ui(handler)
   local success, _ = pcall(require, "telescope")
   if not success then
@@ -245,6 +254,8 @@ function FileSelector:show_select_ui()
       self:native_ui(handler)
     elseif Config.file_selector.provider == "fzf" then
       self:fzf_ui(handler)
+    elseif Config.file_selector.provider == "mini.pick" then
+      self:mini_pick_ui(handler)
     elseif Config.file_selector.provider == "telescope" then
       self:telescope_ui(handler)
     else
