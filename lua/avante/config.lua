@@ -241,7 +241,7 @@ M._defaults = {
   },
   --- @class AvanteFileSelectorConfig
   file_selector = {
-    --- @alias FileSelectorProvider "native" | "fzf" | "telescope" | string
+    --- @alias FileSelectorProvider "native" | "fzf" | "mini.pick" | "telescope" | string
     provider = "native",
     -- Options override for custom providers
     provider_opts = {},
