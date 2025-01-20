@@ -285,32 +285,27 @@ end
 function FileSelector:get_selected_files_contents()
   local contents = {}
   for _, file_path in ipairs(self.selected_filepaths) do
-    --- lookup loaded buffer firstly
+    --- Lookup if the file is loaded in a buffer
     local bufnr = vim.fn.bufnr(file_path)
-    if bufnr ~= -1 then
+    if bufnr ~= -1 and vim.api.nvim_buf_is_loaded(bufnr) then
+      -- If buffer exists and is loaded, get buffer content
       local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
       local content = table.concat(lines, "\n")
       local filetype = vim.api.nvim_get_option_value("filetype", { buf = bufnr })
       table.insert(contents, { path = file_path, content = content, file_type = filetype })
-      goto continue
+    else
+      -- Fallback: read file from disk
+      local file, open_err = io.open(file_path, "r")
+      if file then
+        local content = file:read("*all")
+        file:close()
+        -- Detect the file type using the specific file's content
+        local filetype = vim.filetype.match({ filename = file_path, contents = { content } }) or "unknown"
+        table.insert(contents, { path = file_path, content = content, file_type = filetype })
+      else
+        Utils.debug("error reading file:", open_err)
+      end
     end
-
-    local file, open_err = io.open(file_path, "r")
-
-    if open_err then Utils.debug("error reading file:", open_err) end
-
-    if file then
-      local content, read_err = file:read("*all")
-      file:close()
-
-      if read_err then Utils.debug("failed to read:", file_path, read_err) end
-
-      -- Detect the file type
-      local filetype = vim.filetype.match({ filename = file_path, contents = contents }) or "unknown"
-
-      table.insert(contents, { path = file_path, content = content, file_type = filetype })
-    end
-    ::continue::
   end
   return contents
 end
