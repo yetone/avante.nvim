@@ -285,8 +285,9 @@ function M.setup(opts)
 
   -- Check if provider is copilot and warn user
   if merged.auto_suggestions_provider == "copilot" then
-    Utils.warn("Warning: Copilot is not recommended as the default auto suggestion provider. Switching to Claude.")
-    merged.auto_suggestions_provider = "claude"
+    Utils.warn(
+      "Warning: Copilot is not recommended as the default auto suggestion provider. Because: https://github.com/yetone/avante.nvim/issues/1048"
+    )
   end
 
   M._options = merged
