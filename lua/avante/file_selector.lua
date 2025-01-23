@@ -204,7 +204,7 @@ function FileSelector:telescope_ui(handler)
             else
               local selection = action_state.get_selected_entry()
 
-              handler(selection[1])
+              if selection and #selection > 0 then handler(selection[1]) end
             end
 
             actions.close(prompt_bufnr)
