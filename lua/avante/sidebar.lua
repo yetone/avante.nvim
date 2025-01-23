@@ -68,7 +68,7 @@ function Sidebar:reset()
   self.code = { bufnr = 0, winid = 0, selection = nil }
   self.winids =
     { result_container = 0, selected_files_container = 0, selected_code_container = 0, input_container = 0 }
-  self.result_container = nil
+  self.result_container = self.result_container or {}
   self.selected_code_container = nil
   self.selected_files_container = nil
   self.input_container = nil
@@ -2100,7 +2100,11 @@ function Sidebar:render(opts)
 
   -- reset states when buffer is closed
   api.nvim_buf_attach(self.code.bufnr, false, {
-    on_detach = function(_, _) self:reset() end,
+    on_detach = function(_, _)
+      if self and self.reset then
+        self:reset()
+      end
+    end,
   })
 
   self:create_selected_code_container()
