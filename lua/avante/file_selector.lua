@@ -167,6 +167,18 @@ function FileSelector:mini_pick_ui(handler)
   handler(mini_pick.builtin.files())
 end
 
+function FileSelector:snacks_picker_ui(handler)
+  Snacks.picker.files({
+    exclude = self.selected_filepaths,
+    confirm = function(picker)
+      picker:close()
+      local items = picker:selected({ fallback = true })
+      local files = vim.tbl_map(function(item) return item.file end, items)
+      handler(files)
+    end,
+  })
+end
+
 function FileSelector:telescope_ui(handler)
   local success, _ = pcall(require, "telescope")
   if not success then
@@ -256,6 +268,8 @@ function FileSelector:show_select_ui()
       self:fzf_ui(handler)
     elseif Config.file_selector.provider == "mini.pick" then
       self:mini_pick_ui(handler)
+    elseif Config.file_selector.provider == "snacks" then
+      self:snacks_picker_ui(handler)
     elseif Config.file_selector.provider == "telescope" then
       self:telescope_ui(handler)
     else

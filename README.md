@@ -337,7 +337,7 @@ This is achieved but emulating nvim-cmp using blink.compat
 
 ```lua
       file_selector = {
-        --- @alias FileSelectorProvider "native" | "fzf" | "mini.pick" | "telescope" | string
+        --- @alias FileSelectorProvider "native" | "fzf" | "mini.pick" | "snacks" | "telescope" | string
         provider = "fzf",
         -- Options override for custom providers
         provider_opts = {},
