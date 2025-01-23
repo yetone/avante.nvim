@@ -213,7 +213,10 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
 {
   ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | string
   provider = "claude", -- Recommend using Claude
-  auto_suggestions_provider = "claude", -- Since auto-suggestions are a high-frequency operation and therefore expensive, it is recommended to specify an inexpensive provider or even a free provider: copilot
+  -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
+  -- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
+  -- Of course, you can reduce the request frequency by increasing `suggestion.debounce`.
+  auto_suggestions_provider = "claude",
   claude = {
     endpoint = "https://api.anthropic.com",
     model = "claude-3-5-sonnet-20241022",
@@ -319,6 +322,10 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     --- Helps to avoid entering operator-pending mode with diff mappings starting with `c`.
     --- Disable by setting to -1.
     override_timeoutlen = 500,
+  },
+  suggestion = {
+    debounce = 600,
+    throttle = 600,
   },
 }
 ```
