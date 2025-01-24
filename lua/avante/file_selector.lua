@@ -168,6 +168,7 @@ function FileSelector:mini_pick_ui(handler)
 end
 
 function FileSelector:snacks_picker_ui(handler)
+  ---@diagnostic disable-next-line: undefined-global
   Snacks.picker.files({
     exclude = self.selected_filepaths,
     confirm = function(picker)
