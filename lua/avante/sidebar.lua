@@ -64,11 +64,13 @@ function Sidebar:delete_autocmds()
 end
 
 function Sidebar:reset()
+  self:unbind_apply_key()
+  self:unbind_sidebar_keys()
   self:delete_autocmds()
   self.code = { bufnr = 0, winid = 0, selection = nil }
   self.winids =
     { result_container = 0, selected_files_container = 0, selected_code_container = 0, input_container = 0 }
-  self.result_container = self.result_container or {}
+  self.result_container = nil
   self.selected_code_container = nil
   self.selected_files_container = nil
   self.input_container = nil
@@ -851,6 +853,82 @@ function Sidebar:render_selected_code()
   )
 end
 
+function Sidebar:bind_apply_key()
+  if self.result_container then
+    vim.keymap.set(
+      "n",
+      Config.mappings.sidebar.apply_cursor,
+      function() self:apply(true) end,
+      { buffer = self.result_container.bufnr, noremap = true, silent = true }
+    )
+  end
+end
+
+function Sidebar:unbind_apply_key()
+  if self.result_container then
+    pcall(vim.keymap.del, "n", Config.mappings.sidebar.apply_cursor, { buffer = self.result_container.bufnr })
+  end
+end
+
+function Sidebar:bind_sidebar_keys(codeblocks)
+  ---@param direction "next" | "prev"
+  local function jump_to_codeblock(direction)
+    local cursor_line = api.nvim_win_get_cursor(self.result_container.winid)[1]
+    ---@type AvanteCodeblock
+    local target_block
+
+    if direction == "next" then
+      for _, block in ipairs(codeblocks) do
+        if block.start_line > cursor_line then
+          target_block = block
+          break
+        end
+      end
+      if not target_block and #codeblocks > 0 then target_block = codeblocks[1] end
+    elseif direction == "prev" then
+      for i = #codeblocks, 1, -1 do
+        if codeblocks[i].end_line < cursor_line then
+          target_block = codeblocks[i]
+          break
+        end
+      end
+      if not target_block and #codeblocks > 0 then target_block = codeblocks[#codeblocks] end
+    end
+
+    if target_block then
+      api.nvim_win_set_cursor(self.result_container.winid, { target_block.start_line + 1, 0 })
+      vim.cmd("normal! zz")
+    end
+  end
+
+  vim.keymap.set(
+    "n",
+    Config.mappings.sidebar.apply_all,
+    function() self:apply(false) end,
+    { buffer = self.result_container.bufnr, noremap = true, silent = true }
+  )
+  vim.keymap.set(
+    "n",
+    Config.mappings.jump.next,
+    function() jump_to_codeblock("next") end,
+    { buffer = self.result_container.bufnr, noremap = true, silent = true }
+  )
+  vim.keymap.set(
+    "n",
+    Config.mappings.jump.prev,
+    function() jump_to_codeblock("prev") end,
+    { buffer = self.result_container.bufnr, noremap = true, silent = true }
+  )
+end
+
+function Sidebar:unbind_sidebar_keys()
+  if self.result_container and self.result_container.bufnr and api.nvim_buf_is_valid(self.result_container.bufnr) then
+    pcall(vim.keymap.del, "n", Config.mappings.sidebar.apply_all, { buffer = self.result_container.bufnr })
+    pcall(vim.keymap.del, "n", Config.mappings.jump.next, { buffer = self.result_container.bufnr })
+    pcall(vim.keymap.del, "n", Config.mappings.jump.prev, { buffer = self.result_container.bufnr })
+  end
+end
+
 ---@param opts AskOptions
 function Sidebar:on_mount(opts)
   self:refresh_winids()
@@ -897,84 +975,8 @@ function Sidebar:on_mount(opts)
       })
   end
 
-  local function bind_apply_key()
-    vim.keymap.set(
-      "n",
-      Config.mappings.sidebar.apply_cursor,
-      function() self:apply(true) end,
-      { buffer = self.result_container.bufnr, noremap = true, silent = true }
-    )
-  end
-
-  local function unbind_apply_key()
-    pcall(vim.keymap.del, "n", Config.mappings.sidebar.apply_cursor, { buffer = self.result_container.bufnr })
-  end
-
   ---@type AvanteCodeblock[]
   local codeblocks = {}
-
-  ---@param direction "next" | "prev"
-  local function jump_to_codeblock(direction)
-    local cursor_line = api.nvim_win_get_cursor(self.result_container.winid)[1]
-    ---@type AvanteCodeblock
-    local target_block
-
-    if direction == "next" then
-      for _, block in ipairs(codeblocks) do
-        if block.start_line > cursor_line then
-          target_block = block
-          break
-        end
-      end
-      if not target_block and #codeblocks > 0 then target_block = codeblocks[1] end
-    elseif direction == "prev" then
-      for i = #codeblocks, 1, -1 do
-        if codeblocks[i].end_line < cursor_line then
-          target_block = codeblocks[i]
-          break
-        end
-      end
-      if not target_block and #codeblocks > 0 then target_block = codeblocks[#codeblocks] end
-    end
-
-    if target_block then
-      api.nvim_win_set_cursor(self.result_container.winid, { target_block.start_line + 1, 0 })
-      vim.cmd("normal! zz")
-    end
-  end
-
-  local function bind_sidebar_keys()
-    vim.keymap.set(
-      "n",
-      Config.mappings.sidebar.apply_all,
-      function() self:apply(false) end,
-      { buffer = self.result_container.bufnr, noremap = true, silent = true }
-    )
-    vim.keymap.set(
-      "n",
-      Config.mappings.jump.next,
-      function() jump_to_codeblock("next") end,
-      { buffer = self.result_container.bufnr, noremap = true, silent = true }
-    )
-    vim.keymap.set(
-      "n",
-      Config.mappings.jump.prev,
-      function() jump_to_codeblock("prev") end,
-      { buffer = self.result_container.bufnr, noremap = true, silent = true }
-    )
-  end
-
-  local function unbind_sidebar_keys()
-    if
-      self.result_container
-      and self.result_container.bufnr
-      and api.nvim_buf_is_valid(self.result_container.bufnr)
-    then
-      pcall(vim.keymap.del, "n", Config.mappings.sidebar.apply_all, { buffer = self.result_container.bufnr })
-      pcall(vim.keymap.del, "n", Config.mappings.jump.next, { buffer = self.result_container.bufnr })
-      pcall(vim.keymap.del, "n", Config.mappings.jump.prev, { buffer = self.result_container.bufnr })
-    end
-  end
 
   api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
     buffer = self.result_container.bufnr,
@@ -983,10 +985,10 @@ function Sidebar:on_mount(opts)
 
       if block then
         show_apply_button(block)
-        bind_apply_key()
+        self:bind_apply_key()
       else
         api.nvim_buf_clear_namespace(ev.buf, CODEBLOCK_KEYBINDING_NAMESPACE, 0, -1)
-        unbind_apply_key()
+        self:unbind_apply_key()
       end
     end,
   })
@@ -995,7 +997,7 @@ function Sidebar:on_mount(opts)
     buffer = self.result_container.bufnr,
     callback = function(ev)
       codeblocks = parse_codeblocks(ev.buf)
-      bind_sidebar_keys()
+      self:bind_sidebar_keys(codeblocks)
     end,
   })
 
@@ -1010,13 +1012,13 @@ function Sidebar:on_mount(opts)
         return
       end
       codeblocks = parse_codeblocks(self.result_container.bufnr)
-      bind_sidebar_keys()
+      self:bind_sidebar_keys(codeblocks)
     end,
   })
 
   api.nvim_create_autocmd("BufLeave", {
     buffer = self.result_container.bufnr,
-    callback = function() unbind_sidebar_keys() end,
+    callback = function() self:unbind_sidebar_keys() end,
   })
 
   self:render_result()
@@ -2101,9 +2103,7 @@ function Sidebar:render(opts)
   -- reset states when buffer is closed
   api.nvim_buf_attach(self.code.bufnr, false, {
     on_detach = function(_, _)
-      if self and self.reset then
-        self:reset()
-      end
+      if self and self.reset then self:reset() end
     end,
   })
 
