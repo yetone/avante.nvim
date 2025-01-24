@@ -14,7 +14,7 @@ local FileSelector = {}
 --- @field file_cache string[]
 --- @field event_handlers table<string, function[]>
 
----@alias FileSelectorHandler fun(self: FileSelector, on_select: fun(on_select: fun(filepath: string)|nil)): nil
+---@alias FileSelectorHandler fun(self: FileSelector, on_select: fun(filepaths: string[] | nil)): nil
 
 ---@param id integer
 ---@return FileSelector
@@ -144,13 +144,14 @@ function FileSelector:fzf_ui(handler)
     actions = {
       ["default"] = function(selected)
         if not selected or #selected == 0 then return close_action() end
+        ---@type string[]
         local selections = {}
         for _, entry in ipairs(selected) do
           local file = fzf_lua.path.entry_to_file(entry)
           if file and file.path then table.insert(selections, file.path) end
         end
 
-        if #selections > 0 then handler(#selections == 1 and selections[1] or selections) end
+        handler(selections)
       end,
       ["esc"] = close_action,
       ["ctrl-c"] = close_action,
@@ -168,7 +169,6 @@ function FileSelector:mini_pick_ui(handler)
 end
 
 function FileSelector:snacks_picker_ui(handler)
-  ---@diagnostic disable-next-line: undefined-global
   Snacks.picker.files({
     exclude = self.selected_filepaths,
     confirm = function(picker)
@@ -213,11 +213,11 @@ function FileSelector:telescope_ui(handler)
 
               action_utils.map_selections(prompt_bufnr, function(selection) table.insert(selections, selection[1]) end)
 
-              if #selections > 0 then handler(selections) end
+              handler(selections)
             else
-              local selection = action_state.get_selected_entry()
+              local selections = action_state.get_selected_entry()
 
-              if selection and #selection > 0 then handler(selection[1]) end
+              handler(selections)
             end
 
             actions.close(prompt_bufnr)
@@ -238,17 +238,23 @@ function FileSelector:native_ui(handler)
   vim.ui.select(filepaths, {
     prompt = string.format("%s:", PROMPT_TITLE),
     format_item = function(item) return item end,
-  }, handler)
+  }, function(item)
+    if item then
+      handler({ item })
+    else
+      handler(nil)
+    end
+  end)
 end
 
 ---@return nil
 function FileSelector:show_select_ui()
+  ---@param filepaths string[] | nil
+  ---@return nil
   local handler = function(filepaths)
     if not filepaths then return end
-    -- Convert single filepath to array for unified handling
-    local paths = type(filepaths) == "string" and { filepaths } or filepaths
 
-    for _, filepath in ipairs(paths) do
+    for _, filepath in ipairs(filepaths) do
       local uniform_path = Utils.uniform_path(filepath)
       if Config.file_selector.provider == "native" then
         table.insert(self.selected_filepaths, uniform_path)
