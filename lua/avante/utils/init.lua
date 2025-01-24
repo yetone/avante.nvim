@@ -643,6 +643,13 @@ function M.is_ignored(file, ignore_patterns, negate_patterns)
   return false
 end
 
+function M.scan_directory_respect_gitignore(directory)
+  local gitignore_path = directory .. "/.gitignore"
+  local gitignore_patterns, gitignore_negate_patterns = M.parse_gitignore(gitignore_path)
+  gitignore_patterns = vim.list_extend(gitignore_patterns, { "%.git", "%.worktree", "__pycache__", "node_modules" })
+  return M.scan_directory(directory, gitignore_patterns, gitignore_negate_patterns)
+end
+
 function M.scan_directory(directory, ignore_patterns, negate_patterns)
   local files = {}
   local handle = vim.loop.fs_scandir(directory)
