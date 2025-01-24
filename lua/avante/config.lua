@@ -10,6 +10,9 @@ M._defaults = {
   debug = false,
   ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | string
   provider = "claude", -- Only recommend using Claude
+  -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
+  -- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
+  -- Of course, you can reduce the request frequency by increasing `suggestion.debounce`.
   auto_suggestions_provider = "claude",
   ---@alias Tokenizer "tiktoken" | "hf"
   -- Used for counting tokens and encoding text.
@@ -282,13 +285,6 @@ function M.setup(opts)
       },
     }
   )
-
-  -- Check if provider is copilot and warn user
-  if merged.auto_suggestions_provider == "copilot" then
-    Utils.warn(
-      "Warning: Copilot is not recommended as the default auto suggestion provider. Because: https://github.com/yetone/avante.nvim/issues/1048"
-    )
-  end
 
   M._options = merged
   M.providers = vim
