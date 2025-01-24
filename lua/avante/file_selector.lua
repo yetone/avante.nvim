@@ -136,7 +136,7 @@ function FileSelector:fzf_ui(handler)
   end
 
   local close_action = function() handler(nil) end
-  fzf_lua.files(vim.tbl_deep_extend("force", Config.file_selector.provider_opts, {
+  fzf_lua.files(vim.tbl_deep_extend("force", {
     file_ignore_patterns = self.selected_filepaths,
     prompt = string.format("%s> ", PROMPT_TITLE),
     fzf_opts = {},
@@ -156,7 +156,7 @@ function FileSelector:fzf_ui(handler)
       ["esc"] = close_action,
       ["ctrl-c"] = close_action,
     },
-  }))
+  }, Config.file_selector.provider_opts))
 end
 
 function FileSelector:mini_pick_ui(handler)
@@ -194,13 +194,17 @@ function FileSelector:telescope_ui(handler)
   local action_state = require("telescope.actions.state")
   local action_utils = require("telescope.actions.utils")
 
+  local project_root = Utils.get_project_root()
+  local files = Utils.scan_directory_respect_gitignore(project_root)
+  files = vim.iter(files):map(function(filepath) return Path:new(filepath):make_relative(project_root) end):totable()
+
   pickers
     .new(
       {},
-      vim.tbl_extend("force", Config.file_selector.provider_opts, {
+      vim.tbl_extend("force", {
         file_ignore_patterns = self.selected_filepaths,
         prompt_title = string.format("%s> ", PROMPT_TITLE),
-        finder = finders.new_oneshot_job({ "git", "ls-files" }, { cwd = Utils.get_project_root() }),
+        finder = finders.new_table(files),
         sorter = conf.file_sorter(),
         attach_mappings = function(prompt_bufnr, map)
           map("i", "<esc>", require("telescope.actions").close)
@@ -224,7 +228,7 @@ function FileSelector:telescope_ui(handler)
           end)
           return true
         end,
-      })
+      }, Config.file_selector.provider_opts)
     )
     :find()
 end
