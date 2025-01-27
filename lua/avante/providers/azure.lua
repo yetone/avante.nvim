@@ -25,12 +25,10 @@ M.parse_curl_args = function(provider, code_opts)
   }
   if P.env.require_api_key(base) then headers["api-key"] = provider.parse_api_key() end
 
-  -- NOTE: When using "o1" set the supported parameters only
-  local stream = true
-  if base.model and string.find(base.model, "o1") then
+  -- NOTE: When using "o" series set the supported parameters only
+  if O.is_o_series_model(base.model) then
     body_opts.max_tokens = nil
     body_opts.temperature = 1
-    stream = false
   end
 
   return {
@@ -43,7 +41,7 @@ M.parse_curl_args = function(provider, code_opts)
     headers = headers,
     body = vim.tbl_deep_extend("force", {
       messages = M.parse_messages(code_opts),
-      stream = stream,
+      stream = true,
     }, body_opts),
   }
 end
