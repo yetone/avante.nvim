@@ -28,6 +28,7 @@ Your task is to suggest code modifications at the cursor position. Follow these 
           "end_row": ${end_row},
           "content": "Your suggested code here"
         }
+      ]
     ]
     {% endraw %}
 
