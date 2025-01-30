@@ -259,15 +259,7 @@ end
 
 ---@param path string
 ---@return string
-function M.norm(path)
-  if path:sub(1, 1) == "~" then
-    local home = vim.uv.os_homedir()
-    if home:sub(-1) == "\\" or home:sub(-1) == "/" then home = home:sub(1, -2) end
-    path = home .. path:sub(2)
-  end
-  path = path:gsub("\\", "/"):gsub("/+", "/")
-  return path:sub(-1) == "/" and path:sub(1, -2) or path
-end
+function M.norm(path) return vim.fs.normalize(path) end
 
 ---@param msg string|string[]
 ---@param opts? LazyNotifyOpts
@@ -643,14 +635,27 @@ function M.is_ignored(file, ignore_patterns, negate_patterns)
   return false
 end
 
-function M.scan_directory_respect_gitignore(directory)
+---@param options { directory: string, add_dirs?: boolean }
+function M.scan_directory_respect_gitignore(options)
+  local directory = options.directory
   local gitignore_path = directory .. "/.gitignore"
   local gitignore_patterns, gitignore_negate_patterns = M.parse_gitignore(gitignore_path)
   gitignore_patterns = vim.list_extend(gitignore_patterns, { "%.git", "%.worktree", "__pycache__", "node_modules" })
-  return M.scan_directory(directory, gitignore_patterns, gitignore_negate_patterns)
+  return M.scan_directory({
+    directory = directory,
+    gitignore_patterns = gitignore_patterns,
+    gitignore_negate_patterns = gitignore_negate_patterns,
+    add_dirs = options.add_dirs,
+  })
 end
 
-function M.scan_directory(directory, ignore_patterns, negate_patterns)
+---@param options { directory: string, gitignore_patterns: string[], gitignore_negate_patterns: string[], add_dirs?: boolean }
+function M.scan_directory(options)
+  local directory = options.directory
+  local ignore_patterns = options.gitignore_patterns
+  local negate_patterns = options.gitignore_negate_patterns
+  local add_dirs = options.add_dirs or false
+
   local files = {}
   local handle = vim.loop.fs_scandir(directory)
 
@@ -662,7 +667,18 @@ function M.scan_directory(directory, ignore_patterns, negate_patterns)
 
     local full_path = directory .. "/" .. name
     if type == "directory" then
-      vim.list_extend(files, M.scan_directory(full_path, ignore_patterns, negate_patterns))
+      if add_dirs and not M.is_ignored(full_path, ignore_patterns, negate_patterns) then
+        table.insert(files, full_path)
+      end
+      vim.list_extend(
+        files,
+        M.scan_directory({
+          directory = full_path,
+          gitignore_patterns = ignore_patterns,
+          gitignore_negate_patterns = negate_patterns,
+          add_dirs = add_dirs,
+        })
+      )
     elseif type == "file" then
       if not M.is_ignored(full_path, ignore_patterns, negate_patterns) then table.insert(files, full_path) end
     end

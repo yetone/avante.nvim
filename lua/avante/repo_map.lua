@@ -52,7 +52,11 @@ function RepoMap._build_repo_map(project_root, file_ext)
   local ignore_patterns = vim.list_extend(gitignore_patterns, Config.repo_map.ignore_patterns)
   local negate_patterns = vim.list_extend(gitignore_negate_patterns, Config.repo_map.negate_patterns)
 
-  local filepaths = Utils.scan_directory(project_root, ignore_patterns, negate_patterns)
+  local filepaths = Utils.scan_directory({
+    directory = project_root,
+    gitignore_patterns = ignore_patterns,
+    gitignore_negate_patterns = negate_patterns,
+  })
   if filepaths and not RepoMap._init_repo_map_lib() then
     -- or just throw an error if we don't want to execute request without codebase
     Utils.error("Failed to load avante_repo_map")
