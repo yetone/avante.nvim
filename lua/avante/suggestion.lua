@@ -9,7 +9,7 @@ local fn = vim.fn
 local SUGGESTION_NS = api.nvim_create_namespace("avante_suggestion")
 
 ---@class avante.SuggestionItem
----@field content string
+---@field code string
 ---@field row number
 ---@field col number
 
@@ -100,32 +100,16 @@ L5:    pass
     {
       role = "assistant",
       content = [[
-[
-  [
-    {
-      "start_row": 1,
-      "end_row": 1,
-      "content": "def fib(n):\n    if n < 2:\n        return n\n    return fib(n - 1) + fib(n - 2)"
-    },
-    {
-      "start_row": 4,
-      "end_row": 5,
-      "content": "    fib(int(input()))"
-    },
-  ],
-  [
-    {
-      "start_row": 1,
-      "end_row": 1,
-      "content": "def fib(n):\n    a, b = 0, 1\n    for _ in range(n):\n        yield a\n        a, b = b, a + b"
-    },
-    {
-      "start_row": 4,
-      "end_row": 5,
-      "content": "    list(fib(int(input())))"
-    },
-  ]
-]
+<suggestion>
+  <start_row>1</start_row>
+  <end_row>1</end_row>
+  <code>def fib(n):\n    if n < 2:\n        return n\n    return fib(n - 1) + fib(n - 2)</code>
+</suggestion>
+<suggestion>
+  <start_row>4</start_row>
+  <end_row>5</end_row>
+  <code>    fib(int(input()))</code>
+</suggestion>
       ]],
     },
   }
@@ -154,19 +138,13 @@ L5:    pass
         local cursor_row, cursor_col = Utils.get_cursor_pos()
         if cursor_row ~= doc.position.row or cursor_col ~= doc.position.col then return end
         -- Clean up markdown code blocks
-        full_response = full_response:gsub("^```%w*\n(.-)\n```$", "%1")
+        full_response = full_response:gsub("<think>.-</think>", "")
+        full_response = full_response:gsub("^```%w*\n(.-)\n```", "%1")
         full_response = full_response:gsub("(.-)\n```\n?$", "%1")
         -- Remove everything before the first '[' to ensure we get just the JSON array
-        full_response = full_response:gsub("^.-(%[.*)", "%1")
-        local ok, suggestions_list = pcall(vim.json.decode, full_response)
-        if not ok then
-          Utils.error("Error while decoding suggestions: " .. full_response, { once = true, title = "Avante" })
-          return
-        end
-        if not suggestions_list then
-          Utils.info("No suggestions found", { once = true, title = "Avante" })
-          return
-        end
+        -- full_response = full_response:gsub("^.-(%[.*)", "%1")
+        local suggestions_ = Utils.parse_suggestions(full_response)
+        local suggestions_list = { suggestions_ }
         local current_lines = Utils.get_buf_lines(0, -1, bufnr)
         suggestions_list = vim
           .iter(suggestions_list)
@@ -174,24 +152,24 @@ L5:    pass
             local new_suggestions = vim
               .iter(suggestions)
               :map(function(s)
-                local lines = vim.split(s.content, "\n")
+                local lines = vim.split(s.code, "\n")
                 local new_start_row = s.start_row
-                local new_content_lines = lines
+                local new_code_lines = lines
                 for i = s.start_row, s.start_row + #lines - 1 do
                   if current_lines[i] == lines[i - s.start_row + 1] then
                     new_start_row = i + 1
-                    new_content_lines = vim.list_slice(new_content_lines, 2)
+                    new_code_lines = vim.list_slice(new_code_lines, 2)
                   else
                     break
                   end
                 end
-                if #new_content_lines == 0 then return nil end
+                if #new_code_lines == 0 then return nil end
                 return {
                   id = s.start_row,
                   original_start_row = s.start_row,
                   start_row = new_start_row,
                   end_row = s.end_row,
-                  content = Utils.trim_all_line_numbers(table.concat(new_content_lines, "\n")),
+                  code = Utils.trim_all_line_numbers(table.concat(new_code_lines, "\n")),
                 }
               end)
               :filter(function(s) return s ~= nil end)
@@ -229,9 +207,9 @@ function Suggestion:show()
   for _, suggestion in ipairs(suggestions) do
     local start_row = suggestion.start_row
     local end_row = suggestion.end_row
-    local content = suggestion.content
+    local code = suggestion.code
 
-    local lines = vim.split(content, "\n")
+    local lines = vim.split(code, "\n")
 
     local current_lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
 
@@ -418,8 +396,8 @@ function Suggestion:accept()
   local bufnr = api.nvim_get_current_buf()
   local start_row = suggestion.start_row
   local end_row = suggestion.end_row
-  local content = suggestion.content
-  local lines = vim.split(content, "\n")
+  local code = suggestion.code
+  local lines = vim.split(code, "\n")
   local cursor_row, _ = Utils.get_cursor_pos()
 
   local replaced_line_count = end_row - start_row + 1

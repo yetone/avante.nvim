@@ -918,4 +918,45 @@ function M.read_file_from_buf_or_disk(file_path)
   end
 end
 
+function M.parse_suggestions(raw)
+  local suggestions = {}
+  local lines = vim.split(raw, "\n")
+  local partial_suggestion = {}
+  local partial_code_lines = {}
+  local in_code_block = false
+  for _, line in ipairs(lines) do
+    if line:match("<start_row>") then
+      partial_suggestion.start_row = tonumber(line:match("<start_row>(%d+)</start_row>"))
+    elseif line:match("<end_row>") then
+      partial_suggestion.end_row = tonumber(line:match("<end_row>(%d+)</end_row>"))
+    elseif line:match("<code>") then
+      local code = line:match("<code>(.-)</code>")
+      if code then
+        partial_suggestion.code = code
+        table.insert(suggestions, partial_suggestion)
+        partial_suggestion = {}
+      else
+        in_code_block = true
+        partial_code_lines = {}
+      end
+    elseif line:match("</code>") then
+      if in_code_block then
+        partial_suggestion.code = table.concat(partial_code_lines, "\n")
+        table.insert(suggestions, partial_suggestion)
+        partial_suggestion = {}
+      end
+      in_code_block = false
+    elseif line:match("</suggestion>") then
+      if in_code_block then
+        partial_suggestion.code = table.concat(partial_code_lines, "\n")
+        table.insert(suggestions, partial_suggestion)
+        partial_suggestion = {}
+      end
+    elseif in_code_block then
+      partial_code_lines[#partial_code_lines + 1] = line
+    end
+  end
+  return suggestions
+end
+
 return M
