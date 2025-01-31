@@ -8,7 +8,7 @@ local M = {}
 ---@class avante.Config
 M._defaults = {
   debug = false,
-  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | string
+  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "ollama" | string
   provider = "claude", -- Only recommend using Claude
   -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
   -- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
@@ -78,6 +78,15 @@ M._defaults = {
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
     max_tokens = 4096,
+  },
+  ---@type AvanteSupportedProvider
+  ollama = {
+    endpoint = "https://127.0.0.1:11434",
+    timeout = 30000, -- Timeout in milliseconds
+    options = {
+      temperature = 0,
+      num_ctx = 4096,
+    },
   },
   ---To add support for custom provider, follow the format below
   ---See https://github.com/yetone/avante.nvim/wiki#custom-providers for more details
