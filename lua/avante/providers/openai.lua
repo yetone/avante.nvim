@@ -115,7 +115,6 @@ M.parse_response = function(ctx, data_stream, _, opts)
   if data_stream:match('"delta":') then
     ---@type OpenAIChatResponse
     local jsn = vim.json.decode(data_stream)
-    Utils.debug("jsn", jsn)
     if jsn.choices and jsn.choices[1] then
       local choice = jsn.choices[1]
       if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" then
