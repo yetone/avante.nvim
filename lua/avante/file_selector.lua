@@ -234,7 +234,7 @@ function FileSelector:mini_pick_ui(handler)
     Utils.error("mini.pick is not installed. Please install mini.pick to use it as a file selector.")
     return
   end
-  handler(MiniPick.builtin.files())
+  handler(mini_pick.builtin.files())
 end
 
 function FileSelector:snacks_picker_ui(handler)
