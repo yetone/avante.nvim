@@ -77,7 +77,7 @@ M.parse_messages = function(opts)
   return messages
 end
 
-M.parse_response = function(data_stream, event_state, opts)
+M.parse_response = function(ctx, data_stream, event_state, opts)
   if event_state == nil then
     if data_stream:match('"content_block_delta"') then
       event_state = "content_block_delta"

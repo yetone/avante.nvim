@@ -37,7 +37,7 @@ local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 ---@class ResponseParser
 ---@field on_chunk fun(chunk: string): any
 ---@field on_complete fun(err: string|nil): any
----@alias AvanteResponseParser fun(data_stream: string, event_state: string, opts: ResponseParser): nil
+---@alias AvanteResponseParser fun(ctx: any, data_stream: string, event_state: string, opts: ResponseParser): nil
 ---
 ---@class AvanteDefaultBaseProvider: table<string, any>
 ---@field endpoint? string

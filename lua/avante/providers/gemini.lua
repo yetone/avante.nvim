@@ -64,7 +64,7 @@ M.parse_messages = function(opts)
   }
 end
 
-M.parse_response = function(data_stream, _, opts)
+M.parse_response = function(ctx, data_stream, _, opts)
   local ok, json = pcall(vim.json.decode, data_stream)
   if not ok then opts.on_complete(json) end
   if json.candidates then

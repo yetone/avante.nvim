@@ -26,7 +26,8 @@ local P = require("avante.providers")
 ---
 ---@class OpenAIMessage
 ---@field role? "user" | "system" | "assistant"
----@field content string
+---@field content? string
+---@field reasoning_content? string
 ---
 ---@class AvanteProviderFunctor
 local M = {}
@@ -106,19 +107,30 @@ M.parse_messages = function(opts)
   return final_messages
 end
 
-M.parse_response = function(data_stream, _, opts)
+M.parse_response = function(ctx, data_stream, _, opts)
   if data_stream:match('"%[DONE%]":') then
     opts.on_complete(nil)
     return
   end
   if data_stream:match('"delta":') then
     ---@type OpenAIChatResponse
-    local json = vim.json.decode(data_stream)
-    if json.choices and json.choices[1] then
-      local choice = json.choices[1]
+    local jsn = vim.json.decode(data_stream)
+    Utils.debug("jsn", jsn)
+    if jsn.choices and jsn.choices[1] then
+      local choice = jsn.choices[1]
       if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" then
         opts.on_complete(nil)
+      elseif choice.delta.reasoning_content and choice.delta.reasoning_content ~= vim.NIL then
+        if ctx.returned_think_start_tag == nil or not ctx.returned_think_start_tag then
+          ctx.returned_think_start_tag = true
+          opts.on_chunk("<think>\n")
+        end
+        opts.on_chunk(choice.delta.reasoning_content)
       elseif choice.delta.content then
+        if ctx.returned_think_end_tag == nil or not ctx.returned_think_end_tag then
+          ctx.returned_think_end_tag = true
+          opts.on_chunk("\n</think>\n\n")
+        end
         if choice.delta.content ~= vim.NIL then opts.on_chunk(choice.delta.content) end
       end
     end
