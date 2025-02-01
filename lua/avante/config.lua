@@ -127,6 +127,7 @@ M._defaults = {
   ---6. jump_to_result_buffer_on_finish = false, -- Whether to automatically jump to the result buffer after generation
   ---7. support_paste_from_clipboard    : Whether to support pasting image from clipboard. This will be determined automatically based whether img-clip is available or not.
   ---8. minimize_diff                   : Whether to remove unchanged lines when applying a code block
+  ---9. enable_token_counting           : Whether to enable token counting. Default to true.
   behaviour = {
     auto_focus_sidebar = true,
     auto_suggestions = false, -- Experimental stage
@@ -137,6 +138,7 @@ M._defaults = {
     jump_result_buffer_on_finish = false,
     support_paste_from_clipboard = false,
     minimize_diff = true,
+    enable_token_counting = true,
   },
   history = {
     max_tokens = 4096,

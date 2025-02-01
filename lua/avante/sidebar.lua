@@ -1724,7 +1724,6 @@ function Sidebar:create_input_container(opts)
     local transformed_response = ""
     local displayed_response = ""
     local current_path = ""
-    local prev_is_thinking = false
 
     local is_first_chunk = true
     local scroll = true
@@ -1758,10 +1757,8 @@ function Sidebar:create_input_container(opts)
 
       local selected_files = self.file_selector:get_selected_files_contents()
 
-      local transformed =
-        transform_result_content(selected_files, transformed_response .. chunk, current_path, prev_is_thinking)
+      local transformed = transform_result_content(selected_files, transformed_response .. chunk, current_path)
       transformed_response = transformed.content
-      prev_is_thinking = transformed.is_thinking
       if transformed.current_filepath and transformed.current_filepath ~= "" then
         current_path = transformed.current_filepath
       end
@@ -1980,16 +1977,15 @@ function Sidebar:create_input_container(opts)
   local function show_hint()
     close_hint() -- Close the existing hint window
 
-    local input_value = table.concat(api.nvim_buf_get_lines(self.input_container.bufnr, 0, -1, false), "\n")
-
-    local generate_prompts_options = get_generate_prompts_options(input_value)
-    local tokens = Llm.calculate_tokens(generate_prompts_options)
-
-    local hint_text = "Tokens: "
-      .. tostring(tokens)
-      .. "; "
-      .. (fn.mode() ~= "i" and Config.mappings.submit.normal or Config.mappings.submit.insert)
+    local hint_text = (fn.mode() ~= "i" and Config.mappings.submit.normal or Config.mappings.submit.insert)
       .. ": submit"
+
+    if Config.behaviour.enable_token_counting then
+      local input_value = table.concat(api.nvim_buf_get_lines(self.input_container.bufnr, 0, -1, false), "\n")
+      local generate_prompts_options = get_generate_prompts_options(input_value)
+      local tokens = Llm.calculate_tokens(generate_prompts_options)
+      hint_text = "Tokens: " .. tostring(tokens) .. "; " .. hint_text
+    end
 
     local buf = api.nvim_create_buf(false, true)
     api.nvim_buf_set_lines(buf, 0, -1, false, { hint_text })
