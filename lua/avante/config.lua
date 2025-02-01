@@ -197,6 +197,7 @@ M._defaults = {
       reverse_switch_windows = "<S-Tab>",
       remove_file = "d",
       add_file = "@",
+      close = { "<Esc>", "q" },
     },
     files = {
       add_current = "<leader>ac", -- Add current buffer to selected files
