@@ -226,12 +226,16 @@ function FileSelector:fzf_ui(handler)
 end
 
 function FileSelector:mini_pick_ui(handler)
-  local success, mini_pick = pcall(require, "mini.pick")
-  if not success then
-    Utils.error("mini.pick is not installed. Please install mini.pick to use it as a file selector.")
+  -- luacheck: globals MiniPick
+  if not _G.MiniPick then
+    Utils.error("mini.pick is not set up. Please install and set up mini.pick to use it as a file selector.")
     return
   end
-  handler(mini_pick.builtin.files())
+  local choose = function(item) handler(type(item) == "string" and { item } or item) end
+  local choose_marked = function(items_marked) handler(items_marked) end
+  local source = { choose = choose, choose_marked = choose_marked }
+  local result = MiniPick.builtin.files(nil, { source = source })
+  if result == nil then handler(nil) end
 end
 
 function FileSelector:snacks_picker_ui(handler)
