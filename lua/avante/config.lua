@@ -57,7 +57,7 @@ M._defaults = {
   },
   ---@type AvanteSupportedProvider
   bedrock = {
-    model = "anthropic.claude-3-sonnet-20240229-v1:0",
+    model = "anthropic.claude-3-5-sonnet-20240620-v1:0",
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
     max_tokens = 8000,

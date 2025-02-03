@@ -69,3 +69,5 @@ M.build_bedrock_payload = function(prompt_opts, body_opts)
   }
   return vim.tbl_deep_extend("force", payload, body_opts or {})
 end
+
+return M

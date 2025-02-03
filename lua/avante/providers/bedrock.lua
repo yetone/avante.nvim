@@ -17,7 +17,7 @@ M.api_key_name = "BEDROCK_KEYS"
 M.use_xml_format = true
 
 M.load_model_handler = function()
-  local base, _ = P.parse_config("bedrock")
+  local base, _ = P.parse_config(P["bedrock"])
   local bedrock_model = base.model
   if base.model:match("anthropic") then
     bedrock_model = "claude"
@@ -53,7 +53,7 @@ M.parse_curl_args = function(provider, prompt_opts)
   local aws_secret_access_key = parts[2]
   local aws_region            = parts[3]
 
-  local endpoint = string.format("https://bedrock-runtime.%s.amazonaws.com/model/%s/invoke", aws_region, base.model)
+  local endpoint = string.format("https://bedrock-runtime.%s.amazonaws.com/model/%s/invoke-with-response-stream", aws_region, base.model)
 
   local headers = {
     ["Content-Type"] = "application/json",
