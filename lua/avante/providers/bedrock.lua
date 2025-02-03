@@ -41,6 +41,19 @@ M.build_bedrock_payload = function(prompt_opts, body_opts)
   return model_handler.build_bedrock_payload(prompt_opts, body_opts)
 end
 
+M.parse_stream_data = function(data, opts)
+  -- @NOTE: Decode and process Bedrock response
+  -- Each response contains a Base64-encoded `bytes` field, which is decoded into JSON.
+  -- The `type` field in the decoded JSON determines how the response is handled.
+  local bedrock_match = data:gmatch("event(%b{})")
+  for bedrock_data_match in bedrock_match do
+    local data = vim.json.decode(bedrock_data_match)
+    local data_stream = vim.base64.decode(data.bytes)
+    local json = vim.json.decode(data_stream)
+    M.parse_response({}, data_stream, json.type, opts)
+  end
+end
+
 ---@param provider AvanteBedrockProviderFunctor
 ---@param prompt_opts AvantePromptOptions
 ---@return table

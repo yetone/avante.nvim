@@ -90,6 +90,8 @@ local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 ---@field use_xml_format boolean
 ---@field model? string
 ---@field parse_api_key fun(): string | nil
+---@field parse_stream_data? AvanteStreamParser
+---@field on_error? fun(result: table<string, any>): nil
 ---@field load_model_handler fun(): AvanteBedrockModelHandler
 ---@field build_bedrock_payload? fun(prompt_opts: AvantePromptOptions, body_opts: table<string, any>): table<string, any>
 ---
