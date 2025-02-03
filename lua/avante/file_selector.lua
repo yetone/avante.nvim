@@ -30,16 +30,13 @@ function FileSelector:process_directory(absolute_path, project_root)
   self:emit("update")
 end
 
----@param selected_paths string | string[] | nil
+---@param selected_paths string[] | nil
 ---@return nil
 function FileSelector:handle_path_selection(selected_paths)
   if not selected_paths then return end
   local project_root = Utils.get_project_root()
 
-  -- Convert single string to array if needed
-  local paths = type(selected_paths) == "string" and { selected_paths } or selected_paths
-
-  for _, selected_path in ipairs(paths) do
+  for _, selected_path in ipairs(selected_paths) do
     local absolute_path = Path:new(project_root):joinpath(selected_path):absolute()
 
     local stat = vim.loop.fs_stat(absolute_path)
@@ -316,8 +313,7 @@ end
 
 ---@return nil
 function FileSelector:show_select_ui()
-  local handler = Config.file_selector.handler
-  if handler == nil then handler = function(selected_paths) self:handle_path_selection(selected_paths) end end
+  local function handler(selected_paths) self:handle_path_selection(selected_paths) end
 
   vim.schedule(function()
     if Config.file_selector.provider == "native" then
