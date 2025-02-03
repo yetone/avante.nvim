@@ -28,6 +28,7 @@ local P = require("avante.providers")
 ---@field role? "user" | "system" | "assistant"
 ---@field content? string
 ---@field reasoning_content? string
+---@field reasoning? string
 ---
 ---@class AvanteProviderFunctor
 local M = {}
@@ -38,6 +39,8 @@ M.role_map = {
   user = "user",
   assistant = "assistant",
 }
+
+M.is_openrouter = function(url) return url:match("^https://openrouter%.ai/") end
 
 ---@param opts AvantePromptOptions
 M.get_user_message = function(opts)
@@ -126,6 +129,13 @@ M.parse_response = function(ctx, data_stream, _, opts)
         end
         ctx.last_think_content = choice.delta.reasoning_content
         opts.on_chunk(choice.delta.reasoning_content)
+      elseif choice.delta.reasoning and choice.delta.reasoning ~= vim.NIL then
+        if ctx.returned_think_start_tag == nil or not ctx.returned_think_start_tag then
+          ctx.returned_think_start_tag = true
+          opts.on_chunk("<think>\n")
+        end
+        ctx.last_think_content = choice.delta.reasoning
+        opts.on_chunk(choice.delta.reasoning)
       elseif choice.delta.content then
         if
           ctx.returned_think_start_tag ~= nil and (ctx.returned_think_end_tag == nil or not ctx.returned_think_end_tag)
@@ -172,6 +182,12 @@ M.parse_curl_args = function(provider, code_opts)
       error(Config.provider .. " API key is not set, please set it in your environment variable or config file")
     end
     headers["Authorization"] = "Bearer " .. api_key
+  end
+
+  if M.is_openrouter(base.endpoint) then
+    headers["HTTP-Referer"] = "https://github.com/yetone/avante.nvim"
+    headers["X-Title"] = "Avante.nvim"
+    body_opts.include_reasoning = true
   end
 
   -- NOTE: When using "o" series set the supported parameters only
