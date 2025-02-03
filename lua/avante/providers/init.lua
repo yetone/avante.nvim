@@ -32,7 +32,7 @@ local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 ---@alias AvanteMessagesParser fun(opts: AvantePromptOptions): AvanteChatMessage[]
 ---
 ---@class AvanteCurlOutput: {url: string, proxy: string, insecure: boolean, body: table<string, any> | string, headers: table<string, string>, rawArgs: string[] | nil}
----@alias AvanteCurlArgsParser fun(opts: AvanteProvider | AvanteProviderFunctor, code_opts: AvantePromptOptions): AvanteCurlOutput
+---@alias AvanteCurlArgsParser fun(opts: AvanteProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor, code_opts: AvantePromptOptions): AvanteCurlOutput
 ---
 ---@class ResponseParser
 ---@field on_chunk fun(chunk: string): any
@@ -80,6 +80,21 @@ local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 ---@field parse_stream_data? AvanteStreamParser
 ---@field on_error? fun(result: table<string, any>): nil
 ---
+---@class AvanteBedrockProviderFunctor
+---@field parse_response AvanteResponseParser
+---@field parse_curl_args AvanteCurlArgsParser
+---@field setup fun(): nil
+---@field has fun(): boolean
+---@field api_key_name string
+---@field tokenizer_id string | "gpt-4o"
+---@field use_xml_format boolean
+---@field model? string
+---@field parse_api_key fun(): string | nil
+---@field parse_stream_data? AvanteStreamParser
+---@field on_error? fun(result: table<string, any>): nil
+---@field load_model_handler fun(): AvanteBedrockModelHandler
+---@field build_bedrock_payload? fun(prompt_opts: AvantePromptOptions, body_opts: table<string, any>): table<string, any>
+---
 ---@class avante.Providers
 ---@field openai AvanteProviderFunctor
 ---@field claude AvanteProviderFunctor
@@ -87,6 +102,7 @@ local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 ---@field azure AvanteProviderFunctor
 ---@field gemini AvanteProviderFunctor
 ---@field cohere AvanteProviderFunctor
+---@field bedrock AvanteBedrockProviderFunctor
 local M = {}
 
 ---@class EnvironmentHandler
@@ -96,7 +112,7 @@ local E = {}
 ---@type table<string, string>
 E.cache = {}
 
----@param Opts AvanteSupportedProvider | AvanteProviderFunctor
+---@param Opts AvanteSupportedProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor
 ---@return string | nil
 E.parse_envvar = function(Opts)
   local api_key_name = Opts.api_key_name
@@ -158,7 +174,7 @@ end
 
 --- initialize the environment variable for current neovim session.
 --- This will only run once and spawn a UI for users to input the envvar.
----@param opts {refresh: boolean, provider: AvanteProviderFunctor}
+---@param opts {refresh: boolean, provider: AvanteProviderFunctor | AvanteBedrockProviderFunctor}
 ---@private
 E.setup = function(opts)
   opts.provider.setup()
@@ -267,7 +283,7 @@ M = setmetatable(M, {
   ---@param t avante.Providers
   ---@param k Provider
   __index = function(t, k)
-    ---@type AvanteProviderFunctor
+    ---@type AvanteProviderFunctor | AvanteBedrockProviderFunctor
     local Opts = M.get_config(k)
 
     ---@diagnostic disable: undefined-field,no-unknown,inject-field
@@ -311,7 +327,7 @@ M = setmetatable(M, {
 M.setup = function()
   vim.g.avante_login = false
 
-  ---@type AvanteProviderFunctor
+  ---@type AvanteProviderFunctor | AvanteBedrockProviderFunctor
   local provider = M[Config.provider]
   local auto_suggestions_provider = M[Config.auto_suggestions_provider]
   E.setup({ provider = provider })
@@ -325,13 +341,13 @@ end
 function M.refresh(provider)
   require("avante.config").override({ provider = provider })
 
-  ---@type AvanteProviderFunctor
+  ---@type AvanteProviderFunctor | AvanteBedrockProviderFunctor
   local p = M[Config.provider]
   E.setup({ provider = p, refresh = true })
   Utils.info("Switch to provider: " .. provider, { once = true, title = "Avante" })
 end
 
----@param opts AvanteProvider | AvanteSupportedProvider | AvanteProviderFunctor
+---@param opts AvanteProvider | AvanteSupportedProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor
 ---@return AvanteDefaultBaseProvider, table<string, any>
 M.parse_config = function(opts)
   ---@type AvanteDefaultBaseProvider
@@ -356,7 +372,7 @@ end
 
 ---@private
 ---@param provider Provider
----@return AvanteProviderFunctor
+---@return AvanteProviderFunctor | AvanteBedrockProviderFunctor
 M.get_config = function(provider)
   provider = provider or Config.provider
   local cur = Config.get_provider(provider)
