@@ -23,7 +23,7 @@ local group = api.nvim_create_augroup("avante_llm", { clear = true })
 M.generate_prompts = function(opts)
   local Provider = opts.provider or P[Config.provider]
   local mode = opts.mode or "planning"
-  ---@type AvanteProviderFunctor
+  ---@type AvanteProviderFunctor | AvanteBedrockProviderFunctor
   local _, body_opts = P.parse_config(Provider)
   local max_tokens = body_opts.max_tokens or 4096
 
@@ -380,7 +380,7 @@ end
 ---@field ask boolean
 ---@field instructions string
 ---@field mode LlmMode
----@field provider AvanteProviderFunctor | nil
+---@field provider AvanteProviderFunctor | AvanteBedrockProviderFunctor | nil
 ---
 ---@class StreamOptions: GeneratePromptsOptions
 ---@field on_chunk AvanteChunkParser

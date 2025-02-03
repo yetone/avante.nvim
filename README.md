@@ -425,6 +425,12 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 > ```sh
 > export AZURE_OPENAI_API_KEY=your-api-key
 > ```
+>
+> For Amazon Bedrock:
+>
+> ```sh
+> export BEDROCK_KEYS=aws_access_key_id,aws_secret_access_key,aws_region
+> ```
 
 1. Open a code file in Neovim.
 2. Use the `:AvanteAsk` command to query the AI about the code.
