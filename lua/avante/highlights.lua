@@ -124,7 +124,7 @@ H.alter = function(attr, percent) return math.floor(attr * (100 + percent) / 100
 
 ---@source https://stackoverflow.com/q/5560248
 ---@see https://stackoverflow.com/a/37797380
----Darken a specified hex color
+---Lighten a specified hex color
 ---@param color number
 ---@param percent number
 ---@return string
