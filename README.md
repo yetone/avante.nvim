@@ -507,6 +507,12 @@ The following key bindings are available for use with `avante.nvim`:
 
 See [highlights.lua](./lua/avante/highlights.lua) for more information
 
+## Custom providers
+
+Avante provides a set of default providers, but users can also create their own providers.
+
+For more information, see [Custom Providers](https://github.com/yetone/avante.nvim/wiki/Custom-providers)
+
 ## Custom prompts
 
 By default, `avante.nvim` provides three different modes to interact with: `planning`, `editing`, and `suggesting`, followed with three different prompts per mode.
