@@ -255,8 +255,6 @@ M._defaults = {
     provider = "native",
     -- Options override for custom providers
     provider_opts = {},
-    --- @type fun(selected_paths: string[] | string | nil): nil
-    handler = nil,
   },
   suggestion = {
     debounce = 600,
