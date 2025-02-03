@@ -127,7 +127,9 @@ M.parse_response = function(ctx, data_stream, _, opts)
         ctx.last_think_content = choice.delta.reasoning_content
         opts.on_chunk(choice.delta.reasoning_content)
       elseif choice.delta.content then
-        if ctx.returned_think_end_tag == nil or not ctx.returned_think_end_tag then
+        if
+          ctx.returned_think_start_tag ~= nil and (ctx.returned_think_end_tag == nil or not ctx.returned_think_end_tag)
+        then
           ctx.returned_think_end_tag = true
           if
             ctx.last_think_content
