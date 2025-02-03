@@ -19,9 +19,8 @@ M.use_xml_format = true
 M.load_model_handler = function()
   local base, _ = P.parse_config(P["bedrock"])
   local bedrock_model = base.model
-  if base.model:match("anthropic") then
-    bedrock_model = "claude"
-  end
+  if base.model:match("anthropic") then bedrock_model = "claude" end
+
   local ok, model_module = pcall(require, "avante.providers.bedrock." .. bedrock_model)
   if ok then
     return model_module
@@ -62,11 +61,15 @@ M.parse_curl_args = function(provider, prompt_opts)
 
   local api_key = provider.parse_api_key()
   local parts = vim.split(api_key, ",")
-  local aws_access_key_id     = parts[1]
+  local aws_access_key_id = parts[1]
   local aws_secret_access_key = parts[2]
-  local aws_region            = parts[3]
+  local aws_region = parts[3]
 
-  local endpoint = string.format("https://bedrock-runtime.%s.amazonaws.com/model/%s/invoke-with-response-stream", aws_region, base.model)
+  local endpoint = string.format(
+    "https://bedrock-runtime.%s.amazonaws.com/model/%s/invoke-with-response-stream",
+    aws_region,
+    base.model
+  )
 
   local headers = {
     ["Content-Type"] = "application/json",
@@ -75,8 +78,10 @@ M.parse_curl_args = function(provider, prompt_opts)
   local body_payload = M.build_bedrock_payload(prompt_opts, body_opts)
 
   local rawArgs = {
-    "--aws-sigv4", string.format("aws:amz:%s:bedrock", aws_region),
-    "--user", string.format("%s:%s", aws_access_key_id, aws_secret_access_key)
+    "--aws-sigv4",
+    string.format("aws:amz:%s:bedrock", aws_region),
+    "--user",
+    string.format("%s:%s", aws_access_key_id, aws_secret_access_key),
   }
 
   return {

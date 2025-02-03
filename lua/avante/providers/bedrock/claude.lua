@@ -65,7 +65,7 @@ M.build_bedrock_payload = function(prompt_opts, body_opts)
     anthropic_version = "bedrock-2023-05-31",
     max_tokens = max_tokens,
     messages = messages,
-    system = system_prompt
+    system = system_prompt,
   }
   return vim.tbl_deep_extend("force", payload, body_opts or {})
 end
