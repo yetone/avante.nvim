@@ -229,6 +229,7 @@ function FileSelector:fzf_ui(handler)
 end
 
 function FileSelector:mini_pick_ui(handler)
+  -- luacheck: globals MiniPick
   if not _G.MiniPick then
     Utils.error("mini.pick is not set up. Please install and set up mini.pick to use it as a file selector.")
     return
