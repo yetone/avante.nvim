@@ -23,7 +23,7 @@ local group = api.nvim_create_augroup("avante_llm", { clear = true })
 M.generate_prompts = function(opts)
   local Provider = opts.provider or P[Config.provider]
   local mode = opts.mode or "planning"
-  ---@type AvanteProviderFunctor
+  ---@type AvanteProviderFunctor | AvanteBedrockProviderFunctor
   local _, body_opts = P.parse_config(Provider)
   local max_tokens = body_opts.max_tokens or 4096
 
@@ -150,6 +150,15 @@ M._stream = function(opts)
     end
     local data_match = line:match("^data: (.+)$")
     if data_match then Provider.parse_response(resp_ctx, data_match, current_event_state, handler_opts) end
+
+    -- Bedrockのレスポンス形式をチェック
+    local bedrock_match = line:gmatch("event(%b{})")
+    for data_match in bedrock_match do
+      local data = vim.json.decode(data_match)
+      local data_stream = vim.base64.decode(data.bytes)
+      local json = vim.json.decode(data_stream)
+      Provider.parse_response(resp_ctx, data_stream, json.type, handler_opts)
+    end
   end
 
   local function parse_response_without_stream(data)
@@ -380,7 +389,7 @@ end
 ---@field ask boolean
 ---@field instructions string
 ---@field mode LlmMode
----@field provider AvanteProviderFunctor | nil
+---@field provider AvanteProviderFunctor | AvanteBedrockProviderFunctor | nil
 ---
 ---@class StreamOptions: GeneratePromptsOptions
 ---@field on_chunk AvanteChunkParser
