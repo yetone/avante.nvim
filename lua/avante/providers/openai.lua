@@ -124,11 +124,20 @@ M.parse_response = function(ctx, data_stream, _, opts)
           ctx.returned_think_start_tag = true
           opts.on_chunk("<think>\n")
         end
+        ctx.last_think_content = choice.delta.reasoning_content
         opts.on_chunk(choice.delta.reasoning_content)
       elseif choice.delta.content then
         if ctx.returned_think_end_tag == nil or not ctx.returned_think_end_tag then
           ctx.returned_think_end_tag = true
-          opts.on_chunk("\n</think>\n\n")
+          if
+            ctx.last_think_content
+            and ctx.last_think_content ~= vim.NIL
+            and ctx.last_think_content:sub(-1) ~= "\n"
+          then
+            opts.on_chunk("\n</think>\n")
+          else
+            opts.on_chunk("</think>\n")
+          end
         end
         if choice.delta.content ~= vim.NIL then opts.on_chunk(choice.delta.content) end
       end
