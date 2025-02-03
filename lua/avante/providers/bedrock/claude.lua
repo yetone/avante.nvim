@@ -18,7 +18,7 @@ M.parse_messages = function(opts)
   ---@type AvanteBedrockClaudeMessage[]
   local messages = {}
 
-  for idx, message in ipairs(opts.messages) do
+  for _, message in ipairs(opts.messages) do
     table.insert(messages, {
       role = M.role_map[message.role],
       content = {

@@ -153,8 +153,8 @@ M._stream = function(opts)
 
     -- Bedrockのレスポンス形式をチェック
     local bedrock_match = line:gmatch("event(%b{})")
-    for data_match in bedrock_match do
-      local data = vim.json.decode(data_match)
+    for bedrock_data_match in bedrock_match do
+      local data = vim.json.decode(bedrock_data_match)
       local data_stream = vim.base64.decode(data.bytes)
       local json = vim.json.decode(data_stream)
       Provider.parse_response(resp_ctx, data_stream, json.type, handler_opts)
