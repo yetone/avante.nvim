@@ -121,6 +121,38 @@ describe("Utils", function()
     end)
   end)
 
+  describe("trim_think_content", function()
+    it("should remove think content", function()
+      local input = "<think>this should be removed</think> Hello World"
+      assert.equals(" Hello World", Utils.trim_think_content(input))
+    end)
+
+    it("The think tag that is not in the prefix should not be deleted.", function()
+      local input = "Hello <think>this should not be removed</think> World"
+      assert.equals("Hello <think>this should not be removed</think> World", Utils.trim_think_content(input))
+    end)
+
+    it("should handle multiple think blocks", function()
+      local input = "<think>first</think>middle<think>second</think>"
+      assert.equals("middle<think>second</think>", Utils.trim_think_content(input))
+    end)
+
+    it("should handle empty think blocks", function()
+      local input = "<think></think>testtest"
+      assert.equals("testtest", Utils.trim_think_content(input))
+    end)
+
+    it("should handle empty think blocks", function()
+      local input = "test<think></think>test"
+      assert.equals("test<think></think>test", Utils.trim_think_content(input))
+    end)
+
+    it("should handle input without think blocks", function()
+      local input = "just normal text"
+      assert.equals("just normal text", Utils.trim_think_content(input))
+    end)
+  end)
+
   describe("debounce", function()
     it("should debounce function calls", function()
       local count = 0
