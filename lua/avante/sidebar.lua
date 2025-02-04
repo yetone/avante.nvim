@@ -1638,7 +1638,11 @@ function Sidebar:create_input_container(opts)
       then
         break
       end
-      table.insert(history_messages, 1, { role = "assistant", content = entry.original_response })
+      table.insert(
+        history_messages,
+        1,
+        { role = "assistant", content = Utils.trim_think_content(entry.original_response) }
+      )
       local user_content = ""
       if entry.selected_file ~= nil then
         user_content = user_content .. "SELECTED FILE: " .. entry.selected_file.filepath .. "\n\n"

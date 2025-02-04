@@ -858,4 +858,6 @@ end
 
 function M.is_same_file(filepath_a, filepath_b) return M.uniform_path(filepath_a) == M.uniform_path(filepath_b) end
 
+function M.trim_think_content(content) return content:gsub("^<think>.-</think>", "", 1) end
+
 return M
