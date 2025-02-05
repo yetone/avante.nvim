@@ -157,7 +157,10 @@ function Selection:create_editing_input()
 
     self.prompt_input:start_spinner()
 
-    ---@type AvanteChunkParser
+    ---@type AvanteLLMStartCallback
+    local on_start = function(start_opts) end
+
+    ---@type AvanteLLMChunkCallback
     local on_chunk = function(chunk)
       full_response = full_response .. chunk
       local response_lines_ = vim.split(full_response, "\n")
@@ -182,13 +185,15 @@ function Selection:create_editing_input()
       finish_line = start_line + #response_lines - 1
     end
 
-    ---@type AvanteCompleteParser
-    local on_complete = function(err)
-      if err then
+    ---@type AvanteLLMStopCallback
+    local on_stop = function(stop_opts)
+      if stop_opts.error then
         -- NOTE: in Ubuntu 22.04+ you will see this ignorable error from ~/.local/share/nvim/lazy/avante.nvim/lua/avante/llm.lua `on_error = function(err)`, check to avoid showing this error.
-        if type(err) == "table" and err.exit == nil and err.stderr == "{}" then return end
+        if type(stop_opts.error) == "table" and stop_opts.error.exit == nil and stop_opts.error.stderr == "{}" then
+          return
+        end
         Utils.error(
-          "Error occurred while processing the response: " .. vim.inspect(err),
+          "Error occurred while processing the response: " .. vim.inspect(stop_opts.error),
           { once = true, title = "Avante" }
         )
         return
@@ -216,8 +221,9 @@ function Selection:create_editing_input()
       selected_code = self.selection.content,
       instructions = input,
       mode = "editing",
+      on_start = on_start,
       on_chunk = on_chunk,
-      on_complete = on_complete,
+      on_stop = on_stop,
     })
   end
 

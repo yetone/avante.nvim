@@ -20,6 +20,14 @@ M._defaults = {
   -- For most providers that we support we will determine this automatically.
   -- If you wish to use a given implementation, then you can override it here.
   tokenizer = "tiktoken",
+  web_search_engine = {
+    provider = "tavily",
+    api_key_name = "TAVILY_API_KEY",
+    provider_opts = {
+      time_range = "d",
+      include_answer = "basic",
+    },
+  },
   ---@type AvanteSupportedProvider
   openai = {
     endpoint = "https://api.openai.com/v1",

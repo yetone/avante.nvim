@@ -38,6 +38,9 @@ jobs:
             mkdir -p _neovim
             curl -sL "https://github.com/neovim/neovim/releases/download/${{ matrix.rev }}" | tar xzf - --strip-components=1 -C "${PWD}/_neovim"
           }
+          sudo apt-get update
+          sudo apt-get install -y ripgrep
+          sudo apt-get install -y silversearcher-ag
 
       - name: Run tests
         run: |

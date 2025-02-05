@@ -24,12 +24,72 @@ local P = require("avante.providers")
 ---@field index integer
 ---@field logprobs integer
 ---
+---@class OpenAIMessageToolCallFunction
+---@field name string
+---@field arguments string
+---
+---@class OpenAIMessageToolCall
+---@field id string
+---@field type "function"
+---@field function OpenAIMessageToolCallFunction
+---
 ---@class OpenAIMessage
 ---@field role? "user" | "system" | "assistant"
 ---@field content? string
 ---@field reasoning_content? string
 ---@field reasoning? string
+---@field tool_calls? OpenAIMessageToolCall[]
 ---
+---@class AvanteOpenAITool
+---@field type "function"
+---@field function AvanteOpenAIToolFunction
+---
+---@class AvanteOpenAIToolFunction
+---@field name string
+---@field description string
+---@field parameters AvanteOpenAIToolFunctionParameters
+---@field strict boolean
+---
+---@class AvanteOpenAIToolFunctionParameters
+---@field type string
+---@field properties table<string, AvanteOpenAIToolFunctionParameterProperty>
+---@field required string[]
+---@field additionalProperties boolean
+---
+---@class AvanteOpenAIToolFunctionParameterProperty
+---@field type string
+---@field description string
+
+---@param tool AvanteLLMTool
+---@return AvanteOpenAITool
+local function transform_tool(tool)
+  local input_schema_properties = {}
+  local required = {}
+  for _, field in ipairs(tool.param.fields) do
+    input_schema_properties[field.name] = {
+      type = field.type,
+      description = field.description,
+    }
+    if not field.optional then table.insert(required, field.name) end
+  end
+  local res = {
+    type = "function",
+    ["function"] = {
+      name = tool.name,
+      description = tool.description,
+    },
+  }
+  if vim.tbl_count(input_schema_properties) > 0 then
+    res["function"].parameters = {
+      type = "object",
+      properties = input_schema_properties,
+      required = required,
+      additionalProperties = false,
+    }
+  end
+  return res
+end
+
 ---@class AvanteProviderFunctor
 local M = {}
 
@@ -107,12 +167,34 @@ M.parse_messages = function(opts)
     table.insert(final_messages, { role = M.role_map[role] or role, content = message.content })
   end)
 
+  if opts.tool_result then
+    table.insert(final_messages, {
+      role = M.role_map["assistant"],
+      tool_calls = {
+        {
+          id = opts.tool_use.id,
+          type = "function",
+          ["function"] = {
+            name = opts.tool_use.name,
+            arguments = opts.tool_use.input_json,
+          },
+        },
+      },
+    })
+    local result_content = opts.tool_result.content or ""
+    table.insert(final_messages, {
+      role = "tool",
+      tool_call_id = opts.tool_result.tool_use_id,
+      content = opts.tool_result.is_error and "Error: " .. result_content or result_content,
+    })
+  end
+
   return final_messages
 end
 
 M.parse_response = function(ctx, data_stream, _, opts)
   if data_stream:match('"%[DONE%]":') then
-    opts.on_complete(nil)
+    opts.on_stop({ reason = "complete" })
     return
   end
   if data_stream:match('"delta":') then
@@ -121,7 +203,14 @@ M.parse_response = function(ctx, data_stream, _, opts)
     if jsn.choices and jsn.choices[1] then
       local choice = jsn.choices[1]
       if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" then
-        opts.on_complete(nil)
+        opts.on_stop({ reason = "complete" })
+      elseif choice.finish_reason == "tool_calls" then
+        opts.on_stop({
+          reason = "tool_use",
+          usage = jsn.usage,
+          tool_use = ctx.tool_use,
+          response_content = ctx.response_content,
+        })
       elseif choice.delta.reasoning_content and choice.delta.reasoning_content ~= vim.NIL then
         if ctx.returned_think_start_tag == nil or not ctx.returned_think_start_tag then
           ctx.returned_think_start_tag = true
@@ -136,6 +225,17 @@ M.parse_response = function(ctx, data_stream, _, opts)
         end
         ctx.last_think_content = choice.delta.reasoning
         opts.on_chunk(choice.delta.reasoning)
+      elseif choice.delta.tool_calls then
+        local tool_call = choice.delta.tool_calls[1]
+        if not ctx.tool_use then
+          ctx.tool_use = {
+            name = tool_call["function"].name,
+            id = tool_call.id,
+            input_json = "",
+          }
+        else
+          ctx.tool_use.input_json = ctx.tool_use.input_json .. tool_call["function"].arguments
+        end
       elseif choice.delta.content then
         if
           ctx.returned_think_start_tag ~= nil and (ctx.returned_think_end_tag == nil or not ctx.returned_think_end_tag)
@@ -164,7 +264,7 @@ M.parse_response_without_stream = function(data, _, opts)
     local choice = json.choices[1]
     if choice.message and choice.message.content then
       opts.on_chunk(choice.message.content)
-      vim.schedule(function() opts.on_complete(nil) end)
+      vim.schedule(function() opts.on_stop({ reason = "complete" }) end)
     end
   end
 end
@@ -198,6 +298,13 @@ M.parse_curl_args = function(provider, code_opts)
     body_opts.temperature = 1
   end
 
+  local tools = {}
+  if code_opts.tools then
+    for _, tool in ipairs(code_opts.tools) do
+      table.insert(tools, transform_tool(tool))
+    end
+  end
+
   Utils.debug("endpoint", base.endpoint)
   Utils.debug("model", base.model)
 
@@ -210,6 +317,7 @@ M.parse_curl_args = function(provider, code_opts)
       model = base.model,
       messages = M.parse_messages(code_opts),
       stream = stream,
+      tools = tools,
     }, body_opts),
   }
 end

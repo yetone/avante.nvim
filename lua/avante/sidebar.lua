@@ -13,6 +13,7 @@ local Utils = require("avante.utils")
 local Highlights = require("avante.highlights")
 local RepoMap = require("avante.repo_map")
 local FileSelector = require("avante.file_selector")
+local LLMTools = require("avante.llm_tools")
 
 local RESULT_BUF_NAME = "AVANTE_RESULT"
 local VIEW_BUFFER_UPDATED_PATTERN = "AvanteViewBufferUpdated"
@@ -1669,6 +1670,7 @@ function Sidebar:create_input_container(opts)
       selected_code = selected_code_content,
       instructions = request,
       mode = "planning",
+      tools = LLMTools.tools,
     }
   end
 
@@ -1755,7 +1757,10 @@ function Sidebar:create_input_container(opts)
     vim.keymap.set("n", "k", on_k, { buffer = self.result_container.bufnr })
     vim.keymap.set("n", "G", on_G, { buffer = self.result_container.bufnr })
 
-    ---@type AvanteChunkParser
+    ---@type AvanteLLMStartCallback
+    local on_start = function(start_opts) end
+
+    ---@type AvanteLLMChunkCallback
     local on_chunk = function(chunk)
       original_response = original_response .. chunk
 
@@ -1778,8 +1783,8 @@ function Sidebar:create_input_container(opts)
       displayed_response = cur_displayed_response
     end
 
-    ---@type AvanteCompleteParser
-    local on_complete = function(err)
+    ---@type AvanteLLMStopCallback
+    local on_stop = function(stop_opts)
       pcall(function()
         ---remove keymaps
         vim.keymap.del("n", "j", { buffer = self.result_container.bufnr })
@@ -1787,9 +1792,9 @@ function Sidebar:create_input_container(opts)
         vim.keymap.del("n", "G", { buffer = self.result_container.bufnr })
       end)
 
-      if err ~= nil then
+      if stop_opts.error ~= nil then
         self:update_content(
-          content_prefix .. displayed_response .. "\n\nError: " .. vim.inspect(err),
+          content_prefix .. displayed_response .. "\n\nError: " .. vim.inspect(stop_opts.error),
           { scroll = scroll }
         )
         return
@@ -1835,8 +1840,9 @@ function Sidebar:create_input_container(opts)
     ---@type StreamOptions
     ---@diagnostic disable-next-line: assign-type-mismatch
     local stream_options = vim.tbl_deep_extend("force", generate_prompts_options, {
+      on_start = on_start,
       on_chunk = on_chunk,
-      on_complete = on_complete,
+      on_stop = on_stop,
     })
 
     Llm.stream(stream_options)

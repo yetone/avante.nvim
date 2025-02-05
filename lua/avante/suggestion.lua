@@ -141,8 +141,10 @@ L5:    pass
     history_messages = history_messages,
     instructions = vim.json.encode(doc),
     mode = "suggesting",
+    on_start = function(_) end,
     on_chunk = function(chunk) full_response = full_response .. chunk end,
-    on_complete = function(err)
+    on_stop = function(stop_opts)
+      local err = stop_opts.error
       if err then
         Utils.error("Error while suggesting: " .. vim.inspect(err), { once = true, title = "Avante" })
         return
