@@ -66,17 +66,17 @@ end
 
 M.parse_response = function(ctx, data_stream, _, opts)
   local ok, json = pcall(vim.json.decode, data_stream)
-  if not ok then opts.on_complete(json) end
+  if not ok then opts.on_stop({ reason = "error", error = json }) end
   if json.candidates then
     if #json.candidates > 0 then
       if json.candidates[1].finishReason and json.candidates[1].finishReason == "STOP" then
         opts.on_chunk(json.candidates[1].content.parts[1].text)
-        opts.on_complete(nil)
+        opts.on_stop({ reason = "complete" })
       else
         opts.on_chunk(json.candidates[1].content.parts[1].text)
       end
     else
-      opts.on_complete(nil)
+      opts.on_stop({ reason = "complete" })
     end
   end
 end

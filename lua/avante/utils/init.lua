@@ -47,6 +47,31 @@ M.get_os_name = function()
   end
 end
 
+M.get_system_info = function()
+  local os_name = vim.loop.os_uname().sysname
+  local os_version = vim.loop.os_uname().release
+  local os_machine = vim.loop.os_uname().machine
+  local lang = os.getenv("LANG")
+
+  local res = string.format(
+    "- Platform: %s-%s-%s\n- Shell: %s\n- Language: %s\n- Current date: %s",
+    os_name,
+    os_version,
+    os_machine,
+    vim.o.shell,
+    lang,
+    os.date("%Y-%m-%d")
+  )
+
+  local project_root = M.root.get()
+  if project_root then res = res .. string.format("\n- Project root: %s", project_root) end
+
+  local is_git_repo = vim.fn.isdirectory(".git") == 1
+  if is_git_repo then res = res .. "\n- The user is operating inside a git repository" end
+
+  return res
+end
+
 --- This function will run given shell command synchronously.
 ---@param input_cmd string
 ---@return vim.SystemCompleted
@@ -622,6 +647,7 @@ function M.parse_gitignore(gitignore_path)
   end
 
   file:close()
+  ignore_patterns = vim.list_extend(ignore_patterns, { "%.git", "%.worktree", "__pycache__", "node_modules" })
   return ignore_patterns, negate_patterns
 end
 
@@ -635,26 +661,28 @@ function M.is_ignored(file, ignore_patterns, negate_patterns)
   return false
 end
 
----@param options { directory: string, add_dirs?: boolean }
+---@param options { directory: string, add_dirs?: boolean, depth?: integer }
 function M.scan_directory_respect_gitignore(options)
   local directory = options.directory
   local gitignore_path = directory .. "/.gitignore"
   local gitignore_patterns, gitignore_negate_patterns = M.parse_gitignore(gitignore_path)
-  gitignore_patterns = vim.list_extend(gitignore_patterns, { "%.git", "%.worktree", "__pycache__", "node_modules" })
   return M.scan_directory({
     directory = directory,
     gitignore_patterns = gitignore_patterns,
     gitignore_negate_patterns = gitignore_negate_patterns,
     add_dirs = options.add_dirs,
+    depth = options.depth,
   })
 end
 
----@param options { directory: string, gitignore_patterns: string[], gitignore_negate_patterns: string[], add_dirs?: boolean }
+---@param options { directory: string, gitignore_patterns: string[], gitignore_negate_patterns: string[], add_dirs?: boolean, depth?: integer, current_depth?: integer }
 function M.scan_directory(options)
   local directory = options.directory
   local ignore_patterns = options.gitignore_patterns
   local negate_patterns = options.gitignore_negate_patterns
   local add_dirs = options.add_dirs or false
+  local depth = options.depth or -1
+  local current_depth = options.current_depth or 0
 
   local files = {}
   local handle = vim.loop.fs_scandir(directory)
@@ -662,6 +690,8 @@ function M.scan_directory(options)
   if not handle then return files end
 
   while true do
+    if depth > 0 and current_depth >= depth then break end
+
     local name, type = vim.loop.fs_scandir_next(handle)
     if not name then break end
 
@@ -677,6 +707,7 @@ function M.scan_directory(options)
           gitignore_patterns = ignore_patterns,
           gitignore_negate_patterns = negate_patterns,
           add_dirs = add_dirs,
+          current_depth = current_depth + 1,
         })
       )
     elseif type == "file" then

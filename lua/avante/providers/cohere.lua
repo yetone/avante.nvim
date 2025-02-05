@@ -62,7 +62,7 @@ M.parse_stream_data = function(data, opts)
   local json = vim.json.decode(data)
   if json.type ~= nil then
     if json.type == "message-end" and json.delta.finish_reason == "COMPLETE" then
-      opts.on_complete(nil)
+      opts.on_stop({ reason = "complete" })
       return
     end
     if json.type == "content-delta" then opts.on_chunk(json.delta.message.content.text) end
