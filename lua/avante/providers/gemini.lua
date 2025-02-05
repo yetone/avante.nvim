@@ -81,7 +81,7 @@ M.parse_response = function(ctx, data_stream, _, opts)
   end
 end
 
-M.parse_curl_args = function(provider, code_opts)
+M.parse_curl_args = function(provider, prompt_opts)
   local base, body_opts = P.parse_config(provider)
 
   body_opts = vim.tbl_deep_extend("force", body_opts, {
@@ -101,7 +101,7 @@ M.parse_curl_args = function(provider, code_opts)
     proxy = base.proxy,
     insecure = base.allow_insecure,
     headers = { ["Content-Type"] = "application/json" },
-    body = vim.tbl_deep_extend("force", {}, M.parse_messages(code_opts), body_opts),
+    body = vim.tbl_deep_extend("force", {}, M.parse_messages(prompt_opts), body_opts),
   }
 end
 

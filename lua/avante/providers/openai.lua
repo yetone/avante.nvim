@@ -167,26 +167,28 @@ M.parse_messages = function(opts)
     table.insert(final_messages, { role = M.role_map[role] or role, content = message.content })
   end)
 
-  if opts.tool_result then
-    table.insert(final_messages, {
-      role = M.role_map["assistant"],
-      tool_calls = {
-        {
-          id = opts.tool_use.id,
-          type = "function",
-          ["function"] = {
-            name = opts.tool_use.name,
-            arguments = opts.tool_use.input_json,
+  if opts.tool_histories then
+    for _, tool_history in ipairs(opts.tool_histories) do
+      table.insert(final_messages, {
+        role = M.role_map["assistant"],
+        tool_calls = {
+          {
+            id = tool_history.tool_use.id,
+            type = "function",
+            ["function"] = {
+              name = tool_history.tool_use.name,
+              arguments = tool_history.tool_use.input_json,
+            },
           },
         },
-      },
-    })
-    local result_content = opts.tool_result.content or ""
-    table.insert(final_messages, {
-      role = "tool",
-      tool_call_id = opts.tool_result.tool_use_id,
-      content = opts.tool_result.is_error and "Error: " .. result_content or result_content,
-    })
+      })
+      local result_content = tool_history.tool_result.content or ""
+      table.insert(final_messages, {
+        role = "tool",
+        tool_call_id = tool_history.tool_result.tool_use_id,
+        content = tool_history.tool_result.is_error and "Error: " .. result_content or result_content,
+      })
+    end
   end
 
   return final_messages
@@ -269,8 +271,9 @@ M.parse_response_without_stream = function(data, _, opts)
   end
 end
 
-M.parse_curl_args = function(provider, code_opts)
+M.parse_curl_args = function(provider, prompt_opts)
   local base, body_opts = P.parse_config(provider)
+  local disable_tools = base.disable_tools or false
 
   local headers = {
     ["Content-Type"] = "application/json",
@@ -298,9 +301,10 @@ M.parse_curl_args = function(provider, code_opts)
     body_opts.temperature = 1
   end
 
-  local tools = {}
-  if code_opts.tools then
-    for _, tool in ipairs(code_opts.tools) do
+  local tools = nil
+  if not disable_tools and prompt_opts.tools then
+    tools = {}
+    for _, tool in ipairs(prompt_opts.tools) do
       table.insert(tools, M.transform_tool(tool))
     end
   end
@@ -315,7 +319,7 @@ M.parse_curl_args = function(provider, code_opts)
     headers = headers,
     body = vim.tbl_deep_extend("force", {
       model = base.model,
-      messages = M.parse_messages(code_opts),
+      messages = M.parse_messages(prompt_opts),
       stream = stream,
       tools = tools,
     }, body_opts),

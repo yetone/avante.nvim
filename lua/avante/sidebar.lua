@@ -4,6 +4,7 @@ local fn = vim.fn
 local Split = require("nui.split")
 local event = require("nui.utils.autocmd").event
 
+local PPath = require("plenary.path")
 local Provider = require("avante.providers")
 local Path = require("avante.path")
 local Config = require("avante.config")
@@ -236,28 +237,54 @@ local function transform_result_content(selected_files, result_content, prev_fil
       local end_line = 0
       local match_filetype = nil
       local filepath = current_filepath or prev_filepath or ""
+      ---@type {path: string, content: string, file_type: string | nil} | nil
+      local the_matched_file = nil
       for _, file in ipairs(selected_files) do
-        if not Utils.is_same_file(file.path, filepath) then goto continue1 end
-        local file_content = vim.split(file.content, "\n")
-        if start_line ~= 0 or end_line ~= 0 then break end
-        for j = 1, #file_content - (search_end - search_start) + 1 do
-          local match = true
-          for k = 0, search_end - search_start - 1 do
-            if
-              Utils.remove_indentation(file_content[j + k]) ~= Utils.remove_indentation(result_lines[search_start + k])
-            then
-              match = false
-              break
-            end
-          end
-          if match then
-            start_line = j
-            end_line = j + (search_end - search_start) - 1
-            match_filetype = file.file_type
+        if Utils.is_same_file(file.path, filepath) then
+          the_matched_file = file
+          break
+        end
+      end
+
+      if not the_matched_file then
+        if not PPath:new(filepath):exists() then
+          Utils.warn("File not found: " .. filepath)
+          goto continue
+        end
+        if not PPath:new(filepath):is_file() then
+          Utils.warn("Not a file: " .. filepath)
+          goto continue
+        end
+        local content = Utils.file.read_content(filepath)
+        if content == nil then
+          Utils.warn("Failed to read file: " .. filepath)
+          goto continue
+        end
+        the_matched_file = {
+          filepath = filepath,
+          content = content,
+          file_type = nil,
+        }
+      end
+
+      local file_content = vim.split(the_matched_file.content, "\n")
+      if start_line ~= 0 or end_line ~= 0 then break end
+      for j = 1, #file_content - (search_end - search_start) + 1 do
+        local match = true
+        for k = 0, search_end - search_start - 1 do
+          if
+            Utils.remove_indentation(file_content[j + k]) ~= Utils.remove_indentation(result_lines[search_start + k])
+          then
+            match = false
             break
           end
         end
-        ::continue1::
+        if match then
+          start_line = j
+          end_line = j + (search_end - search_start) - 1
+          match_filetype = the_matched_file.file_type
+          break
+        end
       end
 
       -- when the filetype isn't detected, fallback to matching based on filepath.
@@ -1758,7 +1785,7 @@ function Sidebar:create_input_container(opts)
     vim.keymap.set("n", "G", on_G, { buffer = self.result_container.bufnr })
 
     ---@type AvanteLLMStartCallback
-    local on_start = function(start_opts) end
+    local on_start = function(_) end
 
     ---@type AvanteLLMChunkCallback
     local on_chunk = function(chunk)
