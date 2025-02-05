@@ -60,9 +60,19 @@ local P = require("avante.providers")
 ---@field type string
 ---@field description string
 
+---@class AvanteProviderFunctor
+local M = {}
+
+M.api_key_name = "OPENAI_API_KEY"
+
+M.role_map = {
+  user = "user",
+  assistant = "assistant",
+}
+
 ---@param tool AvanteLLMTool
 ---@return AvanteOpenAITool
-local function transform_tool(tool)
+function M.transform_tool(tool)
   local input_schema_properties = {}
   local required = {}
   for _, field in ipairs(tool.param.fields) do
@@ -89,16 +99,6 @@ local function transform_tool(tool)
   end
   return res
 end
-
----@class AvanteProviderFunctor
-local M = {}
-
-M.api_key_name = "OPENAI_API_KEY"
-
-M.role_map = {
-  user = "user",
-  assistant = "assistant",
-}
 
 M.is_openrouter = function(url) return url:match("^https://openrouter%.ai/") end
 
@@ -301,7 +301,7 @@ M.parse_curl_args = function(provider, code_opts)
   local tools = {}
   if code_opts.tools then
     for _, tool in ipairs(code_opts.tools) do
-      table.insert(tools, transform_tool(tool))
+      table.insert(tools, M.transform_tool(tool))
     end
   end
 
