@@ -11,7 +11,7 @@ local function get_abs_path(rel_path)
   return Path:new(project_root):joinpath(rel_path):absolute()
 end
 
-function M.comfirm(msg)
+function M.confirm(msg)
   local ok = vim.fn.confirm(msg, "&Yes\n&No", 2)
   return ok == 1
 end
