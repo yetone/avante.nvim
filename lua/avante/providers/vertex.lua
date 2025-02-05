@@ -31,7 +31,7 @@ M.parse_api_key = function()
   return direct_output
 end
 
-M.parse_curl_args = function(provider, code_opts)
+M.parse_curl_args = function(provider, prompt_opts)
   local base, body_opts = P.parse_config(provider)
   local location = vim.fn.getenv("LOCATION") or "default-location"
   local project_id = vim.fn.getenv("PROJECT_ID") or "default-project-id"
@@ -58,7 +58,7 @@ M.parse_curl_args = function(provider, code_opts)
     },
     proxy = base.proxy,
     insecure = base.allow_insecure,
-    body = vim.tbl_deep_extend("force", {}, M.parse_messages(code_opts), body_opts),
+    body = vim.tbl_deep_extend("force", {}, M.parse_messages(prompt_opts), body_opts),
   }
 end
 

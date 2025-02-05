@@ -396,6 +396,7 @@ M.BASE_PROVIDER_KEYS = {
   "use_xml_format",
   "role_map",
   "__inherited_from",
+  "disable_tools",
 }
 
 return M

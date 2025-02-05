@@ -116,18 +116,16 @@ M.generate_prompts = function(opts)
     messages = messages,
     image_paths = image_paths,
     tools = opts.tools,
-    tool_use = opts.tool_use,
-    tool_result = opts.tool_result,
-    response_content = opts.response_content,
+    tool_histories = opts.tool_histories,
   }
 end
 
 ---@param opts GeneratePromptsOptions
 ---@return integer
 M.calculate_tokens = function(opts)
-  local code_opts = M.generate_prompts(opts)
-  local tokens = Utils.tokens.calculate_tokens(code_opts.system_prompt)
-  for _, message in ipairs(code_opts.messages) do
+  local prompt_opts = M.generate_prompts(opts)
+  local tokens = Utils.tokens.calculate_tokens(prompt_opts.system_prompt)
+  for _, message in ipairs(prompt_opts.messages) do
     tokens = tokens + Utils.tokens.calculate_tokens(message.content)
   end
   return tokens
@@ -137,7 +135,7 @@ end
 M._stream = function(opts)
   local Provider = opts.provider or P[Config.provider]
 
-  local code_opts = M.generate_prompts(opts)
+  local prompt_opts = M.generate_prompts(opts)
 
   ---@type string
   local current_event_state = nil
@@ -154,11 +152,14 @@ M._stream = function(opts)
           content = error ~= nil and error or result,
           is_error = error ~= nil,
         }
-        local new_opts = vim.tbl_deep_extend(
-          "force",
-          opts,
+        local old_tool_histories = vim.deepcopy(opts.tool_histories) or {}
+        table.insert(
+          old_tool_histories,
           { tool_result = tool_result, tool_use = stop_opts.tool_use, response_content = stop_opts.response_content }
         )
+        local new_opts = vim.tbl_deep_extend("force", opts, {
+          tool_histories = old_tool_histories,
+        })
         return M._stream(new_opts)
       end
       return opts.on_stop(stop_opts)
@@ -166,7 +167,7 @@ M._stream = function(opts)
   }
 
   ---@type AvanteCurlOutput
-  local spec = Provider.parse_curl_args(Provider, code_opts)
+  local spec = Provider.parse_curl_args(Provider, prompt_opts)
 
   local resp_ctx = {}
 
@@ -310,7 +311,7 @@ local function _merge_response(first_response, second_response, opts)
 
   prompt = prompt .. "\n"
 
-  -- append this reference prompt to the code_opts messages at last
+  -- append this reference prompt to the prompt_opts messages at last
   opts.instructions = opts.instructions .. prompt
 
   M._stream(opts)
@@ -412,6 +413,9 @@ end
 ---@field mode LlmMode
 ---@field provider AvanteProviderFunctor | AvanteBedrockProviderFunctor | nil
 ---@field tools? AvanteLLMTool[]
+---@field tool_histories? AvanteLLMToolHistory[]
+---
+---@class AvanteLLMToolHistory
 ---@field tool_result? AvanteLLMToolResult
 ---@field tool_use? AvanteLLMToolUse
 ---@field response_content? string

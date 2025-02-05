@@ -30,9 +30,7 @@ local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 ---@field messages AvanteLLMMessage[]
 ---@field image_paths? string[]
 ---@field tools? AvanteLLMTool[]
----@field tool_result? AvanteLLMToolResult
----@field tool_use? AvanteLLMToolUse
----@field response_content? string
+---@field tool_histories? AvanteLLMToolHistory[]
 ---
 ---@class AvanteGeminiMessage
 ---@field role "user"
@@ -43,7 +41,7 @@ local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 ---@alias AvanteMessagesParser fun(opts: AvantePromptOptions): AvanteChatMessage[]
 ---
 ---@class AvanteCurlOutput: {url: string, proxy: string, insecure: boolean, body: table<string, any> | string, headers: table<string, string>, rawArgs: string[] | nil}
----@alias AvanteCurlArgsParser fun(opts: AvanteProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor, code_opts: AvantePromptOptions): AvanteCurlOutput
+---@alias AvanteCurlArgsParser fun(opts: AvanteProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor, prompt_opts: AvantePromptOptions): AvanteCurlOutput
 ---
 ---@class ResponseParser
 ---@field on_start AvanteLLMStartCallback
@@ -60,6 +58,7 @@ local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 ---@field allow_insecure? boolean
 ---@field api_key_name? string
 ---@field _shellenv? string
+---@field disable_tools? boolean
 ---
 ---@class AvanteSupportedProvider: AvanteDefaultBaseProvider
 ---@field __inherited_from? string
@@ -382,26 +381,31 @@ function M.refresh(provider)
 end
 
 ---@param opts AvanteProvider | AvanteSupportedProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor
----@return AvanteDefaultBaseProvider, table<string, any>
+---@return AvanteDefaultBaseProvider provider_opts
+---@return table<string, any> request_body
 M.parse_config = function(opts)
   ---@type AvanteDefaultBaseProvider
-  local s1 = {}
+  local provider_opts = {}
   ---@type table<string, any>
-  local s2 = {}
+  local request_body = {}
 
   for key, value in pairs(opts) do
     if vim.tbl_contains(Config.BASE_PROVIDER_KEYS, key) then
-      s1[key] = value
+      provider_opts[key] = value
     else
-      s2[key] = value
+      request_body[key] = value
     end
   end
 
-  return s1,
-    vim.iter(s2):filter(function(_, v) return type(v) ~= "function" end):fold({}, function(acc, k, v)
+  request_body = vim
+    .iter(request_body)
+    :filter(function(_, v) return type(v) ~= "function" end)
+    :fold({}, function(acc, k, v)
       acc[k] = v
       return acc
     end)
+
+  return provider_opts, request_body
 end
 
 ---@private
