@@ -69,7 +69,7 @@ M.parse_stream_data = function(data, opts)
   end
 end
 
-M.parse_curl_args = function(provider, code_opts)
+M.parse_curl_args = function(provider, prompt_opts)
   local base, body_opts = P.parse_config(provider)
 
   local headers = {
@@ -92,7 +92,7 @@ M.parse_curl_args = function(provider, code_opts)
     body = vim.tbl_deep_extend("force", {
       model = base.model,
       stream = true,
-    }, M.parse_messages(code_opts), body_opts),
+    }, M.parse_messages(prompt_opts), body_opts),
   }
 end
 

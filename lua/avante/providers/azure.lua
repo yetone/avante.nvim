@@ -17,7 +17,7 @@ M.parse_messages = O.parse_messages
 M.parse_response = O.parse_response
 M.parse_response_without_stream = O.parse_response_without_stream
 
-M.parse_curl_args = function(provider, code_opts)
+M.parse_curl_args = function(provider, prompt_opts)
   local base, body_opts = P.parse_config(provider)
 
   local headers = {
@@ -40,7 +40,7 @@ M.parse_curl_args = function(provider, code_opts)
     insecure = base.allow_insecure,
     headers = headers,
     body = vim.tbl_deep_extend("force", {
-      messages = M.parse_messages(code_opts),
+      messages = M.parse_messages(prompt_opts),
       stream = true,
     }, body_opts),
   }

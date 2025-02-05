@@ -241,7 +241,7 @@ end
 
 M.parse_response = OpenAI.parse_response
 
-M.parse_curl_args = function(provider, code_opts)
+M.parse_curl_args = function(provider, prompt_opts)
   -- refresh token synchronously, only if it has expired
   -- (this should rarely happen, as we refresh the token in the background)
   H.refresh_token(false, false)
@@ -249,8 +249,8 @@ M.parse_curl_args = function(provider, code_opts)
   local base, body_opts = P.parse_config(provider)
 
   local tools = {}
-  if code_opts.tools then
-    for _, tool in ipairs(code_opts.tools) do
+  if prompt_opts.tools then
+    for _, tool in ipairs(prompt_opts.tools) do
       table.insert(tools, OpenAI.transform_tool(tool))
     end
   end
@@ -268,7 +268,7 @@ M.parse_curl_args = function(provider, code_opts)
     },
     body = vim.tbl_deep_extend("force", {
       model = base.model,
-      messages = M.parse_messages(code_opts),
+      messages = M.parse_messages(prompt_opts),
       stream = true,
       tools = tools,
     }, body_opts),
