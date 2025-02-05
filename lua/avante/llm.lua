@@ -46,6 +46,8 @@ M.generate_prompts = function(opts)
   local project_root = Utils.root.get()
   Path.prompts.initialize(Path.prompts.get(project_root))
 
+  local system_info = Utils.get_system_info()
+
   local template_opts = {
     use_xml_format = Provider.use_xml_format,
     ask = opts.ask, -- TODO: add mode without ask instruction
@@ -54,6 +56,7 @@ M.generate_prompts = function(opts)
     selected_code = opts.selected_code,
     project_context = opts.project_context,
     diagnostics = opts.diagnostics,
+    system_info = system_info,
   }
 
   local system_prompt = Path.prompts.render_mode(mode, template_opts)
@@ -148,7 +151,7 @@ M._stream = function(opts)
         local result, error = LLMTools.process_tool_use(stop_opts.tool_use)
         local tool_result = {
           tool_use_id = stop_opts.tool_use.id,
-          content = result,
+          content = error ~= nil and error or result,
           is_error = error ~= nil,
         }
         local new_opts = vim.tbl_deep_extend(
@@ -156,7 +159,6 @@ M._stream = function(opts)
           opts,
           { tool_result = tool_result, tool_use = stop_opts.tool_use, response_content = stop_opts.response_content }
         )
-        Utils.debug("new_opts.tool_result", new_opts.tool_result)
         return M._stream(new_opts)
       end
       return opts.on_stop(stop_opts)

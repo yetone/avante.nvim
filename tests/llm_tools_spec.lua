@@ -3,6 +3,8 @@ local stub = require("luassert.stub")
 local LlmTools = require("avante.llm_tools")
 local Utils = require("avante.utils")
 
+LlmTools.confirm = function(msg) return true end
+
 describe("llm_tools", function()
   local test_dir = "/tmp/test_llm_tools"
   local test_file = test_dir .. "/test.txt"
@@ -105,9 +107,14 @@ describe("llm_tools", function()
       file:write("this is searchable content")
       file:close()
 
+      file = io.open(test_dir .. "/nothing.txt", "w")
+      file:write("this is nothing")
+      file:close()
+
       local result, err = LlmTools.search({ rel_path = ".", keyword = "searchable" })
       assert.is_nil(err)
       assert.truthy(result:find("searchable.txt"))
+      assert.falsy(result:find("nothing.txt"))
     end)
 
     it("should search using ag when rg is not available", function()

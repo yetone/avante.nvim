@@ -1,5 +1,7 @@
+local curl = require("plenary.curl")
 local Utils = require("avante.utils")
 local Path = require("plenary.path")
+local Config = require("avante.config")
 local M = {}
 
 ---@param rel_path string
@@ -7,6 +9,11 @@ local M = {}
 local function get_abs_path(rel_path)
   local project_root = Utils.get_project_root()
   return Path:new(project_root):joinpath(rel_path):absolute()
+end
+
+function M.comfirm(msg)
+  local ok = vim.fn.confirm(msg, "&Yes\n&No", 2)
+  return ok == 1
 end
 
 ---@param abs_path string
@@ -73,23 +80,21 @@ function M.search(opts)
   if search_cmd == "" then return "", "No search command found" end
 
   ---execute the search command
-  local result = ""
+  local cmd = ""
   if search_cmd:find("rg") then
-    local cmd = string.format("%s --files --no-ignore-vcs --ignore-case --hidden --glob '!.git'", search_cmd)
+    cmd = string.format("%s --files-with-matches --no-ignore-vcs --ignore-case --hidden --glob '!.git'", search_cmd)
     cmd = string.format("%s '%s' %s", cmd, opts.keyword, abs_path)
-    result = vim.fn.system(cmd)
   elseif search_cmd:find("ag") then
-    local cmd =
-      string.format("%s '%s' --nocolor --nogroup --hidden --ignore .git %s", search_cmd, opts.keyword, abs_path)
-    result = vim.fn.system(cmd)
+    cmd = string.format("%s '%s' --nocolor --nogroup --hidden --ignore .git %s", search_cmd, opts.keyword, abs_path)
   elseif search_cmd:find("ack") then
-    local cmd = string.format("%s --nocolor --nogroup --hidden --ignore-dir .git", search_cmd)
+    cmd = string.format("%s --nocolor --nogroup --hidden --ignore-dir .git", search_cmd)
     cmd = string.format("%s '%s' %s", cmd, opts.keyword, abs_path)
-    result = vim.fn.system(cmd)
   elseif search_cmd:find("grep") then
-    local cmd = string.format("%s -riH --exclude-dir=.git %s %s", search_cmd, opts.keyword, abs_path)
-    result = vim.fn.system(cmd)
+    cmd = string.format("%s -riH --exclude-dir=.git %s %s", search_cmd, opts.keyword, abs_path)
   end
+
+  Utils.debug("cmd", cmd)
+  local result = vim.fn.system(cmd)
 
   return result or "", nil
 end
@@ -153,6 +158,9 @@ function M.rename_file(opts)
   local new_abs_path = get_abs_path(opts.new_rel_path)
   if not has_permission_to_access(new_abs_path) then return false, "No permission to access path: " .. new_abs_path end
   if Path:new(new_abs_path):exists() then return false, "File already exists: " .. new_abs_path end
+  if not M.confirm("Are you sure you want to rename the file: " .. abs_path .. " to: " .. new_abs_path) then
+    return false, "User canceled"
+  end
   os.rename(abs_path, new_abs_path)
   return true, nil
 end
@@ -180,6 +188,7 @@ function M.delete_file(opts)
   if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
   if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
+  if not M.confirm("Are you sure you want to delete the file: " .. abs_path) then return false, "User canceled" end
   os.remove(abs_path)
   return true, nil
 end
@@ -206,6 +215,9 @@ function M.rename_dir(opts)
   local new_abs_path = get_abs_path(opts.new_rel_path)
   if not has_permission_to_access(new_abs_path) then return false, "No permission to access path: " .. new_abs_path end
   if Path:new(new_abs_path):exists() then return false, "Directory already exists: " .. new_abs_path end
+  if not M.confirm("Are you sure you want to rename directory " .. abs_path .. " to " .. new_abs_path .. "?") then
+    return false, "User canceled"
+  end
   os.rename(abs_path, new_abs_path)
   return true, nil
 end
@@ -218,6 +230,9 @@ function M.delete_dir(opts)
   if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "Directory not found: " .. abs_path end
   if not Path:new(abs_path):is_dir() then return false, "Path is not a directory: " .. abs_path end
+  if not M.confirm("Are you sure you want to delete the directory: " .. abs_path) then
+    return false, "User canceled"
+  end
   os.remove(abs_path)
   return true, nil
 end
@@ -229,17 +244,47 @@ function M.run_command(opts)
   local abs_path = get_abs_path(opts.rel_path)
   if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "Path not found: " .. abs_path end
+  if
+    not M.confirm("Are you sure you want to run the command: `" .. opts.command .. "` in the directory: " .. abs_path)
+  then
+    return false, "User canceled"
+  end
   ---change cwd to abs_path
   local old_cwd = vim.fn.getcwd()
   vim.fn.chdir(abs_path)
-  ---run command
-  local handle = io.popen(opts.command)
-  if not handle then return false, "Command failed: " .. opts.command end
-  ---read output
-  local result = handle:read("*a")
-  handle:close()
+  local res = Utils.shell_run(opts.command)
   vim.fn.chdir(old_cwd)
-  return result, nil
+  if res.code ~= 0 then
+    if res.stdout then return false, "Error: " .. res.stdout .. "; Error code: " .. tostring(res.code) end
+    return false, "Error code: " .. tostring(res.code)
+  end
+  return res.stdout, nil
+end
+
+---@param opts { query: string }
+---@return string|nil result
+---@return string|nil error
+function M.web_search(opts)
+  local search_engine = Config.web_search_engine
+  if search_engine.provider == "tavily" then
+    if search_engine.api_key_name == "" then return nil, "No API key provided" end
+    local api_key = os.getenv(search_engine.api_key_name)
+    if api_key == nil or api_key == "" then
+      return nil, "Environment variable " .. search_engine.api_key_name .. " is not set"
+    end
+    local resp = curl.post("https://api.tavily.com/search", {
+      headers = {
+        ["Content-Type"] = "application/json",
+        ["Authorization"] = "Bearer " .. api_key,
+      },
+      body = vim.json.encode(vim.tbl_deep_extend("force", {
+        query = opts.query,
+      }, search_engine.provider_opts)),
+    })
+    if resp.status ~= 200 then return nil, "Error: " .. resp.body end
+    local jsn = vim.json.decode(resp.body)
+    return jsn.anwser, nil
+  end
 end
 
 ---@class AvanteLLMTool
@@ -621,17 +666,47 @@ M.tools = {
       },
     },
   },
+  {
+    name = "web_search",
+    description = "Search the web",
+    param = {
+      type = "table",
+      fields = {
+        {
+          name = "query",
+          description = "Query to search",
+          type = "string",
+        },
+      },
+    },
+    returns = {
+      {
+        name = "result",
+        description = "Result of the search",
+        type = "string",
+      },
+      {
+        name = "error",
+        description = "Error message if the search was not successful",
+        type = "string",
+        optional = true,
+      },
+    },
+  },
 }
 
 ---@param tool_use AvanteLLMToolUse
 ---@return string | nil result
 ---@return string | nil error
 function M.process_tool_use(tool_use)
+  Utils.debug("use tool", tool_use.name, tool_use.input_json)
   local tool = vim.iter(M.tools):find(function(tool) return tool.name == tool_use.name end)
   if tool == nil then return end
   local input_json = vim.json.decode(tool_use.input_json)
   local func = M[tool.name]
   local result, error = func(input_json)
+  -- Utils.debug("result", result)
+  -- Utils.debug("error", error)
   if result ~= nil and type(result) ~= "string" then result = vim.json.encode(result) end
   return result, error
 end

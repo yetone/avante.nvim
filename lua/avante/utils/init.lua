@@ -47,6 +47,31 @@ M.get_os_name = function()
   end
 end
 
+M.get_system_info = function()
+  local os_name = vim.loop.os_uname().sysname
+  local os_version = vim.loop.os_uname().release
+  local os_machine = vim.loop.os_uname().machine
+  local lang = os.getenv("LANG")
+
+  local res = string.format(
+    "- Platform: %s-%s-%s\n- Shell: %s\n- Language: %s\n- Current date: %s",
+    os_name,
+    os_version,
+    os_machine,
+    vim.o.shell,
+    lang,
+    os.date("%Y-%m-%d")
+  )
+
+  local project_root = M.root.get()
+  if project_root then res = res .. string.format("\n- Project root: %s", project_root) end
+
+  local is_git_repo = vim.fn.isdirectory(".git") == 1
+  if is_git_repo then res = res .. "\n- The user is operating inside a git repository" end
+
+  return res
+end
+
 --- This function will run given shell command synchronously.
 ---@param input_cmd string
 ---@return vim.SystemCompleted
