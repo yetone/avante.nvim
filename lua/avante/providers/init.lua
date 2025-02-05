@@ -11,17 +11,28 @@ local DressingConfig = {
 local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 
 ---@class AvanteHandlerOptions: table<[string], string>
----@field on_chunk AvanteChunkParser
----@field on_complete AvanteCompleteParser
+---@field on_start AvanteLLMStartCallback
+---@field on_chunk AvanteLLMChunkCallback
+---@field on_stop AvanteLLMStopCallback
 ---
 ---@class AvanteLLMMessage
 ---@field role "user" | "assistant"
 ---@field content string
 ---
+---@class AvanteLLMToolResult
+---@field tool_name string
+---@field tool_use_id string
+---@field content string
+---@field is_error? boolean
+---
 ---@class AvantePromptOptions: table<[string], string>
 ---@field system_prompt string
 ---@field messages AvanteLLMMessage[]
 ---@field image_paths? string[]
+---@field tools? AvanteLLMTool[]
+---@field tool_result? AvanteLLMToolResult
+---@field tool_use? AvanteLLMToolUse
+---@field response_content? string
 ---
 ---@class AvanteGeminiMessage
 ---@field role "user"
@@ -35,8 +46,9 @@ local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 ---@alias AvanteCurlArgsParser fun(opts: AvanteProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor, code_opts: AvantePromptOptions): AvanteCurlOutput
 ---
 ---@class ResponseParser
----@field on_chunk fun(chunk: string): any
----@field on_complete fun(err: string|nil): any
+---@field on_start AvanteLLMStartCallback
+---@field on_chunk AvanteLLMChunkCallback
+---@field on_stop AvanteLLMStopCallback
 ---@alias AvanteResponseParser fun(ctx: any, data_stream: string, event_state: string, opts: ResponseParser): nil
 ---
 ---@class AvanteDefaultBaseProvider: table<string, any>
@@ -54,9 +66,31 @@ local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 ---@field temperature? number
 ---@field max_tokens? number
 ---
+---@class AvanteLLMUsage
+---@field input_tokens number
+---@field cache_creation_input_tokens number
+---@field cache_read_input_tokens number
+---@field output_tokens number
+---
+---@class AvanteLLMToolUse
+---@field name string
+---@field id string
+---@field input_json string
+---
+---@class AvanteLLMStartCallbackOptions
+---@field usage? AvanteLLMUsage
+---
+---@class AvanteLLMStopCallbackOptions
+---@field reason "complete" | "tool_use" | "error"
+---@field error? string | table
+---@field usage? AvanteLLMUsage
+---@field tool_use? AvanteLLMToolUse
+---@field response_content? string
+---
 ---@alias AvanteStreamParser fun(line: string, handler_opts: AvanteHandlerOptions): nil
----@alias AvanteChunkParser fun(chunk: string): any
----@alias AvanteCompleteParser fun(err: string|nil): nil
+---@alias AvanteLLMStartCallback fun(opts: AvanteLLMStartCallbackOptions): nil
+---@alias AvanteLLMChunkCallback fun(chunk: string): any
+---@alias AvanteLLMStopCallback fun(opts: AvanteLLMStopCallbackOptions): nil
 ---@alias AvanteLLMConfigHandler fun(opts: AvanteSupportedProvider): AvanteDefaultBaseProvider, table<string, any>
 ---
 ---@class AvanteProvider: AvanteSupportedProvider

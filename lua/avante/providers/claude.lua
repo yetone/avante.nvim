@@ -17,6 +17,44 @@ local P = require("avante.providers")
 ---@field role "user" | "assistant"
 ---@field content [AvanteClaudeTextMessage | AvanteClaudeImageMessage][]
 
+---@class AvanteClaudeTool
+---@field name string
+---@field description string
+---@field input_schema AvanteClaudeToolInputSchema
+
+---@class AvanteClaudeToolInputSchema
+---@field type "object"
+---@field properties table<string, AvanteClaudeToolInputSchemaProperty>
+---@field required string[]
+
+---@class AvanteClaudeToolInputSchemaProperty
+---@field type "string" | "number" | "boolean"
+---@field description string
+---@field enum? string[]
+
+---@param tool AvanteLLMTool
+---@return AvanteClaudeTool
+local function transform_tool(tool)
+  local input_schema_properties = {}
+  local required = {}
+  for _, field in ipairs(tool.param.fields) do
+    input_schema_properties[field.name] = {
+      type = field.type,
+      description = field.description,
+    }
+    if not field.optional then table.insert(required, field.name) end
+  end
+  return {
+    name = tool.name,
+    description = tool.description,
+    input_schema = {
+      type = "object",
+      properties = input_schema_properties,
+      required = required,
+    },
+  }
+end
+
 ---@class AvanteProviderFunctor
 local M = {}
 
@@ -74,26 +112,101 @@ M.parse_messages = function(opts)
     messages[#messages].content = message_content
   end
 
+  if opts.tool_use then
+    local msg = {
+      role = "assistant",
+      content = {},
+    }
+    if opts.response_content then
+      msg.content[#msg.content + 1] = {
+        type = "text",
+        text = opts.response_content,
+      }
+    end
+    msg.content[#msg.content + 1] = {
+      type = "tool_use",
+      id = opts.tool_use.id,
+      name = opts.tool_use.name,
+      input = vim.json.decode(opts.tool_use.input_json),
+    }
+    messages[#messages + 1] = msg
+  end
+
+  if opts.tool_result then
+    messages[#messages + 1] = {
+      role = "user",
+      content = {
+        {
+          type = "tool_result",
+          tool_use_id = opts.tool_result.tool_use_id,
+          content = opts.tool_result.content,
+          is_error = opts.tool_result.is_error,
+        },
+      },
+    }
+  end
+
   return messages
 end
 
 M.parse_response = function(ctx, data_stream, event_state, opts)
   if event_state == nil then
-    if data_stream:match('"content_block_delta"') then
-      event_state = "content_block_delta"
+    if data_stream:match('"message_start"') then
+      event_state = "message_start"
+    elseif data_stream:match('"message_delta"') then
+      event_state = "message_delta"
     elseif data_stream:match('"message_stop"') then
       event_state = "message_stop"
+    elseif data_stream:match('"content_block_start"') then
+      event_state = "content_block_start"
+    elseif data_stream:match('"content_block_delta"') then
+      event_state = "content_block_delta"
+    elseif data_stream:match('"content_block_stop"') then
+      event_state = "content_block_stop"
     end
   end
-  if event_state == "content_block_delta" then
-    local ok, json = pcall(vim.json.decode, data_stream)
+  if event_state == "message_start" then
+    local ok, jsn = pcall(vim.json.decode, data_stream)
     if not ok then return end
-    opts.on_chunk(json.delta.text)
-  elseif event_state == "message_stop" then
-    opts.on_complete(nil)
+    opts.on_start(jsn.message.usage)
+  elseif event_state == "content_block_start" then
+    local ok, jsn = pcall(vim.json.decode, data_stream)
+    if not ok then return end
+    if jsn.content_block.type == "tool_use" then
+      ctx.tool_use = {
+        name = jsn.content_block.name,
+        id = jsn.content_block.id,
+        input_json = "",
+      }
+    elseif jsn.content_block.type == "text" then
+      ctx.response_content = ""
+    end
+  elseif event_state == "content_block_delta" then
+    local ok, jsn = pcall(vim.json.decode, data_stream)
+    if not ok then return end
+    if ctx.tool_use and jsn.delta.type == "input_json_delta" then
+      ctx.tool_use.input_json = ctx.tool_use.input_json .. jsn.delta.partial_json
+      return
+    elseif ctx.response_content and jsn.delta.type == "text_delta" then
+      ctx.response_content = ctx.response_content .. jsn.delta.text
+    end
+    opts.on_chunk(jsn.delta.text)
+  elseif event_state == "message_delta" then
+    local ok, jsn = pcall(vim.json.decode, data_stream)
+    if not ok then return end
+    if jsn.delta.stop_reason == "end_turn" then
+      opts.on_stop({ reason = "complete", usage = jsn.usage })
+    elseif jsn.delta.stop_reason == "tool_use" then
+      opts.on_stop({
+        reason = "tool_use",
+        usage = jsn.usage,
+        tool_use = ctx.tool_use,
+        response_content = ctx.response_content,
+      })
+    end
     return
   elseif event_state == "error" then
-    opts.on_complete(vim.json.decode(data_stream))
+    opts.on_stop({ reason = "error", error = vim.json.decode(data_stream) })
   end
 end
 
@@ -113,6 +226,13 @@ M.parse_curl_args = function(provider, prompt_opts)
 
   local messages = M.parse_messages(prompt_opts)
 
+  local tools = {}
+  if prompt_opts.tools then
+    for _, tool in ipairs(prompt_opts.tools) do
+      table.insert(tools, transform_tool(tool))
+    end
+  end
+
   return {
     url = Utils.url_join(base.endpoint, "/v1/messages"),
     proxy = base.proxy,
@@ -128,6 +248,7 @@ M.parse_curl_args = function(provider, prompt_opts)
         },
       },
       messages = messages,
+      tools = tools,
       stream = true,
     }, body_opts),
   }

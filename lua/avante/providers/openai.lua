@@ -112,7 +112,7 @@ end
 
 M.parse_response = function(ctx, data_stream, _, opts)
   if data_stream:match('"%[DONE%]":') then
-    opts.on_complete(nil)
+    opts.on_stop({ reason = "complete" })
     return
   end
   if data_stream:match('"delta":') then
@@ -121,7 +121,7 @@ M.parse_response = function(ctx, data_stream, _, opts)
     if jsn.choices and jsn.choices[1] then
       local choice = jsn.choices[1]
       if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" then
-        opts.on_complete(nil)
+        opts.on_stop({ reason = "complete" })
       elseif choice.delta.reasoning_content and choice.delta.reasoning_content ~= vim.NIL then
         if ctx.returned_think_start_tag == nil or not ctx.returned_think_start_tag then
           ctx.returned_think_start_tag = true
@@ -164,7 +164,7 @@ M.parse_response_without_stream = function(data, _, opts)
     local choice = json.choices[1]
     if choice.message and choice.message.content then
       opts.on_chunk(choice.message.content)
-      vim.schedule(function() opts.on_complete(nil) end)
+      vim.schedule(function() opts.on_stop({ reason = "complete" }) end)
     end
   end
 end

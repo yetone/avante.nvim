@@ -264,9 +264,9 @@ end
 ---@field type string
 ---@field optional? boolean
 
----@type {[string]: AvanteLLMTool}
-M.tools_map = {
-  ["list_files"] = {
+---@type AvanteLLMTool[]
+M.tools = {
+  {
     name = "list_files",
     description = "List files in a directory",
     param = {
@@ -299,7 +299,7 @@ M.tools_map = {
       },
     },
   },
-  ["search_files"] = {
+  {
     name = "search_files",
     description = "Search for files in a directory",
     param = {
@@ -331,7 +331,7 @@ M.tools_map = {
       },
     },
   },
-  ["search"] = {
+  {
     name = "search",
     description = "Search for a keyword in a directory",
     param = {
@@ -363,7 +363,7 @@ M.tools_map = {
       },
     },
   },
-  ["read_file_toplevel_symbols"] = {
+  {
     name = "read_file_toplevel_symbols",
     description = "Read the top-level symbols of a file",
     param = {
@@ -390,7 +390,7 @@ M.tools_map = {
       },
     },
   },
-  ["read_file"] = {
+  {
     name = "read_file",
     description = "Read the contents of a file",
     param = {
@@ -417,7 +417,7 @@ M.tools_map = {
       },
     },
   },
-  ["create_file"] = {
+  {
     name = "create_file",
     description = "Create a new file",
     param = {
@@ -444,7 +444,7 @@ M.tools_map = {
       },
     },
   },
-  ["rename_file"] = {
+  {
     name = "rename_file",
     description = "Rename a file",
     param = {
@@ -476,7 +476,7 @@ M.tools_map = {
       },
     },
   },
-  ["delete_file"] = {
+  {
     name = "delete_file",
     description = "Delete a file",
     param = {
@@ -503,7 +503,7 @@ M.tools_map = {
       },
     },
   },
-  ["create_dir"] = {
+  {
     name = "create_dir",
     description = "Create a new directory",
     param = {
@@ -530,7 +530,7 @@ M.tools_map = {
       },
     },
   },
-  ["rename_dir"] = {
+  {
     name = "rename_dir",
     description = "Rename a directory",
     param = {
@@ -562,7 +562,7 @@ M.tools_map = {
       },
     },
   },
-  ["delete_dir"] = {
+  {
     name = "delete_dir",
     description = "Delete a directory",
     param = {
@@ -589,7 +589,7 @@ M.tools_map = {
       },
     },
   },
-  ["run_command"] = {
+  {
     name = "run_command",
     description = "Run a command in a directory",
     param = {
@@ -622,5 +622,18 @@ M.tools_map = {
     },
   },
 }
+
+---@param tool_use AvanteLLMToolUse
+---@return string | nil result
+---@return string | nil error
+function M.process_tool_use(tool_use)
+  local tool = vim.iter(M.tools):find(function(tool) return tool.name == tool_use.name end)
+  if tool == nil then return end
+  local input_json = vim.json.decode(tool_use.input_json)
+  local func = M[tool.name]
+  local result, error = func(input_json)
+  if result ~= nil and type(result) ~= "string" then result = vim.json.encode(result) end
+  return result, error
+end
 
 return M
