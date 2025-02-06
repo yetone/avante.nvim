@@ -122,6 +122,7 @@ jobs:
           cp target/release/libavante_templates.$EXT results/avante_templates.$EXT
           cp target/release/libavante_tokenizers.$EXT results/avante_tokenizers.$EXT
           cp target/release/libavante_repo_map.$EXT results/avante_repo_map.$EXT
+          cp target/release/libavante_html2md.$EXT results/avante_html2md.$EXT
 
           cd results
           tar zcvf avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.tar.gz *.${EXT}
@@ -135,6 +136,7 @@ jobs:
           Copy-Item -Path "target\release\avante_templates.dll" -Destination "results\avante_templates.dll"
           Copy-Item -Path "target\release\avante_tokenizers.dll" -Destination "results\avante_tokenizers.dll"
           Copy-Item -Path "target\release\avante_repo_map.dll" -Destination "results\avante_repo_map.dll"
+          Copy-Item -Path "target\release\avante_html2md.dll" -Destination "results\avante_html2md.dll"
 
           Set-Location -Path results
 
