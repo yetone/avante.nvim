@@ -344,13 +344,19 @@ end
 
 ---@param idx integer
 ---@return boolean
-function FileSelector:remove_selected_filepaths(idx)
+function FileSelector:remove_selected_filepaths_with_index(idx)
   if idx > 0 and idx <= #self.selected_filepaths then
     table.remove(self.selected_filepaths, idx)
     self:emit("update")
     return true
   end
   return false
+end
+
+function FileSelector:remove_selected_file(rel_path)
+  local uniform_path = Utils.uniform_path(rel_path)
+  local idx = Utils.tbl_indexof(self.selected_filepaths, uniform_path)
+  if idx then self:remove_selected_filepaths_with_index(idx) end
 end
 
 ---@return { path: string, content: string, file_type: string }[]

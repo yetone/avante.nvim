@@ -311,6 +311,7 @@ end
 ---@class AvanteLLMTool
 ---@field name string
 ---@field description string
+---@field func? fun(input: any): (string | nil, string | nil)
 ---@field param AvanteLLMToolParam
 ---@field returns AvanteLLMToolReturn[]
 
@@ -716,16 +717,17 @@ M.tools = {
   },
 }
 
+---@param tools AvanteLLMTool[]
 ---@param tool_use AvanteLLMToolUse
 ---@param on_log? fun(tool_name: string, log: string): nil
 ---@return string | nil result
 ---@return string | nil error
-function M.process_tool_use(tool_use, on_log)
+function M.process_tool_use(tools, tool_use, on_log)
   Utils.debug("use tool", tool_use.name, tool_use.input_json)
-  local tool = vim.iter(M.tools):find(function(tool) return tool.name == tool_use.name end)
+  local tool = vim.iter(tools):find(function(tool) return tool.name == tool_use.name end)
   if tool == nil then return end
   local input_json = vim.json.decode(tool_use.input_json)
-  local func = M[tool.name]
+  local func = tool.func or M[tool.name]
   if on_log then on_log(tool_use.name, "running tool") end
   local result, error = func(input_json, function(log)
     if on_log then on_log(tool_use.name, log) end
