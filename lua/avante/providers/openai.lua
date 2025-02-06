@@ -29,6 +29,7 @@ local P = require("avante.providers")
 ---@field arguments string
 ---
 ---@class OpenAIMessageToolCall
+---@field index integer
 ---@field id string
 ---@field type "function"
 ---@field function OpenAIMessageToolCallFunction
@@ -210,8 +211,7 @@ M.parse_response = function(ctx, data_stream, _, opts)
         opts.on_stop({
           reason = "tool_use",
           usage = jsn.usage,
-          tool_use = ctx.tool_use,
-          response_content = ctx.response_content,
+          tool_use_list = ctx.tool_use_list,
         })
       elseif choice.delta.reasoning_content and choice.delta.reasoning_content ~= vim.NIL then
         if ctx.returned_think_start_tag == nil or not ctx.returned_think_start_tag then
@@ -229,14 +229,17 @@ M.parse_response = function(ctx, data_stream, _, opts)
         opts.on_chunk(choice.delta.reasoning)
       elseif choice.delta.tool_calls then
         local tool_call = choice.delta.tool_calls[1]
-        if not ctx.tool_use then
-          ctx.tool_use = {
+        if not ctx.tool_use_list then ctx.tool_use_list = {} end
+        if not ctx.tool_use_list[tool_call.index + 1] then
+          local tool_use = {
             name = tool_call["function"].name,
             id = tool_call.id,
             input_json = "",
           }
+          ctx.tool_use_list[tool_call.index + 1] = tool_use
         else
-          ctx.tool_use.input_json = ctx.tool_use.input_json .. tool_call["function"].arguments
+          local tool_use = ctx.tool_use_list[tool_call.index + 1]
+          tool_use.input_json = tool_use.input_json .. tool_call["function"].arguments
         end
       elseif choice.delta.content then
         if

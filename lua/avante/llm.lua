@@ -145,18 +145,17 @@ M._stream = function(opts)
     on_start = opts.on_start,
     on_chunk = opts.on_chunk,
     on_stop = function(stop_opts)
-      if stop_opts.reason == "tool_use" and stop_opts.tool_use then
-        local result, error = LLMTools.process_tool_use(opts.tools, stop_opts.tool_use, opts.on_tool_log)
-        local tool_result = {
-          tool_use_id = stop_opts.tool_use.id,
-          content = error ~= nil and error or result,
-          is_error = error ~= nil,
-        }
+      if stop_opts.reason == "tool_use" and stop_opts.tool_use_list then
         local old_tool_histories = vim.deepcopy(opts.tool_histories) or {}
-        table.insert(
-          old_tool_histories,
-          { tool_result = tool_result, tool_use = stop_opts.tool_use, response_content = stop_opts.response_content }
-        )
+        for _, tool_use in ipairs(stop_opts.tool_use_list) do
+          local result, error = LLMTools.process_tool_use(opts.tools, tool_use, opts.on_tool_log)
+          local tool_result = {
+            tool_use_id = tool_use.id,
+            content = error ~= nil and error or result,
+            is_error = error ~= nil,
+          }
+          table.insert(old_tool_histories, { tool_result = tool_result, tool_use = tool_use })
+        end
         local new_opts = vim.tbl_deep_extend("force", opts, {
           tool_histories = old_tool_histories,
         })
@@ -418,7 +417,6 @@ end
 ---@class AvanteLLMToolHistory
 ---@field tool_result? AvanteLLMToolResult
 ---@field tool_use? AvanteLLMToolUse
----@field response_content? string
 ---
 ---@class StreamOptions: GeneratePromptsOptions
 ---@field on_start AvanteLLMStartCallback

@@ -75,6 +75,7 @@ local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 ---@field name string
 ---@field id string
 ---@field input_json string
+---@field response_content? string
 ---
 ---@class AvanteLLMStartCallbackOptions
 ---@field usage? AvanteLLMUsage
@@ -83,8 +84,7 @@ local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 ---@field reason "complete" | "tool_use" | "error"
 ---@field error? string | table
 ---@field usage? AvanteLLMUsage
----@field tool_use? AvanteLLMToolUse
----@field response_content? string
+---@field tool_use_list? AvanteLLMToolUse[]
 ---
 ---@alias AvanteStreamParser fun(line: string, handler_opts: AvanteHandlerOptions): nil
 ---@alias AvanteLLMStartCallback fun(opts: AvanteLLMStartCallbackOptions): nil
