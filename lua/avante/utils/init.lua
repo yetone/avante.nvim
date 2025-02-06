@@ -914,7 +914,7 @@ function M.read_file_from_buf_or_disk(file_path)
     return vim.split(content, "\n"), file_type, nil
   else
     M.error("failed to open file: " .. file_path .. " with error: " .. open_err)
-    return nil, nil, open_err
+    return {}, nil, open_err
   end
 end
 

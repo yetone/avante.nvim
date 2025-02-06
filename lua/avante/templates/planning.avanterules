@@ -106,6 +106,23 @@ Every *SEARCH/REPLACE block* must use this format:
 6. The lines to replace into the source code
 7. The end of the replace block: </REPLACE>
 8. Please *DO NOT* put *SEARCH/REPLACE block* inside three backticks: {%raw%}```{%endraw%}
+10. Each block start and end tag must be on a separate line, and the lines they are on cannot contain anything else, I BEG YOU!
+
+This is bad case:
+
+<SEARCH>
+foo</SEARCH>
+<REPLACE>
+bar</REPLACE>
+
+This is good case:
+
+<SEARCH>
+foo
+</SEARCH>
+<REPLACE>
+bar
+</REPLACE>
 
 Use the *FULL* file path, as shown to you by the user.
 
