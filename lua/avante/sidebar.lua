@@ -255,11 +255,12 @@ local function transform_result_content(selected_files, result_content, prev_fil
           Utils.warn("Not a file: " .. filepath)
           goto continue
         end
-        local content = Utils.file.read_content(filepath)
-        if content == nil then
+        local lines = Utils.read_file_from_buf_or_disk(filepath)
+        if lines == nil then
           Utils.warn("Failed to read file: " .. filepath)
           goto continue
         end
+        local content = table.concat(lines, "\n")
         the_matched_file = {
           filepath = filepath,
           content = content,
@@ -534,11 +535,12 @@ local function ensure_snippets_no_overlap(snippets_map)
   for filepath, snippets in pairs(snippets_map) do
     table.sort(snippets, function(a, b) return a.range[1] < b.range[1] end)
 
-    local original_content = ""
+    local original_lines = {}
     local file_exists = Utils.file.exists(filepath)
-    if file_exists then original_content = Utils.file.read_content(filepath) or "" end
-
-    local original_lines = vim.split(original_content, "\n")
+    if file_exists then
+      local original_lines_ = Utils.read_file_from_buf_or_disk(filepath)
+      if original_lines_ then original_lines = original_lines_ end
+    end
 
     local new_snippets = {}
     local last_end_line = 0
@@ -584,9 +586,7 @@ local function insert_conflict_contents(bufnr, snippets)
   -- sort snippets by start_line
   table.sort(snippets, function(a, b) return a.range[1] < b.range[1] end)
 
-  local content = table.concat(Utils.get_buf_lines(0, -1, bufnr), "\n")
-
-  local lines = vim.split(content, "\n")
+  local lines = Utils.get_buf_lines(0, -1, bufnr)
 
   local offset = 0
 
@@ -714,7 +714,15 @@ end
 ---@param snippets_map table<string, AvanteCodeSnippet[]>
 ---@return table<string, AvanteCodeSnippet[]>
 function Sidebar:minimize_snippets(snippets_map)
-  local original_lines = api.nvim_buf_get_lines(self.code.bufnr, 0, -1, false)
+  local original_lines = {}
+
+  if vim.tbl_count(snippets_map) > 0 then
+    local filepaths = vim.tbl_keys(snippets_map)
+    local original_lines_, _, err = Utils.read_file_from_buf_or_disk(filepaths[1])
+    if err ~= nil then return {} end
+    if original_lines_ then original_lines = original_lines_ end
+  end
+
   local results = {}
 
   for filepath, snippets in pairs(snippets_map) do

@@ -64,9 +64,9 @@ function RepoMap._build_repo_map(project_root, file_ext)
   vim.iter(filepaths):each(function(filepath)
     if not Utils.is_same_file_ext(file_ext, filepath) then return end
     local filetype = RepoMap.get_ts_lang(filepath)
-    local definitions = filetype
-        and repo_map_lib.stringify_definitions(filetype, Utils.file.read_content(filepath) or "")
-      or ""
+    local lines = Utils.read_file_from_buf_or_disk(filepath)
+    local content = lines and table.concat(lines, "\n") or ""
+    local definitions = filetype and repo_map_lib.stringify_definitions(filetype, content) or ""
     if definitions == "" then return end
     table.insert(output, {
       path = Utils.relative_path(filepath),
@@ -127,10 +127,9 @@ function RepoMap._get_repo_map(file_ext)
   local update_repo_map = vim.schedule_wrap(function(rel_filepath)
     if rel_filepath and Utils.is_same_file_ext(file_ext, rel_filepath) then
       local abs_filepath = PPath:new(project_root):joinpath(rel_filepath):absolute()
-      local definitions = repo_map_lib.stringify_definitions(
-        RepoMap.get_ts_lang(abs_filepath),
-        Utils.file.read_content(abs_filepath) or ""
-      )
+      local lines = Utils.read_file_from_buf_or_disk(abs_filepath)
+      local content = lines and table.concat(lines, "\n") or ""
+      local definitions = repo_map_lib.stringify_definitions(RepoMap.get_ts_lang(abs_filepath), content)
       if definitions == "" then return end
       local found = false
       for _, m in ipairs(repo_map) do
