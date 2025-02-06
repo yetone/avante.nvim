@@ -341,7 +341,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
 ```
 ## Blink.cmp users
 For blink cmp users (nvim-cmp alternative) view below instruction for configuration
-This is achieved but emulating nvim-cmp using blink.compat
+This is achieved by emulating nvim-cmp using blink.compat
 <details>
   <summary>Lua</summary>
 
