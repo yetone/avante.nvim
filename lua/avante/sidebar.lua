@@ -1847,11 +1847,11 @@ function Sidebar:create_input_container(opts)
 
     local on_tool_log = function(tool_name, log)
       if transformed_response:sub(-1) ~= "\n" then transformed_response = transformed_response .. "\n" end
-      transformed_response = transformed_response .. "[" .. tool_name .. "]: " .. log
+      transformed_response = transformed_response .. "[" .. tool_name .. "]: " .. log .. "\n"
       local breakline = ""
       if displayed_response:sub(-1) ~= "\n" then breakline = "\n" end
-      displayed_response = displayed_response .. breakline .. "[" .. tool_name .. "]: " .. log
-      self:update_content(content_prefix .. displayed_response .. "\n", {
+      displayed_response = displayed_response .. breakline .. "[" .. tool_name .. "]: " .. log .. "\n"
+      self:update_content(content_prefix .. displayed_response, {
         scroll = scroll,
       })
     end
