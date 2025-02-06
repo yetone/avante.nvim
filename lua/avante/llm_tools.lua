@@ -308,6 +308,18 @@ function M.web_search(opts, on_log)
   end
 end
 
+---@param opts { url: string }
+---@param on_log? fun(log: string): nil
+---@return string|nil result
+---@return string|nil error
+function M.fetch(opts, on_log)
+  if on_log then on_log("url: " .. opts.url) end
+  local Html2Md = require("avante.html2md")
+  local res = Html2Md.fetch_md(opts.url)
+  if res == nil then return nil, "Failed to fetch markdown" end
+  return res, nil
+end
+
 ---@class AvanteLLMTool
 ---@field name string
 ---@field description string
@@ -710,6 +722,33 @@ M.tools = {
       {
         name = "error",
         description = "Error message if the search was not successful",
+        type = "string",
+        optional = true,
+      },
+    },
+  },
+  {
+    name = "fetch",
+    description = "Fetch markdown from a url",
+    param = {
+      type = "table",
+      fields = {
+        {
+          name = "url",
+          description = "Url to fetch markdown from",
+          type = "string",
+        },
+      },
+    },
+    returns = {
+      {
+        name = "result",
+        description = "Result of the fetch",
+        type = "string",
+      },
+      {
+        name = "error",
+        description = "Error message if the fetch was not successful",
         type = "string",
         optional = true,
       },

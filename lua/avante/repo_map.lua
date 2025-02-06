@@ -13,7 +13,6 @@ local filetype_map = {
 ---@field stringify_definitions fun(lang: string, source: string): string
 local repo_map_lib = nil
 
----@class avante.utils.repo_map
 local RepoMap = {}
 
 ---@return AvanteRepoMap|nil
