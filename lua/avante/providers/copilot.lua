@@ -215,26 +215,29 @@ M.parse_messages = function(opts)
   vim
     .iter(opts.messages)
     :each(function(msg) table.insert(messages, { role = M.role_map[msg.role], content = msg.content }) end)
-  if opts.tool_result then
-    table.insert(messages, {
-      role = M.role_map["assistant"],
-      tool_calls = {
-        {
-          id = opts.tool_use.id,
-          type = "function",
-          ["function"] = {
-            name = opts.tool_use.name,
-            arguments = opts.tool_use.input_json,
+
+  if opts.tool_histories then
+    for _, tool_history in ipairs(opts.tool_histories) do
+      table.insert(messages, {
+        role = M.role_map["assistant"],
+        tool_calls = {
+          {
+            id = tool_history.tool_use.id,
+            type = "function",
+            ["function"] = {
+              name = tool_history.tool_use.name,
+              arguments = tool_history.tool_use.input_json,
+            },
           },
         },
-      },
-    })
-    local result_content = opts.tool_result.content or ""
-    table.insert(messages, {
-      role = "tool",
-      tool_call_id = opts.tool_result.tool_use_id,
-      content = opts.tool_result.is_error and "Error: " .. result_content or result_content,
-    })
+      })
+      local result_content = tool_history.tool_result.content or ""
+      table.insert(messages, {
+        role = "tool",
+        tool_call_id = tool_history.tool_result.tool_use_id,
+        content = tool_history.tool_result.is_error and "Error: " .. result_content or result_content,
+      })
+    end
   end
   return messages
 end
