@@ -119,10 +119,10 @@ M.parse_messages = function(opts)
           role = "assistant",
           content = {},
         }
-        if tool_history.response_content then
+        if tool_history.tool_use.response_content then
           msg.content[#msg.content + 1] = {
             type = "text",
-            text = tool_history.response_content,
+            text = tool_history.tool_use.response_content,
           }
         end
         msg.content[#msg.content + 1] = {
@@ -177,24 +177,33 @@ M.parse_response = function(ctx, data_stream, event_state, opts)
     local ok, jsn = pcall(vim.json.decode, data_stream)
     if not ok then return end
     if jsn.content_block.type == "tool_use" then
-      ctx.tool_use = {
+      if not ctx.tool_use_list then ctx.tool_use_list = {} end
+      local tool_use = {
         name = jsn.content_block.name,
         id = jsn.content_block.id,
         input_json = "",
+        response_content = nil,
       }
+      table.insert(ctx.tool_use_list, tool_use)
     elseif jsn.content_block.type == "text" then
       ctx.response_content = ""
     end
   elseif event_state == "content_block_delta" then
     local ok, jsn = pcall(vim.json.decode, data_stream)
     if not ok then return end
-    if ctx.tool_use and jsn.delta.type == "input_json_delta" then
-      ctx.tool_use.input_json = ctx.tool_use.input_json .. jsn.delta.partial_json
+    if ctx.tool_use_list and jsn.delta.type == "input_json_delta" then
+      local tool_use = ctx.tool_use_list[#ctx.tool_use_list]
+      tool_use.input_json = tool_use.input_json .. jsn.delta.partial_json
       return
     elseif ctx.response_content and jsn.delta.type == "text_delta" then
       ctx.response_content = ctx.response_content .. jsn.delta.text
     end
     opts.on_chunk(jsn.delta.text)
+  elseif event_state == "content_block_stop" then
+    if ctx.tool_use_list then
+      local tool_use = ctx.tool_use_list[#ctx.tool_use_list]
+      if tool_use.response_content == nil then tool_use.response_content = ctx.response_content end
+    end
   elseif event_state == "message_delta" then
     local ok, jsn = pcall(vim.json.decode, data_stream)
     if not ok then return end
@@ -204,8 +213,7 @@ M.parse_response = function(ctx, data_stream, event_state, opts)
       opts.on_stop({
         reason = "tool_use",
         usage = jsn.usage,
-        tool_use = ctx.tool_use,
-        response_content = ctx.response_content,
+        tool_use_list = ctx.tool_use_list,
       })
     end
     return
