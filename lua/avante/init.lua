@@ -360,6 +360,7 @@ function M.setup(opts)
 
   H.load_path()
 
+  require("avante.html2md").setup()
   require("avante.repo_map").setup()
   require("avante.path").setup()
   require("avante.highlights").setup()

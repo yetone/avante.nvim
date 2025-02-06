@@ -7,7 +7,6 @@ local lsp = vim.lsp
 ---@class avante.utils: LazyUtilCore
 ---@field tokens avante.utils.tokens
 ---@field root avante.utils.root
----@field repo_map avante.utils.repo_map
 ---@field file avante.utils.file
 local M = {}
 
