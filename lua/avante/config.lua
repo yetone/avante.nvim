@@ -1,6 +1,8 @@
 ---NOTE: user will be merged with defaults and
 ---we add a default var_accessor for this table to config values.
 
+---@alias WebSearchEngineProviderResponseBodyFormatter fun(body: table): (string, string?)
+
 local Utils = require("avante.utils")
 
 ---@class avante.CoreConfig: avante.Config
@@ -22,10 +24,44 @@ M._defaults = {
   tokenizer = "tiktoken",
   web_search_engine = {
     provider = "tavily",
-    api_key_name = "TAVILY_API_KEY",
-    provider_opts = {
-      time_range = "d",
-      include_answer = "basic",
+    providers = {
+      tavily = {
+        api_key_name = "TAVILY_API_KEY",
+        extra_request_body = {
+          time_range = "d",
+          include_answer = "basic",
+        },
+        ---@type WebSearchEngineProviderResponseBodyFormatter
+        format_response_body = function(body) return body.anwser, nil end,
+      },
+      serpapi = {
+        api_key_name = "SERPAPI_API_KEY",
+        extra_request_body = {
+          engine = "google",
+          google_domain = "google.com",
+        },
+        ---@type WebSearchEngineProviderResponseBodyFormatter
+        format_response_body = function(body)
+          if body.answer_box ~= nil then return body.answer_box.result, nil end
+          if body.organic_results ~= nil then
+            local jsn = vim
+              .iter(body.organic_results)
+              :map(
+                function(result)
+                  return {
+                    title = result.title,
+                    link = result.link,
+                    snippet = result.snippet,
+                  }
+                end
+              )
+              :totable()
+            if #jsn > 5 then jsn = vim.list_slice(jsn, 1, 5) end
+            return vim.json.encode(jsn), nil
+          end
+          return "", nil
+        end,
+      },
     },
   },
   ---@type AvanteSupportedProvider

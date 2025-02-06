@@ -513,6 +513,35 @@ Avante provides a set of default providers, but users can also create their own 
 
 For more information, see [Custom Providers](https://github.com/yetone/avante.nvim/wiki/Custom-providers)
 
+## Web Search Engines
+
+Avante's tools include some web search engines, currently support [tavily](https://tavily.com/) and [serpapi](https://serpapi.com/). The default is tavily, and can be changed through configuring `Config.web_search_engine.provider`:
+
+```lua
+web_search_engine = {
+  provider = "tavily", -- tavily or serpapi
+}
+```
+
+You need to set the environment variable `TAVILY_API_KEY` or `SERPAPI_API_KEY` to use tavily or serpapi.
+
+## Disable Tools
+
+Avante enables tools by default, but some LLM models do not support tools. You can disable tools by setting `disable_tools = true` for the provider. For example:
+
+```lua
+{
+  claude = {
+    endpoint = "https://api.anthropic.com",
+    model = "claude-3-5-sonnet-20241022",
+    timeout = 30000, -- Timeout in milliseconds
+    temperature = 0,
+    max_tokens = 4096,
+    disable_tools = true, -- disable tools!
+  },
+}
+```
+
 ## Custom prompts
 
 By default, `avante.nvim` provides three different modes to interact with: `planning`, `editing`, and `suggesting`, followed with three different prompts per mode.

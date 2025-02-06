@@ -285,14 +285,18 @@ end
 ---@return string|nil result
 ---@return string|nil error
 function M.web_search(opts, on_log)
+  local provider_type = Config.web_search_engine.provider
+  if provider_type == nil then return nil, "Search engine provider is not set" end
+  if on_log then on_log("provider: " .. provider_type) end
   if on_log then on_log("query: " .. opts.query) end
-  local search_engine = Config.web_search_engine
-  if search_engine.provider == "tavily" then
-    if search_engine.api_key_name == "" then return nil, "No API key provided" end
-    local api_key = os.getenv(search_engine.api_key_name)
-    if api_key == nil or api_key == "" then
-      return nil, "Environment variable " .. search_engine.api_key_name .. " is not set"
-    end
+  local search_engine = Config.web_search_engine.providers[provider_type]
+  if search_engine == nil then return nil, "No search engine found: " .. provider_type end
+  if search_engine.api_key_name == "" then return nil, "No API key provided" end
+  local api_key = os.getenv(search_engine.api_key_name)
+  if api_key == nil or api_key == "" then
+    return nil, "Environment variable " .. search_engine.api_key_name .. " is not set"
+  end
+  if provider_type == "tavily" then
     local resp = curl.post("https://api.tavily.com/search", {
       headers = {
         ["Content-Type"] = "application/json",
@@ -300,11 +304,28 @@ function M.web_search(opts, on_log)
       },
       body = vim.json.encode(vim.tbl_deep_extend("force", {
         query = opts.query,
-      }, search_engine.provider_opts)),
+      }, search_engine.extra_request_body)),
     })
     if resp.status ~= 200 then return nil, "Error: " .. resp.body end
     local jsn = vim.json.decode(resp.body)
-    return jsn.anwser, nil
+    return search_engine.format_response_body(jsn)
+  elseif provider_type == "serpapi" then
+    local query_params = vim.tbl_deep_extend("force", {
+      api_key = api_key,
+      q = opts.query,
+    }, search_engine.extra_request_body)
+    local query_string = ""
+    for key, value in pairs(query_params) do
+      query_string = query_string .. key .. "=" .. vim.uri_encode(value) .. "&"
+    end
+    local resp = curl.get("https://serpapi.com/search?" .. query_string, {
+      headers = {
+        ["Content-Type"] = "application/json",
+      },
+    })
+    if resp.status ~= 200 then return nil, "Error: " .. resp.body end
+    local jsn = vim.json.decode(resp.body)
+    return search_engine.format_response_body(jsn)
   end
 end
 
