@@ -890,4 +890,32 @@ function M.is_same_file(filepath_a, filepath_b) return M.uniform_path(filepath_a
 
 function M.trim_think_content(content) return content:gsub("^<think>.-</think>", "", 1) end
 
+---@param file_path string
+---@return string[]|nil lines
+---@return string|nil file_type
+---@return string|nil error
+function M.read_file_from_buf_or_disk(file_path)
+  --- Lookup if the file is loaded in a buffer
+  local bufnr = vim.fn.bufnr(file_path)
+  if bufnr ~= -1 and vim.api.nvim_buf_is_loaded(bufnr) then
+    -- If buffer exists and is loaded, get buffer content
+    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+    local file_type = vim.api.nvim_get_option_value("filetype", { buf = bufnr })
+    return lines, file_type, nil
+  end
+
+  -- Fallback: read file from disk
+  local file, open_err = io.open(file_path, "r")
+  if file then
+    local content = file:read("*all")
+    file:close()
+    -- Detect the file type using the specific file's content
+    local file_type = vim.filetype.match({ filename = file_path, contents = { content } }) or "unknown"
+    return vim.split(content, "\n"), file_type, nil
+  else
+    M.error("failed to open file: " .. file_path .. " with error: " .. open_err)
+    return nil, nil, open_err
+  end
+end
+
 return M

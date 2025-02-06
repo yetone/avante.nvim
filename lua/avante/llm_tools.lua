@@ -120,9 +120,9 @@ function M.read_file_toplevel_symbols(opts, on_log)
   local filetype = RepoMap.get_ts_lang(abs_path)
   local repo_map_lib = RepoMap._init_repo_map_lib()
   if not repo_map_lib then return "", "Failed to load avante_repo_map" end
-  local definitions = filetype
-      and repo_map_lib.stringify_definitions(filetype, Utils.file.read_content(abs_path) or "")
-    or ""
+  local lines = Utils.read_file_from_buf_or_disk(abs_path)
+  local content = lines and table.concat(lines, "\n") or ""
+  local definitions = filetype and repo_map_lib.stringify_definitions(filetype, content) or ""
   return definitions, nil
 end
 
