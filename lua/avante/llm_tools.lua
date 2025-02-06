@@ -28,11 +28,14 @@ local function has_permission_to_access(abs_path)
 end
 
 ---@param opts { rel_path: string, depth?: integer }
+---@param on_log? fun(log: string): nil
 ---@return string files
 ---@return string|nil error
-function M.list_files(opts)
+function M.list_files(opts, on_log)
   local abs_path = get_abs_path(opts.rel_path)
   if not has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
+  if on_log then on_log("path: " .. abs_path) end
+  if on_log then on_log("depth: " .. tostring(opts.depth)) end
   local files = Utils.scan_directory_respect_gitignore({
     directory = abs_path,
     add_dirs = true,
@@ -48,11 +51,14 @@ function M.list_files(opts)
 end
 
 ---@param opts { rel_path: string, keyword: string }
+---@param on_log? fun(log: string): nil
 ---@return string files
 ---@return string|nil error
-function M.search_files(opts)
+function M.search_files(opts, on_log)
   local abs_path = get_abs_path(opts.rel_path)
   if not has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
+  if on_log then on_log("path: " .. abs_path) end
+  if on_log then on_log("keyword: " .. opts.keyword) end
   local files = Utils.scan_directory_respect_gitignore({
     directory = abs_path,
   })
@@ -65,9 +71,10 @@ function M.search_files(opts)
 end
 
 ---@param opts { rel_path: string, keyword: string }
+---@param on_log? fun(log: string): nil
 ---@return string result
 ---@return string|nil error
-function M.search(opts)
+function M.search(opts, on_log)
   local abs_path = get_abs_path(opts.rel_path)
   if not has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return "", "No such file or directory: " .. abs_path end
@@ -94,18 +101,22 @@ function M.search(opts)
   end
 
   Utils.debug("cmd", cmd)
+  if on_log then on_log("Running command: " .. cmd) end
   local result = vim.fn.system(cmd)
 
   return result or "", nil
 end
 
 ---@param opts { rel_path: string }
+---@param on_log? fun(log: string): nil
 ---@return string definitions
 ---@return string|nil error
-function M.read_file_toplevel_symbols(opts)
+function M.read_file_toplevel_symbols(opts, on_log)
   local RepoMap = require("avante.repo_map")
   local abs_path = get_abs_path(opts.rel_path)
   if not has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
+  if on_log then on_log("path: " .. abs_path) end
+  if not Path:new(abs_path):exists() then return "", "File does not exists: " .. abs_path end
   local filetype = RepoMap.get_ts_lang(abs_path)
   local repo_map_lib = RepoMap._init_repo_map_lib()
   if not repo_map_lib then return "", "Failed to load avante_repo_map" end
@@ -116,11 +127,13 @@ function M.read_file_toplevel_symbols(opts)
 end
 
 ---@param opts { rel_path: string }
+---@param on_log? fun(log: string): nil
 ---@return string content
 ---@return string|nil error
-function M.read_file(opts)
+function M.read_file(opts, on_log)
   local abs_path = get_abs_path(opts.rel_path)
   if not has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
+  if on_log then on_log("path: " .. abs_path) end
   local file = io.open(abs_path, "r")
   if not file then return "", "file not found: " .. abs_path end
   local content = file:read("*a")
@@ -129,11 +142,13 @@ function M.read_file(opts)
 end
 
 ---@param opts { rel_path: string }
+---@param on_log? fun(log: string): nil
 ---@return boolean success
 ---@return string|nil error
-function M.create_file(opts)
+function M.create_file(opts, on_log)
   local abs_path = get_abs_path(opts.rel_path)
   if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
+  if on_log then on_log("path: " .. abs_path) end
   ---create directory if it doesn't exist
   local dir = Path:new(abs_path):parent()
   if not dir:exists() then dir:mkdir({ parents = true }) end
@@ -148,14 +163,16 @@ function M.create_file(opts)
 end
 
 ---@param opts { rel_path: string, new_rel_path: string }
+---@param on_log? fun(log: string): nil
 ---@return boolean success
 ---@return string|nil error
-function M.rename_file(opts)
+function M.rename_file(opts, on_log)
   local abs_path = get_abs_path(opts.rel_path)
   if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
   if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
   local new_abs_path = get_abs_path(opts.new_rel_path)
+  if on_log then on_log(abs_path .. " -> " .. new_abs_path) end
   if not has_permission_to_access(new_abs_path) then return false, "No permission to access path: " .. new_abs_path end
   if Path:new(new_abs_path):exists() then return false, "File already exists: " .. new_abs_path end
   if not M.confirm("Are you sure you want to rename the file: " .. abs_path .. " to: " .. new_abs_path) then
@@ -238,12 +255,14 @@ function M.delete_dir(opts)
 end
 
 ---@param opts { rel_path: string, command: string }
+---@param on_log? fun(log: string): nil
 ---@return string|boolean result
 ---@return string|nil error
-function M.run_command(opts)
+function M.run_command(opts, on_log)
   local abs_path = get_abs_path(opts.rel_path)
   if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "Path not found: " .. abs_path end
+  if on_log then on_log("command: " .. opts.command) end
   if
     not M.confirm("Are you sure you want to run the command: `" .. opts.command .. "` in the directory: " .. abs_path)
   then
@@ -262,9 +281,11 @@ function M.run_command(opts)
 end
 
 ---@param opts { query: string }
+---@param on_log? fun(log: string): nil
 ---@return string|nil result
 ---@return string|nil error
-function M.web_search(opts)
+function M.web_search(opts, on_log)
+  if on_log then on_log("query: " .. opts.query) end
   local search_engine = Config.web_search_engine
   if search_engine.provider == "tavily" then
     if search_engine.api_key_name == "" then return nil, "No API key provided" end
@@ -696,19 +717,34 @@ M.tools = {
 }
 
 ---@param tool_use AvanteLLMToolUse
+---@param on_log? fun(tool_name: string, log: string): nil
 ---@return string | nil result
 ---@return string | nil error
-function M.process_tool_use(tool_use)
+function M.process_tool_use(tool_use, on_log)
   Utils.debug("use tool", tool_use.name, tool_use.input_json)
   local tool = vim.iter(M.tools):find(function(tool) return tool.name == tool_use.name end)
   if tool == nil then return end
   local input_json = vim.json.decode(tool_use.input_json)
   local func = M[tool.name]
-  local result, error = func(input_json)
+  if on_log then on_log(tool_use.name, "running tool") end
+  local result, error = func(input_json, function(log)
+    if on_log then on_log(tool_use.name, log) end
+  end)
+  if on_log then on_log(tool_use.name, "tool finished") end
   -- Utils.debug("result", result)
   -- Utils.debug("error", error)
+  if error ~= nil then
+    if on_log then on_log(tool_use.name, "Error: " .. error) end
+  end
   if result ~= nil and type(result) ~= "string" then result = vim.json.encode(result) end
   return result, error
+end
+
+---@param tool_use AvanteLLMToolUse
+---@return string
+function M.stringify_tool_use(tool_use)
+  local s = string.format("`%s`", tool_use.name)
+  return s
 end
 
 return M

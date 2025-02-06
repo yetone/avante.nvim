@@ -1810,6 +1810,17 @@ function Sidebar:create_input_container(opts)
       displayed_response = cur_displayed_response
     end
 
+    local on_tool_log = function(tool_name, log)
+      if transformed_response:sub(-1) ~= "\n" then transformed_response = transformed_response .. "\n" end
+      transformed_response = transformed_response .. "[" .. tool_name .. "]: " .. log
+      local breakline = ""
+      if displayed_response:sub(-1) ~= "\n" then breakline = "\n" end
+      displayed_response = displayed_response .. breakline .. "[" .. tool_name .. "]: " .. log
+      self:update_content(content_prefix .. displayed_response .. "\n", {
+        scroll = scroll,
+      })
+    end
+
     ---@type AvanteLLMStopCallback
     local on_stop = function(stop_opts)
       pcall(function()
@@ -1870,6 +1881,7 @@ function Sidebar:create_input_container(opts)
       on_start = on_start,
       on_chunk = on_chunk,
       on_stop = on_stop,
+      on_tool_log = on_tool_log,
     })
 
     Llm.stream(stream_options)

@@ -146,7 +146,7 @@ M._stream = function(opts)
     on_chunk = opts.on_chunk,
     on_stop = function(stop_opts)
       if stop_opts.reason == "tool_use" and stop_opts.tool_use then
-        local result, error = LLMTools.process_tool_use(stop_opts.tool_use)
+        local result, error = LLMTools.process_tool_use(stop_opts.tool_use, opts.on_tool_log)
         local tool_result = {
           tool_use_id = stop_opts.tool_use.id,
           content = error ~= nil and error or result,
@@ -424,10 +424,18 @@ end
 ---@field on_start AvanteLLMStartCallback
 ---@field on_chunk AvanteLLMChunkCallback
 ---@field on_stop AvanteLLMStopCallback
+---@field on_tool_log? function(tool_name: string, log: string): nil
 
 ---@param opts StreamOptions
 M.stream = function(opts)
   local is_completed = false
+  if opts.on_tool_log ~= nil then
+    local original_on_tool_log = opts.on_tool_log
+    opts.on_tool_log = vim.schedule_wrap(function(tool_name, log)
+      if not original_on_tool_log then return end
+      return original_on_tool_log(tool_name, log)
+    end)
+  end
   if opts.on_chunk ~= nil then
     local original_on_chunk = opts.on_chunk
     opts.on_chunk = vim.schedule_wrap(function(chunk)
