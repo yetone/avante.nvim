@@ -146,7 +146,7 @@ M._stream = function(opts)
     on_chunk = opts.on_chunk,
     on_stop = function(stop_opts)
       if stop_opts.reason == "tool_use" and stop_opts.tool_use then
-        local result, error = LLMTools.process_tool_use(stop_opts.tool_use, opts.on_tool_log)
+        local result, error = LLMTools.process_tool_use(opts.tools, stop_opts.tool_use, opts.on_tool_log)
         local tool_result = {
           tool_use_id = stop_opts.tool_use.id,
           content = error ~= nil and error or result,
