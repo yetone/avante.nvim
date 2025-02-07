@@ -437,8 +437,10 @@ local function generate_display_content(replacement)
         return string.format("  > %s", line)
       end)
       :totable()
-    local result_lines =
-      vim.list_extend(vim.list_slice(lines, 1, replacement.last_search_tag_start_line), { Utils.icon("🤔 ") .. "Thought content:" })
+    local result_lines = vim.list_extend(
+      vim.list_slice(lines, 1, replacement.last_search_tag_start_line),
+      { Utils.icon("🤔 ") .. "Thought content:" }
+    )
     result_lines = vim.list_extend(result_lines, formatted_thinking_content_lines)
     result_lines = vim.list_extend(result_lines, vim.list_slice(lines, last_think_tag_end_line + 1))
     return table.concat(result_lines, "\n")
@@ -924,7 +926,8 @@ function Sidebar:render_selected_code()
     selected_code_lines_count = #selected_code_lines
   end
 
-  local header_text = Utils.icon(" ") .. "Selected Code"
+  local header_text = Utils.icon(" ")
+    .. "Selected Code"
     .. (
       selected_code_lines_count > selected_code_max_lines_count
         and " (Show only the first " .. tostring(selected_code_max_lines_count) .. " lines)"
