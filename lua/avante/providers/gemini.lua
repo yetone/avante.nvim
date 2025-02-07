@@ -93,11 +93,11 @@ M.parse_curl_args = function(provider, prompt_opts)
   body_opts.temperature = nil
   body_opts.max_tokens = nil
 
+  local api_key = provider.parse_api_key()
+  if api_key == nil then error("Cannot get the gemini api key!") end
+
   return {
-    url = Utils.url_join(
-      base.endpoint,
-      base.model .. ":streamGenerateContent?alt=sse&key=" .. provider.parse_api_key()
-    ),
+    url = Utils.url_join(base.endpoint, base.model .. ":streamGenerateContent?alt=sse&key=" .. api_key),
     proxy = base.proxy,
     insecure = base.allow_insecure,
     headers = { ["Content-Type"] = "application/json" },
