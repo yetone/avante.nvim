@@ -1536,7 +1536,7 @@ function Sidebar:reset_memory(args, cb)
   end
 end
 
----@alias AvanteSlashCommandType "clear" | "help" | "lines" | "reset"
+---@alias AvanteSlashCommandType "clear" | "help" | "lines" | "reset" | "task"
 ---@alias AvanteSlashCommandCallback fun(args: string, cb?: fun(args: string): nil): nil
 ---@alias AvanteSlashCommand {description: string, command: AvanteSlashCommandType, details: string, shorthelp?: string, callback?: AvanteSlashCommandCallback}
 ---@return AvanteSlashCommand[]
@@ -1556,6 +1556,7 @@ function Sidebar:get_commands()
     { description = "Show help message", command = "help" },
     { description = "Clear chat history", command = "clear" },
     { description = "Reset memory", command = "reset" },
+    { description = "Start a task", command = "task" },
     {
       shorthelp = "Ask a question about specific lines",
       description = "/lines <start>-<end> <question>",
@@ -1563,7 +1564,7 @@ function Sidebar:get_commands()
     },
   }
 
-  ---@type {[AvanteSlashCommandType]: AvanteSlashCommandCallback}
+  ---@type {[AvanteSlashCommandType]: AvanteSlashCommandCallback | nil}
   local cbs = {
     help = function(args, cb)
       local help_text = get_help_text(items)
@@ -1575,6 +1576,7 @@ function Sidebar:get_commands()
     lines = function(args, cb)
       if cb then cb(args) end
     end,
+    task = nil,
   }
 
   return vim
@@ -1636,41 +1638,6 @@ function Sidebar:create_input_container(opts)
 
   local chat_history = Path.history.load(self.code.bufnr)
 
-  local tools = vim.deepcopy(LLMTools.tools)
-  table.insert(tools, {
-    name = "add_file_to_context",
-    description = "Add a file to the context",
-    ---@param input { rel_path: string }
-    ---@return string | nil result
-    ---@return string | nil error
-    func = function(input)
-      self.file_selector:add_selected_file(input.rel_path)
-      return "Added file to context", nil
-    end,
-    param = {
-      type = "table",
-      fields = { { name = "rel_path", description = "Relative path to the file", type = "string" } },
-    },
-    returns = {},
-  })
-
-  table.insert(tools, {
-    name = "remove_file_from_context",
-    description = "Remove a file from the context",
-    ---@param input { rel_path: string }
-    ---@return string | nil result
-    ---@return string | nil error
-    func = function(input)
-      self.file_selector:remove_selected_file(input.rel_path)
-      return "Removed file from context", nil
-    end,
-    param = {
-      type = "table",
-      fields = { { name = "rel_path", description = "Relative path to the file", type = "string" } },
-    },
-    returns = {},
-  })
-
   ---@param request string
   ---@return GeneratePromptsOptions
   local function get_generate_prompts_options(request)
@@ -1681,6 +1648,9 @@ function Sidebar:create_input_container(opts)
 
     local mentions = Utils.extract_mentions(request)
     request = mentions.new_content
+
+    local commands = Utils.extract_command(request)
+    request = commands.new_content
 
     local file_ext = api.nvim_buf_get_name(self.code.bufnr):match("^.+%.(.+)$")
 
@@ -1730,6 +1700,45 @@ function Sidebar:create_input_container(opts)
       table.insert(history_messages, 1, { role = "user", content = user_content })
     end
 
+    local tools = vim.deepcopy(LLMTools.tools)
+
+    if not commands.enable_task then
+      tools = vim.iter(tools):filter(function(tool) return tool.name ~= "write_file" end):totable()
+      table.insert(tools, {
+        name = "add_file_to_context",
+        description = "Add a file to the context",
+        ---@param input { rel_path: string }
+        ---@return string | nil result
+        ---@return string | nil error
+        func = function(input)
+          self.file_selector:add_selected_file(input.rel_path)
+          return "Added file to context", nil
+        end,
+        param = {
+          type = "table",
+          fields = { { name = "rel_path", description = "Relative path to the file", type = "string" } },
+        },
+        returns = {},
+      })
+
+      table.insert(tools, {
+        name = "remove_file_from_context",
+        description = "Remove a file from the context",
+        ---@param input { rel_path: string }
+        ---@return string | nil result
+        ---@return string | nil error
+        func = function(input)
+          self.file_selector:remove_selected_file(input.rel_path)
+          return "Removed file from context", nil
+        end,
+        param = {
+          type = "table",
+          fields = { { name = "rel_path", description = "Relative path to the file", type = "string" } },
+        },
+        returns = {},
+      })
+    end
+
     return {
       ask = opts.ask or true,
       project_context = vim.json.encode(project_context),
@@ -1739,7 +1748,7 @@ function Sidebar:create_input_container(opts)
       code_lang = filetype,
       selected_code = selected_code_content,
       instructions = request,
-      mode = "planning",
+      mode = commands.enable_task and "task-plan" or "planning",
       tools = tools,
     }
   end
@@ -1786,7 +1795,7 @@ function Sidebar:create_input_container(opts)
             local _, _, question = args_:match("(%d+)-(%d+)%s+(.*)")
             request = question
           end)
-        else
+        elseif cmd.callback ~= nil then
           cmd.callback(args)
           return
         end

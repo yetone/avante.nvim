@@ -57,6 +57,7 @@ M.generate_prompts = function(opts)
     project_context = opts.project_context,
     diagnostics = opts.diagnostics,
     system_info = system_info,
+    planning = opts.planning,
   }
 
   local system_prompt = Path.prompts.render_mode(mode, template_opts)
@@ -140,10 +141,15 @@ M._stream = function(opts)
   ---@type string
   local current_event_state = nil
 
+  local response_chunks = {}
+
   ---@type AvanteHandlerOptions
   local handler_opts = {
     on_start = opts.on_start,
-    on_chunk = opts.on_chunk,
+    on_chunk = function(chunk)
+      table.insert(response_chunks, chunk)
+      return opts.on_chunk(chunk)
+    end,
     on_stop = function(stop_opts)
       if stop_opts.reason == "tool_use" and stop_opts.tool_use_list then
         local old_tool_histories = vim.deepcopy(opts.tool_histories) or {}
@@ -160,6 +166,19 @@ M._stream = function(opts)
           tool_histories = old_tool_histories,
         })
         return M._stream(new_opts)
+      elseif stop_opts.reason == "complete" and opts.mode == "task-plan" then
+        vim.schedule(function()
+          if vim.fn.confirm("Are you want to act this planning?", "&Yes\n&No", 2) ~= 1 then
+            return opts.on_stop(stop_opts)
+          end
+          local planning = table.concat(response_chunks, "")
+          local new_opts = vim.tbl_deep_extend("force", opts, {
+            planning = planning,
+            mode = "task-act",
+          })
+          M._stream(new_opts)
+        end)
+        return
       end
       return opts.on_stop(stop_opts)
     end,
@@ -388,7 +407,7 @@ M._dual_boost_stream = function(opts, Provider1, Provider2)
   if not success then Utils.error("Failed to start dual_boost streams: " .. tostring(err)) end
 end
 
----@alias LlmMode "planning" | "editing" | "suggesting"
+---@alias LlmMode "planning" | "editing" | "suggesting" | "task-plan" | "task-act"
 ---
 ---@class SelectedFiles
 ---@field path string
@@ -413,6 +432,7 @@ end
 ---@field provider AvanteProviderFunctor | AvanteBedrockProviderFunctor | nil
 ---@field tools? AvanteLLMTool[]
 ---@field tool_histories? AvanteLLMToolHistory[]
+---@field planning? string
 ---
 ---@class AvanteLLMToolHistory
 ---@field tool_result? AvanteLLMToolResult

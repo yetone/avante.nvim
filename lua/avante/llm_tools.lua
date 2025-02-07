@@ -141,6 +141,24 @@ function M.read_file(opts, on_log)
   return content, nil
 end
 
+---@param opts { rel_path: string, content: string }
+---@param on_log? fun(log: string): nil
+---@return boolean success
+---@return string|nil error
+function M.write_file(opts, on_log)
+  local abs_path = get_abs_path(opts.rel_path)
+  if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
+  if on_log then on_log("path: " .. abs_path) end
+  if not M.confirm("Are you sure you want to overwrite the file " .. abs_path .. "?") then
+    return false, "User canceled"
+  end
+  local file = io.open(abs_path, "w")
+  if not file then return false, "file not found: " .. abs_path end
+  file:write(opts.content)
+  file:close()
+  return true, nil
+end
+
 ---@param opts { rel_path: string }
 ---@param on_log? fun(log: string): nil
 ---@return boolean success
@@ -149,6 +167,7 @@ function M.create_file(opts, on_log)
   local abs_path = get_abs_path(opts.rel_path)
   if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if on_log then on_log("path: " .. abs_path) end
+  if Path:new(abs_path):exists() then return false, "File already exists: " .. abs_path end
   ---create directory if it doesn't exist
   local dir = Path:new(abs_path):parent()
   if not dir:exists() then dir:mkdir({ parents = true }) end
@@ -518,8 +537,40 @@ M.tools = {
     },
   },
   {
+    name = "write_file",
+    description = "Write content to a file",
+    param = {
+      type = "table",
+      fields = {
+        {
+          name = "rel_path",
+          description = "Relative path to the file",
+          type = "string",
+        },
+        {
+          name = "content",
+          description = "Content to write to the file",
+          type = "string",
+        },
+      },
+    },
+    returns = {
+      {
+        name = "success",
+        description = "Whether the file was written successfully",
+        type = "boolean",
+      },
+      {
+        name = "error",
+        description = "Error message if the file was not written successfully",
+        type = "string",
+        optional = true,
+      },
+    },
+  },
+  {
     name = "create_file",
-    description = "Create a new file",
+    description = "Create an empty new file",
     param = {
       type = "table",
       fields = {
