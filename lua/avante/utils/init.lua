@@ -922,4 +922,18 @@ end
 ---@return boolean
 M.icons_enabled = function() return M.has("nvim-web-devicons") or M.has("mini.icons") or M.has("mini.nvim") end
 
+---Display an string with icon, if an icon plugin is available.
+---Dev icons are an optional install for avante, this function prevents ugly chars
+---being displayed by displaying fallback options or nothing at all.
+---@param string_with_icon string
+---@param utf8_fallback string|nil
+---@return string
+M.icon = function(string_with_icon, utf8_fallback)
+  if M.icons_enabled() then
+    return string_with_icon
+  else
+    return utf8_fallback or ""
+  end
+end
+
 return M
