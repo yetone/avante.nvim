@@ -5,6 +5,11 @@
 
 local Utils = require("avante.utils")
 
+---@class avante.file_selector.IParams
+---@field public title      string
+---@field public filepaths  string[]
+---@field public handler    fun(filepaths: string[]|nil): nil
+
 ---@class avante.CoreConfig: avante.Config
 local M = {}
 ---@class avante.Config
@@ -302,7 +307,7 @@ M._defaults = {
   },
   --- @class AvanteFileSelectorConfig
   file_selector = {
-    --- @alias FileSelectorProvider "native" | "fzf" | "mini.pick" | "snacks" | "telescope" | string
+    --- @alias FileSelectorProvider "native" | "fzf" | "mini.pick" | "snacks" | "telescope" | string | fun(params: avante.file_selector.IParams): nil
     provider = "native",
     -- Options override for custom providers
     provider_opts = {},
