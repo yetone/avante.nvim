@@ -918,4 +918,8 @@ function M.read_file_from_buf_or_disk(file_path)
   end
 end
 
+---Check if an icon plugin is installed
+---@return boolean
+M.icons_enabled = function() return M.has("nvim-web-devicons") or M.has("mini.icons") or M.has("mini.nvim") end
+
 return M
