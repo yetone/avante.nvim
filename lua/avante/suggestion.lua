@@ -95,7 +95,7 @@ L5:     pass
     },
     {
       role = "user",
-      content = '<question>{"insertSpaces":true,"tabSize":4,"indentSize":4,"position":{"row":1,"col":2}}</question>',
+      content = '<question>{"insertSpaces":true,"tabSize":4,"indentSize":4,"position":{"row":1,"col":7}}</question>',
     },
     {
       role = "assistant",
