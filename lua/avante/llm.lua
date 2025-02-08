@@ -168,7 +168,7 @@ M._stream = function(opts)
         return M._stream(new_opts)
       elseif stop_opts.reason == "complete" and opts.mode == "task-plan" then
         vim.schedule(function()
-          if vim.fn.confirm("Are you want to act this planning?", "&Yes\n&No", 2) ~= 1 then
+          if vim.fn.confirm("Are you sure that you want to execute this plan?", "&Yes\n&No", 2) ~= 1 then
             return opts.on_stop(stop_opts)
           end
           local planning = table.concat(response_chunks, "")
