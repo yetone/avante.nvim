@@ -254,24 +254,28 @@ local function transform_result_content(selected_files, result_content, prev_fil
 
       if not the_matched_file then
         if not PPath:new(filepath):exists() then
-          Utils.warn("File not found: " .. filepath)
-          goto continue
+          the_matched_file = {
+            filepath = filepath,
+            content = "",
+            file_type = nil,
+          }
+        else
+          if not PPath:new(filepath):is_file() then
+            Utils.warn("Not a file: " .. filepath)
+            goto continue
+          end
+          local lines = Utils.read_file_from_buf_or_disk(filepath)
+          if lines == nil then
+            Utils.warn("Failed to read file: " .. filepath)
+            goto continue
+          end
+          local content = table.concat(lines, "\n")
+          the_matched_file = {
+            filepath = filepath,
+            content = content,
+            file_type = nil,
+          }
         end
-        if not PPath:new(filepath):is_file() then
-          Utils.warn("Not a file: " .. filepath)
-          goto continue
-        end
-        local lines = Utils.read_file_from_buf_or_disk(filepath)
-        if lines == nil then
-          Utils.warn("Failed to read file: " .. filepath)
-          goto continue
-        end
-        local content = table.concat(lines, "\n")
-        the_matched_file = {
-          filepath = filepath,
-          content = content,
-          file_type = nil,
-        }
       end
 
       local file_content = vim.split(the_matched_file.content, "\n")
