@@ -597,10 +597,6 @@ local function insert_conflict_contents(bufnr, snippets)
       end_line = end_line + 1
     end
 
-    local need_prepend_indentation = false
-    local start_line_indentation = ""
-    local original_start_line_indentation = Utils.get_indentation(lines[start_line] or "")
-
     local result = {}
     table.insert(result, "<<<<<<< HEAD")
     for i = start_line, end_line do
@@ -610,19 +606,7 @@ local function insert_conflict_contents(bufnr, snippets)
 
     local snippet_lines = vim.split(snippet.content, "\n")
 
-    for idx, line in ipairs(snippet_lines) do
-      if idx == 1 then
-        start_line_indentation = Utils.get_indentation(line)
-        need_prepend_indentation = start_line_indentation ~= original_start_line_indentation
-      end
-      if need_prepend_indentation then
-        if line:sub(1, #start_line_indentation) == start_line_indentation then
-          line = line:sub(#start_line_indentation + 1)
-        end
-        line = original_start_line_indentation .. line
-      end
-      table.insert(result, line)
-    end
+    vim.list_extend(result, snippet_lines)
 
     table.insert(result, ">>>>>>> Snippet")
 
