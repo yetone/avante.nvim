@@ -225,10 +225,16 @@ local function transform_result_content(selected_files, result_content, prev_fil
       if next_line and next_line:match("^%s*```%w+$") then i = i + 1 end
       search_start = i + 1
       last_search_tag_start_line = i
-    elseif line_content == "</SEARCH>" then
+    elseif line_content:match("</SEARCH>") then
       is_searching = false
 
       local search_end = i
+
+      -- Handle case where </SEARCH> is a suffix
+      if not line_content:match("^%s*</SEARCH>%s*$") then
+        local search_end_line = line_content:match("^(.+)</SEARCH>")
+        result_lines[i] = search_end_line
+      end
 
       local prev_line = result_lines[i - 1]
       if prev_line and prev_line:match("^%s*```$") then search_end = i - 1 end
@@ -317,8 +323,13 @@ local function transform_result_content(selected_files, result_content, prev_fil
       if next_line and next_line:match("^%s*```%w+$") then i = i + 1 end
       last_replace_tag_start_line = i
       goto continue
-    elseif line_content == "</REPLACE>" then
+    elseif line_content:match("</REPLACE>") then
       is_replacing = false
+      -- Handle case where </REPLACE> is a suffix
+      if not line_content:match("^%s*</REPLACE>%s*$") then
+        local replace_end_line = line_content:match("^(.+)</REPLACE>")
+        if replace_end_line and replace_end_line ~= "" then table.insert(transformed_lines, replace_end_line) end
+      end
       local prev_line = result_lines[i - 1]
       if not (prev_line and prev_line:match("^%s*```$")) then table.insert(transformed_lines, "```") end
       goto continue
