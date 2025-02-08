@@ -2,6 +2,10 @@
 *.lua~
 *.luac
 
+.venv
+__pycache__/
+data/
+
 # Neovim plugin specific files
 plugin/packer_compiled.lua
 
@@ -31,14 +35,14 @@ temp/
 .env
 
 # If you use any build tools, you might need to ignore build output directories
-/build/
-/dist/
+build/
+dist/
 
 # If you use any test frameworks, you might need to ignore test coverage reports
-/coverage/
+coverage/
 
 # If you use documentation generation tools, you might need to ignore generated docs
-/doc/
+doc/
 
 # If you have any personal configuration files, you should ignore them too
 config.personal.lua

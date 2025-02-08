@@ -22,4 +22,3 @@
 (enum_declaration
   body: (enum_member_declaration_list
     (enum_member_declaration) @enum_item))
-

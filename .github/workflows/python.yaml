@@ -1,0 +1,31 @@
+name: Python
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**/*.py'
+      - '.github/workflows/python.yaml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '**/*.py'
+      - '.github/workflows/python.yaml'
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v3
+      with:
+        python-version: '3.11'
+    - run: |
+        python -m venv .venv
+        source .venv/bin/activate
+        pip install -r py/rag-service/requirements.txt
+    - uses: pre-commit/action@v3.0.1
+      with:
+        extra_args: --files $(find ./py -type f -name "*.py")
