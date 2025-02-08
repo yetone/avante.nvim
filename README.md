@@ -471,8 +471,10 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 > For Amazon Bedrock:
 >
 > ```sh
-> export BEDROCK_KEYS=aws_access_key_id,aws_secret_access_key,aws_region
+> export BEDROCK_KEYS=aws_access_key_id,aws_secret_access_key,aws_region[,aws_session_token]
+>
 > ```
+> Note: The aws_session_token is optional and only needed when using temporary AWS credentials
 
 1. Open a code file in Neovim.
 2. Use the `:AvanteAsk` command to query the AI about the code.

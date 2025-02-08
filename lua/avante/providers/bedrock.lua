@@ -64,6 +64,7 @@ M.parse_curl_args = function(provider, prompt_opts)
   local aws_access_key_id = parts[1]
   local aws_secret_access_key = parts[2]
   local aws_region = parts[3]
+  local aws_session_token = parts[4]
 
   local endpoint = string.format(
     "https://bedrock-runtime.%s.amazonaws.com/model/%s/invoke-with-response-stream",
@@ -74,6 +75,8 @@ M.parse_curl_args = function(provider, prompt_opts)
   local headers = {
     ["Content-Type"] = "application/json",
   }
+
+  if aws_session_token and aws_session_token ~= "" then headers["x-amz-security-token"] = aws_session_token end
 
   local body_payload = M.build_bedrock_payload(prompt_opts, body_opts)
 
