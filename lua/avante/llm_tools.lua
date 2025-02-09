@@ -7,6 +7,7 @@ local M = {}
 ---@param rel_path string
 ---@return string
 local function get_abs_path(rel_path)
+  if Path:new(rel_path):is_absolute() then return rel_path end
   local project_root = Utils.get_project_root()
   return Path:new(project_root):joinpath(rel_path):absolute()
 end
