@@ -69,6 +69,7 @@ llama-index-readers-llama-parse==0.4.0
 llama-index-vector-stores-chroma==0.4.1
 llama-parse==0.6.0
 markdown-it-py==3.0.0
+markdownify==0.14.1
 MarkupSafe==3.0.2
 marshmallow==3.26.1
 matplotlib-inline==0.1.7

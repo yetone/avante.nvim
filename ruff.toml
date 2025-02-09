@@ -25,6 +25,7 @@ ignore = [
     "D212",  # Multi-line docstring summary should start at the first line
     "TRY300",
     "TRY400",
+    "PGH003",
 ]
 
 # 允许使用自动修复
