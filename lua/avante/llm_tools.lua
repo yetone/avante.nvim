@@ -327,6 +327,28 @@ function M.web_search(opts, on_log)
     if resp.status ~= 200 then return nil, "Error: " .. resp.body end
     local jsn = vim.json.decode(resp.body)
     return search_engine.format_response_body(jsn)
+  elseif provider_type == "google" then
+    local engine_id = os.getenv(search_engine.engine_id_name)
+    if engine_id == nil or engine_id == "" then
+      return nil, "Environment variable " .. search_engine.engine_id_namee .. " is not set"
+    end
+    local query_params = vim.tbl_deep_extend("force", {
+      key = api_key,
+      cx = engine_id,
+      q = opts.query,
+    }, search_engine.extra_request_body)
+    local query_string = ""
+    for key, value in pairs(query_params) do
+      query_string = query_string .. key .. "=" .. vim.uri_encode(value) .. "&"
+    end
+    local resp = curl.get("https://www.googleapis.com/customsearch/v1?" .. query_string, {
+      headers = {
+        ["Content-Type"] = "application/json",
+      },
+    })
+    if resp.status ~= 200 then return nil, "Error: " .. resp.body end
+    local jsn = vim.json.decode(resp.body)
+    return search_engine.format_response_body(jsn)
   end
 end
 
