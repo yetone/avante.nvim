@@ -84,8 +84,8 @@ function Suggestion:suggest()
 L1: def fib
 L2:
 L3: if __name__ == "__main__":
-L4:    # just pass
-L5:    pass
+L4:     # just pass
+L5:     pass
 </code>
       ]],
     },
@@ -95,7 +95,7 @@ L5:    pass
     },
     {
       role = "user",
-      content = '<question>{ "indentSize": 4, "position": { "row": 1, "col": 2 } }</question>',
+      content = '<question>{"insertSpaces":true,"tabSize":4,"indentSize":4,"position":{"row":1,"col":7}}</question>',
     },
     {
       role = "assistant",
