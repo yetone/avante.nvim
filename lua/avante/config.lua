@@ -55,8 +55,33 @@ M._defaults = {
                   }
                 end
               )
+              :take(5)
               :totable()
-            if #jsn > 5 then jsn = vim.list_slice(jsn, 1, 5) end
+            return vim.json.encode(jsn), nil
+          end
+          return "", nil
+        end,
+      },
+      google = {
+        api_key_name = "GOOGLE_SEARCH_API_KEY",
+        engine_id_name = "GOOGLE_SEARCH_ENGINE_ID",
+        extra_request_body = {},
+        ---@type WebSearchEngineProviderResponseBodyFormatter
+        format_response_body = function(body)
+          if body.items ~= nil then
+            local jsn = vim
+              .iter(body.items)
+              :map(
+                function(result)
+                  return {
+                    title = result.title,
+                    link = result.link,
+                    snippet = result.snippet,
+                  }
+                end
+              )
+              :take(5)
+              :totable()
             return vim.json.encode(jsn), nil
           end
           return "", nil
