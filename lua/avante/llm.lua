@@ -449,7 +449,7 @@ M.stream = function(opts)
       return original_on_stop(stop_opts)
     end)
   end
-  if Config.dual_boost.enabled then
+  if Config.dual_boost.enabled and opts.mode == "planning" then
     M._dual_boost_stream(opts, P[Config.dual_boost.first_provider], P[Config.dual_boost.second_provider])
   else
     M._stream(opts)
