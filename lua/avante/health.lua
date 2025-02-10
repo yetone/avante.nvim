@@ -23,9 +23,7 @@ M.check = function()
   end
 
   -- Optional dependencies
-  local has_devicons = Utils.has("nvim-web-devicons")
-  local has_mini_icons = Utils.has("mini.icons") or Utils.has("mini.nvim")
-  if has_devicons or has_mini_icons then
+  if Utils.icons_enabled() then
     H.ok("Found icons plugin (nvim-web-devicons or mini.icons)")
   else
     H.warn("No icons plugin found (nvim-web-devicons or mini.icons). Icons will not be displayed")

@@ -412,8 +412,8 @@ local function get_searching_hint()
 end
 
 local thinking_spinner_chars = {
-  "🤯",
-  "🙄",
+  Utils.icon("🤯", "?"),
+  Utils.icon("🙄", "¿"),
 }
 local thinking_spinner_index = 1
 
@@ -452,8 +452,10 @@ local function generate_display_content(replacement)
         return string.format("  > %s", line)
       end)
       :totable()
-    local result_lines =
-      vim.list_extend(vim.list_slice(lines, 1, replacement.last_search_tag_start_line), { "🤔 Thought content:" })
+    local result_lines = vim.list_extend(
+      vim.list_slice(lines, 1, replacement.last_search_tag_start_line),
+      { Utils.icon("🤔 ") .. "Thought content:" }
+    )
     result_lines = vim.list_extend(result_lines, formatted_thinking_content_lines)
     result_lines = vim.list_extend(result_lines, vim.list_slice(lines, last_think_tag_end_line + 1))
     return table.concat(result_lines, "\n")
@@ -860,7 +862,7 @@ function Sidebar:render_result()
   then
     return
   end
-  local header_text = "󰭻 Avante"
+  local header_text = Utils.icon("󰭻 ") .. "Avante"
   self:render_header(
     self.result_container.winid,
     self.result_container.bufnr,
@@ -882,13 +884,15 @@ function Sidebar:render_input(ask)
   end
 
   local header_text = string.format(
-    "󱜸 %s (" .. Config.mappings.sidebar.switch_windows .. ": switch focus)",
+    "%s%s (" .. Config.mappings.sidebar.switch_windows .. ": switch focus)",
+    Utils.icon("󱜸 "),
     ask and "Ask" or "Chat with"
   )
 
   if self.code.selection ~= nil then
     header_text = string.format(
-      "󱜸 %s (%d:%d) (<Tab>: switch focus)",
+      "%s%s (%d:%d) (<Tab>: switch focus)",
+      Utils.icon("󱜸 "),
       ask and "Ask" or "Chat with",
       self.code.selection.range.start.lnum,
       self.code.selection.range.finish.lnum
@@ -921,7 +925,8 @@ function Sidebar:render_selected_code()
     selected_code_lines_count = #selected_code_lines
   end
 
-  local header_text = " Selected Code"
+  local header_text = Utils.icon(" ")
+    .. "Selected Code"
     .. (
       selected_code_lines_count > selected_code_max_lines_count
         and " (Show only the first " .. tostring(selected_code_max_lines_count) .. " lines)"
@@ -2329,7 +2334,7 @@ function Sidebar:create_selected_files_container()
     self:render_header(
       self.selected_files_container.winid,
       selected_files_buf,
-      " Selected Files",
+      Utils.icon(" ") .. "Selected Files",
       Highlights.SUBTITLE,
       Highlights.REVERSED_SUBTITLE
     )
