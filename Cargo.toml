@@ -22,7 +22,7 @@ minijinja = { version = "2.4.0", features = [
   "custom_syntax",
   "loop_controls",
 ] }
-mlua = { version = "0.10.0", features = ["module", "serialize"] }
+mlua = { version = "0.10.0", features = ["lua54", "module", "serialize"], default-features = false }
 tiktoken-rs = { version = "0.6.0" }
 tokenizers = { version = "0.20.0", features = [
   "esaxx_fast",
