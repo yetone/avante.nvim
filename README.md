@@ -380,7 +380,7 @@ This is achieved by emulating nvim-cmp using blink.compat
 
 ```lua
       file_selector = {
-        --- @alias FileSelectorProvider "native" | "fzf" | "mini.pick" | "snacks" | "telescope" | string | fun(params: avante.file_selector.IParams): nil
+        --- @alias FileSelectorProvider "native" | "fzf" | "mini.pick" | "snacks" | "telescope" | string | fun(params: avante.file_selector.IParams|nil): nil
         provider = "fzf",
         -- Options override for custom providers
         provider_opts = {},
@@ -395,7 +395,7 @@ To create a customized file_selector, you can specify a customized function to l
         provider = function(params)
           local filepaths = params.filepaths ---@type string[]
           local title = params.title ---@type string
-          local handler = params.handler ---@type fun(selected_filepaths: string[]): nil
+          local handler = params.handler ---@type fun(selected_filepaths: string[]|nil): nil
 
           -- Launch your customized picker with the items built from `filepaths`, then in the `on_confirm` callback,
           -- pass the selected items (convert back to file paths) to the `handler` function.
