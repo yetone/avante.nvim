@@ -67,9 +67,24 @@ function Sidebar:delete_autocmds()
 end
 
 function Sidebar:reset()
+  -- clean up event handlers
+  if self.augroup then
+    api.nvim_del_augroup_by_id(self.augroup)
+    self.augroup = nil
+  end
+
+  -- clean up keymaps
   self:unbind_apply_key()
   self:unbind_sidebar_keys()
-  self:delete_autocmds()
+
+  -- clean up file selector events
+  if self.file_selector then self.file_selector:off("update") end
+
+  if self.result_container then self.result_container:unmount() end
+  if self.selected_code_container then self.selected_code_container:unmount() end
+  if self.selected_files_container then self.selected_files_container:unmount() end
+  if self.input_container then self.input_container:unmount() end
+
   self.code = { bufnr = 0, winid = 0, selection = nil }
   self.winids =
     { result_container = 0, selected_files_container = 0, selected_code_container = 0, input_container = 0 }
