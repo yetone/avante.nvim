@@ -227,6 +227,10 @@ local function transform_result_content(selected_files, result_content, prev_fil
       search_start = i + 1
       last_search_tag_start_line = i
     elseif line_content:match("</SEARCH>") then
+      if is_replacing then
+        result_lines[i] = "</REPLACE>"
+        goto continue_without_increment
+      end
       is_searching = false
 
       local search_end = i
@@ -348,6 +352,7 @@ local function transform_result_content(selected_files, result_content, prev_fil
     table.insert(transformed_lines, line_content)
     ::continue::
     i = i + 1
+    ::continue_without_increment::
   end
 
   return {
