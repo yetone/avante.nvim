@@ -216,7 +216,8 @@ local function transform_result_content(selected_files, result_content, prev_fil
   local current_filepath
 
   local i = 1
-  while i <= #result_lines do
+  while true do
+    if i > #result_lines then break end
     local line_content = result_lines[i]
     if line_content:match("<FILEPATH>.+</FILEPATH>") then
       local filepath = line_content:match("<FILEPATH>(.+)</FILEPATH>")
@@ -226,8 +227,16 @@ local function transform_result_content(selected_files, result_content, prev_fil
         goto continue
       end
     end
-    if line_content == "<SEARCH>" then
+    if line_content:match("^%s*<SEARCH>") then
       is_searching = true
+
+      if not line_content:match("^%s*<SEARCH>%s*$") then
+        local search_start_line = line_content:match("<SEARCH>(.+)$")
+        line_content = "<SEARCH>"
+        result_lines[i] = line_content
+        if search_start_line and search_start_line ~= "" then table.insert(result_lines, i + 1, search_start_line) end
+      end
+
       local prev_line = result_lines[i - 1]
       if
         prev_line
@@ -241,20 +250,26 @@ local function transform_result_content(selected_files, result_content, prev_fil
       if next_line and next_line:match("^%s*```%w+$") then i = i + 1 end
       search_start = i + 1
       last_search_tag_start_line = i
-    elseif line_content:match("</SEARCH>") then
+    elseif line_content:match("</SEARCH>%s*$") then
       if is_replacing then
-        result_lines[i] = "</REPLACE>"
+        result_lines[i] = line_content:gsub("</SEARCH>", "</REPLACE>")
         goto continue_without_increment
       end
-      is_searching = false
-
-      local search_end = i
 
       -- Handle case where </SEARCH> is a suffix
       if not line_content:match("^%s*</SEARCH>%s*$") then
         local search_end_line = line_content:match("^(.+)</SEARCH>")
-        result_lines[i] = search_end_line
+        line_content = "</SEARCH>"
+        result_lines[i] = line_content
+        if search_end_line and search_end_line ~= "" then
+          table.insert(result_lines, i, search_end_line)
+          goto continue_without_increment
+        end
       end
+
+      is_searching = false
+
+      local search_end = i
 
       local prev_line = result_lines[i - 1]
       if prev_line and prev_line:match("^%s*```$") then search_end = i - 1 end
@@ -341,19 +356,32 @@ local function transform_result_content(selected_files, result_content, prev_fil
         string.format("```%s", match_filetype),
       })
       goto continue
-    elseif line_content == "<REPLACE>" then
+    elseif line_content:match("^%s*<REPLACE>") then
       is_replacing = true
+      if not line_content:match("^%s*<REPLACE>%s*$") then
+        local replace_first_line = line_content:match("<REPLACE>(.+)$")
+        line_content = "<REPLACE>"
+        result_lines[i] = line_content
+        if replace_first_line and replace_first_line ~= "" then
+          table.insert(result_lines, i + 1, replace_first_line)
+        end
+      end
       local next_line = result_lines[i + 1]
       if next_line and next_line:match("^%s*```%w+$") then i = i + 1 end
       last_replace_tag_start_line = i
       goto continue
-    elseif line_content:match("</REPLACE>") then
-      is_replacing = false
+    elseif line_content:match("</REPLACE>%s*$") then
       -- Handle case where </REPLACE> is a suffix
       if not line_content:match("^%s*</REPLACE>%s*$") then
         local replace_end_line = line_content:match("^(.+)</REPLACE>")
-        if replace_end_line and replace_end_line ~= "" then table.insert(transformed_lines, replace_end_line) end
+        line_content = "</REPLACE>"
+        result_lines[i] = line_content
+        if replace_end_line and replace_end_line ~= "" then
+          table.insert(result_lines, i, replace_end_line)
+          goto continue_without_increment
+        end
       end
+      is_replacing = false
       local prev_line = result_lines[i - 1]
       if not (prev_line and prev_line:match("^%s*```$")) then table.insert(transformed_lines, "```") end
       goto continue
