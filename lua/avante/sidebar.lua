@@ -1988,6 +1988,7 @@ function Sidebar:create_input_container(opts)
     local request = table.concat(lines, "\n")
     if request == "" then return end
     api.nvim_buf_set_lines(self.input_container.bufnr, 0, -1, false, {})
+    api.nvim_win_set_cursor(self.input_container.winid, { 1, 0 })
     handle_submit(request)
   end
 
