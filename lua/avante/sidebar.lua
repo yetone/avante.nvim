@@ -1257,6 +1257,20 @@ function Sidebar:initialize()
   return self
 end
 
+function Sidebar:is_focused()
+  if not self:is_open() then return false end
+
+  local current_winid = api.nvim_get_current_win()
+  if self.winids.result_container and self.winids.result_container == current_winid then return true end
+  if self.winids.selected_files_container and self.winids.selected_files_container == current_winid then
+    return true
+  end
+  if self.winids.selected_code_container and self.winids.selected_code_container == current_winid then return true end
+  if self.winids.input_container and self.winids.input_container == current_winid then return true end
+
+  return false
+end
+
 function Sidebar:is_focused_on_result()
   return self:is_open() and self.result_container and self.result_container.winid == api.nvim_get_current_win()
 end
