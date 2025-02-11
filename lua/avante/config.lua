@@ -33,7 +33,6 @@ M._defaults = {
       tavily = {
         api_key_name = "TAVILY_API_KEY",
         extra_request_body = {
-          time_range = "d",
           include_answer = "basic",
         },
         ---@type WebSearchEngineProviderResponseBodyFormatter
