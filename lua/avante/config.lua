@@ -332,7 +332,7 @@ M._defaults = {
   },
   --- @class AvanteFileSelectorConfig
   file_selector = {
-    --- @alias FileSelectorProvider "native" | "fzf" | "mini.pick" | "snacks" | "telescope" | string | fun(params: avante.file_selector.IParams): nil
+    --- @alias FileSelectorProvider "native" | "fzf" | "mini.pick" | "snacks" | "telescope" | string | fun(params: avante.file_selector.IParams|nil): nil
     provider = "native",
     -- Options override for custom providers
     provider_opts = {},

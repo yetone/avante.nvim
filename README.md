@@ -380,12 +380,44 @@ This is achieved by emulating nvim-cmp using blink.compat
 
 ```lua
       file_selector = {
-        --- @alias FileSelectorProvider "native" | "fzf" | "mini.pick" | "snacks" | "telescope" | string
+        --- @alias FileSelectorProvider "native" | "fzf" | "mini.pick" | "snacks" | "telescope" | string | fun(params: avante.file_selector.IParams|nil): nil
         provider = "fzf",
         -- Options override for custom providers
         provider_opts = {},
       }
 ```
+
+To create a customized file_selector, you can specify a customized function to launch a picker to select items and pass the selected items to the `handler` callback.
+
+```lua
+      file_selector = {
+        ---@param params avante.file_selector.IParams
+        provider = function(params)
+          local filepaths = params.filepaths ---@type string[]
+          local title = params.title ---@type string
+          local handler = params.handler ---@type fun(selected_filepaths: string[]|nil): nil
+
+          -- Launch your customized picker with the items built from `filepaths`, then in the `on_confirm` callback,
+          -- pass the selected items (convert back to file paths) to the `handler` function.
+
+          local items = __your_items_formatter__(filepaths)
+          __your_picker__({
+            items = items,
+            on_cancel = function()
+              handler(nil)
+            end,
+            on_confirm = function(selected_items)
+              local selected_filepaths = {}
+              for _, item in ipairs(selected_items) do
+                table.insert(selected_filepaths, item.filepath)
+              end
+              handler(selected_filepaths)
+            end
+          })
+        end,
+      }
+```
+
 Choose a selector other that native, the default as that currently has an issue
 For lazyvim users copy the full config for blink.cmp from the website or extend the options
 ```lua
