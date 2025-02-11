@@ -913,7 +913,7 @@ function M.read_file_from_buf_or_disk(file_path)
     local file_type = vim.filetype.match({ filename = file_path, contents = { content } }) or "unknown"
     return vim.split(content, "\n"), file_type, nil
   else
-    M.error("failed to open file: " .. file_path .. " with error: " .. open_err)
+    -- M.error("failed to open file: " .. file_path .. " with error: " .. open_err)
     return {}, nil, open_err
   end
 end
