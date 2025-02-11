@@ -740,8 +740,7 @@ function Sidebar:minimize_snippets(snippets_map)
 
   if vim.tbl_count(snippets_map) > 0 then
     local filepaths = vim.tbl_keys(snippets_map)
-    local original_lines_, _, err = Utils.read_file_from_buf_or_disk(filepaths[1])
-    if err ~= nil then return {} end
+    local original_lines_ = Utils.read_file_from_buf_or_disk(filepaths[1])
     if original_lines_ then original_lines = original_lines_ end
   end
 
