@@ -81,6 +81,7 @@ local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 ---@field on_error? fun(result: table<string, any>): nil
 ---
 ---@class avante.Providers
+---@field deepseek AvanteProviderFunctor
 ---@field openai AvanteProviderFunctor
 ---@field claude AvanteProviderFunctor
 ---@field copilot AvanteProviderFunctor

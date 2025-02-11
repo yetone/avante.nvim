@@ -29,6 +29,14 @@ M._defaults = {
     max_tokens = 4096,
   },
   ---@type AvanteSupportedProvider
+  deepseek = {
+    endpoint = "https://api.deepseek.com",
+    model = "deepseek-chat",
+    timeout = 30000, -- Timeout in milliseconds
+    temperature = 0,
+    max_tokens = 4096,
+  },
+  ---@type AvanteSupportedProvider
   copilot = {
     endpoint = "https://api.githubcopilot.com",
     model = "gpt-4o-2024-08-06",
