@@ -57,6 +57,7 @@ function Sidebar:new(id)
     selected_files_container = nil,
     input_container = nil,
     file_selector = FileSelector:new(id),
+    is_generating = false,
   }, { __index = self })
 end
 
@@ -1836,6 +1837,8 @@ function Sidebar:create_input_container(opts)
 
     ---@type AvanteLLMChunkCallback
     local on_chunk = function(chunk)
+      self.is_generating = true
+
       original_response = original_response .. chunk
 
       local selected_files = self.file_selector:get_selected_files_contents()
@@ -1870,6 +1873,8 @@ function Sidebar:create_input_container(opts)
 
     ---@type AvanteLLMStopCallback
     local on_stop = function(stop_opts)
+      self.is_generating = false
+
       pcall(function()
         ---remove keymaps
         vim.keymap.del("n", "j", { buffer = self.result_container.bufnr })
