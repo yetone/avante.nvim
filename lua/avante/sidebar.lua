@@ -337,8 +337,7 @@ local function transform_result_content(selected_files, result_content, prev_fil
       -- can happen if the llm tries to edit or create a file outside of it's context.
       if not match_filetype then
         local snippet_file_path = current_filepath or prev_filepath
-        local snippet_file_type = vim.filetype.match({ filename = snippet_file_path }) or "unknown"
-        match_filetype = snippet_file_type
+        match_filetype = Utils.get_filetype(snippet_file_path)
       end
 
       local search_start_tag_idx_in_transformed_lines = 0
