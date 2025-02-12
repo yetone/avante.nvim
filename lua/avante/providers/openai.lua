@@ -275,14 +275,14 @@ M.parse_response_without_stream = function(data, _, opts)
 end
 
 M.parse_curl_args = function(provider, prompt_opts)
-  local base, body_opts = P.parse_config(provider)
-  local disable_tools = base.disable_tools or false
+  local provider_conf, request_body = P.parse_config(provider)
+  local disable_tools = provider_conf.disable_tools or false
 
   local headers = {
     ["Content-Type"] = "application/json",
   }
 
-  if P.env.require_api_key(base) then
+  if P.env.require_api_key(provider_conf) then
     local api_key = provider.parse_api_key()
     if api_key == nil then
       error(Config.provider .. " API key is not set, please set it in your environment variable or config file")
@@ -290,18 +290,18 @@ M.parse_curl_args = function(provider, prompt_opts)
     headers["Authorization"] = "Bearer " .. api_key
   end
 
-  if M.is_openrouter(base.endpoint) then
+  if M.is_openrouter(provider_conf.endpoint) then
     headers["HTTP-Referer"] = "https://github.com/yetone/avante.nvim"
     headers["X-Title"] = "Avante.nvim"
-    body_opts.include_reasoning = true
+    request_body.include_reasoning = true
   end
 
   -- NOTE: When using "o" series set the supported parameters only
   local stream = true
-  if M.is_o_series_model(base.model) then
-    body_opts.max_completion_tokens = body_opts.max_tokens
-    body_opts.max_tokens = nil
-    body_opts.temperature = 1
+  if M.is_o_series_model(provider_conf.model) then
+    request_body.max_completion_tokens = request_body.max_tokens
+    request_body.max_tokens = nil
+    request_body.temperature = 1
   end
 
   local tools = nil
@@ -312,20 +312,20 @@ M.parse_curl_args = function(provider, prompt_opts)
     end
   end
 
-  Utils.debug("endpoint", base.endpoint)
-  Utils.debug("model", base.model)
+  Utils.debug("endpoint", provider_conf.endpoint)
+  Utils.debug("model", provider_conf.model)
 
   return {
-    url = Utils.url_join(base.endpoint, "/chat/completions"),
-    proxy = base.proxy,
-    insecure = base.allow_insecure,
+    url = Utils.url_join(provider_conf.endpoint, "/chat/completions"),
+    proxy = provider_conf.proxy,
+    insecure = provider_conf.allow_insecure,
     headers = headers,
     body = vim.tbl_deep_extend("force", {
-      model = base.model,
+      model = provider_conf.model,
       messages = M.parse_messages(prompt_opts),
       stream = stream,
       tools = tools,
-    }, body_opts),
+    }, request_body),
   }
 end
 
