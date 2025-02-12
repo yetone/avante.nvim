@@ -249,7 +249,7 @@ M.parse_curl_args = function(provider, prompt_opts)
   -- (this should rarely happen, as we refresh the token in the background)
   H.refresh_token(false, false)
 
-  local base, body_opts = P.parse_config(provider)
+  local provider_conf, request_body = P.parse_config(provider)
 
   local tools = {}
   if prompt_opts.tools then
@@ -259,10 +259,10 @@ M.parse_curl_args = function(provider, prompt_opts)
   end
 
   return {
-    url = H.chat_completion_url(base.endpoint),
-    timeout = base.timeout,
-    proxy = base.proxy,
-    insecure = base.allow_insecure,
+    url = H.chat_completion_url(provider_conf.endpoint),
+    timeout = provider_conf.timeout,
+    proxy = provider_conf.proxy,
+    insecure = provider_conf.allow_insecure,
     headers = {
       ["Content-Type"] = "application/json",
       ["Authorization"] = "Bearer " .. M.state.github_token.token,
@@ -270,11 +270,11 @@ M.parse_curl_args = function(provider, prompt_opts)
       ["Editor-Version"] = ("Neovim/%s.%s.%s"):format(vim.version().major, vim.version().minor, vim.version().patch),
     },
     body = vim.tbl_deep_extend("force", {
-      model = base.model,
+      model = provider_conf.model,
       messages = M.parse_messages(prompt_opts),
       stream = true,
       tools = tools,
-    }, body_opts),
+    }, request_body),
   }
 end
 
