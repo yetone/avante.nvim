@@ -32,22 +32,22 @@ M.parse_api_key = function()
 end
 
 M.parse_curl_args = function(provider, prompt_opts)
-  local base, body_opts = P.parse_config(provider)
+  local provider_conf, request_body = P.parse_config(provider)
   local location = vim.fn.getenv("LOCATION") or "default-location"
   local project_id = vim.fn.getenv("PROJECT_ID") or "default-project-id"
-  local model_id = base.model or "default-model-id"
-  local url = base.endpoint:gsub("LOCATION", location):gsub("PROJECT_ID", project_id)
+  local model_id = provider_conf.model or "default-model-id"
+  local url = provider_conf.endpoint:gsub("LOCATION", location):gsub("PROJECT_ID", project_id)
 
   url = string.format("%s/%s:streamGenerateContent?alt=sse", url, model_id)
 
-  body_opts = vim.tbl_deep_extend("force", body_opts, {
+  request_body = vim.tbl_deep_extend("force", request_body, {
     generationConfig = {
-      temperature = body_opts.temperature,
-      maxOutputTokens = body_opts.max_tokens,
+      temperature = request_body.temperature,
+      maxOutputTokens = request_body.max_tokens,
     },
   })
-  body_opts.temperature = nil
-  body_opts.max_tokens = nil
+  request_body.temperature = nil
+  request_body.max_tokens = nil
   local bearer_token = M.parse_api_key()
 
   return {
@@ -56,9 +56,9 @@ M.parse_curl_args = function(provider, prompt_opts)
       ["Authorization"] = "Bearer " .. bearer_token,
       ["Content-Type"] = "application/json; charset=utf-8",
     },
-    proxy = base.proxy,
-    insecure = base.allow_insecure,
-    body = vim.tbl_deep_extend("force", {}, M.parse_messages(prompt_opts), body_opts),
+    proxy = provider_conf.proxy,
+    insecure = provider_conf.allow_insecure,
+    body = vim.tbl_deep_extend("force", {}, M.parse_messages(prompt_opts), request_body),
   }
 end
 

@@ -226,7 +226,7 @@ end
 ---@param prompt_opts AvantePromptOptions
 ---@return table
 M.parse_curl_args = function(provider, prompt_opts)
-  local base, body_opts = P.parse_config(provider)
+  local provider_conf, request_body = P.parse_config(provider)
 
   local headers = {
     ["Content-Type"] = "application/json",
@@ -234,7 +234,7 @@ M.parse_curl_args = function(provider, prompt_opts)
     ["anthropic-beta"] = "prompt-caching-2024-07-31",
   }
 
-  if P.env.require_api_key(base) then headers["x-api-key"] = provider.parse_api_key() end
+  if P.env.require_api_key(provider_conf) then headers["x-api-key"] = provider.parse_api_key() end
 
   local messages = M.parse_messages(prompt_opts)
 
@@ -246,12 +246,12 @@ M.parse_curl_args = function(provider, prompt_opts)
   end
 
   return {
-    url = Utils.url_join(base.endpoint, "/v1/messages"),
-    proxy = base.proxy,
-    insecure = base.allow_insecure,
+    url = Utils.url_join(provider_conf.endpoint, "/v1/messages"),
+    proxy = provider_conf.proxy,
+    insecure = provider_conf.allow_insecure,
     headers = headers,
     body = vim.tbl_deep_extend("force", {
-      model = base.model,
+      model = provider_conf.model,
       system = {
         {
           type = "text",
@@ -262,7 +262,7 @@ M.parse_curl_args = function(provider, prompt_opts)
       messages = messages,
       tools = tools,
       stream = true,
-    }, body_opts),
+    }, request_body),
   }
 end
 

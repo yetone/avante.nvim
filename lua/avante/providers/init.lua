@@ -346,9 +346,9 @@ M = setmetatable(M, {
     if t[k].has == nil then t[k].has = function() return E.parse_envvar(t[k]) ~= nil end end
 
     if t[k].setup == nil then
-      local base = M.parse_config(t[k])
+      local provider_conf = M.parse_config(t[k])
       t[k].setup = function()
-        if E.require_api_key(base) then t[k].parse_api_key() end
+        if E.require_api_key(provider_conf) then t[k].parse_api_key() end
         require("avante.tokenizers").setup(t[k].tokenizer_id)
       end
     end

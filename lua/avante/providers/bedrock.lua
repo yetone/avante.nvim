@@ -1,5 +1,4 @@
 local Utils = require("avante.utils")
-local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
 
 ---@alias AvanteBedrockPayloadBuilder fun(prompt_opts: AvantePromptOptions, body_opts: table<string, any>): table<string, any>
@@ -17,17 +16,14 @@ M.api_key_name = "BEDROCK_KEYS"
 M.use_xml_format = true
 
 M.load_model_handler = function()
-  local base, _ = P.parse_config(P["bedrock"])
-  local bedrock_model = base.model
-  if base.model:match("anthropic") then bedrock_model = "claude" end
+  local provider_conf, _ = P.parse_config(P["bedrock"])
+  local bedrock_model = provider_conf.model
+  if provider_conf.model:match("anthropic") then bedrock_model = "claude" end
 
   local ok, model_module = pcall(require, "avante.providers.bedrock." .. bedrock_model)
-  if ok then
-    return model_module
-  else
-    local error_msg = "Bedrock model handler not found: " .. bedrock_model
-    Utils.error(error_msg, { once = true, title = "Avante" })
-  end
+  if ok then return model_module end
+  local error_msg = "Bedrock model handler not found: " .. bedrock_model
+  error(error_msg)
 end
 
 M.parse_response = function(ctx, data_stream, event_state, opts)
@@ -46,8 +42,8 @@ M.parse_stream_data = function(data, opts)
   -- The `type` field in the decoded JSON determines how the response is handled.
   local bedrock_match = data:gmatch("event(%b{})")
   for bedrock_data_match in bedrock_match do
-    local data = vim.json.decode(bedrock_data_match)
-    local data_stream = vim.base64.decode(data.bytes)
+    local jsn = vim.json.decode(bedrock_data_match)
+    local data_stream = vim.base64.decode(jsn.bytes)
     local json = vim.json.decode(data_stream)
     M.parse_response({}, data_stream, json.type, opts)
   end
@@ -60,6 +56,7 @@ M.parse_curl_args = function(provider, prompt_opts)
   local base, body_opts = P.parse_config(provider)
 
   local api_key = provider.parse_api_key()
+  if api_key == nil then error("Cannot get the bedrock api key!") end
   local parts = vim.split(api_key, ",")
   local aws_access_key_id = parts[1]
   local aws_secret_access_key = parts[2]
@@ -108,7 +105,6 @@ M.on_error = function(result)
   end
 
   local error_msg = body.error.message
-  local error_type = body.error.type
 
   Utils.error(error_msg, { once = true, title = "Avante" })
 end

@@ -25,8 +25,8 @@ M.generate_prompts = function(opts)
   local Provider = opts.provider or P[Config.provider]
   local mode = opts.mode or "planning"
   ---@type AvanteProviderFunctor | AvanteBedrockProviderFunctor
-  local _, body_opts = P.parse_config(Provider)
-  local max_tokens = body_opts.max_tokens or 4096
+  local _, request_body = P.parse_config(Provider)
+  local max_tokens = request_body.max_tokens or 4096
 
   -- Check if the instructions contains an image path
   local image_paths = {}

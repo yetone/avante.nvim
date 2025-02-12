@@ -18,31 +18,34 @@ M.parse_response = O.parse_response
 M.parse_response_without_stream = O.parse_response_without_stream
 
 M.parse_curl_args = function(provider, prompt_opts)
-  local base, body_opts = P.parse_config(provider)
+  local provider_conf, request_body = P.parse_config(provider)
 
   local headers = {
     ["Content-Type"] = "application/json",
   }
-  if P.env.require_api_key(base) then headers["api-key"] = provider.parse_api_key() end
+  if P.env.require_api_key(provider_conf) then headers["api-key"] = provider.parse_api_key() end
 
   -- NOTE: When using "o" series set the supported parameters only
-  if O.is_o_series_model(base.model) then
-    body_opts.max_tokens = nil
-    body_opts.temperature = 1
+  if O.is_o_series_model(provider_conf.model) then
+    request_body.max_tokens = nil
+    request_body.temperature = 1
   end
 
   return {
     url = Utils.url_join(
-      base.endpoint,
-      "/openai/deployments/" .. base.deployment .. "/chat/completions?api-version=" .. base.api_version
+      provider_conf.endpoint,
+      "/openai/deployments/"
+        .. provider_conf.deployment
+        .. "/chat/completions?api-version="
+        .. provider_conf.api_version
     ),
-    proxy = base.proxy,
-    insecure = base.allow_insecure,
+    proxy = provider_conf.proxy,
+    insecure = provider_conf.allow_insecure,
     headers = headers,
     body = vim.tbl_deep_extend("force", {
       messages = M.parse_messages(prompt_opts),
       stream = true,
-    }, body_opts),
+    }, request_body),
   }
 end
 
