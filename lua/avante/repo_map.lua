@@ -29,19 +29,8 @@ end
 function RepoMap.setup() vim.defer_fn(RepoMap._init_repo_map_lib, 1000) end
 
 function RepoMap.get_ts_lang(filepath)
-  local filetype = RepoMap.get_filetype(filepath)
+  local filetype = Utils.get_filetype(filepath)
   return filetype_map[filetype] or filetype
-end
-
-function RepoMap.get_filetype(filepath)
-  -- Some files are sometimes not detected correctly when buffer is not included
-  -- https://github.com/neovim/neovim/issues/27265
-
-  local buf = vim.api.nvim_create_buf(false, true)
-  local filetype = vim.filetype.match({ filename = filepath, buf = buf })
-  vim.api.nvim_buf_delete(buf, { force = true })
-
-  return filetype
 end
 
 function RepoMap._build_repo_map(project_root, file_ext)
@@ -70,7 +59,7 @@ function RepoMap._build_repo_map(project_root, file_ext)
     if definitions == "" then return end
     table.insert(output, {
       path = Utils.relative_path(filepath),
-      lang = RepoMap.get_filetype(filepath),
+      lang = Utils.get_filetype(filepath),
       defs = definitions,
     })
   end)
@@ -142,7 +131,7 @@ function RepoMap._get_repo_map(file_ext)
       if not found then
         table.insert(repo_map, {
           path = Utils.relative_path(abs_filepath),
-          lang = RepoMap.get_filetype(abs_filepath),
+          lang = Utils.get_filetype(abs_filepath),
           defs = definitions,
         })
       end

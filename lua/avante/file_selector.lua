@@ -368,9 +368,9 @@ end
 function FileSelector:get_selected_files_contents()
   local contents = {}
   for _, file_path in ipairs(self.selected_filepaths) do
-    local lines, filetype, error = Utils.read_file_from_buf_or_disk(file_path)
+    local lines, error = Utils.read_file_from_buf_or_disk(file_path)
     lines = lines or {}
-    filetype = filetype or "unknown"
+    local filetype = Utils.get_filetype(file_path)
     if error ~= nil then
       Utils.error("error reading file: " .. error)
     else
