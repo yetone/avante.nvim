@@ -227,6 +227,14 @@ local function transform_result_content(selected_files, result_content, prev_fil
         goto continue
       end
     end
+    if line_content:match("<filepath>.+</filepath>") then
+      local filepath = line_content:match("<filepath>(.+)</filepath>")
+      if filepath then
+        current_filepath = filepath
+        table.insert(transformed_lines, string.format("Filepath: %s", filepath))
+        goto continue
+      end
+    end
     if line_content:match("^%s*<SEARCH>") then
       is_searching = true
 
@@ -243,6 +251,7 @@ local function transform_result_content(selected_files, result_content, prev_fil
         and prev_filepath
         and not prev_line:match("Filepath:.+")
         and not prev_line:match("<FILEPATH>.+</FILEPATH>")
+        and not prev_line:match("<filepath>.+</filepath>")
       then
         table.insert(transformed_lines, string.format("Filepath: %s", prev_filepath))
       end
