@@ -820,6 +820,8 @@ function Sidebar:apply(current_cursor)
     api.nvim_set_current_win(self.code.winid)
     for filepath, snippets in pairs(selected_snippets_map) do
       local bufnr = Utils.get_or_create_buffer_with_filepath(filepath)
+      local path_ = PPath:new(filepath)
+      path_:parent():mkdir({ parents = true, exists_ok = true })
       insert_conflict_contents(bufnr, snippets)
       local process = function(winid)
         api.nvim_set_current_win(winid)
