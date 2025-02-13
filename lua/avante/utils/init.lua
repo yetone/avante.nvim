@@ -738,6 +738,17 @@ function M.extract_mentions(content)
   }
 end
 
+---@param content string
+---@return { new_content: string, enable_task: boolean }
+function M.extract_command(content)
+  local enable_task = false
+  if content:match("/task") then
+    enable_task = true
+    content = content:gsub("/task", "")
+  end
+  return { new_content = content, enable_task = enable_task }
+end
+
 ---@alias AvanteMentions "codebase" | "diagnostics"
 ---@alias AvanteMentionCallback fun(args: string, cb?: fun(args: string): nil): nil
 ---@alias AvanteMention {description: string, command: AvanteMentions, details: string, shorthelp?: string, callback?: AvanteMentionCallback}
