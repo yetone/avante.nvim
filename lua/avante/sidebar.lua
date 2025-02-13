@@ -244,6 +244,7 @@ local function transform_result_content(selected_files, result_content, prev_fil
         result_lines[i] = line_content
         if search_start_line and search_start_line ~= "" then table.insert(result_lines, i + 1, search_start_line) end
       end
+      line_content = "<SEARCH>"
 
       local prev_line = result_lines[i - 1]
       if
