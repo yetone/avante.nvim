@@ -36,7 +36,7 @@ else
 endif
 else
 $1:
-	$(shell LUA_VERSION=$1 bash ./build.sh)
+	LUA_VERSION=$1 bash ./build.sh
 endif
 endef
 
