@@ -770,27 +770,22 @@ local function minimize_snippet(original_lines, snippet)
   return new_snippets
 end
 
----@param snippets_map table<string, AvanteCodeSnippet[]>
+---@param filepath string
+---@param snippets AvanteCodeSnippet[]
 ---@return table<string, AvanteCodeSnippet[]>
-function Sidebar:minimize_snippets(snippets_map)
+function Sidebar:minimize_snippets(filepath, snippets)
   local original_lines = {}
 
-  if vim.tbl_count(snippets_map) > 0 then
-    local filepaths = vim.tbl_keys(snippets_map)
-    local original_lines_ = Utils.read_file_from_buf_or_disk(filepaths[1])
-    if original_lines_ then original_lines = original_lines_ end
-  end
+  local original_lines_ = Utils.read_file_from_buf_or_disk(filepath)
+  if original_lines_ then original_lines = original_lines_ end
 
   local results = {}
 
-  for filepath, snippets in pairs(snippets_map) do
-    for _, snippet in ipairs(snippets) do
-      local new_snippets = minimize_snippet(original_lines, snippet)
-      if new_snippets then
-        results[filepath] = results[filepath] or {}
-        for _, new_snippet in ipairs(new_snippets) do
-          table.insert(results[filepath], new_snippet)
-        end
+  for _, snippet in ipairs(snippets) do
+    local new_snippets = minimize_snippet(original_lines, snippet)
+    if new_snippets then
+      for _, new_snippet in ipairs(new_snippets) do
+        table.insert(results, new_snippet)
       end
     end
   end
@@ -823,11 +818,10 @@ function Sidebar:apply(current_cursor)
     selected_snippets_map = all_snippets_map
   end
 
-  if Config.behaviour.minimize_diff then selected_snippets_map = self:minimize_snippets(selected_snippets_map) end
-
   vim.defer_fn(function()
     api.nvim_set_current_win(self.code.winid)
     for filepath, snippets in pairs(selected_snippets_map) do
+      if Config.behaviour.minimize_diff then snippets = self:minimize_snippets(filepath, snippets) end
       local bufnr = Utils.get_or_create_buffer_with_filepath(filepath)
       local path_ = PPath:new(filepath)
       path_:parent():mkdir({ parents = true, exists_ok = true })
