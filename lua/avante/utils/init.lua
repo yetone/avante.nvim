@@ -895,7 +895,7 @@ function M.get_filetype(filepath)
   -- https://github.com/neovim/neovim/issues/27265
 
   local buf = vim.api.nvim_create_buf(false, true)
-  local filetype = vim.filetype.match({ filename = filepath, buf = buf })
+  local filetype = vim.filetype.match({ filename = filepath, buf = buf }) or ""
   vim.api.nvim_buf_delete(buf, { force = true })
 
   return filetype
