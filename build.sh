@@ -78,4 +78,3 @@ else
 
     curl -L "$ARTIFACT_URL" | tar -zxv -C "$TARGET_DIR"
 fi
-
