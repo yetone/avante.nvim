@@ -219,27 +219,19 @@ local function transform_result_content(selected_files, result_content, prev_fil
   while true do
     if i > #result_lines then break end
     local line_content = result_lines[i]
-    if line_content:match("<FILEPATH>.+</FILEPATH>") then
-      local filepath = line_content:match("<FILEPATH>(.+)</FILEPATH>")
+    if line_content:match("<[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]>.+</[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]>") then
+      local filepath = line_content:match("<[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]>(.+)</[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]>")
       if filepath then
         current_filepath = filepath
         table.insert(transformed_lines, string.format("Filepath: %s", filepath))
         goto continue
       end
     end
-    if line_content:match("<filepath>.+</filepath>") then
-      local filepath = line_content:match("<filepath>(.+)</filepath>")
-      if filepath then
-        current_filepath = filepath
-        table.insert(transformed_lines, string.format("Filepath: %s", filepath))
-        goto continue
-      end
-    end
-    if line_content:match("^%s*<SEARCH>") then
+    if line_content:match("^%s*<[Ss][Ee][Aa][Rr][Cc][Hh]>") then
       is_searching = true
 
-      if not line_content:match("^%s*<SEARCH>%s*$") then
-        local search_start_line = line_content:match("<SEARCH>(.+)$")
+      if not line_content:match("^%s*<[Ss][Ee][Aa][Rr][Cc][Hh]>%s*$") then
+        local search_start_line = line_content:match("<[Ss][Ee][Aa][Rr][Cc][Hh]>(.+)$")
         line_content = "<SEARCH>"
         result_lines[i] = line_content
         if search_start_line and search_start_line ~= "" then table.insert(result_lines, i + 1, search_start_line) end
@@ -251,8 +243,7 @@ local function transform_result_content(selected_files, result_content, prev_fil
         prev_line
         and prev_filepath
         and not prev_line:match("Filepath:.+")
-        and not prev_line:match("<FILEPATH>.+</FILEPATH>")
-        and not prev_line:match("<filepath>.+</filepath>")
+        and not prev_line:match("<[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]>.+</[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]>")
       then
         table.insert(transformed_lines, string.format("Filepath: %s", prev_filepath))
       end
@@ -260,15 +251,15 @@ local function transform_result_content(selected_files, result_content, prev_fil
       if next_line and next_line:match("^%s*```%w+$") then i = i + 1 end
       search_start = i + 1
       last_search_tag_start_line = i
-    elseif line_content:match("</SEARCH>%s*$") then
+    elseif line_content:match("</[Ss][Ee][Aa][Rr][Cc][Hh]>%s*$") then
       if is_replacing then
-        result_lines[i] = line_content:gsub("</SEARCH>", "</REPLACE>")
+        result_lines[i] = line_content:gsub("</[Ss][Ee][Aa][Rr][Cc][Hh]>", "</REPLACE>")
         goto continue_without_increment
       end
 
       -- Handle case where </SEARCH> is a suffix
-      if not line_content:match("^%s*</SEARCH>%s*$") then
-        local search_end_line = line_content:match("^(.+)</SEARCH>")
+      if not line_content:match("^%s*</[Ss][Ee][Aa][Rr][Cc][Hh]>%s*$") then
+        local search_end_line = line_content:match("^(.+)</[Ss][Ee][Aa][Rr][Cc][Hh]>")
         line_content = "</SEARCH>"
         result_lines[i] = line_content
         if search_end_line and search_end_line ~= "" then
@@ -365,10 +356,10 @@ local function transform_result_content(selected_files, result_content, prev_fil
         string.format("```%s", match_filetype),
       })
       goto continue
-    elseif line_content:match("^%s*<REPLACE>") then
+    elseif line_content:match("^%s*<[Rr][Ee][Pp][Ll][Aa][Cc][Ee]>") then
       is_replacing = true
-      if not line_content:match("^%s*<REPLACE>%s*$") then
-        local replace_first_line = line_content:match("<REPLACE>(.+)$")
+      if not line_content:match("^%s*<[Rr][Ee][Pp][Ll][Aa][Cc][Ee]>%s*$") then
+        local replace_first_line = line_content:match("<[Rr][Ee][Pp][Ll][Aa][Cc][Ee]>(.+)$")
         line_content = "<REPLACE>"
         result_lines[i] = line_content
         if replace_first_line and replace_first_line ~= "" then
@@ -379,10 +370,10 @@ local function transform_result_content(selected_files, result_content, prev_fil
       if next_line and next_line:match("^%s*```%w+$") then i = i + 1 end
       last_replace_tag_start_line = i
       goto continue
-    elseif line_content:match("</REPLACE>%s*$") then
+    elseif line_content:match("</[Rr][Ee][Pp][Ll][Aa][Cc][Ee]>%s*$") then
       -- Handle case where </REPLACE> is a suffix
-      if not line_content:match("^%s*</REPLACE>%s*$") then
-        local replace_end_line = line_content:match("^(.+)</REPLACE>")
+      if not line_content:match("^%s*</[Rr][Ee][Pp][Ll][Aa][Cc][Ee]>%s*$") then
+        local replace_end_line = line_content:match("^(.+)</[Rr][Ee][Pp][Ll][Aa][Cc][Ee]>")
         line_content = "</REPLACE>"
         result_lines[i] = line_content
         if replace_end_line and replace_end_line ~= "" then
