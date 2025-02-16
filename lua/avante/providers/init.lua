@@ -41,7 +41,7 @@ local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 ---@alias AvanteMessagesParser fun(opts: AvantePromptOptions): AvanteChatMessage[]
 ---
 ---@class AvanteCurlOutput: {url: string, proxy: string, insecure: boolean, body: table<string, any> | string, headers: table<string, string>, rawArgs: string[] | nil}
----@alias AvanteCurlArgsParser fun(opts: AvanteProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor, prompt_opts: AvantePromptOptions): AvanteCurlOutput
+---@alias AvanteCurlArgsParser fun(provider: AvanteProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor, prompt_opts: AvantePromptOptions): AvanteCurlOutput
 ---
 ---@class ResponseParser
 ---@field on_start AvanteLLMStartCallback
@@ -363,10 +363,18 @@ M.setup = function()
   ---@type AvanteProviderFunctor | AvanteBedrockProviderFunctor
   local provider = M[Config.provider]
   local auto_suggestions_provider = M[Config.auto_suggestions_provider]
+
   E.setup({ provider = provider })
 
   if auto_suggestions_provider and auto_suggestions_provider ~= provider then
     E.setup({ provider = auto_suggestions_provider })
+  end
+
+  if Config.cursor_applying_provider then
+    local cursor_applying_provider = M[Config.cursor_applying_provider]
+    if cursor_applying_provider and cursor_applying_provider ~= provider then
+      E.setup({ provider = cursor_applying_provider })
+    end
   end
 end
 

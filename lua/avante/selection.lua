@@ -232,7 +232,7 @@ function Selection:create_editing_input()
     cancel_callback = function() self:close_editing_input() end,
     win_opts = {
       border = Config.windows.edit.border,
-      title = { { "edit selected block", "FloatTitle" } },
+      title = { { "Edit selected block", "FloatTitle" } },
     },
     start_insert = Config.windows.edit.start_insert,
   })
