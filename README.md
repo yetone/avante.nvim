@@ -582,15 +582,15 @@ For more information, see [Custom Providers](https://github.com/yetone/avante.nv
 
 ## Web Search Engines
 
-Avante's tools include some web search engines, currently support [tavily](https://tavily.com/), [serpapi](https://serpapi.com/) and google's [programmable search engine](https://developers.google.com/custom-search/v1/overview). The default is tavily, and can be changed through configuring `Config.web_search_engine.provider`:
+Avante's tools include some web search engines, currently support [tavily](https://tavily.com/), [serpapi](https://serpapi.com/), [searchapi](https://www.searchapi.io/) and google's [programmable search engine](https://developers.google.com/custom-search/v1/overview). The default is tavily, and can be changed through configuring `Config.web_search_engine.provider`:
 
 ```lua
 web_search_engine = {
-  provider = "tavily", -- tavily, serpapi or google
+  provider = "tavily", -- tavily, serpapi, searchapi or google
 }
 ```
 
-You need to set the environment variable `TAVILY_API_KEY` , `SERPAPI_API_KEY` to use tavily or serpapi.
+You need to set the environment variable `TAVILY_API_KEY` , `SERPAPI_API_KEY`, `SEARCHAPI_API_KEY` to use tavily or serpapi or searchapi.
 To use google, set the `GOOGLE_SEARCH_API_KEY` as the [API key](https://developers.google.com/custom-search/v1/overview), and `GOOGLE_SEARCH_ENGINE_ID` as the [search engine](https://programmablesearchengine.google.com) ID.
 
 ## Disable Tools

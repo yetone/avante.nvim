@@ -56,10 +56,39 @@ M._defaults = {
                     title = result.title,
                     link = result.link,
                     snippet = result.snippet,
+                    date = result.date,
                   }
                 end
               )
-              :take(5)
+              :take(10)
+              :totable()
+            return vim.json.encode(jsn), nil
+          end
+          return "", nil
+        end,
+      },
+      searchapi = {
+        api_key_name = "SEARCHAPI_API_KEY",
+        extra_request_body = {
+          engine = "google",
+        },
+        ---@type WebSearchEngineProviderResponseBodyFormatter
+        format_response_body = function(body)
+          if body.answer_box ~= nil then return body.answer_box.result, nil end
+          if body.organic_results ~= nil then
+            local jsn = vim
+              .iter(body.organic_results)
+              :map(
+                function(result)
+                  return {
+                    title = result.title,
+                    link = result.link,
+                    snippet = result.snippet,
+                    date = result.date,
+                  }
+                end
+              )
+              :take(10)
               :totable()
             return vim.json.encode(jsn), nil
           end
@@ -84,7 +113,7 @@ M._defaults = {
                   }
                 end
               )
-              :take(5)
+              :take(10)
               :totable()
             return vim.json.encode(jsn), nil
           end
