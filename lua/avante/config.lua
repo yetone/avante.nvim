@@ -36,7 +36,7 @@ M._defaults = {
           include_answer = "basic",
         },
         ---@type WebSearchEngineProviderResponseBodyFormatter
-        format_response_body = function(body) return body.anwser, nil end,
+        format_response_body = function(body) return body.answer, nil end,
       },
       serpapi = {
         api_key_name = "SERPAPI_API_KEY",
