@@ -227,7 +227,7 @@ M.parse_response = function(ctx, data_stream, _, opts)
         end
         ctx.last_think_content = choice.delta.reasoning
         opts.on_chunk(choice.delta.reasoning)
-      elseif choice.delta.tool_calls then
+      elseif choice.delta.tool_calls and choice.delta.tool_calls ~= vim.NIL then
         local tool_call = choice.delta.tool_calls[1]
         if not ctx.tool_use_list then ctx.tool_use_list = {} end
         if not ctx.tool_use_list[tool_call.index + 1] then
