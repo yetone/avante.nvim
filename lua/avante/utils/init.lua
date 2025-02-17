@@ -665,6 +665,19 @@ function M.scan_directory_respect_gitignore(options)
   local directory = options.directory
   local gitignore_path = directory .. "/.gitignore"
   local gitignore_patterns, gitignore_negate_patterns = M.parse_gitignore(gitignore_path)
+
+  -- Convert relative paths in gitignore to absolute paths based on project root
+  local project_root = M.get_project_root()
+  local function to_absolute_path(pattern)
+    -- Skip if already absolute path
+    if pattern:sub(1, 1) == "/" then return pattern end
+    -- Convert relative path to absolute
+    return Path:new(project_root, pattern):absolute()
+  end
+
+  gitignore_patterns = vim.tbl_map(to_absolute_path, gitignore_patterns)
+  gitignore_negate_patterns = vim.tbl_map(to_absolute_path, gitignore_negate_patterns)
+
   return M.scan_directory({
     directory = directory,
     gitignore_patterns = gitignore_patterns,
