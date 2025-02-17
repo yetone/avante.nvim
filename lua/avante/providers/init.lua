@@ -64,6 +64,7 @@ local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
 ---@field __inherited_from? string
 ---@field temperature? number
 ---@field max_tokens? number
+---@field reasoning_effort? string
 ---
 ---@class AvanteLLMUsage
 ---@field input_tokens number
