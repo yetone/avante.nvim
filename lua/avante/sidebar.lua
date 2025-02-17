@@ -531,7 +531,11 @@ local function extract_cursor_planning_code_snippets_map(response_content)
 
   local lines = vim.split(response_content, "\n")
 
-  for idx, line in ipairs(lines) do
+  local idx = 1
+  local line_count = #lines
+
+  while idx <= line_count do
+    local line = lines[idx]
     if line:match("^%s*```") then
       if in_code_block then
         in_code_block = false
@@ -550,12 +554,19 @@ local function extract_cursor_planning_code_snippets_map(response_content)
         lang = lang_ or "unknown"
         local filepath_ = line:match("^%s*```%w+:(.+)$")
         filepath = filepath_ or ""
-        -- local line_ = line:gsub(".*(:.+)$", "")
-        -- lines[idx] = line_
+        if filepath == "" then
+          local next_line = lines[idx + 1]
+          local filepath2 = next_line:match("[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]:%s*(.+)")
+          if filepath2 then
+            filepath = filepath2
+            idx = idx + 1
+          end
+        end
       end
     elseif in_code_block then
       table.insert(current_snippet, line)
     end
+    idx = idx + 1
   end
 
   local snippets_map = {}
@@ -979,7 +990,7 @@ function Sidebar:apply(current_cursor)
 
           ---@diagnostic disable-next-line: assign-type-mismatch, missing-fields
           local patch = vim.diff(original_lines_content, resp_lines_content, { ---@type integer[][]
-            algorithm = "histogram",
+            algorithm = "minimal",
             result_type = "indices",
             ctxlen = vim.o.scrolloff,
           })
@@ -990,17 +1001,27 @@ function Sidebar:apply(current_cursor)
             local start_a, count_a, start_b, count_b = unpack(hunk)
 
             for i = start_a, start_a + count_a - 1 do
-              api.nvim_buf_add_highlight(bufnr, ns_id, Highlights.CURRENT, i - 1, 0, -1)
+              api.nvim_buf_set_extmark(bufnr, ns_id, i - 1, 0, {
+                hl_group = Highlights.TO_BE_DELETED_WITHOUT_STRIKETHROUGH,
+                hl_eol = true,
+                hl_mode = "combine",
+                end_row = i,
+              })
             end
 
             local new_lines = vim.list_slice(resp_lines_to_process, start_b, start_b + count_b - 1)
+            local max_col = vim.o.columns
             local virt_lines = vim
               .iter(new_lines)
-              :map(function(line) return { { line, Highlights.INCOMING } } end)
+              :map(function(line)
+                --- append spaces to the end of the line
+                local line_ = line .. string.rep(" ", max_col - #line)
+                return { { line_, Highlights.INCOMING } }
+              end)
               :totable()
             api.nvim_buf_set_extmark(bufnr, ns_id, math.max(0, start_a + count_a - 2), 0, {
               virt_lines = virt_lines,
-              virt_text_pos = "overlay",
+              hl_eol = true,
               hl_mode = "combine",
             })
           end
@@ -1009,10 +1030,16 @@ function Sidebar:apply(current_cursor)
 
           local winid = Utils.get_winid(bufnr)
 
+          if winid == nil then return end
+
           --- goto window winid
           api.nvim_set_current_win(winid)
           --- goto the last line
-          api.nvim_win_set_cursor(winid, { last_processed_line, 0 })
+          if last_processed_line > #original_code_lines then
+            api.nvim_win_set_cursor(winid, { #original_code_lines, 0 })
+          else
+            api.nvim_win_set_cursor(winid, { last_processed_line, 0 })
+          end
           vim.cmd("normal! zz")
         end,
         on_stop = function(stop_opts)
@@ -1026,7 +1053,7 @@ function Sidebar:apply(current_cursor)
 
           resp_content = resp_content:gsub("<updated%-code>\n*", ""):gsub("</updated%-code>\n*", "")
 
-          resp_content = resp_content:gsub(".*```%w+\n", ""):gsub("\n```\n.*", "")
+          resp_content = resp_content:gsub(".*```%w+\n", ""):gsub("\n```\n.*", ""):gsub("\n```", "")
           local resp_lines = vim.split(resp_content, "\n")
           local original_lines = vim.list_slice(original_code_lines, 1, #resp_lines)
           local resp_lines_content = table.concat(resp_lines, "\n")

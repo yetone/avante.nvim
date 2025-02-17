@@ -2,6 +2,7 @@ local api = vim.api
 
 local Config = require("avante.config")
 local Utils = require("avante.utils")
+local Highlights = require("avante.highlights")
 
 local H = {}
 local M = {}
@@ -76,10 +77,10 @@ local name_map = {
   cursor = "cursor",
 }
 
-local CURRENT_HL = "AvanteConflictCurrent"
-local INCOMING_HL = "AvanteConflictIncoming"
-local CURRENT_LABEL_HL = "AvanteConflictCurrentLabel"
-local INCOMING_LABEL_HL = "AvanteConflictIncomingLabel"
+local CURRENT_HL = Highlights.CURRENT
+local INCOMING_HL = Highlights.INCOMING
+local CURRENT_LABEL_HL = Highlights.CURRENT_LABEL
+local INCOMING_LABEL_HL = Highlights.INCOMING_LABEL
 local PRIORITY = vim.highlight.priorities.user
 local NAMESPACE = api.nvim_create_namespace("avante-conflict")
 local KEYBINDING_NAMESPACE = api.nvim_create_namespace("avante-conflict-keybinding")

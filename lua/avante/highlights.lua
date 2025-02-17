@@ -16,15 +16,14 @@ local Highlights = {
   POPUP_HINT = { name = "AvantePopupHint", link = "NormalFloat" },
   INLINE_HINT = { name = "AvanteInlineHint", link = "Keyword" },
   TO_BE_DELETED = { name = "AvanteToBeDeleted", bg = "#ffcccc", strikethrough = true },
+  TO_BE_DELETED_WITHOUT_STRIKETHROUGH = { name = "AvanteToBeDeletedWOStrikethrough", bg = "#562C30" },
 }
 
 Highlights.conflict = {
-  CURRENT = { name = "AvanteConflictCurrent", bg = 4218238, bold = true }, -- #405d7e
+  CURRENT = { name = "AvanteConflictCurrent", bg = "#562C30", bold = true }, -- #405d7e
   CURRENT_LABEL = { name = "AvanteConflictCurrentLabel", link = "CURRENT", shade = 60 },
   INCOMING = { name = "AvanteConflictIncoming", bg = 3229523, bold = true }, -- #314753
   INCOMING_LABEL = { name = "AvanteConflictIncomingLabel", link = "INCOMING", shade = 60 },
-  ANCESTOR = { name = "AvanteConflictAncestor", bg = 6824314, bold = true }, -- #68217A
-  ANCESTOR_LABEL = { name = "AvanteConflictAncestorLabel", link = "ANCESTOR", shade = 60 },
 }
 
 --- helper
