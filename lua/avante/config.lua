@@ -21,6 +21,7 @@ M._defaults = {
   -- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
   -- Of course, you can reduce the request frequency by increasing `suggestion.debounce`.
   auto_suggestions_provider = "claude",
+  cursor_applying_provider = nil,
   ---@alias Tokenizer "tiktoken" | "hf"
   -- Used for counting tokens and encoding text.
   -- By default, we will use tiktoken.
@@ -248,6 +249,7 @@ M._defaults = {
     support_paste_from_clipboard = false,
     minimize_diff = true,
     enable_token_counting = true,
+    enable_cursor_planning_mode = false,
   },
   history = {
     max_tokens = 4096,

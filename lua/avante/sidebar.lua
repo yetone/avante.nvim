@@ -520,6 +520,52 @@ end
 ---@field start_line_in_response_buf integer
 ---@field end_line_in_response_buf integer
 ---@field filepath string
+---
+---@param response_content string
+---@return table<string, AvanteCodeSnippet[]>
+local function extract_cursor_planning_code_snippets_map(response_content)
+  local snippets = {}
+  local current_snippet = {}
+  local in_code_block = false
+  local lang, filepath, start_line_in_response_buf
+
+  local lines = vim.split(response_content, "\n")
+
+  for idx, line in ipairs(lines) do
+    if line:match("^%s*```") then
+      if in_code_block then
+        in_code_block = false
+        table.insert(snippets, {
+          range = { 0, 0 },
+          content = table.concat(current_snippet, "\n"),
+          lang = lang,
+          filepath = filepath,
+          start_line_in_response_buf = start_line_in_response_buf,
+          end_line_in_response_buf = idx,
+        })
+      else
+        in_code_block = true
+        start_line_in_response_buf = idx
+        local lang_ = line:match("^%s*```(%w+)")
+        lang = lang_ or "unknown"
+        local filepath_ = line:match("^%s*```%w+:(.+)$")
+        filepath = filepath_ or ""
+        -- local line_ = line:gsub(".*(:.+)$", "")
+        -- lines[idx] = line_
+      end
+    elseif in_code_block then
+      table.insert(current_snippet, line)
+    end
+  end
+
+  local snippets_map = {}
+  for _, snippet in ipairs(snippets) do
+    snippets_map[snippet.filepath] = snippets_map[snippet.filepath] or {}
+    table.insert(snippets_map[snippet.filepath], snippet)
+  end
+
+  return snippets_map
+end
 
 ---@param response_content string
 ---@return table<string, AvanteCodeSnippet[]>
@@ -714,7 +760,10 @@ local function parse_codeblocks(buf)
       if in_codeblock and not lang_ then
         table.insert(codeblocks, { start_line = start_line, end_line = i - 1, lang = lang })
         in_codeblock = false
-      elseif lang_ and lines[i - 1]:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)") then
+      elseif
+        lang_ and Config.behaviour.enable_cursor_planning_mode
+        or lines[i - 1]:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)")
+      then
         lang = lang_
         start_line = i - 1
         in_codeblock = true
@@ -787,8 +836,12 @@ end
 ---@param current_cursor boolean
 function Sidebar:apply(current_cursor)
   local response, response_start_line = self:get_content_between_separators()
-  local all_snippets_map = extract_code_snippets_map(response)
-  all_snippets_map = ensure_snippets_no_overlap(all_snippets_map)
+  local all_snippets_map = Config.behaviour.enable_cursor_planning_mode
+      and extract_cursor_planning_code_snippets_map(response)
+    or extract_code_snippets_map(response)
+  if not Config.behaviour.enable_cursor_planning_mode then
+    all_snippets_map = ensure_snippets_no_overlap(all_snippets_map)
+  end
   local selected_snippets_map = {}
   if current_cursor then
     if self.result_container and self.result_container.winid then
@@ -807,6 +860,231 @@ function Sidebar:apply(current_cursor)
     end
   else
     selected_snippets_map = all_snippets_map
+  end
+
+  if Config.behaviour.enable_cursor_planning_mode then
+    for filepath, snippets in pairs(selected_snippets_map) do
+      local original_code_lines = Utils.read_file_from_buf_or_disk(filepath)
+      if not original_code_lines then
+        Utils.error("Failed to read file: " .. filepath)
+        return
+      end
+      local formated_snippets = vim.iter(snippets):map(function(snippet) return snippet.content end):totable()
+      local original_code = table.concat(original_code_lines, "\n")
+      local resp_content = ""
+      local filetype = Utils.get_filetype(filepath)
+      local cursor_applying_provider = Provider[Config.cursor_applying_provider]
+      if not cursor_applying_provider then
+        Utils.error("Failed to find cursor_applying_provider provider: " .. Config.cursor_applying_provider, {
+          once = true,
+          title = "Avante",
+        })
+      end
+      local bufnr = Utils.get_or_create_buffer_with_filepath(filepath)
+      local path_ = PPath:new(filepath)
+      path_:parent():mkdir({ parents = true, exists_ok = true })
+
+      local ns_id = api.nvim_create_namespace("avante_live_diff")
+
+      local function clear_highlights() api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1) end
+
+      local last_processed_line = 0
+
+      -- Create loading indicator float window
+      local loading_buf = api.nvim_create_buf(false, true)
+      local loading_win = nil
+      local spinner_frames = { "⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷" }
+      local spinner_idx = 1
+      local loading_timer = nil
+
+      local function update_loading_indicator()
+        if not loading_win or not api.nvim_win_is_valid(loading_win) then return end
+        spinner_idx = (spinner_idx % #spinner_frames) + 1
+        local text = spinner_frames[spinner_idx] .. " Applying changes..."
+        api.nvim_buf_set_lines(loading_buf, 0, -1, false, { text })
+      end
+
+      local function create_loading_window()
+        local winid = self.input_container.winid
+        local win_height = api.nvim_win_get_height(winid)
+        local win_width = api.nvim_win_get_width(winid)
+
+        -- Calculate position for center of window
+        local width = 30
+        local height = 1
+        local row = win_height - height - 1
+        local col = win_width - width
+
+        local opts = {
+          relative = "win",
+          win = winid,
+          width = width,
+          height = height,
+          row = row,
+          col = col,
+          anchor = "NW",
+          style = "minimal",
+          border = "none",
+          focusable = false,
+          zindex = 101,
+        }
+
+        loading_win = api.nvim_open_win(loading_buf, false, opts)
+
+        -- Start timer to update spinner
+        loading_timer = vim.loop.new_timer()
+        if loading_timer then loading_timer:start(0, 100, vim.schedule_wrap(update_loading_indicator)) end
+      end
+
+      local function close_loading_window()
+        if loading_timer then
+          loading_timer:stop()
+          loading_timer:close()
+          loading_timer = nil
+        end
+        if loading_win and api.nvim_win_is_valid(loading_win) then
+          api.nvim_win_close(loading_win, true)
+          loading_win = nil
+        end
+      end
+
+      clear_highlights()
+      create_loading_window()
+
+      Llm.stream({
+        ask = true,
+        provider = cursor_applying_provider,
+        code_lang = filetype,
+        mode = "cursor-applying",
+        original_code = original_code,
+        update_snippets = formated_snippets,
+        on_start = function(_) end,
+        on_chunk = function(chunk)
+          if not chunk then return end
+
+          resp_content = resp_content .. chunk
+
+          local clean_content = resp_content:gsub("<updated%-code>\n*", ""):gsub("</updated%-code>\n*", "")
+          clean_content = clean_content:gsub(".*```%w+\n", ""):gsub("\n```\n.*", "")
+          local resp_lines = vim.split(clean_content, "\n")
+
+          local complete_lines_count = #resp_lines - 1
+          if complete_lines_count <= last_processed_line then return end
+
+          local original_lines = vim.list_slice(original_code_lines, 1, complete_lines_count)
+          local resp_lines_to_process = vim.list_slice(resp_lines, 1, complete_lines_count)
+
+          local resp_lines_content = table.concat(resp_lines_to_process, "\n")
+          local original_lines_content = table.concat(original_lines, "\n")
+
+          ---@diagnostic disable-next-line: assign-type-mismatch, missing-fields
+          local patch = vim.diff(original_lines_content, resp_lines_content, { ---@type integer[][]
+            algorithm = "histogram",
+            result_type = "indices",
+            ctxlen = vim.o.scrolloff,
+          })
+
+          clear_highlights()
+
+          for _, hunk in ipairs(patch) do
+            local start_a, count_a, start_b, count_b = unpack(hunk)
+
+            for i = start_a, start_a + count_a - 1 do
+              api.nvim_buf_add_highlight(bufnr, ns_id, Highlights.CURRENT, i - 1, 0, -1)
+            end
+
+            local new_lines = vim.list_slice(resp_lines_to_process, start_b, start_b + count_b - 1)
+            local virt_lines = vim
+              .iter(new_lines)
+              :map(function(line) return { { line, Highlights.INCOMING } } end)
+              :totable()
+            api.nvim_buf_set_extmark(bufnr, ns_id, math.max(0, start_a + count_a - 2), 0, {
+              virt_lines = virt_lines,
+              virt_text_pos = "overlay",
+              hl_mode = "combine",
+            })
+          end
+
+          last_processed_line = complete_lines_count
+
+          local winid = Utils.get_winid(bufnr)
+
+          --- goto window winid
+          api.nvim_set_current_win(winid)
+          --- goto the last line
+          api.nvim_win_set_cursor(winid, { last_processed_line, 0 })
+          vim.cmd("normal! zz")
+        end,
+        on_stop = function(stop_opts)
+          clear_highlights()
+          close_loading_window()
+
+          if stop_opts.error ~= nil then
+            Utils.error(string.format("applying failed: %s", vim.inspect(stop_opts.error)))
+            return
+          end
+
+          resp_content = resp_content:gsub("<updated%-code>\n*", ""):gsub("</updated%-code>\n*", "")
+
+          resp_content = resp_content:gsub(".*```%w+\n", ""):gsub("\n```\n.*", "")
+          local resp_lines = vim.split(resp_content, "\n")
+          local original_lines = vim.list_slice(original_code_lines, 1, #resp_lines)
+          local resp_lines_content = table.concat(resp_lines, "\n")
+          local original_lines_content = table.concat(original_lines, "\n")
+
+          if resp_lines_content == original_lines_content then return end
+
+          ---@diagnostic disable-next-line: assign-type-mismatch, missing-fields
+          local patch = vim.diff(original_lines_content, resp_lines_content, { ---@type integer[][]
+            algorithm = "histogram",
+            result_type = "indices",
+            ctxlen = vim.o.scrolloff,
+          })
+
+          local new_lines = {}
+          local prev_start_a = 1
+          for _, hunk in ipairs(patch) do
+            local start_a, count_a, start_b, count_b = unpack(hunk)
+            vim.list_extend(new_lines, vim.list_slice(original_lines, prev_start_a, start_a - 1))
+            prev_start_a = start_a + count_a
+            table.insert(new_lines, "<<<<<<< HEAD")
+            vim.list_extend(new_lines, vim.list_slice(original_lines, start_a, start_a + count_a - 1))
+            table.insert(new_lines, "=======")
+            vim.list_extend(new_lines, vim.list_slice(resp_lines, start_b, start_b + count_b - 1))
+            table.insert(new_lines, ">>>>>>> Snippet")
+          end
+
+          api.nvim_buf_set_lines(bufnr, 0, -1, false, new_lines)
+
+          local process = function(winid)
+            api.nvim_set_current_win(winid)
+            api.nvim_feedkeys(api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
+            Diff.add_visited_buffer(bufnr)
+            Diff.process(bufnr)
+            api.nvim_win_set_cursor(winid, { 1, 0 })
+            vim.defer_fn(function()
+              Diff.find_next(Config.windows.ask.focus_on_apply)
+              vim.cmd("normal! zz")
+            end, 100)
+          end
+
+          local winid = Utils.get_winid(bufnr)
+          if winid then
+            process(winid)
+          else
+            api.nvim_create_autocmd("BufWinEnter", {
+              buffer = bufnr,
+              once = true,
+              callback = function()
+                local winid_ = Utils.get_winid(bufnr)
+                if winid_ then process(winid_) end
+              end,
+            })
+          end
+        end,
+      })
+    end
+    return
   end
 
   vim.defer_fn(function()
@@ -1801,7 +2079,7 @@ function Sidebar:create_input_container(opts)
       code_lang = filetype,
       selected_code = selected_code_content,
       instructions = request,
-      mode = "planning",
+      mode = Config.behaviour.enable_cursor_planning_mode and "cursor-planning" or "planning",
       tools = tools,
     }
   end
