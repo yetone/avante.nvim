@@ -581,6 +581,12 @@ Avante provides a set of default providers, but users can also create their own 
 
 For more information, see [Custom Providers](https://github.com/yetone/avante.nvim/wiki/Custom-providers)
 
+## Cursor planning mode
+
+Because avante.nvim has always used Aider’s method for planning applying, but its prompts are very picky with models and require ones like claude-3.5-sonnet or gpt-4o to work properly.
+
+Therefore, I have adopted Cursor’s method to implement planning applying. For details on the implementation, please refer to [cursor-planning-mode.md](./cursor-planning-mode.md)
+
 ## Web Search Engines
 
 Avante's tools include some web search engines, currently support [tavily](https://tavily.com/), [serpapi](https://serpapi.com/), [searchapi](https://www.searchapi.io/) and google's [programmable search engine](https://developers.google.com/custom-search/v1/overview). The default is tavily, and can be changed through configuring `Config.web_search_engine.provider`:
