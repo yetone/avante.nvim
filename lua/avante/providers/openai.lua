@@ -206,6 +206,7 @@ M.parse_response = function(ctx, data_stream, _, opts)
     if jsn.choices and jsn.choices[1] then
       local choice = jsn.choices[1]
       if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" then
+        if choice.delta.content and choice.delta.content ~= vim.NIL then opts.on_chunk(choice.delta.content) end
         opts.on_stop({ reason = "complete" })
       elseif choice.finish_reason == "tool_calls" then
         opts.on_stop({
