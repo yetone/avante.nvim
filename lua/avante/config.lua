@@ -260,10 +260,9 @@ M._defaults = {
     },
   },
   highlights = {
-    ---@type AvanteConflictHighlights
     diff = {
-      current = "DiffText",
-      incoming = "DiffAdd",
+      current = nil,
+      incoming = nil,
     },
   },
   mappings = {
@@ -376,11 +375,6 @@ M._defaults = {
 ---@type avante.Config
 M._options = {}
 
----@class avante.ConflictConfig: AvanteConflictConfig
----@field mappings AvanteConflictMappings
----@field highlights AvanteConflictHighlights
-M.diff = {}
-
 ---@type Provider[]
 M.providers = {}
 
@@ -412,13 +406,6 @@ function M.setup(opts)
 
   vim.validate({ provider = { M._options.provider, "string", false } })
 
-  M.diff = vim.tbl_deep_extend(
-    "force",
-    {},
-    M._options.diff,
-    { mappings = M._options.mappings.diff, highlights = M._options.highlights.diff }
-  )
-
   if next(M._options.vendors) ~= nil then
     for k, v in pairs(M._options.vendors) do
       M._options.vendors[k] = type(v) == "function" and v() or v
@@ -433,12 +420,6 @@ function M.override(opts)
   vim.validate({ opts = { opts, "table", true } })
 
   M._options = vim.tbl_deep_extend("force", M._options, opts or {})
-  M.diff = vim.tbl_deep_extend(
-    "force",
-    {},
-    M._options.diff,
-    { mappings = M._options.mappings.diff, highlights = M._options.highlights.diff }
-  )
 
   if next(M._options.vendors) ~= nil then
     for k, v in pairs(M._options.vendors) do
