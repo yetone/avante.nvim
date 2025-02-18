@@ -394,6 +394,128 @@ function M.fetch(opts, on_log)
   return res, nil
 end
 
+---@param opts { scope?: string }
+---@param on_log? fun(log: string): nil
+---@return string|nil result
+---@return string|nil error
+function M.git_diff(opts, on_log)
+  local git_cmd = vim.fn.exepath("git")
+  if git_cmd == "" then return nil, "Git command not found" end
+  local project_root = Utils.get_project_root()
+  if not project_root then return nil, "Not in a git repository" end
+
+  -- Check if we're in a git repository
+  local git_dir = vim.fn.system("git rev-parse --git-dir"):gsub("\n", "")
+  if git_dir == "" then return nil, "Not a git repository" end
+
+  -- Get the diff
+  local scope = opts.scope or ""
+  local cmd = string.format("git diff --cached %s", scope)
+  if on_log then on_log("Running command: " .. cmd) end
+  local diff = vim.fn.system(cmd)
+
+  if diff == "" then
+    -- If there's no staged changes, get unstaged changes
+    cmd = string.format("git diff %s", scope)
+    if on_log then on_log("No staged changes. Running command: " .. cmd) end
+    diff = vim.fn.system(cmd)
+  end
+
+  if diff == "" then return nil, "No changes detected" end
+
+  return diff, nil
+end
+
+---@param opts { message: string, scope?: string }
+---@param on_log? fun(log: string): nil
+---@return boolean success
+---@return string|nil error
+function M.git_commit(opts, on_log)
+  local git_cmd = vim.fn.exepath("git")
+  if git_cmd == "" then return false, "Git command not found" end
+  local project_root = Utils.get_project_root()
+  if not project_root then return false, "Not in a git repository" end
+
+  -- Check if we're in a git repository
+  local git_dir = vim.fn.system("git rev-parse --git-dir"):gsub("\n", "")
+  if git_dir == "" then return false, "Not a git repository" end
+
+  -- First check if there are any changes to commit
+  local status = vim.fn.system("git status --porcelain")
+  if status == "" then return false, "No changes to commit" end
+
+  -- Get git user name and email
+  local git_user = vim.fn.system("git config user.name"):gsub("\n", "")
+  local git_email = vim.fn.system("git config user.email"):gsub("\n", "")
+
+  -- Check if GPG signing is available and configured
+  local has_gpg = false
+  local signing_key = vim.fn.system("git config --get user.signingkey"):gsub("\n", "")
+
+  if signing_key ~= "" then
+    -- Try to find gpg executable based on OS
+    local gpg_cmd
+    if vim.fn.has("win32") == 1 then
+      -- Check common Windows GPG paths
+      gpg_cmd = vim.fn.exepath("gpg.exe") ~= "" and vim.fn.exepath("gpg.exe") or vim.fn.exepath("gpg2.exe")
+    else
+      -- Unix-like systems (Linux/MacOS)
+      gpg_cmd = vim.fn.exepath("gpg") ~= "" and vim.fn.exepath("gpg") or vim.fn.exepath("gpg2")
+    end
+
+    if gpg_cmd ~= "" then
+      -- Verify GPG is working
+      local _ = vim.fn.system(string.format('"%s" --version', gpg_cmd))
+      has_gpg = vim.v.shell_error == 0
+    end
+  end
+
+  if on_log then on_log(string.format("GPG signing %s", has_gpg and "enabled" or "disabled")) end
+
+  -- Prepare commit message
+  local commit_msg_lines = {}
+  for line in opts.message:gmatch("[^\r\n]+") do
+    commit_msg_lines[#commit_msg_lines + 1] = line:gsub('"', '\\"')
+  end
+  if git_user ~= "" and git_email ~= "" then
+    commit_msg_lines[#commit_msg_lines + 1] = string.format("Signed-off-by: %s <%s>", git_user, git_email)
+  end
+
+  -- Construct full commit message for confirmation
+  local full_commit_msg = table.concat(commit_msg_lines, "\n")
+
+  -- Confirm with user
+  if not M.confirm("Are you sure you want to commit with message:\n" .. full_commit_msg) then
+    return false, "User canceled"
+  end
+
+  -- Stage changes if scope is provided
+  if opts.scope then
+    local stage_cmd = string.format("git add %s", opts.scope)
+    if on_log then on_log("Staging files: " .. stage_cmd) end
+    local stage_result = vim.fn.system(stage_cmd)
+    if vim.v.shell_error ~= 0 then return false, "Failed to stage files: " .. stage_result end
+  end
+
+  -- Construct git commit command
+  local cmd_parts = { "git", "commit" }
+  -- Only add -S flag if GPG is available
+  if has_gpg then table.insert(cmd_parts, "-S") end
+  for _, line in ipairs(commit_msg_lines) do
+    table.insert(cmd_parts, "-m")
+    table.insert(cmd_parts, '"' .. line .. '"')
+  end
+  local cmd = table.concat(cmd_parts, " ")
+
+  -- Execute git commit
+  if on_log then on_log("Running command: " .. cmd) end
+  local result = vim.fn.system(cmd)
+
+  if vim.v.shell_error ~= 0 then return false, "Failed to commit: " .. result end
+
+  return true, nil
+end
+
 ---@class AvanteLLMTool
 ---@field name string
 ---@field description string
@@ -419,6 +541,66 @@ end
 
 ---@type AvanteLLMTool[]
 M.tools = {
+  {
+    name = "git_diff",
+    description = "Get git diff for generating commit message",
+    param = {
+      type = "table",
+      fields = {
+        {
+          name = "scope",
+          description = "Scope for the git diff (e.g. specific files or directories)",
+          type = "string",
+        },
+      },
+    },
+    returns = {
+      {
+        name = "result",
+        description = "Git diff output to be used for generating commit message",
+        type = "string",
+      },
+      {
+        name = "error",
+        description = "Error message if the diff generation failed",
+        type = "string",
+        optional = true,
+      },
+    },
+  },
+  {
+    name = "git_commit",
+    description = "Commit changes with the given commit message",
+    param = {
+      type = "table",
+      fields = {
+        {
+          name = "message",
+          description = "Commit message to use",
+          type = "string",
+        },
+        {
+          name = "scope",
+          description = "Scope for staging files (e.g. specific files or directories)",
+          type = "string",
+          optional = true,
+        },
+      },
+    },
+    returns = {
+      {
+        name = "success",
+        description = "True if the commit was successful, false otherwise",
+        type = "boolean",
+      },
+      {
+        name = "error",
+        description = "Error message if the commit failed",
+        type = "string",
+        optional = true,
+      },
+    },
+  },
   {
     name = "list_files",
     description = "List files in a directory",
