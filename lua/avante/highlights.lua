@@ -1,6 +1,7 @@
 local api = vim.api
 
 local Config = require("avante.config")
+local Utils = require("avante.utils")
 local bit = require("bit")
 local rshift, band = bit.rshift, bit.band
 
@@ -61,6 +62,7 @@ end
 M.setup_conflict_highlights = function()
   local custom_hls = Config.highlights.diff
 
+  ---@return number | nil
   local get_bg = function(hl_name)
     local hl = api.nvim_get_hl(0, { name = hl_name })
     return hl.bg
@@ -104,6 +106,10 @@ M.setup_conflict_highlights = function()
       bold = get_bold(custom_hl_name) or hl.bold
     else
       local link_bg = get_bg(hl.shade_link)
+      if link_bg == nil then
+        Utils.warn(string.format("highlights %s don't have bg, use fallback", hl.shade_link))
+        link_bg = 3229523
+      end
       bg = H.shade_color(link_bg, hl.shade)
     end
 
