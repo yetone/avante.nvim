@@ -227,6 +227,7 @@ end
 ---@return table
 M.parse_curl_args = function(provider, prompt_opts)
   local provider_conf, request_body = P.parse_config(provider)
+  local disable_tools = provider_conf.disable_tools or false
 
   local headers = {
     ["Content-Type"] = "application/json",
@@ -239,7 +240,7 @@ M.parse_curl_args = function(provider, prompt_opts)
   local messages = M.parse_messages(prompt_opts)
 
   local tools = {}
-  if prompt_opts.tools then
+  if not disable_tools and prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
       table.insert(tools, transform_tool(tool))
     end
