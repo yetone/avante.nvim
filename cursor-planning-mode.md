@@ -5,29 +5,33 @@ Because avante.nvim has always used Aider’s method for planning applying, but 
 
 Therefore, I have adopted Cursor’s method to implement planning applying. For details on the implementation, please refer to: [🚀 Introducing Fast Apply - Replicate Cursor's Instant Apply model](https://www.reddit.com/r/LocalLLaMA/comments/1ga25gj/introducing_fast_apply_replicate_cursors_instant/)
 
-So you need to first run the `FastApply` model mentioned above:
+~~So you need to first run the `FastApply` model mentioned above:~~
 
-```bash
+~~```bash~~
 ollama pull hf.co/Kortix/FastApply-7B-v1.0_GGUF:Q4_K_M
-```
+~~```~~
+
+An interesting fact is that I found the `FastApply` model mentioned above doesn't work well. First, it's too slow, and second, it's not accurate for processing long code file. It often includes `// ... existing code ...` comments in the generated final code, resulting in incorrect code generation.
+
+The best model I found for applying is `qwen-2.5-coder-32b` on [Groq](https://console.groq.com/playground), it's both fast and accurate, it's perfect!
 
 Then enable it in avante.nvim:
 
 ```lua
 {
     --- ... existing configurations
-    cursor_applying_provider = 'fastapply',
+    cursor_applying_provider = 'groq', -- use groq for applying
     behaviour = {
         --- ... existing behaviours
-        enable_cursor_planning_mode = true,
+        enable_cursor_planning_mode = true, -- enable cursor planning mode!
     },
     vendors = {
         --- ... existing vendors
-        fastapply = {
+        groq = { -- define groq provider
             __inherited_from = 'openai',
-            api_key_name = '',
-            endpoint = 'http://localhost:11434/v1',
-            model = 'hf.co/Kortix/FastApply-7B-v1.0_GGUF:Q4_K_M',
+            api_key_name = 'GROQ_API_KEY',
+            endpoint = 'https://api.groq.com/openai/v1/',
+            model = 'qwen-2.5-coder-32b',
         },
     },
     --- ... existing configurations
