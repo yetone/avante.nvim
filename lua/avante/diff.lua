@@ -283,12 +283,12 @@ local function register_cursor_move_events(bufnr)
 
     local hint = string.format(
       "[<%s>: OURS, <%s>: THEIRS, <%s>: CURSOR, <%s>: ALL THEIRS, <%s>: PREV, <%s>: NEXT]",
-      Config.diff.mappings.ours,
-      Config.diff.mappings.theirs,
-      Config.diff.mappings.cursor,
-      Config.diff.mappings.all_theirs,
-      Config.diff.mappings.prev,
-      Config.diff.mappings.next
+      Config.mappings.diff.ours,
+      Config.mappings.diff.theirs,
+      Config.mappings.diff.cursor,
+      Config.mappings.diff.all_theirs,
+      Config.mappings.diff.prev,
+      Config.mappings.diff.next
     )
 
     show_keybinding_hint_extmark_id = api.nvim_buf_set_extmark(bufnr, KEYBINDING_NAMESPACE, lnum - 1, -1, {
@@ -355,18 +355,18 @@ H.setup_buffer_mappings = function(bufnr)
   ---@param desc string
   local function opts(desc) return { silent = true, buffer = bufnr, desc = "avante(conflict): " .. desc } end
 
-  vim.keymap.set({ "n", "v" }, Config.diff.mappings.ours, function() M.choose("ours") end, opts("choose ours"))
-  vim.keymap.set({ "n", "v" }, Config.diff.mappings.both, function() M.choose("both") end, opts("choose both"))
-  vim.keymap.set({ "n", "v" }, Config.diff.mappings.theirs, function() M.choose("theirs") end, opts("choose theirs"))
+  vim.keymap.set({ "n", "v" }, Config.mappings.diff.ours, function() M.choose("ours") end, opts("choose ours"))
+  vim.keymap.set({ "n", "v" }, Config.mappings.diff.both, function() M.choose("both") end, opts("choose both"))
+  vim.keymap.set({ "n", "v" }, Config.mappings.diff.theirs, function() M.choose("theirs") end, opts("choose theirs"))
   vim.keymap.set(
     { "n", "v" },
-    Config.diff.mappings.all_theirs,
+    Config.mappings.diff.all_theirs,
     function() M.choose("all_theirs") end,
     opts("choose all theirs")
   )
-  vim.keymap.set("n", Config.diff.mappings.cursor, function() M.choose("cursor") end, opts("choose under cursor"))
-  vim.keymap.set("n", Config.diff.mappings.prev, function() M.find_prev("ours") end, opts("previous conflict"))
-  vim.keymap.set("n", Config.diff.mappings.next, function() M.find_next("ours") end, opts("next conflict"))
+  vim.keymap.set("n", Config.mappings.diff.cursor, function() M.choose("cursor") end, opts("choose under cursor"))
+  vim.keymap.set("n", Config.mappings.diff.prev, function() M.find_prev("ours") end, opts("previous conflict"))
+  vim.keymap.set("n", Config.mappings.diff.next, function() M.find_next("ours") end, opts("next conflict"))
 
   vim.b[bufnr].avante_conflict_mappings_set = true
 end
@@ -374,7 +374,7 @@ end
 ---@param bufnr integer
 H.clear_buffer_mappings = function(bufnr)
   if not bufnr or not vim.b[bufnr].avante_conflict_mappings_set then return end
-  for _, mapping in pairs(Config.diff.mappings) do
+  for _, mapping in pairs(Config.mappings.diff) do
     if vim.fn.hasmapto(mapping, "n") > 0 then api.nvim_buf_del_keymap(bufnr, "n", mapping) end
   end
   vim.b[bufnr].avante_conflict_mappings_set = false
