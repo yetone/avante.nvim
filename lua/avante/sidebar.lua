@@ -899,8 +899,6 @@ function Sidebar:apply(current_cursor)
 
       local function clear_highlights() api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1) end
 
-      local last_processed_line = 0
-
       -- Create loading indicator float window
       local loading_buf = api.nvim_create_buf(false, true)
       local loading_win = nil
@@ -962,6 +960,30 @@ function Sidebar:apply(current_cursor)
       clear_highlights()
       create_loading_window()
 
+      local last_processed_line = 0
+      local last_orig_diff_end_line = 1
+      local last_resp_diff_end_line = 1
+      local cleaned = false
+      local prev_patch = {}
+
+      local function get_stable_patch(patch)
+        local new_patch = {}
+        for _, hunk in ipairs(patch) do
+          local start_a, count_a, start_b, count_b = unpack(hunk)
+          start_a = start_a + last_orig_diff_end_line - 1
+          start_b = start_b + last_resp_diff_end_line - 1
+          local has = vim.iter(prev_patch):find(function(hunk_)
+            local start_a_, count_a_, start_b_, count_b_ = unpack(hunk_)
+            return start_a == start_a_ and start_b == start_b_ and count_a == count_a_ and count_b == count_b_
+          end)
+          if has ~= nil then table.insert(new_patch, hunk) end
+        end
+        return new_patch
+      end
+
+      local extmark_id_map = {}
+      local virt_lines_map = {}
+
       Llm.stream({
         ask = true,
         provider = cursor_applying_provider,
@@ -975,39 +997,49 @@ function Sidebar:apply(current_cursor)
 
           resp_content = resp_content .. chunk
 
-          local clean_content = resp_content:gsub("<updated%-code>\n*", ""):gsub("</updated%-code>\n*", "")
-          clean_content = clean_content:gsub(".*```%w+\n", ""):gsub("\n```\n.*", "")
-          local resp_lines = vim.split(clean_content, "\n")
+          if not cleaned then
+            resp_content = resp_content:gsub("<updated%-code>\n*", ""):gsub("</updated%-code>\n*", "")
+            resp_content = resp_content:gsub(".*```%w+\n", ""):gsub("\n```\n.*", "")
+          end
+
+          local resp_lines = vim.split(resp_content, "\n")
 
           local complete_lines_count = #resp_lines - 1
+          if complete_lines_count > 2 then cleaned = true end
+
           if complete_lines_count <= last_processed_line then return end
 
-          local original_lines = vim.list_slice(original_code_lines, 1, complete_lines_count)
-          local resp_lines_to_process = vim.list_slice(resp_lines, 1, complete_lines_count)
+          local original_lines_to_process =
+            vim.list_slice(original_code_lines, last_orig_diff_end_line, complete_lines_count)
+          local resp_lines_to_process = vim.list_slice(resp_lines, last_resp_diff_end_line, complete_lines_count)
 
           local resp_lines_content = table.concat(resp_lines_to_process, "\n")
-          local original_lines_content = table.concat(original_lines, "\n")
+          local original_lines_content = table.concat(original_lines_to_process, "\n")
 
           ---@diagnostic disable-next-line: assign-type-mismatch, missing-fields
           local patch = vim.diff(original_lines_content, resp_lines_content, { ---@type integer[][]
-            algorithm = "minimal",
+            algorithm = "histogram",
             result_type = "indices",
             ctxlen = vim.o.scrolloff,
           })
 
-          clear_highlights()
+          local stable_patch = get_stable_patch(patch)
 
-          for _, hunk in ipairs(patch) do
+          for _, hunk in ipairs(stable_patch) do
             local start_a, count_a, start_b, count_b = unpack(hunk)
 
-            for i = start_a, start_a + count_a - 1 do
-              api.nvim_buf_set_extmark(bufnr, ns_id, i - 1, 0, {
+            start_a = last_orig_diff_end_line + start_a - 1
+
+            if count_a > 0 then
+              api.nvim_buf_set_extmark(bufnr, ns_id, start_a - 1, 0, {
                 hl_group = Highlights.TO_BE_DELETED_WITHOUT_STRIKETHROUGH,
                 hl_eol = true,
                 hl_mode = "combine",
-                end_row = i,
+                end_row = start_a + count_a - 1,
               })
             end
+
+            if count_b == 0 then goto continue end
 
             local new_lines = vim.list_slice(resp_lines_to_process, start_b, start_b + count_b - 1)
             local max_col = vim.o.columns
@@ -1019,11 +1051,45 @@ function Sidebar:apply(current_cursor)
                 return { { line_, Highlights.INCOMING } }
               end)
               :totable()
-            api.nvim_buf_set_extmark(bufnr, ns_id, math.max(0, start_a + count_a - 2), 0, {
+            local extmark_line
+            if count_a > 0 then
+              extmark_line = math.max(0, start_a + count_a - 2)
+            else
+              extmark_line = math.max(0, start_a + count_a - 1)
+            end
+            local old_extmark_id = extmark_id_map[extmark_line]
+            if old_extmark_id ~= nil then
+              local old_virt_lines = virt_lines_map[old_extmark_id] or {}
+              virt_lines = vim.list_extend(old_virt_lines, virt_lines)
+              api.nvim_buf_del_extmark(bufnr, ns_id, old_extmark_id)
+            end
+            local extmark_id = api.nvim_buf_set_extmark(bufnr, ns_id, extmark_line, 0, {
               virt_lines = virt_lines,
               hl_eol = true,
               hl_mode = "combine",
             })
+            extmark_id_map[extmark_line] = extmark_id
+            virt_lines_map[extmark_id] = virt_lines
+            ::continue::
+          end
+
+          prev_patch = vim
+            .iter(patch)
+            :map(function(hunk)
+              local start_a, count_a, start_b, count_b = unpack(hunk)
+              return { last_orig_diff_end_line + start_a - 1, count_a, last_resp_diff_end_line + start_b - 1, count_b }
+            end)
+            :totable()
+
+          if #stable_patch > 0 then
+            local start_a, count_a, start_b, count_b = unpack(stable_patch[#stable_patch])
+            last_orig_diff_end_line = last_orig_diff_end_line + start_a + math.max(count_a, 1) - 1
+            last_resp_diff_end_line = last_resp_diff_end_line + start_b + math.max(count_b, 1) - 1
+          end
+
+          if #patch == 0 then
+            last_orig_diff_end_line = complete_lines_count + 1
+            last_resp_diff_end_line = complete_lines_count + 1
           end
 
           last_processed_line = complete_lines_count
@@ -1035,10 +1101,10 @@ function Sidebar:apply(current_cursor)
           --- goto window winid
           api.nvim_set_current_win(winid)
           --- goto the last line
-          if last_processed_line > #original_code_lines then
+          if last_orig_diff_end_line > #original_code_lines then
             api.nvim_win_set_cursor(winid, { #original_code_lines, 0 })
           else
-            api.nvim_win_set_cursor(winid, { last_processed_line, 0 })
+            api.nvim_win_set_cursor(winid, { last_orig_diff_end_line, 0 })
           end
           vim.cmd("normal! zz")
         end,
