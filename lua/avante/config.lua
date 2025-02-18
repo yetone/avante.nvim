@@ -478,6 +478,7 @@ M.BASE_PROVIDER_KEYS = {
   "role_map",
   "__inherited_from",
   "disable_tools",
+  "entra",
 }
 
 return M
