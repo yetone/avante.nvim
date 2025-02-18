@@ -376,6 +376,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
 ## Blink.cmp users
 For blink cmp users (nvim-cmp alternative) view below instruction for configuration
 This is achieved by emulating nvim-cmp using blink.compat
+or you can use [Kaiser-Yang/blink-cmp-avante](https://github.com/Kaiser-Yang/blink-cmp-avante).
 <details>
   <summary>Lua</summary>
 
