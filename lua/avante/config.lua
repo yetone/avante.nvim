@@ -10,6 +10,10 @@ local Utils = require("avante.utils")
 ---@field public filepaths  string[]
 ---@field public handler    fun(filepaths: string[]|nil): nil
 
+---@class avante.file_selector.opts.IGetFilepathsParams
+---@field public cwd                string
+---@field public selected_filepaths string[]
+
 ---@class avante.CoreConfig: avante.Config
 local M = {}
 ---@class avante.Config

@@ -166,6 +166,15 @@ end
 function FileSelector:open() self:show_select_ui() end
 
 function FileSelector:get_filepaths()
+  if type(Config.file_selector.provider_opts.get_filepaths) == "function" then
+    ---@type avante.file_selector.opts.IGetFilepathsParams
+    local params = {
+      cwd = Utils.get_project_root(),
+      selected_filepaths = self.selected_filepaths,
+    }
+    return Config.file_selector.provider_opts.get_filepaths(params)
+  end
+
   local filepaths = get_project_filepaths()
 
   table.sort(filepaths, function(a, b)
