@@ -22,7 +22,8 @@ Then enable it in avante.nvim:
 ```lua
 {
     --- ... existing configurations
-    cursor_applying_provider = 'groq', -- use groq for applying
+    provider = 'claude', -- In this example, use Claude for planning, but you can also use any provider you want.
+    cursor_applying_provider = 'groq', -- In this example, use Groq for applying, but you can also use any provider you want.
     behaviour = {
         --- ... existing behaviours
         enable_cursor_planning_mode = true, -- enable cursor planning mode!
