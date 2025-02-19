@@ -15,12 +15,28 @@ local FileSelector = {}
 
 ---@alias FileSelectorHandler fun(self: FileSelector, on_select: fun(filepaths: string[] | nil)): nil
 
+local function matches_ignore_patterns(entry)
+  for _, pattern in ipairs(Config.file_selector.ignore_patterns) do
+    if vim.fn.match(entry, pattern) >= 0 then
+      return true
+    end
+  end
+
+  return false
+end
+
 function FileSelector:process_directory(absolute_path, project_root)
   local files = scan.scan_dir(absolute_path, {
     hidden = false,
     depth = math.huge,
     add_dirs = false,
     respect_gitignore = true,
+    search_pattern = function(entry)
+      local rel_path = Path:new(entry):make_relative(project_root)
+      return (
+        not matches_ignore_patterns(rel_path)
+      )
+    end
   })
 
   for _, file in ipairs(files) do
@@ -58,8 +74,17 @@ end
 
 local function get_project_filepaths()
   local project_root = Utils.get_project_root()
-  local files = Utils.scan_directory_respect_gitignore({ directory = project_root, add_dirs = true })
-  files = vim.iter(files):map(function(filepath) return Path:new(filepath):make_relative(project_root) end):totable()
+  local files = Utils.scan_directory_respect_gitignore({ directory = project_root, add_dirs = true})
+  files = vim.iter(files)
+    :filter(
+      function(filepath)
+        return (
+          not matches_ignore_patterns(Path:new(filepath):make_relative(project_root))
+        )
+      end
+    )
+    :map(function(filepath) return Path:new(filepath):make_relative(project_root) end)
+    :totable()
 
   return vim.tbl_map(function(path)
     local rel_path = Path:new(path):make_relative(project_root)

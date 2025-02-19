@@ -370,6 +370,9 @@ M._defaults = {
     provider = "native",
     -- Options override for custom providers
     provider_opts = {},
+
+    ignore_patterns = {
+    }
   },
   suggestion = {
     debounce = 600,
