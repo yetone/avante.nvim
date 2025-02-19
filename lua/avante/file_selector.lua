@@ -404,4 +404,18 @@ function FileSelector:add_quickfix_files()
   end
 end
 
+---@return nil
+function FileSelector:add_buffer_files()
+  local buffers = vim.api.nvim_list_bufs()
+  for _, bufnr in ipairs(buffers) do
+    if vim.api.nvim_buf_is_loaded(bufnr) then
+      local filepath = vim.api.nvim_buf_get_name(bufnr)
+      if filepath and filepath ~= "" and not vim.startswith(filepath, "avante://") then
+        local relative_path = Utils.relative_path(filepath)
+        self:add_selected_file(relative_path)
+      end
+    end
+  end
+end
+
 return FileSelector
