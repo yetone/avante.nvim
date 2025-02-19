@@ -3,7 +3,9 @@ Cursor planning mode
 
 Because avante.nvim has always used Aider’s method for planning applying, but its prompts are very picky with models and require ones like claude-3.5-sonnet or gpt-4o to work properly.
 
-Therefore, I have adopted Cursor’s method to implement planning applying. For details on the implementation, please refer to: [🚀 Introducing Fast Apply - Replicate Cursor's Instant Apply model](https://www.reddit.com/r/LocalLLaMA/comments/1ga25gj/introducing_fast_apply_replicate_cursors_instant/)
+Therefore, I have adopted Cursor’s method to implement planning applying, which should work on most models. If you encounter issues with your current model, I highly recommend switching to cursor planning mode to resolve them.
+
+For details on the implementation, please refer to: [🚀 Introducing Fast Apply - Replicate Cursor's Instant Apply model](https://www.reddit.com/r/LocalLLaMA/comments/1ga25gj/introducing_fast_apply_replicate_cursors_instant/)
 
 ~~So you need to first run the `FastApply` model mentioned above:~~
 
