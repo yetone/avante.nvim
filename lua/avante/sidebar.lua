@@ -2467,6 +2467,13 @@ function Sidebar:create_input_container(opts)
           callback = function() self.file_selector:add_quickfix_files() end,
         })
 
+        table.insert(mentions, {
+          description = "buffers",
+          command = "buffers",
+          details = "add open buffers to the chat context",
+          callback = function() self.file_selector:add_buffer_files() end,
+        })
+
         cmp.register_source(
           "avante_commands",
           require("cmp_avante.commands"):new(self:get_commands(), self.input_container.bufnr)
