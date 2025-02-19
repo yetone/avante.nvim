@@ -15,6 +15,8 @@ local FileSelector = {}
 
 ---@alias FileSelectorHandler fun(self: FileSelector, on_select: fun(filepaths: string[] | nil)): nil
 
+local function has_scheme(path) return path:find("^%w+://") ~= nil end
+
 function FileSelector:process_directory(absolute_path, project_root)
   local files = scan.scan_dir(absolute_path, {
     hidden = false,
@@ -108,7 +110,7 @@ function FileSelector:add_current_buffer()
   local filepath = vim.api.nvim_buf_get_name(current_buf)
 
   -- Only process if it's a real file buffer
-  if filepath and filepath ~= "" and not vim.startswith(filepath, "avante://") then
+  if filepath and filepath ~= "" and not has_scheme(filepath) then
     local relative_path = require("avante.utils").relative_path(filepath)
 
     -- Check if file is already in list
@@ -410,7 +412,7 @@ function FileSelector:add_buffer_files()
   for _, bufnr in ipairs(buffers) do
     if vim.api.nvim_buf_is_loaded(bufnr) then
       local filepath = vim.api.nvim_buf_get_name(bufnr)
-      if filepath and filepath ~= "" and not vim.startswith(filepath, "avante://") then
+      if filepath and filepath ~= "" and not has_scheme(filepath) then
         local relative_path = Utils.relative_path(filepath)
         self:add_selected_file(relative_path)
       end
