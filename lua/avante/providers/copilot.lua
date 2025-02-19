@@ -250,9 +250,10 @@ M.parse_curl_args = function(provider, prompt_opts)
   H.refresh_token(false, false)
 
   local provider_conf, request_body = P.parse_config(provider)
+  local disable_tools = provider_conf.disable_tools or false
 
   local tools = {}
-  if prompt_opts.tools then
+  if not disable_tools and prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
       table.insert(tools, OpenAI.transform_tool(tool))
     end
