@@ -1969,7 +1969,7 @@ function Sidebar:reset_memory(args, cb)
   end
 end
 
----@alias AvanteSlashCommandType "clear" | "help" | "lines" | "reset"
+---@alias AvanteSlashCommandType "clear" | "help" | "lines" | "reset" | "commit"
 ---@alias AvanteSlashCommandCallback fun(args: string, cb?: fun(args: string): nil): nil
 ---@alias AvanteSlashCommand {description: string, command: AvanteSlashCommandType, details: string, shorthelp?: string, callback?: AvanteSlashCommandCallback}
 ---@return AvanteSlashCommand[]
@@ -1994,6 +1994,7 @@ function Sidebar:get_commands()
       description = "/lines <start>-<end> <question>",
       command = "lines",
     },
+    { description = "Commit the changes", command = "commit" },
   }
 
   ---@type {[AvanteSlashCommandType]: AvanteSlashCommandCallback}
@@ -2007,6 +2008,10 @@ function Sidebar:get_commands()
     reset = function(args, cb) self:reset_memory(args, cb) end,
     lines = function(args, cb)
       if cb then cb(args) end
+    end,
+    commit = function(_, cb)
+      local question = "Please commit the changes"
+      if cb then cb(question) end
     end,
   }
 
@@ -2219,6 +2224,8 @@ function Sidebar:create_input_container(opts)
             local _, _, question = args_:match("(%d+)-(%d+)%s+(.*)")
             request = question
           end)
+        elseif command == "commit" then
+          cmd.callback(args, function(question) request = question end)
         else
           cmd.callback(args)
           return
