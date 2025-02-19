@@ -2059,6 +2059,8 @@ function Sidebar:create_selected_code_container()
         api.nvim_win_get_height(self.result_container.winid) - selected_code_size - 3
       )
     end
+    self:adjust_result_container_layout()
+    self:adjust_selected_files_container_layout()
   end
 end
 
@@ -2724,6 +2726,21 @@ function Sidebar:render(opts)
   return self
 end
 
+function Sidebar:get_selected_files_container_height()
+  local selected_filepaths_ = self.file_selector:get_selected_filepaths()
+  return math.min(vim.o.lines - 2, #selected_filepaths_ + 1)
+end
+
+function Sidebar:adjust_selected_files_container_layout()
+  if not self.selected_files_container then return end
+  if not self.selected_files_container.winid or not api.nvim_win_is_valid(self.selected_files_container.winid) then
+    return
+  end
+
+  local win_height = self:get_selected_files_container_height()
+  api.nvim_win_set_height(self.selected_files_container.winid, win_height)
+end
+
 function Sidebar:create_selected_files_container()
   if self.selected_files_container then self.selected_files_container:unmount() end
 
@@ -2777,7 +2794,7 @@ function Sidebar:create_selected_files_container()
     Utils.unlock_buf(selected_files_buf)
     api.nvim_buf_set_lines(selected_files_buf, 0, -1, true, selected_filepaths_with_icon)
     Utils.lock_buf(selected_files_buf)
-    local win_height = math.min(vim.o.lines - 2, #selected_filepaths_ + 1)
+    local win_height = self:get_selected_files_container_height()
     api.nvim_win_set_height(self.selected_files_container.winid, win_height)
     self:render_header(
       self.selected_files_container.winid,
