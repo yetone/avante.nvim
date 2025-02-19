@@ -32,6 +32,7 @@ Then enable it in avante.nvim:
             api_key_name = 'GROQ_API_KEY',
             endpoint = 'https://api.groq.com/openai/v1/',
             model = 'qwen-2.5-coder-32b',
+            max_tokens = 8192, -- remember to increase this value, otherwise it will stop generating halfway
         },
     },
     --- ... existing configurations
