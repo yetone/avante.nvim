@@ -1804,30 +1804,48 @@ function Sidebar:update_content(content, opts)
   update_timer = vim.defer_fn(function()
     if opts.stream then
       vim.schedule(function()
-        if not self.result_container or not self.result_container.bufnr or not api.nvim_buf_is_valid(self.result_container.bufnr) then return end
+        if
+          not self.result_container
+          or not self.result_container.bufnr
+          or not api.nvim_buf_is_valid(self.result_container.bufnr)
+        then
+          return
+        end
         Utils.unlock_buf(self.result_container.bufnr)
-        if opts.backspace and opts.backspace > 0 then delete_last_n_chars(self.result_container.bufnr, opts.backspace) end
+        if opts.backspace ~= nil and opts.backspace > 0 then
+          delete_last_n_chars(self.result_container.bufnr, opts.backspace)
+        end
+        scroll_to_bottom()
         local lines = vim.split(content, "\n")
         api.nvim_buf_call(self.result_container.bufnr, function() api.nvim_put(lines, "c", true, true) end)
         Utils.lock_buf(self.result_container.bufnr)
         api.nvim_set_option_value("filetype", "Avante", { buf = self.result_container.bufnr })
-        if opts.scroll then Utils.buf_scroll_to_end(self.result_container.bufnr) end
-        if opts.callback then opts.callback() end
+        if opts.scroll then scroll_to_bottom() end
+        if opts.callback ~= nil then opts.callback() end
       end)
     else
-      vim.schedule(function()
-        if not self.result_container or not self.result_container.bufnr or not api.nvim_buf_is_valid(self.result_container.bufnr) then return end
+      vim.defer_fn(function()
+        if
+          not self.result_container
+          or not self.result_container.bufnr
+          or not api.nvim_buf_is_valid(self.result_container.bufnr)
+        then
+          return
+        end
         local lines = vim.split(content, "\n")
         Utils.unlock_buf(self.result_container.bufnr)
         Utils.update_buffer_content(self.result_container.bufnr, lines)
         Utils.lock_buf(self.result_container.bufnr)
         api.nvim_set_option_value("filetype", "Avante", { buf = self.result_container.bufnr })
         if opts.focus and not self:is_focused_on_result() then
+          --- set cursor to bottom of result view
           xpcall(function() api.nvim_set_current_win(self.result_container.winid) end, function(err) return err end)
         end
+
         if opts.scroll then Utils.buf_scroll_to_end(self.result_container.bufnr) end
-        if opts.callback then opts.callback() end
-      end)
+
+        if opts.callback ~= nil then opts.callback() end
+      end, 0)
     end
   end, DEBOUNCE_MS)
   return self
