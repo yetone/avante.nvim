@@ -512,6 +512,31 @@ local function generate_display_content(replacement)
   return replacement.content
 end
 
+---@return string | nil filepath
+---@return boolean skip_next_line
+local function obtain_filepath_from_codeblock(lines, line_number)
+  local line = lines[line_number]
+  local filepath = line:match("^%s*```%w+:(.+)$")
+  if not filepath then
+    local next_line = lines[line_number + 1]
+    if next_line then
+      local filepath2 = next_line:match("[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]:%s*(.+)%s*")
+      if filepath2 then return filepath2, true end
+      local filepath3 = next_line:match("[Ff][Ii][Ll][Ee]:%s*(.+)%s*")
+      if filepath3 then return filepath3, true end
+    end
+    for i = line_number - 1, line_number - 2, -1 do
+      if i < 1 then break end
+      local line_ = lines[i]
+      local filepath4 = line_:match("[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]:%s*`?(.-)`?%s*$")
+      if filepath4 then return filepath4, false end
+      local filepath5 = line_:match("[Ff][Ii][Ll][Ee]:%s*`?(.-)`?%s*$")
+      if filepath5 then return filepath5, false end
+    end
+  end
+  return filepath, false
+end
+
 ---@class AvanteCodeSnippet
 ---@field range integer[]
 ---@field content string
@@ -566,15 +591,10 @@ local function extract_cursor_planning_code_snippets_map(response_content, curre
         start_line_in_response_buf = idx
         local lang_ = line:match("^%s*```(%w+)")
         lang = lang_ or "unknown"
-        local filepath_ = line:match("^%s*```%w+:(.+)$")
-        filepath = filepath_ or ""
-        if filepath == "" then
-          local next_line = lines[idx + 1]
-          local filepath2 = next_line:match("[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]:%s*(.+)%s*")
-          if filepath2 then
-            filepath = filepath2
-            idx = idx + 1
-          end
+        local filepath_, skip_next_line = obtain_filepath_from_codeblock(lines, idx)
+        if filepath_ then
+          filepath = filepath_
+          if skip_next_line then idx = idx + 1 end
         end
       end
     elseif in_code_block then
@@ -788,10 +808,7 @@ local function parse_codeblocks(buf, current_filepath, current_filetype)
         in_codeblock = false
       elseif lang_ then
         if Config.behaviour.enable_cursor_planning_mode then
-          local filepath = line:match("^%s*```%w+:(.*)$")
-          if not filepath then
-            if lines[i + 1] then filepath = lines[i + 1]:match("[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]:%s*(.*)$") end
-          end
+          local filepath = obtain_filepath_from_codeblock(lines, i)
           if not filepath and lang_ == current_filetype then filepath = current_filepath end
           if filepath then
             lang = lang_
@@ -923,6 +940,9 @@ function Sidebar:apply(current_cursor)
           once = true,
           title = "Avante",
         })
+      end
+      if self.code.winid ~= nil and api.nvim_win_is_valid(self.code.winid) then
+        api.nvim_set_current_win(self.code.winid)
       end
       local bufnr = Utils.get_or_create_buffer_with_filepath(filepath)
       local path_ = PPath:new(filepath)
@@ -1135,7 +1155,7 @@ function Sidebar:apply(current_cursor)
           api.nvim_set_current_win(winid)
           --- goto the last line
           if last_orig_diff_end_line > #original_code_lines then
-            api.nvim_win_set_cursor(winid, { #original_code_lines, 0 })
+            pcall(function() api.nvim_win_set_cursor(winid, { #original_code_lines, 0 }) end)
           else
             api.nvim_win_set_cursor(winid, { last_orig_diff_end_line, 0 })
           end
