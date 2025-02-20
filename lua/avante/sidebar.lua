@@ -884,9 +884,11 @@ function Sidebar:apply(current_cursor)
       local original_code = table.concat(original_code_lines, "\n")
       local resp_content = ""
       local filetype = Utils.get_filetype(filepath)
-      local cursor_applying_provider = Provider[Config.cursor_applying_provider]
+      local cursor_applying_provider_name = Config.cursor_applying_provider or Config.provider
+      Utils.debug(string.format("Use %s for cursor applying", cursor_applying_provider_name))
+      local cursor_applying_provider = Provider[cursor_applying_provider_name]
       if not cursor_applying_provider then
-        Utils.error("Failed to find cursor_applying_provider provider: " .. Config.cursor_applying_provider, {
+        Utils.error("Failed to find cursor_applying_provider provider: " .. cursor_applying_provider_name, {
           once = true,
           title = "Avante",
         })
