@@ -914,12 +914,12 @@ function M.get_filetype(filepath)
   return filetype
 end
 
----@param file_path string
+---@param filepath string
 ---@return string[]|nil lines
 ---@return string|nil error
-function M.read_file_from_buf_or_disk(file_path)
+function M.read_file_from_buf_or_disk(filepath)
   --- Lookup if the file is loaded in a buffer
-  local bufnr = vim.fn.bufnr(file_path)
+  local bufnr = vim.fn.bufnr(filepath)
   if bufnr ~= -1 and vim.api.nvim_buf_is_loaded(bufnr) then
     -- If buffer exists and is loaded, get buffer content
     local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
@@ -927,13 +927,12 @@ function M.read_file_from_buf_or_disk(file_path)
   end
 
   -- Fallback: read file from disk
-  local file, open_err = io.open(file_path, "r")
+  local file, open_err = io.open(filepath, "r")
   if file then
     local content = file:read("*all")
     file:close()
     return vim.split(content, "\n"), nil
   else
-    -- M.error("failed to open file: " .. file_path .. " with error: " .. open_err)
     return {}, open_err
   end
 end
