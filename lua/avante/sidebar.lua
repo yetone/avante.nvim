@@ -523,7 +523,7 @@ end
 ---
 ---@param response_content string
 ---@return table<string, AvanteCodeSnippet[]>
-local function extract_cursor_planning_code_snippets_map(response_content)
+local function extract_cursor_planning_code_snippets_map(response_content, current_filepath, current_filetype)
   local snippets = {}
   local current_snippet = {}
   local in_code_block = false
@@ -540,8 +540,18 @@ local function extract_cursor_planning_code_snippets_map(response_content)
       if in_code_block then
         in_code_block = false
         if filepath == nil or filepath == "" then
-          Utils.warn("Failed to parse filepath from code block")
-          goto continue
+          if lang == current_filetype then
+            filepath = current_filepath
+          else
+            Utils.warn(
+              string.format(
+                "Failed to parse filepath from code block, and current_filetype `%s` is not the same as the filetype `%s` of the current code block, so ignore this code block",
+                current_filetype,
+                lang
+              )
+            )
+            goto continue
+          end
         end
         table.insert(snippets, {
           range = { 0, 0 },
@@ -762,7 +772,7 @@ end
 
 ---@param buf integer
 ---@return AvanteCodeblock[]
-local function parse_codeblocks(buf)
+local function parse_codeblocks(buf, current_filepath, current_filetype)
   local codeblocks = {}
   local in_codeblock = false
   local start_line = nil
@@ -782,6 +792,7 @@ local function parse_codeblocks(buf)
           if not filepath then
             if lines[i + 1] then filepath = lines[i + 1]:match("[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]:%s*(.*)$") end
           end
+          if not filepath and lang_ == current_filetype then filepath = current_filepath end
           if filepath then
             lang = lang_
             start_line = i - 1
@@ -862,9 +873,13 @@ end
 
 ---@param current_cursor boolean
 function Sidebar:apply(current_cursor)
+  local buf_path = api.nvim_buf_get_name(self.code.bufnr)
+  local current_filepath = Utils.file.is_in_cwd(buf_path) and Utils.relative_path(buf_path) or buf_path
+  local current_filetype = Utils.get_filetype(current_filepath)
+
   local response, response_start_line = self:get_content_between_separators()
   local all_snippets_map = Config.behaviour.enable_cursor_planning_mode
-      and extract_cursor_planning_code_snippets_map(response)
+      and extract_cursor_planning_code_snippets_map(response, current_filepath, current_filetype)
     or extract_code_snippets_map(response)
   if not Config.behaviour.enable_cursor_planning_mode then
     all_snippets_map = ensure_snippets_no_overlap(all_snippets_map)
@@ -1515,10 +1530,14 @@ function Sidebar:on_mount(opts)
     end,
   })
 
+  local buf_path = api.nvim_buf_get_name(self.code.bufnr)
+  local current_filepath = Utils.file.is_in_cwd(buf_path) and Utils.relative_path(buf_path) or buf_path
+  local current_filetype = Utils.get_filetype(current_filepath)
+
   api.nvim_create_autocmd({ "BufEnter", "BufWritePost" }, {
     buffer = self.result_container.bufnr,
     callback = function(ev)
-      codeblocks = parse_codeblocks(ev.buf)
+      codeblocks = parse_codeblocks(ev.buf, current_filepath, current_filetype)
       self:bind_sidebar_keys(codeblocks)
     end,
   })
@@ -1533,7 +1552,7 @@ function Sidebar:on_mount(opts)
       then
         return
       end
-      codeblocks = parse_codeblocks(self.result_container.bufnr)
+      codeblocks = parse_codeblocks(self.result_container.bufnr, current_filepath, current_filetype)
       self:bind_sidebar_keys(codeblocks)
     end,
   })
@@ -1680,11 +1699,11 @@ function Sidebar:initialize()
 
   local buf_path = api.nvim_buf_get_name(self.code.bufnr)
   -- if the filepath is outside of the current working directory then we want the absolute path
-  local file_path = Utils.file.is_in_cwd(buf_path) and Utils.relative_path(buf_path) or buf_path
+  local filepath = Utils.file.is_in_cwd(buf_path) and Utils.relative_path(buf_path) or buf_path
   Utils.debug("Sidebar:initialize adding buffer to file selector", buf_path)
 
   self.file_selector:reset()
-  self.file_selector:add_selected_file(file_path)
+  self.file_selector:add_selected_file(filepath)
 
   return self
 end
