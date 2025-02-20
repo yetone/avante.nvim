@@ -539,6 +539,10 @@ local function extract_cursor_planning_code_snippets_map(response_content)
     if line:match("^%s*```") then
       if in_code_block then
         in_code_block = false
+        if filepath == nil or filepath == "" then
+          Utils.warn("Failed to parse filepath from code block")
+          goto continue
+        end
         table.insert(snippets, {
           range = { 0, 0 },
           content = table.concat(current_snippet, "\n"),
@@ -556,7 +560,7 @@ local function extract_cursor_planning_code_snippets_map(response_content)
         filepath = filepath_ or ""
         if filepath == "" then
           local next_line = lines[idx + 1]
-          local filepath2 = next_line:match("[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]:%s*(.+)")
+          local filepath2 = next_line:match("[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]:%s*(.+)%s*")
           if filepath2 then
             filepath = filepath2
             idx = idx + 1
@@ -566,6 +570,7 @@ local function extract_cursor_planning_code_snippets_map(response_content)
     elseif in_code_block then
       table.insert(current_snippet, line)
     end
+    ::continue::
     idx = idx + 1
   end
 
@@ -771,13 +776,24 @@ local function parse_codeblocks(buf)
       if in_codeblock and not lang_ then
         table.insert(codeblocks, { start_line = start_line, end_line = i - 1, lang = lang })
         in_codeblock = false
-      elseif
-        lang_ and Config.behaviour.enable_cursor_planning_mode
-        or lines[i - 1]:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)")
-      then
-        lang = lang_
-        start_line = i - 1
-        in_codeblock = true
+      elseif lang_ then
+        if Config.behaviour.enable_cursor_planning_mode then
+          local filepath = line:match("^%s*```%w+:(.*)$")
+          if not filepath then
+            if lines[i + 1] then filepath = lines[i + 1]:match("[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]:%s*(.*)$") end
+          end
+          if filepath then
+            lang = lang_
+            start_line = i - 1
+            in_codeblock = true
+          end
+        else
+          if lines[i - 1]:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)") then
+            lang = lang_
+            start_line = i - 1
+            in_codeblock = true
+          end
+        end
       end
     end
   end
