@@ -297,7 +297,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     support_paste_from_clipboard = false,
     minimize_diff = true, -- Whether to remove unchanged lines when applying a code block
     enable_token_counting = true, -- Whether to enable token counting. Default to true.
-    enable_cursor_planning_mode = true, -- Whether to enable Cursor Planning Mode. Default to true.
+    enable_cursor_planning_mode = false, -- Whether to enable Cursor Planning Mode. Default to false.
   },
   mappings = {
     --- @class AvanteConflictMappings
