@@ -626,7 +626,7 @@ local function extract_code_snippets_map(response_content)
   -- use tree-sitter-markdown to parse all code blocks in response_content
   local ts = vim.treesitter
   local query = require("vim.treesitter.query")
-  local parser = ts.get_parser(0, "markdown")
+  local parser = ts.get_string_parser(response_content, "markdown")
   local tree = parser:parse()[1]
   local root = tree:root()
 
