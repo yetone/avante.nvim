@@ -378,15 +378,15 @@ end
 ---@return { path: string, content: string, file_type: string }[]
 function FileSelector:get_selected_files_contents()
   local contents = {}
-  for _, file_path in ipairs(self.selected_filepaths) do
-    local lines, error = Utils.read_file_from_buf_or_disk(file_path)
+  for _, filepath in ipairs(self.selected_filepaths) do
+    local lines, error = Utils.read_file_from_buf_or_disk(filepath)
     lines = lines or {}
-    local filetype = Utils.get_filetype(file_path)
+    local filetype = Utils.get_filetype(filepath)
     if error ~= nil then
       Utils.error("error reading file: " .. error)
     else
       local content = table.concat(lines, "\n")
-      table.insert(contents, { path = file_path, content = content, file_type = filetype })
+      table.insert(contents, { path = filepath, content = content, file_type = filetype })
     end
   end
   return contents
