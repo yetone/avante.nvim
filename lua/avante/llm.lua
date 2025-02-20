@@ -166,7 +166,7 @@ M._stream = function(opts)
     on_stop = function(stop_opts)
       if stop_opts.reason == "tool_use" and stop_opts.tool_use_list then
         local old_tool_histories = vim.deepcopy(opts.tool_histories) or {}
-        for _, tool_use in ipairs(stop_opts.tool_use_list) do
+        for _, tool_use in vim.spairs(stop_opts.tool_use_list) do
           local result, error = LLMTools.process_tool_use(opts.tools, tool_use, opts.on_tool_log)
           local tool_result = {
             tool_use_id = tool_use.id,
