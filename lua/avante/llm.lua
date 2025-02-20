@@ -470,7 +470,15 @@ M.stream = function(opts)
       return original_on_stop(stop_opts)
     end)
   end
-  if Config.dual_boost.enabled and opts.mode == "planning" then
+
+  local valid_dual_boost_modes = {
+    planning = true,
+    ["cursor-planning"] = true,
+  }
+
+  opts.mode = opts.mode or "planning"
+
+  if Config.dual_boost.enabled and valid_dual_boost_modes[opts.mode] then
     M._dual_boost_stream(
       opts,
       Providers[Config.dual_boost.first_provider],
