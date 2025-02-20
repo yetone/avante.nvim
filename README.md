@@ -255,11 +255,12 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
 ```lua
 {
   ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | string
-  provider = "claude", -- Recommend using Claude
+  provider = "claude", -- The provider used in Aider mode or in the planning phase of Cursor Planning Mode
   -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
   -- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
   -- Of course, you can reduce the request frequency by increasing `suggestion.debounce`.
   auto_suggestions_provider = "claude",
+  cursor_applying_provider = nil, -- The provider used in the applying phase of Cursor Planning Mode, defaults to nil, when nil uses Config.provider as the provider for the applying phase
   claude = {
     endpoint = "https://api.anthropic.com",
     model = "claude-3-5-sonnet-20241022",
@@ -290,6 +291,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     support_paste_from_clipboard = false,
     minimize_diff = true, -- Whether to remove unchanged lines when applying a code block
     enable_token_counting = true, -- Whether to enable token counting. Default to true.
+    enable_cursor_planning_mode = true, -- Whether to enable Cursor Planning Mode. Default to true.
   },
   mappings = {
     --- @class AvanteConflictMappings
