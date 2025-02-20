@@ -30,4 +30,4 @@ EXPOSE ${PORT}
 
 COPY . .
 
-CMD ["bash", "-c", "source .venv/bin/activate && uvicorn src.main:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["uv", "run", "fastapi", "run", "src/main.py", "--workers", "5"]

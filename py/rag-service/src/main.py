@@ -3,25 +3,38 @@
 from __future__ import annotations
 
 import asyncio
+import fcntl
 import json
-import logging
 import multiprocessing
 import os
 import re
-import sqlite3
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
-from datetime import datetime
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from urllib.parse import urljoin, urlparse
 
 import chromadb
 import httpx
 import pathspec
 from fastapi import BackgroundTasks, FastAPI, HTTPException
+from libs.configs import (
+    BASE_DATA_DIR,
+    CHROMA_PERSIST_DIR,
+)
+from libs.db import init_db
+from libs.logger import logger
+from libs.utils import (
+    get_node_uri,
+    inject_uri_to_node,
+    is_local_uri,
+    is_path_node,
+    is_remote_uri,
+    path_to_uri,
+    uri_to_path,
+)
 from llama_index.core import (
     Settings,
     SimpleDirectoryReader,
@@ -34,15 +47,102 @@ from llama_index.core.schema import Document
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from markdownify import markdownify as md
+from models.indexing_history import IndexingHistory  # noqa: TC002
+from models.resource import Resource
 from pydantic import BaseModel, Field
+from services.indexing_history import indexing_history_service
+from services.resource import resource_service
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
 if TYPE_CHECKING:
-    from collections.abc import Generator
+    from collections.abc import AsyncGenerator
 
-    from llama_index.core.schema import BaseNode, NodeWithScore, QueryBundle
+    from llama_index.core.schema import NodeWithScore, QueryBundle
     from watchdog.observers.api import BaseObserver
+
+# Lock file for leader election
+LOCK_FILE = BASE_DATA_DIR / "leader.lock"
+
+
+def try_acquire_leadership() -> bool:
+    """Try to acquire leadership using file lock."""
+    try:
+        # Ensure the lock file exists
+        LOCK_FILE.parent.mkdir(parents=True, exist_ok=True)
+        LOCK_FILE.touch(exist_ok=True)
+
+        # Try to acquire an exclusive lock
+        lock_fd = os.open(str(LOCK_FILE), os.O_RDWR)
+        fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+        # Write current process ID to lock file
+        os.truncate(lock_fd, 0)
+        os.write(lock_fd, str(os.getpid()).encode())
+
+        return True
+    except OSError:
+        return False
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: ARG001
+    """Initialize services on startup."""
+    # Try to become leader if no worker_id is set
+
+    is_leader = try_acquire_leadership()
+
+    # Only run initialization in the leader
+    if is_leader:
+        logger.info("Starting RAG service as leader (PID: %d)...", os.getpid())
+
+        # Get all active resources
+        active_resources = [r for r in resource_service.get_all_resources() if r.status == "active"]
+        logger.info("Found %d active resources to sync", len(active_resources))
+
+        for resource in active_resources:
+            try:
+                if is_local_uri(resource.uri):
+                    directory = uri_to_path(resource.uri)
+                    if not directory.exists():
+                        logger.error("Directory not found: %s", directory)
+                        resource_service.update_resource_status(resource.uri, "error", "Directory not found")
+                        continue
+
+                    # Start file system watcher
+                    event_handler = FileSystemHandler(directory=directory)
+                    observer = Observer()
+                    observer.schedule(event_handler, str(directory), recursive=True)
+                    observer.start()
+                    watched_resources[resource.uri] = observer
+
+                    # Start indexing
+                    await index_local_resource_async(resource)
+
+                elif is_remote_uri(resource.uri):
+                    if not is_remote_resource_exists(resource.uri):
+                        logger.error("HTTPS resource not found: %s", resource.uri)
+                        resource_service.update_resource_status(resource.uri, "error", "remote resource not found")
+                        continue
+
+                    # Start indexing
+                    await index_remote_resource_async(resource)
+
+                logger.info("Successfully synced resource: %s", resource.uri)
+
+            except (OSError, ValueError, RuntimeError) as e:
+                error_msg = f"Failed to sync resource {resource.uri}: {e}"
+                logger.exception(error_msg)
+                resource_service.update_resource_status(resource.uri, "error", error_msg)
+
+    yield
+
+    # Cleanup on shutdown (only in leader)
+    if is_leader:
+        for observer in watched_resources.values():
+            observer.stop()
+            observer.join()
+
 
 app = FastAPI(
     title="RAG Service API",
@@ -57,6 +157,7 @@ app = FastAPI(
     """,
     version="1.0.0",
     docs_url="/docs",
+    lifespan=lifespan,
     redoc_url="/redoc",
 )
 
@@ -64,52 +165,10 @@ app = FastAPI(
 SIMILARITY_THRESHOLD = 0.95
 MAX_SAMPLE_SIZE = 100
 BATCH_PROCESSING_DELAY = 1
-METADATA_KEY_URI = "uri"
 
-# Configuration
-BASE_DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
-CHROMA_PERSIST_DIR = BASE_DATA_DIR / "chroma_db"
-LOG_DIR = BASE_DATA_DIR / "logs"
-DB_FILE = BASE_DATA_DIR / "sqlite" / "indexing_history.db"
 # number of cpu cores to use for parallel processing
 MAX_WORKERS = multiprocessing.cpu_count()
 BATCH_SIZE = 40  # Number of documents to process per batch
-
-# SQLite table schemas
-CREATE_TABLES_SQL = """
-CREATE TABLE IF NOT EXISTS indexing_history (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    uri TEXT NOT NULL,
-    content_hash TEXT NOT NULL,
-    status TEXT NOT NULL,
-    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-    error_message TEXT,
-    document_id TEXT,
-    metadata TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_uri ON indexing_history(uri);
-CREATE INDEX IF NOT EXISTS idx_document_id ON indexing_history(document_id);
-CREATE INDEX IF NOT EXISTS idx_content_hash ON indexing_history(content_hash);
-CREATE INDEX IF NOT EXISTS idx_status ON indexing_history(status);
-"""
-
-# Configure directories
-BASE_DATA_DIR.mkdir(parents=True, exist_ok=True)
-LOG_DIR.mkdir(parents=True, exist_ok=True)
-DB_FILE.parent.mkdir(parents=True, exist_ok=True)  # Create sqlite directory
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler(
-            LOG_DIR / f"rag_service_{datetime.now().astimezone().strftime('%Y%m%d')}.log",
-        ),
-        logging.StreamHandler(),
-    ],
-)
-logger = logging.getLogger(__name__)
-CHROMA_PERSIST_DIR.mkdir(parents=True, exist_ok=True)
 
 logger.info("data dir: %s", BASE_DATA_DIR.resolve())
 
@@ -204,11 +263,11 @@ http_headers = {
 }
 
 
-def is_https_resource_exists(url: str) -> bool:
+def is_remote_resource_exists(url: str) -> bool:
     """Check if a URL exists."""
     try:
         response = httpx.head(url, headers=http_headers)
-        return response.status_code == httpx.codes.OK
+        return response.status_code in {httpx.codes.OK, httpx.codes.MOVED_PERMANENTLY, httpx.codes.FOUND}
     except (OSError, ValueError, RuntimeError) as e:
         logger.error("Error checking if URL exists %s: %s", url, e)
         return False
@@ -247,173 +306,6 @@ def markdown_to_links(base_url: str, markdown: str) -> list[str]:
     return links
 
 
-@contextmanager
-def get_db_connection() -> Generator[sqlite3.Connection, None, None]:
-    """Get a database connection."""
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
-    try:
-        yield conn
-    finally:
-        conn.close()
-
-
-def init_db() -> None:
-    """Initialize the SQLite database."""
-    with get_db_connection() as conn:
-        conn.executescript(CREATE_TABLES_SQL)
-        conn.commit()
-
-
-class IndexingHistory(BaseModel):
-    """Model for indexing history record."""
-
-    id: int | None = Field(None, description="Record ID")
-    uri: str = Field(..., description="URI of the indexed file")
-    content_hash: str = Field(..., description="MD5 hash of the file content")
-    status: str = Field(..., description="Indexing status (indexing/completed/failed)")
-    timestamp: datetime = Field(default_factory=datetime.now, description="Record timestamp")
-    error_message: str | None = Field(None, description="Error message if failed")
-    document_id: str | None = Field(None, description="Document ID in the index")
-    metadata: dict[str, Any] | None = Field(None, description="Additional metadata")
-
-
-def update_indexing_status(
-    doc: Document,
-    status: str,
-    error_message: str | None = None,
-    metadata: dict[str, Any] | None = None,
-) -> None:
-    """Update the indexing status in the database."""
-    content_hash = doc.hash
-
-    # Get URI from metadata if available
-    uri = get_node_uri(doc)
-    if not uri:
-        logger.warning("URI not found for document: %s", doc.doc_id)
-        return
-
-    record = IndexingHistory(
-        id=None,
-        uri=uri,
-        content_hash=content_hash,
-        status=status,
-        error_message=error_message,
-        document_id=doc.doc_id,
-        metadata=metadata,
-    )
-    with get_db_connection() as conn:
-        # Check if record exists
-        existing = conn.execute(
-            "SELECT id FROM indexing_history WHERE document_id = ?",
-            (doc.doc_id,),
-        ).fetchone()
-
-        if existing:
-            # Update existing record
-            conn.execute(
-                """
-                UPDATE indexing_history
-                SET content_hash = ?, status = ?, error_message = ?, document_id = ?, metadata = ?
-                WHERE uri = ?
-                """,
-                (
-                    record.content_hash,
-                    record.status,
-                    record.error_message,
-                    record.document_id,
-                    json.dumps(record.metadata) if record.metadata else None,
-                    record.uri,
-                ),
-            )
-        else:
-            # Insert new record
-            conn.execute(
-                """
-                INSERT INTO indexing_history
-                (uri, content_hash, status, error_message, document_id, metadata)
-                VALUES (?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    record.uri,
-                    record.content_hash,
-                    record.status,
-                    record.error_message,
-                    record.document_id,
-                    json.dumps(record.metadata) if record.metadata else None,
-                ),
-            )
-        conn.commit()
-
-
-def get_indexing_status(doc: Document | None = None, base_uri: str | None = None) -> list[IndexingHistory]:
-    """Get indexing status from the database."""
-    with get_db_connection() as conn:
-        if doc:
-            uri = get_node_uri(doc)
-            if not uri:
-                logger.warning("URI not found for document: %s", doc.doc_id)
-                return []
-            content_hash = doc.hash
-            # For a specific file, get its latest status
-            query = """
-                SELECT *
-                FROM indexing_history
-                WHERE uri = ? and content_hash = ?
-                ORDER BY timestamp DESC LIMIT 1
-            """
-            params = (uri, content_hash)
-        elif base_uri:
-            # For files in a specific directory, get their latest status
-            query = """
-                WITH RankedHistory AS (
-                    SELECT *,
-                           ROW_NUMBER() OVER (PARTITION BY document_id ORDER BY timestamp DESC) as rn
-                    FROM indexing_history
-                    WHERE uri LIKE ? || '%'
-                )
-                SELECT id, uri, content_hash, status, timestamp, error_message, document_id, metadata
-                FROM RankedHistory
-                WHERE rn = 1
-                ORDER BY timestamp DESC
-            """
-            params = (base_uri,) if base_uri.endswith(os.path.sep) else (base_uri + os.path.sep,)
-        else:
-            # For all files, get their latest status
-            query = """
-                WITH RankedHistory AS (
-                    SELECT *,
-                           ROW_NUMBER() OVER (PARTITION BY uri ORDER BY timestamp DESC) as rn
-                    FROM indexing_history
-                )
-                SELECT id, uri, content_hash, status, timestamp, error_message, document_id, metadata
-                FROM RankedHistory
-                WHERE rn = 1
-                ORDER BY timestamp DESC
-            """
-            params = ()
-
-        rows = conn.execute(query, params).fetchall()
-
-        result = []
-        for row in rows:
-            row_dict = dict(row)
-            # Parse metadata JSON if it exists
-            if row_dict.get("metadata"):
-                try:
-                    row_dict["metadata"] = json.loads(row_dict["metadata"])
-                except json.JSONDecodeError:
-                    row_dict["metadata"] = None
-            # Parse timestamp string to datetime if needed
-            if isinstance(row_dict.get("timestamp"), str):
-                row_dict["timestamp"] = datetime.fromisoformat(
-                    row_dict["timestamp"].replace("Z", "+00:00"),
-                )
-            result.append(IndexingHistory(**row_dict))
-
-        return result
-
-
 # Initialize database
 init_db()
 
@@ -424,60 +316,6 @@ vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
 storage_context = StorageContext.from_defaults(vector_store=vector_store)
 embed_model = OpenAIEmbedding()
 Settings.embed_model = embed_model
-
-PATTERN_URI_PART = re.compile(r"(?P<uri>.+)__part_\d+")
-
-
-def uri_to_path(uri: str) -> Path:
-    """Convert URI to path."""
-    return Path(uri.replace("path://", ""))
-
-
-def path_to_uri(file_path: Path) -> str:
-    """Convert path to URI."""
-    return f"path://{file_path}"
-
-
-def is_path_uri(uri: str) -> bool:
-    """Check if the URI is a path URI."""
-    return uri.startswith("path://")
-
-
-def is_https_uri(uri: str) -> bool:
-    """Check if the URI is an HTTPS URI."""
-    return uri.startswith("https://")
-
-
-def is_path_node(node: BaseNode) -> bool:
-    """Check if the node is a file node."""
-    uri = get_node_uri(node)
-    if not uri:
-        return False
-    return is_path_uri(uri)
-
-
-def get_node_uri(node: BaseNode) -> str | None:
-    """Get URI from node metadata."""
-    uri = node.metadata.get(METADATA_KEY_URI)
-    if not uri:
-        doc_id = getattr(node, "doc_id", None)
-        if doc_id:
-            match = PATTERN_URI_PART.match(doc_id)
-            uri = match.group("uri") if match else doc_id
-    if uri:
-        if uri.startswith("/"):
-            uri = f"path://{uri}"
-        return uri
-    return None
-
-
-def inject_uri_to_node(node: BaseNode) -> None:
-    """Inject file path into node metadata."""
-    if METADATA_KEY_URI in node.metadata:
-        return
-    uri = get_node_uri(node)
-    if uri:
-        node.metadata[METADATA_KEY_URI] = uri
 
 
 try:
@@ -490,6 +328,7 @@ except (OSError, ValueError) as e:
 class ResourceRequest(BaseModel):
     """Request model for resource operations."""
 
+    name: str = Field(..., description="Name of the resource to watch and index")
     uri: str = Field(..., description="URI of the resource to watch and index")
 
 
@@ -519,7 +358,7 @@ class RetrieveResponse(BaseModel):
 class FileSystemHandler(FileSystemEventHandler):
     """Handler for file system events."""
 
-    def __init__(self, directory: Path) -> None:
+    def __init__(self: FileSystemHandler, directory: Path) -> None:
         """Initialize the handler."""
         self.directory = directory
 
@@ -537,15 +376,16 @@ class FileSystemHandler(FileSystemEventHandler):
         """Handle changes to a file."""
         current_time = time.time()
 
-        if Path(file_path).is_absolute():
-            file_path = Path(file_path).relative_to(self.directory)
+        abs_file_path = file_path
+        if not Path(abs_file_path).is_absolute():
+            abs_file_path = Path(self.directory, file_path)
 
         # Check if the file was recently processed
-        if file_path in file_last_modified and current_time - file_last_modified[file_path] < BATCH_PROCESSING_DELAY:
+        if abs_file_path in file_last_modified and current_time - file_last_modified[abs_file_path] < BATCH_PROCESSING_DELAY:
             return
 
-        file_last_modified[file_path] = current_time
-        threading.Thread(target=update_index_for_file, args=(self.directory, file_path)).start()
+        file_last_modified[abs_file_path] = current_time
+        threading.Thread(target=update_index_for_file, args=(self.directory, abs_file_path)).start()
 
 
 def is_valid_text(text: str) -> bool:
@@ -579,11 +419,12 @@ def process_document_batch(documents: list[Document]) -> bool:  # noqa: PLR0915,
             doc_id = doc.doc_id
 
             # Check if document with same hash has already been successfully processed
-            status_records = get_indexing_status(doc=doc)
+            status_records = indexing_history_service.get_indexing_status(doc=doc)
             if status_records and status_records[0].status == "completed":
                 logger.info("Document with same hash already processed, skipping: %s", doc.doc_id)
                 continue
 
+            logger.info("Processing document: %s", doc.doc_id)
             try:
                 content = doc.get_content()
 
@@ -594,7 +435,7 @@ def process_document_batch(documents: list[Document]) -> bool:  # noqa: PLR0915,
                     except (UnicodeDecodeError, OSError) as e:
                         error_msg = f"Unable to decode document content: {doc_id}, error: {e!s}"
                         logger.warning(error_msg)
-                        update_indexing_status(doc, "failed", error_message=error_msg)
+                        indexing_history_service.update_indexing_status(doc, "failed", error_message=error_msg)
                         invalid_documents.append(doc_id)
                         continue
 
@@ -604,7 +445,7 @@ def process_document_batch(documents: list[Document]) -> bool:  # noqa: PLR0915,
                 if not is_valid_text(content):
                     error_msg = f"Invalid document content: {doc_id}"
                     logger.warning(error_msg)
-                    update_indexing_status(doc, "failed", error_message=error_msg)
+                    indexing_history_service.update_indexing_status(doc, "failed", error_message=error_msg)
                     invalid_documents.append(doc_id)
                     continue
 
@@ -622,12 +463,12 @@ def process_document_batch(documents: list[Document]) -> bool:  # noqa: PLR0915,
                 inject_uri_to_node(new_doc)
                 valid_documents.append(new_doc)
                 # Update status to indexing for valid documents
-                update_indexing_status(doc, "indexing")
+                indexing_history_service.update_indexing_status(doc, "indexing")
 
             except OSError as e:
                 error_msg = f"Document processing failed: {doc_id}, error: {e!s}"
                 logger.exception(error_msg)
-                update_indexing_status(doc, "failed", error_message=error_msg)
+                indexing_history_service.update_indexing_status(doc, "failed", error_message=error_msg)
                 invalid_documents.append(doc_id)
 
         try:
@@ -637,7 +478,7 @@ def process_document_batch(documents: list[Document]) -> bool:  # noqa: PLR0915,
 
             # Update status to completed for successfully processed documents
             for doc in valid_documents:
-                update_indexing_status(
+                indexing_history_service.update_indexing_status(
                     doc,
                     "completed",
                     metadata=doc.metadata,
@@ -650,7 +491,7 @@ def process_document_batch(documents: list[Document]) -> bool:  # noqa: PLR0915,
             logger.exception(error_msg)
             # Update status to failed for all documents in the batch
             for doc in valid_documents:
-                update_indexing_status(doc, "failed", error_message=error_msg)
+                indexing_history_service.update_indexing_status(doc, "failed", error_message=error_msg)
             return False
 
     except OSError as e:
@@ -658,7 +499,7 @@ def process_document_batch(documents: list[Document]) -> bool:  # noqa: PLR0915,
         logger.exception(error_msg)
         # Update status to failed for all documents in the batch
         for doc in documents:
-            update_indexing_status(doc, "failed", error_message=error_msg)
+            indexing_history_service.update_indexing_status(doc, "failed", error_message=error_msg)
         return False
 
 
@@ -689,29 +530,40 @@ def scan_directory(directory: Path) -> list[str]:
     return matched_files
 
 
-def update_index_for_file(directory: Path, file_path: Path) -> None:
+def update_index_for_file(directory: Path, abs_file_path: Path) -> None:
     """Update the index for a single file."""
-    logger.info("Starting to index file: %s", file_path)
+    logger.info("Starting to index file: %s", abs_file_path)
+
+    rel_file_path = abs_file_path.relative_to(directory)
 
     spec = get_pathspec(directory)
-    if spec and spec.match_file(file_path):
-        logger.info("File is ignored, skipping: %s", file_path)
+    if spec and spec.match_file(rel_file_path):
+        logger.info("File is ignored, skipping: %s", abs_file_path)
         return
 
+    resource = resource_service.get_resource(path_to_uri(directory))
+    if not resource:
+        logger.error("Resource not found for directory: %s", directory)
+        return
+
+    resource_service.update_resource_indexing_status(resource.uri, "indexing", "")
+
     documents = SimpleDirectoryReader(
-        input_files=[file_path],
+        input_files=[abs_file_path],
         filename_as_id=True,
         required_exts=required_exts,
     ).load_data()
 
-    logger.info("Updating index: %s", file_path)
+    logger.info("Updating index: %s", abs_file_path)
     processed_documents = split_documents(documents)
     success = process_document_batch(processed_documents)
 
     if success:
-        logger.info("File indexing completed: %s", file_path)
+        resource_service.update_resource_indexing_status(resource.uri, "indexed", "")
+        logger.info("File indexing completed: %s", abs_file_path)
     else:
-        logger.error("File indexing failed: %s", file_path)
+        resource_service.update_resource_indexing_status(resource.uri, "failed", "unknown error")
+        logger.error("File indexing failed: %s", abs_file_path)
 
 
 def split_documents(documents: list[Document]) -> list[Document]:
@@ -720,7 +572,7 @@ def split_documents(documents: list[Document]) -> list[Document]:
     # Initialize CodeSplitter
     code_splitter = CodeSplitter(
         language="python",  # Default is python, will auto-detect based on file extension
-        chunk_lines=40,  # Maximum number of lines per code block
+        chunk_lines=80,  # Maximum number of lines per code block
         chunk_lines_overlap=15,  # Number of overlapping lines to maintain context
         max_chars=1500,  # Maximum number of characters per block
     )
@@ -757,17 +609,21 @@ def split_documents(documents: list[Document]) -> list[Document]:
                         "chunk_number": i,
                         "total_chunks": len(texts),
                         "language": code_splitter.language,
+                        "orig_doc_id": doc.doc_id,
                     },
                 )
                 processed_documents.append(new_doc)
         else:
+            doc.metadata["orig_doc_id"] = doc.doc_id
             # Add non-code files directly
             processed_documents.append(doc)
     return processed_documents
 
 
-async def index_https_resource_async(url: str) -> None:
-    """Asynchronously index a HTTPS resource."""
+async def index_remote_resource_async(resource: Resource) -> None:
+    """Asynchronously index a remote resource."""
+    resource_service.update_resource_indexing_status(resource.uri, "indexing", "")
+    url = resource.uri
     try:
         logger.info("Loading resource content: %s", url)
 
@@ -813,19 +669,24 @@ async def index_https_resource_async(url: str) -> None:
         # Check processing results
         if all(results):
             logger.info("Resource %s indexing completed", url)
+            resource_service.update_resource_indexing_status(resource.uri, "indexed", "")
         else:
             failed_batches = len([r for r in results if not r])
             error_msg = f"Some batches failed processing ({failed_batches}/{len(batches)})"
             logger.error(error_msg)
+            resource_service.update_resource_indexing_status(resource.uri, "indexed", error_msg)
 
     except OSError as e:
         error_msg = f"Resource indexing failed: {url}"
         logger.exception(error_msg)
+        resource_service.update_resource_indexing_status(resource.uri, "failed", error_msg)
         raise e  # noqa: TRY201
 
 
-async def index_path_resource_async(directory_path: Path) -> None:
+async def index_local_resource_async(resource: Resource) -> None:
     """Asynchronously index a directory."""
+    resource_service.update_resource_indexing_status(resource.uri, "indexing", "")
+    directory_path = uri_to_path(resource.uri)
     try:
         logger.info("Loading directory content: %s", directory_path)
 
@@ -858,19 +719,22 @@ async def index_path_resource_async(directory_path: Path) -> None:
         # Check processing results
         if all(results):
             logger.info("Directory %s indexing completed", directory_path)
+            resource_service.update_resource_indexing_status(resource.uri, "indexed", "")
         else:
             failed_batches = len([r for r in results if not r])
             error_msg = f"Some batches failed processing ({failed_batches}/{len(batches)})"
+            resource_service.update_resource_indexing_status(resource.uri, "indexed", error_msg)
             logger.error(error_msg)
 
     except OSError as e:
         error_msg = f"Directory indexing failed: {directory_path}"
+        resource_service.update_resource_indexing_status(resource.uri, "failed", error_msg)
         logger.exception(error_msg)
         raise e  # noqa: TRY201
 
 
 @app.post(
-    "/add_resource",
+    "/api/v1/add_resource",
     response_model="dict[str, str]",
     summary="Add a resource for watching and indexing",
     description="""
@@ -882,14 +746,24 @@ async def index_path_resource_async(directory_path: Path) -> None:
         400: {"description": "Resource already being watched"},
     },
 )
-async def add_resource(request: ResourceRequest, background_tasks: BackgroundTasks):  # noqa: D103, ANN201
-    if is_path_uri(request.uri):
+async def add_resource(request: ResourceRequest, background_tasks: BackgroundTasks):  # noqa: D103, ANN201, C901
+    # Check if resource already exists
+    resource = resource_service.get_resource(request.uri)
+    if resource and resource.status == "active":
+        raise HTTPException(status_code=400, detail="Resource already being watched")
+
+    resource_type = "local"
+
+    async def background_task(resource: Resource) -> None:
+        pass
+
+    if is_local_uri(request.uri):
         directory = uri_to_path(request.uri)
-        if not Path(directory).exists():
+        if not directory.exists():
             raise HTTPException(status_code=404, detail="Directory not found")
 
-        if request.uri in watched_resources:
-            raise HTTPException(status_code=400, detail="Directory already being watched")
+        if not directory.is_dir():
+            raise HTTPException(status_code=400, detail="Not a directory")
 
         # Create observer
         event_handler = FileSystemHandler(directory=directory)
@@ -898,12 +772,41 @@ async def add_resource(request: ResourceRequest, background_tasks: BackgroundTas
         observer.start()
         watched_resources[request.uri] = observer
 
-        # Start indexing in the background
-        background_tasks.add_task(index_path_resource_async, directory)
-    elif is_https_uri(request.uri):
-        background_tasks.add_task(index_https_resource_async, request.uri)
+        background_task = index_local_resource_async
+    elif is_remote_uri(request.uri):
+        if not is_remote_resource_exists(request.uri):
+            raise HTTPException(status_code=404, detail="web resource not found")
+
+        resource_type = "remote"
+
+        background_task = index_remote_resource_async
     else:
         raise HTTPException(status_code=400, detail=f"Invalid URI: {request.uri}")
+
+    if resource:
+        if resource.name != request.name:
+            raise HTTPException(status_code=400, detail=f"Resource name cannot be changed: {resource.name}")
+
+        resource_service.update_resource_status(resource.uri, "active")
+    else:
+        exists_resource = resource_service.get_resource_by_name(request.name)
+        if exists_resource:
+            raise HTTPException(status_code=400, detail="Resource with same name already exists")
+        # Add to database
+        resource = Resource(
+            id=None,
+            name=request.name,
+            uri=request.uri,
+            type=resource_type,
+            status="active",
+            indexing_status="pending",
+            indexing_status_message=None,
+            indexing_started_at=None,
+            last_indexed_at=None,
+            last_error=None,
+        )
+        resource_service.add_resource_to_db(resource)
+        background_tasks.add_task(background_task, resource)
 
     return {
         "status": "success",
@@ -912,7 +815,7 @@ async def add_resource(request: ResourceRequest, background_tasks: BackgroundTas
 
 
 @app.post(
-    "/remove_resource",
+    "/api/v1/remove_resource",
     response_model="dict[str, str]",
     summary="Remove a watched resource",
     description="Stops watching and indexing the specified resource",
@@ -922,20 +825,25 @@ async def add_resource(request: ResourceRequest, background_tasks: BackgroundTas
     },
 )
 async def remove_resource(request: ResourceRequest):  # noqa: D103, ANN201
-    if request.uri not in watched_resources:
+    resource = resource_service.get_resource(request.uri)
+    if not resource or resource.status != "active":
         raise HTTPException(status_code=404, detail="Resource not being watched")
 
-    # Stop watching
-    observer = watched_resources[request.uri]
-    observer.stop()
-    observer.join()
+    if request.uri in watched_resources:
+        # Stop watching
+        observer = watched_resources[request.uri]
+        observer.stop()
+        observer.join()
+        del watched_resources[request.uri]
 
-    del watched_resources[request.uri]
+    # Update database status
+    resource_service.update_resource_status(request.uri, "inactive")
+
     return {"status": "success", "message": f"Resource {request.uri} removed"}
 
 
 @app.post(
-    "/retrieve",
+    "/api/v1/retrieve",
     response_model=RetrieveResponse,
     summary="Retrieve information from indexed documents",
     description="""
@@ -947,8 +855,8 @@ async def remove_resource(request: ResourceRequest):  # noqa: D103, ANN201
         500: {"description": "Internal server error during retrieval"},
     },
 )
-async def retrieve(request: RetrieveRequest):  # noqa: D103, ANN201, C901
-    if is_path_uri(request.base_uri):
+async def retrieve(request: RetrieveRequest):  # noqa: D103, ANN201, C901, PLR0915
+    if is_local_uri(request.base_uri):
         directory = uri_to_path(request.base_uri)
         # Validate directory exists
         if not directory.exists():
@@ -959,6 +867,8 @@ async def retrieve(request: RetrieveRequest):  # noqa: D103, ANN201, C901
         request.query,
         request.base_uri,
     )
+
+    cached_file_contents = {}
 
     # Create a filter function to only include documents from the specified directory
     def filter_documents(node: NodeWithScore) -> bool:
@@ -973,9 +883,22 @@ async def retrieve(request: RetrieveRequest):  # noqa: D103, ANN201, C901
             # Check if directory is a parent of file_path
             try:
                 file_path.relative_to(directory)
+                if not file_path.exists():
+                    logger.warning("File not found: %s", file_path)
+                    return False
+                content = cached_file_contents.get(file_path)
+                if content is None:
+                    with file_path.open("r", encoding="utf-8") as f:
+                        content = f.read()
+                        cached_file_contents[file_path] = content
+                if node.node.get_content() not in content:
+                    logger.warning("File content does not match: %s", file_path)
+                    return False
                 return True
             except ValueError:
                 return False
+        if uri == request.base_uri:
+            return True
         base_uri = request.base_uri
         if not base_uri.endswith(os.path.sep):
             base_uri += os.path.sep
@@ -994,8 +917,8 @@ async def retrieve(request: RetrieveRequest):  # noqa: D103, ANN201, C901
         def postprocess_nodes(
             self: ResourceFilterPostProcessor,
             nodes: list[NodeWithScore],
-            query_bundle: QueryBundle | None = None,  # noqa: ARG002
-            query_str: str | None = None,  # noqa: ARG002
+            query_bundle: QueryBundle | None = None,  # noqa: ARG002, pyright: ignore
+            query_str: str | None = None,  # noqa: ARG002, pyright: ignore
         ) -> list[NodeWithScore]:
             """
             Filter nodes based on directory path.
@@ -1034,8 +957,6 @@ async def retrieve(request: RetrieveRequest):  # noqa: D103, ANN201, C901
         try:
             content = node.node.get_content()
 
-            doc_id = getattr(node.node, "doc_id", "unknown")
-
             uri = get_node_uri(node.node)
 
             # Handle byte-type content
@@ -1061,7 +982,7 @@ async def retrieve(request: RetrieveRequest):  # noqa: D103, ANN201, C901
                 }
                 sources.append(doc_info)
             else:
-                logger.warning("Skipping invalid document content: %s", doc_id)
+                logger.warning("Skipping invalid document content: %s", uri)
 
         except (OSError, UnicodeDecodeError, json.JSONDecodeError):
             logger.warning("Error processing source document", exc_info=True)
@@ -1099,7 +1020,7 @@ class IndexingStatusResponse(BaseModel):
 
 
 @app.post(
-    "/indexing-status",
+    "/api/v1/indexing-status",
     response_model=IndexingStatusResponse,
     summary="Get indexing status for a resource",
     description="""
@@ -1115,13 +1036,13 @@ class IndexingStatusResponse(BaseModel):
 async def get_indexing_status_for_resource(request: IndexingStatusRequest):  # noqa: D103, ANN201
     resource_files = []
     status_counts = {}
-    if is_path_uri(request.uri):
+    if is_local_uri(request.uri):
         directory = uri_to_path(request.uri).resolve()
-        if not Path(directory).exists():
+        if not directory.exists():
             raise HTTPException(status_code=404, detail=f"Directory not found: {directory}")
 
     # Get indexing history records for the specific directory
-    resource_files = get_indexing_status(base_uri=request.uri)
+    resource_files = indexing_history_service.get_indexing_status(base_uri=request.uri)
 
     logger.info("Found %d files in resource %s", len(resource_files), request.uri)
     for file in resource_files:
@@ -1136,5 +1057,49 @@ async def get_indexing_status_for_resource(request: IndexingStatusRequest):  # n
         is_watched=request.uri in watched_resources,
         files=resource_files,
         total_files=len(resource_files),
+        status_summary=status_counts,
+    )
+
+
+class ResourceListResponse(BaseModel):
+    """Response model for listing resources."""
+
+    resources: list[Resource] = Field(..., description="List of all resources")
+    total_count: int = Field(..., description="Total number of resources")
+    status_summary: dict[str, int] = Field(
+        ...,
+        description="Summary of resource statuses (count by status)",
+    )
+
+
+@app.get(
+    "/api/v1/resources",
+    response_model=ResourceListResponse,
+    summary="List all resources",
+    description="""
+    Returns a list of all resources that have been added to the system, including:
+    * Resource URI
+    * Resource type (path/https)
+    * Current status
+    * Last indexed timestamp
+    * Any errors
+    """,
+    responses={
+        200: {"description": "Successfully retrieved resource list"},
+    },
+)
+async def list_resources() -> ResourceListResponse:
+    """Get all resources and their current status."""
+    # Get all resources from database
+    resources = resource_service.get_all_resources()
+
+    # Count resources by status
+    status_counts = {}
+    for resource in resources:
+        status_counts[resource.status] = status_counts.get(resource.status, 0) + 1
+
+    return ResourceListResponse(
+        resources=resources,
+        total_count=len(resources),
         status_summary=status_counts,
     )

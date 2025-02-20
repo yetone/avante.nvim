@@ -3,13 +3,13 @@ line-length = 180
 
 # 排除一些目录
 exclude = [
-    ".git",
-    ".ruff_cache",
-    ".venv",
-    "venv",
-    "__pycache__",
-    "build",
-    "dist",
+  ".git",
+  ".ruff_cache",
+  ".venv",
+  "venv",
+  "__pycache__",
+  "build",
+  "dist",
 ]
 
 # 目标 Python 版本
@@ -21,11 +21,17 @@ select = ["ALL"]
 
 # 忽略一些规则
 ignore = [
-    "D203",  # 1 blank line required before class docstring
-    "D212",  # Multi-line docstring summary should start at the first line
-    "TRY300",
-    "TRY400",
-    "PGH003",
+  "A005",
+  "BLE001",
+  "D104",
+  "D100",
+  "D101",
+  "D203",  # 1 blank line required before class docstring
+  "D212",  # Multi-line docstring summary should start at the first line
+  "TRY300",
+  "TRY400",
+  "PGH003",
+  "PLR0911",
 ]
 
 # 允许使用自动修复
