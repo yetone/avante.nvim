@@ -1895,7 +1895,7 @@ function Sidebar:render_history_content(history)
   for idx, entry in ipairs(history) do
     if entry.reset_memory then
       content = content .. "***MEMORY RESET***\n\n"
-      if idx < #history then content = content .. "---\n\n" end
+      if idx < #history then content = content .. "------\n\n" end
       goto continue
     end
     local selected_filepaths = entry.selected_filepaths
@@ -1912,7 +1912,7 @@ function Sidebar:render_history_content(history)
     )
     content = content .. prefix
     content = content .. entry.response .. "\n\n"
-    if idx < #history then content = content .. "---\n\n" end
+    if idx < #history then content = content .. "------\n\n" end
     ::continue::
   end
   return content
@@ -1925,7 +1925,7 @@ end
 
 ---@return string, integer
 function Sidebar:get_content_between_separators()
-  local separator = "---"
+  local separator = "------"
   local cursor_line, _ = Utils.get_cursor_pos()
   local lines = Utils.get_buf_lines(0, -1, self.result_container.bufnr)
   local start_line, end_line
