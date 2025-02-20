@@ -620,62 +620,76 @@ end
 ---@return table<string, AvanteCodeSnippet[]>
 local function extract_code_snippets_map(response_content)
   local snippets = {}
-  local current_snippet = {}
-  local in_code_block = false
-  local lang, start_line, end_line, start_line_in_response_buf
-  local explanation = ""
 
   local lines = vim.split(response_content, "\n")
 
-  for idx, line in ipairs(lines) do
-    local _, start_line_str, end_line_str =
-      line:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)")
-    if start_line_str ~= nil and end_line_str ~= nil then
-      start_line = tonumber(start_line_str)
-      end_line = tonumber(end_line_str)
-    else
-      _, start_line_str = line:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ine:?%s*(%d+)")
-      if start_line_str ~= nil then
+  -- use tree-sitter-markdown to parse all code blocks in response_content
+  local ts = vim.treesitter
+  local query = require("vim.treesitter.query")
+  local parser = ts.get_parser(0, "markdown")
+  local tree = parser:parse()[1]
+  local root = tree:root()
+
+  local code_block_query = query.parse(
+    "markdown",
+    [[ (fenced_code_block
+      (info_string
+        (language) @language)?
+      (code_fence_content) @code) ]]
+  )
+
+  local lang = "text"
+  local explanation_start_line = 0
+  for _, node in code_block_query:iter_captures(root, response_content) do
+    local start_line_in_response_buf, _ = node:start()
+    local end_line_in_response_buf, _ = node:end_()
+    if node:type() == "language" then
+      lang = ts.get_node_text(node, response_content)
+    elseif node:type() == "code_fence_content" and start_line_in_response_buf > 1 then
+      local number_line = lines[start_line_in_response_buf - 1]
+      local start_line, end_line
+
+      local _, start_line_str, end_line_str =
+        number_line:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)")
+      if start_line_str ~= nil and end_line_str ~= nil then
         start_line = tonumber(start_line_str)
-        end_line = tonumber(start_line_str)
+        end_line = tonumber(end_line_str)
       else
-        start_line_str = line:match("[Aa]fter%s+[Ll]ine:?%s*(%d+)")
+        _, start_line_str = number_line:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ine:?%s*(%d+)")
         if start_line_str ~= nil then
-          start_line = tonumber(start_line_str) + 1
-          end_line = tonumber(start_line_str) + 1
+          start_line = tonumber(start_line_str)
+          end_line = tonumber(start_line_str)
+        else
+          start_line_str = number_line:match("[Aa]fter%s+[Ll]ine:?%s*(%d+)")
+          if start_line_str ~= nil then
+            start_line = tonumber(start_line_str) + 1
+            end_line = tonumber(start_line_str) + 1
+          end
         end
       end
-    end
-    if line:match("^%s*```") then
-      if in_code_block then
-        if start_line ~= nil and end_line ~= nil then
-          local filepath = lines[start_line_in_response_buf - 2]
-          if filepath:match("^[Ff]ilepath:") then filepath = filepath:match("^[Ff]ilepath:%s*(.+)") end
-          local snippet = {
-            range = { start_line, end_line },
-            content = table.concat(current_snippet, "\n"),
-            lang = lang,
-            explanation = explanation,
-            start_line_in_response_buf = start_line_in_response_buf,
-            end_line_in_response_buf = idx,
-            filepath = filepath,
-          }
-          table.insert(snippets, snippet)
+
+      if start_line ~= nil and end_line ~= nil then
+        local filepath = lines[start_line_in_response_buf - 2]
+        if filepath:match("^[Ff]ilepath:") then filepath = filepath:match("^[Ff]ilepath:%s*(.+)") end
+        local content = ts.get_node_text(node, response_content)
+        local explanation = ""
+        if start_line_in_response_buf > explanation_start_line + 2 then
+          explanation =
+            table.concat(vim.list_slice(lines, explanation_start_line, start_line_in_response_buf - 3), "\n")
         end
-        current_snippet = {}
-        start_line, end_line = nil, nil
-        explanation = ""
-        in_code_block = false
-      else
-        lang = line:match("^%s*```(%w+)")
-        if not lang or lang == "" then lang = "text" end
-        in_code_block = true
-        start_line_in_response_buf = idx
+        local snippet = {
+          range = { start_line, end_line },
+          content = content,
+          lang = lang,
+          explanation = explanation,
+          start_line_in_response_buf = start_line_in_response_buf,
+          end_line_in_response_buf = end_line_in_response_buf,
+          filepath = filepath,
+        }
+        table.insert(snippets, snippet)
       end
-    elseif in_code_block then
-      table.insert(current_snippet, line)
-    else
-      explanation = explanation .. line .. "\n"
+      lang = "text"
+      explanation_start_line = end_line_in_response_buf + 2
     end
   end
 
