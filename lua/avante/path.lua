@@ -107,14 +107,19 @@ Prompt.get = function(project_root)
   for _, entry in ipairs(scanner) do
     local file = Path:new(entry)
     if file:is_file() then
+      if not entry:match("%.avanterules$") then goto continue end
       if entry:find("planning") and Prompt.templates.planning == nil then
+        Utils.info(string.format("Using %s as planning system prompt", entry))
         Prompt.templates.planning = file:read()
       elseif entry:find("editing") and Prompt.templates.editing == nil then
+        Utils.info(string.format("Using %s as editing system prompt", entry))
         Prompt.templates.editing = file:read()
       elseif entry:find("suggesting") and Prompt.templates.suggesting == nil then
+        Utils.info(string.format("Using %s as suggesting system prompt", entry))
         Prompt.templates.suggesting = file:read()
       end
     end
+    ::continue::
   end
 
   Path:new(debug.getinfo(1).source:match("@?(.*/)"):gsub("/lua/avante/path.lua$", "") .. "templates")
