@@ -549,22 +549,30 @@ end
 ---@field end_line_in_response_buf integer
 ---@field filepath string
 
----@param response_content string
----@return TSNode, vim.treesitter.Query
-local function markdown_code_block_query(response_content)
+---@param source string|integer
+---@return TSNode[]
+local function tree_sitter_markdown_parse_code_blocks(source)
   local query = require("vim.treesitter.query")
-  local parser = vim.treesitter.get_string_parser(response_content, "markdown")
+  local parser
+  if type(source) == "string" then
+    parser = vim.treesitter.get_string_parser(source, "markdown")
+  else
+    parser = vim.treesitter.get_parser(source, "markdown")
+  end
   local tree = parser:parse()[1]
   local root = tree:root()
-
-  return root,
-    query.parse(
-      "markdown",
-      [[ (fenced_code_block
+  local code_block_query = query.parse(
+    "markdown",
+    [[ (fenced_code_block
       (info_string
         (language) @language)?
       (code_fence_content) @code) ]]
-    )
+  )
+  local nodes = {}
+  for _, node in code_block_query:iter_captures(root, source) do
+    table.insert(nodes, node)
+  end
+  return nodes
 end
 
 ---@param response_content string
@@ -575,10 +583,8 @@ local function extract_cursor_planning_code_snippets_map(response_content, curre
   local cumulated_content = ""
 
   -- use tree-sitter-markdown to parse all code blocks in response_content
-  local root, code_block_query = markdown_code_block_query(response_content)
-
   local lang = "unknown"
-  for _, node in code_block_query:iter_captures(root, response_content) do
+  for _, node in ipairs(tree_sitter_markdown_parse_code_blocks(response_content)) do
     if node:type() == "language" then
       lang = vim.treesitter.get_node_text(node, response_content)
       lang = vim.split(lang, ":")[1]
@@ -632,11 +638,9 @@ local function extract_code_snippets_map(response_content)
   local lines = vim.split(response_content, "\n")
 
   -- use tree-sitter-markdown to parse all code blocks in response_content
-  local root, code_block_query = markdown_code_block_query(response_content)
-
   local lang = "text"
   local explanation_start_line = 0
-  for _, node in code_block_query:iter_captures(root, response_content) do
+  for _, node in ipairs(tree_sitter_markdown_parse_code_blocks(response_content)) do
     local start_line_in_response_buf, _ = node:start()
     local end_line_in_response_buf, _ = node:end_()
     if node:type() == "language" then
@@ -679,7 +683,7 @@ local function extract_code_snippets_map(response_content)
           lang = lang,
           explanation = explanation,
           start_line_in_response_buf = start_line_in_response_buf,
-          end_line_in_response_buf = end_line_in_response_buf,
+          end_line_in_response_buf = end_line_in_response_buf + 1,
           filepath = filepath,
         }
         table.insert(snippets, snippet)
@@ -853,35 +857,24 @@ end
 ---@return AvanteCodeblock[]
 local function parse_codeblocks(buf, current_filepath, current_filetype)
   local codeblocks = {}
-  local in_codeblock = false
-  local start_line = nil
-  local lang = nil
-
   local lines = Utils.get_buf_lines(0, -1, buf)
-  for i, line in ipairs(lines) do
-    if line:match("^%s*```") then
-      -- parse language
-      local lang_ = line:match("^%s*```(%w+)")
-      if in_codeblock and not lang_ then
-        table.insert(codeblocks, { start_line = start_line, end_line = i, lang = lang })
-        in_codeblock = false
-      elseif lang_ then
-        if Config.behaviour.enable_cursor_planning_mode then
-          local filepath = obtain_filepath_from_codeblock(lines, i)
-          if not filepath and lang_ == current_filetype then filepath = current_filepath end
-          if filepath then
-            lang = lang_
-            start_line = i
-            in_codeblock = true
-          end
-        else
-          if lines[i - 1]:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)") then
-            lang = lang_
-            start_line = i
-            in_codeblock = true
-          end
+  local lang, valid
+  for _, node in ipairs(tree_sitter_markdown_parse_code_blocks(buf)) do
+    if node:type() == "language" then
+      lang = vim.treesitter.get_node_text(node, buf)
+    elseif node:type() == "code_fence_content" then
+      local start_line, _ = node:start()
+      local end_line, _ = node:end_()
+      if Config.behaviour.enable_cursor_planning_mode then
+        local filepath = obtain_filepath_from_codeblock(lines, start_line)
+        if not filepath and lang == current_filetype then filepath = current_filepath end
+        if filepath then valid = true end
+      else
+        if lines[start_line - 1]:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)") then
+          valid = true
         end
       end
+      if valid then table.insert(codeblocks, { start_line = start_line, end_line = end_line + 1, lang = lang }) end
     end
   end
 
