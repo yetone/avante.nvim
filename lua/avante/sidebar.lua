@@ -1264,6 +1264,9 @@ function Sidebar:apply(current_cursor)
             table.insert(new_lines, ">>>>>>> Snippet")
           end
 
+          local remaining_lines = vim.list_slice(original_code_lines, prev_start_a, #original_code_lines)
+          new_lines = vim.list_extend(new_lines, remaining_lines)
+
           api.nvim_buf_set_lines(bufnr, 0, -1, false, new_lines)
 
           local process = function(winid)
