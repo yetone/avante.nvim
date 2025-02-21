@@ -15,7 +15,7 @@ ollama pull hf.co/Kortix/FastApply-7B-v1.0_GGUF:Q4_K_M
 
 An interesting fact is that I found the `FastApply` model mentioned above doesn't work well. First, it's too slow, and second, it's not accurate for processing long code file. It often includes `// ... existing code ...` comments in the generated final code, resulting in incorrect code generation.
 
-The best model I found for applying is `qwen-2.5-coder-32b` on [Groq](https://console.groq.com/playground), it's both fast and accurate, it's perfect!
+The best model I found for applying is `llama-3.3-70b-versatile` on [Groq](https://console.groq.com/playground), it's both fast and accurate, it's perfect!
 
 Then enable it in avante.nvim:
 
@@ -34,8 +34,8 @@ Then enable it in avante.nvim:
             __inherited_from = 'openai',
             api_key_name = 'GROQ_API_KEY',
             endpoint = 'https://api.groq.com/openai/v1/',
-            model = 'qwen-2.5-coder-32b',
-            max_tokens = 8192, -- remember to increase this value, otherwise it will stop generating halfway
+            model = 'llama-3.3-70b-versatile',
+            max_tokens = 32768, -- remember to increase this value, otherwise it will stop generating halfway
         },
     },
     --- ... existing configurations
