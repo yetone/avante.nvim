@@ -19,8 +19,11 @@ local LLMTools = require("avante.llm_tools")
 local RESULT_BUF_NAME = "AVANTE_RESULT"
 local VIEW_BUFFER_UPDATED_PATTERN = "AvanteViewBufferUpdated"
 local CODEBLOCK_KEYBINDING_NAMESPACE = api.nvim_create_namespace("AVANTE_CODEBLOCK_KEYBINDING")
+local USER_REQUEST_BLOCK_KEYBINDING_NAMESPACE = api.nvim_create_namespace("AVANTE_USER_REQUEST_BLOCK_KEYBINDING")
 local SELECTED_FILES_HINT_NAMESPACE = api.nvim_create_namespace("AVANTE_SELECTED_FILES_HINT")
 local PRIORITY = vim.highlight.priorities.user
+
+local RESP_SEPARATOR = "-------"
 
 ---@class avante.Sidebar
 local Sidebar = {}
@@ -776,7 +779,6 @@ end
 ---@param codeblocks table<integer, any>
 local function is_cursor_in_codeblock(codeblocks)
   local cursor_line, _ = Utils.get_cursor_pos()
-  cursor_line = cursor_line - 1 -- transform to 0-indexed line number
 
   for _, block in ipairs(codeblocks) do
     if cursor_line >= block.start_line and cursor_line <= block.end_line then return block end
@@ -785,9 +787,56 @@ local function is_cursor_in_codeblock(codeblocks)
   return nil
 end
 
+---@class AvanteRespUserRequestBlock
+---@field start_line number 1-indexed
+---@field end_line number 1-indexed
+---@field content string
+
+---@return AvanteRespUserRequestBlock | nil
+function Sidebar:get_current_user_request_block()
+  local current_resp_content, current_resp_start_line = self:get_content_between_separators()
+  if current_resp_content == nil then return nil end
+  if current_resp_content == "" then return nil end
+  local lines = vim.split(current_resp_content, "\n")
+  local start_line = nil
+  local end_line = nil
+  local content_lines = {}
+  for i = 1, #lines do
+    local line = lines[i]
+    local m = line:match("^>%s+(.+)$")
+    if m then
+      if start_line == nil then start_line = i end
+      table.insert(content_lines, m)
+      end_line = i
+    elseif line ~= "" then
+      if start_line ~= nil then
+        end_line = i - 2
+        break
+      end
+    else
+      if start_line ~= nil then table.insert(content_lines, line) end
+    end
+  end
+  if start_line == nil then return nil end
+  content_lines = vim.list_slice(content_lines, 1, #content_lines - 1)
+  local content = table.concat(content_lines, "\n")
+  return {
+    start_line = current_resp_start_line + start_line - 1,
+    end_line = current_resp_start_line + end_line - 1,
+    content = content,
+  }
+end
+
+function Sidebar:is_cursor_in_user_request_block()
+  local block = self:get_current_user_request_block()
+  if block == nil then return false end
+  local cursor_line = api.nvim_win_get_cursor(self.result_container.winid)[1]
+  return cursor_line >= block.start_line and cursor_line <= block.end_line
+end
+
 ---@class AvanteCodeblock
----@field start_line integer
----@field end_line integer
+---@field start_line integer 1-indexed
+---@field end_line integer 1-indexed
 ---@field lang string
 
 ---@param buf integer
@@ -804,7 +853,7 @@ local function parse_codeblocks(buf, current_filepath, current_filetype)
       -- parse language
       local lang_ = line:match("^%s*```(%w+)")
       if in_codeblock and not lang_ then
-        table.insert(codeblocks, { start_line = start_line, end_line = i - 1, lang = lang })
+        table.insert(codeblocks, { start_line = start_line, end_line = i, lang = lang })
         in_codeblock = false
       elseif lang_ then
         if Config.behaviour.enable_cursor_planning_mode then
@@ -812,13 +861,13 @@ local function parse_codeblocks(buf, current_filepath, current_filetype)
           if not filepath and lang_ == current_filetype then filepath = current_filepath end
           if filepath then
             lang = lang_
-            start_line = i - 1
+            start_line = i
             in_codeblock = true
           end
         else
           if lines[i - 1]:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)") then
             lang = lang_
-            start_line = i - 1
+            start_line = i
             in_codeblock = true
           end
         end
@@ -886,6 +935,23 @@ function Sidebar:minimize_snippets(filepath, snippets)
   end
 
   return results
+end
+
+function Sidebar:retry_user_request()
+  local block = self:get_current_user_request_block()
+  if not block then return end
+  self.handle_submit(block.content)
+end
+
+function Sidebar:edit_user_request()
+  local block = self:get_current_user_request_block()
+  if not block then return end
+
+  if self.input_container and self.input_container.bufnr and api.nvim_buf_is_valid(self.input_container.bufnr) then
+    api.nvim_buf_set_lines(self.input_container.bufnr, 0, -1, false, vim.split(block.content, "\n"))
+    api.nvim_set_current_win(self.input_container.winid)
+    api.nvim_win_set_cursor(self.input_container.winid, { 1, 0 })
+  end
 end
 
 ---@param current_cursor boolean
@@ -1427,6 +1493,40 @@ function Sidebar:unbind_apply_key()
   end
 end
 
+function Sidebar:bind_retry_user_request_key()
+  if self.result_container then
+    vim.keymap.set(
+      "n",
+      Config.mappings.sidebar.retry_user_request,
+      function() self:retry_user_request() end,
+      { buffer = self.result_container.bufnr, noremap = true, silent = true }
+    )
+  end
+end
+
+function Sidebar:unbind_retry_user_request_key()
+  if self.result_container then
+    pcall(vim.keymap.del, "n", Config.mappings.sidebar.retry_user_request, { buffer = self.result_container.bufnr })
+  end
+end
+
+function Sidebar:bind_edit_user_request_key()
+  if self.result_container then
+    vim.keymap.set(
+      "n",
+      Config.mappings.sidebar.edit_user_request,
+      function() self:edit_user_request() end,
+      { buffer = self.result_container.bufnr, noremap = true, silent = true }
+    )
+  end
+end
+
+function Sidebar:unbind_edit_user_request_key()
+  if self.result_container then
+    pcall(vim.keymap.del, "n", Config.mappings.sidebar.edit_user_request, { buffer = self.result_container.bufnr })
+  end
+end
+
 function Sidebar:bind_sidebar_keys(codeblocks)
   ---@param direction "next" | "prev"
   local function jump_to_codeblock(direction)
@@ -1453,7 +1553,7 @@ function Sidebar:bind_sidebar_keys(codeblocks)
     end
 
     if target_block then
-      api.nvim_win_set_cursor(self.result_container.winid, { target_block.start_line + 1, 0 })
+      api.nvim_win_set_cursor(self.result_container.winid, { target_block.start_line, 0 })
       vim.cmd("normal! zz")
     end
   end
@@ -1509,13 +1609,14 @@ function Sidebar:on_mount(opts)
 
   local current_apply_extmark_id = nil
 
+  ---@param block AvanteCodeblock
   local function show_apply_button(block)
     if current_apply_extmark_id then
       api.nvim_buf_del_extmark(self.result_container.bufnr, CODEBLOCK_KEYBINDING_NAMESPACE, current_apply_extmark_id)
     end
 
     current_apply_extmark_id =
-      api.nvim_buf_set_extmark(self.result_container.bufnr, CODEBLOCK_KEYBINDING_NAMESPACE, block.start_line, -1, {
+      api.nvim_buf_set_extmark(self.result_container.bufnr, CODEBLOCK_KEYBINDING_NAMESPACE, block.start_line - 1, -1, {
         virt_text = {
           {
             string.format(
@@ -1532,20 +1633,68 @@ function Sidebar:on_mount(opts)
       })
   end
 
+  local current_user_request_block_extmark_id = nil
+
+  local function show_user_request_block_control_buttons()
+    if current_user_request_block_extmark_id then
+      api.nvim_buf_del_extmark(
+        self.result_container.bufnr,
+        USER_REQUEST_BLOCK_KEYBINDING_NAMESPACE,
+        current_user_request_block_extmark_id
+      )
+    end
+
+    local block = self:get_current_user_request_block()
+    if not block then return end
+
+    current_user_request_block_extmark_id = api.nvim_buf_set_extmark(
+      self.result_container.bufnr,
+      USER_REQUEST_BLOCK_KEYBINDING_NAMESPACE,
+      block.start_line - 1,
+      -1,
+      {
+        virt_text = {
+          {
+            string.format(
+              " [<%s>: retry, <%s>: edit] ",
+              Config.mappings.sidebar.retry_user_request,
+              Config.mappings.sidebar.edit_user_request
+            ),
+            "AvanteInlineHint",
+          },
+        },
+        virt_text_pos = "right_align",
+        hl_group = "AvanteInlineHint",
+        priority = PRIORITY,
+      }
+    )
+  end
+
   ---@type AvanteCodeblock[]
   local codeblocks = {}
 
   api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
     buffer = self.result_container.bufnr,
     callback = function(ev)
-      local block = is_cursor_in_codeblock(codeblocks)
+      local in_codeblock = is_cursor_in_codeblock(codeblocks)
 
-      if block then
-        show_apply_button(block)
+      if in_codeblock then
+        show_apply_button(in_codeblock)
         self:bind_apply_key()
       else
         api.nvim_buf_clear_namespace(ev.buf, CODEBLOCK_KEYBINDING_NAMESPACE, 0, -1)
         self:unbind_apply_key()
+      end
+
+      local in_user_request_block = self:is_cursor_in_user_request_block()
+      if in_user_request_block then
+        show_user_request_block_control_buttons()
+        self:bind_retry_user_request_key()
+        self:bind_edit_user_request_key()
+      else
+        api.nvim_buf_clear_namespace(ev.buf, USER_REQUEST_BLOCK_KEYBINDING_NAMESPACE, 0, -1)
+        self:unbind_retry_user_request_key()
+        self:unbind_edit_user_request_key()
       end
     end,
   })
@@ -1945,7 +2094,7 @@ end
 
 ---@return string, integer
 function Sidebar:get_content_between_separators()
-  local separator = "-------"
+  local separator = RESP_SEPARATOR
   local cursor_line, _ = Utils.get_cursor_pos()
   local lines = Utils.get_buf_lines(0, -1, self.result_container.bufnr)
   local start_line, end_line
@@ -2485,6 +2634,8 @@ function Sidebar:create_input_container(opts)
     api.nvim_win_set_cursor(self.input_container.winid, { 1, 0 })
     handle_submit(request)
   end
+
+  self.handle_submit = handle_submit
 
   self.input_container:mount()
 
