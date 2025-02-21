@@ -548,63 +548,70 @@ end
 ---@field start_line_in_response_buf integer
 ---@field end_line_in_response_buf integer
 ---@field filepath string
----
+
+---@param response_content string
+---@return TSNode, vim.treesitter.Query
+local function markdown_code_block_query(response_content)
+  local query = require("vim.treesitter.query")
+  local parser = vim.treesitter.get_string_parser(response_content, "markdown")
+  local tree = parser:parse()[1]
+  local root = tree:root()
+
+  return root, query.parse(
+    "markdown",
+    [[ (fenced_code_block
+      (info_string
+        (language) @language)?
+      (code_fence_content) @code) ]]
+  )
+end
+
 ---@param response_content string
 ---@return table<string, AvanteCodeSnippet[]>
 local function extract_cursor_planning_code_snippets_map(response_content, current_filepath, current_filetype)
   local snippets = {}
-  local current_snippet = {}
-  local in_code_block = false
-  local lang, filepath, start_line_in_response_buf
-
   local lines = vim.split(response_content, "\n")
 
-  local idx = 1
-  local line_count = #lines
+  -- use tree-sitter-markdown to parse all code blocks in response_content
+  local root, code_block_query = markdown_code_block_query(response_content)
 
-  while idx <= line_count do
-    local line = lines[idx]
-    if line:match("^%s*```") then
-      if in_code_block then
-        in_code_block = false
-        if filepath == nil or filepath == "" then
-          if lang == current_filetype then
-            filepath = current_filepath
-          else
-            Utils.warn(
-              string.format(
-                "Failed to parse filepath from code block, and current_filetype `%s` is not the same as the filetype `%s` of the current code block, so ignore this code block",
-                current_filetype,
-                lang
-              )
+  local lang = "unknown"
+  for _, node in code_block_query:iter_captures(root, response_content) do
+    if node:type() == "language" then
+      lang = vim.treesitter.get_node_text(node, response_content)
+      lang = vim.split(lang, ":")[1]
+    elseif node:type() == "code_fence_content" then
+      local start_line, _ = node:start()
+      local end_line, _ = node:end_()
+      local filepath, skip_next_line = obtain_filepath_from_codeblock(lines, start_line)
+      if filepath == nil or filepath == "" then
+        if lang == current_filetype then
+          filepath = current_filepath
+        else
+          Utils.warn(
+            string.format(
+              "Failed to parse filepath from code block, and current_filetype `%s` is not the same as the filetype `%s` of the current code block, so ignore this code block",
+              current_filetype,
+              lang
             )
-            goto continue
-          end
-        end
-        table.insert(snippets, {
-          range = { 0, 0 },
-          content = table.concat(current_snippet, "\n"),
-          lang = lang,
-          filepath = filepath,
-          start_line_in_response_buf = start_line_in_response_buf,
-          end_line_in_response_buf = idx,
-        })
-      else
-        in_code_block = true
-        start_line_in_response_buf = idx
-        local lang_ = line:match("^%s*```(%w+)")
-        lang = lang_ or "unknown"
-        local filepath_, skip_next_line = obtain_filepath_from_codeblock(lines, idx)
-        if filepath_ then
-          filepath = filepath_
-          if skip_next_line then idx = idx + 1 end
+          )
+          lang = "unknown"
+          goto continue
         end
       end
-    elseif in_code_block then
-      table.insert(current_snippet, line)
+      if skip_next_line then start_line = start_line + 1 end
+      local content = table.concat(vim.list_slice(lines, start_line + 1, end_line), "\n")
+      vim.notify(content, vim.log.levels.DEBUG, { title = "Avante" })
+      table.insert(snippets, {
+        range = { 0, 0 },
+        content = content,
+        lang = lang,
+        filepath = filepath,
+        start_line_in_response_buf = start_line,
+        end_line_in_response_buf = end_line,
+      })
     end
     ::continue::
-    idx = idx + 1
   end
 
   local snippets_map = {}
@@ -620,23 +627,10 @@ end
 ---@return table<string, AvanteCodeSnippet[]>
 local function extract_code_snippets_map(response_content)
   local snippets = {}
-
   local lines = vim.split(response_content, "\n")
 
   -- use tree-sitter-markdown to parse all code blocks in response_content
-  local ts = vim.treesitter
-  local query = require("vim.treesitter.query")
-  local parser = ts.get_string_parser(response_content, "markdown")
-  local tree = parser:parse()[1]
-  local root = tree:root()
-
-  local code_block_query = query.parse(
-    "markdown",
-    [[ (fenced_code_block
-      (info_string
-        (language) @language)?
-      (code_fence_content) @code) ]]
-  )
+  local root, code_block_query = markdown_code_block_query(response_content)
 
   local lang = "text"
   local explanation_start_line = 0
@@ -644,7 +638,7 @@ local function extract_code_snippets_map(response_content)
     local start_line_in_response_buf, _ = node:start()
     local end_line_in_response_buf, _ = node:end_()
     if node:type() == "language" then
-      lang = ts.get_node_text(node, response_content)
+      lang = vim.treesitter.get_node_text(node, response_content)
     elseif node:type() == "code_fence_content" and start_line_in_response_buf > 1 then
       local number_line = lines[start_line_in_response_buf - 1]
       local start_line, end_line
@@ -671,7 +665,7 @@ local function extract_code_snippets_map(response_content)
       if start_line ~= nil and end_line ~= nil then
         local filepath = lines[start_line_in_response_buf - 2]
         if filepath:match("^[Ff]ilepath:") then filepath = filepath:match("^[Ff]ilepath:%s*(.+)") end
-        local content = ts.get_node_text(node, response_content)
+        local content = vim.treesitter.get_node_text(node, response_content)
         local explanation = ""
         if start_line_in_response_buf > explanation_start_line + 2 then
           explanation =
