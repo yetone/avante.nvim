@@ -135,6 +135,8 @@ M._defaults = {
           if body.data ~= nil then
             local jsn = vim
               .iter(body.data)
+              -- search results only
+              :filter(function(result) return result.t == 0 end)
               :map(
                 function(result)
                   return {
