@@ -733,6 +733,12 @@ async def index_local_resource_async(resource: Resource) -> None:
         raise e  # noqa: TRY201
 
 
+@app.get("/api/v1/readyz")
+async def readiness_probe() -> dict[str, str]:
+    """Readiness probe endpoint."""
+    return {"status": "ok"}
+
+
 @app.post(
     "/api/v1/add_resource",
     response_model="dict[str, str]",
@@ -750,7 +756,10 @@ async def add_resource(request: ResourceRequest, background_tasks: BackgroundTas
     # Check if resource already exists
     resource = resource_service.get_resource(request.uri)
     if resource and resource.status == "active":
-        raise HTTPException(status_code=400, detail="Resource already being watched")
+        return {
+            "status": "success",
+            "message": f"Resource {request.uri} added and indexing started in background",
+        }
 
     resource_type = "local"
 
