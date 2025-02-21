@@ -125,6 +125,32 @@ M._defaults = {
           return "", nil
         end,
       },
+      kagi = {
+        api_key_name = "KAGI_API_KEY",
+        extra_request_body = {
+          limit = "10",
+        },
+        ---@type WebSearchEngineProviderResponseBodyFormatter
+        format_response_body = function(body)
+          if body.data ~= nil then
+            local jsn = vim
+              .iter(body.data)
+              :map(
+                function(result)
+                  return {
+                    title = result.title,
+                    url = result.url,
+                    snippet = result.snippet,
+                  }
+                end
+              )
+              :take(10)
+              :totable()
+            return vim.json.encode(jsn), nil
+          end
+          return "", nil
+        end,
+      },
     },
   },
   ---@type AvanteSupportedProvider
