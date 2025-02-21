@@ -1251,20 +1251,19 @@ function Sidebar:apply(current_cursor)
             ctxlen = vim.o.scrolloff,
           })
 
-          local new_lines = {}
-          local prev_start_a = 1
+          local offset = 0
           for _, hunk in ipairs(patch) do
             local start_a, count_a, start_b, count_b = unpack(hunk)
-            vim.list_extend(new_lines, vim.list_slice(original_code_lines, prev_start_a, start_a - 1))
-            prev_start_a = start_a + count_a
+            local snippet_lines = vim.list_slice(resp_lines, start_b, start_b + count_b - 1)
+            local new_lines = {}
             table.insert(new_lines, "<<<<<<< HEAD")
             vim.list_extend(new_lines, vim.list_slice(original_code_lines, start_a, start_a + count_a - 1))
             table.insert(new_lines, "=======")
-            vim.list_extend(new_lines, vim.list_slice(resp_lines, start_b, start_b + count_b - 1))
+            vim.list_extend(new_lines, snippet_lines)
             table.insert(new_lines, ">>>>>>> Snippet")
+            api.nvim_buf_set_lines(bufnr, offset + start_a - 1, offset + start_a + count_a, false, new_lines)
+            offset = offset + #snippet_lines + 3
           end
-
-          api.nvim_buf_set_lines(bufnr, 0, -1, false, new_lines)
 
           local process = function(winid)
             api.nvim_set_current_win(winid)
