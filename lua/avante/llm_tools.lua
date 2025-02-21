@@ -379,6 +379,23 @@ function M.web_search(opts, on_log)
     if resp.status ~= 200 then return nil, "Error: " .. resp.body end
     local jsn = vim.json.decode(resp.body)
     return search_engine.format_response_body(jsn)
+  elseif provider_type == "kagi" then
+    local query_params = vim.tbl_deep_extend("force", {
+      q = opts.query,
+    }, search_engine.extra_request_body)
+    local query_string = ""
+    for key, value in pairs(query_params) do
+      query_string = query_string .. key .. "=" .. vim.uri_encode(value) .. "&"
+    end
+    local resp = curl.get("https://kagi.com/api/v0/search?" .. query_string, {
+      headers = {
+        ["Authorization"] = "Bot " .. api_key,
+        ["Content-Type"] = "application/json",
+      },
+    })
+    if resp.status ~= 200 then return nil, "Error: " .. resp.body end
+    local jsn = vim.json.decode(resp.body)
+    return search_engine.format_response_body(jsn)
   end
 end
 
