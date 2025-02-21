@@ -533,6 +533,27 @@ function M.git_commit(opts, on_log)
   return true, nil
 end
 
+---@param opts { code: string, rel_path: string }
+---@param on_log? fun(log: string): nil
+---@return string|nil result
+---@return string|nil error
+function M.python(opts, on_log)
+  local abs_path = get_abs_path(opts.rel_path)
+  if not has_permission_to_access(abs_path) then return nil, "No permission to access path: " .. abs_path end
+  if not Path:new(abs_path):exists() then return nil, "Path not found: " .. abs_path end
+  if on_log then on_log("cwd: " .. abs_path) end
+  if on_log then on_log("code: " .. opts.code) end
+  ---change cwd to abs_path
+  local old_cwd = vim.fn.getcwd()
+  vim.fn.chdir(abs_path)
+  local output = vim.fn.system({ "python", "-c", opts.code })
+  local exit_code = vim.v.shell_error
+  vim.fn.chdir(old_cwd)
+  if exit_code ~= 0 then return nil, "Error: " .. output end
+  Utils.debug("output", output)
+  return output, nil
+end
+
 ---@class AvanteLLMTool
 ---@field name string
 ---@field description string
@@ -558,6 +579,38 @@ end
 
 ---@type AvanteLLMTool[]
 M.tools = {
+  {
+    name = "python",
+    description = "Run python code",
+    param = {
+      type = "table",
+      fields = {
+        {
+          name = "code",
+          description = "Python code to run",
+          type = "string",
+        },
+        {
+          name = "rel_path",
+          description = "Relative path to the directory, as cwd",
+          type = "string",
+        },
+      },
+    },
+    returns = {
+      {
+        name = "result",
+        description = "Python output",
+        type = "string",
+      },
+      {
+        name = "error",
+        description = "Error message if the python code failed",
+        type = "string",
+        optional = true,
+      },
+    },
+  },
   {
     name = "git_diff",
     description = "Get git diff for generating commit message",
