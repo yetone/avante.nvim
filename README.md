@@ -73,6 +73,7 @@ For building binary if you wish to build from source, then `cargo` is required. 
   build = "make",
   -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- for windows
   dependencies = {
+    "nvim-treesitter/nvim-treesitter",
     "stevearc/dressing.nvim",
     "nvim-lua/plenary.nvim",
     "MunifTanjim/nui.nvim",
@@ -121,6 +122,7 @@ For building binary if you wish to build from source, then `cargo` is required. 
 ```vim
 
 " Deps
+Plug 'nvim-treesitter/nvim-treesitter'
 Plug 'stevearc/dressing.nvim'
 Plug 'nvim-lua/plenary.nvim'
 Plug 'MunifTanjim/nui.nvim'
@@ -153,6 +155,7 @@ add({
   source = 'yetone/avante.nvim',
   monitor = 'main',
   depends = {
+    'nvim-treesitter/nvim-treesitter',
     'stevearc/dressing.nvim',
     'nvim-lua/plenary.nvim',
     'MunifTanjim/nui.nvim',
@@ -184,6 +187,7 @@ end)
 ```vim
 
   -- Required plugins
+  use 'nvim-treesitter/nvim-treesitter'
   use 'stevearc/dressing.nvim'
   use 'nvim-lua/plenary.nvim'
   use 'MunifTanjim/nui.nvim'
