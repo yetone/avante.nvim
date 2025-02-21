@@ -1238,16 +1238,14 @@ function Sidebar:apply(current_cursor)
 
           resp_content = resp_content:gsub("<updated%-code>\n*", ""):gsub("</updated%-code>\n*", "")
 
-          resp_content = resp_content:gsub(".*```%w+\n", ""):gsub("\n```\n.*", ""):gsub("\n```", "")
+          resp_content = resp_content:gsub(".*```%w+\n", ""):gsub("\n```\n.*", ""):gsub("\n```$", "")
           local resp_lines = vim.split(resp_content, "\n")
-          local original_lines = vim.list_slice(original_code_lines, 1, #resp_lines)
           local resp_lines_content = table.concat(resp_lines, "\n")
-          local original_lines_content = table.concat(original_lines, "\n")
 
-          if resp_lines_content == original_lines_content then return end
+          if resp_lines_content == original_code then return end
 
           ---@diagnostic disable-next-line: assign-type-mismatch, missing-fields
-          local patch = vim.diff(original_lines_content, resp_lines_content, { ---@type integer[][]
+          local patch = vim.diff(original_code, resp_lines_content, { ---@type integer[][]
             algorithm = "histogram",
             result_type = "indices",
             ctxlen = vim.o.scrolloff,
@@ -1257,10 +1255,10 @@ function Sidebar:apply(current_cursor)
           local prev_start_a = 1
           for _, hunk in ipairs(patch) do
             local start_a, count_a, start_b, count_b = unpack(hunk)
-            vim.list_extend(new_lines, vim.list_slice(original_lines, prev_start_a, start_a - 1))
+            vim.list_extend(new_lines, vim.list_slice(original_code_lines, prev_start_a, start_a - 1))
             prev_start_a = start_a + count_a
             table.insert(new_lines, "<<<<<<< HEAD")
-            vim.list_extend(new_lines, vim.list_slice(original_lines, start_a, start_a + count_a - 1))
+            vim.list_extend(new_lines, vim.list_slice(original_code_lines, start_a, start_a + count_a - 1))
             table.insert(new_lines, "=======")
             vim.list_extend(new_lines, vim.list_slice(resp_lines, start_b, start_b + count_b - 1))
             table.insert(new_lines, ">>>>>>> Snippet")
