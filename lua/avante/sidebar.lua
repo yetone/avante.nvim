@@ -557,13 +557,14 @@ local function markdown_code_block_query(response_content)
   local tree = parser:parse()[1]
   local root = tree:root()
 
-  return root, query.parse(
-    "markdown",
-    [[ (fenced_code_block
+  return root,
+    query.parse(
+      "markdown",
+      [[ (fenced_code_block
       (info_string
         (language) @language)?
       (code_fence_content) @code) ]]
-  )
+    )
 end
 
 ---@param response_content string
@@ -571,6 +572,7 @@ end
 local function extract_cursor_planning_code_snippets_map(response_content, current_filepath, current_filetype)
   local snippets = {}
   local lines = vim.split(response_content, "\n")
+  local cumulated_content = ""
 
   -- use tree-sitter-markdown to parse all code blocks in response_content
   local root, code_block_query = markdown_code_block_query(response_content)
@@ -600,15 +602,15 @@ local function extract_cursor_planning_code_snippets_map(response_content, curre
         end
       end
       if skip_next_line then start_line = start_line + 1 end
-      local content = table.concat(vim.list_slice(lines, start_line + 1, end_line), "\n")
-      vim.notify(content, vim.log.levels.DEBUG, { title = "Avante" })
+      local this_content = table.concat(vim.list_slice(lines, start_line + 1, end_line), "\n")
+      cumulated_content = cumulated_content .. "\n" .. this_content
       table.insert(snippets, {
         range = { 0, 0 },
-        content = content,
+        content = cumulated_content,
         lang = lang,
         filepath = filepath,
         start_line_in_response_buf = start_line,
-        end_line_in_response_buf = end_line,
+        end_line_in_response_buf = end_line + 1,
       })
     end
     ::continue::
