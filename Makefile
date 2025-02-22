@@ -100,3 +100,8 @@ lint: luacheck luastylecheck ruststylecheck rustlint
 .PHONY: lua-typecheck
 lua-typecheck:
 	bash ./scripts/lua-typecheck.sh
+
+.PHONY: build-image
+build-image:
+	docker build -t ghcr.io/yetone/avante-rag-service:0.0.3 -f py/rag-service/Dockerfile py/rag-service
+	docker push ghcr.io/yetone/avante-rag-service:0.0.3

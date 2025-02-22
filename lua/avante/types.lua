@@ -329,6 +329,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field func? fun(input: any): (string | nil, string | nil)
 ---@field param AvanteLLMToolParam
 ---@field returns AvanteLLMToolReturn[]
+---@field enabled? fun(): boolean
 
 ---@class AvanteLLMToolParam
 ---@field type string

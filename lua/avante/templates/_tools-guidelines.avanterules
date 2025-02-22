@@ -2,8 +2,10 @@ Don't directly search for code context in historical messages. Instead, prioriti
 
 Tools Usage Guide:
   - You have access to tools, but only use them when necessary. If a tool is not required, respond as normal.
-  - If you encounter a URL, prioritize using the fetch tool to obtain its content.
-  - If you have information that you don't know, please proactively use the tools provided by users! Especially the web search tool.
+  - If the `rag_search` tool exists, prioritize using it to do the search!
+  - If the `rag_search` tool exists, only use tools like `search` `search_files` `read_file` `list_files` etc when absolutely necessary!
+  - If you encounter a URL, prioritize using the `fetch` tool to obtain its content.
+  - If you have information that you don't know, please proactively use the tools provided by users! Especially the `web_search` tool.
   - When available tools cannot meet the requirements, please try to use the `run_command` tool to solve the problem whenever possible.
   - When attempting to modify a file that is not in the context, please first use the `list_files` tool and `search_files` tool to check if the file you want to modify exists, then use the `read_file` tool to read the file content. Don't modify blindly!
   - When generating files, first use `list_files` tool to read the directory structure, don't generate blindly!

@@ -1,0 +1,49 @@
+# 与 black 保持一致的行长度
+line-length = 180
+
+# 排除一些目录
+exclude = [
+  ".git",
+  ".ruff_cache",
+  ".venv",
+  "venv",
+  "__pycache__",
+  "build",
+  "dist",
+]
+
+# 目标 Python 版本
+target-version = "py312"
+
+[lint]
+# 启用所有规则集
+select = ["ALL"]
+
+# 忽略一些规则
+ignore = [
+  "A005",
+  "BLE001",
+  "D104",
+  "D100",
+  "D101",
+  "D203",  # 1 blank line required before class docstring
+  "D212",  # Multi-line docstring summary should start at the first line
+  "TRY300",
+  "TRY400",
+  "PGH003",
+  "PLR0911",
+]
+
+# 允许使用自动修复
+fixable = ["ALL"]
+
+[format]
+# 使用双引号
+quote-style = "double"
+# 缩进风格
+indent-style = "space"
+
+[lint.isort]
+# 与 black 兼容的导入排序设置
+combine-as-imports = true
+known-first-party = ["avante"]
