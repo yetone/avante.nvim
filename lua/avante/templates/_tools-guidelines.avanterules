@@ -2,6 +2,7 @@ Don't directly search for code context in historical messages. Instead, prioriti
 
 Tools Usage Guide:
   - You have access to tools, but only use them when necessary. If a tool is not required, respond as normal.
+  - If the `rag_search` tool exists, prioritize using it to obtain context. If context cannot be obtained through it, then use other tools.
   - If you encounter a URL, prioritize using the fetch tool to obtain its content.
   - If you have information that you don't know, please proactively use the tools provided by users! Especially the web search tool.
   - When available tools cannot meet the requirements, please try to use the `run_command` tool to solve the problem whenever possible.

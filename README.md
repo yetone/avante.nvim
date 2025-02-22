@@ -622,6 +622,18 @@ Because avante.nvim has always used Aider’s method for planning applying, but 
 
 Therefore, I have adopted Cursor’s method to implement planning applying. For details on the implementation, please refer to [cursor-planning-mode.md](./cursor-planning-mode.md)
 
+## RAG Service
+
+Avante provides a RAG service, which is a tool for obtaining the required context for the AI to generate the codes. Default it not enabled, you can enable it in this way:
+
+```lua
+rag_service = {
+  enabled = true, -- Enables the rag service, requires OPENAI_API_KEY to be set
+},
+```
+
+Please note that since the RAG service uses OpenAI for embeddings, you must set `OPENAI_API_KEY` environment variable!
+
 ## Web Search Engines
 
 Avante's tools include some web search engines, currently support:
