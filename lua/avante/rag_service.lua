@@ -29,12 +29,12 @@ function M.get_current_image()
   return image
 end
 
----@return boolean already_running
-function M.launch_rag_service()
+---@param cb fun()
+function M.launch_rag_service(cb)
   local openai_api_key = os.getenv("OPENAI_API_KEY")
   if openai_api_key == nil then
     error("cannot launch avante rag service, OPENAI_API_KEY is not set")
-    return false
+    return
   end
   local openai_base_url = os.getenv("OPENAI_BASE_URL")
   if openai_base_url == nil then openai_base_url = "https://api.openai.com/v1" end
@@ -46,7 +46,10 @@ function M.launch_rag_service()
   if result ~= "" then
     Utils.debug(string.format("container %s already running", container_name))
     local current_image = M.get_current_image()
-    if current_image == image then return false end
+    if current_image == image then
+      cb()
+      return
+    end
     Utils.debug(
       string.format(
         "container %s is running with different image: %s != %s, stopping...",
@@ -70,19 +73,15 @@ function M.launch_rag_service()
   )
   vim.fn.jobstart(cmd_, {
     detach = true,
-    on_stderr = function(_, data, _)
-      Utils.error(string.format("container %s failed to start: %s", container_name, data))
-    end,
     on_exit = function(_, exit_code)
       if exit_code ~= 0 then
         Utils.error(string.format("container %s failed to start, exit code: %d", container_name, exit_code))
       else
         Utils.debug(string.format("container %s started", container_name))
+        cb()
       end
-      return true
     end,
   })
-  return true
 end
 
 function M.stop_rag_service()
