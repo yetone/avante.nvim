@@ -78,12 +78,12 @@ P.history = History
 local Prompt = {}
 
 -- Given a mode, return the file name for the custom prompt.
----@param mode LlmMode
+---@param mode AvanteLlmMode
 Prompt.get_mode_file = function(mode) return string.format("custom.%s.avanterules", mode) end
 
 ---@class AvanteTemplates
 ---@field initialize fun(directory: string): nil
----@field render fun(template: string, context: TemplateOptions): string
+---@field render fun(template: string, context: AvanteTemplateOptions): string
 local templates = nil
 
 Prompt.templates = { planning = nil, editing = nil, suggesting = nil }
@@ -133,18 +133,18 @@ Prompt.get = function(project_root)
   return cache_prompt_dir:absolute()
 end
 
----@param mode LlmMode
+---@param mode AvanteLlmMode
 Prompt.get_file = function(mode)
   if Prompt.templates[mode] ~= nil then return Prompt.get_mode_file(mode) end
   return string.format("%s.avanterules", mode)
 end
 
 ---@param path string
----@param opts TemplateOptions
+---@param opts AvanteTemplateOptions
 Prompt.render_file = function(path, opts) return templates.render(path, opts) end
 
----@param mode LlmMode
----@param opts TemplateOptions
+---@param mode AvanteLlmMode
+---@param opts AvanteTemplateOptions
 Prompt.render_mode = function(mode, opts) return templates.render(Prompt.get_file(mode), opts) end
 
 Prompt.initialize = function(directory) templates.initialize(directory) end

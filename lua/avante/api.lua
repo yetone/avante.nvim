@@ -205,6 +205,7 @@ M.focus = function(opts)
     end
   else
     if sidebar.code.winid then vim.api.nvim_set_current_win(sidebar.code.winid) end
+    ---@cast opts SidebarOpenOptions
     sidebar:open(opts)
     if sidebar.input_container.winid then vim.api.nvim_set_current_win(sidebar.input_container.winid) end
   end

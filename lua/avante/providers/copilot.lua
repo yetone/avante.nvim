@@ -125,6 +125,7 @@ H.get_oauth_token = function()
   return vim
     .iter(
       ---@type table<string, OAuthToken>
+      ---@diagnostic disable-next-line: param-type-mismatch
       vim.json.decode(yason:read())
     )
     :filter(function(k, _) return k:match("github.com") end)
@@ -375,6 +376,7 @@ M.cleanup = function()
 
   -- Cleanup file watcher
   if M._file_watcher then
+    ---@diagnostic disable-next-line: param-type-mismatch
     M._file_watcher:stop()
     M._file_watcher = nil
   end

@@ -1,14 +1,6 @@
 local Utils = require("avante.utils")
 local P = require("avante.providers")
 
----@alias AvanteBedrockPayloadBuilder fun(prompt_opts: AvantePromptOptions, body_opts: table<string, any>): table<string, any>
----
----@class AvanteBedrockModelHandler
----@field role_map table<"user" | "assistant", string>
----@field parse_messages AvanteMessagesParser
----@field parse_response AvanteResponseParser
----@field build_bedrock_payload AvanteBedrockPayloadBuilder
-
 ---@class AvanteBedrockProviderFunctor
 local M = {}
 

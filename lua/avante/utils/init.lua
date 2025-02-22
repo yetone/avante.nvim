@@ -137,10 +137,6 @@ end
 ---@param rhs string|function  Right-hand side |{rhs}| of the mapping, can be a Lua function.
 ---
 ---@param opts? vim.keymap.set.Opts
----@see |nvim_set_keymap()|
----@see |maparg()|
----@see |mapcheck()|
----@see |mapset()|
 M.safe_keymap_set = function(mode, lhs, rhs, opts)
   ---@type boolean
   local ok
@@ -160,6 +156,7 @@ M.safe_keymap_set = function(mode, lhs, rhs, opts)
   ---@cast modes -string
 
   ---@param m string
+  ---@diagnostic disable-next-line: undefined-field
   modes = vim.tbl_filter(function(m) return not (Keys and Keys.have and Keys:have(lhs, m)) end, modes)
 
   -- don't create keymap if a lazy keys handler exists
@@ -250,6 +247,7 @@ function M.get_buf_lines(start, end_, buf) return api.nvim_buf_get_lines(buf or 
 ---Get cursor row and column as (1, 0) based
 ---@param win_id integer?
 ---@return integer, integer
+---@diagnostic disable-next-line: redundant-return-value
 function M.get_cursor_pos(win_id) return unpack(api.nvim_win_get_cursor(win_id or 0)) end
 
 ---Check if the buffer is likely to have actionable conflict markers
