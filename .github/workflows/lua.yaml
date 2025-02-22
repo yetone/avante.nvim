@@ -81,7 +81,7 @@ jobs:
     strategy:
       matrix:
         nvim_version: [ stable ]
-        luals_version: [ 3.11.0 ]
+        luals_version: [ 3.13.6 ]
     steps:
       - name: Checkout dependency neodev
         uses: actions/checkout@v3
