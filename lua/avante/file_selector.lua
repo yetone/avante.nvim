@@ -89,7 +89,8 @@ end
 function FileSelector:add_selected_file(filepath)
   if not filepath or filepath == "" then return end
 
-  local absolute_path = Path:new(Utils.get_project_root()):joinpath(filepath):absolute()
+  local absolute_path = filepath:sub(1, 1) == "/" and filepath
+    or Path:new(Utils.get_project_root()):joinpath(filepath):absolute()
   local stat = vim.loop.fs_stat(absolute_path)
 
   if stat and stat.type == "directory" then
