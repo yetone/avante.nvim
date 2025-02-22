@@ -66,7 +66,7 @@ For building binary if you wish to build from source, then `cargo` is required. 
       timeout = 30000, -- timeout in milliseconds
       temperature = 0, -- adjust if needed
       max_tokens = 4096,
-      reasoning_effort = "high" -- only supported for "o" models
+      -- reasoning_effort = "high" -- only supported for reasoning models (o1, etc.)
     },
   },
   -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
