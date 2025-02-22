@@ -48,6 +48,8 @@ H.load_path = function()
       pattern = "VeryLazy",
       callback = load_path,
     })
+  else
+    require("avante_lib").load()
   end
 end
 
