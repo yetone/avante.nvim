@@ -408,6 +408,7 @@ M._defaults = {
 }
 
 ---@type avante.Config
+---@diagnostic disable-next-line: missing-fields
 M._options = {}
 
 ---@type Provider[]
@@ -450,7 +451,7 @@ function M.setup(opts)
   end
 end
 
----@param opts? avante.Config
+---@param opts table<string, any>
 function M.override(opts)
   vim.validate({ opts = { opts, "table", true } })
 

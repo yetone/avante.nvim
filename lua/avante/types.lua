@@ -70,3 +70,278 @@ function vim.api.nvim_create_user_command(name, command, opts) end
 
 ---@type boolean
 vim.g.avante_login = vim.g.avante_login
+
+---@class AvanteHandlerOptions: table<[string], string>
+---@field on_start AvanteLLMStartCallback
+---@field on_chunk AvanteLLMChunkCallback
+---@field on_stop AvanteLLMStopCallback
+---
+---@class AvanteLLMMessage
+---@field role "user" | "assistant"
+---@field content string
+---
+---@class AvanteLLMToolResult
+---@field tool_name string
+---@field tool_use_id string
+---@field content string
+---@field is_error? boolean
+---
+---@class AvantePromptOptions: table<[string], string>
+---@field system_prompt string
+---@field messages AvanteLLMMessage[]
+---@field image_paths? string[]
+---@field tools? AvanteLLMTool[]
+---@field tool_histories? AvanteLLMToolHistory[]
+---
+---@class AvanteGeminiMessage
+---@field role "user"
+---@field parts { text: string }[]
+---
+---@class AvanteClaudeBaseMessage
+---@field cache_control {type: "ephemeral"}?
+---
+---@class AvanteClaudeTextMessage: AvanteClaudeBaseMessage
+---@field type "text"
+---@field text string
+---
+---@class AvanteClaudeImageMessage: AvanteClaudeBaseMessage
+---@field type "image"
+---@field source {type: "base64", media_type: string, data: string}
+---
+---@class AvanteClaudeMessage
+---@field role "user" | "assistant"
+---@field content [AvanteClaudeTextMessage | AvanteClaudeImageMessage][]
+
+---@class AvanteClaudeTool
+---@field name string
+---@field description string
+---@field input_schema AvanteClaudeToolInputSchema
+
+---@class AvanteClaudeToolInputSchema
+---@field type "object"
+---@field properties table<string, AvanteClaudeToolInputSchemaProperty>
+---@field required string[]
+
+---@class AvanteClaudeToolInputSchemaProperty
+---@field type "string" | "number" | "boolean"
+---@field description string
+---@field enum? string[]
+---
+---@class AvanteOpenAIChatResponse
+---@field id string
+---@field object "chat.completion" | "chat.completion.chunk"
+---@field created integer
+---@field model string
+---@field system_fingerprint string
+---@field choices? AvanteOpenAIResponseChoice[] | AvanteOpenAIResponseChoiceComplete[]
+---@field usage {prompt_tokens: integer, completion_tokens: integer, total_tokens: integer}
+---
+---@class AvanteOpenAIResponseChoice
+---@field index integer
+---@field delta AvanteOpenAIMessage
+---@field logprobs? integer
+---@field finish_reason? "stop" | "length"
+---
+---@class AvanteOpenAIResponseChoiceComplete
+---@field message AvanteOpenAIMessage
+---@field finish_reason "stop" | "length" | "eos_token"
+---@field index integer
+---@field logprobs integer
+---
+---@class AvanteOpenAIMessageToolCallFunction
+---@field name string
+---@field arguments string
+---
+---@class AvanteOpenAIMessageToolCall
+---@field index integer
+---@field id string
+---@field type "function"
+---@field function AvanteOpenAIMessageToolCallFunction
+---
+---@class AvanteOpenAIMessage
+---@field role? "user" | "system" | "assistant"
+---@field content? string
+---@field reasoning_content? string
+---@field reasoning? string
+---@field tool_calls? AvanteOpenAIMessageToolCall[]
+---
+---@class AvanteOpenAITool
+---@field type "function"
+---@field function AvanteOpenAIToolFunction
+---
+---@class AvanteOpenAIToolFunction
+---@field name string
+---@field description string
+---@field parameters AvanteOpenAIToolFunctionParameters
+---@field strict boolean
+---
+---@class AvanteOpenAIToolFunctionParameters
+---@field type string
+---@field properties table<string, AvanteOpenAIToolFunctionParameterProperty>
+---@field required string[]
+---@field additionalProperties boolean
+---
+---@class AvanteOpenAIToolFunctionParameterProperty
+---@field type string
+---@field description string
+---
+---@alias AvanteChatMessage AvanteClaudeMessage | AvanteOpenAIMessage | AvanteGeminiMessage
+---
+---@alias AvanteMessagesParser fun(opts: AvantePromptOptions): AvanteChatMessage[]
+---
+---@class AvanteCurlOutput: {url: string, proxy: string, insecure: boolean, body: table<string, any> | string, headers: table<string, string>, rawArgs: string[] | nil}
+---@alias AvanteCurlArgsParser fun(provider: AvanteProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor, prompt_opts: AvantePromptOptions): AvanteCurlOutput
+---
+---@class AvanteResponseParserOptions
+---@field on_start AvanteLLMStartCallback
+---@field on_chunk AvanteLLMChunkCallback
+---@field on_stop AvanteLLMStopCallback
+---@alias AvanteResponseParser fun(ctx: any, data_stream: string, event_state: string, opts: AvanteResponseParserOptions): nil
+---
+---@class AvanteDefaultBaseProvider: table<string, any>
+---@field endpoint? string
+---@field model? string
+---@field local? boolean
+---@field proxy? string
+---@field timeout? integer
+---@field allow_insecure? boolean
+---@field api_key_name? string
+---@field _shellenv? string
+---@field disable_tools? boolean
+---
+---@class AvanteSupportedProvider: AvanteDefaultBaseProvider
+---@field __inherited_from? string
+---@field temperature? number
+---@field max_tokens? number
+---@field reasoning_effort? string
+---
+---@class AvanteLLMUsage
+---@field input_tokens number
+---@field cache_creation_input_tokens number
+---@field cache_read_input_tokens number
+---@field output_tokens number
+---
+---@class AvanteLLMToolUse
+---@field name string
+---@field id string
+---@field input_json string
+---@field response_content? string
+---
+---@class AvanteLLMStartCallbackOptions
+---@field usage? AvanteLLMUsage
+---
+---@class AvanteLLMStopCallbackOptions
+---@field reason "complete" | "tool_use" | "error"
+---@field error? string | table
+---@field usage? AvanteLLMUsage
+---@field tool_use_list? AvanteLLMToolUse[]
+---
+---@alias AvanteStreamParser fun(line: string, handler_opts: AvanteHandlerOptions): nil
+---@alias AvanteLLMStartCallback fun(opts: AvanteLLMStartCallbackOptions): nil
+---@alias AvanteLLMChunkCallback fun(chunk: string): any
+---@alias AvanteLLMStopCallback fun(opts: AvanteLLMStopCallbackOptions): nil
+---@alias AvanteLLMConfigHandler fun(opts: AvanteSupportedProvider): AvanteDefaultBaseProvider, table<string, any>
+---
+---@class AvanteProvider: AvanteSupportedProvider
+---@field parse_response_data AvanteResponseParser
+---@field parse_curl_args? AvanteCurlArgsParser
+---@field parse_stream_data? AvanteStreamParser
+---@field parse_api_key? fun(): string | nil
+---
+---@class AvanteProviderFunctor
+---@field role_map table<"user" | "assistant", string>
+---@field parse_messages AvanteMessagesParser
+---@field parse_response AvanteResponseParser
+---@field parse_curl_args AvanteCurlArgsParser
+---@field setup fun(): nil
+---@field has fun(): boolean
+---@field api_key_name string
+---@field tokenizer_id string | "gpt-4o"
+---@field use_xml_format boolean
+---@field model? string
+---@field parse_api_key fun(): string | nil
+---@field parse_stream_data? AvanteStreamParser
+---@field on_error? fun(result: table<string, any>): nil
+---
+---@class AvanteBedrockProviderFunctor
+---@field parse_response AvanteResponseParser
+---@field parse_curl_args AvanteCurlArgsParser
+---@field setup fun(): nil
+---@field has fun(): boolean
+---@field api_key_name string
+---@field tokenizer_id string | "gpt-4o"
+---@field use_xml_format boolean
+---@field model? string
+---@field parse_api_key fun(): string | nil
+---@field parse_stream_data? AvanteStreamParser
+---@field on_error? fun(result: table<string, any>): nil
+---@field load_model_handler fun(): AvanteBedrockModelHandler
+---@field build_bedrock_payload? fun(prompt_opts: AvantePromptOptions, body_opts: table<string, any>): table<string, any>
+---
+---@alias AvanteBedrockPayloadBuilder fun(prompt_opts: AvantePromptOptions, body_opts: table<string, any>): table<string, any>
+---
+---@class AvanteBedrockModelHandler
+---@field role_map table<"user" | "assistant", string>
+---@field parse_messages AvanteMessagesParser
+---@field parse_response AvanteResponseParser
+---@field build_bedrock_payload AvanteBedrockPayloadBuilder
+---
+---@alias AvanteLlmMode "planning" | "editing" | "suggesting" | "cursor-planning" | "cursor-applying"
+---
+---@class AvanteSelectedFiles
+---@field path string
+---@field content string
+---@field file_type string
+---
+---@class AvanteTemplateOptions
+---@field use_xml_format boolean | nil
+---@field ask boolean
+---@field code_lang string
+---@field selected_code string | nil
+---@field project_context string | nil
+---@field selected_files AvanteSelectedFiles[] | nil
+---@field diagnostics string | nil
+---@field history_messages AvanteLLMMessage[] | nil
+---
+---@class AvanteGeneratePromptsOptions: AvanteTemplateOptions
+---@field ask boolean
+---@field instructions? string
+---@field mode AvanteLlmMode
+---@field provider AvanteProviderFunctor | AvanteBedrockProviderFunctor | nil
+---@field tools? AvanteLLMTool[]
+---@field tool_histories? AvanteLLMToolHistory[]
+---@field original_code? string
+---@field update_snippets? string[]
+---
+---@class AvanteLLMToolHistory
+---@field tool_result? AvanteLLMToolResult
+---@field tool_use? AvanteLLMToolUse
+---
+---@class AvanteLLMStreamOptions: AvanteGeneratePromptsOptions
+---@field on_start AvanteLLMStartCallback
+---@field on_chunk AvanteLLMChunkCallback
+---@field on_stop AvanteLLMStopCallback
+---@field on_tool_log? function(tool_name: string, log: string): nil
+---
+---@class AvanteLLMTool
+---@field name string
+---@field description string
+---@field func? fun(input: any): (string | nil, string | nil)
+---@field param AvanteLLMToolParam
+---@field returns AvanteLLMToolReturn[]
+
+---@class AvanteLLMToolParam
+---@field type string
+---@field fields AvanteLLMToolParamField[]
+
+---@class AvanteLLMToolParamField
+---@field name string
+---@field description string
+---@field type string
+---@field optional? boolean
+
+---@class AvanteLLMToolReturn
+---@field name string
+---@field description string
+---@field type string
+---@field optional? boolean

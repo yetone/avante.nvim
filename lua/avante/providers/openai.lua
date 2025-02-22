@@ -3,64 +3,6 @@ local Config = require("avante.config")
 local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
 
----@class OpenAIChatResponse
----@field id string
----@field object "chat.completion" | "chat.completion.chunk"
----@field created integer
----@field model string
----@field system_fingerprint string
----@field choices? OpenAIResponseChoice[] | OpenAIResponseChoiceComplete[]
----@field usage {prompt_tokens: integer, completion_tokens: integer, total_tokens: integer}
----
----@class OpenAIResponseChoice
----@field index integer
----@field delta OpenAIMessage
----@field logprobs? integer
----@field finish_reason? "stop" | "length"
----
----@class OpenAIResponseChoiceComplete
----@field message OpenAIMessage
----@field finish_reason "stop" | "length" | "eos_token"
----@field index integer
----@field logprobs integer
----
----@class OpenAIMessageToolCallFunction
----@field name string
----@field arguments string
----
----@class OpenAIMessageToolCall
----@field index integer
----@field id string
----@field type "function"
----@field function OpenAIMessageToolCallFunction
----
----@class OpenAIMessage
----@field role? "user" | "system" | "assistant"
----@field content? string
----@field reasoning_content? string
----@field reasoning? string
----@field tool_calls? OpenAIMessageToolCall[]
----
----@class AvanteOpenAITool
----@field type "function"
----@field function AvanteOpenAIToolFunction
----
----@class AvanteOpenAIToolFunction
----@field name string
----@field description string
----@field parameters AvanteOpenAIToolFunctionParameters
----@field strict boolean
----
----@class AvanteOpenAIToolFunctionParameters
----@field type string
----@field properties table<string, AvanteOpenAIToolFunctionParameterProperty>
----@field required string[]
----@field additionalProperties boolean
----
----@class AvanteOpenAIToolFunctionParameterProperty
----@field type string
----@field description string
-
 ---@class AvanteProviderFunctor
 local M = {}
 
@@ -201,7 +143,7 @@ M.parse_response = function(ctx, data_stream, _, opts)
     return
   end
   if data_stream:match('"delta":') then
-    ---@type OpenAIChatResponse
+    ---@type AvanteOpenAIChatResponse
     local jsn = vim.json.decode(data_stream)
     if jsn.choices and jsn.choices[1] then
       local choice = jsn.choices[1]
@@ -264,7 +206,7 @@ M.parse_response = function(ctx, data_stream, _, opts)
 end
 
 M.parse_response_without_stream = function(data, _, opts)
-  ---@type OpenAIChatResponse
+  ---@type AvanteOpenAIChatResponse
   local json = vim.json.decode(data)
   if json.choices and json.choices[1] then
     local choice = json.choices[1]

@@ -48,6 +48,7 @@ M.paste_image = function(line)
 
   if vim.fn.has("wsl") > 0 or vim.fn.has("win32") > 0 then opts.use_absolute_path = true end
 
+  ---@diagnostic disable-next-line: need-check-nil, undefined-field
   return ImgClip.paste_image(opts, line)
 end
 
