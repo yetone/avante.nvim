@@ -634,6 +634,8 @@ rag_service = {
 
 Please note that since the RAG service uses OpenAI for embeddings, you must set `OPENAI_API_KEY` environment variable!
 
+Additionally, RAG Service also depends on Docker! (For macOS users, OrbStack is recommended as a Docker alternative)
+
 ## Web Search Engines
 
 Avante's tools include some web search engines, currently support:
