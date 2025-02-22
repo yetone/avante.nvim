@@ -6,11 +6,13 @@ on:
       - main
     paths:
       - "**/*.lua"
+      - ".github/workflows/lua.yaml"
   pull_request:
     branches:
       - main
     paths:
       - "**/*.lua"
+      - ".github/workflows/lua.yaml"
 
 jobs:
   # reference from: https://github.com/nvim-lua/plenary.nvim/blob/2d9b06177a975543726ce5c73fca176cedbffe9d/.github/workflows/default.yml#L6C3-L43C20
@@ -83,78 +85,13 @@ jobs:
         nvim_version: [ stable ]
         luals_version: [ 3.13.6 ]
     steps:
-      - name: Checkout dependency neodev
+      - name: Checkout Code
         uses: actions/checkout@v3
-        with:
-          repository: "folke/neodev.nvim"
-          path: "deps/neodev.nvim"
-
-      - name: Checkout dependency nvim-treesitter
-        uses: actions/checkout@v3
-        with:
-          repository: "nvim-treesitter/nvim-treesitter"
-          path: "deps/nvim-treesitter"
-
-      - name: Checkout dependency dressing.nvim
-        uses: actions/checkout@v3
-        with:
-          repository: "stevearc/dressing.nvim"
-          path: "deps/dressing.nvim"
-
-      - name: Checkout dependency plenary.nvim
-        uses: actions/checkout@v3
-        with:
-          repository: "nvim-lua/plenary.nvim"
-          path: "deps/plenary.nvim"
-
-      - name: Checkout dependency nui.nvim
-        uses: actions/checkout@v3
-        with:
-          repository: "MunifTanjim/nui.nvim"
-          path: "deps/nui.nvim"
-
-      - name: Checkout dependency mini.pick
-        uses: actions/checkout@v3
-        with:
-          repository: "echasnovski/mini.nvim"
-          path: "deps/mini.nvim"
-
-      - name: Checkout dependency telescope.nvim
-        uses: actions/checkout@v3
-        with:
-          repository: "nvim-telescope/telescope.nvim"
-
-      - name: Checkout dependency nvim-cmp
-        uses: actions/checkout@v3
-        with:
-          repository: "hrsh7th/nvim-cmp"
-          path: "deps/nvim-cmp"
-
-      - name: Checkout dependency fzf-lua
-        uses: actions/checkout@v3
-        with:
-          repository: "ibhagwan/fzf-lua"
-          path: "deps/fzf-lua"
-
-      - name: Checkout dependency nvim-web-devicons
-        uses: actions/checkout@v3
-        with:
-          repository: "nvim-tree/nvim-web-devicons"
-          path: "deps/nvim-web-devicons"
-
-      - name: Checkout dependency copilot.lua
-        uses: actions/checkout@v3
-        with:
-          repository: "zbirenbaum/copilot.lua"
-          path: "deps/copilot.lua"
 
       - uses: rhysd/action-setup-vim@v1
         with:
           neovim: true
           version: ${{ matrix.nvim_version }}
-
-      - name: Checkout Code
-        uses: actions/checkout@v3
 
       - name: Install luals
         run: |
@@ -162,6 +99,29 @@ jobs:
           curl -L "https://github.com/LuaLS/lua-language-server/releases/download/${{ matrix.luals_version }}/lua-language-server-${{ matrix.luals_version }}-linux-x64.tar.gz" | tar zx --directory luals
 
       - run: echo "luals/bin" >> "$GITHUB_PATH"
+
+      - name: Checkout dependencies
+        run: |
+          mkdir -p deps
+          DEPS=(
+            "folke/neodev.nvim"
+            "nvim-treesitter/nvim-treesitter"
+            "stevearc/dressing.nvim"
+            "nvim-lua/plenary.nvim"
+            "MunifTanjim/nui.nvim"
+            "echasnovski/mini.nvim"
+            "nvim-telescope/telescope.nvim"
+            "hrsh7th/nvim-cmp"
+            "ibhagwan/fzf-lua"
+            "nvim-tree/nvim-web-devicons"
+            "zbirenbaum/copilot.lua"
+            "Bilal2453/luvit-meta"
+            "folke/lazy.nvim"
+          )
+          for dep in "${DEPS[@]}"; do
+            repo_name=$(echo $dep | cut -d'/' -f2)
+            git clone --depth 1 "https://github.com/${dep}.git" "deps/${repo_name}"
+          done
 
       - name: Typecheck
         env:
