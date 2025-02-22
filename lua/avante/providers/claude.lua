@@ -2,36 +2,6 @@ local Utils = require("avante.utils")
 local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
 
----@class AvanteClaudeBaseMessage
----@field cache_control {type: "ephemeral"}?
----
----@class AvanteClaudeTextMessage: AvanteClaudeBaseMessage
----@field type "text"
----@field text string
----
----@class AvanteClaudeImageMessage: AvanteClaudeBaseMessage
----@field type "image"
----@field source {type: "base64", media_type: string, data: string}
----
----@class AvanteClaudeMessage
----@field role "user" | "assistant"
----@field content [AvanteClaudeTextMessage | AvanteClaudeImageMessage][]
-
----@class AvanteClaudeTool
----@field name string
----@field description string
----@field input_schema AvanteClaudeToolInputSchema
-
----@class AvanteClaudeToolInputSchema
----@field type "object"
----@field properties table<string, AvanteClaudeToolInputSchemaProperty>
----@field required string[]
-
----@class AvanteClaudeToolInputSchemaProperty
----@field type "string" | "number" | "boolean"
----@field description string
----@field enum? string[]
-
 ---@param tool AvanteLLMTool
 ---@return AvanteClaudeTool
 local function transform_tool(tool)

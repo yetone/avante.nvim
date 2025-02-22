@@ -35,8 +35,10 @@ M.parse_curl_args = function(provider, prompt_opts)
     url = Utils.url_join(
       provider_conf.endpoint,
       "/openai/deployments/"
+        ---@diagnostic disable-next-line: undefined-field
         .. provider_conf.deployment
         .. "/chat/completions?api-version="
+        ---@diagnostic disable-next-line: undefined-field
         .. provider_conf.api_version
     ),
     proxy = provider_conf.proxy,

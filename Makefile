@@ -96,3 +96,7 @@ luatest:
 
 .PHONY: lint
 lint: luacheck luastylecheck ruststylecheck rustlint
+
+.PHONY: lua-typecheck
+lua-typecheck:
+	bash ./scripts/lua-typecheck.sh

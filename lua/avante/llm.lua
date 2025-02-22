@@ -19,7 +19,7 @@ M.CANCEL_PATTERN = "AvanteLLMEscape"
 
 local group = api.nvim_create_augroup("avante_llm", { clear = true })
 
----@param opts GeneratePromptsOptions
+---@param opts AvanteGeneratePromptsOptions
 ---@return AvantePromptOptions
 M.generate_prompts = function(opts)
   local provider = opts.provider or Providers[Config.provider]
@@ -139,7 +139,7 @@ Merge all changes from the <update> snippet into the <code> below.
   }
 end
 
----@param opts GeneratePromptsOptions
+---@param opts AvanteGeneratePromptsOptions
 ---@return integer
 M.calculate_tokens = function(opts)
   local prompt_opts = M.generate_prompts(opts)
@@ -150,7 +150,7 @@ M.calculate_tokens = function(opts)
   return tokens
 end
 
----@param opts StreamOptions
+---@param opts AvanteLLMStreamOptions
 M._stream = function(opts)
   local provider = opts.provider or Providers[Config.provider]
 
@@ -407,45 +407,7 @@ M._dual_boost_stream = function(opts, Provider1, Provider2)
   if not success then Utils.error("Failed to start dual_boost streams: " .. tostring(err)) end
 end
 
----@alias LlmMode "planning" | "editing" | "suggesting" | "cursor-planning" | "cursor-applying"
----
----@class SelectedFiles
----@field path string
----@field content string
----@field file_type string
----
----@class TemplateOptions
----@field use_xml_format boolean
----@field ask boolean
----@field question string
----@field code_lang string
----@field selected_code string | nil
----@field project_context string | nil
----@field selected_files SelectedFiles[] | nil
----@field diagnostics string | nil
----@field history_messages AvanteLLMMessage[]
----
----@class GeneratePromptsOptions: TemplateOptions
----@field ask boolean
----@field instructions? string
----@field mode LlmMode
----@field provider AvanteProviderFunctor | AvanteBedrockProviderFunctor | nil
----@field tools? AvanteLLMTool[]
----@field tool_histories? AvanteLLMToolHistory[]
----@field original_code? string
----@field update_snippets? string[]
----
----@class AvanteLLMToolHistory
----@field tool_result? AvanteLLMToolResult
----@field tool_use? AvanteLLMToolUse
----
----@class StreamOptions: GeneratePromptsOptions
----@field on_start AvanteLLMStartCallback
----@field on_chunk AvanteLLMChunkCallback
----@field on_stop AvanteLLMStopCallback
----@field on_tool_log? function(tool_name: string, log: string): nil
-
----@param opts StreamOptions
+---@param opts AvanteLLMStreamOptions
 M.stream = function(opts)
   local is_completed = false
   if opts.on_tool_log ~= nil then

@@ -181,6 +181,7 @@ function Sidebar:toggle(opts)
     self:close()
     return false
   else
+    ---@cast opts SidebarOpenOptions
     self:open(opts)
     return true
   end
@@ -2322,7 +2323,7 @@ function Sidebar:create_input_container(opts)
   })
 
   ---@param request string
-  ---@return GeneratePromptsOptions
+  ---@return AvanteGeneratePromptsOptions
   local function get_generate_prompts_options(request)
     local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
 
@@ -2574,7 +2575,7 @@ function Sidebar:create_input_container(opts)
     end
 
     local generate_prompts_options = get_generate_prompts_options(request)
-    ---@type StreamOptions
+    ---@type AvanteLLMStreamOptions
     ---@diagnostic disable-next-line: assign-type-mismatch
     local stream_options = vim.tbl_deep_extend("force", generate_prompts_options, {
       on_start = on_start,

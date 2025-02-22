@@ -554,29 +554,6 @@ function M.python(opts, on_log)
   return output, nil
 end
 
----@class AvanteLLMTool
----@field name string
----@field description string
----@field func? fun(input: any): (string | nil, string | nil)
----@field param AvanteLLMToolParam
----@field returns AvanteLLMToolReturn[]
-
----@class AvanteLLMToolParam
----@field type string
----@field fields AvanteLLMToolParamField[]
-
----@class AvanteLLMToolParamField
----@field name string
----@field description string
----@field type string
----@field optional? boolean
-
----@class AvanteLLMToolReturn
----@field name string
----@field description string
----@field type string
----@field optional? boolean
-
 ---@type AvanteLLMTool[]
 M.tools = {
   {
