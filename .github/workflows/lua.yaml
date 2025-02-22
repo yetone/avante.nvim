@@ -166,6 +166,6 @@ jobs:
       - name: Typecheck
         env:
           VIMRUNTIME: /home/runner/nvim-${{ matrix.nvim_version }}/share/nvim/runtime
-          DEPS_PATH: /github/workspace/deps/
+          DEPS_PATH: /home/runner/work/avante.nvim/avante.nvim/deps/
         run: |
           make lua-typecheck
