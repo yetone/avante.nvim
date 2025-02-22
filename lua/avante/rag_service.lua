@@ -75,18 +75,18 @@ end
 
 function M.to_container_uri(uri)
   local scheme = M.get_scheme(uri)
-  if scheme == "path" then
-    local path = uri:match("^path://(.*)$")
-    uri = string.format("path:///host%s", path)
+  if scheme == "file" then
+    local path = uri:match("^file://(.*)$")
+    uri = string.format("file:///host%s", path)
   end
   return uri
 end
 
 function M.to_local_uri(uri)
   local scheme = M.get_scheme(uri)
-  if scheme == "path" then
-    local path = uri:match("^path://host(.*)$")
-    uri = string.format("path://%s", path)
+  if scheme == "file" then
+    local path = uri:match("^file://host(.*)$")
+    uri = string.format("file://%s", path)
   end
   return uri
 end
@@ -104,7 +104,7 @@ end
 ---@return AvanteRagServiceAddResourceResponse | nil
 function M.add_resource(uri)
   uri = M.to_container_uri(uri)
-  local resource_name = uri:match("([^/]+)$")
+  local resource_name = uri:match("([^/]+)/$")
   local resources_resp = M.get_resources()
   if resources_resp == nil then
     Utils.error("Failed to get resources")

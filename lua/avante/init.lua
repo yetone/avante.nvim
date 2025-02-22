@@ -400,7 +400,9 @@ function M.setup(opts)
         return
       end
       Utils.info("Adding project root to Rag Service ...")
-      RagService.add_resource("path://" .. Utils.get_project_root())
+      local uri = "file://" .. Utils.get_project_root()
+      if uri:sub(-1) ~= "/" then uri = uri .. "/" end
+      RagService.add_resource(uri)
       Utils.info("Added project root to Rag Service")
     end
     add_resource_with_delay = function()

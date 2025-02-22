@@ -13,17 +13,20 @@ METADATA_KEY_URI = "uri"
 
 def uri_to_path(uri: str) -> Path:
     """Convert URI to path."""
-    return Path(uri.replace("path://", ""))
+    return Path(uri.replace("file://", ""))
 
 
 def path_to_uri(file_path: Path) -> str:
     """Convert path to URI."""
-    return f"path://{file_path}"
+    uri = file_path.as_uri()
+    if file_path.is_dir():
+        uri += "/"
+    return uri
 
 
 def is_local_uri(uri: str) -> bool:
     """Check if the URI is a path URI."""
-    return uri.startswith("path://")
+    return uri.startswith("file://")
 
 
 def is_remote_uri(uri: str) -> bool:
@@ -49,7 +52,7 @@ def get_node_uri(node: BaseNode) -> str | None:
             uri = match.group("uri") if match else doc_id
     if uri:
         if uri.startswith("/"):
-            uri = f"path://{uri}"
+            uri = f"file://{uri}"
         return uri
     return None
 

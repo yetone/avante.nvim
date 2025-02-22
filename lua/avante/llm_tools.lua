@@ -545,7 +545,8 @@ function M.rag_search(opts, on_log)
   if not opts.query then return nil, "No query provided" end
   if on_log then on_log("query: " .. opts.query) end
   local root = Utils.get_project_root()
-  local uri = "path://" .. root
+  local uri = "file://" .. root
+  if uri:sub(-1) ~= "/" then uri = uri .. "/" end
   local resp, err = RagService.retrieve(uri, opts.query)
   if err then return nil, err end
   return vim.json.encode(resp), nil
