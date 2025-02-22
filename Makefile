@@ -103,5 +103,5 @@ lua-typecheck:
 
 .PHONY: build-image
 build-image:
-	docker build -t ghcr.io/yetone/avante-rag-service:0.0.3 -f py/rag-service/Dockerfile py/rag-service
-	docker push ghcr.io/yetone/avante-rag-service:0.0.3
+	docker build -t quay.io/yetoneful/avante-rag-service:0.0.3 -f py/rag-service/Dockerfile py/rag-service
+	docker push quay.io/yetoneful/avante-rag-service:0.0.3
