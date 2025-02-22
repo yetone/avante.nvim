@@ -399,11 +399,13 @@ function M.setup(opts)
         add_resource_with_delay()
         return
       end
-      Utils.info("Adding project root to Rag Service ...")
-      local uri = "file://" .. Utils.get_project_root()
-      if uri:sub(-1) ~= "/" then uri = uri .. "/" end
-      RagService.add_resource(uri)
-      Utils.info("Added project root to Rag Service")
+      vim.defer_fn(function()
+        Utils.info("Adding project root to Rag Service ...")
+        local uri = "file://" .. Utils.get_project_root()
+        if uri:sub(-1) ~= "/" then uri = uri .. "/" end
+        RagService.add_resource(uri)
+        Utils.info("Added project root to Rag Service")
+      end, 5000)
     end
     add_resource_with_delay = function()
       vim.defer_fn(function() add_resource() end, 5000)

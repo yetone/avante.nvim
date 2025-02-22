@@ -30,4 +30,4 @@ EXPOSE ${PORT}
 
 COPY . .
 
-CMD ["uv", "run", "fastapi", "run", "src/main.py", "--workers", "5"]
+CMD ["uv", "run", "fastapi", "run", "src/main.py", "--workers", "3"]

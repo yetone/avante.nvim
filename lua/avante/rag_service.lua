@@ -6,7 +6,7 @@ local M = {}
 
 local container_name = "avante-rag-service"
 
-function M.get_rag_service_image() return "ghcr.io/yetone/avante-rag-service:0.0.1" end
+function M.get_rag_service_image() return "ghcr.io/yetone/avante-rag-service:0.0.3" end
 
 function M.get_rag_service_port() return 20250 end
 
@@ -16,6 +16,17 @@ function M.get_data_path()
   local p = Path:new(vim.fn.stdpath("data")):joinpath("avante/rag_service")
   if not p:exists() then p:mkdir({ parents = true }) end
   return p
+end
+
+function M.get_current_image()
+  local cmd = string.format("docker inspect %s | grep Image | grep %s", container_name, container_name)
+  local result = vim.fn.system(cmd)
+  if result == "" then return nil end
+  local exit_code = vim.v.shell_error
+  if exit_code ~= 0 then return nil end
+  local image = result:match('"Image":%s*"(.*)"')
+  if image == nil then return nil end
+  return image
 end
 
 ---@return boolean already_running
@@ -34,9 +45,20 @@ function M.launch_rag_service()
   local result = vim.fn.system(cmd)
   if result ~= "" then
     Utils.debug(string.format("container %s already running", container_name))
-    return false
+    local current_image = M.get_current_image()
+    if current_image == image then return false end
+    Utils.debug(
+      string.format(
+        "container %s is running with different image: %s != %s, stopping...",
+        container_name,
+        current_image,
+        image
+      )
+    )
+    M.stop_rag_service()
+  else
+    Utils.debug(string.format("container %s not found, starting...", container_name))
   end
-  Utils.debug(string.format("container %s not found, starting...", container_name))
   local cmd_ = string.format(
     "docker run -d -p %d:8000 --name %s -v %s:/data -v /:/host -e DATA_DIR=/data -e OPENAI_API_KEY=%s -e OPENAI_BASE_URL=%s %s",
     port,
@@ -54,7 +76,7 @@ end
 function M.stop_rag_service()
   local cmd = string.format("docker ps -a | grep '%s'", container_name)
   local result = vim.fn.system(cmd)
-  if result ~= "" then vim.fn.system(string.format("docker stop %s", container_name)) end
+  if result ~= "" then vim.fn.system(string.format("docker rm -fv %s", container_name)) end
 end
 
 function M.get_rag_service_status()
