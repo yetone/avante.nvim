@@ -2,6 +2,9 @@ local curl = require("plenary.curl")
 local Utils = require("avante.utils")
 local Path = require("plenary.path")
 local Config = require("avante.config")
+local RagService = require("avante.rag_service")
+
+---@class AvanteRagService
 local M = {}
 
 ---@param rel_path string
@@ -533,6 +536,22 @@ function M.git_commit(opts, on_log)
   return true, nil
 end
 
+---@param opts { query: string }
+---@param on_log? fun(log: string): nil
+---@return string|nil result
+---@return string|nil error
+function M.rag_search(opts, on_log)
+  if not Config.rag_service.enabled then return nil, "Rag service is not enabled" end
+  if not opts.query then return nil, "No query provided" end
+  if on_log then on_log("query: " .. opts.query) end
+  local root = Utils.get_project_root()
+  local uri = "file://" .. root
+  if uri:sub(-1) ~= "/" then uri = uri .. "/" end
+  local resp, err = RagService.retrieve(uri, opts.query)
+  if err then return nil, err end
+  return vim.json.encode(resp), nil
+end
+
 ---@param opts { code: string, rel_path: string }
 ---@param on_log? fun(log: string): nil
 ---@return string|nil result
@@ -554,8 +573,39 @@ function M.python(opts, on_log)
   return output, nil
 end
 
+---@return AvanteLLMTool[]
+function M.get_tools() return M._tools end
+
 ---@type AvanteLLMTool[]
-M.tools = {
+M._tools = {
+  {
+    name = "rag_search",
+    enabled = function() return Config.rag_service.enabled and RagService.is_ready() end,
+    description = "Use Retrieval-Augmented Generation (RAG) to search for relevant information from an external knowledge base or documents. This tool retrieves relevant context from a large dataset and integrates it into the response generation process, improving accuracy and relevance. Use it when answering questions that require factual knowledge beyond what the model has been trained on.",
+    param = {
+      type = "table",
+      fields = {
+        {
+          name = "query",
+          description = "Query to search",
+          type = "string",
+        },
+      },
+    },
+    returns = {
+      {
+        name = "result",
+        description = "Result of the search",
+        type = "string",
+      },
+      {
+        name = "error",
+        description = "Error message if the search was not successful",
+        type = "string",
+        optional = true,
+      },
+    },
+  },
   {
     name = "python",
     description = "Run python code",

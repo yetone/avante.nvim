@@ -1,12 +1,14 @@
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v2.3.0
+  rev: v5.0.0
   hooks:
     - id: check-yaml
     - id: end-of-file-fixer
     - id: trailing-whitespace
+    - id: check-ast  # 检查Python语法错误
+    - id: debug-statements  # 检查是否有debug语句
 - repo: https://github.com/JohnnyMorganz/StyLua
-  rev: v0.20.0
+  rev: v2.0.2
   hooks:
     - id: stylua-system # or stylua-system / stylua-github
       files: \.lua$
@@ -15,3 +17,21 @@ repos:
   hooks:
   - id: fmt
     files: \.rs$
+  - id: cargo-check
+    args: ['--features', 'luajit']
+    files: \.rs$
+- repo: https://github.com/astral-sh/ruff-pre-commit
+  rev: v0.9.5
+  hooks:
+    # 运行 Ruff linter
+    - id: ruff
+      args: [--fix]
+    # 运行 Ruff formatter
+    - id: ruff-format
+- repo: https://github.com/RobertCraigie/pyright-python
+  rev: v1.1.393
+  hooks:
+    - id: pyright
+      additional_dependencies:
+        - "types-setuptools"
+        - "types-requests"

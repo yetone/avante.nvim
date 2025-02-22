@@ -1227,7 +1227,7 @@ function Sidebar:apply(current_cursor)
           if last_orig_diff_end_line > #original_code_lines then
             pcall(function() api.nvim_win_set_cursor(winid, { #original_code_lines, 0 }) end)
           else
-            api.nvim_win_set_cursor(winid, { last_orig_diff_end_line, 0 })
+            pcall(function() api.nvim_win_set_cursor(winid, { last_orig_diff_end_line, 0 }) end)
           end
           vim.cmd("normal! zz")
         end,
@@ -2287,7 +2287,7 @@ function Sidebar:create_input_container(opts)
 
   local chat_history = Path.history.load(self.code.bufnr)
 
-  local tools = vim.deepcopy(LLMTools.tools)
+  local tools = vim.deepcopy(LLMTools.get_tools())
   table.insert(tools, {
     name = "add_file_to_context",
     description = "Add a file to the context",

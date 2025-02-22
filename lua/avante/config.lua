@@ -32,6 +32,9 @@ M._defaults = {
   -- For most providers that we support we will determine this automatically.
   -- If you wish to use a given implementation, then you can override it here.
   tokenizer = "tiktoken",
+  rag_service = {
+    enabled = false, -- Enables the rag service, requires OPENAI_API_KEY to be set
+  },
   web_search_engine = {
     provider = "tavily",
     providers = {
