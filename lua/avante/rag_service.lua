@@ -68,7 +68,12 @@ function M.launch_rag_service()
     openai_base_url,
     image
   )
-  vim.fn.system(cmd_)
+  local result_ = vim.fn.system(cmd_)
+  local exit_code = vim.v.shell_error
+  if exit_code ~= 0 then
+    Utils.error(string.format("failed to start rag service: %s", result_))
+    return false
+  end
   Utils.debug(string.format("container %s started", container_name))
   return true
 end
