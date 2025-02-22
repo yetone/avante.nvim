@@ -267,6 +267,27 @@ function FileSelector:telescope_ui(handler)
     Utils.error("telescope is not installed. Please install telescope to use it as a file selector.")
     return
   end
+  local find_command = (function()
+    if 1 == vim.fn.executable "rg" then
+      return { "rg", "--files", "--hidden", "--color", "never" }
+    elseif 1 == vim.fn.executable "fd" then
+      return { "fd", "--type", "f", "--color", "never" }
+    elseif 1 == vim.fn.executable "fdfind" then
+      return { "fdfind", "--type", "f", "--color", "never" }
+    elseif 1 == vim.fn.executable "find" and vim.fn.has "win32" == 0 then
+      return { "find", ".", "-type", "f" }
+    elseif 1 == vim.fn.executable "where" then
+      return { "where", "/r", ".", "*" }
+    end
+  end)()
+
+  if not find_command then
+    Utils.error("builtin.find_files", {
+      msg = "You need to install either find, fd, or rg",
+      level = "ERROR",
+    })
+    return
+  end
 
   local pickers = require("telescope.pickers")
   local finders = require("telescope.finders")
@@ -275,39 +296,49 @@ function FileSelector:telescope_ui(handler)
   local action_state = require("telescope.actions.state")
   local action_utils = require("telescope.actions.utils")
 
-  local files = self:get_filepaths()
+  local function open_selected(prompt_bufnr)
+    local picker = require("telescope.actions.state").get_current_picker(prompt_bufnr)
+    local selected = picker:get_multi_selection()
+    if vim.tbl_isempty(selected) then
+        handler({ selected.value })
+    else
+      for _, file in pairs(selected) do
+        handler({ file.value })
+      end
+    end
+    actions.close(prompt_bufnr)
+  end
 
   pickers
-    .new(
-      {},
-      vim.tbl_extend("force", {
-        file_ignore_patterns = self.selected_filepaths,
-        prompt_title = string.format("%s> ", PROMPT_TITLE),
-        finder = finders.new_table(files),
-        sorter = conf.file_sorter(),
-        attach_mappings = function(prompt_bufnr, map)
-          map("i", "<esc>", require("telescope.actions").close)
-          actions.select_default:replace(function()
-            local picker = action_state.get_current_picker(prompt_bufnr)
+    .new({}, {
+      file_ignore_patterns = self.selected_filepaths,
+      prompt_title = string.format("%s> ", PROMPT_TITLE),
+      finder = finders.new_oneshot_job(find_command, {}),
+      sorter = conf.file_sorter(),
+      attach_mappings = function(prompt_bufnr, map)
+        map("i", "<CR>", open_selected)
+        map("n", "<CR>", open_selected)
+        map("i", "<esc>", require("telescope.actions").close)
+        actions.select_default:replace(function()
+          local picker = action_state.get_current_picker(prompt_bufnr)
 
-            if #picker:get_multi_selection() ~= 0 then
-              local selections = {}
+          if #picker:get_multi_selection() ~= 0 then
+            local selections = {}
 
-              action_utils.map_selections(prompt_bufnr, function(selection) table.insert(selections, selection[1]) end)
+            action_utils.map_selections(prompt_bufnr, function(selection) table.insert(selections, selection[1]) end)
 
-              handler(selections)
-            else
-              local selections = action_state.get_selected_entry()
+            handler(selections)
+          else
+            local selections = action_state.get_selected_entry()
 
-              handler(selections)
-            end
+            handler(selections)
+          end
 
-            actions.close(prompt_bufnr)
-          end)
-          return true
-        end,
-      }, Config.file_selector.provider_opts)
-    )
+          actions.close(prompt_bufnr)
+        end)
+        return true
+      end,
+    })
     :find()
 end
 
