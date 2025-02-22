@@ -268,22 +268,21 @@ function FileSelector:telescope_ui(handler)
     return
   end
   local find_command = (function()
-    if 1 == vim.fn.executable "rg" then
-      return { "rg", "--files", "--hidden", "--color", "never" }
-    elseif 1 == vim.fn.executable "fd" then
-      return { "fd", "--type", "f", "--color", "never" }
+    if 1 == vim.fn.executable "fd" then
+      return { "fd", "--type", "f", "--type", "d", "--color", "never" }
     elseif 1 == vim.fn.executable "fdfind" then
-      return { "fdfind", "--type", "f", "--color", "never" }
+      return { "fdfind", "--type", "f", "--type", "d", "--color", "never" }
     elseif 1 == vim.fn.executable "find" and vim.fn.has "win32" == 0 then
-      return { "find", ".", "-type", "f" }
+      return { "find", "." }
     elseif 1 == vim.fn.executable "where" then
       return { "where", "/r", ".", "*" }
     end
   end)()
 
+
   if not find_command then
-    Utils.error("builtin.find_files", {
-      msg = "You need to install either find, fd, or rg",
+    utils.notify("builtin.find_files", {
+      msg = "You need to install either find, fd",
       level = "ERROR",
     })
     return
@@ -294,13 +293,13 @@ function FileSelector:telescope_ui(handler)
   local conf = require("telescope.config").values
   local actions = require("telescope.actions")
   local action_state = require("telescope.actions.state")
-  local action_utils = require("telescope.actions.utils")
 
   local function open_selected(prompt_bufnr)
     local picker = require("telescope.actions.state").get_current_picker(prompt_bufnr)
     local selected = picker:get_multi_selection()
     if vim.tbl_isempty(selected) then
-        handler({ selected.value })
+        local current_selection = action_state.get_selected_entry()
+        handler({ current_selection.value })
     else
       for _, file in pairs(selected) do
         handler({ file.value })
@@ -318,24 +317,6 @@ function FileSelector:telescope_ui(handler)
       attach_mappings = function(prompt_bufnr, map)
         map("i", "<CR>", open_selected)
         map("n", "<CR>", open_selected)
-        map("i", "<esc>", require("telescope.actions").close)
-        actions.select_default:replace(function()
-          local picker = action_state.get_current_picker(prompt_bufnr)
-
-          if #picker:get_multi_selection() ~= 0 then
-            local selections = {}
-
-            action_utils.map_selections(prompt_bufnr, function(selection) table.insert(selections, selection[1]) end)
-
-            handler(selections)
-          else
-            local selections = action_state.get_selected_entry()
-
-            handler(selections)
-          end
-
-          actions.close(prompt_bufnr)
-        end)
         return true
       end,
     })
