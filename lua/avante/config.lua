@@ -211,7 +211,7 @@ M._defaults = {
   ---@type AvanteSupportedProvider
   vertex = {
     endpoint = "https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/google/models",
-    model = "gemini-1.5-flash-latest",
+    model = "gemini-1.5-flash-002",
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
     max_tokens = 4096,
