@@ -658,71 +658,85 @@ function M.is_ignored(file, ignore_patterns, negate_patterns)
   return false
 end
 
----@param options { directory: string, add_dirs?: boolean, depth?: integer }
-function M.scan_directory_respect_gitignore(options)
-  local directory = options.directory
-  local gitignore_path = directory .. "/.gitignore"
-  local gitignore_patterns, gitignore_negate_patterns = M.parse_gitignore(gitignore_path)
+---@param options { directory: string, add_dirs?: boolean, max_depth?: integer }
+---@return string[]
+function M.scan_directory(options)
+  local cmd_supports_max_depth = true
+  local cmd = (function()
+    if vim.fn.executable("rg") == 1 then
+      local cmd = { "rg", "--files", "--color", "never", "--no-require-git" }
+      if options.max_depth ~= nil then vim.list_extend(cmd, { "--max-depth", options.max_depth }) end
+      table.insert(cmd, options.directory)
+      return cmd
+    end
+    if vim.fn.executable("fd") == 1 then
+      local cmd = { "fd", "--type", "f", "--color", "never", "--no-require-git" }
+      if options.max_depth ~= nil then vim.list_extend(cmd, { "--max-depth", options.max_depth }) end
+      vim.list_extend(cmd, { "--base-directory", options.directory })
+      return cmd
+    end
+    if vim.fn.executable("fdfind") == 1 then
+      local cmd = { "fdfind", "--type", "f", "--color", "never", "--no-require-git" }
+      if options.max_depth ~= nil then vim.list_extend(cmd, { "--max-depth", options.max_depth }) end
+      vim.list_extend(cmd, { "--base-directory", options.directory })
+      return cmd
+    end
+  end)()
 
-  -- Convert relative paths in gitignore to absolute paths based on project root
-  local project_root = M.get_project_root()
-  local function to_absolute_path(pattern)
-    -- Skip if already absolute path
-    if pattern:sub(1, 1) == "/" then return pattern end
-    -- Convert relative path to absolute
-    return Path:new(project_root, pattern):absolute()
+  if not cmd then
+    local p = Path:new(options.directory)
+    if p:joinpath(".git"):exists() and vim.fn.executable("git") == 1 then
+      cmd = {
+        "bash",
+        "-c",
+        string.format(
+          "cd %s && cat <(git ls-files --exclude-standard) <(git ls-files --exclude-standard --others)",
+          options.directory
+        ),
+      }
+      cmd_supports_max_depth = false
+    else
+      M.error("No search command found")
+      return {}
+    end
   end
 
-  gitignore_patterns = vim.tbl_map(to_absolute_path, gitignore_patterns)
-  gitignore_negate_patterns = vim.tbl_map(to_absolute_path, gitignore_negate_patterns)
+  local files = vim.fn.systemlist(cmd)
 
-  return M.scan_directory({
-    directory = directory,
-    gitignore_patterns = gitignore_patterns,
-    gitignore_negate_patterns = gitignore_negate_patterns,
-    add_dirs = options.add_dirs,
-    depth = options.depth,
-  })
-end
+  files = vim
+    .iter(files)
+    :map(function(file)
+      local p = Path:new(file)
+      if not p:is_absolute() then return tostring(Path:new(options.directory):joinpath(file):absolute()) end
+      return file
+    end)
+    :totable()
 
----@param options { directory: string, gitignore_patterns: string[], gitignore_negate_patterns: string[], add_dirs?: boolean, depth?: integer, current_depth?: integer }
-function M.scan_directory(options)
-  local directory = options.directory
-  local ignore_patterns = options.gitignore_patterns
-  local negate_patterns = options.gitignore_negate_patterns
-  local add_dirs = options.add_dirs or false
-  local depth = options.depth or -1
-  local current_depth = options.current_depth or 0
+  if options.max_depth ~= nil and not cmd_supports_max_depth then
+    files = vim
+      .iter(files)
+      :filter(function(file)
+        local base_dir = options.directory
+        if base_dir:sub(-2) == "/." then base_dir = base_dir:sub(1, -3) end
+        local rel_path = tostring(Path:new(file):make_relative(base_dir))
+        local pieces = vim.split(rel_path, "/")
+        return #pieces <= options.max_depth
+      end)
+      :totable()
+  end
 
-  local files = {}
-  local handle = vim.loop.fs_scandir(directory)
-
-  if not handle then return files end
-
-  while true do
-    if depth > 0 and current_depth >= depth then break end
-
-    local name, type = vim.loop.fs_scandir_next(handle)
-    if not name then break end
-
-    local full_path = directory .. "/" .. name
-    if type == "directory" then
-      if add_dirs and not M.is_ignored(full_path, ignore_patterns, negate_patterns) then
-        table.insert(files, full_path)
+  if options.add_dirs then
+    local dirs = {}
+    local dirs_seen = {}
+    for _, file in ipairs(files) do
+      local dir = tostring(Path:new(file):parent())
+      dir = dir .. "/"
+      if not dirs_seen[dir] then
+        table.insert(dirs, dir)
+        dirs_seen[dir] = true
       end
-      vim.list_extend(
-        files,
-        M.scan_directory({
-          directory = full_path,
-          gitignore_patterns = ignore_patterns,
-          gitignore_negate_patterns = negate_patterns,
-          add_dirs = add_dirs,
-          current_depth = current_depth + 1,
-        })
-      )
-    elseif type == "file" then
-      if not M.is_ignored(full_path, ignore_patterns, negate_patterns) then table.insert(files, full_path) end
     end
+    files = vim.list_extend(dirs, files)
   end
 
   return files
@@ -890,9 +904,10 @@ function M.get_current_selection_diagnostics(bufnr, selection)
 end
 
 function M.uniform_path(path)
+  if type(path) ~= "string" then path = tostring(path) end
   if not M.file.is_in_cwd(path) then return path end
   local project_root = M.get_project_root()
-  local abs_path = Path:new(project_root):joinpath(path):absolute()
+  local abs_path = Path:new(path):is_absolute() and path or Path:new(project_root):joinpath(path):absolute()
   local relative_path = Path:new(abs_path):make_relative(project_root)
   return relative_path
 end

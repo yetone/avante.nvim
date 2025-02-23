@@ -31,7 +31,7 @@ local function has_permission_to_access(abs_path)
   return not Utils.is_ignored(abs_path, gitignore_patterns, gitignore_negate_patterns)
 end
 
----@param opts { rel_path: string, depth?: integer }
+---@param opts { rel_path: string, max_depth?: integer }
 ---@param on_log? fun(log: string): nil
 ---@return string files
 ---@return string|nil error
@@ -39,11 +39,11 @@ function M.list_files(opts, on_log)
   local abs_path = get_abs_path(opts.rel_path)
   if not has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
   if on_log then on_log("path: " .. abs_path) end
-  if on_log then on_log("depth: " .. tostring(opts.depth)) end
-  local files = Utils.scan_directory_respect_gitignore({
+  if on_log then on_log("max depth: " .. tostring(opts.max_depth)) end
+  local files = Utils.scan_directory({
     directory = abs_path,
     add_dirs = true,
-    depth = opts.depth,
+    max_depth = opts.max_depth,
   })
   local filepaths = {}
   for _, file in ipairs(files) do
@@ -62,7 +62,7 @@ function M.search_files(opts, on_log)
   if not has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
   if on_log then on_log("path: " .. abs_path) end
   if on_log then on_log("keyword: " .. opts.keyword) end
-  local files = Utils.scan_directory_respect_gitignore({
+  local files = Utils.scan_directory({
     directory = abs_path,
   })
   local filepaths = {}
@@ -710,10 +710,9 @@ M._tools = {
           type = "string",
         },
         {
-          name = "depth",
-          description = "Depth of the directory",
+          name = "max_depth",
+          description = "Maximum depth of the directory",
           type = "integer",
-          optional = true,
         },
       },
     },

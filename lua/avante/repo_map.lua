@@ -1,7 +1,6 @@
 local Popup = require("nui.popup")
 local Utils = require("avante.utils")
 local event = require("nui.utils.autocmd").event
-local Config = require("avante.config")
 
 local filetype_map = {
   ["javascriptreact"] = "javascript",
@@ -35,15 +34,9 @@ end
 
 function RepoMap._build_repo_map(project_root, file_ext)
   local output = {}
-  local gitignore_path = project_root .. "/.gitignore"
-  local gitignore_patterns, gitignore_negate_patterns = Utils.parse_gitignore(gitignore_path)
-  local ignore_patterns = vim.list_extend(gitignore_patterns, Config.repo_map.ignore_patterns)
-  local negate_patterns = vim.list_extend(gitignore_negate_patterns, Config.repo_map.negate_patterns)
 
   local filepaths = Utils.scan_directory({
     directory = project_root,
-    gitignore_patterns = ignore_patterns,
-    gitignore_negate_patterns = negate_patterns,
   })
   if filepaths and not RepoMap._init_repo_map_lib() then
     -- or just throw an error if we don't want to execute request without codebase
