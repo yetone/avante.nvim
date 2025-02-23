@@ -137,7 +137,6 @@ Plug 'zbirenbaum/copilot.lua'
 " Yay, pass source=true if you want to build from source
 Plug 'yetone/avante.nvim', { 'branch': 'main', 'do': 'make' }
 autocmd! User avante.nvim lua << EOF
-require('avante_lib').load()
 require('avante').setup()
 EOF
 ```
@@ -169,7 +168,6 @@ add({ source = 'zbirenbaum/copilot.lua' })
 add({ source = 'HakonHarnes/img-clip.nvim' })
 add({ source = 'MeanderingProgrammer/render-markdown.nvim' })
 
-now(function() require('avante_lib').load() end)
 later(function() require('render-markdown').setup({...}) end)
 later(function()
   require('img-clip').setup({...}) -- config img-clip
@@ -205,10 +203,27 @@ end)
     branch = 'main',
     run = 'make',
     config = function()
-      require('avante_lib').load()
       require('avante').setup()
     end
   }
+```
+
+</details>
+
+<details>
+
+  <summary><a href="https://github.com/nix-community/home-manager">Home Manager</a></summary>
+
+```nix
+programs.neovim = {
+  plugins = [
+    {
+      plugin = pkgs.vimPlugins.avante-nvim;
+      type = "lua";
+      config = ''require("avante").setup()'' # or builtins.readFile ./plugins/avante.lua;
+    }
+  ];
+};
 ```
 
 </details>
@@ -231,19 +246,20 @@ require('copilot').setup ({
 require('render-markdown').setup ({
   -- use recommended settings from above
 })
-require('avante_lib').load()
 require('avante').setup ({
   -- Your config here!
 })
 ```
-
-**NOTE**: For <code>avante.tokenizers</code> and templates to work, make sure to call <code>require('avante_lib').load()</code> somewhere when entering the editor. We will leave the users to decide where it fits to do this, as this varies among configurations. (But we do recommend running this after where you set your colorscheme)
 
 </details>
 
 > [!IMPORTANT]
 >
 > `avante.nvim` is currently only compatible with Neovim 0.10.1 or later. Please ensure that your Neovim version meets these requirements before proceeding.
+
+> [!NOTE]
+>
+> When loading the plugin synchronously, we recommend `require`ing it sometime after your colorscheme.
 
 > [!NOTE]
 >
