@@ -12,7 +12,9 @@ local M = {}
 local function get_abs_path(rel_path)
   if Path:new(rel_path):is_absolute() then return rel_path end
   local project_root = Utils.get_project_root()
-  return Path:new(project_root):joinpath(rel_path):absolute()
+  local p = tostring(Path:new(project_root):joinpath(rel_path):absolute())
+  if p:sub(-2) == "/." then p = p:sub(1, -3) end
+  return p
 end
 
 function M.confirm(msg)
@@ -552,7 +554,7 @@ function M.rag_search(opts, on_log)
   return vim.json.encode(resp), nil
 end
 
----@param opts { code: string, rel_path: string }
+---@param opts { code: string, rel_path: string, container_image?: string }
 ---@param on_log? fun(log: string): nil
 ---@return string|nil result
 ---@return string|nil error
@@ -562,15 +564,45 @@ function M.python(opts, on_log)
   if not Path:new(abs_path):exists() then return nil, "Path not found: " .. abs_path end
   if on_log then on_log("cwd: " .. abs_path) end
   if on_log then on_log("code: " .. opts.code) end
+  if
+    not M.confirm(
+      "Are you sure you want to run the python code in the contianer in the directory: `"
+        .. abs_path
+        .. "`? code: "
+        .. opts.code
+    )
+  then
+    return nil, "User canceled"
+  end
+  local container_image = opts.container_image or "python:3.11-slim-bookworm"
   ---change cwd to abs_path
   local old_cwd = vim.fn.getcwd()
+
   vim.fn.chdir(abs_path)
-  local output = vim.fn.system({ "python", "-c", opts.code })
-  local exit_code = vim.v.shell_error
+  local output = vim
+    .system({
+      "docker",
+      "run",
+      "--rm",
+      "-v",
+      abs_path .. ":" .. abs_path,
+      "-w",
+      abs_path,
+      container_image,
+      "python",
+      "-c",
+      opts.code,
+    }, {
+      text = true,
+    })
+    :wait()
+
   vim.fn.chdir(old_cwd)
-  if exit_code ~= 0 then return nil, "Error: " .. output end
-  Utils.debug("output", output)
-  return output, nil
+
+  if output.code ~= 0 then return nil, "Error: " .. (output.stderr or "Unknown error") end
+
+  Utils.debug("output", output.stdout)
+  return output.stdout, nil
 end
 
 ---@return AvanteLLMTool[]

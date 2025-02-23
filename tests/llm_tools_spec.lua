@@ -218,4 +218,56 @@ describe("llm_tools", function()
       assert.truthy(err:find("No permission to access path"))
     end)
   end)
+
+  describe("python", function()
+    local original_system = vim.fn.system
+
+    it("should execute Python code and return output", function()
+      local result, err = LlmTools.python({
+        rel_path = ".",
+        code = "print('Hello from Python')",
+      })
+      assert.is_nil(err)
+      assert.equals("Hello from Python\n", result)
+    end)
+
+    it("should handle Python errors", function()
+      local result, err = LlmTools.python({
+        rel_path = ".",
+        code = "print(undefined_variable)",
+      })
+      assert.is_nil(result)
+      assert.truthy(err)
+      assert.truthy(err:find("Error"))
+    end)
+
+    it("should respect path permissions", function()
+      local result, err = LlmTools.python({
+        rel_path = "../outside_project",
+        code = "print('test')",
+      })
+      assert.is_nil(result)
+      assert.truthy(err:find("No permission to access path"))
+    end)
+
+    it("should handle non-existent paths", function()
+      local result, err = LlmTools.python({
+        rel_path = "non_existent_dir",
+        code = "print('test')",
+      })
+      assert.is_nil(result)
+      assert.truthy(err:find("Path not found"))
+    end)
+
+    it("should support custom container image", function()
+      os.execute("docker image rm python:3.12-slim")
+      local result, err = LlmTools.python({
+        rel_path = ".",
+        code = "print('Hello from custom container')",
+        container_image = "python:3.12-slim",
+      })
+      assert.is_nil(err)
+      assert.equals("Hello from custom container\n", result)
+    end)
+  end)
 end)
