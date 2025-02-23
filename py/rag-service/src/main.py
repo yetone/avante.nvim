@@ -769,10 +769,14 @@ async def add_resource(request: ResourceRequest, background_tasks: BackgroundTas
     if is_local_uri(request.uri):
         directory = uri_to_path(request.uri)
         if not directory.exists():
-            raise HTTPException(status_code=404, detail="Directory not found")
+            raise HTTPException(status_code=404, detail=f"Directory not found: {directory}")
 
         if not directory.is_dir():
-            raise HTTPException(status_code=400, detail="Not a directory")
+            raise HTTPException(status_code=400, detail=f"{directory} is not a directory")
+
+        git_directory = directory / ".git"
+        if not git_directory.exists() or not git_directory.is_dir():
+            raise HTTPException(status_code=400, detail=f"{git_directory} ia not a git repository")
 
         # Create observer
         event_handler = FileSystemHandler(directory=directory)
