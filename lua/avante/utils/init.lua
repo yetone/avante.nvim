@@ -73,8 +73,9 @@ end
 
 --- This function will run given shell command synchronously.
 ---@param input_cmd string
+---@param shell_cmd string?
 ---@return vim.SystemCompleted
-M.shell_run = function(input_cmd)
+M.shell_run = function(input_cmd, shell_cmd)
   local shell = vim.o.shell:lower()
   ---@type string
   local cmd
@@ -89,7 +90,8 @@ M.shell_run = function(input_cmd)
     cmd = 'powershell.exe -NoProfile -Command "' .. input_cmd:gsub('"', "'") .. '"'
   else
     -- linux and macos we wil just do sh -c
-    cmd = "sh -c " .. fn.shellescape(input_cmd)
+    shell_cmd = shell_cmd or "sh -c"
+    cmd = shell_cmd .. " " .. fn.shellescape(input_cmd)
   end
 
   local output = fn.system(cmd)

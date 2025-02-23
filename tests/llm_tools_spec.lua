@@ -1,5 +1,6 @@
 local stub = require("luassert.stub")
 local LlmTools = require("avante.llm_tools")
+local Config = require("avante.config")
 local Utils = require("avante.utils")
 
 LlmTools.confirm = function(msg) return true end
@@ -9,6 +10,7 @@ describe("llm_tools", function()
   local test_file = test_dir .. "/test.txt"
 
   before_each(function()
+    Config.setup()
     -- 创建测试目录和文件
     os.execute("mkdir -p " .. test_dir)
     os.execute(string.format("cd %s; git init", test_dir))
