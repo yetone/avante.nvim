@@ -1,4 +1,3 @@
-local mock = require("luassert.mock")
 local stub = require("luassert.stub")
 local LlmTools = require("avante.llm_tools")
 local Utils = require("avante.utils")
@@ -12,8 +11,24 @@ describe("llm_tools", function()
   before_each(function()
     -- 创建测试目录和文件
     os.execute("mkdir -p " .. test_dir)
+    os.execute(string.format("cd %s; git init", test_dir))
     local file = io.open(test_file, "w")
+    if not file then error("Failed to create test file") end
     file:write("test content")
+    file:close()
+    os.execute("mkdir -p " .. test_dir .. "/test_dir1")
+    file = io.open(test_dir .. "/test_dir1/test1.txt", "w")
+    if not file then error("Failed to create test file") end
+    file:write("test1 content")
+    file:close()
+    os.execute("mkdir -p " .. test_dir .. "/test_dir2")
+    file = io.open(test_dir .. "/test_dir2/test2.txt", "w")
+    if not file then error("Failed to create test file") end
+    file:write("test2 content")
+    file:close()
+    file = io.open(test_dir .. "/.gitignore", "w")
+    if not file then error("Failed to create test file") end
+    file:write("test_dir2/")
     file:close()
 
     -- Mock get_project_root
@@ -29,9 +44,26 @@ describe("llm_tools", function()
 
   describe("list_files", function()
     it("should list files in directory", function()
-      local result, err = LlmTools.list_files({ rel_path = ".", depth = 1 })
+      local result, err = LlmTools.list_files({ rel_path = ".", max_depth = 1 })
       assert.is_nil(err)
+      assert.falsy(result:find("avante.nvim"))
       assert.truthy(result:find("test.txt"))
+      assert.falsy(result:find("test1.txt"))
+    end)
+    it("should list files in directory with depth", function()
+      local result, err = LlmTools.list_files({ rel_path = ".", max_depth = 2 })
+      assert.is_nil(err)
+      assert.falsy(result:find("avante.nvim"))
+      assert.truthy(result:find("test.txt"))
+      assert.truthy(result:find("test1.txt"))
+    end)
+    it("should list files respecting gitignore", function()
+      local result, err = LlmTools.list_files({ rel_path = ".", max_depth = 2 })
+      assert.is_nil(err)
+      assert.falsy(result:find("avante.nvim"))
+      assert.truthy(result:find("test.txt"))
+      assert.truthy(result:find("test1.txt"))
+      assert.falsy(result:find("test2.txt"))
     end)
   end)
 
@@ -104,10 +136,12 @@ describe("llm_tools", function()
 
       -- Create a test file with searchable content
       local file = io.open(test_dir .. "/searchable.txt", "w")
+      if not file then error("Failed to create test file") end
       file:write("this is searchable content")
       file:close()
 
       file = io.open(test_dir .. "/nothing.txt", "w")
+      if not file then error("Failed to create test file") end
       file:write("this is nothing")
       file:close()
 
@@ -126,6 +160,7 @@ describe("llm_tools", function()
 
       -- Create a test file specifically for ag
       local file = io.open(test_dir .. "/ag_test.txt", "w")
+      if not file then error("Failed to create test file") end
       file:write("content for ag test")
       file:close()
 
