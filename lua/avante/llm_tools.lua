@@ -290,7 +290,7 @@ function M.run_command(opts, on_log)
   ---change cwd to abs_path
   local old_cwd = vim.fn.getcwd()
   vim.fn.chdir(abs_path)
-  local res = Utils.shell_run(opts.command)
+  local res = Utils.shell_run(opts.command, Config.run_command.shell_cmd)
   vim.fn.chdir(old_cwd)
   if res.code ~= 0 then
     if res.stdout then return false, "Error: " .. res.stdout .. "; Error code: " .. tostring(res.code) end
