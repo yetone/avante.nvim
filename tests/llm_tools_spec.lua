@@ -124,7 +124,7 @@ describe("llm_tools", function()
     end)
   end)
 
-  describe("search", function()
+  describe("search_keyword", function()
     local original_exepath = vim.fn.exepath
 
     after_each(function() vim.fn.exepath = original_exepath end)
@@ -147,7 +147,7 @@ describe("llm_tools", function()
       file:write("this is nothing")
       file:close()
 
-      local result, err = LlmTools.search({ rel_path = ".", keyword = "searchable" })
+      local result, err = LlmTools.search_keyword({ rel_path = ".", keyword = "searchable" })
       assert.is_nil(err)
       assert.truthy(result:find("searchable.txt"))
       assert.falsy(result:find("nothing.txt"))
@@ -166,7 +166,7 @@ describe("llm_tools", function()
       file:write("content for ag test")
       file:close()
 
-      local result, err = LlmTools.search({ rel_path = ".", keyword = "ag test" })
+      local result, err = LlmTools.search_keyword({ rel_path = ".", keyword = "ag test" })
       assert.is_nil(err)
       assert.is_string(result)
       assert.truthy(result:find("ag_test.txt"))
@@ -179,7 +179,7 @@ describe("llm_tools", function()
         return ""
       end
 
-      local result, err = LlmTools.search({ rel_path = ".", keyword = "test" })
+      local result, err = LlmTools.search_keyword({ rel_path = ".", keyword = "test" })
       assert.is_nil(err)
       assert.truthy(result:find("test.txt"))
     end)
@@ -188,18 +188,18 @@ describe("llm_tools", function()
       -- Mock exepath to return nothing
       vim.fn.exepath = function() return "" end
 
-      local result, err = LlmTools.search({ rel_path = ".", keyword = "test" })
+      local result, err = LlmTools.search_keyword({ rel_path = ".", keyword = "test" })
       assert.equals("", result)
       assert.equals("No search command found", err)
     end)
 
     it("should respect path permissions", function()
-      local result, err = LlmTools.search({ rel_path = "../outside_project", keyword = "test" })
+      local result, err = LlmTools.search_keyword({ rel_path = "../outside_project", keyword = "test" })
       assert.truthy(err:find("No permission to access path"))
     end)
 
     it("should handle non-existent paths", function()
-      local result, err = LlmTools.search({ rel_path = "non_existent_dir", keyword = "test" })
+      local result, err = LlmTools.search_keyword({ rel_path = "non_existent_dir", keyword = "test" })
       assert.equals("", result)
       assert.truthy(err)
       assert.truthy(err:find("No such file or directory"))
