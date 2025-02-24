@@ -2291,8 +2291,7 @@ function Sidebar:create_input_container(opts)
   table.insert(tools, {
     name = "add_file_to_context",
     description = "Add a file to the context",
-    ---@param input { rel_path: string }
-    ---@type AvanteLLMToolFunc
+    ---@type AvanteLLMToolFunc<{ rel_path: string }>
     func = function(input)
       self.file_selector:add_selected_file(input.rel_path)
       return "Added file to context", nil
