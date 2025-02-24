@@ -1224,11 +1224,7 @@ function Sidebar:apply(current_cursor)
           --- goto window winid
           api.nvim_set_current_win(winid)
           --- goto the last line
-          if last_orig_diff_end_line > #original_code_lines then
-            pcall(function() api.nvim_win_set_cursor(winid, { #original_code_lines, 0 }) end)
-          else
-            pcall(function() api.nvim_win_set_cursor(winid, { last_orig_diff_end_line, 0 }) end)
-          end
+          pcall(function() api.nvim_win_set_cursor(winid, { complete_lines_count, 0 }) end)
           vim.cmd("normal! zz")
         end,
         on_stop = function(stop_opts)
@@ -1243,13 +1239,19 @@ function Sidebar:apply(current_cursor)
           resp_content = resp_content:gsub("<updated%-code>\n*", ""):gsub("</updated%-code>\n*", "")
 
           resp_content = resp_content:gsub(".*```%w+\n", ""):gsub("\n```\n.*", ""):gsub("\n```$", "")
-          local resp_lines = vim.split(resp_content, "\n")
-          local resp_lines_content = table.concat(resp_lines, "\n")
 
-          if resp_lines_content == original_code then return end
+          local resp_lines = vim.split(resp_content, "\n")
+
+          if require("avante.config").debug then
+            local resp_content_file = fn.tempname() .. ".txt"
+            fn.writefile(vim.split(resp_content, "\n"), resp_content_file)
+            Utils.debug("cursor applying response content written to: " .. resp_content_file)
+          end
+
+          if resp_content == original_code then return end
 
           ---@diagnostic disable-next-line: assign-type-mismatch, missing-fields
-          local patch = vim.diff(original_code, resp_lines_content, { ---@type integer[][]
+          local patch = vim.diff(original_code, resp_content, { ---@type integer[][]
             algorithm = "histogram",
             result_type = "indices",
             ctxlen = vim.o.scrolloff,
