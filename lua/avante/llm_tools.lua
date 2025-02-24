@@ -509,7 +509,7 @@ function M.python(opts, on_log)
   if on_log then on_log("code: " .. opts.code) end
   if
     not M.confirm(
-      "Are you sure you want to run the python code in the contianer in the directory: `"
+      "Are you sure you want to run the python code in the container in the directory: `"
         .. abs_path
         .. "`? code: "
         .. opts.code
