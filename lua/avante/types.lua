@@ -323,10 +323,12 @@ vim.g.avante_login = vim.g.avante_login
 ---@field on_stop AvanteLLMStopCallback
 ---@field on_tool_log? function(tool_name: string, log: string): nil
 ---
+---@alias AvanteLLMToolFunc fun(input: any, on_log?: (fun(log: string): nil) | nil): (boolean | string | nil, string | nil)
+---
 ---@class AvanteLLMTool
 ---@field name string
 ---@field description string
----@field func? fun(input: any): (string | nil, string | nil)
+---@field func? AvanteLLMToolFunc
 ---@field param AvanteLLMToolParam
 ---@field returns AvanteLLMToolReturn[]
 ---@field enabled? fun(): boolean

@@ -2292,8 +2292,7 @@ function Sidebar:create_input_container(opts)
     name = "add_file_to_context",
     description = "Add a file to the context",
     ---@param input { rel_path: string }
-    ---@return string | nil result
-    ---@return string | nil error
+    ---@type AvanteLLMToolFunc
     func = function(input)
       self.file_selector:add_selected_file(input.rel_path)
       return "Added file to context", nil
@@ -2309,8 +2308,7 @@ function Sidebar:create_input_container(opts)
     name = "remove_file_from_context",
     description = "Remove a file from the context",
     ---@param input { rel_path: string }
-    ---@return string | nil result
-    ---@return string | nil error
+    ---@type AvanteLLMToolFunc
     func = function(input)
       self.file_selector:remove_selected_file(input.rel_path)
       return "Removed file from context", nil
