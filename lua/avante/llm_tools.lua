@@ -69,7 +69,7 @@ function M.search_files(opts, on_log)
 end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string, keyword: string }>
-function M.search(opts, on_log)
+function M.search_keyword(opts, on_log)
   local abs_path = get_abs_path(opts.rel_path)
   if not has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return "", "No such file or directory: " .. abs_path end
@@ -738,7 +738,7 @@ M._tools = {
     },
   },
   {
-    name = "search",
+    name = "search_keyword",
     description = "Search for a keyword in a directory",
     param = {
       type = "table",
