@@ -549,7 +549,18 @@ function M.python(opts, on_log)
 end
 
 ---@return AvanteLLMTool[]
-function M.get_tools() return M._tools end
+function M.get_tools()
+  return vim
+    .iter(M._tools)
+    :filter(function(tool)
+      if tool.enabled == nil then
+        return true
+      else
+        return tool.enabled()
+      end
+    end)
+    :totable()
+end
 
 ---@type AvanteLLMTool[]
 M._tools = {
