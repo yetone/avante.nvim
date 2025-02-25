@@ -113,7 +113,7 @@ function E.setup(opts)
       vim.fn.setenv(var, value)
       vim.g.avante_login = true
     else
-      if not opts.provider.has() then
+      if not opts.provider.is_env_set() then
         Utils.warn("Failed to set " .. var .. ". Avante won't work as expected", { once = true })
       end
     end
@@ -137,7 +137,7 @@ function E.setup(opts)
         "noice",
       }
 
-      if not vim.tbl_contains(exclude_filetypes, vim.bo.filetype) and not opts.provider.has() then
+      if not vim.tbl_contains(exclude_filetypes, vim.bo.filetype) and not opts.provider.is_env_set() then
         DressingState.winid = api.nvim_get_current_win()
         vim.ui.input({ default = "", prompt = "Enter " .. var .. ": " }, on_confirm)
         for _, winid in ipairs(api.nvim_list_wins()) do
@@ -203,7 +203,9 @@ M = setmetatable(M, {
 
     ---@diagnostic disable: undefined-field,no-unknown,inject-field
     if Config.vendors[k] ~= nil then
-      Opts.parse_response = Opts.parse_response_data
+      if Opts.parse_response_data ~= nil then
+        Utils.error("parse_response_data is not supported for avante.nvim vendors")
+      end
       if Opts.__inherited_from ~= nil then
         local BaseOpts = M.get_config(Opts.__inherited_from)
         local ok, module = pcall(require, "avante.providers." .. Opts.__inherited_from)
@@ -223,9 +225,9 @@ M = setmetatable(M, {
     -- default to gpt-4o as tokenizer
     if t[k].tokenizer_id == nil then t[k].tokenizer_id = "gpt-4o" end
 
-    if t[k].use_xml_format == nil then t[k].use_xml_format = false end
+    if t[k].use_xml_format == nil then t[k].use_xml_format = true end
 
-    if t[k].has == nil then t[k].has = function() return E.parse_envvar(t[k]) ~= nil end end
+    if t[k].is_env_set == nil then t[k].is_env_set = function() return E.parse_envvar(t[k]) ~= nil end end
 
     if t[k].setup == nil then
       local provider_conf = M.parse_config(t[k])

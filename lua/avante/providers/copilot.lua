@@ -209,39 +209,7 @@ M.role_map = {
   assistant = "assistant",
 }
 
-function M.parse_messages(opts)
-  local messages = {
-    { role = "system", content = opts.system_prompt },
-  }
-  vim
-    .iter(opts.messages)
-    :each(function(msg) table.insert(messages, { role = M.role_map[msg.role], content = msg.content }) end)
-
-  if opts.tool_histories then
-    for _, tool_history in ipairs(opts.tool_histories) do
-      table.insert(messages, {
-        role = M.role_map["assistant"],
-        tool_calls = {
-          {
-            id = tool_history.tool_use.id,
-            type = "function",
-            ["function"] = {
-              name = tool_history.tool_use.name,
-              arguments = tool_history.tool_use.input_json,
-            },
-          },
-        },
-      })
-      local result_content = tool_history.tool_result.content or ""
-      table.insert(messages, {
-        role = "tool",
-        tool_call_id = tool_history.tool_result.tool_use_id,
-        content = tool_history.tool_result.is_error and "Error: " .. result_content or result_content,
-      })
-    end
-  end
-  return messages
-end
+M.parse_messages = OpenAI.parse_messages
 
 M.parse_response = OpenAI.parse_response
 
