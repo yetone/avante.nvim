@@ -701,6 +701,7 @@ By default, `avante.nvim` provides three different modes to interact with: `plan
 - `planning`: Used with `require("avante").toggle()` on sidebar
 - `editing`: Used with `require("avante").edit()` on selection codeblock
 - `suggesting`: Used with `require("avante").get_suggestion():suggest()` on Tab flow.
+- `cursor-planning`: Used with `require("avante").toggle()` on Tab flow, but only when cursor planning mode is enabled.
 
 Users can customize the system prompts via `Config.system_prompt`. We recommend calling this in a custom Autocmds depending on your need:
 
@@ -734,13 +735,14 @@ If you have the following structure:
 ├── .git/
 ├── typescript.planning.avanterules
 ├── snippets.editing.avanterules
+├── suggesting.avanterules
 └── src/
 
 ```
 
 - `typescript.planning.avanterules` will be used for `planning` mode
-- `snippets.editing.avanterules`` will be used for `editing` mode
-- the default `suggesting` prompt from `avante.nvim` will be used for `suggesting` mode.
+- `snippets.editing.avanterules` will be used for `editing` mode
+- `suggesting.avanterules` will be used for `suggesting` mode.
 
 </details>
 
