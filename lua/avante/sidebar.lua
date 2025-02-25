@@ -1261,12 +1261,21 @@ function Sidebar:apply(current_cursor)
           local prev_start_a = 1
           for _, hunk in ipairs(patch) do
             local start_a, count_a, start_b, count_b = unpack(hunk)
-            vim.list_extend(new_lines, vim.list_slice(original_code_lines, prev_start_a, start_a - 1))
+            if count_a > 0 then
+              vim.list_extend(new_lines, vim.list_slice(original_code_lines, prev_start_a, start_a - 1))
+            else
+              vim.list_extend(new_lines, vim.list_slice(original_code_lines, prev_start_a, start_a))
+            end
             prev_start_a = start_a + count_a
+            if count_a == 0 then prev_start_a = prev_start_a + 1 end
             table.insert(new_lines, "<<<<<<< HEAD")
-            vim.list_extend(new_lines, vim.list_slice(original_code_lines, start_a, start_a + count_a - 1))
+            if count_a > 0 then
+              vim.list_extend(new_lines, vim.list_slice(original_code_lines, start_a, start_a + count_a - 1))
+            end
             table.insert(new_lines, "=======")
-            vim.list_extend(new_lines, vim.list_slice(resp_lines, start_b, start_b + count_b - 1))
+            if count_b > 0 then
+              vim.list_extend(new_lines, vim.list_slice(resp_lines, start_b, start_b + count_b - 1))
+            end
             table.insert(new_lines, ">>>>>>> Snippet")
           end
 
