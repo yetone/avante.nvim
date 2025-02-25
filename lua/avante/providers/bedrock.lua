@@ -7,7 +7,7 @@ local M = {}
 M.api_key_name = "BEDROCK_KEYS"
 M.use_xml_format = true
 
-M.load_model_handler = function()
+function M.load_model_handler()
   local provider_conf, _ = P.parse_config(P["bedrock"])
   local bedrock_model = provider_conf.model
   if provider_conf.model:match("anthropic") then bedrock_model = "claude" end
@@ -18,17 +18,17 @@ M.load_model_handler = function()
   error(error_msg)
 end
 
-M.parse_response = function(ctx, data_stream, event_state, opts)
+function M.parse_response(ctx, data_stream, event_state, opts)
   local model_handler = M.load_model_handler()
   return model_handler.parse_response(ctx, data_stream, event_state, opts)
 end
 
-M.build_bedrock_payload = function(prompt_opts, body_opts)
+function M.build_bedrock_payload(prompt_opts, body_opts)
   local model_handler = M.load_model_handler()
   return model_handler.build_bedrock_payload(prompt_opts, body_opts)
 end
 
-M.parse_stream_data = function(data, opts)
+function M.parse_stream_data(data, opts)
   -- @NOTE: Decode and process Bedrock response
   -- Each response contains a Base64-encoded `bytes` field, which is decoded into JSON.
   -- The `type` field in the decoded JSON determines how the response is handled.
@@ -44,7 +44,7 @@ end
 ---@param provider AvanteBedrockProviderFunctor
 ---@param prompt_opts AvantePromptOptions
 ---@return table
-M.parse_curl_args = function(provider, prompt_opts)
+function M.parse_curl_args(provider, prompt_opts)
   local base, body_opts = P.parse_config(provider)
 
   local api_key = provider.parse_api_key()
@@ -86,7 +86,7 @@ M.parse_curl_args = function(provider, prompt_opts)
   }
 end
 
-M.on_error = function(result)
+function M.on_error(result)
   if not result.body then
     return Utils.error("API request failed with status " .. result.status, { once = true, title = "Avante" })
   end

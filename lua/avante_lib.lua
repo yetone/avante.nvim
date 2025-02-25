@@ -8,9 +8,9 @@ local function get_library_path()
 end
 
 ---@type fun(s: string): string
-local trim_semicolon = function(s) return s:sub(-1) == ";" and s:sub(1, -2) or s end
+local function trim_semicolon(s) return s:sub(-1) == ";" and s:sub(1, -2) or s end
 
-M.load = function()
+function M.load()
   local library_path = get_library_path()
   if not string.find(package.cpath, library_path, 1, true) then
     package.cpath = trim_semicolon(package.cpath) .. ";" .. library_path

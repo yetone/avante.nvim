@@ -47,7 +47,7 @@ M.role_map = {
   assistant = "assistant",
 }
 
-M.parse_messages = function(opts)
+function M.parse_messages(opts)
   local messages = {
     { role = "system", content = opts.system_prompt },
   }
@@ -57,7 +57,7 @@ M.parse_messages = function(opts)
   return { messages = messages }
 end
 
-M.parse_stream_data = function(data, opts)
+function M.parse_stream_data(data, opts)
   ---@type CohereChatResponse
   local json = vim.json.decode(data)
   if json.type ~= nil then
@@ -69,7 +69,7 @@ M.parse_stream_data = function(data, opts)
   end
 end
 
-M.parse_curl_args = function(provider, prompt_opts)
+function M.parse_curl_args(provider, prompt_opts)
   local provider_conf, request_body = P.parse_config(provider)
 
   local headers = {
@@ -96,7 +96,7 @@ M.parse_curl_args = function(provider, prompt_opts)
   }
 end
 
-M.setup = function()
+function M.setup()
   P.env.parse_envvar(M)
   require("avante.tokenizers").setup(M.tokenizer_id, false)
   vim.g.avante_login = true

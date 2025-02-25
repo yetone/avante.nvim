@@ -19,7 +19,7 @@ end
 
 function mentions_source:is_available() return api.nvim_get_current_buf() == self.bufnr end
 
-mentions_source.get_position_encoding_kind = function() return "utf-8" end
+function mentions_source.get_position_encoding_kind() return "utf-8" end
 
 function mentions_source:get_trigger_characters() return { "@" } end
 

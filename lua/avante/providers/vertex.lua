@@ -22,7 +22,7 @@ local function execute_command(command)
   return result:match("^%s*(.-)%s*$")
 end
 
-M.parse_api_key = function()
+function M.parse_api_key()
   if not M.api_key_name:match("^cmd:") then
     error("Invalid api_key_name: Expected 'cmd:<command>' format, got '" .. M.api_key_name .. "'")
   end
@@ -31,7 +31,7 @@ M.parse_api_key = function()
   return direct_output
 end
 
-M.parse_curl_args = function(provider, prompt_opts)
+function M.parse_curl_args(provider, prompt_opts)
   local provider_conf, request_body = P.parse_config(provider)
   local location = vim.fn.getenv("LOCATION") or "default-location"
   local project_id = vim.fn.getenv("PROJECT_ID") or "default-project-id"

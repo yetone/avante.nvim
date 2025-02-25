@@ -25,7 +25,7 @@ end
 
 M.support_paste_image = Config.support_paste_image
 
-M.setup = function()
+function M.setup()
   get_paste_directory()
 
   if not paste_directory:exists() then paste_directory:mkdir({ parent = true }) end
@@ -34,7 +34,7 @@ M.setup = function()
 end
 
 ---@param line? string
-M.paste_image = function(line)
+function M.paste_image(line)
   line = line or nil
   if not Config.support_paste_image() then return false end
 
@@ -53,7 +53,7 @@ M.paste_image = function(line)
 end
 
 ---@param filepath string
-M.get_base64_content = function(filepath)
+function M.get_base64_content(filepath)
   local os_mapping = Utils.get_os_name()
   ---@type vim.SystemCompleted
   local output

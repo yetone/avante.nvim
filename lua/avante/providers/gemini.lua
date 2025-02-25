@@ -12,7 +12,7 @@ M.role_map = {
 }
 -- M.tokenizer_id = "google/gemma-2b"
 
-M.parse_messages = function(opts)
+function M.parse_messages(opts)
   local contents = {}
   local prev_role = nil
 
@@ -64,7 +64,7 @@ M.parse_messages = function(opts)
   }
 end
 
-M.parse_response = function(ctx, data_stream, _, opts)
+function M.parse_response(ctx, data_stream, _, opts)
   local ok, json = pcall(vim.json.decode, data_stream)
   if not ok then opts.on_stop({ reason = "error", error = json }) end
   if json.candidates then
@@ -81,7 +81,7 @@ M.parse_response = function(ctx, data_stream, _, opts)
   end
 end
 
-M.parse_curl_args = function(provider, prompt_opts)
+function M.parse_curl_args(provider, prompt_opts)
   local provider_conf, request_body = P.parse_config(provider)
 
   request_body = vim.tbl_deep_extend("force", request_body, {

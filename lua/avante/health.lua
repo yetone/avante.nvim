@@ -3,7 +3,7 @@ local H = require("vim.health")
 local Utils = require("avante.utils")
 local Config = require("avante.config")
 
-M.check = function()
+function M.check()
   H.start("avante.nvim")
 
   -- Required dependencies

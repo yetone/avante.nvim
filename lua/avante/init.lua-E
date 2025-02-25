@@ -24,12 +24,12 @@ M.did_setup = false
 
 local H = {}
 
-function H.load_path()
+H.load_path = function()
   local ok, LazyConfig = pcall(require, "lazy.core.config")
 
   if ok then
     local name = "avante.nvim"
-    local function load_path() require("avante_lib").load() end
+    local load_path = function() require("avante_lib").load() end
 
     if LazyConfig.plugins[name] and LazyConfig.plugins[name]._.loaded then
       vim.schedule(load_path)
@@ -54,7 +54,7 @@ function H.load_path()
   end
 end
 
-function H.keymaps()
+H.keymaps = function()
   vim.keymap.set({ "n", "v" }, "<Plug>(AvanteAsk)", function() require("avante.api").ask() end, { noremap = true })
   vim.keymap.set(
     { "n", "v" },
@@ -180,17 +180,17 @@ end
 ---@class ApiCaller
 ---@operator call(...): any
 
-function H.api(fun)
+H.api = function(fun)
   return setmetatable({ api = true }, {
     __call = function(...) return fun(...) end,
   }) --[[@as ApiCaller]]
 end
 
-function H.signs() vim.fn.sign_define("AvanteInputPromptSign", { text = Config.windows.input.prefix }) end
+H.signs = function() vim.fn.sign_define("AvanteInputPromptSign", { text = Config.windows.input.prefix }) end
 
 H.augroup = api.nvim_create_augroup("avante_autocmds", { clear = true })
 
-function H.autocmds()
+H.autocmds = function()
   api.nvim_create_autocmd("TabEnter", {
     group = H.augroup,
     pattern = "*",
@@ -293,7 +293,7 @@ end
 M.toggle = { api = true }
 
 ---@param opts? AskOptions
-function M.toggle_sidebar(opts)
+M.toggle_sidebar = function(opts)
   opts = opts or {}
   if opts.ask == nil then opts.ask = true end
 
@@ -308,14 +308,14 @@ function M.toggle_sidebar(opts)
   return sidebar:toggle(opts)
 end
 
-function M.is_sidebar_open()
+M.is_sidebar_open = function()
   local sidebar = M.get()
   if not sidebar then return false end
   return sidebar:is_open()
 end
 
 ---@param opts? AskOptions
-function M.open_sidebar(opts)
+M.open_sidebar = function(opts)
   opts = opts or {}
   if opts.ask == nil then opts.ask = true end
   local sidebar = M.get()
@@ -324,7 +324,7 @@ function M.open_sidebar(opts)
   M.current.sidebar:open(opts)
 end
 
-function M.close_sidebar()
+M.close_sidebar = function()
   local sidebar = M.get()
   if not sidebar then return end
   sidebar:close()

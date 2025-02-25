@@ -43,10 +43,10 @@ function M.transform_tool(tool)
   return res
 end
 
-M.is_openrouter = function(url) return url:match("^https://openrouter%.ai/") end
+function M.is_openrouter(url) return url:match("^https://openrouter%.ai/") end
 
 ---@param opts AvantePromptOptions
-M.get_user_message = function(opts)
+function M.get_user_message(opts)
   vim.deprecate("get_user_message", "parse_messages", "0.1.0", "avante.nvim")
   return table.concat(
     vim
@@ -61,9 +61,9 @@ M.get_user_message = function(opts)
   )
 end
 
-M.is_o_series_model = function(model) return model and string.match(model, "^o%d+") ~= nil end
+function M.is_o_series_model(model) return model and string.match(model, "^o%d+") ~= nil end
 
-M.parse_messages = function(opts)
+function M.parse_messages(opts)
   local messages = {}
   local provider = P[Config.provider]
   local base, _ = P.parse_config(provider)
@@ -137,7 +137,7 @@ M.parse_messages = function(opts)
   return final_messages
 end
 
-M.parse_response = function(ctx, data_stream, _, opts)
+function M.parse_response(ctx, data_stream, _, opts)
   if data_stream:match('"%[DONE%]":') then
     opts.on_stop({ reason = "complete" })
     return
@@ -205,7 +205,7 @@ M.parse_response = function(ctx, data_stream, _, opts)
   end
 end
 
-M.parse_response_without_stream = function(data, _, opts)
+function M.parse_response_without_stream(data, _, opts)
   ---@type AvanteOpenAIChatResponse
   local json = vim.json.decode(data)
   if json.choices and json.choices[1] then
@@ -217,7 +217,7 @@ M.parse_response_without_stream = function(data, _, opts)
   end
 end
 
-M.parse_curl_args = function(provider, prompt_opts)
+function M.parse_curl_args(provider, prompt_opts)
   local provider_conf, request_body = P.parse_config(provider)
   local disable_tools = provider_conf.disable_tools or false
 

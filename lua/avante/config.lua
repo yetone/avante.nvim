@@ -479,18 +479,18 @@ M = setmetatable(M, {
   end,
 })
 
-M.support_paste_image = function() return Utils.has("img-clip.nvim") or Utils.has("img-clip") end
+function M.support_paste_image() return Utils.has("img-clip.nvim") or Utils.has("img-clip") end
 
-M.get_window_width = function() return math.ceil(vim.o.columns * (M.windows.width / 100)) end
+function M.get_window_width() return math.ceil(vim.o.columns * (M.windows.width / 100)) end
 
 ---@param provider Provider
 ---@return boolean
-M.has_provider = function(provider) return M._options[provider] ~= nil or M.vendors[provider] ~= nil end
+function M.has_provider(provider) return M._options[provider] ~= nil or M.vendors[provider] ~= nil end
 
 ---get supported providers
 ---@param provider Provider
 ---@return AvanteProviderFunctor
-M.get_provider = function(provider)
+function M.get_provider(provider)
   if M._options[provider] ~= nil then
     return vim.deepcopy(M._options[provider], true)
   elseif M.vendors and M.vendors[provider] ~= nil then

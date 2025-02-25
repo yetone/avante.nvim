@@ -98,7 +98,7 @@ end
 ---@field oauth_token string
 ---
 ---@return string
-H.get_oauth_token = function()
+function H.get_oauth_token()
   local xdg_config = vim.fn.expand("$XDG_CONFIG_HOME")
   local os_name = Utils.get_os_name()
   ---@type string
@@ -138,9 +138,9 @@ H.get_oauth_token = function()
 end
 
 H.chat_auth_url = "https://api.github.com/copilot_internal/v2/token"
-H.chat_completion_url = function(base_url) return Utils.url_join(base_url, "/chat/completions") end
+function H.chat_completion_url(base_url) return Utils.url_join(base_url, "/chat/completions") end
 
-H.refresh_token = function(async, force)
+function H.refresh_token(async, force)
   if not M.state then error("internal initialization error") end
 
   async = async == nil and true or async
@@ -166,7 +166,7 @@ H.refresh_token = function(async, force)
     insecure = Config.copilot.allow_insecure,
   }
 
-  local handle_response = function(response)
+  local function handle_response(response)
     if response.status == 200 then
       M.state.github_token = vim.json.decode(response.body)
       local file = Path:new(copilot_path)
@@ -209,7 +209,7 @@ M.role_map = {
   assistant = "assistant",
 }
 
-M.parse_messages = function(opts)
+function M.parse_messages(opts)
   local messages = {
     { role = "system", content = opts.system_prompt },
   }
@@ -245,7 +245,7 @@ end
 
 M.parse_response = OpenAI.parse_response
 
-M.parse_curl_args = function(provider, prompt_opts)
+function M.parse_curl_args(provider, prompt_opts)
   -- refresh token synchronously, only if it has expired
   -- (this should rarely happen, as we refresh the token in the background)
   H.refresh_token(false, false)
@@ -282,7 +282,7 @@ end
 
 M._refresh_timer = nil
 
-M.setup_timer = function()
+function M.setup_timer()
   if M._refresh_timer then
     M._refresh_timer:stop()
     M._refresh_timer:close()
@@ -305,7 +305,7 @@ M.setup_timer = function()
   )
 end
 
-M.setup_file_watcher = function()
+function M.setup_file_watcher()
   if M._file_watcher then return end
 
   local copilot_token_file = Path:new(copilot_path)
@@ -321,7 +321,7 @@ M.setup_file_watcher = function()
   )
 end
 
-M.setup = function()
+function M.setup()
   local copilot_token_file = Path:new(copilot_path)
 
   if not M.state then M.state = {
@@ -351,7 +351,7 @@ M.setup = function()
   vim.g.avante_login = true
 end
 
-M.cleanup = function()
+function M.cleanup()
   -- Cleanup refresh timer
   if M._refresh_timer then
     M._refresh_timer:stop()

@@ -211,7 +211,7 @@ function FileSelector:fzf_ui(handler)
 
   local filepaths = self:get_filepaths()
 
-  local close_action = function() handler(nil) end
+  local function close_action() handler(nil) end
   fzf_lua.fzf_exec(
     filepaths,
     vim.tbl_deep_extend("force", {
@@ -244,8 +244,8 @@ function FileSelector:mini_pick_ui(handler)
     Utils.error("mini.pick is not set up. Please install and set up mini.pick to use it as a file selector.")
     return
   end
-  local choose = function(item) handler(type(item) == "string" and { item } or item) end
-  local choose_marked = function(items_marked) handler(items_marked) end
+  local function choose(item) handler(type(item) == "string" and { item } or item) end
+  local function choose_marked(items_marked) handler(items_marked) end
   local source = { choose = choose, choose_marked = choose_marked }
   ---@diagnostic disable-next-line: undefined-global
   local result = MiniPick.builtin.files(nil, { source = source })
