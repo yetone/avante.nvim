@@ -30,7 +30,7 @@ local History = {}
 -- Get a chat history file name given a buffer
 ---@param bufnr integer
 ---@return string
-History.filename = function(bufnr)
+function History.filename(bufnr)
   local project_root = Utils.root.get({
     buf = bufnr,
   })
@@ -43,12 +43,12 @@ end
 -- Returns the Path to the chat history file for the given buffer.
 ---@param bufnr integer
 ---@return Path
-History.get = function(bufnr) return Path:new(Config.history.storage_path):joinpath(History.filename(bufnr)) end
+function History.get(bufnr) return Path:new(Config.history.storage_path):joinpath(History.filename(bufnr)) end
 
 -- Loads the chat history for the given buffer.
 ---@param bufnr integer
 ---@return avante.ChatHistoryEntry[]
-History.load = function(bufnr)
+function History.load(bufnr)
   local history_file = History.get(bufnr)
   local cached_key = tostring(history_file:absolute())
   local cached_value = history_file_cache:get(cached_key)
@@ -79,7 +79,7 @@ local Prompt = {}
 
 -- Given a mode, return the file name for the custom prompt.
 ---@param mode AvanteLlmMode
-Prompt.get_mode_file = function(mode) return string.format("custom.%s.avanterules", mode) end
+function Prompt.get_mode_file(mode) return string.format("custom.%s.avanterules", mode) end
 
 ---@class AvanteTemplates
 ---@field initialize fun(directory: string): nil
@@ -92,7 +92,7 @@ Prompt.templates = { planning = nil, editing = nil, suggesting = nil }
 -- PERF: Hmm instead of copy to cache, we can also load in globals context, but it requires some work on bindings. (eh maybe?)
 ---@param project_root string
 ---@return string the resulted cache_directory to be loaded with avante_templates
-Prompt.get = function(project_root)
+function Prompt.get(project_root)
   if not P.available() then error("Make sure to build avante (missing avante_templates)", 2) end
 
   -- get root directory of given bufnr
@@ -134,20 +134,20 @@ Prompt.get = function(project_root)
 end
 
 ---@param mode AvanteLlmMode
-Prompt.get_file = function(mode)
+function Prompt.get_file(mode)
   if Prompt.templates[mode] ~= nil then return Prompt.get_mode_file(mode) end
   return string.format("%s.avanterules", mode)
 end
 
 ---@param path string
 ---@param opts AvanteTemplateOptions
-Prompt.render_file = function(path, opts) return templates.render(path, opts) end
+function Prompt.render_file(path, opts) return templates.render(path, opts) end
 
 ---@param mode AvanteLlmMode
 ---@param opts AvanteTemplateOptions
-Prompt.render_mode = function(mode, opts) return templates.render(Prompt.get_file(mode), opts) end
+function Prompt.render_mode(mode, opts) return templates.render(Prompt.get_file(mode), opts) end
 
-Prompt.initialize = function(directory) templates.initialize(directory) end
+function Prompt.initialize(directory) templates.initialize(directory) end
 
 P.prompts = Prompt
 
@@ -157,21 +157,21 @@ local RepoMap = {}
 ---@param project_root string
 ---@param ext string
 ---@return string
-RepoMap.filename = function(project_root, ext)
+function RepoMap.filename(project_root, ext)
   -- Replace path separators with double underscores
   local path_with_separators = fn.substitute(project_root, "/", "__", "g")
   -- Replace other non-alphanumeric characters with single underscores
   return fn.substitute(path_with_separators, "[^A-Za-z0-9._]", "_", "g") .. "." .. ext .. ".repo_map.json"
 end
 
-RepoMap.get = function(project_root, ext) return Path:new(P.data_path):joinpath(RepoMap.filename(project_root, ext)) end
+function RepoMap.get(project_root, ext) return Path:new(P.data_path):joinpath(RepoMap.filename(project_root, ext)) end
 
-RepoMap.save = function(project_root, ext, data)
+function RepoMap.save(project_root, ext, data)
   local file = RepoMap.get(project_root, ext)
   file:write(vim.json.encode(data), "w")
 end
 
-RepoMap.load = function(project_root, ext)
+function RepoMap.load(project_root, ext)
   local file = RepoMap.get(project_root, ext)
   if file:exists() then
     local content = file:read()
@@ -183,7 +183,7 @@ end
 P.repo_map = RepoMap
 
 ---@return AvanteTemplates|nil
-P._init_templates_lib = function()
+function P._init_templates_lib()
   if templates ~= nil then return templates end
   local ok, module = pcall(require, "avante_templates")
   ---@cast module AvanteTemplates
@@ -194,7 +194,7 @@ P._init_templates_lib = function()
   return templates
 end
 
-P.setup = function()
+function P.setup()
   local history_path = Path:new(Config.history.storage_path)
   if not history_path:exists() then history_path:mkdir({ parents = true }) end
   P.history_path = history_path
@@ -210,9 +210,9 @@ P.setup = function()
   vim.defer_fn(P._init_templates_lib, 1000)
 end
 
-P.available = function() return P._init_templates_lib() ~= nil end
+function P.available() return P._init_templates_lib() ~= nil end
 
-P.clear = function()
+function P.clear()
   P.cache_path:rm({ recursive = true })
   P.history_path:rm({ recursive = true })
 

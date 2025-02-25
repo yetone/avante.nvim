@@ -21,7 +21,7 @@ local group = api.nvim_create_augroup("avante_llm", { clear = true })
 
 ---@param opts AvanteGeneratePromptsOptions
 ---@return AvantePromptOptions
-M.generate_prompts = function(opts)
+function M.generate_prompts(opts)
   local provider = opts.provider or Providers[Config.provider]
   local mode = opts.mode or "planning"
   ---@type AvanteProviderFunctor | AvanteBedrockProviderFunctor
@@ -141,7 +141,7 @@ end
 
 ---@param opts AvanteGeneratePromptsOptions
 ---@return integer
-M.calculate_tokens = function(opts)
+function M.calculate_tokens(opts)
   local prompt_opts = M.generate_prompts(opts)
   local tokens = Utils.tokens.calculate_tokens(prompt_opts.system_prompt)
   for _, message in ipairs(prompt_opts.messages) do
@@ -151,7 +151,7 @@ M.calculate_tokens = function(opts)
 end
 
 ---@param opts AvanteLLMStreamOptions
-M._stream = function(opts)
+function M._stream(opts)
   local provider = opts.provider or Providers[Config.provider]
 
   local prompt_opts = M.generate_prompts(opts)
@@ -353,7 +353,7 @@ local function _collector_add_response(collector, index, response, opts)
   end
 end
 
-M._dual_boost_stream = function(opts, Provider1, Provider2)
+function M._dual_boost_stream(opts, Provider1, Provider2)
   Utils.debug("Starting Dual Boost Stream")
 
   local collector = {
@@ -408,7 +408,7 @@ M._dual_boost_stream = function(opts, Provider1, Provider2)
 end
 
 ---@param opts AvanteLLMStreamOptions
-M.stream = function(opts)
+function M.stream(opts)
   local is_completed = false
   if opts.on_tool_log ~= nil then
     local original_on_tool_log = opts.on_tool_log

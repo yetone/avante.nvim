@@ -37,7 +37,7 @@ local function has_set_colors(hl_group)
   return next(hl) ~= nil
 end
 
-M.setup = function()
+function M.setup()
   if Config.behaviour.auto_set_highlight_group then
     vim
       .iter(Highlights)
@@ -59,16 +59,16 @@ M.setup = function()
   M.setup_conflict_highlights()
 end
 
-M.setup_conflict_highlights = function()
+function M.setup_conflict_highlights()
   local custom_hls = Config.highlights.diff
 
   ---@return number | nil
-  local get_bg = function(hl_name)
+  local function get_bg(hl_name)
     local hl = api.nvim_get_hl(0, { name = hl_name })
     return hl.bg
   end
 
-  local get_bold = function(hl_name)
+  local function get_bold(hl_name)
     local hl = api.nvim_get_hl(0, { name = hl_name })
     return hl.bold
   end
@@ -133,7 +133,7 @@ setmetatable(M, {
 ---
 ---@param rgb_24bit number 24-bit RGB value
 ---@return {r: integer, g: integer, b: integer} with keys 'r', 'g', 'b' in [0,255]
-H.decode_24bit_rgb = function(rgb_24bit)
+function H.decode_24bit_rgb(rgb_24bit)
   vim.validate({ rgb_24bit = { rgb_24bit, "n", true } })
   local r = band(rshift(rgb_24bit, 16), 255)
   local g = band(rshift(rgb_24bit, 8), 255)
@@ -143,7 +143,7 @@ end
 
 ---@param attr integer
 ---@param percent integer
-H.alter = function(attr, percent) return math.floor(attr * (100 + percent) / 100) end
+function H.alter(attr, percent) return math.floor(attr * (100 + percent) / 100) end
 
 ---@source https://stackoverflow.com/q/5560248
 ---@see https://stackoverflow.com/a/37797380
@@ -151,7 +151,7 @@ H.alter = function(attr, percent) return math.floor(attr * (100 + percent) / 100
 ---@param color number
 ---@param percent number
 ---@return string
-H.shade_color = function(color, percent)
+function H.shade_color(color, percent)
   percent = vim.opt.background:get() == "light" and percent / 5 or percent
   local rgb = H.decode_24bit_rgb(color)
   if not rgb.r or not rgb.g or not rgb.b then return "NONE" end

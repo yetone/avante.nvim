@@ -351,7 +351,7 @@ end
 -----------------------------------------------------------------------------//
 
 ---@param bufnr integer given buffer id
-H.setup_buffer_mappings = function(bufnr)
+function H.setup_buffer_mappings(bufnr)
   ---@param desc string
   local function opts(desc) return { silent = true, buffer = bufnr, desc = "avante(conflict): " .. desc } end
 
@@ -372,7 +372,7 @@ H.setup_buffer_mappings = function(bufnr)
 end
 
 ---@param bufnr integer
-H.clear_buffer_mappings = function(bufnr)
+function H.clear_buffer_mappings(bufnr)
   if not bufnr or not vim.b[bufnr].avante_conflict_mappings_set then return end
   for _, mapping in pairs(Config.mappings.diff) do
     if vim.fn.hasmapto(mapping, "n") > 0 then api.nvim_buf_del_keymap(bufnr, "n", mapping) end
@@ -382,7 +382,7 @@ H.clear_buffer_mappings = function(bufnr)
 end
 
 ---@param bufnr integer
-M.override_timeoutlen = function(bufnr)
+function M.override_timeoutlen(bufnr)
   if vim.b[bufnr].avante_original_timeoutlen then return end
   if Config.diff.override_timeoutlen > 0 then
     vim.b[bufnr].avante_original_timeoutlen = vim.o.timeoutlen
@@ -391,7 +391,7 @@ M.override_timeoutlen = function(bufnr)
 end
 
 ---@param bufnr integer
-M.restore_timeoutlen = function(bufnr)
+function M.restore_timeoutlen(bufnr)
   if vim.b[bufnr].avante_original_timeoutlen then
     vim.o.timeoutlen = vim.b[bufnr].avante_original_timeoutlen
     vim.b[bufnr].avante_original_timeoutlen = nil

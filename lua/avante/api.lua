@@ -12,7 +12,7 @@ local PromptInput = require("avante.prompt_input")
 local M = {}
 
 ---@param target_provider FileSelectorProvider
-M.switch_file_selector_provider = function(target_provider)
+function M.switch_file_selector_provider(target_provider)
   require("avante.config").override({
     file_selector = {
       provider = target_provider,
@@ -21,7 +21,7 @@ M.switch_file_selector_provider = function(target_provider)
 end
 
 ---@param target Provider
-M.switch_provider = function(target) require("avante.providers").refresh(target) end
+function M.switch_provider(target) require("avante.providers").refresh(target) end
 
 ---@param path string
 local function to_windows_path(path)
@@ -35,7 +35,7 @@ local function to_windows_path(path)
 end
 
 ---@param opts? {source: boolean}
-M.build = function(opts)
+function M.build(opts)
   opts = opts or { source = true }
   local dirname = Utils.trim(string.sub(debug.getinfo(1).source, 2, #"/init.lua" * -1), { suffix = "/" })
   local git_root = vim.fs.find(".git", { path = dirname, upward = true })[1]
@@ -101,7 +101,7 @@ end
 ---@field floating? boolean whether to open a floating input to enter the question
 
 ---@param opts? AskOptions
-M.ask = function(opts)
+function M.ask(opts)
   opts = opts or {}
   if type(opts) == "string" then
     Utils.warn("passing 'ask' as string is deprecated, do {question = '...'} instead", { once = true })
@@ -147,7 +147,7 @@ M.ask = function(opts)
 end
 
 ---@param question? string
-M.edit = function(question)
+function M.edit(question)
   local _, selection = require("avante").get()
   if not selection then return end
   selection:create_editing_input()
@@ -157,13 +157,13 @@ M.edit = function(question)
 end
 
 ---@return avante.Suggestion | nil
-M.get_suggestion = function()
+function M.get_suggestion()
   local _, _, suggestion = require("avante").get()
   return suggestion
 end
 
 ---@param opts? AskOptions
-M.refresh = function(opts)
+function M.refresh(opts)
   opts = opts or {}
   local sidebar = require("avante").get()
   if not sidebar then return end
@@ -185,7 +185,7 @@ M.refresh = function(opts)
 end
 
 ---@param opts? AskOptions
-M.focus = function(opts)
+function M.focus(opts)
   opts = opts or {}
   local sidebar = require("avante").get()
   if not sidebar then return end
@@ -211,7 +211,7 @@ M.focus = function(opts)
   end
 end
 
-M.select_model = function() require("avante.model_selector").open() end
+function M.select_model() require("avante.model_selector").open() end
 
 return setmetatable(M, {
   __index = function(t, k)

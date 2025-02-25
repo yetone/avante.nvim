@@ -289,7 +289,7 @@ end
 ---@field total_count number
 
 ---@return AvanteRagServiceResourceListResponse | nil
-M.get_resources = function()
+function M.get_resources()
   local resp = curl.get(M.get_rag_service_url() .. "/api/v1/resources", {
     headers = {
       ["Content-Type"] = "application/json",

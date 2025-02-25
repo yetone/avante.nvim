@@ -29,7 +29,7 @@ E.cache = {}
 
 ---@param Opts AvanteSupportedProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor
 ---@return string | nil
-E.parse_envvar = function(Opts)
+function E.parse_envvar(Opts)
   local api_key_name = Opts.api_key_name
   if api_key_name == nil then error("Requires api_key_name") end
 
@@ -91,7 +91,7 @@ end
 --- This will only run once and spawn a UI for users to input the envvar.
 ---@param opts {refresh: boolean, provider: AvanteProviderFunctor | AvanteBedrockProviderFunctor}
 ---@private
-E.setup = function(opts)
+function E.setup(opts)
   opts.provider.setup()
 
   local var = opts.provider.api_key_name
@@ -180,7 +180,7 @@ end
 E.REQUEST_LOGIN_PATTERN = "AvanteRequestLogin"
 
 ---@param provider AvanteDefaultBaseProvider
-E.require_api_key = function(provider)
+function E.require_api_key(provider)
   if provider["local"] ~= nil then
     if provider["local"] then
       vim.deprecate('"local" = true', "api_key_name = ''", "0.1.0", "avante.nvim")
@@ -239,7 +239,7 @@ M = setmetatable(M, {
   end,
 })
 
-M.setup = function()
+function M.setup()
   vim.g.avante_login = false
 
   ---@type AvanteProviderFunctor | AvanteBedrockProviderFunctor
@@ -274,7 +274,7 @@ end
 ---@param opts AvanteProvider | AvanteSupportedProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor
 ---@return AvanteDefaultBaseProvider provider_opts
 ---@return table<string, any> request_body
-M.parse_config = function(opts)
+function M.parse_config(opts)
   ---@type AvanteDefaultBaseProvider
   local provider_opts = {}
   ---@type table<string, any>
@@ -302,7 +302,7 @@ end
 ---@private
 ---@param provider Provider
 ---@return AvanteProviderFunctor | AvanteBedrockProviderFunctor
-M.get_config = function(provider)
+function M.get_config(provider)
   provider = provider or Config.provider
   local cur = Config.get_provider(provider)
   return type(cur) == "function" and cur() or cur
