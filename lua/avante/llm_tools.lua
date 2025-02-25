@@ -506,18 +506,21 @@ function M.python(opts, on_log)
   if not has_permission_to_access(abs_path) then return nil, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return nil, "Path not found: " .. abs_path end
   if on_log then on_log("cwd: " .. abs_path) end
-  if on_log then on_log("code: " .. opts.code) end
+  if on_log then on_log("code:\n" .. opts.code) end
+  local container_image = opts.container_image or "python:3.11-slim-bookworm"
   if
     not M.confirm(
-      "Are you sure you want to run the python code in the contianer in the directory: `"
+      "Are you sure you want to run the following python code in the `"
+        .. container_image
+        .. "` container, in the directory: `"
         .. abs_path
-        .. "`? code: "
+        .. "`?\n"
         .. opts.code
     )
   then
     return nil, "User canceled"
   end
-  local container_image = opts.container_image or "python:3.11-slim-bookworm"
+  if vim.fn.executable("docker") == 0 then return nil, "Python tool is not available to execute any code" end
   ---change cwd to abs_path
   local old_cwd = vim.fn.getcwd()
 
