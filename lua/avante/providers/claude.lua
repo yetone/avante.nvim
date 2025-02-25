@@ -168,7 +168,26 @@ M.parse_response = function(ctx, data_stream, event_state, opts)
     elseif ctx.response_content and jsn.delta.type == "text_delta" then
       ctx.response_content = ctx.response_content .. jsn.delta.text
     end
-    opts.on_chunk(jsn.delta.text)
+    if jsn.delta.type == "thinking_delta" then
+      if ctx.returned_think_start_tag == nil or not ctx.returned_think_start_tag then
+        ctx.returned_think_start_tag = true
+        opts.on_chunk("<think>\n")
+      end
+      ctx.last_think_content = jsn.delta.thinking
+      opts.on_chunk(jsn.delta.thinking)
+    elseif jsn.delta.type == "text_delta" then
+      if
+        ctx.returned_think_start_tag ~= nil and (ctx.returned_think_end_tag == nil or not ctx.returned_think_end_tag)
+      then
+        ctx.returned_think_end_tag = true
+        if ctx.last_think_content and ctx.last_think_content ~= vim.NIL and ctx.last_think_content:sub(-1) ~= "\n" then
+          opts.on_chunk("\n</think>\n\n")
+        else
+          opts.on_chunk("</think>\n\n")
+        end
+      end
+      opts.on_chunk(jsn.delta.text)
+    end
   elseif event_state == "content_block_stop" then
     if ctx.tool_use_list then
       local tool_use = ctx.tool_use_list[#ctx.tool_use_list]
