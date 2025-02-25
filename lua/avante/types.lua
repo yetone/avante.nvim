@@ -243,7 +243,6 @@ vim.g.avante_login = vim.g.avante_login
 ---@alias AvanteLLMConfigHandler fun(opts: AvanteSupportedProvider): AvanteDefaultBaseProvider, table<string, any>
 ---
 ---@class AvanteProvider: AvanteSupportedProvider
----@field parse_response_data AvanteResponseParser
 ---@field parse_curl_args? AvanteCurlArgsParser
 ---@field parse_stream_data? AvanteStreamParser
 ---@field parse_api_key? fun(): string | nil
@@ -254,7 +253,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field parse_response AvanteResponseParser
 ---@field parse_curl_args AvanteCurlArgsParser
 ---@field setup fun(): nil
----@field has fun(): boolean
+---@field is_env_set fun(): boolean
 ---@field api_key_name string
 ---@field tokenizer_id string | "gpt-4o"
 ---@field use_xml_format boolean
@@ -263,18 +262,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field parse_stream_data? AvanteStreamParser
 ---@field on_error? fun(result: table<string, any>): nil
 ---
----@class AvanteBedrockProviderFunctor
----@field parse_response AvanteResponseParser
----@field parse_curl_args AvanteCurlArgsParser
----@field setup fun(): nil
----@field has fun(): boolean
----@field api_key_name string
----@field tokenizer_id string | "gpt-4o"
----@field use_xml_format boolean
----@field model? string
----@field parse_api_key fun(): string | nil
----@field parse_stream_data? AvanteStreamParser
----@field on_error? fun(result: table<string, any>): nil
+---@class AvanteBedrockProviderFunctor: AvanteProviderFunctor
 ---@field load_model_handler fun(): AvanteBedrockModelHandler
 ---@field build_bedrock_payload? fun(prompt_opts: AvantePromptOptions, body_opts: table<string, any>): table<string, any>
 ---
