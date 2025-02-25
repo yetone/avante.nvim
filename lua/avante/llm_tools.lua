@@ -238,7 +238,7 @@ function M.delete_dir(opts, on_log)
 end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string, command: string }>
-function M.run_command(opts, on_log)
+function M.run_command(opts, on_log, on_complete)
   local abs_path = get_abs_path(opts.rel_path)
   if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "Path not found: " .. abs_path end
@@ -251,13 +251,27 @@ function M.run_command(opts, on_log)
   ---change cwd to abs_path
   local old_cwd = vim.fn.getcwd()
   vim.fn.chdir(abs_path)
-  local res = Utils.shell_run(opts.command, Config.run_command.shell_cmd)
-  vim.fn.chdir(old_cwd)
-  if res.code ~= 0 then
-    if res.stdout then return false, "Error: " .. res.stdout .. "; Error code: " .. tostring(res.code) end
-    return false, "Error code: " .. tostring(res.code)
+  ---@param output string
+  ---@param exit_code integer
+  ---@return string | boolean | nil result
+  ---@return string | nil error
+  local function handle_result(output, exit_code)
+    vim.fn.chdir(old_cwd)
+    if exit_code ~= 0 then
+      if output then return false, "Error: " .. output .. "; Error code: " .. tostring(exit_code) end
+      return false, "Error code: " .. tostring(exit_code)
+    end
+    return output, nil
   end
-  return res.stdout, nil
+  if on_complete then
+    Utils.shell_run_async(opts.command, Config.run_command.shell_cmd, function(output, exit_code)
+      local result, err = handle_result(output, exit_code)
+      on_complete(result, err)
+    end)
+    return nil, nil
+  end
+  local res = Utils.shell_run(opts.command, Config.run_command.shell_cmd)
+  return handle_result(res.stdout, res.code)
 end
 
 ---@type AvanteLLMToolFunc<{ query: string }>
@@ -1100,9 +1114,10 @@ M._tools = {
 ---@param tools AvanteLLMTool[]
 ---@param tool_use AvanteLLMToolUse
 ---@param on_log? fun(tool_name: string, log: string): nil
+---@param on_complete? fun(result: string | nil, error: string | nil): nil
 ---@return string | nil result
 ---@return string | nil error
-function M.process_tool_use(tools, tool_use, on_log)
+function M.process_tool_use(tools, tool_use, on_log, on_complete)
   Utils.debug("use tool", tool_use.name, tool_use.input_json)
   ---@type AvanteLLMTool?
   local tool = vim.iter(tools):find(function(tool) return tool.name == tool_use.name end) ---@param tool AvanteLLMTool
@@ -1110,22 +1125,36 @@ function M.process_tool_use(tools, tool_use, on_log)
   local input_json = vim.json.decode(tool_use.input_json)
   local func = tool.func or M[tool.name]
   if on_log then on_log(tool.name, "running tool") end
-  local result, error = func(input_json, function(log)
+  ---@param result string | nil | boolean
+  ---@param err string | nil
+  local function handle_result(result, err)
+    if on_log then on_log(tool.name, "tool finished") end
+    -- Utils.debug("result", result)
+    -- Utils.debug("error", error)
+    if err ~= nil then
+      if on_log then on_log(tool.name, "Error: " .. err) end
+    end
+    local result_str ---@type string?
+    if type(result) == "string" then
+      result_str = result
+    elseif result ~= nil then
+      result_str = vim.json.encode(result)
+    end
+    return result_str, err
+  end
+  local result, err = func(input_json, function(log)
     if on_log then on_log(tool.name, log) end
+  end, function(result, err)
+    result, err = handle_result(result, err)
+    if on_complete == nil then
+      Utils.error("asynchronous tool " .. tool.name .. " result not handled")
+      return
+    end
+    on_complete(result, err)
   end)
-  if on_log then on_log(tool.name, "tool finished") end
-  -- Utils.debug("result", result)
-  -- Utils.debug("error", error)
-  if error ~= nil then
-    if on_log then on_log(tool.name, "Error: " .. error) end
-  end
-  local result_str ---@type string?
-  if type(result) == "string" then
-    result_str = result
-  elseif result ~= nil then
-    result_str = vim.json.encode(result)
-  end
-  return result_str, error
+  -- Result and error being nil means that the tool was executed asynchronously
+  if result == nil and err == nil and on_complete then return end
+  return handle_result(result, err)
 end
 
 ---@param tool_use AvanteLLMToolUse
