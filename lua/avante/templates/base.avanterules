@@ -20,3 +20,6 @@ Use the appropriate shell based on the user's system info:
 
 {% block extra_prompt %}
 {% endblock %}
+
+{% block custom_prompt %}
+{% endblock %}
