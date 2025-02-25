@@ -715,14 +715,27 @@ function M.scan_directory(options)
   if not cmd then
     local p = Path:new(options.directory)
     if p:joinpath(".git"):exists() and vim.fn.executable("git") == 1 then
-      cmd = {
-        "bash",
-        "-c",
-        string.format(
-          "cd %s && cat <(git ls-files --exclude-standard) <(git ls-files --exclude-standard --others)",
-          options.directory
-        ),
-      }
+      if vim.fn.has("win32") == 1 then
+        cmd = {
+          "powershell",
+          "-NoProfile",
+          "-NonInteractive",
+          "-Command",
+          string.format(
+            "Push-Location '%s'; (git ls-files --exclude-standard), (git ls-files --exclude-standard --others)",
+            options.directory:gsub("/", "\\")
+          ),
+        }
+      else
+        cmd = {
+          "bash",
+          "-c",
+          string.format(
+            "cd %s && cat <(git ls-files --exclude-standard) <(git ls-files --exclude-standard --others)",
+            options.directory
+          ),
+        }
+      end
       cmd_supports_max_depth = false
     else
       M.error("No search command found")
