@@ -37,6 +37,61 @@ function M.check()
       H.error("Copilot provider is configured but neither copilot.lua nor copilot.vim is installed")
     end
   end
+
+  -- Check TreeSitter dependencies
+  M.check_treesitter()
+end
+
+-- Check TreeSitter functionality and parsers
+function M.check_treesitter()
+  H.start("TreeSitter Dependencies")
+
+  -- Check if TreeSitter is available
+  local has_ts, _ = pcall(require, "nvim-treesitter.configs")
+  if not has_ts then
+    H.error("TreeSitter not available. Make sure nvim-treesitter is properly installed")
+    return
+  end
+
+  H.ok("TreeSitter core functionality is available")
+
+  -- Check for essential parsers
+  local has_parsers, parsers = pcall(require, "nvim-treesitter.parsers")
+  if not has_parsers then
+    H.error("TreeSitter parsers module not available")
+    return
+  end
+
+  -- List of important parsers for avante.nvim
+  local essential_parsers = {
+    "markdown",
+  }
+
+  local missing_parsers = {}
+
+  for _, parser in ipairs(essential_parsers) do
+    if parsers.has_parser and not parsers.has_parser(parser) then table.insert(missing_parsers, parser) end
+  end
+
+  if #missing_parsers == 0 then
+    H.ok("All essential TreeSitter parsers are installed")
+  else
+    H.warn(
+      string.format(
+        "Missing recommended parsers: %s. Install with :TSInstall %s",
+        table.concat(missing_parsers, ", "),
+        table.concat(missing_parsers, " ")
+      )
+    )
+  end
+
+  -- Check TreeSitter highlight
+  local _, highlighter = pcall(require, "vim.treesitter.highlighter")
+  if not highlighter then
+    H.warn("TreeSitter highlighter not available. Syntax highlighting might be limited")
+  else
+    H.ok("TreeSitter highlighter is available")
+  end
 end
 
 return M
