@@ -142,7 +142,6 @@ function Prompt.get_templates_dir(project_root)
   end)
 
   local dir = cache_prompt_dir:absolute()
-  Utils.debug("Prompt cache directory:", dir)
   return dir
 end
 
@@ -161,7 +160,6 @@ function Prompt.render_file(path, opts) return _templates_lib.render(path, opts)
 ---@param opts AvanteTemplateOptions
 function Prompt.render_mode(mode, opts)
   local filepath = Prompt.get_filepath(mode)
-  Utils.debug("Prompt filepath:", filepath)
   return _templates_lib.render(filepath, opts)
 end
 
