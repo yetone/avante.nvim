@@ -520,6 +520,7 @@ function M.python(opts, on_log)
   then
     return nil, "User canceled"
   end
+  if vim.fn.executable("docker") == 0 then return nil, "Python tool is not available to execute any code" end
   ---change cwd to abs_path
   local old_cwd = vim.fn.getcwd()
 
