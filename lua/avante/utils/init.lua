@@ -24,16 +24,16 @@ setmetatable(M, {
 ---Check if a plugin is installed
 ---@param plugin string
 ---@return boolean
-M.has = function(plugin)
+function M.has(plugin)
   local ok, LazyConfig = pcall(require, "lazy.core.config")
   if ok then return LazyConfig.plugins[plugin] ~= nil end
   return package.loaded[plugin] ~= nil
 end
 
-M.is_win = function() return jit.os:find("Windows") ~= nil end
+function M.is_win() return jit.os:find("Windows") ~= nil end
 
 ---@return "linux" | "darwin" | "windows"
-M.get_os_name = function()
+function M.get_os_name()
   local os_name = vim.uv.os_uname().sysname
   if os_name == "Linux" then
     return "linux"
@@ -46,7 +46,7 @@ M.get_os_name = function()
   end
 end
 
-M.get_system_info = function()
+function M.get_system_info()
   local os_name = vim.loop.os_uname().sysname
   local os_version = vim.loop.os_uname().release
   local os_machine = vim.loop.os_uname().machine
@@ -75,7 +75,7 @@ end
 ---@param input_cmd string
 ---@param shell_cmd string?
 ---@return vim.SystemCompleted
-M.shell_run = function(input_cmd, shell_cmd)
+function M.shell_run(input_cmd, shell_cmd)
   local shell = vim.o.shell:lower()
   ---@type string
   local cmd
@@ -114,7 +114,7 @@ end
 ---@operator call:boolean
 
 ---@param toggle ToggleBind
-M.toggle_wrap = function(toggle)
+function M.toggle_wrap(toggle)
   return setmetatable(toggle, {
     __call = function()
       toggle.set(not toggle.get())
@@ -139,7 +139,7 @@ end
 ---@param rhs string|function  Right-hand side |{rhs}| of the mapping, can be a Lua function.
 ---
 ---@param opts? vim.keymap.set.Opts
-M.safe_keymap_set = function(mode, lhs, rhs, opts)
+function M.safe_keymap_set(mode, lhs, rhs, opts)
   ---@type boolean
   local ok
   ---@module "lazy.core.handler"
@@ -273,7 +273,7 @@ M.lsp = {}
 
 ---@param opts? vim.lsp.Client.filter
 ---@return vim.lsp.Client[]
-M.lsp.get_clients = function(opts)
+function M.lsp.get_clients(opts)
   ---@type vim.lsp.Client[]
   local ret = vim.lsp.get_clients(opts)
   return (opts and opts.filter) and vim.tbl_filter(opts.filter, ret) or ret
@@ -412,7 +412,7 @@ end
 
 ---@param winnr? number
 ---@return nil
-M.scroll_to_end = function(winnr)
+function M.scroll_to_end(winnr)
   winnr = winnr or 0
   local bufnr = api.nvim_win_get_buf(winnr)
   local lnum = api.nvim_buf_line_count(bufnr)
@@ -422,7 +422,7 @@ end
 
 ---@param bufnr nil|integer
 ---@return nil
-M.buf_scroll_to_end = function(bufnr)
+function M.buf_scroll_to_end(bufnr)
   for _, winnr in ipairs(M.buf_list_wins(bufnr or 0)) do
     M.scroll_to_end(winnr)
   end
@@ -430,7 +430,7 @@ end
 
 ---@param bufnr nil|integer
 ---@return integer[]
-M.buf_list_wins = function(bufnr)
+function M.buf_list_wins(bufnr)
   local wins = {}
 
   if not bufnr or bufnr == 0 then bufnr = api.nvim_get_current_buf() end
@@ -954,7 +954,7 @@ end
 
 ---Check if an icon plugin is installed
 ---@return boolean
-M.icons_enabled = function() return M.has("nvim-web-devicons") or M.has("mini.icons") or M.has("mini.nvim") end
+function M.icons_enabled() return M.has("nvim-web-devicons") or M.has("mini.icons") or M.has("mini.nvim") end
 
 ---Display an string with icon, if an icon plugin is available.
 ---Dev icons are an optional install for avante, this function prevents ugly chars
@@ -962,7 +962,7 @@ M.icons_enabled = function() return M.has("nvim-web-devicons") or M.has("mini.ic
 ---@param string_with_icon string
 ---@param utf8_fallback string|nil
 ---@return string
-M.icon = function(string_with_icon, utf8_fallback)
+function M.icon(string_with_icon, utf8_fallback)
   if M.icons_enabled() then
     return string_with_icon
   else

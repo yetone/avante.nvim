@@ -16,7 +16,7 @@ M.role_map = {
   assistant = "assistant",
 }
 
-M.parse_messages = function(opts)
+function M.parse_messages(opts)
   ---@type AvanteBedrockClaudeMessage[]
   local messages = {}
 
@@ -78,7 +78,7 @@ M.parse_response = Claude.parse_response
 ---@param prompt_opts AvantePromptOptions
 ---@param body_opts table
 ---@return table
-M.build_bedrock_payload = function(prompt_opts, body_opts)
+function M.build_bedrock_payload(prompt_opts, body_opts)
   local system_prompt = prompt_opts.system_prompt or ""
   local messages = M.parse_messages(prompt_opts)
   local max_tokens = body_opts.max_tokens or 2000

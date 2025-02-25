@@ -1275,7 +1275,7 @@ function Sidebar:apply(current_cursor)
 
           api.nvim_buf_set_lines(bufnr, 0, -1, false, new_lines)
 
-          local process = function(winid)
+          local function process(winid)
             api.nvim_set_current_win(winid)
             api.nvim_feedkeys(api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
             Diff.add_visited_buffer(bufnr)
@@ -1314,7 +1314,7 @@ function Sidebar:apply(current_cursor)
       local path_ = PPath:new(filepath)
       path_:parent():mkdir({ parents = true, exists_ok = true })
       insert_conflict_contents(bufnr, snippets)
-      local process = function(winid)
+      local function process(winid)
         api.nvim_set_current_win(winid)
         api.nvim_feedkeys(api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
         Diff.add_visited_buffer(bufnr)
@@ -1947,7 +1947,7 @@ function Sidebar:update_content(content, opts)
     content = self:render_history_content(chat_history) .. "-------\n\n" .. content
   end
   if opts.stream then
-    local scroll_to_bottom = function()
+    local function scroll_to_bottom()
       local last_line = api.nvim_buf_line_count(self.result_container.bufnr)
 
       local current_lines = Utils.get_buf_lines(last_line - 1, last_line, self.result_container.bufnr)
@@ -2480,10 +2480,10 @@ function Sidebar:create_input_container(opts)
     vim.keymap.set("n", "G", on_G, { buffer = self.result_container.bufnr })
 
     ---@type AvanteLLMStartCallback
-    local on_start = function(_) end
+    local function on_start(_) end
 
     ---@type AvanteLLMChunkCallback
-    local on_chunk = function(chunk)
+    local function on_chunk(chunk)
       self.is_generating = true
 
       original_response = original_response .. chunk
@@ -2507,7 +2507,7 @@ function Sidebar:create_input_container(opts)
       displayed_response = cur_displayed_response
     end
 
-    local on_tool_log = function(tool_name, log)
+    local function on_tool_log(tool_name, log)
       if transformed_response:sub(-1) ~= "\n" then transformed_response = transformed_response .. "\n" end
       transformed_response = transformed_response .. "[" .. tool_name .. "]: " .. log .. "\n"
       local breakline = ""
@@ -2519,7 +2519,7 @@ function Sidebar:create_input_container(opts)
     end
 
     ---@type AvanteLLMStopCallback
-    local on_stop = function(stop_opts)
+    local function on_stop(stop_opts)
       self.is_generating = false
 
       pcall(function()
@@ -2586,12 +2586,12 @@ function Sidebar:create_input_container(opts)
     Llm.stream(stream_options)
   end
 
-  local get_position = function()
+  local function get_position()
     if self:get_layout() == "vertical" then return "bottom" end
     return "right"
   end
 
-  local get_size = function()
+  local function get_size()
     if self:get_layout() == "vertical" then return {
       height = Config.windows.input.height,
     } end
@@ -2881,7 +2881,7 @@ end
 function Sidebar:render(opts)
   local chat_history = Path.history.load(self.code.bufnr)
 
-  local get_position = function()
+  local function get_position()
     return (opts and opts.win and opts.win.position) and opts.win.position or calculate_config_window_position()
   end
 
@@ -2988,7 +2988,7 @@ function Sidebar:create_selected_files_container()
 
   self.selected_files_container:mount()
 
-  local render = function()
+  local function render()
     local selected_filepaths_ = self.file_selector:get_selected_filepaths()
 
     if #selected_filepaths_ == 0 then
@@ -3020,7 +3020,7 @@ function Sidebar:create_selected_files_container()
 
   self.file_selector:on("update", render)
 
-  local remove_file = function(line_number) self.file_selector:remove_selected_filepaths_with_index(line_number) end
+  local function remove_file(line_number) self.file_selector:remove_selected_filepaths_with_index(line_number) end
 
   -- Function to show hint
   local function show_hint()

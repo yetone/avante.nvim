@@ -36,7 +36,7 @@ M.role_map = {
   assistant = "assistant",
 }
 
-M.parse_messages = function(opts)
+function M.parse_messages(opts)
   ---@type AvanteClaudeMessage[]
   local messages = {}
 
@@ -123,7 +123,7 @@ M.parse_messages = function(opts)
   return messages
 end
 
-M.parse_response = function(ctx, data_stream, event_state, opts)
+function M.parse_response(ctx, data_stream, event_state, opts)
   if event_state == nil then
     if data_stream:match('"message_start"') then
       event_state = "message_start"
@@ -214,7 +214,7 @@ end
 ---@param provider AvanteProviderFunctor
 ---@param prompt_opts AvantePromptOptions
 ---@return table
-M.parse_curl_args = function(provider, prompt_opts)
+function M.parse_curl_args(provider, prompt_opts)
   local provider_conf, request_body = P.parse_config(provider)
   local disable_tools = provider_conf.disable_tools or false
 
@@ -256,7 +256,7 @@ M.parse_curl_args = function(provider, prompt_opts)
   }
 end
 
-M.on_error = function(result)
+function M.on_error(result)
   if not result.body then
     return Utils.error("API request failed with status " .. result.status, { once = true, title = "Avante" })
   end

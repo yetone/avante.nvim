@@ -12,7 +12,7 @@ local M = {}
 
 ---@param model "gpt-4o" | string
 ---@return AvanteTokenizer|nil
-M._init_tokenizers_lib = function(model)
+function M._init_tokenizers_lib(model)
   if tokenizers ~= nil then return tokenizers end
 
   local ok, core = pcall(require, "avante_tokenizers")
@@ -28,7 +28,7 @@ end
 
 ---@param model "gpt-4o" | string
 ---@param warning? boolean
-M.setup = function(model, warning)
+function M.setup(model, warning)
   current_model = model
   warning = warning or true
   vim.defer_fn(function() M._init_tokenizers_lib(model) end, 1000)
@@ -44,10 +44,10 @@ M.setup = function(model, warning)
   end
 end
 
-M.available = function() return M._init_tokenizers_lib(current_model) ~= nil end
+function M.available() return M._init_tokenizers_lib(current_model) ~= nil end
 
 ---@param prompt string
-M.encode = function(prompt)
+function M.encode(prompt)
   if not M.available() then return nil end
   if not prompt or prompt == "" then return nil end
   if type(prompt) ~= "string" then error("Prompt is not type string", 2) end
@@ -56,7 +56,7 @@ M.encode = function(prompt)
 end
 
 ---@param prompt string
-M.count = function(prompt)
+function M.count(prompt)
   if not M.available() then return math.ceil(#prompt * 0.5) end
 
   local tokens = M.encode(prompt)
