@@ -71,14 +71,11 @@ function M.get_system_info()
   return res
 end
 
---- This function will run given shell command synchronously.
 ---@param input_cmd string
 ---@param shell_cmd string?
----@return vim.SystemCompleted
-function M.shell_run(input_cmd, shell_cmd)
+local function get_cmd_for_shell(input_cmd, shell_cmd)
   local shell = vim.o.shell:lower()
-  ---@type string
-  local cmd
+  local cmd ---@type string
 
   -- powershell then we can just run the cmd
   if shell:match("powershell") or shell:match("pwsh") then
@@ -89,15 +86,45 @@ function M.shell_run(input_cmd, shell_cmd)
   elseif fn.has("win32") > 0 then
     cmd = 'powershell.exe -NoProfile -Command "' .. input_cmd:gsub('"', "'") .. '"'
   else
-    -- linux and macos we wil just do sh -c
+    -- linux and macos we will just do sh -c
     shell_cmd = shell_cmd or "sh -c"
     cmd = shell_cmd .. " " .. fn.shellescape(input_cmd)
   end
+
+  return cmd
+end
+
+--- This function will run given shell command synchronously.
+---@param input_cmd string
+---@param shell_cmd string?
+---@return vim.SystemCompleted
+function M.shell_run(input_cmd, shell_cmd)
+  local cmd = get_cmd_for_shell(input_cmd, shell_cmd)
 
   local output = fn.system(cmd)
   local code = vim.v.shell_error
 
   return { stdout = output, code = code }
+end
+
+---@param input_cmd string
+---@param shell_cmd string?
+---@param on_complete fun(output: string, code: integer)
+function M.shell_run_async(input_cmd, shell_cmd, on_complete)
+  local cmd = get_cmd_for_shell(input_cmd, shell_cmd)
+  ---@type string[]
+  local output = {}
+  fn.jobstart(cmd, {
+    on_stdout = function(_, data)
+      if not data then return end
+      vim.list_extend(output, data)
+    end,
+    on_stderr = function(_, data)
+      if not data then return end
+      vim.list_extend(output, data)
+    end,
+    on_exit = function(_, exit_code) on_complete(table.concat(output, "\n"), exit_code) end,
+  })
 end
 
 ---@see https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/util/toggle.lua

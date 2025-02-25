@@ -164,21 +164,39 @@ function M._stream(opts)
     on_start = opts.on_start,
     on_chunk = opts.on_chunk,
     on_stop = function(stop_opts)
-      if stop_opts.reason == "tool_use" and stop_opts.tool_use_list then
-        local old_tool_histories = vim.deepcopy(opts.tool_histories) or {}
-        for _, tool_use in vim.spairs(stop_opts.tool_use_list) do
-          local result, error = LLMTools.process_tool_use(opts.tools, tool_use, opts.on_tool_log)
+      ---@param tool_use_list AvanteLLMToolUse[]
+      ---@param tool_use_index integer
+      ---@param tool_histories AvanteLLMToolHistory[]
+      local function handle_next_tool_use(tool_use_list, tool_use_index, tool_histories)
+        if tool_use_index > #tool_use_list then
+          local new_opts = vim.tbl_deep_extend("force", opts, {
+            tool_histories = tool_histories,
+          })
+          return M._stream(new_opts)
+        end
+        local tool_use = tool_use_list[tool_use_index]
+        ---@param result string | nil
+        ---@param error string | nil
+        local function handle_tool_result(result, error)
           local tool_result = {
             tool_use_id = tool_use.id,
             content = error ~= nil and error or result,
             is_error = error ~= nil,
           }
-          table.insert(old_tool_histories, { tool_result = tool_result, tool_use = tool_use })
+          table.insert(tool_histories, { tool_result = tool_result, tool_use = tool_use })
+          return handle_next_tool_use(tool_use_list, tool_use_index + 1, tool_histories)
         end
-        local new_opts = vim.tbl_deep_extend("force", opts, {
-          tool_histories = old_tool_histories,
-        })
-        return M._stream(new_opts)
+        -- Either on_complete handles the tool result asynchronously or we receive the result and error synchronously when either is not nil
+        local result, error = LLMTools.process_tool_use(opts.tools, tool_use, opts.on_tool_log, handle_tool_result)
+        if result ~= nil or error ~= nil then return handle_tool_result(result, error) end
+      end
+      if stop_opts.reason == "tool_use" and stop_opts.tool_use_list then
+        local old_tool_histories = vim.deepcopy(opts.tool_histories) or {}
+        local sorted_tool_use_list = {} ---@type AvanteLLMToolUse[]
+        for _, tool_use in vim.spairs(stop_opts.tool_use_list) do
+          table.insert(sorted_tool_use_list, tool_use)
+        end
+        return handle_next_tool_use(sorted_tool_use_list, 1, old_tool_histories)
       end
       return opts.on_stop(stop_opts)
     end,
