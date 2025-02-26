@@ -135,7 +135,6 @@ end
 ---@field message string
 
 ---@param uri string
----@return AvanteRagServiceAddResourceResponse | nil
 function M.add_resource(uri)
   uri = M.to_container_uri(uri)
   local resource_name = uri:match("([^/]+)/$")
@@ -171,20 +170,23 @@ function M.add_resource(uri)
       end
     end
   end
-  local resp = curl.post(M.get_rag_service_url() .. "/api/v1/add_resource", {
-    headers = {
-      ["Content-Type"] = "application/json",
-    },
-    body = vim.json.encode({
-      name = resource_name,
-      uri = uri,
-    }),
-  })
-  if resp.status ~= 200 then
-    Utils.error("failed to add resource: " .. resp.body)
-    return
-  end
-  return vim.json.decode(resp.body)
+  local cmd = {
+    "curl",
+    "-X",
+    "POST",
+    M.get_rag_service_url() .. "/api/v1/add_resource",
+    "-H",
+    "Content-Type: application/json",
+    "-d",
+    vim.json.encode({ name = resource_name, uri = uri }),
+  }
+  vim.system(cmd, { text = true }, function(output)
+    if output.code == 0 then
+      Utils.debug(string.format("Added resource: %s", uri))
+    else
+      Utils.error(string.format("Failed to add resource: %s; output: %s", uri, output.stderr))
+    end
+  end)
 end
 
 function M.remove_resource(uri)

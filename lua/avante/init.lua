@@ -28,6 +28,7 @@ function H.load_path()
   local ok, LazyConfig = pcall(require, "lazy.core.config")
 
   if ok then
+    Utils.debug("LazyConfig loaded")
     local name = "avante.nvim"
     local function load_path() require("avante_lib").load() end
 
@@ -406,7 +407,6 @@ function M.setup(opts)
         local uri = "file://" .. Utils.get_project_root()
         if uri:sub(-1) ~= "/" then uri = uri .. "/" end
         RagService.add_resource(uri)
-        Utils.info("Added project root to Rag Service")
       end, 5000)
     end
     add_resource_with_delay = function()

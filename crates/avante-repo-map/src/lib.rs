@@ -1,3 +1,5 @@
+#![allow(clippy::unnecessary_map_or)]
+
 use mlua::prelude::*;
 use std::cell::RefCell;
 use std::collections::BTreeMap;

@@ -12,7 +12,7 @@ version.workspace = true
 htmd = "0.1.6"
 html2md = "0.2.15"
 mlua.workspace = true
-reqwest = { version = "0.12.12", features = ["blocking"] }
+reqwest = { version = "0.12.12", features = ["blocking", "native-tls-vendored"] }
 
 [lints]
 workspace = true

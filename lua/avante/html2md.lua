@@ -19,7 +19,7 @@ function M.setup() vim.defer_fn(M._init_html2md_lib, 1000) end
 
 function M.fetch_md(url)
   local html2md_lib = M._init_html2md_lib()
-  if not html2md_lib then return "", "Failed to load avante_html2md" end
+  if not html2md_lib then return nil, "Failed to load avante_html2md" end
 
   return html2md_lib.fetch_md(url)
 end
