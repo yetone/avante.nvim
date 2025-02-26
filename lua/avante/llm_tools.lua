@@ -380,8 +380,8 @@ end
 function M.fetch(opts, on_log)
   if on_log then on_log("url: " .. opts.url) end
   local Html2Md = require("avante.html2md")
-  local res = Html2Md.fetch_md(opts.url)
-  if res == nil then return nil, "Failed to fetch markdown" end
+  local res, err = Html2Md.fetch_md(opts.url)
+  if err then return nil, err end
   return res, nil
 end
 
