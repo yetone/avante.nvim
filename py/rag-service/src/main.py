@@ -315,6 +315,9 @@ chroma_collection = chroma_client.get_or_create_collection("documents")
 vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
 storage_context = StorageContext.from_defaults(vector_store=vector_store)
 embed_model = OpenAIEmbedding()
+model = os.getenv("OPENAI_EMBED_MODEL", "")
+if model:
+    embed_model = OpenAIEmbedding(model=model)
 Settings.embed_model = embed_model
 
 
