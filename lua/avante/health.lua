@@ -6,19 +6,31 @@ local Config = require("avante.config")
 function M.check()
   H.start("avante.nvim")
 
-  -- Required dependencies
+  -- Required dependencies with their module names
   local required_plugins = {
-    ["nvim-treesitter"] = "nvim-treesitter/nvim-treesitter",
-    ["dressing.nvim"] = "stevearc/dressing.nvim",
-    ["plenary.nvim"] = "nvim-lua/plenary.nvim",
-    ["nui.nvim"] = "MunifTanjim/nui.nvim",
+    ["nvim-treesitter"] = {
+      path = "nvim-treesitter/nvim-treesitter",
+      module = "nvim-treesitter",
+    },
+    ["dressing.nvim"] = {
+      path = "stevearc/dressing.nvim",
+      module = "dressing",
+    },
+    ["plenary.nvim"] = {
+      path = "nvim-lua/plenary.nvim",
+      module = "plenary",
+    },
+    ["nui.nvim"] = {
+      path = "MunifTanjim/nui.nvim",
+      module = "nui",
+    },
   }
 
-  for plugin_name, plugin_path in pairs(required_plugins) do
-    if Utils.has(plugin_name) then
-      H.ok(string.format("Found required plugin: %s", plugin_path))
+  for name, plugin in pairs(required_plugins) do
+    if Utils.has(name) or Utils.has(plugin.module) then
+      H.ok(string.format("Found required plugin: %s", plugin.path))
     else
-      H.error(string.format("Missing required plugin: %s", plugin_path))
+      H.error(string.format("Missing required plugin: %s", plugin.path))
     end
   end
 
@@ -31,7 +43,7 @@ function M.check()
 
   -- Check Copilot if configured
   if Config.providers and Config.providers == "copilot" then
-    if Utils.has("copilot.lua") or Utils.has("copilot.vim") then
+    if Utils.has("copilot.lua") or Utils.has("copilot.vim") or Utils.has("copilot") then
       H.ok("Found Copilot plugin")
     else
       H.error("Copilot provider is configured but neither copilot.lua nor copilot.vim is installed")

@@ -27,7 +27,9 @@ setmetatable(M, {
 function M.has(plugin)
   local ok, LazyConfig = pcall(require, "lazy.core.config")
   if ok then return LazyConfig.plugins[plugin] ~= nil end
-  return package.loaded[plugin] ~= nil
+
+  local res, _ = pcall(require, plugin)
+  return res ~= nil
 end
 
 function M.is_win() return jit.os:find("Windows") ~= nil end
