@@ -91,7 +91,7 @@ jobs:
         if: ${{ matrix.config.container == null }}
         with:
           targets: ${{ matrix.config.rust_target }}
-          toolchain: 1.80.0
+          toolchain: "1.85.0"
       - name: Build all crates
         if: ${{ matrix.config.container == null }}
         run: |
