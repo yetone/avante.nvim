@@ -63,12 +63,13 @@ function M.launch_rag_service(cb)
     Utils.debug(string.format("container %s not found, starting...", container_name))
   end
   local cmd_ = string.format(
-    "docker run -d -p %d:8000 --name %s -v %s:/data -v /:/host -e DATA_DIR=/data -e OPENAI_API_KEY=%s -e OPENAI_BASE_URL=%s %s",
+    "docker run -d -p %d:8000 --name %s -v %s:/data -v /:/host -e DATA_DIR=/data -e OPENAI_API_KEY=%s -e OPENAI_API_BASE=%s -e OPENAI_EMBED_MODEL=%s %s",
     port,
     container_name,
     data_path,
     openai_api_key,
     openai_base_url,
+    os.getenv("OPENAI_EMBED_MODEL"),
     image
   )
   vim.fn.jobstart(cmd_, {
