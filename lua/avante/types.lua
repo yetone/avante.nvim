@@ -76,9 +76,13 @@ vim.g.avante_login = vim.g.avante_login
 ---@field on_chunk AvanteLLMChunkCallback
 ---@field on_stop AvanteLLMStopCallback
 ---
+---@alias AvanteLLMMessageContentItem string | { type: "text", text: string } | { type: "thinking", thinking: string, signature: string } | { type: "redacted_thinking", data: string }
+---
+---@alias AvanteLLMMessageContent AvanteLLMMessageContentItem[] | string
+---
 ---@class AvanteLLMMessage
 ---@field role "user" | "assistant"
----@field content string
+---@field content AvanteLLMMessageContent
 ---
 ---@class AvanteLLMToolResult
 ---@field tool_name string
@@ -227,10 +231,18 @@ vim.g.avante_login = vim.g.avante_login
 ---@field id string
 ---@field input_json string
 ---@field response_contents? string[]
----@field thinking_contents? { content: string, signature: string }[]
+---@field thinking_blocks? AvanteLLMThinkingBlock[]
+---@field redacted_thinking_blocks? AvanteLLMRedactedThinkingBlock[]
 ---
 ---@class AvanteLLMStartCallbackOptions
 ---@field usage? AvanteLLMUsage
+---
+---@class AvanteLLMThinkingBlock
+---@field thinking string
+---@field signature string
+---
+---@class AvanteLLMRedactedThinkingBlock
+---@field data string
 ---
 ---@class AvanteLLMStopCallbackOptions
 ---@field reason "complete" | "tool_use" | "error" | "rate_limit"
@@ -343,3 +355,15 @@ vim.g.avante_login = vim.g.avante_login
 ---@field description string
 ---@field type string
 ---@field optional? boolean
+
+---@class avante.ChatHistoryEntry
+---@field timestamp string
+---@field provider string
+---@field model string
+---@field request string
+---@field response string
+---@field original_response string
+---@field selected_file {filepath: string}?
+---@field selected_code {filetype: string, content: string}?
+---@field reset_memory boolean?
+---@field selected_filepaths string[] | nil
