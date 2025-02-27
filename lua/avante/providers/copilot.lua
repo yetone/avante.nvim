@@ -284,7 +284,10 @@ function M.setup_file_watcher()
     {},
     vim.schedule_wrap(function()
       -- Reload token from file
-      if copilot_token_file:exists() then M.state.github_token = vim.json.decode(copilot_token_file:read()) end
+      if copilot_token_file:exists() then
+        local ok, token = pcall(vim.json.decode, copilot_token_file:read())
+        if ok then M.state.github_token = token end
+      end
     end)
   )
 end
