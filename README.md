@@ -382,7 +382,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     },
   },
   highlights = {
-    ---@type AvanteConflictHighlights
+    ---@class AvanteConflictHighlights
     diff = {
       current = "DiffText",
       incoming = "DiffAdd",
