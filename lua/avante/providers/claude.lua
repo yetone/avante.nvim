@@ -257,6 +257,7 @@ function M.parse_curl_args(provider, prompt_opts)
 end
 
 function M.on_error(result)
+  if result.status == 429 then return end
   if not result.body then
     return Utils.error("API request failed with status " .. result.status, { once = true, title = "Avante" })
   end
