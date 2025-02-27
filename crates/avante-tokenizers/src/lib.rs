@@ -81,7 +81,7 @@ impl HuggingFaceTokenizer {
 
 enum TokenizerType {
     Tiktoken(Tiktoken),
-    HuggingFace(HuggingFaceTokenizer),
+    HuggingFace(Box<HuggingFaceTokenizer>),
 }
 
 struct State {
@@ -111,7 +111,7 @@ fn from_pretrained(state: &State, model: &str) {
     let mut tokenizer_mutex = state.tokenizer.lock().unwrap();
     *tokenizer_mutex = Some(match model {
         "gpt-4o" => TokenizerType::Tiktoken(Tiktoken::new(model)),
-        _ => TokenizerType::HuggingFace(HuggingFaceTokenizer::new(model)),
+        _ => TokenizerType::HuggingFace(Box::new(HuggingFaceTokenizer::new(model))),
     });
 }
 

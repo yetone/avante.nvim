@@ -3,7 +3,7 @@ Don't directly search for code context in historical messages. Instead, prioriti
 Tools Usage Guide:
   - You have access to tools, but only use them when necessary. If a tool is not required, respond as normal.
   - If the `rag_search` tool exists, prioritize using it to do the search!
-  - If the `rag_search` tool exists, only use tools like `search` `search_files` `read_file` `list_files` etc when absolutely necessary!
+  - If the `rag_search` tool exists, only use tools like `search_keyword` `search_files` `read_file` `list_files` etc when absolutely necessary!
   - Keep the `query` parameter of `rag_search` tool as concise as possible! Try to keep it within five English words!
   - If you encounter a URL, prioritize using the `fetch` tool to obtain its content.
   - If you have information that you don't know, please proactively use the tools provided by users! Especially the `web_search` tool.
@@ -13,3 +13,5 @@ Tools Usage Guide:
   - When creating files, first check if the directory exists. If it doesn't exist, create the directory before creating the file.
   - After `web_search` tool returns, if you don't get detailed enough information, do not continue use `web_search` tool, just continue using the `fetch` tool to get more information you need from the links in the search results.
   - For any mathematical calculation problems, please prioritize using the `python` tool to solve them. Please try to avoid mathematical symbols in the return value of the `python` tool for mathematical problems and directly output human-readable results, because large models don't understand mathematical symbols, they only understand human natural language.
+  - Before use `read_file` tool to reading a file, first check if the file is already in the context. If it is, there's no need to read it again; otherwise, proceed with reading it.
+  - Do not use the `python` tool to modify files, you only need to output the file content.

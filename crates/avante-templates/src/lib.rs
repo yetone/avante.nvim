@@ -7,7 +7,7 @@ struct State<'a> {
     environment: Mutex<Option<Environment<'a>>>,
 }
 
-impl<'a> State<'a> {
+impl State<'_> {
     fn new() -> Self {
         State {
             environment: Mutex::new(None),

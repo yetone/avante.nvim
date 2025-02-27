@@ -91,7 +91,7 @@ jobs:
         if: ${{ matrix.config.container == null }}
         with:
           targets: ${{ matrix.config.rust_target }}
-          toolchain: 1.80.0
+          toolchain: "1.85.0"
       - name: Build all crates
         if: ${{ matrix.config.container == null }}
         run: |
@@ -107,7 +107,7 @@ jobs:
             -w /workspace \
             --platform ${{ matrix.config.docker_platform }} \
             ${{ matrix.config.container }} \
-            bash -c "yum install -y openssl-devel && curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && . /root/.cargo/env && cargo build --release --features ${{ matrix.feature }}"
+            bash -c "yum install -y perl-IPC-Cmd openssl-devel && curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && . /root/.cargo/env && cargo build --release --features ${{ matrix.feature }}"
 
       - name: Handle binaries
         if: ${{ matrix.config.os_name != 'windows' }}
