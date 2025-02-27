@@ -2495,7 +2495,23 @@ function Sidebar:create_input_container(opts)
     local function on_chunk(chunk)
       self.is_generating = true
 
-      original_response = original_response .. chunk
+      local remove_line = [[\033[1A\033[K]]
+      if chunk:sub(1, #remove_line) == remove_line then
+        chunk = chunk:sub(#remove_line + 1)
+        local lines = vim.split(transformed_response, "\n")
+        local idx = #lines
+        while idx > 0 and lines[idx] == "" do
+          idx = idx - 1
+        end
+        if idx == 1 then
+          lines = {}
+        else
+          lines = vim.list_slice(lines, 1, idx - 1)
+        end
+        transformed_response = table.concat(lines, "\n")
+      else
+        original_response = original_response .. chunk
+      end
 
       local selected_files = self.file_selector:get_selected_files_contents()
 
