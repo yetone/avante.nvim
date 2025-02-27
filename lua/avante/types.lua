@@ -208,6 +208,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field api_key_name? string
 ---@field _shellenv? string
 ---@field disable_tools? boolean
+---@field entra? boolean
 ---
 ---@class AvanteSupportedProvider: AvanteDefaultBaseProvider
 ---@field __inherited_from? string
