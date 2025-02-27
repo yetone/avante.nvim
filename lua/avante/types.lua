@@ -226,7 +226,8 @@ vim.g.avante_login = vim.g.avante_login
 ---@field name string
 ---@field id string
 ---@field input_json string
----@field response_content? string
+---@field response_contents? string[]
+---@field thinking_contents? { content: string, signature: string }[]
 ---
 ---@class AvanteLLMStartCallbackOptions
 ---@field usage? AvanteLLMUsage

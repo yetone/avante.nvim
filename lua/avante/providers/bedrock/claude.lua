@@ -39,11 +39,22 @@ function M.parse_messages(opts)
           role = "assistant",
           content = {},
         }
-        if tool_history.tool_use.response_content then
-          msg.content[#msg.content + 1] = {
-            type = "text",
-            text = tool_history.tool_use.response_content,
-          }
+        if tool_history.tool_use.thinking_contents then
+          for _, thinking_content in ipairs(tool_history.tool_use.thinking_contents) do
+            msg.content[#msg.content + 1] = {
+              type = "thinking",
+              thinking = thinking_content.content,
+              signature = thinking_content.signature,
+            }
+          end
+        end
+        if tool_history.tool_use.response_contents then
+          for _, response_content in ipairs(tool_history.tool_use.response_contents) do
+            msg.content[#msg.content + 1] = {
+              type = "text",
+              text = response_content,
+            }
+          end
         end
         msg.content[#msg.content + 1] = {
           type = "tool_use",
