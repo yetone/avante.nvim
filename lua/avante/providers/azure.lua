@@ -23,7 +23,14 @@ function M.parse_curl_args(provider, prompt_opts)
   local headers = {
     ["Content-Type"] = "application/json",
   }
-  if P.env.require_api_key(provider_conf) then headers["api-key"] = provider.parse_api_key() end
+
+  if P.env.require_api_key(provider_conf) then
+    if provider_conf.entra then
+      headers["Authorization"] = "Bearer " .. provider.parse_api_key()
+    else
+      headers["api-key"] = provider.parse_api_key()
+    end
+  end
 
   -- NOTE: When using "o" series set the supported parameters only
   if O.is_o_series_model(provider_conf.model) then
