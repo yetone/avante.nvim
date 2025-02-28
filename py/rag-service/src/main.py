@@ -45,6 +45,7 @@ from llama_index.core import (
 from llama_index.core.node_parser import CodeSplitter
 from llama_index.core.schema import Document
 from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from markdownify import markdownify as md
 from models.indexing_history import IndexingHistory  # noqa: TC002
@@ -314,10 +315,33 @@ chroma_client = chromadb.PersistentClient(path=str(CHROMA_PERSIST_DIR))
 chroma_collection = chroma_client.get_or_create_collection("documents")
 vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
 storage_context = StorageContext.from_defaults(vector_store=vector_store)
-embed_model = OpenAIEmbedding()
-model = os.getenv("OPENAI_EMBED_MODEL", "")
-if model:
-    embed_model = OpenAIEmbedding(model=model)
+# Initialize embedding model based on provider
+llm_provider = os.getenv("RAG_PROVIDER", "openai").lower()
+base_url = os.getenv("API_BASE", "")
+model = os.getenv("RAG_EMBED_MODEL", "")
+
+if llm_provider == "ollama":
+    if base_url == "":
+        base_url = "http://localhost:11434"
+    if model == "":
+        model = "nomic-embed-text"
+    embed_model = OllamaEmbedding(model_name=model, base_url=base_url)
+else:
+    if base_url == "":
+        base_url = "https://api.openai.com/v1"
+    embed_model = (
+        OpenAIEmbedding(
+            model=model,
+            api_key=os.getenv("API_KEY"),
+            api_base=base_url,
+        )
+        if model
+        else OpenAIEmbedding(
+            api_key=os.getenv("API_KEY"),
+            api_base=base_url,
+        )
+    )
+
 Settings.embed_model = embed_model
 
 

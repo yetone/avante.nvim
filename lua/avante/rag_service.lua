@@ -1,6 +1,7 @@
 local curl = require("plenary.curl")
 local Path = require("plenary.path")
 local Utils = require("avante.utils")
+local Config = require("avante.config")
 
 local M = {}
 
@@ -32,12 +33,12 @@ end
 ---@param cb fun()
 function M.launch_rag_service(cb)
   local openai_api_key = os.getenv("OPENAI_API_KEY")
-  if openai_api_key == nil then
-    error("cannot launch avante rag service, OPENAI_API_KEY is not set")
-    return
+  if Config.rag_service.provider == "openai" then
+    if openai_api_key == nil then
+      error("cannot launch avante rag service, OPENAI_API_KEY is not set")
+      return
+    end
   end
-  local openai_base_url = os.getenv("OPENAI_BASE_URL")
-  if openai_base_url == nil then openai_base_url = "https://api.openai.com/v1" end
   local port = M.get_rag_service_port()
   local image = M.get_rag_service_image()
   local data_path = M.get_data_path()
@@ -63,13 +64,14 @@ function M.launch_rag_service(cb)
     Utils.debug(string.format("container %s not found, starting...", container_name))
   end
   local cmd_ = string.format(
-    "docker run -d -p %d:8000 --name %s -v %s:/data -v /:/host -e DATA_DIR=/data -e OPENAI_API_KEY=%s -e OPENAI_API_BASE=%s -e OPENAI_EMBED_MODEL=%s %s",
+    "docker run -d -p %d:8000 --name %s -v %s:/data -v /:/host -e DATA_DIR=/data -e RAG_PROVIDER=%s -e API_KEY=%s -e API_BASE=%s -e RAG_EMBED_MODEL=%s %s",
     port,
     container_name,
     data_path,
+    Config.rag_service.provider,
     openai_api_key,
-    openai_base_url,
-    os.getenv("OPENAI_EMBED_MODEL"),
+    Config.rag_service.endpoint,
+    Config.rag_service.model,
     image
   )
   vim.fn.jobstart(cmd_, {
