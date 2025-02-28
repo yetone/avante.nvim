@@ -515,7 +515,7 @@ function M.rag_search(opts, on_log)
 end
 
 ---@type AvanteLLMToolFunc<{ code: string, rel_path: string, container_image?: string }>
-function M.python(opts, on_log)
+function M.python(opts, on_log, on_complete)
   local abs_path = get_abs_path(opts.rel_path)
   if not has_permission_to_access(abs_path) then return nil, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return nil, "Path not found: " .. abs_path end
@@ -535,12 +535,15 @@ function M.python(opts, on_log)
     return nil, "User canceled"
   end
   if vim.fn.executable("docker") == 0 then return nil, "Python tool is not available to execute any code" end
-  ---change cwd to abs_path
-  local old_cwd = vim.fn.getcwd()
 
-  vim.fn.chdir(abs_path)
-  local output = vim
-    .system({
+  local function handle_result(result) ---@param result vim.SystemCompleted
+    if result.code ~= 0 then return nil, "Error: " .. (result.stderr or "Unknown error") end
+
+    Utils.debug("output", result.stdout)
+    return result.stdout, nil
+  end
+  local job = vim.system(
+    {
       "docker",
       "run",
       "--rm",
@@ -552,17 +555,20 @@ function M.python(opts, on_log)
       "python",
       "-c",
       opts.code,
-    }, {
+    },
+    {
       text = true,
-    })
-    :wait()
-
-  vim.fn.chdir(old_cwd)
-
-  if output.code ~= 0 then return nil, "Error: " .. (output.stderr or "Unknown error") end
-
-  Utils.debug("output", output.stdout)
-  return output.stdout, nil
+      cwd = abs_path,
+    },
+    vim.schedule_wrap(function(result)
+      if not on_complete then return end
+      local output, err = handle_result(result)
+      on_complete(output, err)
+    end)
+  )
+  if on_complete then return end
+  local result = job:wait()
+  return handle_result(result)
 end
 
 ---@return AvanteLLMTool[]
