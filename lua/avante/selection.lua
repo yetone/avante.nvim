@@ -165,11 +165,19 @@ function Selection:create_editing_input()
       full_response = full_response .. chunk
       local response_lines_ = vim.split(full_response, "\n")
       local response_lines = {}
-      for i, line in ipairs(response_lines_) do
-        if string.match(line, "^```") and (i == 1 or i == #response_lines_) then goto continue end
-        if string.match(line, "^```$") then goto continue end
-        table.insert(response_lines, line)
-        ::continue::
+      local in_code_block = false
+      for _, line in ipairs(response_lines_) do
+        if line:match("^<code>") then
+          in_code_block = true
+          line = line:gsub("^<code>", "")
+          if line ~= "" then table.insert(response_lines, line) end
+        elseif line:match("</code>") then
+          in_code_block = false
+          line = line:gsub("</code>.*$", "")
+          if line ~= "" then table.insert(response_lines, line) end
+        elseif in_code_block then
+          table.insert(response_lines, line)
+        end
       end
       if #response_lines == 1 then
         local first_line = response_lines[1]
