@@ -388,10 +388,6 @@ M._defaults = {
     --- Disable by setting to -1.
     override_timeoutlen = 500,
   },
-  run_command = {
-    -- Only applies to macOS and Linux
-    shell_cmd = "sh -c",
-  },
   --- @class AvanteHintsConfig
   hints = {
     enabled = true,
