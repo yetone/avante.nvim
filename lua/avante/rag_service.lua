@@ -63,10 +63,11 @@ function M.launch_rag_service(cb)
     Utils.debug(string.format("container %s not found, starting...", container_name))
   end
   local cmd_ = string.format(
-    "docker run -d -p %d:8000 --name %s -v %s:/data -v /:/host -e DATA_DIR=/data -e OPENAI_API_KEY=%s -e OPENAI_API_BASE=%s -e OPENAI_EMBED_MODEL=%s %s",
+    "docker run --rm -d -p %d:8000 --name %s -v %s:/data -v %s:/host:ro -e DATA_DIR=/data -e OPENAI_API_KEY=%s -e OPENAI_API_BASE=%s -e OPENAI_EMBED_MODEL=%s %s",
     port,
     container_name,
     data_path,
+    os.getenv("HOME"),
     openai_api_key,
     openai_base_url,
     os.getenv("OPENAI_EMBED_MODEL"),
@@ -111,7 +112,9 @@ function M.to_container_uri(uri)
   local scheme = M.get_scheme(uri)
   if scheme == "file" then
     local path = uri:match("^file://(.*)$")
-    uri = string.format("file:///host%s", path)
+    local host_dir = os.getenv("HOME")
+    if path:sub(1, #host_dir) == host_dir then path = "/host" .. path:sub(#host_dir + 1) end
+    uri = string.format("file://%s", path)
   end
   return uri
 end
@@ -119,8 +122,9 @@ end
 function M.to_local_uri(uri)
   local scheme = M.get_scheme(uri)
   if scheme == "file" then
-    local path = uri:match("^file://host(.*)$")
-    uri = string.format("file://%s", path)
+    local path = uri:match("^file:///host(.*)$")
+    local host_dir = os.getenv("HOME")
+    uri = string.format("file://%s", host_dir .. path)
   end
   return uri
 end
