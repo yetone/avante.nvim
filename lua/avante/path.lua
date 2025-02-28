@@ -5,18 +5,6 @@ local Path = require("plenary.path")
 local Scan = require("plenary.scandir")
 local Config = require("avante.config")
 
----@class avante.ChatHistoryEntry
----@field timestamp string
----@field provider string
----@field model string
----@field request string
----@field response string
----@field original_response string
----@field selected_file {filepath: string}?
----@field selected_code {filetype: string, content: string}?
----@field reset_memory boolean?
----@field selected_filepaths string[] | nil
-
 ---@class avante.Path
 ---@field history_path Path
 ---@field cache_path Path
