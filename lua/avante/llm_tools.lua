@@ -238,7 +238,7 @@ function M.delete_dir(opts, on_log)
 end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string, command: string }>
-function M.run_command(opts, on_log, on_complete)
+function M.bash(opts, on_log, on_complete)
   local abs_path = get_abs_path(opts.rel_path)
   if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "Path not found: " .. abs_path end
@@ -264,13 +264,13 @@ function M.run_command(opts, on_log, on_complete)
     return output, nil
   end
   if on_complete then
-    Utils.shell_run_async(opts.command, Config.run_command.shell_cmd, function(output, exit_code)
+    Utils.shell_run_async(opts.command, "bash -c", function(output, exit_code)
       local result, err = handle_result(output, exit_code)
       on_complete(result, err)
     end)
     return nil, nil
   end
-  local res = Utils.shell_run(opts.command, Config.run_command.shell_cmd)
+  local res = Utils.shell_run(opts.command, "bash -c")
   return handle_result(res.stdout, res.code)
 end
 
@@ -1024,8 +1024,8 @@ M._tools = {
     },
   },
   {
-    name = "run_command",
-    description = "Run a command in a directory",
+    name = "bash",
+    description = "Run a bash command in a directory",
     param = {
       type = "table",
       fields = {
