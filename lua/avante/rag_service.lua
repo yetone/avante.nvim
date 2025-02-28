@@ -64,7 +64,7 @@ function M.launch_rag_service(cb)
     Utils.debug(string.format("container %s not found, starting...", container_name))
   end
   local cmd_ = string.format(
-    "docker run -d -p %d:8000 --name %s -v %s:/data -v /:/host -e DATA_DIR=/data -e RAG_PROVIDER=%s -e %s_API_KEY=%s -e %s_API_BASE=%s -e RAG_EMBED_MODEL=%s %s",
+    "docker run -d -p %d:8000 --name %s -v %s:/data -v /:/host -e DATA_DIR=/data -e RAG_PROVIDER=%s -e %s_API_KEY=%s -e %s_API_BASE=%s -e RAG_LLM_MODEL=%s -e RAG_EMBED_MODEL=%s %s",
     port,
     container_name,
     data_path,
@@ -73,7 +73,8 @@ function M.launch_rag_service(cb)
     openai_api_key,
     Config.rag_service.provider:upper(),
     Config.rag_service.endpoint,
-    Config.rag_service.model,
+    Config.rag_service.llm_model,
+    Config.rag_service.embed_model,
     image
   )
   vim.fn.jobstart(cmd_, {
@@ -233,6 +234,7 @@ function M.retrieve(base_uri, query)
       query = query,
       top_k = 10,
     }),
+    timeout = 100000,
   })
   if resp.status ~= 200 then
     Utils.error("failed to retrieve: " .. resp.body)

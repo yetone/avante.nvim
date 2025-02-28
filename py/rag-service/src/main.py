@@ -44,8 +44,10 @@ from llama_index.core import (
 )
 from llama_index.core.node_parser import CodeSplitter
 from llama_index.core.schema import Document
-from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.embeddings.openai import OpenAIEmbedding, OpenAIEmbeddingModelType
 from llama_index.embeddings.ollama import OllamaEmbedding
+from llama_index.llms.openai import OpenAI
+from llama_index.llms.ollama import Ollama
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from markdownify import markdownify as md
 from models.indexing_history import IndexingHistory  # noqa: TC002
@@ -318,31 +320,30 @@ storage_context = StorageContext.from_defaults(vector_store=vector_store)
 # Initialize embedding model based on provider
 llm_provider = os.getenv("RAG_PROVIDER", "openai").lower()
 base_url = os.getenv(llm_provider.upper() + "_API_BASE", "")
-model = os.getenv("RAG_EMBED_MODEL", "")
+rag_embed_model = os.getenv("RAG_EMBED_MODEL", "")
+rag_llm_model = os.getenv("RAG_LLM_MODEL", "")
 
 if llm_provider == "ollama":
     if base_url == "":
         base_url = "http://localhost:11434"
-    if model == "":
-        model = "nomic-embed-text"
-    embed_model = OllamaEmbedding(model_name=model, base_url=base_url)
+    if rag_embed_model == "":
+        rag_embed_model = "nomic-embed-text"
+    if rag_llm_model == "":
+        rag_llm_model = "llama3"
+    embed_model = OllamaEmbedding(model_name=rag_embed_model, base_url=base_url)
+    llm_model = Ollama(model=rag_llm_model, base_url=base_url, request_timeout=60.0)
 else:
     if base_url == "":
         base_url = "https://api.openai.com/v1"
-    embed_model = (
-        OpenAIEmbedding(
-            model=model,
-            api_key=os.getenv("OPENAI_API_KEY"),
-            api_base=base_url,
-        )
-        if model
-        else OpenAIEmbedding(
-            api_key=os.getenv("OPENAI_API_KEY"),
-            api_base=base_url,
-        )
-    )
+    if rag_embed_model == "":
+        rag_embed_model = OpenAIEmbeddingModelType.TEXT_EMBED_ADA_002
+    if rag_llm_model == "":
+        rag_llm_model = "gpt-3.5-turbo"
+    embed_model = OpenAIEmbedding(model=rag_embed_model, api_base=base_url)
+    llm_model = OpenAI(model=rag_llm_model, api_base=base_url)
 
 Settings.embed_model = embed_model
+Settings.llm = llm_model
 
 
 try:
