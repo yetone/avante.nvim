@@ -64,12 +64,14 @@ function M.launch_rag_service(cb)
     Utils.debug(string.format("container %s not found, starting...", container_name))
   end
   local cmd_ = string.format(
-    "docker run -d -p %d:8000 --name %s -v %s:/data -v /:/host -e DATA_DIR=/data -e RAG_PROVIDER=%s -e API_KEY=%s -e API_BASE=%s -e RAG_EMBED_MODEL=%s %s",
+    "docker run -d -p %d:8000 --name %s -v %s:/data -v /:/host -e DATA_DIR=/data -e RAG_PROVIDER=%s -e %s_API_KEY=%s -e %s_API_BASE=%s -e RAG_EMBED_MODEL=%s %s",
     port,
     container_name,
     data_path,
     Config.rag_service.provider,
+    Config.rag_service.provider:upper(),
     openai_api_key,
+    Config.rag_service.provider:upper(),
     Config.rag_service.endpoint,
     Config.rag_service.model,
     image

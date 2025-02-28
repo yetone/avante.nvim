@@ -317,7 +317,7 @@ vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
 storage_context = StorageContext.from_defaults(vector_store=vector_store)
 # Initialize embedding model based on provider
 llm_provider = os.getenv("RAG_PROVIDER", "openai").lower()
-base_url = os.getenv("API_BASE", "")
+base_url = os.getenv(llm_provider.upper() + "_API_BASE", "")
 model = os.getenv("RAG_EMBED_MODEL", "")
 
 if llm_provider == "ollama":
@@ -332,12 +332,12 @@ else:
     embed_model = (
         OpenAIEmbedding(
             model=model,
-            api_key=os.getenv("API_KEY"),
+            api_key=os.getenv("OPENAI_API_KEY"),
             api_base=base_url,
         )
         if model
         else OpenAIEmbedding(
-            api_key=os.getenv("API_KEY"),
+            api_key=os.getenv("OPENAI_API_KEY"),
             api_base=base_url,
         )
     )
