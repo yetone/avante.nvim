@@ -208,6 +208,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field api_key_name? string
 ---@field _shellenv? string
 ---@field disable_tools? boolean
+---@field entra? boolean
 ---
 ---@class AvanteSupportedProvider: AvanteDefaultBaseProvider
 ---@field __inherited_from? string
@@ -225,16 +226,18 @@ vim.g.avante_login = vim.g.avante_login
 ---@field name string
 ---@field id string
 ---@field input_json string
----@field response_content? string
+---@field response_contents? string[]
+---@field thinking_contents? { content: string, signature: string }[]
 ---
 ---@class AvanteLLMStartCallbackOptions
 ---@field usage? AvanteLLMUsage
 ---
 ---@class AvanteLLMStopCallbackOptions
----@field reason "complete" | "tool_use" | "error"
+---@field reason "complete" | "tool_use" | "error" | "rate_limit"
 ---@field error? string | table
 ---@field usage? AvanteLLMUsage
 ---@field tool_use_list? AvanteLLMToolUse[]
+---@field retry_after? integer
 ---
 ---@alias AvanteStreamParser fun(line: string, handler_opts: AvanteHandlerOptions): nil
 ---@alias AvanteLLMStartCallback fun(opts: AvanteLLMStartCallbackOptions): nil

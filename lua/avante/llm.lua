@@ -198,6 +198,33 @@ function M._stream(opts)
         end
         return handle_next_tool_use(sorted_tool_use_list, 1, old_tool_histories)
       end
+      if stop_opts.reason == "rate_limit" then
+        local msg = "Rate limit reached. Retrying in " .. stop_opts.retry_after .. " seconds ..."
+        opts.on_chunk("\n*[" .. msg .. "]*\n")
+        local timer = vim.loop.new_timer()
+        if timer then
+          local retry_after = stop_opts.retry_after
+          local function countdown()
+            timer:start(
+              1000,
+              0,
+              vim.schedule_wrap(function()
+                if retry_after > 0 then retry_after = retry_after - 1 end
+                local msg_ = "Rate limit reached. Retrying in " .. retry_after .. " seconds ..."
+                opts.on_chunk([[\033[1A\033[K]] .. "\n*[" .. msg_ .. "]*\n")
+                countdown()
+              end)
+            )
+          end
+          countdown()
+        end
+        Utils.info("Rate limit reached. Retrying in " .. stop_opts.retry_after .. " seconds", { title = "Avante" })
+        vim.defer_fn(function()
+          if timer then timer:stop() end
+          M._stream(opts)
+        end, stop_opts.retry_after * 1000)
+        return
+      end
       return opts.on_stop(stop_opts)
     end,
   }
@@ -300,6 +327,21 @@ function M._stream(opts)
           provider.on_error(result)
         else
           Utils.error("API request failed with status " .. result.status, { once = true, title = "Avante" })
+        end
+        if result.status == 429 then
+          local headers_map = vim.iter(result.headers):fold({}, function(acc, value)
+            local pieces = vim.split(value, ":")
+            local key = pieces[1]
+            local remain = vim.list_slice(pieces, 2)
+            if not remain then return acc end
+            local val = Utils.trim_spaces(table.concat(remain, ":"))
+            acc[key] = val
+            return acc
+          end)
+          local retry_after = 10
+          if headers_map["retry-after"] then retry_after = tonumber(headers_map["retry-after"]) or 10 end
+          handler_opts.on_stop({ reason = "rate_limit", retry_after = retry_after })
+          return
         end
         vim.schedule(function()
           if not completed then

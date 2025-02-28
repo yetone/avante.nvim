@@ -89,11 +89,22 @@ function M.parse_messages(opts)
           role = "assistant",
           content = {},
         }
-        if tool_history.tool_use.response_content then
-          msg.content[#msg.content + 1] = {
-            type = "text",
-            text = tool_history.tool_use.response_content,
-          }
+        if tool_history.tool_use.thinking_contents then
+          for _, thinking_content in ipairs(tool_history.tool_use.thinking_contents) do
+            msg.content[#msg.content + 1] = {
+              type = "thinking",
+              thinking = thinking_content.content,
+              signature = thinking_content.signature,
+            }
+          end
+        end
+        if tool_history.tool_use.response_contents then
+          for _, response_content in ipairs(tool_history.tool_use.response_contents) do
+            msg.content[#msg.content + 1] = {
+              type = "text",
+              text = response_content,
+            }
+          end
         end
         msg.content[#msg.content + 1] = {
           type = "tool_use",
@@ -139,6 +150,7 @@ function M.parse_response(ctx, data_stream, event_state, opts)
       event_state = "content_block_stop"
     end
   end
+  if ctx.content_blocks == nil then ctx.content_blocks = {} end
   if event_state == "message_start" then
     local ok, jsn = pcall(vim.json.decode, data_stream)
     if not ok then return end
@@ -146,52 +158,39 @@ function M.parse_response(ctx, data_stream, event_state, opts)
   elseif event_state == "content_block_start" then
     local ok, jsn = pcall(vim.json.decode, data_stream)
     if not ok then return end
-    if jsn.content_block.type == "tool_use" then
-      if not ctx.tool_use_list then ctx.tool_use_list = {} end
-      local tool_use = {
-        name = jsn.content_block.name,
-        id = jsn.content_block.id,
-        input_json = "",
-        response_content = nil,
-      }
-      table.insert(ctx.tool_use_list, tool_use)
-    elseif jsn.content_block.type == "text" then
-      ctx.response_content = ""
-    end
+    local content_block = jsn.content_block
+    content_block.stoppped = false
+    ctx.content_blocks[jsn.index + 1] = content_block
+    if content_block.type == "thinking" then opts.on_chunk("<think>\n") end
   elseif event_state == "content_block_delta" then
     local ok, jsn = pcall(vim.json.decode, data_stream)
     if not ok then return end
-    if ctx.tool_use_list and jsn.delta.type == "input_json_delta" then
-      local tool_use = ctx.tool_use_list[#ctx.tool_use_list]
-      tool_use.input_json = tool_use.input_json .. jsn.delta.partial_json
+    local content_block = ctx.content_blocks[jsn.index + 1]
+    if jsn.delta.type == "input_json_delta" then
+      if not content_block.input_json then content_block.input_json = "" end
+      content_block.input_json = content_block.input_json .. jsn.delta.partial_json
       return
-    elseif ctx.response_content and jsn.delta.type == "text_delta" then
-      ctx.response_content = ctx.response_content .. jsn.delta.text
-    end
-    if jsn.delta.type == "thinking_delta" then
-      if ctx.returned_think_start_tag == nil or not ctx.returned_think_start_tag then
-        ctx.returned_think_start_tag = true
-        opts.on_chunk("<think>\n")
-      end
-      ctx.last_think_content = jsn.delta.thinking
+    elseif jsn.delta.type == "thinking_delta" then
+      content_block.thinking = content_block.thinking .. jsn.delta.thinking
       opts.on_chunk(jsn.delta.thinking)
     elseif jsn.delta.type == "text_delta" then
-      if
-        ctx.returned_think_start_tag ~= nil and (ctx.returned_think_end_tag == nil or not ctx.returned_think_end_tag)
-      then
-        ctx.returned_think_end_tag = true
-        if ctx.last_think_content and ctx.last_think_content ~= vim.NIL and ctx.last_think_content:sub(-1) ~= "\n" then
-          opts.on_chunk("\n</think>\n\n")
-        else
-          opts.on_chunk("</think>\n\n")
-        end
-      end
+      content_block.text = content_block.text .. jsn.delta.text
       opts.on_chunk(jsn.delta.text)
+    elseif jsn.delta.type == "signature_delta" then
+      if ctx.content_blocks[jsn.index + 1].signature == nil then ctx.content_blocks[jsn.index + 1].signature = "" end
+      ctx.content_blocks[jsn.index + 1].signature = ctx.content_blocks[jsn.index + 1].signature .. jsn.delta.signature
     end
   elseif event_state == "content_block_stop" then
-    if ctx.tool_use_list then
-      local tool_use = ctx.tool_use_list[#ctx.tool_use_list]
-      if tool_use.response_content == nil then tool_use.response_content = ctx.response_content end
+    local ok, jsn = pcall(vim.json.decode, data_stream)
+    if not ok then return end
+    local content_block = ctx.content_blocks[jsn.index + 1]
+    content_block.stoppped = true
+    if content_block.type == "thinking" then
+      if content_block.thinking and content_block.thinking ~= vim.NIL and content_block.thinking:sub(-1) ~= "\n" then
+        opts.on_chunk("\n</think>\n\n")
+      else
+        opts.on_chunk("</think>\n\n")
+      end
     end
   elseif event_state == "message_delta" then
     local ok, jsn = pcall(vim.json.decode, data_stream)
@@ -199,10 +198,38 @@ function M.parse_response(ctx, data_stream, event_state, opts)
     if jsn.delta.stop_reason == "end_turn" then
       opts.on_stop({ reason = "complete", usage = jsn.usage })
     elseif jsn.delta.stop_reason == "tool_use" then
+      ---@type AvanteLLMToolUse[]
+      local tool_use_list = vim
+        .iter(ctx.content_blocks)
+        :filter(function(content_block) return content_block.stoppped and content_block.type == "tool_use" end)
+        :map(function(content_block)
+          local response_contents = vim
+            .iter(ctx.content_blocks)
+            :filter(function(content_block_) return content_block_.stoppped and content_block_.type == "text" end)
+            :map(function(content_block_) return content_block_.text end)
+            :totable()
+          local thinking_contents = vim
+            .iter(ctx.content_blocks)
+            :filter(function(content_block_) return content_block_.stoppped and content_block_.type == "thinking" end)
+            :map(
+              function(content_block_)
+                return { content = content_block_.thinking, signature = content_block_.signature }
+              end
+            )
+            :totable()
+          return {
+            name = content_block.name,
+            id = content_block.id,
+            input_json = content_block.input_json,
+            response_contents = response_contents,
+            thinking_contents = thinking_contents,
+          }
+        end)
+        :totable()
       opts.on_stop({
         reason = "tool_use",
         usage = jsn.usage,
-        tool_use_list = ctx.tool_use_list,
+        tool_use_list = tool_use_list,
       })
     end
     return
@@ -257,6 +284,7 @@ function M.parse_curl_args(provider, prompt_opts)
 end
 
 function M.on_error(result)
+  if result.status == 429 then return end
   if not result.body then
     return Utils.error("API request failed with status " .. result.status, { once = true, title = "Avante" })
   end
