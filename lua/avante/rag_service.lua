@@ -41,7 +41,7 @@ function M.launch_rag_service(cb)
   local port = M.get_rag_service_port()
   local image = M.get_rag_service_image()
   local data_path = M.get_data_path()
-  local cmd = string.format("docker ps -a | grep '%s'", container_name)
+  local cmd = string.format("docker ps | grep '%s'", container_name)
   local result = vim.fn.system(cmd)
   if result ~= "" then
     Utils.debug(string.format("container %s already running", container_name))
@@ -62,6 +62,12 @@ function M.launch_rag_service(cb)
   else
     Utils.debug(string.format("container %s not found, starting...", container_name))
   end
+
+  -- check stop container
+  cmd = string.format("docker ps -a | grep '%s'", container_name)
+  result = vim.fn.system(cmd)
+  if result ~= "" then M.stop_rag_service() end
+
   local cmd_ = string.format(
     "docker run -d -p %d:8000 --name %s -v %s:/data -v /:/host -e DATA_DIR=/data -e OPENAI_API_KEY=%s -e OPENAI_API_BASE=%s -e OPENAI_EMBED_MODEL=%s %s",
     port,
