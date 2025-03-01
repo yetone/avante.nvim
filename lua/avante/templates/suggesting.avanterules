@@ -36,6 +36,37 @@ Your task is to suggest code modifications at the cursor position. Follow these 
       start_row: The starting row of the code snippet you want to replace, start from 1, inclusive
       end_row: The ending row of the code snippet you want to replace, start from 1, inclusive
       content: The suggested code you want to replace the original code with
+  3. JSON must be wrapped with <suggestions></suggestions> tags, for example:
+    {% raw %}
+    <suggestions>
+    [
+      [
+        {
+          "start_row": 1,
+          "end_row": 1,
+          "content": "Your suggested code here"
+        },
+        {
+          "start_row": 3,
+          "end_row": 9,
+          "content": "Your suggested code here"
+        }
+      ],
+      [
+        {
+          "start_row": 2,
+          "end_row": 6,
+          "content": "Your suggested code here"
+        },
+        {
+          "start_row": 9,
+          "end_row": 22,
+          "content": "Your suggested code here"
+        }
+      ]
+    ]
+    </suggestions>
+    {% endraw %}
 
 Guidelines:
   1. Make sure you have maintained the user's existing whitespace and indentation. This is REALLY IMPORTANT!
