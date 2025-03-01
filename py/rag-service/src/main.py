@@ -505,16 +505,58 @@ def process_document_batch(documents: list[Document]) -> bool:  # noqa: PLR0915,
             indexing_history_service.update_indexing_status(doc, "failed", error_message=error_msg)
         return False
 
+def get_gitignore_files(directory: Path) -> list[str]:
+    """Get patterns from .gitignore file."""
+    patterns = [".git/"]
+
+    # Check for .gitignore
+    gitignore_path = directory / ".gitignore"
+    if gitignore_path.exists():
+        with gitignore_path.open("r", encoding="utf-8") as f:
+            patterns.extend(f.readlines())
+
+    return patterns
+
+def get_gitcrypt_files(directory: Path) -> list[str]:
+    """Get patterns of git-crypt encrypted files using git command."""
+    git_crypt_patterns = []
+
+    try:
+        # Change to the directory to run git commands
+        current_dir = os.getcwd()
+        os.chdir(directory)
+
+        # Run git command to get git-crypt encrypted files
+        import subprocess
+        cmd = "git ls-files -z | xargs -0 git check-attr filter | grep \"filter: git-crypt\" | cut -d: -f1"
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=False)
+
+        if result.returncode == 0 and result.stdout:
+            # Split the output by newlines and filter empty lines
+            git_crypt_patterns = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+            # Log if git-crypt patterns were found
+            if git_crypt_patterns:
+                logger.info("Excluding git-crypt encrypted files: %s", git_crypt_patterns)
+    except (subprocess.SubprocessError, OSError) as e:
+        logger.warning("Error getting git-crypt files: %s", str(e))
+    finally:
+        # Change back to the original directory
+        os.chdir(current_dir)
+
+    return git_crypt_patterns
 
 def get_pathspec(directory: Path) -> pathspec.PathSpec | None:
     """Get pathspec for the directory."""
-    gitignore_path = directory / ".gitignore"
-    if not gitignore_path.exists():
+    # Collect patterns from both sources
+    patterns = get_gitignore_files(directory)
+    patterns.extend(get_gitcrypt_files(directory))
+
+    # Return None if no patterns were found
+    if len(patterns) <= 1:  # Only .git/ is in the list
         return None
 
-    # Read gitignore patterns
-    with gitignore_path.open("r", encoding="utf-8") as f:
-        return pathspec.GitIgnoreSpec.from_lines([*f.readlines(), ".git/"])
+    return pathspec.GitIgnoreSpec.from_lines(patterns)
 
 
 def scan_directory(directory: Path) -> list[str]:
