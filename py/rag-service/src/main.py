@@ -44,10 +44,10 @@ from llama_index.core import (
 )
 from llama_index.core.node_parser import CodeSplitter
 from llama_index.core.schema import Document
-from llama_index.embeddings.openai import OpenAIEmbedding, OpenAIEmbeddingModelType
 from llama_index.embeddings.ollama import OllamaEmbedding
-from llama_index.llms.openai import OpenAI
+from llama_index.embeddings.openai import OpenAIEmbedding, OpenAIEmbeddingModelType
 from llama_index.llms.ollama import Ollama
+from llama_index.llms.openai import OpenAI
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from markdownify import markdownify as md
 from models.indexing_history import IndexingHistory  # noqa: TC002
