@@ -56,6 +56,8 @@ fn get_ts_language(language: &str) -> Option<LanguageFn> {
     match language {
         "rust" => Some(tree_sitter_rust::LANGUAGE),
         "python" => Some(tree_sitter_python::LANGUAGE),
+        "php" => Some(tree_sitter_php::LANGUAGE_PHP),
+        "java" => Some(tree_sitter_java::LANGUAGE),
         "javascript" => Some(tree_sitter_javascript::LANGUAGE),
         "typescript" => Some(tree_sitter_typescript::LANGUAGE_TSX),
         "go" => Some(tree_sitter_go::LANGUAGE),
@@ -65,6 +67,7 @@ fn get_ts_language(language: &str) -> Option<LanguageFn> {
         "ruby" => Some(tree_sitter_ruby::LANGUAGE),
         "zig" => Some(tree_sitter_zig::LANGUAGE),
         "scala" => Some(tree_sitter_scala::LANGUAGE),
+        "swift" => Some(tree_sitter_swift::LANGUAGE),
         "elixir" => Some(tree_sitter_elixir::LANGUAGE),
         "csharp" => Some(tree_sitter_c_sharp::LANGUAGE),
         _ => None,
@@ -74,14 +77,17 @@ fn get_ts_language(language: &str) -> Option<LanguageFn> {
 const C_QUERY: &str = include_str!("../queries/tree-sitter-c-defs.scm");
 const CPP_QUERY: &str = include_str!("../queries/tree-sitter-cpp-defs.scm");
 const GO_QUERY: &str = include_str!("../queries/tree-sitter-go-defs.scm");
+const JAVA_QUERY: &str = include_str!("../queries/tree-sitter-java-defs.scm");
 const JAVASCRIPT_QUERY: &str = include_str!("../queries/tree-sitter-javascript-defs.scm");
 const LUA_QUERY: &str = include_str!("../queries/tree-sitter-lua-defs.scm");
 const PYTHON_QUERY: &str = include_str!("../queries/tree-sitter-python-defs.scm");
+const PHP_QUERY: &str = include_str!("../queries/tree-sitter-php-defs.scm");
 const RUST_QUERY: &str = include_str!("../queries/tree-sitter-rust-defs.scm");
 const ZIG_QUERY: &str = include_str!("../queries/tree-sitter-zig-defs.scm");
 const TYPESCRIPT_QUERY: &str = include_str!("../queries/tree-sitter-typescript-defs.scm");
 const RUBY_QUERY: &str = include_str!("../queries/tree-sitter-ruby-defs.scm");
 const SCALA_QUERY: &str = include_str!("../queries/tree-sitter-scala-defs.scm");
+const SWIFT_QUERY: &str = include_str!("../queries/tree-sitter-swift-defs.scm");
 const ELIXIR_QUERY: &str = include_str!("../queries/tree-sitter-elixir-defs.scm");
 const CSHARP_QUERY: &str = include_str!("../queries/tree-sitter-c-sharp-defs.scm");
 
@@ -95,14 +101,17 @@ fn get_definitions_query(language: &str) -> Result<Query, String> {
         "c" => C_QUERY,
         "cpp" => CPP_QUERY,
         "go" => GO_QUERY,
+        "java" => JAVA_QUERY,
         "javascript" => JAVASCRIPT_QUERY,
         "lua" => LUA_QUERY,
+        "php" => PHP_QUERY,
         "python" => PYTHON_QUERY,
         "rust" => RUST_QUERY,
         "zig" => ZIG_QUERY,
         "typescript" => TYPESCRIPT_QUERY,
         "ruby" => RUBY_QUERY,
         "scala" => SCALA_QUERY,
+        "swift" => SWIFT_QUERY,
         "elixir" => ELIXIR_QUERY,
         "csharp" => CSHARP_QUERY,
         _ => return Err(format!("Unsupported language: {language}")),
@@ -573,6 +582,21 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                     let visibility_modifier = visibility_modifier_node
                         .map(|n| n.utf8_text(source.as_bytes()).unwrap())
                         .unwrap_or("");
+                    if language == "swift" {
+                        if visibility_modifier.contains("private") {
+                            continue;
+                        }
+                    }
+                    if language == "java" {
+                        let modifier_node = find_descendant_by_type(&node, "modifiers");
+                        if modifier_node.is_some() {
+                            let modifier_text =
+                                modifier_node.unwrap().utf8_text(source.as_bytes()).unwrap();
+                            if modifier_text.contains("private") {
+                                continue;
+                            }
+                        }
+                    }
                     if language == "rust" && !visibility_modifier.contains("pub") {
                         continue;
                     }
@@ -757,6 +781,21 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                     let visibility_modifier = visibility_modifier_node
                         .map(|n| n.utf8_text(source.as_bytes()).unwrap())
                         .unwrap_or("");
+                    if language == "swift" || language == "java" {
+                        if visibility_modifier.contains("private") {
+                            continue;
+                        }
+                    }
+                    if language == "java" {
+                        let modifier_node = find_descendant_by_type(&node, "modifiers");
+                        if modifier_node.is_some() {
+                            let modifier_text =
+                                modifier_node.unwrap().utf8_text(source.as_bytes()).unwrap();
+                            if modifier_text.contains("private") {
+                                continue;
+                            }
+                        }
+                    }
                     if language == "rust" && !visibility_modifier.contains("pub") {
                         continue;
                     }
@@ -797,6 +836,23 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                         .unwrap_or("");
                     if language == "rust" && !visibility_modifier.contains("pub") {
                         continue;
+                    }
+
+                    if language == "swift" || language == "java" {
+                        if visibility_modifier.contains("private") {
+                            continue;
+                        }
+                    }
+
+                    if language == "java" {
+                        let modifier_node = find_descendant_by_type(&node, "modifiers");
+                        if modifier_node.is_some() {
+                            let modifier_text =
+                                modifier_node.unwrap().utf8_text(source.as_bytes()).unwrap();
+                            if modifier_text.contains("private") {
+                                continue;
+                            }
+                        }
                     }
 
                     let value_type = get_node_type(&node, source.as_bytes());
@@ -863,6 +919,27 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                     let visibility_modifier = visibility_modifier_node
                         .map(|n| n.utf8_text(source.as_bytes()).unwrap())
                         .unwrap_or("");
+
+                    if language == "swift" || language == "java" {
+                        if visibility_modifier.contains("private") {
+                            continue;
+                        }
+
+                        if node.parent().is_some() {
+                            continue;
+                        }
+                    }
+
+                    if language == "java" {
+                        let modifier_node = find_descendant_by_type(&node, "modifiers");
+                        if modifier_node.is_some() {
+                            let modifier_text =
+                                modifier_node.unwrap().utf8_text(source.as_bytes()).unwrap();
+                            if modifier_text.contains("private") {
+                                continue;
+                            }
+                        }
+                    }
 
                     if language == "rust" && !visibility_modifier.contains("pub") {
                         continue;
@@ -945,6 +1022,21 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                     let visibility_modifier = visibility_modifier_node
                         .map(|n| n.utf8_text(source.as_bytes()).unwrap())
                         .unwrap_or("");
+                    if language == "swift" || language == "java" {
+                        if visibility_modifier.contains("private") {
+                            continue;
+                        }
+                    }
+                    if language == "java" {
+                        let modifier_node = find_descendant_by_type(&node, "modifiers");
+                        if modifier_node.is_some() {
+                            let modifier_text =
+                                modifier_node.unwrap().utf8_text(source.as_bytes()).unwrap();
+                            if modifier_text.contains("private") {
+                                continue;
+                            }
+                        }
+                    }
                     if language == "rust" && !visibility_modifier.contains("pub") {
                         continue;
                     }
@@ -980,6 +1072,23 @@ fn extract_definitions(language: &str, source: &str) -> Result<Vec<Definition>, 
                     let visibility_modifier = visibility_modifier_node
                         .map(|n| n.utf8_text(source.as_bytes()).unwrap())
                         .unwrap_or("");
+
+                    if language == "swift" {
+                        if visibility_modifier.contains("private") {
+                            continue;
+                        }
+                    }
+
+                    if language == "java" {
+                        let modifier_node = find_descendant_by_type(&node, "modifiers");
+                        if modifier_node.is_some() {
+                            let modifier_text =
+                                modifier_node.unwrap().utf8_text(source.as_bytes()).unwrap();
+                            if modifier_text.contains("private") {
+                                continue;
+                            }
+                        }
+                    }
 
                     if language == "rust" && !visibility_modifier.contains("pub") {
                         continue;
@@ -1801,6 +1910,105 @@ mod tests {
         let stringified = stringify_definitions(&definitions);
         println!("{stringified}");
         let expected = "class MyInnerClass{func MyInnerClass(InnerClassDependency m) -> MyInnerClass;};class MyInnerRecord{func MyInnerRecord(int a) -> MyInnerRecord;};class TestClass{func TestClass(TestDependency m) -> TestClass;func TestClass() -> TestClass;func TestMethod(int a, int b) -> void;func TestMethod(int a, int b, int c) -> int;var TestProperty:int;var TestField:string;};class TestRecord{func TestRecord(int a, int b) -> TestRecord;};enum TestEnum{Value1;Value2;};";
+        assert_eq!(stringified, expected);
+    }
+
+    #[test]
+    fn test_swift() {
+        let source = r#"
+            import Foundation
+
+            private var myVariable = 0
+            public var myPublicVariable = 0
+
+            struct MyStruct {
+              public var myPublicVariable = 0
+              private var myPrivateVariable = 0
+
+              func myPublicMethod(with parameter: Int) -> {
+              }
+
+              private func myPrivateMethod(with parameter: Int) -> {
+              }
+            }
+
+            class MyClass {
+                public var myPublicVariable = 0
+                private var myPrivateVariable = 0
+
+                init(myParameter: Int, myOtherParameter: Int) {
+                }
+
+                func myPublicMethod(with parameter: Int) -> {
+                }
+
+                private func myPrivateMethod(with parameter: Int) -> {
+                }
+
+                func myMethod() {
+                    print("Hello, world!")
+                }
+            }
+        "#;
+
+        let definitions = extract_definitions("swift", source).unwrap();
+        let stringified = stringify_definitions(&definitions);
+        println!("{stringified}");
+        let expected = "var myPublicVariable;class MyClass{func init() -> void;func myPublicMethod() -> void;func myMethod() -> void;var myPublicVariable;};class MyStruct{func myPublicMethod() -> void;var myPublicVariable;};";
+        assert_eq!(stringified, expected);
+    }
+
+    #[test]
+    fn test_php() {
+        let source = r#"
+        <?php
+        class MyClass {
+            public $myPublicVariable = 0;
+            private $myPrivateVariable = 0;
+
+            public function myPublicMethod($parameter) {
+            }
+
+            private function myPrivateMethod($parameter) {
+            }
+
+            function myMethod() {
+                echo "Hello, world!";
+            }
+        }
+        ?>
+        "#;
+
+        let definitions = extract_definitions("php", source).unwrap();
+        let stringified = stringify_definitions(&definitions);
+        println!("{stringified}");
+        let expected = "class MyClass{func myPublicMethod($parameter) -> void;func myPrivateMethod($parameter) -> void;func myMethod() -> void;var public $myPublicVariable = 0;;var private $myPrivateVariable = 0;;};";
+        assert_eq!(stringified, expected);
+    }
+
+    #[test]
+    fn test_java() {
+        let source = r#"
+        public class MyClass {
+            public void myPublicMethod(String parameter) {
+                System.out.println("Hello, world!");
+            }
+
+            private void myPrivateMethod(String parameter) {
+                System.out.println("Hello, world!");
+            }
+
+            void myMethod() {
+                System.out.println("Hello, world!");
+            }
+        }
+        "#;
+
+        let definitions = extract_definitions("java", source).unwrap();
+        let stringified = stringify_definitions(&definitions);
+        println!("{stringified}");
+        let expected =
+            "class MyClass{func myPublicMethod(String parameter) -> void;func myMethod() -> void;};";
         assert_eq!(stringified, expected);
     }
 
