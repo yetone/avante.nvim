@@ -9,21 +9,6 @@ local cost_per_token = {
   davinci = 0.000002,
 }
 
----@param content AvanteLLMMessageContent
----@return integer
-function Tokens.calculate_message_content_tokens(content)
-  if type(content) == "string" then return Tokens.calculate_tokens(content) end
-  local tokens = 0
-  for _, item in ipairs(content) do
-    if type(item) == "string" then
-      tokens = tokens + Tokens.calculate_tokens(item)
-    elseif item.type == "text" then
-      tokens = tokens + Tokens.calculate_tokens(item.text)
-    end
-  end
-  return tokens
-end
-
 --- Calculate the number of tokens in a given text.
 ---@param text string The text to calculate the number of tokens for.
 ---@return integer The number of tokens in the given text.
