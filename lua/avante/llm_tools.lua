@@ -337,7 +337,7 @@ function M.web_search(opts, on_log)
   elseif provider_type == "google" then
     local engine_id = os.getenv(search_engine.engine_id_name)
     if engine_id == nil or engine_id == "" then
-      return nil, "Environment variable " .. search_engine.engine_id_namee .. " is not set"
+      return nil, "Environment variable " .. search_engine.engine_id_name .. " is not set"
     end
     local query_params = vim.tbl_deep_extend("force", {
       key = api_key,
