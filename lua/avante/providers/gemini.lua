@@ -33,15 +33,9 @@ function M.parse_messages(opts)
       end
     end
     prev_role = role
-    local parts = {}
-    for _, item in ipairs(message.content) do
-      if type(item) == "string" then
-        table.insert(parts, { text = item })
-      elseif item.type == "text" then
-        table.insert(parts, { text = item.text })
-      end
-    end
-    table.insert(contents, { role = M.role_map[role] or role, parts = parts })
+    table.insert(contents, { role = M.role_map[role] or role, parts = {
+      { text = message.content },
+    } })
   end)
 
   if Clipboard.support_paste_image() and opts.image_paths then

@@ -78,10 +78,7 @@ function Suggestion:suggest()
   local history_messages = {
     {
       role = "user",
-      content = {
-        {
-          type = "text",
-          text = [[
+      content = [[
 <filepath>a.py</filepath>
 <code>
 L1: def fib
@@ -90,9 +87,7 @@ L3: if __name__ == "__main__":
 L4:     # just pass
 L5:     pass
 </code>
-]],
-        },
-      },
+      ]],
     },
     {
       role = "assistant",
@@ -100,12 +95,7 @@ L5:     pass
     },
     {
       role = "user",
-      content = {
-        {
-          type = "text",
-          text = '<question>{"insertSpaces":true,"tabSize":4,"indentSize":4,"position":{"row":1,"col":7}}</question>',
-        },
-      },
+      content = '<question>{"insertSpaces":true,"tabSize":4,"indentSize":4,"position":{"row":1,"col":7}}</question>',
     },
     {
       role = "assistant",
