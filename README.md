@@ -648,12 +648,19 @@ Avante provides a RAG service, which is a tool for obtaining the required contex
 ```lua
 rag_service = {
   enabled = true, -- Enables the rag service, requires OPENAI_API_KEY to be set
+  host_mount = os.getenv("HOME"), -- Host mount path for the rag service
 },
 ```
 
 Please note that since the RAG service uses OpenAI for embeddings, you must set `OPENAI_API_KEY` environment variable!
 
-Additionally, RAG Service also depends on Docker! (For macOS users, OrbStack is recommended as a Docker alternative)
+Additionally, RAG Service also depends on Docker! (For macOS users, OrbStack is recommended as a Docker alternative).
+`host_mount` is the path that will be mounted to the container, and the default is the home directory. The mount is required
+for the RAG service to access the files in the host machine. It is up to the user to decide if you want to mount the whole
+`/` directory, just the project directory, or the home directory. If you plan using avante and RAG event for projects
+stored outside your home directory, you will need to set the `host_mount` to the root directory of your file system.
+
+The mount will be read only.
 
 ## Web Search Engines
 

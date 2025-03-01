@@ -1,6 +1,7 @@
 local curl = require("plenary.curl")
 local Path = require("plenary.path")
 local Utils = require("avante.utils")
+local Config = require("avante.config")
 
 local M = {}
 
@@ -67,7 +68,7 @@ function M.launch_rag_service(cb)
     port,
     container_name,
     data_path,
-    os.getenv("HOME"),
+    Config.rag_service.host_mount,
     openai_api_key,
     openai_base_url,
     os.getenv("OPENAI_EMBED_MODEL"),
@@ -112,7 +113,7 @@ function M.to_container_uri(uri)
   local scheme = M.get_scheme(uri)
   if scheme == "file" then
     local path = uri:match("^file://(.*)$")
-    local host_dir = os.getenv("HOME")
+    local host_dir = Config.rag_service.host_mount
     if path:sub(1, #host_dir) == host_dir then path = "/host" .. path:sub(#host_dir + 1) end
     uri = string.format("file://%s", path)
   end
@@ -123,7 +124,7 @@ function M.to_local_uri(uri)
   local scheme = M.get_scheme(uri)
   if scheme == "file" then
     local path = uri:match("^file:///host(.*)$")
-    local host_dir = os.getenv("HOME")
+    local host_dir = Config.rag_service.host_mount
     uri = string.format("file://%s", host_dir .. path)
   end
   return uri
