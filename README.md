@@ -761,8 +761,8 @@ If you have the following structure:
 - [x] Smart Tab (Cursor Flow)
 - [x] Chat with project (You can use `@codebase` to chat with the whole project)
 - [x] Chat with selected files
-- [ ] CoT
 - [x] Tool use
+- [ ] MCP
 
 ## Roadmap
 
