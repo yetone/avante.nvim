@@ -30,9 +30,9 @@
 >
 > 🥰 This project is undergoing rapid iterations, and many exciting features will be added successively. Stay tuned!
 
-https://github.com/user-attachments/assets/510e6270-b6cf-459d-9a2f-15b397d1fe53
+<https://github.com/user-attachments/assets/510e6270-b6cf-459d-9a2f-15b397d1fe53>
 
-https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd
+<https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd>
 
 ## Sponsorship
 
@@ -275,7 +275,7 @@ require('avante').setup ({
 
 > [!TIP]
 >
-> Any rendering plugins that support markdown should work with Avante as long as you add the supported filetype `Avante`. See https://github.com/yetone/avante.nvim/issues/175 and [this comment](https://github.com/yetone/avante.nvim/issues/175#issuecomment-2313749363) for more information.
+> Any rendering plugins that support markdown should work with Avante as long as you add the supported filetype `Avante`. See <https://github.com/yetone/avante.nvim/issues/175> and [this comment](https://github.com/yetone/avante.nvim/issues/175#issuecomment-2313749363) for more information.
 
 ### Default setup configuration
 
@@ -404,7 +404,9 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
   },
 }
 ```
+
 ## Blink.cmp users
+
 For blink cmp users (nvim-cmp alternative) view below instruction for configuration
 This is achieved by emulating nvim-cmp using blink.compat
 or you can use [Kaiser-Yang/blink-cmp-avante](https://github.com/Kaiser-Yang/blink-cmp-avante).
@@ -471,6 +473,7 @@ To create a customized file_selector, you can specify a customized function to l
 
 Choose a selector other that native, the default as that currently has an issue
 For lazyvim users copy the full config for blink.cmp from the website or extend the options
+
 ```lua
       compat = {
         "avante_commands",
@@ -478,7 +481,9 @@ For lazyvim users copy the full config for blink.cmp from the website or extend 
         "avante_files",
       }
 ```
+
 For other users just add a custom provider
+
 ```lua
       default = {
         ...
@@ -487,6 +492,7 @@ For other users just add a custom provider
         "avante_files",
       }
 ```
+
 ```lua
       providers = {
         avante_commands = {
@@ -510,6 +516,7 @@ For other users just add a custom provider
         ...
     }
 ```
+
 </details>
 
 ## Usage
@@ -561,6 +568,7 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 > export BEDROCK_KEYS=aws_access_key_id,aws_secret_access_key,aws_region[,aws_session_token]
 >
 > ```
+>
 > Note: The aws_session_token is optional and only needed when using temporary AWS credentials
 
 1. Open a code file in Neovim.
@@ -647,7 +655,11 @@ Avante provides a RAG service, which is a tool for obtaining the required contex
 
 ```lua
 rag_service = {
-  enabled = true, -- Enables the rag service, requires OPENAI_API_KEY to be set
+  enabled = false, -- Enables the RAG service, requires OPENAI_API_KEY to be set
+  provider = "openai", -- The provider to use for RAG service (e.g. openai or ollama)
+  llm_model = "", -- The LLM model to use for RAG service
+  embed_model = "", -- The embedding model to use for RAG service
+  endpoint = "https://api.openai.com/v1", -- The API endpoint for RAG service
 },
 ```
 
