@@ -569,7 +569,9 @@ end
 function M.get_tools()
   return vim
     .iter(M._tools)
-    :filter(function(tool)
+    :filter(function(tool) ---@param tool AvanteLLMTool
+      -- Always disable tools that are explicitly disabled
+      if vim.tbl_contains(Config.disabled_tools, tool.name) then return false end
       if tool.enabled == nil then
         return true
       else
