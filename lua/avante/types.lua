@@ -328,6 +328,9 @@ vim.g.avante_login = vim.g.avante_login
 ---@field returns AvanteLLMToolReturn[]
 ---@field enabled? fun(): boolean
 
+---@class AvanteLLMToolPublic : AvanteLLMTool
+---@field func AvanteLLMToolFunc
+
 ---@class AvanteLLMToolParam
 ---@field type 'table'
 ---@field fields AvanteLLMToolParamField[]
