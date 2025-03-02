@@ -34,6 +34,7 @@ M._defaults = {
   tokenizer = "tiktoken",
   rag_service = {
     enabled = false, -- Enables the rag service, requires OPENAI_API_KEY to be set
+    host_mount = os.getenv("HOME"), -- Host mount path for the rag service
   },
   web_search_engine = {
     provider = "tavily",
