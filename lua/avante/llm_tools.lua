@@ -567,8 +567,10 @@ end
 
 ---@return AvanteLLMTool[]
 function M.get_tools()
+  ---@type AvanteLLMTool[]
+  local unfiltered_tools = vim.list_extend(vim.list_extend({}, M._tools), Config.custom_tools)
   return vim
-    .iter(M._tools)
+    .iter(unfiltered_tools)
     :filter(function(tool)
       if tool.enabled == nil then
         return true
