@@ -570,7 +570,11 @@ def scan_directory(directory: Path) -> list[str]:
         if not spec:
             matched_files.extend(file_paths)
             continue
-        matched_files.extend([file for file in file_paths if not spec.match_file(os.path.relpath(file, directory))])
+        for file in file_paths:
+            if spec and spec.match_file(os.path.relpath(file, directory)):
+                logger.info("Ignoring file: %s", file)
+            else:
+                matched_files.append(file)
 
     return matched_files
 
