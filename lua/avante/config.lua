@@ -408,6 +408,7 @@ M._defaults = {
     debounce = 600,
     throttle = 600,
   },
+  disabled_tools = {}, ---@type string[]
 }
 
 ---@type avante.Config
