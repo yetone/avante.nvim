@@ -29,15 +29,18 @@ function M.build_bedrock_payload(prompt_opts, body_opts)
 end
 
 function M.parse_stream_data(data, opts)
-  -- @NOTE: Decode and process Bedrock response
-  -- Each response contains a Base64-encoded `bytes` field, which is decoded into JSON.
-  -- The `type` field in the decoded JSON determines how the response is handled.
+  -- Create a context object if it doesn't exist in opts
+  if not opts.ctx then opts.ctx = {
+    content_blocks = {},
+  } end
+
   local bedrock_match = data:gmatch("event(%b{})")
   for bedrock_data_match in bedrock_match do
     local jsn = vim.json.decode(bedrock_data_match)
     local data_stream = vim.base64.decode(jsn.bytes)
     local json = vim.json.decode(data_stream)
-    M.parse_response({}, data_stream, json.type, opts)
+    -- Pass the context object to parse_response
+    M.parse_response(opts.ctx, data_stream, json.type, opts)
   end
 end
 
