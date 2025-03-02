@@ -112,7 +112,8 @@ end
 ---@param input_cmd string
 ---@param shell_cmd string?
 ---@param on_complete fun(output: string, code: integer)
-function M.shell_run_async(input_cmd, shell_cmd, on_complete)
+---@param cwd? string
+function M.shell_run_async(input_cmd, shell_cmd, on_complete, cwd)
   local cmd = get_cmd_for_shell(input_cmd, shell_cmd)
   ---@type string[]
   local output = {}
@@ -126,6 +127,7 @@ function M.shell_run_async(input_cmd, shell_cmd, on_complete)
       vim.list_extend(output, data)
     end,
     on_exit = function(_, exit_code) on_complete(table.concat(output, "\n"), exit_code) end,
+    cwd = cwd,
   })
 end
 
