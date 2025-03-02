@@ -1320,7 +1320,7 @@ function Sidebar:apply(current_cursor)
     for filepath, snippets in pairs(selected_snippets_map) do
       if Config.behaviour.minimize_diff then snippets = self:minimize_snippets(filepath, snippets) end
       local bufnr = Utils.get_or_create_buffer_with_filepath(filepath)
-      local path_ = PPath:new(filepath)
+      local path_ = PPath:new(Utils.is_win() and filepath:gsub("/", "\\") or filepath)
       path_:parent():mkdir({ parents = true, exists_ok = true })
       insert_conflict_contents(bufnr, snippets)
       local function process(winid)
