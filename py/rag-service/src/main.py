@@ -314,14 +314,35 @@ init_db()
 
 # Initialize ChromaDB and LlamaIndex services
 chroma_client = chromadb.PersistentClient(path=str(CHROMA_PERSIST_DIR))
+
+# Check if provider or model has changed
+current_provider = os.getenv("RAG_PROVIDER", "openai").lower()
+current_embed_model = os.getenv("RAG_EMBED_MODEL", "")
+current_llm_model = os.getenv("RAG_LLM_MODEL", "")
+
+# Try to read previous config
+config_file = BASE_DATA_DIR / "rag_config.json"
+if config_file.exists():
+    with Path.open(config_file, "r") as f:
+        prev_config = json.load(f)
+        if prev_config.get("provider") != current_provider or prev_config.get("embed_model") != current_embed_model:
+            # Clear existing data if config changed
+            logger.info("Detected config change, clearing existing data...")
+            chroma_client.reset()
+
+# Save current config
+with Path.open(config_file, "w") as f:
+    json.dump({"provider": current_provider, "embed_model": current_embed_model}, f)
+
 chroma_collection = chroma_client.get_or_create_collection("documents")
 vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
 storage_context = StorageContext.from_defaults(vector_store=vector_store)
+
 # Initialize embedding model based on provider
-llm_provider = os.getenv("RAG_PROVIDER", "openai").lower()
+llm_provider = current_provider
 base_url = os.getenv(llm_provider.upper() + "_API_BASE", "")
-rag_embed_model = os.getenv("RAG_EMBED_MODEL", "")
-rag_llm_model = os.getenv("RAG_LLM_MODEL", "")
+rag_embed_model = current_embed_model
+rag_llm_model = current_llm_model
 
 if llm_provider == "ollama":
     if base_url == "":
