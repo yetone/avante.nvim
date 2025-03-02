@@ -329,17 +329,17 @@ vim.g.avante_login = vim.g.avante_login
 ---@field enabled? fun(): boolean
 
 ---@class AvanteLLMToolParam
----@field type string
+---@field type 'table'
 ---@field fields AvanteLLMToolParamField[]
 
 ---@class AvanteLLMToolParamField
 ---@field name string
 ---@field description string
----@field type string
+---@field type 'string' | 'integer'
 ---@field optional? boolean
 
 ---@class AvanteLLMToolReturn
 ---@field name string
 ---@field description string
----@field type string
+---@field type 'string' | 'string[]' | 'boolean'
 ---@field optional? boolean
