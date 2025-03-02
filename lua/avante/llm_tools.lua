@@ -249,14 +249,11 @@ function M.bash(opts, on_log, on_complete)
     return false, "User canceled"
   end
   ---change cwd to abs_path
-  local old_cwd = vim.fn.getcwd()
-  vim.fn.chdir(abs_path)
   ---@param output string
   ---@param exit_code integer
   ---@return string | boolean | nil result
   ---@return string | nil error
   local function handle_result(output, exit_code)
-    vim.fn.chdir(old_cwd)
     if exit_code ~= 0 then
       if output then return false, "Error: " .. output .. "; Error code: " .. tostring(exit_code) end
       return false, "Error code: " .. tostring(exit_code)
@@ -267,10 +264,13 @@ function M.bash(opts, on_log, on_complete)
     Utils.shell_run_async(opts.command, "bash -c", function(output, exit_code)
       local result, err = handle_result(output, exit_code)
       on_complete(result, err)
-    end)
+    end, abs_path)
     return nil, nil
   end
+  local old_cwd = vim.fn.getcwd()
+  vim.fn.chdir(abs_path)
   local res = Utils.shell_run(opts.command, "bash -c")
+  vim.fn.chdir(old_cwd)
   return handle_result(res.stdout, res.code)
 end
 
