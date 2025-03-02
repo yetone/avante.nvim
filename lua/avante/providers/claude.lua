@@ -165,6 +165,16 @@ function M.parse_response(ctx, data_stream, event_state, opts)
   elseif event_state == "content_block_delta" then
     local ok, jsn = pcall(vim.json.decode, data_stream)
     if not ok then return end
+
+    -- Ensure the index exists in the content_blocks array
+    if not ctx.content_blocks[jsn.index + 1] then
+      ctx.content_blocks[jsn.index + 1] = {
+        text = "",
+        thinking = "",
+        input_json = "",
+        -- Add other fields as needed
+      }
+    end
     local content_block = ctx.content_blocks[jsn.index + 1]
     if jsn.delta.type == "input_json_delta" then
       if not content_block.input_json then content_block.input_json = "" end
