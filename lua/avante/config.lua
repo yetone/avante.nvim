@@ -244,6 +244,14 @@ M._defaults = {
       temperature = 0,
       max_tokens = 8000,
     },
+    ---@type AvanteSupportedProvider
+    ["copilot-o3-mini"] = {
+      __inherited_from = "copilot",
+      model = "o3-mini",
+      timeout = 30000, -- Timeout in milliseconds
+      temperature = 0,
+      max_tokens = 4096,
+    },
   },
   ---Specify the special dual_boost mode
   ---1. enabled: Whether to enable dual_boost mode. Default to false.
