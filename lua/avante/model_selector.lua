@@ -9,7 +9,7 @@ local M = {}
 ---@return table?
 local function create_model_entry(provider, cfg)
   return cfg.model and {
-    name = provider .. "/" .. cfg.model,
+    name = cfg.display_name or (provider .. "/" .. cfg.model),
     provider = provider,
     model = cfg.model,
   }
