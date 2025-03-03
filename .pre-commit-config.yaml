@@ -13,7 +13,7 @@ repos:
     - id: stylua-system # or stylua-system / stylua-github
       files: \.lua$
 - repo: https://github.com/doublify/pre-commit-rust
-  rev: master
+  rev: v1.0
   hooks:
   - id: fmt
     files: \.rs$
@@ -21,7 +21,7 @@ repos:
     args: ['--features', 'luajit']
     files: \.rs$
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.9.5
+  rev: v0.9.9
   hooks:
     # 运行 Ruff linter
     - id: ruff
@@ -29,7 +29,7 @@ repos:
     # 运行 Ruff formatter
     - id: ruff-format
 - repo: https://github.com/RobertCraigie/pyright-python
-  rev: v1.1.393
+  rev: v1.1.395
   hooks:
     - id: pyright
       additional_dependencies:

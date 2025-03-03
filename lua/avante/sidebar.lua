@@ -2317,8 +2317,7 @@ function Sidebar:create_input_container(opts)
   table.insert(tools, {
     name = "remove_file_from_context",
     description = "Remove a file from the context",
-    ---@param input { rel_path: string }
-    ---@type AvanteLLMToolFunc
+    ---@type AvanteLLMToolFunc<{ rel_path: string }>
     func = function(input)
       self.file_selector:remove_selected_file(input.rel_path)
       return "Removed file from context", nil

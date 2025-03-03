@@ -24,13 +24,6 @@ function M.open()
     if entry then table.insert(models, entry) end
   end
 
-  for provider, cfg in pairs(Config.vendors or {}) do
-    if type(cfg) == "table" then
-      local entry = create_model_entry(provider, cfg)
-      if entry then table.insert(models, entry) end
-    end
-  end
-
   if #models == 0 then
     Utils.warn("No models available in config")
     return

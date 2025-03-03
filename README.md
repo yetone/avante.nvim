@@ -585,8 +585,10 @@ The following key bindings are available for use with `avante.nvim`:
 | Key Binding                               | Description                                  |
 | ----------------------------------------- | -------------------------------------------- |
 | <kbd>Leader</kbd><kbd>a</kbd><kbd>a</kbd> | show sidebar                                 |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>t</kbd> | toggle sidebar visibility                    |
 | <kbd>Leader</kbd><kbd>a</kbd><kbd>r</kbd> | refresh sidebar                              |
 | <kbd>Leader</kbd><kbd>a</kbd><kbd>f</kbd> | switch sidebar focus                         |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>?</kbd> | select model                                 |
 | <kbd>Leader</kbd><kbd>a</kbd><kbd>e</kbd> | edit selected blocks                         |
 | <kbd>c</kbd><kbd>o</kbd>                  | choose ours                                  |
 | <kbd>c</kbd><kbd>t</kbd>                  | choose theirs                                |
@@ -772,8 +774,8 @@ If you have the following structure:
 - [x] Smart Tab (Cursor Flow)
 - [x] Chat with project (You can use `@codebase` to chat with the whole project)
 - [x] Chat with selected files
-- [ ] CoT
 - [x] Tool use
+- [ ] MCP
 
 ## Roadmap
 
