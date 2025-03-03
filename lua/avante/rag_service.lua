@@ -77,7 +77,7 @@ function M.launch_rag_service(cb)
       data_path,
       openai_api_key,
       openai_base_url,
-      os.getenv("OPENAI_EMBED_MODEL") or "text-embedding-ada-002",
+      os.getenv("OPENAI_EMBED_MODEL"),
       image
     )
     vim.fn.jobstart(cmd_, {
@@ -114,7 +114,7 @@ function M.launch_rag_service(cb)
       service_path,
       openai_api_key,
       openai_base_url,
-      os.getenv("OPENAI_EMBED_MODEL") or "text-embedding-ada-002",
+      os.getenv("OPENAI_EMBED_MODEL"),
       service_path
     )
 
