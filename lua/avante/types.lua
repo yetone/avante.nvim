@@ -239,7 +239,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field tool_use_list? AvanteLLMToolUse[]
 ---@field retry_after? integer
 ---
----@alias AvanteStreamParser fun(line: string, handler_opts: AvanteHandlerOptions): nil
+---@alias AvanteStreamParser fun(ctx: any, line: string, handler_opts: AvanteHandlerOptions): nil
 ---@alias AvanteLLMStartCallback fun(opts: AvanteLLMStartCallbackOptions): nil
 ---@alias AvanteLLMChunkCallback fun(chunk: string): any
 ---@alias AvanteLLMStopCallback fun(opts: AvanteLLMStopCallbackOptions): nil

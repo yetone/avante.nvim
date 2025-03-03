@@ -154,6 +154,8 @@ end
 function M._stream(opts)
   local provider = opts.provider or Providers[Config.provider]
 
+  ---@cast provider AvanteProviderFunctor
+
   local prompt_opts = M.generate_prompts(opts)
 
   ---@type string
