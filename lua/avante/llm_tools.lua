@@ -30,7 +30,12 @@ local function has_permission_to_access(abs_path)
   if abs_path:sub(1, #project_root) ~= project_root then return false end
   local gitignore_path = project_root .. "/.gitignore"
   local gitignore_patterns, gitignore_negate_patterns = Utils.parse_gitignore(gitignore_path)
-  return not Utils.is_ignored(abs_path, gitignore_patterns, gitignore_negate_patterns)
+  -- The checker should only take care of the path inside the project root
+  -- Specifically, it should not check the project root itself
+  -- Otherwise if the binary is named the same as the project root (such as Go binary), any paths
+  -- insde the project root will be ignored
+  local rel_path = Path:new(abs_path):make_relative(project_root)
+  return not Utils.is_ignored(rel_path, gitignore_patterns, gitignore_negate_patterns)
 end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string, max_depth?: integer }>
