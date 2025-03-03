@@ -28,7 +28,7 @@ function M.build_bedrock_payload(prompt_opts, body_opts)
   return model_handler.build_bedrock_payload(prompt_opts, body_opts)
 end
 
-function M.parse_stream_data(data, opts)
+function M.parse_stream_data(ctx, data, opts)
   -- @NOTE: Decode and process Bedrock response
   -- Each response contains a Base64-encoded `bytes` field, which is decoded into JSON.
   -- The `type` field in the decoded JSON determines how the response is handled.
@@ -37,7 +37,7 @@ function M.parse_stream_data(data, opts)
     local jsn = vim.json.decode(bedrock_data_match)
     local data_stream = vim.base64.decode(jsn.bytes)
     local json = vim.json.decode(data_stream)
-    M.parse_response({}, data_stream, json.type, opts)
+    M.parse_response(ctx, data_stream, json.type, opts)
   end
 end
 
