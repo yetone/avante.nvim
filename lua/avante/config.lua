@@ -17,6 +17,7 @@ local Utils = require("avante.utils")
 ---@class avante.CoreConfig: avante.Config
 local M = {}
 ---@class avante.Config
+---@field custom_tools AvanteLLMToolPublic[]
 M._defaults = {
   debug = false,
   ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | string
@@ -413,6 +414,8 @@ M._defaults = {
     throttle = 600,
   },
   disabled_tools = {}, ---@type string[]
+  ---@type AvanteLLMToolPublic[]
+  custom_tools = {},
 }
 
 ---@type avante.Config
