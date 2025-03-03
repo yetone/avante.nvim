@@ -573,8 +573,10 @@ end
 
 ---@return AvanteLLMTool[]
 function M.get_tools()
+  ---@type AvanteLLMTool[]
+  local unfiltered_tools = vim.list_extend(vim.list_extend({}, M._tools), Config.custom_tools)
   return vim
-    .iter(M._tools)
+    .iter(unfiltered_tools)
     :filter(function(tool) ---@param tool AvanteLLMTool
       -- Always disable tools that are explicitly disabled
       if vim.tbl_contains(Config.disabled_tools, tool.name) then return false end
