@@ -154,6 +154,8 @@ end
 function M._stream(opts)
   local provider = opts.provider or Providers[Config.provider]
 
+  ---@cast provider AvanteProviderFunctor
+
   local prompt_opts = M.generate_prompts(opts)
 
   ---@type string
@@ -285,10 +287,10 @@ function M._stream(opts)
               { once = true }
             )
           end
-          provider.parse_stream_data(data, handler_opts)
+          provider.parse_stream_data(resp_ctx, data, handler_opts)
         else
           if provider.parse_stream_data ~= nil then
-            provider.parse_stream_data(data, handler_opts)
+            provider.parse_stream_data(resp_ctx, data, handler_opts)
           else
             parse_stream_data(data)
           end
