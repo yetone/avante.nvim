@@ -30,9 +30,9 @@
 >
 > 🥰 This project is undergoing rapid iterations, and many exciting features will be added successively. Stay tuned!
 
-https://github.com/user-attachments/assets/510e6270-b6cf-459d-9a2f-15b397d1fe53
+<https://github.com/user-attachments/assets/510e6270-b6cf-459d-9a2f-15b397d1fe53>
 
-https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd
+<https://github.com/user-attachments/assets/86140bfd-08b4-483d-a887-1b701d9e37dd>
 
 ## Sponsorship
 
@@ -275,7 +275,7 @@ require('avante').setup ({
 
 > [!TIP]
 >
-> Any rendering plugins that support markdown should work with Avante as long as you add the supported filetype `Avante`. See https://github.com/yetone/avante.nvim/issues/175 and [this comment](https://github.com/yetone/avante.nvim/issues/175#issuecomment-2313749363) for more information.
+> Any rendering plugins that support markdown should work with Avante as long as you add the supported filetype `Avante`. See <https://github.com/yetone/avante.nvim/issues/175> and [this comment](https://github.com/yetone/avante.nvim/issues/175#issuecomment-2313749363) for more information.
 
 ### Default setup configuration
 
@@ -404,7 +404,9 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
   },
 }
 ```
+
 ## Blink.cmp users
+
 For blink cmp users (nvim-cmp alternative) view below instruction for configuration
 This is achieved by emulating nvim-cmp using blink.compat
 or you can use [Kaiser-Yang/blink-cmp-avante](https://github.com/Kaiser-Yang/blink-cmp-avante).
@@ -471,6 +473,7 @@ To create a customized file_selector, you can specify a customized function to l
 
 Choose a selector other that native, the default as that currently has an issue
 For lazyvim users copy the full config for blink.cmp from the website or extend the options
+
 ```lua
       compat = {
         "avante_commands",
@@ -478,7 +481,9 @@ For lazyvim users copy the full config for blink.cmp from the website or extend 
         "avante_files",
       }
 ```
+
 For other users just add a custom provider
+
 ```lua
       default = {
         ...
@@ -487,6 +492,7 @@ For other users just add a custom provider
         "avante_files",
       }
 ```
+
 ```lua
       providers = {
         avante_commands = {
@@ -510,6 +516,7 @@ For other users just add a custom provider
         ...
     }
 ```
+
 </details>
 
 ## Usage
@@ -561,6 +568,7 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 > export BEDROCK_KEYS=aws_access_key_id,aws_secret_access_key,aws_region[,aws_session_token]
 >
 > ```
+>
 > Note: The aws_session_token is optional and only needed when using temporary AWS credentials
 
 1. Open a code file in Neovim.
@@ -577,8 +585,10 @@ The following key bindings are available for use with `avante.nvim`:
 | Key Binding                               | Description                                  |
 | ----------------------------------------- | -------------------------------------------- |
 | <kbd>Leader</kbd><kbd>a</kbd><kbd>a</kbd> | show sidebar                                 |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>t</kbd> | toggle sidebar visibility                    |
 | <kbd>Leader</kbd><kbd>a</kbd><kbd>r</kbd> | refresh sidebar                              |
 | <kbd>Leader</kbd><kbd>a</kbd><kbd>f</kbd> | switch sidebar focus                         |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>?</kbd> | select model                                 |
 | <kbd>Leader</kbd><kbd>a</kbd><kbd>e</kbd> | edit selected blocks                         |
 | <kbd>c</kbd><kbd>o</kbd>                  | choose ours                                  |
 | <kbd>c</kbd><kbd>t</kbd>                  | choose theirs                                |
@@ -647,7 +657,11 @@ Avante provides a RAG service, which is a tool for obtaining the required contex
 
 ```lua
 rag_service = {
-  enabled = true, -- Enables the rag service, requires OPENAI_API_KEY to be set
+  enabled = false, -- Enables the RAG service, requires OPENAI_API_KEY to be set
+  provider = "openai", -- The provider to use for RAG service (e.g. openai or ollama)
+  llm_model = "", -- The LLM model to use for RAG service
+  embed_model = "", -- The embedding model to use for RAG service
+  endpoint = "https://api.openai.com/v1", -- The API endpoint for RAG service
 },
 ```
 
@@ -659,13 +673,14 @@ Additionally, RAG Service also depends on Docker! (For macOS users, OrbStack is 
 
 Avante's tools include some web search engines, currently support:
 
-- [tavily](https://tavily.com/)
-- [serpapi](https://serpapi.com/)
-- [searchapi](https://www.searchapi.io/)
-- google's [programmable search engine](https://developers.google.com/custom-search/v1/overview)
-- [kagi](https://help.kagi.com/kagi/api/search.html)
+- [Tavily](https://tavily.com/)
+- [SerpApi](https://serpapi.com/)
+- [SearchAPI](https://www.searchapi.io/)
+- Google's [Programmable Search Engine](https://developers.google.com/custom-search/v1/overview)
+- [Kagi](https://help.kagi.com/kagi/api/search.html)
+- [Brave Search](https://api-dashboard.search.brave.com/app/documentation/web-search/get-started)
 
-The default is tavily, and can be changed through configuring `Config.web_search_engine.provider`:
+The default is Tavily, and can be changed through configuring `Config.web_search_engine.provider`:
 
 ```lua
 web_search_engine = {
@@ -673,9 +688,16 @@ web_search_engine = {
 }
 ```
 
-You need to set the environment variable `TAVILY_API_KEY` , `SERPAPI_API_KEY`, `SEARCHAPI_API_KEY` to use tavily or serpapi or searchapi.
-To use google, set the `GOOGLE_SEARCH_API_KEY` as the [API key](https://developers.google.com/custom-search/v1/overview), and `GOOGLE_SEARCH_ENGINE_ID` as the [search engine](https://programmablesearchengine.google.com) ID.
-To use kagi, set the `KAGI_API_KEY` as the [API Token](https://kagi.com/settings?p=api).
+Environment variables required for providers:
+
+- Tavily: `TAVILY_API_KEY`
+- SerpApi: `SERPAPI_API_KEY`
+- SearchAPI: `SEARCHAPI_API_KEY`
+- Google:
+  - `GOOGLE_SEARCH_API_KEY` as the [API key](https://developers.google.com/custom-search/v1/overview)
+  - `GOOGLE_SEARCH_ENGINE_ID` as the [search engine](https://programmablesearchengine.google.com) ID
+- Kagi: `KAGI_API_KEY` as the [API Token](https://kagi.com/settings?p=api)
+- Brave Search: `BRAVE_API_KEY` as the [API key](https://api-dashboard.search.brave.com/app/keys)
 
 ## Disable Tools
 
@@ -693,6 +715,18 @@ Avante enables tools by default, but some LLM models do not support tools. You c
   },
 }
 ```
+
+In case you want to ban some tools to avoid its usage (like Claude 3.7 overusing the python tool) you can disable just specific tools
+
+```lua
+{
+  disabled_tools = { "python" },
+}
+```
+
+Tool list
+> rag_search, python, git_diff, git_commit, list_files, search_files, search_keyword, read_file_toplevel_symbols,
+> read_file, create_file, rename_file, delete_file, create_dir, rename_dir, delete_dir, bash, web_search, fetch
 
 ## Custom prompts
 
@@ -760,8 +794,8 @@ If you have the following structure:
 - [x] Smart Tab (Cursor Flow)
 - [x] Chat with project (You can use `@codebase` to chat with the whole project)
 - [x] Chat with selected files
-- [ ] CoT
 - [x] Tool use
+- [ ] MCP
 
 ## Roadmap
 

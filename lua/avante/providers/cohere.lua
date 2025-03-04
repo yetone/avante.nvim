@@ -57,7 +57,7 @@ function M.parse_messages(opts)
   return { messages = messages }
 end
 
-function M.parse_stream_data(data, opts)
+function M.parse_stream_data(ctx, data, opts)
   ---@type CohereChatResponse
   local json = vim.json.decode(data)
   if json.type ~= nil then

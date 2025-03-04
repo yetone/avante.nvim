@@ -392,7 +392,6 @@ local function transform_result_content(selected_files, result_content, prev_fil
     elseif line_content == "<think>" then
       is_thinking = true
       last_think_tag_start_line = i
-      last_think_tag_end_line = 0
     elseif line_content == "</think>" then
       is_thinking = false
       last_think_tag_end_line = i
@@ -1321,7 +1320,7 @@ function Sidebar:apply(current_cursor)
     for filepath, snippets in pairs(selected_snippets_map) do
       if Config.behaviour.minimize_diff then snippets = self:minimize_snippets(filepath, snippets) end
       local bufnr = Utils.get_or_create_buffer_with_filepath(filepath)
-      local path_ = PPath:new(filepath)
+      local path_ = PPath:new(Utils.is_win() and filepath:gsub("/", "\\") or filepath)
       path_:parent():mkdir({ parents = true, exists_ok = true })
       insert_conflict_contents(bufnr, snippets)
       local function process(winid)
@@ -2318,8 +2317,7 @@ function Sidebar:create_input_container(opts)
   table.insert(tools, {
     name = "remove_file_from_context",
     description = "Remove a file from the context",
-    ---@param input { rel_path: string }
-    ---@type AvanteLLMToolFunc
+    ---@type AvanteLLMToolFunc<{ rel_path: string }>
     func = function(input)
       self.file_selector:remove_selected_file(input.rel_path)
       return "Removed file from context", nil
@@ -2357,7 +2355,6 @@ function Sidebar:create_input_container(opts)
       end
     end
 
-    ---@type AvanteLLMMessage[]
     local history_messages = {}
     for i = #chat_history, 1, -1 do
       local entry = chat_history[i]
@@ -2370,9 +2367,11 @@ function Sidebar:create_input_container(opts)
       then
         break
       end
-      local assistant_content = {}
-      table.insert(assistant_content, { type = "text", text = Utils.trim_think_content(entry.original_response) })
-      table.insert(history_messages, 1, { role = "assistant", content = assistant_content })
+      table.insert(
+        history_messages,
+        1,
+        { role = "assistant", content = Utils.trim_think_content(entry.original_response) }
+      )
       local user_content = ""
       if entry.selected_file ~= nil then
         user_content = user_content .. "SELECTED FILE: " .. entry.selected_file.filepath .. "\n\n"
@@ -2386,18 +2385,9 @@ function Sidebar:create_input_container(opts)
           .. "\n```\n\n"
       end
       user_content = user_content .. "USER PROMPT:\n\n" .. entry.request
-      table.insert(history_messages, 1, {
-        role = "user",
-        content = {
-          {
-            type = "text",
-            text = user_content,
-          },
-        },
-      })
+      table.insert(history_messages, 1, { role = "user", content = user_content })
     end
 
-    ---@type AvanteGeneratePromptsOptions
     return {
       ask = opts.ask or true,
       project_context = vim.json.encode(project_context),

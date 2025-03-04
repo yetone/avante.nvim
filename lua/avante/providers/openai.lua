@@ -71,30 +71,18 @@ function M.parse_messages(opts)
   -- NOTE: Handle the case where the selected model is the `o1` model
   -- "o1" models are "smart" enough to understand user prompt as a system prompt in this context
   if M.is_o_series_model(base.model) then
-    table.insert(messages, { role = "user", content = { { type = "text", text = opts.system_prompt } } })
+    table.insert(messages, { role = "user", content = opts.system_prompt })
   else
     table.insert(messages, { role = "system", content = opts.system_prompt })
   end
 
-  vim.iter(opts.messages):each(function(msg)
-    if type(msg.content) == "string" then
-      table.insert(messages, { role = M.role_map[msg.role], content = msg.content })
-    else
-      local content = {}
-      for _, item in ipairs(msg.content) do
-        if type(item) == "string" then
-          table.insert(content, { type = "text", text = item })
-        elseif item.type == "text" then
-          table.insert(content, { type = "text", text = item.text })
-        end
-      end
-      table.insert(messages, { role = M.role_map[msg.role], content = content })
-    end
-  end)
+  vim
+    .iter(opts.messages)
+    :each(function(msg) table.insert(messages, { role = M.role_map[msg.role], content = msg.content }) end)
 
   if Config.behaviour.support_paste_from_clipboard and opts.image_paths and #opts.image_paths > 0 then
     local message_content = messages[#messages].content
-    if type(message_content) == "string" then message_content = { { type = "text", text = message_content } } end
+    if type(message_content) ~= "table" then message_content = { type = "text", text = message_content } end
     for _, image_path in ipairs(opts.image_paths) do
       table.insert(message_content, {
         type = "image_url",
@@ -115,7 +103,7 @@ function M.parse_messages(opts)
       if role == M.role_map["user"] then
         table.insert(final_messages, { role = M.role_map["assistant"], content = "Ok, I understand." })
       else
-        table.insert(final_messages, { role = M.role_map["user"], content = { { type = "text", text = "Ok" } } })
+        table.insert(final_messages, { role = M.role_map["user"], content = "Ok" })
       end
     end
     prev_role = role

@@ -28,7 +28,7 @@ function M.build_bedrock_payload(prompt_opts, body_opts)
   return model_handler.build_bedrock_payload(prompt_opts, body_opts)
 end
 
-function M.parse_stream_data(data, opts)
+function M.parse_stream_data(ctx, data, opts)
   -- @NOTE: Decode and process Bedrock response
   -- Each response contains a Base64-encoded `bytes` field, which is decoded into JSON.
   -- The `type` field in the decoded JSON determines how the response is handled.
@@ -37,8 +37,18 @@ function M.parse_stream_data(data, opts)
     local jsn = vim.json.decode(bedrock_data_match)
     local data_stream = vim.base64.decode(jsn.bytes)
     local json = vim.json.decode(data_stream)
-    M.parse_response({}, data_stream, json.type, opts)
+    M.parse_response(ctx, data_stream, json.type, opts)
   end
+end
+
+function M.parse_response_without_stream(data, event_state, opts)
+  local bedrock_match = data:gmatch("exception(%b{})")
+  opts.on_chunk("\n**Exception caught**\n\n")
+  for bedrock_data_match in bedrock_match do
+    local jsn = vim.json.decode(bedrock_data_match)
+    opts.on_chunk("- " .. jsn.message .. "\n")
+  end
+  vim.schedule(function() opts.on_stop({ reason = "complete" }) end)
 end
 
 ---@param provider AvanteBedrockProviderFunctor
