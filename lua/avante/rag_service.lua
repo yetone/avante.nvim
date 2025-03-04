@@ -125,7 +125,8 @@ function M.to_local_uri(uri)
   if scheme == "file" then
     local path = uri:match("^file:///host(.*)$")
     local host_dir = Config.rag_service.host_mount
-    uri = string.format("file://%s", host_dir .. path)
+    local full_path = Path:new(host_dir):joinpath(path:sub(2)):absolute()
+    uri = string.format("file://%s", full_path)
   end
   return uri
 end
