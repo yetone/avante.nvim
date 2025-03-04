@@ -34,11 +34,11 @@ M._defaults = {
   -- If you wish to use a given implementation, then you can override it here.
   tokenizer = "tiktoken",
   rag_service = {
-    enabled = false,                        -- Enables the rag service, requires OPENAI_API_KEY to be set
-    runner = "docker",                      -- The runner for the rag service, (can use docker, or nix)
-    provider = "openai",                    -- The provider to use for RAG service. eg: openai or ollama
-    llm_model = "",                         -- The LLM model to use for RAG service
-    embed_model = "",                       -- The embedding model to use for RAG service
+    enabled = false, -- Enables the rag service, requires OPENAI_API_KEY to be set
+    runner = "docker", -- The runner for the rag service, (can use docker, or nix)
+    provider = "openai", -- The provider to use for RAG service. eg: openai or ollama
+    llm_model = "", -- The LLM model to use for RAG service
+    embed_model = "", -- The embedding model to use for RAG service
     endpoint = "https://api.openai.com/v1", -- The API endpoint for RAG service
   },
   web_search_engine = {
@@ -63,19 +63,19 @@ M._defaults = {
           if body.answer_box ~= nil then return body.answer_box.result, nil end
           if body.organic_results ~= nil then
             local jsn = vim
-                .iter(body.organic_results)
-                :map(
-                  function(result)
-                    return {
-                      title = result.title,
-                      link = result.link,
-                      snippet = result.snippet,
-                      date = result.date,
-                    }
-                  end
-                )
-                :take(10)
-                :totable()
+              .iter(body.organic_results)
+              :map(
+                function(result)
+                  return {
+                    title = result.title,
+                    link = result.link,
+                    snippet = result.snippet,
+                    date = result.date,
+                  }
+                end
+              )
+              :take(10)
+              :totable()
             return vim.json.encode(jsn), nil
           end
           return "", nil
@@ -91,19 +91,19 @@ M._defaults = {
           if body.answer_box ~= nil then return body.answer_box.result, nil end
           if body.organic_results ~= nil then
             local jsn = vim
-                .iter(body.organic_results)
-                :map(
-                  function(result)
-                    return {
-                      title = result.title,
-                      link = result.link,
-                      snippet = result.snippet,
-                      date = result.date,
-                    }
-                  end
-                )
-                :take(10)
-                :totable()
+              .iter(body.organic_results)
+              :map(
+                function(result)
+                  return {
+                    title = result.title,
+                    link = result.link,
+                    snippet = result.snippet,
+                    date = result.date,
+                  }
+                end
+              )
+              :take(10)
+              :totable()
             return vim.json.encode(jsn), nil
           end
           return "", nil
@@ -117,18 +117,18 @@ M._defaults = {
         format_response_body = function(body)
           if body.items ~= nil then
             local jsn = vim
-                .iter(body.items)
-                :map(
-                  function(result)
-                    return {
-                      title = result.title,
-                      link = result.link,
-                      snippet = result.snippet,
-                    }
-                  end
-                )
-                :take(10)
-                :totable()
+              .iter(body.items)
+              :map(
+                function(result)
+                  return {
+                    title = result.title,
+                    link = result.link,
+                    snippet = result.snippet,
+                  }
+                end
+              )
+              :take(10)
+              :totable()
             return vim.json.encode(jsn), nil
           end
           return "", nil
@@ -143,20 +143,20 @@ M._defaults = {
         format_response_body = function(body)
           if body.data ~= nil then
             local jsn = vim
-                .iter(body.data)
-                -- search results only
-                :filter(function(result) return result.t == 0 end)
-                :map(
-                  function(result)
-                    return {
-                      title = result.title,
-                      url = result.url,
-                      snippet = result.snippet,
-                    }
-                  end
-                )
-                :take(10)
-                :totable()
+              .iter(body.data)
+              -- search results only
+              :filter(function(result) return result.t == 0 end)
+              :map(
+                function(result)
+                  return {
+                    title = result.title,
+                    url = result.url,
+                    snippet = result.snippet,
+                  }
+                end
+              )
+              :take(10)
+              :totable()
             return vim.json.encode(jsn), nil
           end
           return "", nil
@@ -176,15 +176,15 @@ M._defaults = {
   copilot = {
     endpoint = "https://api.githubcopilot.com",
     model = "gpt-4o-2024-08-06",
-    proxy = nil,            -- [protocol://]host[:port] Use this proxy
+    proxy = nil, -- [protocol://]host[:port] Use this proxy
     allow_insecure = false, -- Allow insecure server connections
-    timeout = 30000,        -- Timeout in milliseconds
+    timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
     max_tokens = 4096,
   },
   ---@type AvanteAzureProvider
   azure = {
-    endpoint = "",   -- example: "https://<your-resource-name>.openai.azure.com"
+    endpoint = "", -- example: "https://<your-resource-name>.openai.azure.com"
     deployment = "", -- Azure deployment name (e.g., "gpt-4o", "my-gpt-4o-deployment")
     api_version = "2024-06-01",
     timeout = 30000, -- Timeout in milliseconds
@@ -216,8 +216,7 @@ M._defaults = {
   },
   ---@type AvanteSupportedProvider
   vertex = {
-    endpoint =
-    "https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/google/models",
+    endpoint = "https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/google/models",
     model = "gemini-1.5-flash-002",
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
@@ -265,8 +264,7 @@ M._defaults = {
     enabled = false,
     first_provider = "openai",
     second_provider = "claude",
-    prompt =
-    "Based on the two reference outputs below, generate a response that incorporates elements from both but reflects your own judgment and unique perspective. Do not provide any explanation, just give the response directly. Reference Output 1: [{{provider1_output}}], Reference Output 2: [{{provider2_output}}]",
+    prompt = "Based on the two reference outputs below, generate a response that incorporates elements from both but reflects your own judgment and unique perspective. Do not provide any explanation, just give the response directly. Reference Output 1: [{{provider1_output}}], Reference Output 2: [{{provider2_output}}]",
     timeout = 60000, -- Timeout in milliseconds
   },
   ---Specify the behaviour of avante.nvim
@@ -359,16 +357,16 @@ M._defaults = {
     files = {
       add_current = "<leader>ac", -- Add current buffer to selected files
     },
-    select_model = "<leader>a?",  -- Select model command
+    select_model = "<leader>a?", -- Select model command
   },
   windows = {
     ---@alias AvantePosition "right" | "left" | "top" | "bottom" | "smart"
     position = "right",
-    wrap = true,        -- similar to vim.o.wrap
-    width = 30,         -- default % based on available width in vertical layout
-    height = 30,        -- default % based on available height in horizontal layout
+    wrap = true, -- similar to vim.o.wrap
+    width = 30, -- default % based on available width in vertical layout
+    height = 30, -- default % based on available height in horizontal layout
     sidebar_header = {
-      enabled = true,   -- true, false to enable/disable the header
+      enabled = true, -- true, false to enable/disable the header
       align = "center", -- left, center, right for title
       rounded = true,
     },
@@ -381,9 +379,9 @@ M._defaults = {
       start_insert = true, -- Start insert mode when opening the edit window
     },
     ask = {
-      floating = false,        -- Open the 'AvanteAsk' prompt in a floating window
+      floating = false, -- Open the 'AvanteAsk' prompt in a floating window
       border = "rounded",
-      start_insert = true,     -- Start insert mode when opening the ask window
+      start_insert = true, -- Start insert mode when opening the ask window
       ---@alias AvanteInitialDiff "ours" | "theirs"
       focus_on_apply = "ours", -- which diff to focus after applying
     },
@@ -403,7 +401,7 @@ M._defaults = {
   --- @class AvanteRepoMapConfig
   repo_map = {
     ignore_patterns = { "%.git", "%.worktree", "__pycache__", "node_modules" }, -- ignore files matching these
-    negate_patterns = {},                                                       -- negate ignore files matching these.
+    negate_patterns = {}, -- negate ignore files matching these.
   },
   --- @class AvanteFileSelectorConfig
   file_selector = {
@@ -446,13 +444,13 @@ function M.setup(opts)
 
   M._options = merged
   M.providers = vim
-      .iter(M._defaults)
-      :filter(function(_, value) return type(value) == "table" and value.endpoint ~= nil end)
-      :fold({}, function(acc, k)
-        acc = vim.list_extend({}, acc)
-        acc = vim.list_extend(acc, { k })
-        return acc
-      end)
+    .iter(M._defaults)
+    :filter(function(_, value) return type(value) == "table" and value.endpoint ~= nil end)
+    :fold({}, function(acc, k)
+      acc = vim.list_extend({}, acc)
+      acc = vim.list_extend(acc, { k })
+      return acc
+    end)
 
   vim.validate({ provider = { M._options.provider, "string", false } })
 
