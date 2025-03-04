@@ -334,7 +334,7 @@ if config_file.exists():
 with Path.open(config_file, "w") as f:
     json.dump({"provider": current_provider, "embed_model": current_embed_model}, f)
 
-chroma_collection = chroma_client.get_or_create_collection("documents")
+chroma_collection = chroma_client.get_or_create_collection("documents")  # pyright: ignore
 vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
 storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
