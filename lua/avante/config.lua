@@ -35,6 +35,7 @@ M._defaults = {
   tokenizer = "tiktoken",
   rag_service = {
     enabled = false, -- Enables the rag service, requires OPENAI_API_KEY to be set
+    runner = "docker", -- The runner for the rag service, (can use docker, or nix)
     provider = "openai", -- The provider to use for RAG service. eg: openai or ollama
     llm_model = "", -- The LLM model to use for RAG service
     embed_model = "", -- The embedding model to use for RAG service
