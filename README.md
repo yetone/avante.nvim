@@ -673,13 +673,14 @@ Additionally, RAG Service also depends on Docker! (For macOS users, OrbStack is 
 
 Avante's tools include some web search engines, currently support:
 
-- [tavily](https://tavily.com/)
-- [serpapi](https://serpapi.com/)
-- [searchapi](https://www.searchapi.io/)
-- google's [programmable search engine](https://developers.google.com/custom-search/v1/overview)
-- [kagi](https://help.kagi.com/kagi/api/search.html)
+- [Tavily](https://tavily.com/)
+- [SerpApi](https://serpapi.com/)
+- [SearchAPI](https://www.searchapi.io/)
+- Google's [Programmable Search Engine](https://developers.google.com/custom-search/v1/overview)
+- [Kagi](https://help.kagi.com/kagi/api/search.html)
+- [Brave Search](https://api-dashboard.search.brave.com/app/documentation/web-search/get-started)
 
-The default is tavily, and can be changed through configuring `Config.web_search_engine.provider`:
+The default is Tavily, and can be changed through configuring `Config.web_search_engine.provider`:
 
 ```lua
 web_search_engine = {
@@ -687,9 +688,16 @@ web_search_engine = {
 }
 ```
 
-You need to set the environment variable `TAVILY_API_KEY` , `SERPAPI_API_KEY`, `SEARCHAPI_API_KEY` to use tavily or serpapi or searchapi.
-To use google, set the `GOOGLE_SEARCH_API_KEY` as the [API key](https://developers.google.com/custom-search/v1/overview), and `GOOGLE_SEARCH_ENGINE_ID` as the [search engine](https://programmablesearchengine.google.com) ID.
-To use kagi, set the `KAGI_API_KEY` as the [API Token](https://kagi.com/settings?p=api).
+Environment variables required for providers:
+
+- Tavily: `TAVILY_API_KEY`
+- SerpApi: `SERPAPI_API_KEY`
+- SearchAPI: `SEARCHAPI_API_KEY`
+- Google:
+  - `GOOGLE_SEARCH_API_KEY` as the [API key](https://developers.google.com/custom-search/v1/overview)
+  - `GOOGLE_SEARCH_ENGINE_ID` as the [search engine](https://programmablesearchengine.google.com) ID
+- Kagi: `KAGI_API_KEY` as the [API Token](https://kagi.com/settings?p=api)
+- Brave Search: `BRAVE_API_KEY` as the [API key](https://api-dashboard.search.brave.com/app/keys)
 
 ## Disable Tools
 

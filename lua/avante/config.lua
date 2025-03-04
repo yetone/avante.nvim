@@ -161,6 +161,28 @@ M._defaults = {
           return "", nil
         end,
       },
+      brave = {
+        api_key_name = "BRAVE_API_KEY",
+        extra_request_body = {
+          count = "10",
+          result_filter = "web",
+        },
+        format_response_body = function(body)
+          if body.web == nil then return "", nil end
+
+          local jsn = vim.iter(body.web.results):map(
+            function(result)
+              return {
+                title = result.title,
+                url = result.url,
+                snippet = result.description,
+              }
+            end
+          )
+
+          return vim.json.encode(jsn), nil
+        end,
+      },
     },
   },
   ---@type AvanteSupportedProvider
