@@ -551,6 +551,7 @@ def process_document_batch(documents: list[Document]) -> bool:  # noqa: PLR0915,
             indexing_history_service.update_indexing_status(doc, "failed", error_message=error_msg)
         return False
 
+
 def get_gitignore_files(directory: Path) -> list[str]:
     """Get patterns from .gitignore file."""
     patterns = [".git/"]
@@ -563,6 +564,7 @@ def get_gitignore_files(directory: Path) -> list[str]:
 
     return patterns
 
+
 def get_gitcrypt_files(directory: Path) -> list[str]:
     """Get patterns of git-crypt encrypted files using git command."""
     git_crypt_patterns = []
@@ -574,7 +576,8 @@ def get_gitcrypt_files(directory: Path) -> list[str]:
 
         # Run git command to get git-crypt encrypted files
         import subprocess
-        cmd = "git ls-files -z | xargs -0 git check-attr filter | grep \"filter: git-crypt\" | cut -d: -f1"
+
+        cmd = 'git ls-files -z | xargs -0 git check-attr filter | grep "filter: git-crypt" | cut -d: -f1'
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=False)
 
         if result.returncode == 0 and result.stdout:
@@ -591,6 +594,7 @@ def get_gitcrypt_files(directory: Path) -> list[str]:
         os.chdir(current_dir)
 
     return git_crypt_patterns
+
 
 def get_pathspec(directory: Path) -> pathspec.PathSpec | None:
     """Get pathspec for the directory."""
