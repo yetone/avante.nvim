@@ -357,7 +357,7 @@ function M._stream(opts)
       end
 
       -- If stream is not enabled, then handle the response here
-      if spec.body.stream == false and result.status == 200 then
+      if (spec.body.stream == nil or spec.body.stream == false) and result.status == 200 then
         vim.schedule(function()
           completed = true
           parse_response_without_stream(result.body)

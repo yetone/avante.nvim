@@ -41,6 +41,16 @@ function M.parse_stream_data(ctx, data, opts)
   end
 end
 
+function M.parse_response_without_stream(data, event_state, opts)
+  local bedrock_match = data:gmatch("exception(%b{})")
+  opts.on_chunk("\n**Exception caught**\n\n")
+  for bedrock_data_match in bedrock_match do
+    local jsn = vim.json.decode(bedrock_data_match)
+    opts.on_chunk("- " .. jsn.message .. "\n")
+  end
+  vim.schedule(function() opts.on_stop({ reason = "complete" }) end)
+end
+
 ---@param provider AvanteBedrockProviderFunctor
 ---@param prompt_opts AvantePromptOptions
 ---@return table
