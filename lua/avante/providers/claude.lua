@@ -43,10 +43,7 @@ function M.parse_messages(opts)
   ---@type {idx: integer, length: integer}[]
   local messages_with_length = {}
   for idx, message in ipairs(opts.messages) do
-    table.insert(
-      messages_with_length,
-      { idx = idx, length = Utils.tokens.calculate_message_content_tokens(message.content) }
-    )
+    table.insert(messages_with_length, { idx = idx, length = Utils.tokens.calculate_tokens(message.content) })
   end
 
   table.sort(messages_with_length, function(a, b) return a.length > b.length end)
@@ -58,46 +55,15 @@ function M.parse_messages(opts)
   end
 
   for idx, message in ipairs(opts.messages) do
-    local content = {}
-    if type(message.content) == "string" then
-      table.insert(content, {
-        type = "text",
-        text = message.content,
-        cache_control = top_three[idx] and { type = "ephemeral" } or nil,
-      })
-    else
-      local message_content = message.content
-      ---@cast message_content AvanteLLMMessageContentItem[]
-      for _, item in ipairs(message_content) do
-        if type(item) == "string" then
-          table.insert(content, {
-            type = "text",
-            text = item,
-            cache_control = top_three[idx] and { type = "ephemeral" } or nil,
-          })
-        elseif item.type == "text" then
-          table.insert(content, {
-            type = "text",
-            text = item.text,
-            cache_control = top_three[idx] and { type = "ephemeral" } or nil,
-          })
-        elseif item.type == "thinking" then
-          table.insert(content, {
-            type = "thinking",
-            thinking = item.thinking,
-            signature = item.signature,
-          })
-        elseif item.type == "redacted_thinking" then
-          table.insert(content, {
-            type = "redacted_thinking",
-            data = item.data,
-          })
-        end
-      end
-    end
     table.insert(messages, {
       role = M.role_map[message.role],
-      content = content,
+      content = {
+        {
+          type = "text",
+          text = message.content,
+          cache_control = top_three[idx] and { type = "ephemeral" } or nil,
+        },
+      },
     })
   end
 
@@ -123,20 +89,12 @@ function M.parse_messages(opts)
           role = "assistant",
           content = {},
         }
-        if tool_history.tool_use.thinking_blocks then
-          for _, thinking_block in ipairs(tool_history.tool_use.thinking_blocks) do
+        if tool_history.tool_use.thinking_contents then
+          for _, thinking_content in ipairs(tool_history.tool_use.thinking_contents) do
             msg.content[#msg.content + 1] = {
               type = "thinking",
-              thinking = thinking_block.thinking,
-              signature = thinking_block.signature,
-            }
-          end
-        end
-        if tool_history.tool_use.redacted_thinking_blocks then
-          for _, thinking_block in ipairs(tool_history.tool_use.redacted_thinking_blocks) do
-            msg.content[#msg.content + 1] = {
-              type = "redacted_thinking",
-              data = thinking_block.data,
+              thinking = thinking_content.content,
+              signature = thinking_content.signature,
             }
           end
         end
@@ -177,8 +135,6 @@ function M.parse_messages(opts)
 end
 
 function M.parse_response(ctx, data_stream, event_state, opts)
-  if ctx.resp_filename == nil then ctx.resp_filename = vim.fn.tempname() .. ".txt" end
-  vim.fn.writefile({ data_stream }, ctx.resp_filename, "a")
   if event_state == nil then
     if data_stream:match('"message_start"') then
       event_state = "message_start"
@@ -252,33 +208,24 @@ function M.parse_response(ctx, data_stream, event_state, opts)
             :filter(function(content_block_) return content_block_.stoppped and content_block_.type == "text" end)
             :map(function(content_block_) return content_block_.text end)
             :totable()
-          local thinking_blocks = vim
+          local thinking_contents = vim
             .iter(ctx.content_blocks)
             :filter(function(content_block_) return content_block_.stoppped and content_block_.type == "thinking" end)
             :map(
               function(content_block_)
-                return { thinking = content_block_.thinking, signature = content_block_.signature }
+                return { content = content_block_.thinking, signature = content_block_.signature }
               end
             )
-            :totable()
-          local redacted_thinking_blocks = vim
-            .iter(ctx.content_blocks)
-            :filter(
-              function(content_block_) return content_block_.stoppped and content_block_.type == "redacted_thinking" end
-            )
-            :map(function(content_block_) return { data = content_block_.data } end)
             :totable()
           return {
             name = content_block.name,
             id = content_block.id,
             input_json = content_block.input_json,
             response_contents = response_contents,
-            thinking_blocks = thinking_blocks,
-            redacted_thinking_blocks = redacted_thinking_blocks,
+            thinking_contents = thinking_contents,
           }
         end)
         :totable()
-      Utils.debug("resp filename", ctx.resp_filename)
       opts.on_stop({
         reason = "tool_use",
         usage = jsn.usage,

@@ -17,6 +17,7 @@ local Utils = require("avante.utils")
 ---@class avante.CoreConfig: avante.Config
 local M = {}
 ---@class avante.Config
+---@field custom_tools AvanteLLMToolPublic[]
 M._defaults = {
   debug = false,
   ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | string
@@ -34,7 +35,12 @@ M._defaults = {
   tokenizer = "tiktoken",
   rag_service = {
     enabled = false, -- Enables the rag service, requires OPENAI_API_KEY to be set
-    host_mount = os.getenv("HOME"), -- Host mount path for the rag service
+    host_mount = os.getenv("HOME"), -- Host mount path for the rag service (docker will mount this path)
+    runner = "docker", -- The runner for the rag service, (can use docker, or nix)
+    provider = "openai", -- The provider to use for RAG service. eg: openai or ollama
+    llm_model = "", -- The LLM model to use for RAG service
+    embed_model = "", -- The embedding model to use for RAG service
+    endpoint = "https://api.openai.com/v1", -- The API endpoint for RAG service
   },
   web_search_engine = {
     provider = "tavily",
@@ -155,6 +161,28 @@ M._defaults = {
             return vim.json.encode(jsn), nil
           end
           return "", nil
+        end,
+      },
+      brave = {
+        api_key_name = "BRAVE_API_KEY",
+        extra_request_body = {
+          count = "10",
+          result_filter = "web",
+        },
+        format_response_body = function(body)
+          if body.web == nil then return "", nil end
+
+          local jsn = vim.iter(body.web.results):map(
+            function(result)
+              return {
+                title = result.title,
+                url = result.url,
+                snippet = result.description,
+              }
+            end
+          )
+
+          return vim.json.encode(jsn), nil
         end,
       },
     },
@@ -409,6 +437,9 @@ M._defaults = {
     debounce = 600,
     throttle = 600,
   },
+  disabled_tools = {}, ---@type string[]
+  ---@type AvanteLLMToolPublic[]
+  custom_tools = {},
 }
 
 ---@type avante.Config

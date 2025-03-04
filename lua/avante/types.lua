@@ -76,13 +76,9 @@ vim.g.avante_login = vim.g.avante_login
 ---@field on_chunk AvanteLLMChunkCallback
 ---@field on_stop AvanteLLMStopCallback
 ---
----@alias AvanteLLMMessageContentItem string | { type: "text", text: string } | { type: "thinking", thinking: string, signature: string } | { type: "redacted_thinking", data: string }
----
----@alias AvanteLLMMessageContent AvanteLLMMessageContentItem[] | string
----
 ---@class AvanteLLMMessage
 ---@field role "user" | "assistant"
----@field content AvanteLLMMessageContent
+---@field content string
 ---
 ---@class AvanteLLMToolResult
 ---@field tool_name string
@@ -231,18 +227,10 @@ vim.g.avante_login = vim.g.avante_login
 ---@field id string
 ---@field input_json string
 ---@field response_contents? string[]
----@field thinking_blocks? AvanteLLMThinkingBlock[]
----@field redacted_thinking_blocks? AvanteLLMRedactedThinkingBlock[]
+---@field thinking_contents? { content: string, signature: string }[]
 ---
 ---@class AvanteLLMStartCallbackOptions
 ---@field usage? AvanteLLMUsage
----
----@class AvanteLLMThinkingBlock
----@field thinking string
----@field signature string
----
----@class AvanteLLMRedactedThinkingBlock
----@field data string
 ---
 ---@class AvanteLLMStopCallbackOptions
 ---@field reason "complete" | "tool_use" | "error" | "rate_limit"
@@ -251,7 +239,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field tool_use_list? AvanteLLMToolUse[]
 ---@field retry_after? integer
 ---
----@alias AvanteStreamParser fun(line: string, handler_opts: AvanteHandlerOptions): nil
+---@alias AvanteStreamParser fun(ctx: any, line: string, handler_opts: AvanteHandlerOptions): nil
 ---@alias AvanteLLMStartCallback fun(opts: AvanteLLMStartCallbackOptions): nil
 ---@alias AvanteLLMChunkCallback fun(chunk: string): any
 ---@alias AvanteLLMStopCallback fun(opts: AvanteLLMStopCallbackOptions): nil
@@ -340,30 +328,21 @@ vim.g.avante_login = vim.g.avante_login
 ---@field returns AvanteLLMToolReturn[]
 ---@field enabled? fun(): boolean
 
+---@class AvanteLLMToolPublic : AvanteLLMTool
+---@field func AvanteLLMToolFunc
+
 ---@class AvanteLLMToolParam
----@field type string
+---@field type 'table'
 ---@field fields AvanteLLMToolParamField[]
 
 ---@class AvanteLLMToolParamField
 ---@field name string
 ---@field description string
----@field type string
+---@field type 'string' | 'integer'
 ---@field optional? boolean
 
 ---@class AvanteLLMToolReturn
 ---@field name string
 ---@field description string
----@field type string
+---@field type 'string' | 'string[]' | 'boolean'
 ---@field optional? boolean
-
----@class avante.ChatHistoryEntry
----@field timestamp string
----@field provider string
----@field model string
----@field request string
----@field response string
----@field original_response string
----@field selected_file {filepath: string}?
----@field selected_code {filetype: string, content: string}?
----@field reset_memory boolean?
----@field selected_filepaths string[] | nil
