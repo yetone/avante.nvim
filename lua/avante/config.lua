@@ -34,9 +34,12 @@ M._defaults = {
   -- If you wish to use a given implementation, then you can override it here.
   tokenizer = "tiktoken",
   rag_service = {
-    enabled = false, -- Enables the rag service, requires OPENAI_API_KEY to be set
-    ---@alias Runner "docker" | "nix"
-    runner = "docker",
+    enabled = false,                        -- Enables the rag service, requires OPENAI_API_KEY to be set
+    runner = "docker",                      -- The runner for the rag service, (can use docker, or nix)
+    provider = "openai",                    -- The provider to use for RAG service. eg: openai or ollama
+    llm_model = "",                         -- The LLM model to use for RAG service
+    embed_model = "",                       -- The embedding model to use for RAG service
+    endpoint = "https://api.openai.com/v1", -- The API endpoint for RAG service
   },
   web_search_engine = {
     provider = "tavily",
