@@ -61,8 +61,10 @@ llama-index-agent-openai==0.4.3
 llama-index-cli==0.4.0
 llama-index-core==0.12.16.post1
 llama-index-embeddings-openai==0.3.1
+llama-index-embeddings-ollama==0.5.0
 llama-index-indices-managed-llama-cloud==0.6.4
 llama-index-llms-openai==0.3.18
+llama-index-llms-ollama==0.5.2
 llama-index-multi-modal-llms-openai==0.4.3
 llama-index-program-openai==0.3.1
 llama-index-question-gen-openai==0.3.0
@@ -163,3 +165,4 @@ websockets==14.2
 wrapt==1.17.2
 yarl==1.18.3
 zipp==3.21.0
+docx2txt==0.8.0
