@@ -21,4 +21,3 @@ cd "$TARGET_DIR"
 # Run the RAG service using nix-shell
 # The environment variables (PORT, DATA_DIR, OPENAI_API_KEY, OPENAI_BASE_URL) are passed from the parent process
 nix-shell
-
