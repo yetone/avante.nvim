@@ -653,7 +653,7 @@ Therefore, I have adopted Cursor’s method to implement planning applying. For 
 
 ## RAG Service
 
-Avante provides a RAG service, which is a tool for obtaining the required context for the AI to generate the codes. Default it not enabled, you can enable it in this way:
+Avante provides a RAG service, which is a tool for obtaining the required context for the AI to generate the codes. By default, it is not enabled. You can enable it this way:
 
 ```lua
 rag_service = {
