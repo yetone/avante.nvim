@@ -89,7 +89,7 @@ function M.search_keyword(opts, on_log)
   ---execute the search command
   local cmd = ""
   if search_cmd:find("rg") then
-    cmd = string.format("%s --files-with-matches --no-ignore-vcs --ignore-case --hidden --glob '!.git'", search_cmd)
+    cmd = string.format("%s --files-with-matches --ignore-case --hidden --glob '!.git'", search_cmd)
     cmd = string.format("%s '%s' %s", cmd, opts.keyword, abs_path)
   elseif search_cmd:find("ag") then
     cmd = string.format("%s '%s' --nocolor --nogroup --hidden --ignore .git %s", search_cmd, opts.keyword, abs_path)
