@@ -222,12 +222,20 @@ vim.g.avante_login = vim.g.avante_login
 ---@field cache_read_input_tokens number
 ---@field output_tokens number
 ---
+---@class AvanteLLMThinkingBlock
+---@field thinking string
+---@field signature string
+---
+---@class AvanteLLMRedactedThinkingBlock
+---@field data string
+---
 ---@class AvanteLLMToolUse
 ---@field name string
 ---@field id string
 ---@field input_json string
 ---@field response_contents? string[]
----@field thinking_contents? { content: string, signature: string }[]
+---@field thinking_blocks? AvanteLLMThinkingBlock[]
+---@field redacted_thinking_blocks? AvanteLLMRedactedThinkingBlock[]
 ---
 ---@class AvanteLLMStartCallbackOptions
 ---@field usage? AvanteLLMUsage
