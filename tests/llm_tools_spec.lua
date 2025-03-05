@@ -272,4 +272,76 @@ describe("llm_tools", function()
       assert.equals("Hello from custom container\n", result)
     end)
   end)
+
+  describe("glob", function()
+    it("should find files matching the pattern", function()
+      -- Create some additional test files with different extensions for glob testing
+      os.execute("touch " .. test_dir .. "/file1.lua")
+      os.execute("touch " .. test_dir .. "/file2.lua")
+      os.execute("touch " .. test_dir .. "/file3.js")
+      os.execute("mkdir -p " .. test_dir .. "/nested")
+      os.execute("touch " .. test_dir .. "/nested/file4.lua")
+
+      -- Test for lua files in the root
+      local result, err = LlmTools.glob({ rel_path = ".", pattern = "*.lua" })
+      assert.is_nil(err)
+      local files = vim.json.decode(result)
+      assert.equals(2, #files)
+      assert.truthy(vim.tbl_contains(files, test_dir .. "/file1.lua"))
+      assert.truthy(vim.tbl_contains(files, test_dir .. "/file2.lua"))
+      assert.falsy(vim.tbl_contains(files, test_dir .. "/file3.js"))
+      assert.falsy(vim.tbl_contains(files, test_dir .. "/nested/file4.lua"))
+
+      -- Test with recursive pattern
+      local result2, err2 = LlmTools.glob({ rel_path = ".", pattern = "**/*.lua" })
+      assert.is_nil(err2)
+      local files2 = vim.json.decode(result2)
+      assert.equals(3, #files2)
+      assert.truthy(vim.tbl_contains(files2, test_dir .. "/file1.lua"))
+      assert.truthy(vim.tbl_contains(files2, test_dir .. "/file2.lua"))
+      assert.truthy(vim.tbl_contains(files2, test_dir .. "/nested/file4.lua"))
+    end)
+
+    it("should respect path permissions", function()
+      local result, err = LlmTools.glob({ rel_path = "../outside_project", pattern = "*.txt" })
+      assert.equals("", result)
+      assert.truthy(err:find("No permission to access path"))
+    end)
+
+    it("should handle patterns without matches", function()
+      local result, err = LlmTools.glob({ rel_path = ".", pattern = "*.nonexistent" })
+      assert.is_nil(err)
+      local files = vim.json.decode(result)
+      assert.equals(0, #files)
+    end)
+
+    it("should handle files in gitignored directories", function()
+      -- Create test files in ignored directory
+      os.execute("touch " .. test_dir .. "/test_dir2/ignored1.lua")
+      os.execute("touch " .. test_dir .. "/test_dir2/ignored2.lua")
+
+      -- Create test files in non-ignored directory
+      os.execute("touch " .. test_dir .. "/test_dir1/notignored1.lua")
+      os.execute("touch " .. test_dir .. "/test_dir1/notignored2.lua")
+
+      local result, err = LlmTools.glob({ rel_path = ".", pattern = "**/*.lua" })
+      assert.is_nil(err)
+      local files = vim.json.decode(result)
+
+      -- Check that files from non-ignored directory are found
+      local found_notignored = false
+      for _, file in ipairs(files) do
+        if file:find("test_dir1/notignored") then
+          found_notignored = true
+          break
+        end
+      end
+      assert.is_true(found_notignored)
+
+      -- Note: By default, vim.fn.glob does not respect gitignore files
+      -- This test simply verifies the glob function works as expected
+      -- If in the future, the function is modified to respect gitignore,
+      -- this test can be updated
+    end)
+  end)
 end)
