@@ -18,7 +18,7 @@ You can keep asking if you then decide you need to edit more files.
 
 3. Describe each change with a *SEARCH/REPLACE block* per the examples below.
 
-All changes to files must use this *SEARCH/REPLACE block* format.
+All changes to files must use this *SEARCH/REPLACE block* format, including creating new files.
 ONLY EVER RETURN CODE IN A *SEARCH/REPLACE BLOCK*!
 
 # Example conversations:
