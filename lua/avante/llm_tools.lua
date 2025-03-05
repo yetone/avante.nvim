@@ -38,6 +38,16 @@ local function has_permission_to_access(abs_path)
   return not Utils.is_ignored(rel_path, gitignore_patterns, gitignore_negate_patterns)
 end
 
+---@type AvanteLLMToolFunc<{ rel_path: string, pattern: string }>
+function M.glob(opts, on_log)
+  local abs_path = get_abs_path(opts.rel_path)
+  if not has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
+  if on_log then on_log("path: " .. abs_path) end
+  if on_log then on_log("pattern: " .. opts.pattern) end
+  local files = vim.fn.glob(abs_path .. "/" .. opts.pattern, true, true)
+  return vim.json.encode(files), nil
+end
+
 ---@type AvanteLLMToolFunc<{ rel_path: string, max_depth?: integer }>
 function M.list_files(opts, on_log)
   local abs_path = get_abs_path(opts.rel_path)
@@ -614,6 +624,38 @@ end
 ---@type AvanteLLMTool[]
 M._tools = {
   {
+    name = "glob",
+    description = 'Fast file pattern matching using glob patterns like "**/*.js"',
+    param = {
+      type = "table",
+      fields = {
+        {
+          name = "pattern",
+          description = "Glob pattern",
+          type = "string",
+        },
+        {
+          name = "rel_path",
+          description = "Relative path to the directory, as cwd",
+          type = "string",
+        },
+      },
+    },
+    returns = {
+      {
+        name = "matches",
+        description = "List of matched files",
+        type = "string",
+      },
+      {
+        name = "err",
+        description = "Error message",
+        type = "string",
+        optional = true,
+      },
+    },
+  },
+  {
     name = "rag_search",
     enabled = function() return Config.rag_service.enabled and RagService.is_ready() end,
     description = "Use Retrieval-Augmented Generation (RAG) to search for relevant information from an external knowledge base or documents. This tool retrieves relevant context from a large dataset and integrates it into the response generation process, improving accuracy and relevance. Use it when answering questions that require factual knowledge beyond what the model has been trained on.",
@@ -643,7 +685,7 @@ M._tools = {
   },
   {
     name = "python",
-    description = "Run python code",
+    description = "Run python code. Can't use it to read files or modify files.",
     param = {
       type = "table",
       fields = {
@@ -858,7 +900,7 @@ M._tools = {
   },
   {
     name = "read_file",
-    description = "Read the contents of a file",
+    description = "Read the contents of a file. If the file content is already in the context, do not use this tool.",
     param = {
       type = "table",
       fields = {
@@ -1057,7 +1099,7 @@ M._tools = {
   },
   {
     name = "bash",
-    description = "Run a bash command in a directory",
+    description = "Run a bash command in a directory. Can't use search commands like find/grep or read tools like cat/ls.",
     param = {
       type = "table",
       fields = {
