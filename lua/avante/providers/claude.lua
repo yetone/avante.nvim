@@ -89,12 +89,20 @@ function M.parse_messages(opts)
           role = "assistant",
           content = {},
         }
-        if tool_history.tool_use.thinking_contents then
-          for _, thinking_content in ipairs(tool_history.tool_use.thinking_contents) do
+        if tool_history.tool_use.thinking_blocks then
+          for _, thinking_block in ipairs(tool_history.tool_use.thinking_blocks) do
             msg.content[#msg.content + 1] = {
               type = "thinking",
-              thinking = thinking_content.content,
-              signature = thinking_content.signature,
+              thinking = thinking_block.thinking,
+              signature = thinking_block.signature,
+            }
+          end
+        end
+        if tool_history.tool_use.redacted_thinking_blocks then
+          for _, redacted_thinking_block in ipairs(tool_history.tool_use.redacted_thinking_blocks) do
+            msg.content[#msg.content + 1] = {
+              type = "redacted_thinking",
+              data = redacted_thinking_block.data,
             }
           end
         end
@@ -208,21 +216,32 @@ function M.parse_response(ctx, data_stream, event_state, opts)
             :filter(function(content_block_) return content_block_.stoppped and content_block_.type == "text" end)
             :map(function(content_block_) return content_block_.text end)
             :totable()
-          local thinking_contents = vim
+          local thinking_blocks = vim
             .iter(ctx.content_blocks)
             :filter(function(content_block_) return content_block_.stoppped and content_block_.type == "thinking" end)
-            :map(
-              function(content_block_)
-                return { content = content_block_.thinking, signature = content_block_.signature }
-              end
-            )
+            :map(function(content_block_)
+              ---@type AvanteLLMThinkingBlock
+              return { thinking = content_block_.thinking, signature = content_block_.signature }
+            end)
             :totable()
+          local redacted_thinking_blocks = vim
+            .iter(ctx.content_blocks)
+            :filter(
+              function(content_block_) return content_block_.stoppped and content_block_.type == "redacted_thinking" end
+            )
+            :map(function(content_block_)
+              ---@type AvanteLLMRedactedThinkingBlock
+              return { data = content_block_.data }
+            end)
+            :totable()
+          ---@type AvanteLLMToolUse
           return {
             name = content_block.name,
             id = content_block.id,
             input_json = content_block.input_json,
             response_contents = response_contents,
-            thinking_contents = thinking_contents,
+            thinking_blocks = thinking_blocks,
+            redacted_thinking_blocks = redacted_thinking_blocks,
           }
         end)
         :totable()
