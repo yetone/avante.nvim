@@ -49,9 +49,9 @@ function M.parse_messages(opts)
   table.sort(messages_with_length, function(a, b) return a.length > b.length end)
 
   ---@type table<integer, boolean>
-  local top_three = {}
-  for i = 1, math.min(3, #messages_with_length) do
-    top_three[messages_with_length[i].idx] = true
+  local top_two = {}
+  for i = 1, math.min(2, #messages_with_length) do
+    top_two[messages_with_length[i].idx] = true
   end
 
   for idx, message in ipairs(opts.messages) do
@@ -61,7 +61,7 @@ function M.parse_messages(opts)
         {
           type = "text",
           text = message.content,
-          cache_control = top_three[idx] and { type = "ephemeral" } or nil,
+          cache_control = top_two[idx] and { type = "ephemeral" } or nil,
         },
       },
     })
