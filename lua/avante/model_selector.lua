@@ -8,11 +8,12 @@ local M = {}
 ---@param cfg table
 ---@return table?
 local function create_model_entry(provider, cfg)
-  return cfg.model and {
-    name = provider .. "/" .. cfg.model,
-    provider = provider,
-    model = cfg.model,
-  }
+  return cfg.model
+    and {
+      name = cfg.display_name or (provider .. "/" .. cfg.model),
+      provider = provider,
+      model = cfg.model,
+    }
 end
 
 function M.open()

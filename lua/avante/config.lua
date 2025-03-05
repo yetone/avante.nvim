@@ -537,6 +537,7 @@ M.BASE_PROVIDER_KEYS = {
   "allow_insecure",
   "api_key_name",
   "timeout",
+  "display_name",
   -- internal
   "local",
   "_shellenv",
