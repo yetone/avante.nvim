@@ -281,6 +281,12 @@ function M.parse_curl_args(provider, prompt_opts)
     end
   end
 
+  if #tools > 0 then
+    local last_tool = vim.deepcopy(tools[#tools])
+    last_tool.cache_control = { type = "ephemeral" }
+    tools[#tools] = last_tool
+  end
+
   return {
     url = Utils.url_join(provider_conf.endpoint, "/v1/messages"),
     proxy = provider_conf.proxy,
