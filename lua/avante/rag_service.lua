@@ -2,14 +2,13 @@ local curl = require("plenary.curl")
 local Path = require("plenary.path")
 local Config = require("avante.config")
 local Utils = require("avante.utils")
-local Config = require("avante.config")
 
 local M = {}
 
 local container_name = "avante-rag-service"
 local service_path = "/tmp/" .. container_name
 
-function M.get_rag_service_image() return "quay.io/yetoneful/avante-rag-service:0.0.6" end
+function M.get_rag_service_image() return "quay.io/yetoneful/avante-rag-service:0.0.7" end
 
 function M.get_rag_service_port() return 20250 end
 
