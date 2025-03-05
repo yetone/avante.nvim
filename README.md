@@ -759,7 +759,14 @@ Here's an example of a custom tool that runs Go unit tests:
       command = "go test -v ./...",  -- Shell command to execute
       param = {  -- Input parameters (optional)
         type = "table",
-        fields = {},
+        fields = {
+          {
+            name = "target",
+            description = "Package or directory to test (e.g. './pkg/...' or './internal/pkg')",
+            type = "string",
+            optional = true,
+          },
+        },
       },
       returns = {  -- Expected return values
         {
@@ -774,8 +781,9 @@ Here's an example of a custom tool that runs Go unit tests:
           optional = true,
         },
       },
-      func = function()  -- Custom function to execute
-        return vim.fn.system(string.format("go test -v ./..."))
+      func = function(params, on_log, on_complete)  -- Custom function to execute
+        local target = params.target or "./..."
+        return vim.fn.system(string.format("go test -v %s", target))
       end,
     },
   },
