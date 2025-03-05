@@ -148,6 +148,12 @@ function Sidebar:close(opts)
   vim.cmd("wincmd =")
 end
 
+function Sidebar:shutdown()
+  Llm.cancel_inflight_request()
+  self:close()
+  vim.cmd("stopinsert")
+end
+
 ---@return boolean
 function Sidebar:focus()
   if self:is_open() then
@@ -2684,6 +2690,8 @@ function Sidebar:create_input_container(opts)
 
   self.input_container:map("n", Config.mappings.submit.normal, on_submit)
   self.input_container:map("i", Config.mappings.submit.insert, on_submit)
+  self.input_container:map("n", Config.mappings.sidebar.close_from_input.normal, function() self:shutdown() end)
+  self.input_container:map("i", Config.mappings.sidebar.close_from_input.insert, function() self:shutdown() end)
 
   api.nvim_set_option_value("filetype", "AvanteInput", { buf = self.input_container.bufnr })
 
@@ -2808,6 +2816,20 @@ function Sidebar:create_input_container(opts)
     group = self.augroup,
     buffer = self.input_container.bufnr,
     callback = function() close_hint() end,
+  })
+
+  api.nvim_create_autocmd("BufEnter", {
+    group = self.augroup,
+    buffer = self.input_container.bufnr,
+    callback = function()
+      if Config.windows.ask.start_insert then vim.cmd("startinsert") end
+    end,
+  })
+
+  api.nvim_create_autocmd("BufLeave", {
+    group = self.augroup,
+    buffer = self.input_container.bufnr,
+    callback = function() vim.cmd("stopinsert") end,
   })
 
   -- Show hint in insert mode
@@ -2937,10 +2959,7 @@ function Sidebar:render(opts)
     xpcall(function() api.nvim_buf_set_name(self.result_container.bufnr, RESULT_BUF_NAME) end, function(_) end)
   end)
 
-  self.result_container:map("n", Config.mappings.sidebar.close, function()
-    Llm.cancel_inflight_request()
-    self:close()
-  end)
+  self.result_container:map("n", Config.mappings.sidebar.close, function() self:shutdown() end)
 
   self:create_input_container(opts)
 
