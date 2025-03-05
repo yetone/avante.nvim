@@ -215,6 +215,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field temperature? number
 ---@field max_tokens? number
 ---@field reasoning_effort? string
+---@field display_name? string
 ---
 ---@class AvanteLLMUsage
 ---@field input_tokens number
