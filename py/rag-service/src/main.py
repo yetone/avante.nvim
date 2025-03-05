@@ -8,6 +8,8 @@ import json
 import multiprocessing
 import os
 import re
+import shutil
+import subprocess
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -568,30 +570,70 @@ def get_gitignore_files(directory: Path) -> list[str]:
 def get_gitcrypt_files(directory: Path) -> list[str]:
     """Get patterns of git-crypt encrypted files using git command."""
     git_crypt_patterns = []
+    git_executable = shutil.which("git")
+
+    if not git_executable:
+        logger.warning("git command not found, git-crypt files will not be excluded")
+        return git_crypt_patterns
 
     try:
-        # Change to the directory to run git commands
-        current_dir = os.getcwd()
-        os.chdir(directory)
+        # Find git root directory
+        git_root_cmd = subprocess.run(
+            [git_executable, "-C", str(directory), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
 
-        # Run git command to get git-crypt encrypted files
-        import subprocess
+        if git_root_cmd.returncode != 0:
+            logger.warning("Not a git repository or git command failed: %s", git_root_cmd.stderr.strip())
+            return git_crypt_patterns
 
-        cmd = 'git ls-files -z | xargs -0 git check-attr filter | grep "filter: git-crypt" | cut -d: -f1'
-        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, check=False)
+        git_root = Path(git_root_cmd.stdout.strip())
 
-        if result.returncode == 0 and result.stdout:
-            # Split the output by newlines and filter empty lines
-            git_crypt_patterns = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+        # Get relative path from git root to our directory
+        rel_path = directory.relative_to(git_root) if directory != git_root else Path()
 
-            # Log if git-crypt patterns were found
-            if git_crypt_patterns:
-                logger.info("Excluding git-crypt encrypted files: %s", git_crypt_patterns)
+        # Execute git commands separately and pipe the results
+        git_ls_files = subprocess.run(
+            [git_executable, "-C", str(git_root), "ls-files", "-z"],
+            capture_output=True,
+            text=False,
+            check=False,
+        )
+
+        if git_ls_files.returncode != 0:
+            return git_crypt_patterns
+
+        # Use Python to process the output instead of xargs, grep, and cut
+        git_check_attr = subprocess.run(
+            [git_executable, "-C", str(git_root), "check-attr", "filter", "--stdin", "-z"],
+            input=git_ls_files.stdout,
+            capture_output=True,
+            text=False,
+            check=False,
+        )
+
+        if git_check_attr.returncode != 0:
+            return git_crypt_patterns
+
+        # Process the output in Python to find git-crypt files
+        output = git_check_attr.stdout.decode("utf-8")
+        lines = output.split("\0")
+
+        for i in range(0, len(lines) - 2, 3):
+            if i + 2 < len(lines) and lines[i + 2] == "git-crypt":
+                file_path = lines[i]
+                # Only include files that are in our directory or subdirectories
+                file_path_obj = Path(file_path)
+                if str(rel_path) == "." or file_path_obj.is_relative_to(rel_path):
+                    git_crypt_patterns.append(file_path)
+
+        # Log if git-crypt patterns were found
+        if git_crypt_patterns:
+            logger.info("Excluding git-crypt encrypted files: %s", git_crypt_patterns)
     except (subprocess.SubprocessError, OSError) as e:
         logger.warning("Error getting git-crypt files: %s", str(e))
-    finally:
-        # Change back to the original directory
-        os.chdir(current_dir)
 
     return git_crypt_patterns
 
