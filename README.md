@@ -742,6 +742,46 @@ Tool list
 > rag_search, python, git_diff, git_commit, list_files, search_files, search_keyword, read_file_toplevel_symbols,
 > read_file, create_file, rename_file, delete_file, create_dir, rename_dir, delete_dir, bash, web_search, fetch
 
+## Custom Tools
+
+Avante allows you to define custom tools that can be used by the AI during code generation and analysis. These tools can execute shell commands, run scripts, or perform any custom logic you need.
+
+### Example: Go Test Runner
+
+Here's an example of a custom tool that runs Go unit tests:
+
+```lua
+{
+  custom_tools = {
+    {
+      name = "run_go_tests",  -- Unique name for the tool
+      description = "Run Go unit tests and return results",  -- Description shown to AI
+      command = "go test -v ./...",  -- Shell command to execute
+      param = {  -- Input parameters (optional)
+        type = "table",
+        fields = {},
+      },
+      returns = {  -- Expected return values
+        {
+          name = "result",
+          description = "Result of the fetch",
+          type = "string",
+        },
+        {
+          name = "error",
+          description = "Error message if the fetch was not successful",
+          type = "string",
+          optional = true,
+        },
+      },
+      func = function()  -- Custom function to execute
+        return vim.fn.system(string.format("go test -v ./..."))
+      end,
+    },
+  },
+}
+```
+
 ## Custom prompts
 
 By default, `avante.nvim` provides three different modes to interact with: `planning`, `editing`, and `suggesting`, followed with three different prompts per mode.
