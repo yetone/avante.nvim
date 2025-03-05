@@ -47,7 +47,7 @@ function M.launch_rag_service(cb)
   if M.get_rag_service_runner() == "docker" then
     local image = M.get_rag_service_image()
     local data_path = M.get_data_path()
-    local cmd = string.format("docker ps -a | grep '%s'", container_name)
+    local cmd = string.format("docker ps | grep '%s'", container_name)
     local result = vim.fn.system(cmd)
     if result ~= "" then
       Utils.debug(string.format("container %s already running", container_name))
@@ -68,8 +68,13 @@ function M.launch_rag_service(cb)
     else
       Utils.debug(string.format("container %s not found, starting...", container_name))
     end
+    result = vim.fn.system(string.format("docker ps -a | grep '%s'", container_name))
+    if result ~= "" then
+      Utils.info(string.format("container %s already started but not running, stopping...", container_name))
+      M.stop_rag_service()
+    end
     local cmd_ = string.format(
-      "docker run --rm -d -p %d:8000 --name %s -v %s:/data -v %s:/host:ro -e DATA_DIR=/data -e RAG_PROVIDER=%s -e %s_API_KEY=%s -e %s_API_BASE=%s -e RAG_LLM_MODEL=%s -e RAG_EMBED_MODEL=%s %s",
+      "docker run -d -p %d:8000 --name %s -v %s:/data -v %s:/host:ro -e ALLOW_RESET=TRUE -e DATA_DIR=/data -e RAG_PROVIDER=%s -e %s_API_KEY=%s -e %s_API_BASE=%s -e RAG_LLM_MODEL=%s -e RAG_EMBED_MODEL=%s %s",
       port,
       container_name,
       data_path,
@@ -111,7 +116,7 @@ function M.launch_rag_service(cb)
     Utils.debug(string.format("launching %s with nix...", container_name))
 
     local cmd = string.format(
-      "cd %s && PORT=%d DATA_DIR=%s RAG_PROVIDER=%s %s_API_KEY=%s %s_API_BASE=%s RAG_LLM_MODEL=%s RAG_EMBED_MODEL=%s sh run.sh %s",
+      "cd %s && ALLOW_RESET=TRUE PORT=%d DATA_DIR=%s RAG_PROVIDER=%s %s_API_KEY=%s %s_API_BASE=%s RAG_LLM_MODEL=%s RAG_EMBED_MODEL=%s sh run.sh %s",
       rag_service_dir,
       port,
       service_path,
