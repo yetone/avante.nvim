@@ -6,6 +6,8 @@ local Scan = require("plenary.scandir")
 local Config = require("avante.config")
 
 ---@class avante.Path
+---@field history_path Path
+---@field cache_path Path
 local P = {}
 
 local history_file_cache = LRUCache:new(12)

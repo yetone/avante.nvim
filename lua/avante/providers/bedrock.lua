@@ -7,6 +7,13 @@ local M = {}
 M.api_key_name = "BEDROCK_KEYS"
 M.use_xml_format = true
 
+setmetatable(M, {
+  __index = function(_, k)
+    local model_handler = M.load_model_handler()
+    return model_handler[k]
+  end,
+})
+
 function M.load_model_handler()
   local provider_conf, _ = P.parse_config(P["bedrock"])
   local bedrock_model = provider_conf.model
@@ -16,6 +23,11 @@ function M.load_model_handler()
   if ok then return model_module end
   local error_msg = "Bedrock model handler not found: " .. bedrock_model
   error(error_msg)
+end
+
+function M:parse_messages(prompt_opts)
+  local model_handler = M.load_model_handler()
+  return model_handler.parse_messages(self, prompt_opts)
 end
 
 function M:parse_response(ctx, data_stream, event_state, opts)
