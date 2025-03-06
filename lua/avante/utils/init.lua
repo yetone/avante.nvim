@@ -29,7 +29,7 @@ function M.has(plugin)
   if ok then return LazyConfig.plugins[plugin] ~= nil end
 
   local res, _ = pcall(require, plugin)
-  return res ~= nil
+  return res
 end
 
 function M.is_win() return jit.os:find("Windows") ~= nil end
