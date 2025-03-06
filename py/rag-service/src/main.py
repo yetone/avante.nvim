@@ -8,6 +8,8 @@ import json
 import multiprocessing
 import os
 import re
+import shutil
+import subprocess
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -552,15 +554,101 @@ def process_document_batch(documents: list[Document]) -> bool:  # noqa: PLR0915,
         return False
 
 
+def get_gitignore_files(directory: Path) -> list[str]:
+    """Get patterns from .gitignore file."""
+    patterns = [".git/"]
+
+    # Check for .gitignore
+    gitignore_path = directory / ".gitignore"
+    if gitignore_path.exists():
+        with gitignore_path.open("r", encoding="utf-8") as f:
+            patterns.extend(f.readlines())
+
+    return patterns
+
+
+def get_gitcrypt_files(directory: Path) -> list[str]:
+    """Get patterns of git-crypt encrypted files using git command."""
+    git_crypt_patterns = []
+    git_executable = shutil.which("git")
+
+    if not git_executable:
+        logger.warning("git command not found, git-crypt files will not be excluded")
+        return git_crypt_patterns
+
+    try:
+        # Find git root directory
+        git_root_cmd = subprocess.run(
+            [git_executable, "-C", str(directory), "rev-parse", "--show-toplevel"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+        if git_root_cmd.returncode != 0:
+            logger.warning("Not a git repository or git command failed: %s", git_root_cmd.stderr.strip())
+            return git_crypt_patterns
+
+        git_root = Path(git_root_cmd.stdout.strip())
+
+        # Get relative path from git root to our directory
+        rel_path = directory.relative_to(git_root) if directory != git_root else Path()
+
+        # Execute git commands separately and pipe the results
+        git_ls_files = subprocess.run(
+            [git_executable, "-C", str(git_root), "ls-files", "-z"],
+            capture_output=True,
+            text=False,
+            check=False,
+        )
+
+        if git_ls_files.returncode != 0:
+            return git_crypt_patterns
+
+        # Use Python to process the output instead of xargs, grep, and cut
+        git_check_attr = subprocess.run(
+            [git_executable, "-C", str(git_root), "check-attr", "filter", "--stdin", "-z"],
+            input=git_ls_files.stdout,
+            capture_output=True,
+            text=False,
+            check=False,
+        )
+
+        if git_check_attr.returncode != 0:
+            return git_crypt_patterns
+
+        # Process the output in Python to find git-crypt files
+        output = git_check_attr.stdout.decode("utf-8")
+        lines = output.split("\0")
+
+        for i in range(0, len(lines) - 2, 3):
+            if i + 2 < len(lines) and lines[i + 2] == "git-crypt":
+                file_path = lines[i]
+                # Only include files that are in our directory or subdirectories
+                file_path_obj = Path(file_path)
+                if str(rel_path) == "." or file_path_obj.is_relative_to(rel_path):
+                    git_crypt_patterns.append(file_path)
+
+        # Log if git-crypt patterns were found
+        if git_crypt_patterns:
+            logger.info("Excluding git-crypt encrypted files: %s", git_crypt_patterns)
+    except (subprocess.SubprocessError, OSError) as e:
+        logger.warning("Error getting git-crypt files: %s", str(e))
+
+    return git_crypt_patterns
+
+
 def get_pathspec(directory: Path) -> pathspec.PathSpec | None:
     """Get pathspec for the directory."""
-    gitignore_path = directory / ".gitignore"
-    if not gitignore_path.exists():
+    # Collect patterns from both sources
+    patterns = get_gitignore_files(directory)
+    patterns.extend(get_gitcrypt_files(directory))
+
+    # Return None if no patterns were found
+    if len(patterns) <= 1:  # Only .git/ is in the list
         return None
 
-    # Read gitignore patterns
-    with gitignore_path.open("r", encoding="utf-8") as f:
-        return pathspec.GitIgnoreSpec.from_lines([*f.readlines(), ".git/"])
+    return pathspec.GitIgnoreSpec.from_lines(patterns)
 
 
 def scan_directory(directory: Path) -> list[str]:
@@ -574,7 +662,11 @@ def scan_directory(directory: Path) -> list[str]:
         if not spec:
             matched_files.extend(file_paths)
             continue
-        matched_files.extend([file for file in file_paths if not spec.match_file(os.path.relpath(file, directory))])
+        for file in file_paths:
+            if spec and spec.match_file(os.path.relpath(file, directory)):
+                logger.info("Ignoring file: %s", file)
+            else:
+                matched_files.append(file)
 
     return matched_files
 
