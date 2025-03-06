@@ -18,8 +18,8 @@ M.parse_response = O.parse_response
 M.parse_response_without_stream = O.parse_response_without_stream
 M.is_disable_stream = O.is_disable_stream
 
-function M:parse_curl_args(provider, prompt_opts)
-  local provider_conf, request_body = P.parse_config(provider)
+function M:parse_curl_args(prompt_opts)
+  local provider_conf, request_body = P.parse_config(self)
 
   local headers = {
     ["Content-Type"] = "application/json",
@@ -27,9 +27,9 @@ function M:parse_curl_args(provider, prompt_opts)
 
   if P.env.require_api_key(provider_conf) then
     if provider_conf.entra then
-      headers["Authorization"] = "Bearer " .. provider.parse_api_key()
+      headers["Authorization"] = "Bearer " .. self.parse_api_key()
     else
-      headers["api-key"] = provider.parse_api_key()
+      headers["api-key"] = self.parse_api_key()
     end
   end
 

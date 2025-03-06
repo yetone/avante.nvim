@@ -51,13 +51,12 @@ function M:parse_response_without_stream(data, event_state, opts)
   vim.schedule(function() opts.on_stop({ reason = "complete" }) end)
 end
 
----@param provider AvanteBedrockProviderFunctor
 ---@param prompt_opts AvantePromptOptions
 ---@return table
-function M:parse_curl_args(provider, prompt_opts)
-  local base, body_opts = P.parse_config(provider)
+function M:parse_curl_args(prompt_opts)
+  local base, body_opts = P.parse_config(self)
 
-  local api_key = provider.parse_api_key()
+  local api_key = self.parse_api_key()
   if api_key == nil then error("Cannot get the bedrock api key!") end
   local parts = vim.split(api_key, ",")
   local aws_access_key_id = parts[1]

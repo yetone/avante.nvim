@@ -8,6 +8,7 @@ local lsp = vim.lsp
 ---@field tokens avante.utils.tokens
 ---@field root avante.utils.root
 ---@field file avante.utils.file
+---@field history avante.utils.history
 local M = {}
 
 setmetatable(M, {

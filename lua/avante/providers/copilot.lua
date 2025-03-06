@@ -215,12 +215,12 @@ M.parse_messages = OpenAI.parse_messages
 
 M.parse_response = OpenAI.parse_response
 
-function M:parse_curl_args(provider, prompt_opts)
+function M:parse_curl_args(prompt_opts)
   -- refresh token synchronously, only if it has expired
   -- (this should rarely happen, as we refresh the token in the background)
   H.refresh_token(false, false)
 
-  local provider_conf, request_body = P.parse_config(provider)
+  local provider_conf, request_body = P.parse_config(self)
   local disable_tools = provider_conf.disable_tools or false
 
   local tools = {}

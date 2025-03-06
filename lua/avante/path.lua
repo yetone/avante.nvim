@@ -5,58 +5,75 @@ local Path = require("plenary.path")
 local Scan = require("plenary.scandir")
 local Config = require("avante.config")
 
----@class avante.ChatHistoryEntry
----@field timestamp string
----@field provider string
----@field model string
----@field request string
----@field response string
----@field original_response string
----@field selected_file {filepath: string}?
----@field selected_code {filetype: string, content: string}?
----@field reset_memory boolean?
----@field selected_filepaths string[] | nil
-
 ---@class avante.Path
----@field history_path Path
----@field cache_path Path
 local P = {}
 
 local history_file_cache = LRUCache:new(12)
 
--- History path
-local History = {}
-
--- Get a chat history file name given a buffer
----@param bufnr integer
----@return string
-function History.filename(bufnr)
+---@param bufnr integer | nil
+---@return string dirname
+local function generate_project_dirname_in_storage(bufnr)
   local project_root = Utils.root.get({
     buf = bufnr,
   })
   -- Replace path separators with double underscores
   local path_with_separators = fn.substitute(project_root, "/", "__", "g")
   -- Replace other non-alphanumeric characters with single underscores
-  return fn.substitute(path_with_separators, "[^A-Za-z0-9._]", "_", "g") .. ".json"
+  local dirname = fn.substitute(path_with_separators, "[^A-Za-z0-9._]", "_", "g")
+  return tostring(Path:new("projects"):joinpath(dirname))
+end
+
+-- History path
+local History = {}
+
+-- Get a chat history file name given a buffer
+---@param bufnr integer
+---@param new boolean
+---@return Path
+function History.filepath(bufnr, new)
+  local dirname = generate_project_dirname_in_storage(bufnr)
+  local history_dir = Path:new(Config.history.storage_path):joinpath(dirname):joinpath("history")
+  if not history_dir:exists() then history_dir:mkdir({ parents = true }) end
+  local pattern = tostring(history_dir:joinpath("*.json"))
+  local files = vim.fn.glob(pattern, true, true)
+  local filename = #files .. ".json"
+  if #files > 0 and not new then filename = (#files - 1) .. ".json" end
+  return history_dir:joinpath(filename)
 end
 
 -- Returns the Path to the chat history file for the given buffer.
 ---@param bufnr integer
 ---@return Path
-function History.get(bufnr) return Path:new(Config.history.storage_path):joinpath(History.filename(bufnr)) end
+function History.get(bufnr) return History.filepath(bufnr, false) end
+
+---@param bufnr integer
+function History.new(bufnr)
+  local filepath = History.filepath(bufnr, true)
+  local history = {
+    title = "untitled",
+    timestamp = tostring(os.date("%Y-%m-%d %H:%M:%S")),
+    entries = {},
+  }
+  filepath:write(vim.json.encode(history), "w")
+end
 
 -- Loads the chat history for the given buffer.
 ---@param bufnr integer
----@return avante.ChatHistoryEntry[]
+---@return avante.ChatHistory
 function History.load(bufnr)
   local history_file = History.get(bufnr)
   local cached_key = tostring(history_file:absolute())
   local cached_value = history_file_cache:get(cached_key)
   if cached_value ~= nil then return cached_value end
-  local value = {}
+  ---@type avante.ChatHistory
+  local value = {
+    title = "untitled",
+    timestamp = tostring(os.date("%Y-%m-%d %H:%M:%S")),
+    entries = {},
+  }
   if history_file:exists() then
     local content = history_file:read()
-    value = content ~= nil and vim.json.decode(content) or {}
+    value = content ~= nil and vim.json.decode(content) or value
   end
   history_file_cache:set(cached_key, value)
   return value
@@ -64,7 +81,7 @@ end
 
 -- Saves the chat history for the given buffer.
 ---@param bufnr integer
----@param history avante.ChatHistoryEntry[]
+---@param history avante.ChatHistory
 History.save = vim.schedule_wrap(function(bufnr, history)
   local history_file = History.get(bufnr)
   local cached_key = tostring(history_file:absolute())

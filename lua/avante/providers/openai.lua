@@ -219,8 +219,8 @@ function M:parse_response_without_stream(data, _, opts)
   end
 end
 
-function M:parse_curl_args(provider, prompt_opts)
-  local provider_conf, request_body = P.parse_config(provider)
+function M:parse_curl_args(prompt_opts)
+  local provider_conf, request_body = P.parse_config(self)
   local disable_tools = provider_conf.disable_tools or false
 
   local headers = {
@@ -228,7 +228,7 @@ function M:parse_curl_args(provider, prompt_opts)
   }
 
   if P.env.require_api_key(provider_conf) then
-    local api_key = provider.parse_api_key()
+    local api_key = self.parse_api_key()
     if api_key == nil then
       error(Config.provider .. " API key is not set, please set it in your environment variable or config file")
     end

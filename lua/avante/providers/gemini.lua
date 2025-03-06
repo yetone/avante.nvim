@@ -83,8 +83,8 @@ function M:parse_response(ctx, data_stream, _, opts)
   end
 end
 
-function M:parse_curl_args(provider, prompt_opts)
-  local provider_conf, request_body = P.parse_config(provider)
+function M:parse_curl_args(prompt_opts)
+  local provider_conf, request_body = P.parse_config(self)
 
   request_body = vim.tbl_deep_extend("force", request_body, {
     generationConfig = {
@@ -95,7 +95,7 @@ function M:parse_curl_args(provider, prompt_opts)
   request_body.temperature = nil
   request_body.max_tokens = nil
 
-  local api_key = provider.parse_api_key()
+  local api_key = self.parse_api_key()
   if api_key == nil then error("Cannot get the gemini api key!") end
 
   return {
