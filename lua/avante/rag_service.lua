@@ -270,7 +270,7 @@ function M.add_resource(uri)
   end)
 end
 
-function M.remove_resource(uri)
+function M.remove_resource(uri, name)
   uri = M.to_container_uri(uri)
   local resp = curl.post(M.get_rag_service_url() .. "/api/v1/remove_resource", {
     headers = {
@@ -278,6 +278,7 @@ function M.remove_resource(uri)
     },
     body = vim.json.encode({
       uri = uri,
+      name = name,
     }),
   })
   if resp.status ~= 200 then
