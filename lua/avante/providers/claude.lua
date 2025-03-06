@@ -262,11 +262,10 @@ function M:parse_response(ctx, data_stream, event_state, opts)
   end
 end
 
----@param provider AvanteProviderFunctor
 ---@param prompt_opts AvantePromptOptions
 ---@return table
-function M:parse_curl_args(provider, prompt_opts)
-  local provider_conf, request_body = P.parse_config(provider)
+function M:parse_curl_args(prompt_opts)
+  local provider_conf, request_body = P.parse_config(self)
   local disable_tools = provider_conf.disable_tools or false
 
   local headers = {
@@ -275,7 +274,7 @@ function M:parse_curl_args(provider, prompt_opts)
     ["anthropic-beta"] = "prompt-caching-2024-07-31",
   }
 
-  if P.env.require_api_key(provider_conf) then headers["x-api-key"] = provider.parse_api_key() end
+  if P.env.require_api_key(provider_conf) then headers["x-api-key"] = self.parse_api_key() end
 
   local messages = self:parse_messages(prompt_opts)
 

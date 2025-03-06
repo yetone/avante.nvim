@@ -27,6 +27,7 @@ M._defaults = {
   -- Of course, you can reduce the request frequency by increasing `suggestion.debounce`.
   auto_suggestions_provider = "claude",
   cursor_applying_provider = nil,
+  memory_summary_provider = nil,
   ---@alias Tokenizer "tiktoken" | "hf"
   -- Used for counting tokens and encoding text.
   -- By default, we will use tiktoken.
@@ -272,6 +273,10 @@ M._defaults = {
       timeout = 30000, -- Timeout in milliseconds
       temperature = 0,
       max_tokens = 8000,
+    },
+    ["openai-gpt-4o-mini"] = {
+      __inherited_from = "openai",
+      model = "gpt-4o-mini",
     },
   },
   ---Specify the special dual_boost mode

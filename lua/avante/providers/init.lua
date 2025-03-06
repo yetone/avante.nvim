@@ -261,6 +261,13 @@ function M.setup()
       E.setup({ provider = cursor_applying_provider })
     end
   end
+
+  if Config.memory_summary_provider then
+    local memory_summary_provider = M[Config.memory_summary_provider]
+    if memory_summary_provider and memory_summary_provider ~= provider then
+      E.setup({ provider = memory_summary_provider })
+    end
+  end
 end
 
 ---@param provider Provider
