@@ -28,6 +28,7 @@ ignore = [
   "D101",
   "D203",  # 1 blank line required before class docstring
   "D212",  # Multi-line docstring summary should start at the first line
+  "S603",
   "TRY300",
   "TRY400",
   "PGH003",
