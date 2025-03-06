@@ -11,20 +11,23 @@ local Claude = require("avante.providers.claude")
 ---@class AvanteBedrockModelHandler
 local M = {}
 
+M.support_prompt_caching = false
 M.role_map = {
   user = "user",
   assistant = "assistant",
 }
 
+M.is_disable_stream = Claude.is_disable_stream
 M.parse_messages = Claude.parse_messages
 M.parse_response = Claude.parse_response
 
+---@param provider AvanteProviderFunctor
 ---@param prompt_opts AvantePromptOptions
 ---@param body_opts table
 ---@return table
-function M.build_bedrock_payload(prompt_opts, body_opts)
+function M.build_bedrock_payload(provider, prompt_opts, body_opts)
   local system_prompt = prompt_opts.system_prompt or ""
-  local messages = M.parse_messages(prompt_opts)
+  local messages = provider:parse_messages(prompt_opts)
   local max_tokens = body_opts.max_tokens or 2000
   local payload = {
     anthropic_version = "bedrock-2023-05-31",

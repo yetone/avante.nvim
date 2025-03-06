@@ -209,11 +209,13 @@ M.role_map = {
   assistant = "assistant",
 }
 
+function M:is_disable_stream() return false end
+
 M.parse_messages = OpenAI.parse_messages
 
 M.parse_response = OpenAI.parse_response
 
-function M.parse_curl_args(provider, prompt_opts)
+function M:parse_curl_args(provider, prompt_opts)
   -- refresh token synchronously, only if it has expired
   -- (this should rarely happen, as we refresh the token in the background)
   H.refresh_token(false, false)
@@ -241,7 +243,7 @@ function M.parse_curl_args(provider, prompt_opts)
     },
     body = vim.tbl_deep_extend("force", {
       model = provider_conf.model,
-      messages = M.parse_messages(prompt_opts),
+      messages = self:parse_messages(prompt_opts),
       stream = true,
       tools = tools,
     }, request_body),

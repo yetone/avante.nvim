@@ -232,7 +232,7 @@ function M._stream(opts)
   }
 
   ---@type AvanteCurlOutput
-  local spec = provider.parse_curl_args(provider, prompt_opts)
+  local spec = provider:parse_curl_args(provider, prompt_opts)
 
   local resp_ctx = {}
 
@@ -244,11 +244,11 @@ function M._stream(opts)
       return
     end
     local data_match = line:match("^data: (.+)$")
-    if data_match then provider.parse_response(resp_ctx, data_match, current_event_state, handler_opts) end
+    if data_match then provider:parse_response(resp_ctx, data_match, current_event_state, handler_opts) end
   end
 
   local function parse_response_without_stream(data)
-    provider.parse_response_without_stream(data, current_event_state, handler_opts)
+    provider:parse_response_without_stream(data, current_event_state, handler_opts)
   end
 
   local completed = false
@@ -287,10 +287,10 @@ function M._stream(opts)
               { once = true }
             )
           end
-          provider.parse_stream_data(resp_ctx, data, handler_opts)
+          provider:parse_stream_data(resp_ctx, data, handler_opts)
         else
           if provider.parse_stream_data ~= nil then
-            provider.parse_stream_data(resp_ctx, data, handler_opts)
+            provider:parse_stream_data(resp_ctx, data, handler_opts)
           else
             parse_stream_data(data)
           end
@@ -357,7 +357,7 @@ function M._stream(opts)
       end
 
       -- If stream is not enabled, then handle the response here
-      if (spec.body.stream == nil or spec.body.stream == false) and result.status == 200 then
+      if provider:is_disable_stream() and result.status == 200 then
         vim.schedule(function()
           completed = true
           parse_response_without_stream(result.body)
