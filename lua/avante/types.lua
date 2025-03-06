@@ -272,14 +272,13 @@ vim.g.avante_login = vim.g.avante_login
 ---@field parse_stream_data? AvanteStreamParser
 ---@field on_error? fun(result: table<string, any>): nil
 ---
----@alias AvanteBedrockPayloadBuilder fun(self: AvanteProviderFunctor, prompt_opts: AvantePromptOptions, body_opts: table<string, any>): table<string, any>
+---@alias AvanteBedrockPayloadBuilder fun(self: AvanteBedrockModelHandler | AvanteBedrockProviderFunctor, prompt_opts: AvantePromptOptions, body_opts: table<string, any>): table<string, any>
 ---
 ---@class AvanteBedrockProviderFunctor: AvanteProviderFunctor
 ---@field load_model_handler fun(): AvanteBedrockModelHandler
 ---@field build_bedrock_payload? AvanteBedrockPayloadBuilder
 ---
----
----@class AvanteBedrockModelHandler
+---@class AvanteBedrockModelHandler : AvanteProviderFunctor
 ---@field role_map table<"user" | "assistant", string>
 ---@field parse_messages AvanteMessagesParser
 ---@field parse_response AvanteResponseParser
@@ -377,10 +376,6 @@ vim.g.avante_login = vim.g.avante_login
 ---@class avante.ChatMemory
 ---@field content string
 ---@field last_summarized_timestamp string
-
----@class avante.Path
----@field history_path Path
----@field cache_path Path
 ---
 ---@class avante.CurlOpts
 ---@field provider AvanteProviderFunctor
