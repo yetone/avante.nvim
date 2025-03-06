@@ -544,6 +544,7 @@ M.BASE_PROVIDER_KEYS = {
   "tokenizer_id",
   "use_xml_format",
   "role_map",
+  "support_prompt_caching",
   "__inherited_from",
   "disable_tools",
   "entra",

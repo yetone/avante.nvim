@@ -30,13 +30,16 @@ local M = {}
 
 M.api_key_name = "ANTHROPIC_API_KEY"
 M.use_xml_format = true
+M.support_prompt_caching = true
 
 M.role_map = {
   user = "user",
   assistant = "assistant",
 }
 
-function M.parse_messages(opts)
+function M:is_disable_stream() return false end
+
+function M:parse_messages(opts)
   ---@type AvanteClaudeMessage[]
   local messages = {}
 
@@ -50,13 +53,15 @@ function M.parse_messages(opts)
 
   ---@type table<integer, boolean>
   local top_two = {}
-  for i = 1, math.min(2, #messages_with_length) do
-    top_two[messages_with_length[i].idx] = true
+  if self.support_prompt_caching then
+    for i = 1, math.min(2, #messages_with_length) do
+      top_two[messages_with_length[i].idx] = true
+    end
   end
 
   for idx, message in ipairs(opts.messages) do
     table.insert(messages, {
-      role = M.role_map[message.role],
+      role = self.role_map[message.role],
       content = {
         {
           type = "text",
@@ -142,7 +147,7 @@ function M.parse_messages(opts)
   return messages
 end
 
-function M.parse_response(ctx, data_stream, event_state, opts)
+function M:parse_response(ctx, data_stream, event_state, opts)
   if event_state == nil then
     if data_stream:match('"message_start"') then
       event_state = "message_start"
@@ -260,7 +265,7 @@ end
 ---@param provider AvanteProviderFunctor
 ---@param prompt_opts AvantePromptOptions
 ---@return table
-function M.parse_curl_args(provider, prompt_opts)
+function M:parse_curl_args(provider, prompt_opts)
   local provider_conf, request_body = P.parse_config(provider)
   local disable_tools = provider_conf.disable_tools or false
 
@@ -272,7 +277,7 @@ function M.parse_curl_args(provider, prompt_opts)
 
   if P.env.require_api_key(provider_conf) then headers["x-api-key"] = provider.parse_api_key() end
 
-  local messages = M.parse_messages(prompt_opts)
+  local messages = self:parse_messages(prompt_opts)
 
   local tools = {}
   if not disable_tools and prompt_opts.tools then
@@ -281,7 +286,7 @@ function M.parse_curl_args(provider, prompt_opts)
     end
   end
 
-  if #tools > 0 then
+  if self.support_prompt_caching and #tools > 0 then
     local last_tool = vim.deepcopy(tools[#tools])
     last_tool.cache_control = { type = "ephemeral" }
     tools[#tools] = last_tool

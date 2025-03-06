@@ -187,16 +187,16 @@ vim.g.avante_login = vim.g.avante_login
 ---
 ---@alias AvanteChatMessage AvanteClaudeMessage | AvanteOpenAIMessage | AvanteGeminiMessage
 ---
----@alias AvanteMessagesParser fun(opts: AvantePromptOptions): AvanteChatMessage[]
+---@alias AvanteMessagesParser fun(self: AvanteProviderFunctor, opts: AvantePromptOptions): AvanteChatMessage[]
 ---
 ---@class AvanteCurlOutput: {url: string, proxy: string, insecure: boolean, body: table<string, any> | string, headers: table<string, string>, rawArgs: string[] | nil}
----@alias AvanteCurlArgsParser fun(provider: AvanteProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor, prompt_opts: AvantePromptOptions): AvanteCurlOutput
+---@alias AvanteCurlArgsParser fun(self: AvanteProviderFunctor, provider: AvanteProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor, prompt_opts: AvantePromptOptions): AvanteCurlOutput
 ---
 ---@class AvanteResponseParserOptions
 ---@field on_start AvanteLLMStartCallback
 ---@field on_chunk AvanteLLMChunkCallback
 ---@field on_stop AvanteLLMStopCallback
----@alias AvanteResponseParser fun(ctx: any, data_stream: string, event_state: string, opts: AvanteResponseParserOptions): nil
+---@alias AvanteResponseParser fun(self: AvanteProviderFunctor, ctx: any, data_stream: string, event_state: string, opts: AvanteResponseParserOptions): nil
 ---
 ---@class AvanteDefaultBaseProvider: table<string, any>
 ---@field endpoint? string
@@ -248,7 +248,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field tool_use_list? AvanteLLMToolUse[]
 ---@field retry_after? integer
 ---
----@alias AvanteStreamParser fun(ctx: any, line: string, handler_opts: AvanteHandlerOptions): nil
+---@alias AvanteStreamParser fun(self: AvanteProviderFunctor, ctx: any, line: string, handler_opts: AvanteHandlerOptions): nil
 ---@alias AvanteLLMStartCallback fun(opts: AvanteLLMStartCallbackOptions): nil
 ---@alias AvanteLLMChunkCallback fun(chunk: string): any
 ---@alias AvanteLLMStopCallback fun(opts: AvanteLLMStopCallbackOptions): nil
@@ -260,10 +260,12 @@ vim.g.avante_login = vim.g.avante_login
 ---@field parse_api_key? fun(): string | nil
 ---
 ---@class AvanteProviderFunctor
+---@field support_prompt_caching boolean | nil
 ---@field role_map table<"user" | "assistant", string>
 ---@field parse_messages AvanteMessagesParser
 ---@field parse_response AvanteResponseParser
 ---@field parse_curl_args AvanteCurlArgsParser
+---@field is_disable_stream fun(self: AvanteProviderFunctor): boolean
 ---@field setup fun(): nil
 ---@field is_env_set fun(): boolean
 ---@field api_key_name string
@@ -274,11 +276,12 @@ vim.g.avante_login = vim.g.avante_login
 ---@field parse_stream_data? AvanteStreamParser
 ---@field on_error? fun(result: table<string, any>): nil
 ---
+---@alias AvanteBedrockPayloadBuilder fun(self: AvanteProviderFunctor, prompt_opts: AvantePromptOptions, body_opts: table<string, any>): table<string, any>
+---
 ---@class AvanteBedrockProviderFunctor: AvanteProviderFunctor
 ---@field load_model_handler fun(): AvanteBedrockModelHandler
----@field build_bedrock_payload? fun(prompt_opts: AvantePromptOptions, body_opts: table<string, any>): table<string, any>
+---@field build_bedrock_payload? AvanteBedrockPayloadBuilder
 ---
----@alias AvanteBedrockPayloadBuilder fun(prompt_opts: AvantePromptOptions, body_opts: table<string, any>): table<string, any>
 ---
 ---@class AvanteBedrockModelHandler
 ---@field role_map table<"user" | "assistant", string>

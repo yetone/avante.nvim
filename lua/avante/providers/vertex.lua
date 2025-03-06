@@ -11,6 +11,7 @@ M.role_map = {
   assistant = "model",
 }
 
+M.is_disable_stream = Gemini.is_disable_stream
 M.parse_messages = Gemini.parse_messages
 M.parse_response = Gemini.parse_response
 
@@ -31,11 +32,13 @@ function M.parse_api_key()
   return direct_output
 end
 
-function M.parse_curl_args(provider, prompt_opts)
+function M:parse_curl_args(provider, prompt_opts)
   local provider_conf, request_body = P.parse_config(provider)
-  local location = vim.fn.getenv("LOCATION") or "default-location"
-  local project_id = vim.fn.getenv("PROJECT_ID") or "default-project-id"
+  local location = vim.fn.getenv("LOCATION")
+  local project_id = vim.fn.getenv("PROJECT_ID")
   local model_id = provider_conf.model or "default-model-id"
+  if location == nil or location == vim.NIL then location = "default-location" end
+  if project_id == nil or project_id == vim.NIL then project_id = "default-project-id" end
   local url = provider_conf.endpoint:gsub("LOCATION", location):gsub("PROJECT_ID", project_id)
 
   url = string.format("%s/%s:streamGenerateContent?alt=sse", url, model_id)
@@ -58,7 +61,7 @@ function M.parse_curl_args(provider, prompt_opts)
     },
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,
-    body = vim.tbl_deep_extend("force", {}, M.parse_messages(prompt_opts), request_body),
+    body = vim.tbl_deep_extend("force", {}, self:parse_messages(prompt_opts), request_body),
   }
 end
 

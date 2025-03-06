@@ -47,7 +47,9 @@ M.role_map = {
   assistant = "assistant",
 }
 
-function M.parse_messages(opts)
+function M:is_disable_stream() return false end
+
+function M:parse_messages(opts)
   local messages = {
     { role = "system", content = opts.system_prompt },
   }
@@ -57,7 +59,7 @@ function M.parse_messages(opts)
   return { messages = messages }
 end
 
-function M.parse_stream_data(ctx, data, opts)
+function M:parse_stream_data(ctx, data, opts)
   ---@type CohereChatResponse
   local json = vim.json.decode(data)
   if json.type ~= nil then
@@ -69,7 +71,7 @@ function M.parse_stream_data(ctx, data, opts)
   end
 end
 
-function M.parse_curl_args(provider, prompt_opts)
+function M:parse_curl_args(provider, prompt_opts)
   local provider_conf, request_body = P.parse_config(provider)
 
   local headers = {
@@ -92,7 +94,7 @@ function M.parse_curl_args(provider, prompt_opts)
     body = vim.tbl_deep_extend("force", {
       model = provider_conf.model,
       stream = true,
-    }, M.parse_messages(prompt_opts), request_body),
+    }, self:parse_messages(prompt_opts), request_body),
   }
 end
 

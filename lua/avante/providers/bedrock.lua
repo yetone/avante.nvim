@@ -18,17 +18,17 @@ function M.load_model_handler()
   error(error_msg)
 end
 
-function M.parse_response(ctx, data_stream, event_state, opts)
+function M:parse_response(ctx, data_stream, event_state, opts)
   local model_handler = M.load_model_handler()
-  return model_handler.parse_response(ctx, data_stream, event_state, opts)
+  return model_handler.parse_response(self, ctx, data_stream, event_state, opts)
 end
 
-function M.build_bedrock_payload(prompt_opts, body_opts)
+function M:build_bedrock_payload(prompt_opts, body_opts)
   local model_handler = M.load_model_handler()
-  return model_handler.build_bedrock_payload(prompt_opts, body_opts)
+  return model_handler.build_bedrock_payload(self, prompt_opts, body_opts)
 end
 
-function M.parse_stream_data(ctx, data, opts)
+function M:parse_stream_data(ctx, data, opts)
   -- @NOTE: Decode and process Bedrock response
   -- Each response contains a Base64-encoded `bytes` field, which is decoded into JSON.
   -- The `type` field in the decoded JSON determines how the response is handled.
@@ -37,11 +37,11 @@ function M.parse_stream_data(ctx, data, opts)
     local jsn = vim.json.decode(bedrock_data_match)
     local data_stream = vim.base64.decode(jsn.bytes)
     local json = vim.json.decode(data_stream)
-    M.parse_response(ctx, data_stream, json.type, opts)
+    self:parse_response(ctx, data_stream, json.type, opts)
   end
 end
 
-function M.parse_response_without_stream(data, event_state, opts)
+function M:parse_response_without_stream(data, event_state, opts)
   local bedrock_match = data:gmatch("exception(%b{})")
   opts.on_chunk("\n**Exception caught**\n\n")
   for bedrock_data_match in bedrock_match do
@@ -54,7 +54,7 @@ end
 ---@param provider AvanteBedrockProviderFunctor
 ---@param prompt_opts AvantePromptOptions
 ---@return table
-function M.parse_curl_args(provider, prompt_opts)
+function M:parse_curl_args(provider, prompt_opts)
   local base, body_opts = P.parse_config(provider)
 
   local api_key = provider.parse_api_key()
@@ -77,7 +77,7 @@ function M.parse_curl_args(provider, prompt_opts)
 
   if aws_session_token and aws_session_token ~= "" then headers["x-amz-security-token"] = aws_session_token end
 
-  local body_payload = M.build_bedrock_payload(prompt_opts, body_opts)
+  local body_payload = self:build_bedrock_payload(prompt_opts, body_opts)
 
   local rawArgs = {
     "--aws-sigv4",
