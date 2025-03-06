@@ -660,14 +660,33 @@ def scan_directory(directory: Path) -> list[str]:
     """Scan directory and return a list of matched files."""
     spec = get_pathspec(directory)
 
+    audio_video_exts = [
+        ".mp3",
+        ".wav",
+        ".ogg",
+        ".flac",
+        ".aac",
+        ".m4a",
+        ".wma",
+        ".mp4",
+        ".avi",
+        ".mov",
+        ".wmv",
+        ".flv",
+        ".mkv",
+        ".webm",
+    ]
+
     matched_files = []
 
     for root, _, files in os.walk(directory):
         file_paths = [str(Path(root) / file) for file in files]
-        if not spec:
-            matched_files.extend(file_paths)
-            continue
         for file in file_paths:
+            file_ext = Path(file).suffix.lower()
+            if file_ext in audio_video_exts:
+                logger.info("Skipping audio/video file: %s", file)
+                continue
+
             if spec and spec.match_file(os.path.relpath(file, directory)):
                 logger.info("Ignoring file: %s", file)
             else:
