@@ -376,11 +376,16 @@ except (OSError, ValueError) as e:
     index = VectorStoreIndex([], storage_context=storage_context)
 
 
-class ResourceRequest(BaseModel):
+class ResourceURIRequest(BaseModel):
+    """Request model for resource operations."""
+
+    uri: str = Field(..., description="URI of the resource to watch and index")
+
+
+class ResourceRequest(ResourceURIRequest):
     """Request model for resource operations."""
 
     name: str = Field(..., description="Name of the resource to watch and index")
-    uri: str = Field(..., description="URI of the resource to watch and index")
 
 
 class SourceDocument(BaseModel):
@@ -978,7 +983,7 @@ async def add_resource(request: ResourceRequest, background_tasks: BackgroundTas
         404: {"description": "Resource not found in watch list"},
     },
 )
-async def remove_resource(request: ResourceRequest):  # noqa: D103, ANN201
+async def remove_resource(request: ResourceURIRequest):  # noqa: D103, ANN201
     resource = resource_service.get_resource(request.uri)
     if not resource or resource.status != "active":
         raise HTTPException(status_code=404, detail="Resource not being watched")
