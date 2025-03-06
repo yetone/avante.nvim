@@ -190,13 +190,9 @@ vim.g.avante_login = vim.g.avante_login
 ---@alias AvanteMessagesParser fun(self: AvanteProviderFunctor, opts: AvantePromptOptions): AvanteChatMessage[]
 ---
 ---@class AvanteCurlOutput: {url: string, proxy: string, insecure: boolean, body: table<string, any> | string, headers: table<string, string>, rawArgs: string[] | nil}
----@alias AvanteCurlArgsParser fun(self: AvanteProviderFunctor, provider: AvanteProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor, prompt_opts: AvantePromptOptions): AvanteCurlOutput
+---@alias AvanteCurlArgsParser fun(self: AvanteProviderFunctor, prompt_opts: AvantePromptOptions): AvanteCurlOutput
 ---
----@class AvanteResponseParserOptions
----@field on_start AvanteLLMStartCallback
----@field on_chunk AvanteLLMChunkCallback
----@field on_stop AvanteLLMStopCallback
----@alias AvanteResponseParser fun(self: AvanteProviderFunctor, ctx: any, data_stream: string, event_state: string, opts: AvanteResponseParserOptions): nil
+---@alias AvanteResponseParser fun(self: AvanteProviderFunctor, ctx: any, data_stream: string, event_state: string, opts: AvanteHandlerOptions): nil
 ---
 ---@class AvanteDefaultBaseProvider: table<string, any>
 ---@field endpoint? string
@@ -305,6 +301,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field selected_files AvanteSelectedFiles[] | nil
 ---@field diagnostics string | nil
 ---@field history_messages AvanteLLMMessage[] | nil
+---@field memory string | nil
 ---
 ---@class AvanteGeneratePromptsOptions: AvanteTemplateOptions
 ---@field ask boolean
@@ -358,3 +355,35 @@ vim.g.avante_login = vim.g.avante_login
 ---@field description string
 ---@field type 'string' | 'string[]' | 'boolean'
 ---@field optional? boolean
+---
+---@class avante.ChatHistoryEntry
+---@field timestamp string
+---@field provider string
+---@field model string
+---@field request string
+---@field response string
+---@field original_response string
+---@field selected_file {filepath: string}?
+---@field selected_code {filetype: string, content: string}?
+---@field reset_memory boolean?
+---@field selected_filepaths string[] | nil
+---
+---@class avante.ChatHistory
+---@field title string
+---@field timestamp string
+---@field entries avante.ChatHistoryEntry[]
+---@field memory avante.ChatMemory | nil
+---
+---@class avante.ChatMemory
+---@field content string
+---@field last_summarized_timestamp string
+
+---@class avante.Path
+---@field history_path Path
+---@field cache_path Path
+---
+---@class avante.CurlOpts
+---@field provider AvanteProviderFunctor
+---@field prompt_opts AvantePromptOptions
+---@field handler_opts AvanteHandlerOptions
+---

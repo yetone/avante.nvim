@@ -32,8 +32,8 @@ function M.parse_api_key()
   return direct_output
 end
 
-function M:parse_curl_args(provider, prompt_opts)
-  local provider_conf, request_body = P.parse_config(provider)
+function M:parse_curl_args(prompt_opts)
+  local provider_conf, request_body = P.parse_config(self)
   local location = vim.fn.getenv("LOCATION")
   local project_id = vim.fn.getenv("PROJECT_ID")
   local model_id = provider_conf.model or "default-model-id"

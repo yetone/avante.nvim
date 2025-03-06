@@ -71,8 +71,8 @@ function M:parse_stream_data(ctx, data, opts)
   end
 end
 
-function M:parse_curl_args(provider, prompt_opts)
-  local provider_conf, request_body = P.parse_config(provider)
+function M:parse_curl_args(prompt_opts)
+  local provider_conf, request_body = P.parse_config(self)
 
   local headers = {
     ["Accept"] = "application/json",
@@ -84,7 +84,7 @@ function M:parse_curl_args(provider, prompt_opts)
       .. "."
       .. vim.version().patch,
   }
-  if P.env.require_api_key(provider_conf) then headers["Authorization"] = "Bearer " .. provider.parse_api_key() end
+  if P.env.require_api_key(provider_conf) then headers["Authorization"] = "Bearer " .. self.parse_api_key() end
 
   return {
     url = Utils.url_join(provider_conf.endpoint, "/chat"),
