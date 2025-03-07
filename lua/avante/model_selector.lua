@@ -21,7 +21,7 @@ function M.open()
 
   -- Collect models from main providers and vendors
   for _, provider_name in ipairs(Config.provider_names) do
-    local entry = create_model_entry(provider_name, Config.get_provider(provider_name))
+    local entry = create_model_entry(provider_name, Config.get_provider_config(provider_name))
     if entry then table.insert(models, entry) end
   end
 
@@ -43,7 +43,7 @@ function M.open()
     Config.override({
       [choice.provider_name] = vim.tbl_deep_extend(
         "force",
-        Config.get_provider(choice.provider_name),
+        Config.get_provider_config(choice.provider_name),
         { model = choice.model }
       ),
     })

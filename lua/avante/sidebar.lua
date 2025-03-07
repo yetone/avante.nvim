@@ -2177,7 +2177,7 @@ function Sidebar:reset_memory(args, cb)
     table.insert(chat_history, {
       timestamp = get_timestamp(),
       provider = Config.provider,
-      model = Config.get_provider(Config.provider).model,
+      model = Config.get_provider_config(Config.provider).model,
       request = "",
       response = "",
       original_response = "",
@@ -2414,7 +2414,8 @@ function Sidebar:create_input_container(opts)
 
   ---@param request string
   local function handle_submit(request)
-    local model = Config.has_provider(Config.provider) and Config.get_provider(Config.provider).model or "default"
+    local model = Config.has_provider(Config.provider) and Config.get_provider_config(Config.provider).model
+      or "default"
 
     local timestamp = get_timestamp()
 

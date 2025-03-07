@@ -1015,4 +1015,17 @@ function M.icon(string_with_icon, utf8_fallback)
   end
 end
 
+function M.deep_extend_with_metatable(behavior, ...)
+  local tables = { ... }
+  local base = tables[1]
+  if behavior == "keep" then base = tables[#tables] end
+  local mt = getmetatable(base)
+
+  local result = vim.tbl_deep_extend(behavior, ...)
+
+  if mt then setmetatable(result, mt) end
+
+  return result
+end
+
 return M
