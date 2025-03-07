@@ -20,7 +20,7 @@ local M = {}
 ---@field custom_tools AvanteLLMToolPublic[]
 M._defaults = {
   debug = false,
-  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | string
+  ---@alias ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | string
   provider = "claude",
   -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
   -- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
@@ -452,8 +452,8 @@ M._defaults = {
 ---@diagnostic disable-next-line: missing-fields
 M._options = {}
 
----@type Provider[]
-M.providers = {}
+---@type ProviderName[]
+M.provider_names = {}
 
 ---@param opts? avante.Config
 function M.setup(opts)
@@ -472,7 +472,7 @@ function M.setup(opts)
   )
 
   M._options = merged
-  M.providers = vim
+  M.provider_names = vim
     .iter(M._defaults)
     :filter(function(_, value) return type(value) == "table" and value.endpoint ~= nil end)
     :fold({}, function(acc, k)
@@ -488,7 +488,7 @@ function M.setup(opts)
       M._options.vendors[k] = type(v) == "function" and v() or v
     end
     vim.validate({ vendors = { M._options.vendors, "table", true } })
-    M.providers = vim.list_extend(M.providers, vim.tbl_keys(M._options.vendors))
+    M.provider_names = vim.list_extend(M.provider_names, vim.tbl_keys(M._options.vendors))
   end
 end
 
@@ -501,7 +501,7 @@ function M.override(opts)
   if next(M._options.vendors) ~= nil then
     for k, v in pairs(M._options.vendors) do
       M._options.vendors[k] = type(v) == "function" and v() or v
-      if not vim.tbl_contains(M.providers, k) then M.providers = vim.list_extend(M.providers, { k }) end
+      if not vim.tbl_contains(M.provider_names, k) then M.provider_names = vim.list_extend(M.provider_names, { k }) end
     end
     vim.validate({ vendors = { M._options.vendors, "table", true } })
   end
@@ -517,20 +517,20 @@ function M.support_paste_image() return Utils.has("img-clip.nvim") or Utils.has(
 
 function M.get_window_width() return math.ceil(vim.o.columns * (M.windows.width / 100)) end
 
----@param provider Provider
+---@param provider_name ProviderName
 ---@return boolean
-function M.has_provider(provider) return M._options[provider] ~= nil or M.vendors[provider] ~= nil end
+function M.has_provider(provider_name) return M._options[provider_name] ~= nil or M.vendors[provider_name] ~= nil end
 
 ---get supported providers
----@param provider Provider
+---@param provider_name ProviderName
 ---@return AvanteProviderFunctor
-function M.get_provider(provider)
-  if M._options[provider] ~= nil then
-    return vim.deepcopy(M._options[provider], true)
-  elseif M.vendors and M.vendors[provider] ~= nil then
-    return vim.deepcopy(M.vendors[provider], true)
+function M.get_provider(provider_name)
+  if M._options[provider_name] ~= nil then
+    return vim.deepcopy(M._options[provider_name], true)
+  elseif M.vendors and M.vendors[provider_name] ~= nil then
+    return vim.deepcopy(M.vendors[provider_name], true)
   else
-    error("Failed to find provider: " .. provider, 2)
+    error("Failed to find provider: " .. provider_name, 2)
   end
 end
 

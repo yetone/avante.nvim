@@ -196,7 +196,7 @@ M.env = E
 
 M = setmetatable(M, {
   ---@param t avante.Providers
-  ---@param k Provider
+  ---@param k ProviderName
   __index = function(t, k)
     ---@type AvanteProviderFunctor | AvanteBedrockProviderFunctor
     local Opts = M.get_config(k)
@@ -270,14 +270,14 @@ function M.setup()
   end
 end
 
----@param provider Provider
-function M.refresh(provider)
-  require("avante.config").override({ provider = provider })
+---@param provider_name ProviderName
+function M.refresh(provider_name)
+  require("avante.config").override({ provider = provider_name })
 
   ---@type AvanteProviderFunctor | AvanteBedrockProviderFunctor
   local p = M[Config.provider]
   E.setup({ provider = p, refresh = true })
-  Utils.info("Switch to provider: " .. provider, { once = true, title = "Avante" })
+  Utils.info("Switch to provider: " .. provider_name, { once = true, title = "Avante" })
 end
 
 ---@param opts AvanteProvider | AvanteSupportedProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor
@@ -309,11 +309,11 @@ function M.parse_config(opts)
 end
 
 ---@private
----@param provider Provider
+---@param provider_name ProviderName
 ---@return AvanteProviderFunctor | AvanteBedrockProviderFunctor
-function M.get_config(provider)
-  provider = provider or Config.provider
-  local cur = Config.get_provider(provider)
+function M.get_config(provider_name)
+  provider_name = provider_name or Config.provider
+  local cur = Config.get_provider(provider_name)
   return type(cur) == "function" and cur() or cur
 end
 

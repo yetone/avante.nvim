@@ -42,7 +42,7 @@ function M.check()
   end
 
   -- Check Copilot if configured
-  if Config.providers and Config.providers == "copilot" then
+  if Config.provider and Config.provider == "copilot" then
     if Utils.has("copilot.lua") or Utils.has("copilot.vim") or Utils.has("copilot") then
       H.ok("Found Copilot plugin")
     else
