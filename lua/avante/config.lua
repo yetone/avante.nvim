@@ -319,6 +319,7 @@ M._defaults = {
     minimize_diff = true,
     enable_token_counting = true,
     enable_cursor_planning_mode = false,
+    use_cwd_as_project_root = false,
   },
   history = {
     max_tokens = 4096,
