@@ -113,7 +113,7 @@ cmd("SwitchProvider", function(opts) require("avante.api").switch_provider(vim.t
   complete = function(_, line, _)
     local prefix = line:match("AvanteSwitchProvider%s*(.*)$") or ""
     ---@param key string
-    return vim.tbl_filter(function(key) return key:find(prefix, 1, true) == 1 end, Config.providers)
+    return vim.tbl_filter(function(key) return key:find(prefix, 1, true) == 1 end, Config.provider_names)
   end,
 })
 cmd(
