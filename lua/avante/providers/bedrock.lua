@@ -7,7 +7,7 @@ local M = {}
 M.api_key_name = "BEDROCK_KEYS"
 M.use_xml_format = true
 
-setmetatable(M, {
+M = setmetatable(M, {
   __index = function(_, k)
     local model_handler = M.load_model_handler()
     return model_handler[k]
