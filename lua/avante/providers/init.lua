@@ -313,7 +313,7 @@ end
 ---@return AvanteProviderFunctor | AvanteBedrockProviderFunctor
 function M.get_config(provider_name)
   provider_name = provider_name or Config.provider
-  local cur = Config.get_provider(provider_name)
+  local cur = Config.get_provider_config(provider_name)
   return type(cur) == "function" and cur() or cur
 end
 

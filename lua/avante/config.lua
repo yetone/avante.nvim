@@ -519,12 +519,12 @@ function M.get_window_width() return math.ceil(vim.o.columns * (M.windows.width 
 
 ---@param provider_name ProviderName
 ---@return boolean
-function M.has_provider(provider_name) return M._options[provider_name] ~= nil or M.vendors[provider_name] ~= nil end
+function M.has_provider(provider_name) return vim.list_contains(M.provider_names, provider_name) end
 
 ---get supported providers
 ---@param provider_name ProviderName
----@return AvanteProviderFunctor
-function M.get_provider(provider_name)
+function M.get_provider_config(provider_name)
+  if not M.has_provider(provider_name) then error("No provider found: " .. provider_name, 2) end
   if M._options[provider_name] ~= nil then
     return vim.deepcopy(M._options[provider_name], true)
   elseif M.vendors and M.vendors[provider_name] ~= nil then
