@@ -18,9 +18,6 @@ M.on_error = Vertex.on_error
 
 Vertex.api_key_name = "cmd:gcloud auth print-access-token"
 
----@param provider AvanteProviderFunctor
----@param prompt_opts AvantePromptOptions
----@return table
 function M:parse_curl_args(provider, prompt_opts)
   local provider_conf, request_body = P.parse_config(provider)
   local location = vim.fn.getenv("LOCATION")
