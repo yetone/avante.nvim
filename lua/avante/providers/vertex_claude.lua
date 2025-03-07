@@ -23,6 +23,15 @@ Vertex.api_key_name = "cmd:gcloud auth print-access-token"
 ---@return table
 function M:parse_curl_args(provider, prompt_opts)
   local provider_conf, request_body = P.parse_config(provider)
+  local location = vim.fn.getenv("LOCATION")
+  local project_id = vim.fn.getenv("PROJECT_ID")
+  local model_id = provider_conf.model or "default-model-id"
+  if location == nil or location == vim.NIL then location = "default-location" end
+  if project_id == nil or project_id == vim.NIL then project_id = "default-project-id" end
+  local url = provider_conf.endpoint:gsub("LOCATION", location):gsub("PROJECT_ID", project_id)
+
+  url = string.format("%s/%s:streamRawPredict", url, model_id)
+
   local system_prompt = prompt_opts.system_prompt or ""
   local messages = self:parse_messages(prompt_opts)
   request_body = vim.tbl_deep_extend("force", request_body, {
@@ -40,7 +49,7 @@ function M:parse_curl_args(provider, prompt_opts)
     },
   })
   return {
-    url = provider_conf.endpoint .. "/" .. provider_conf.model .. ":streamRawPredict",
+    url = url,
     headers = {
       ["Authorization"] = "Bearer " .. Vertex.parse_api_key(),
       ["Content-Type"] = "application/json; charset=utf-8",
