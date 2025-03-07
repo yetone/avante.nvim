@@ -1,5 +1,6 @@
 -- COPIED and MODIFIED from https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/util/root.lua
 local Utils = require("avante.utils")
+local Config = require("avante.config")
 
 ---@class avante.utils.root
 ---@overload fun(): string
@@ -112,6 +113,10 @@ M.cache = {}
 ---@param opts? {normalize?:boolean, buf?:number}
 ---@return string
 function M.get(opts)
+  if Config.behaviour.use_cwd_as_project_root then
+    local cwd = vim.uv.cwd()
+    if cwd and cwd ~= "" then return cwd end
+  end
   opts = opts or {}
   local buf = opts.buf or vim.api.nvim_get_current_buf()
   local ret = M.cache[buf]
