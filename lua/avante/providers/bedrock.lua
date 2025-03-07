@@ -6,6 +6,10 @@ local M = {}
 
 M.api_key_name = "BEDROCK_KEYS"
 M.use_xml_format = true
+M.role_map = {
+  user = "user",
+  assistant = "assistant",
+}
 
 setmetatable(M, {
   __index = function(_, k)
@@ -39,6 +43,8 @@ function M:build_bedrock_payload(prompt_opts, body_opts)
   local model_handler = M.load_model_handler()
   return model_handler.build_bedrock_payload(self, prompt_opts, body_opts)
 end
+
+function M:is_disable_stream() return false end
 
 function M:parse_stream_data(ctx, data, opts)
   -- @NOTE: Decode and process Bedrock response
