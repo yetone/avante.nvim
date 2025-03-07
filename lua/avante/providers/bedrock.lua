@@ -35,9 +35,9 @@ function M:parse_response(ctx, data_stream, event_state, opts)
   return model_handler.parse_response(self, ctx, data_stream, event_state, opts)
 end
 
-function M:build_bedrock_payload(prompt_opts, body_opts)
+function M:build_bedrock_payload(prompt_opts, request_body)
   local model_handler = M.load_model_handler()
-  return model_handler.build_bedrock_payload(self, prompt_opts, body_opts)
+  return model_handler.build_bedrock_payload(self, prompt_opts, request_body)
 end
 
 function M:parse_stream_data(ctx, data, opts)
@@ -66,7 +66,7 @@ end
 ---@param prompt_opts AvantePromptOptions
 ---@return table
 function M:parse_curl_args(prompt_opts)
-  local base, body_opts = P.parse_config(self)
+  local provider_conf, request_body = P.parse_config(self)
 
   local api_key = self.parse_api_key()
   if api_key == nil then error("Cannot get the bedrock api key!") end
@@ -79,7 +79,7 @@ function M:parse_curl_args(prompt_opts)
   local endpoint = string.format(
     "https://bedrock-runtime.%s.amazonaws.com/model/%s/invoke-with-response-stream",
     aws_region,
-    base.model
+    provider_conf.model
   )
 
   local headers = {
@@ -88,7 +88,7 @@ function M:parse_curl_args(prompt_opts)
 
   if aws_session_token and aws_session_token ~= "" then headers["x-amz-security-token"] = aws_session_token end
 
-  local body_payload = self:build_bedrock_payload(prompt_opts, body_opts)
+  local body_payload = self:build_bedrock_payload(prompt_opts, request_body)
 
   local rawArgs = {
     "--aws-sigv4",
@@ -99,8 +99,8 @@ function M:parse_curl_args(prompt_opts)
 
   return {
     url = endpoint,
-    proxy = base.proxy,
-    insecure = base.allow_insecure,
+    proxy = provider_conf.proxy,
+    insecure = provider_conf.allow_insecure,
     headers = headers,
     body = body_payload,
     rawArgs = rawArgs,

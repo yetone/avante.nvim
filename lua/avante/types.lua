@@ -272,7 +272,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field parse_stream_data? AvanteStreamParser
 ---@field on_error? fun(result: table<string, any>): nil
 ---
----@alias AvanteBedrockPayloadBuilder fun(self: AvanteBedrockModelHandler | AvanteBedrockProviderFunctor, prompt_opts: AvantePromptOptions, body_opts: table<string, any>): table<string, any>
+---@alias AvanteBedrockPayloadBuilder fun(self: AvanteBedrockModelHandler | AvanteBedrockProviderFunctor, prompt_opts: AvantePromptOptions, request_body: table<string, any>): table<string, any>
 ---
 ---@class AvanteBedrockProviderFunctor: AvanteProviderFunctor
 ---@field load_model_handler fun(): AvanteBedrockModelHandler

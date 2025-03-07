@@ -20,7 +20,7 @@ local M = {}
 ---@field custom_tools AvanteLLMToolPublic[]
 M._defaults = {
   debug = false,
-  ---@alias ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | string
+  ---@alias ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | string
   provider = "claude",
   -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
   -- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
@@ -225,7 +225,7 @@ M._defaults = {
   },
   ---@type AvanteSupportedProvider
   bedrock = {
-    model = "anthropic.claude-3-5-sonnet-20240620-v1:0",
+    model = "anthropic.claude-3-5-sonnet-20241022-v2:0",
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
     max_tokens = 8000,
@@ -474,7 +474,7 @@ function M.setup(opts)
   M._options = merged
   M.provider_names = vim
     .iter(M._defaults)
-    :filter(function(_, value) return type(value) == "table" and value.endpoint ~= nil end)
+    :filter(function(_, value) return type(value) == "table" and (value.endpoint ~= nil or value.model ~= nil) end)
     :fold({}, function(acc, k)
       acc = vim.list_extend({}, acc)
       acc = vim.list_extend(acc, { k })
@@ -519,12 +519,12 @@ function M.get_window_width() return math.ceil(vim.o.columns * (M.windows.width 
 
 ---@param provider_name ProviderName
 ---@return boolean
-function M.has_provider(provider_name) return M._options[provider_name] ~= nil or M.vendors[provider_name] ~= nil end
+function M.has_provider(provider_name) return vim.list_contains(M.provider_names, provider_name) end
 
 ---get supported providers
 ---@param provider_name ProviderName
----@return AvanteProviderFunctor
-function M.get_provider(provider_name)
+function M.get_provider_config(provider_name)
+  if not M.has_provider(provider_name) then error("No provider found: " .. provider_name, 2) end
   if M._options[provider_name] ~= nil then
     return vim.deepcopy(M._options[provider_name], true)
   elseif M.vendors and M.vendors[provider_name] ~= nil then
