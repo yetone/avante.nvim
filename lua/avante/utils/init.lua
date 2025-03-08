@@ -35,6 +35,14 @@ end
 
 function M.is_win() return jit.os:find("Windows") ~= nil end
 
+M.path_sep = (function()
+  if M.is_win() then
+    return "\\"
+  else
+    return "/"
+  end
+end)()
+
 ---@return "linux" | "darwin" | "windows"
 function M.get_os_name()
   local os_name = vim.uv.os_uname().sysname
@@ -765,7 +773,7 @@ function M.scan_directory(options)
       :filter(function(file)
         local base_dir = options.directory
         if base_dir:sub(-2) == "/." then base_dir = base_dir:sub(1, -3) end
-        local rel_path = tostring(Path:new(file):make_relative(base_dir))
+        local rel_path = M.make_relative_path(file, base_dir)
         local pieces = vim.split(rel_path, "/")
         return #pieces <= options.max_depth
       end)
@@ -776,8 +784,7 @@ function M.scan_directory(options)
     local dirs = {}
     local dirs_seen = {}
     for _, file in ipairs(files) do
-      local dir = tostring(Path:new(file):parent())
-      dir = dir .. "/"
+      local dir = M.get_parent_path(file)
       if not dirs_seen[dir] then
         table.insert(dirs, dir)
         dirs_seen[dir] = true
@@ -787,6 +794,64 @@ function M.scan_directory(options)
   end
 
   return files
+end
+
+function M.get_parent_path(filepath)
+  if filepath == nil then error("filepath cannot be nil") end
+  if filepath == "" then return "" end
+  local is_abs = M.is_absolute_path(filepath)
+  if filepath:sub(-1) == M.path_sep then filepath = filepath:sub(1, -2) end
+  if filepath == "" then return "" end
+  local parts = vim.split(filepath, M.path_sep)
+  local parent_parts = vim.list_slice(parts, 1, #parts - 1)
+  local res = table.concat(parent_parts, M.path_sep)
+  if res == "" then
+    if is_abs then return M.path_sep end
+    return "."
+  end
+  return res
+end
+
+function M.make_relative_path(filepath, base_dir)
+  if filepath:sub(-2) == M.path_sep .. "." then filepath = filepath:sub(1, -3) end
+  if base_dir:sub(-2) == M.path_sep .. "." then base_dir = base_dir:sub(1, -3) end
+  if filepath == base_dir then return "." end
+  if filepath:sub(1, #base_dir) == base_dir then
+    filepath = filepath:sub(#base_dir + 1)
+    if filepath:sub(1, 2) == "." .. M.path_sep then
+      filepath = filepath:sub(3)
+    elseif filepath:sub(1, 1) == M.path_sep then
+      filepath = filepath:sub(2)
+    end
+  end
+  return filepath
+end
+
+function M.is_absolute_path(path)
+  if not path then return false end
+  if M.is_win() then return path:match("^%a:[/\\]") ~= nil end
+  return path:match("^/") ~= nil
+end
+
+function M.join_paths(...)
+  local paths = { ... }
+  local result = paths[1] or ""
+  for i = 2, #paths do
+    local path = paths[i]
+    if path == nil or path == "" then goto continue end
+
+    if M.is_absolute_path(path) then
+      result = path
+      goto continue
+    end
+
+    if path:sub(1, 2) == "." .. M.path_sep then path = path:sub(3) end
+
+    if result ~= "" and result:sub(-1) ~= M.path_sep then result = result .. M.path_sep end
+    result = result .. path
+    ::continue::
+  end
+  return result
 end
 
 function M.is_first_letter_uppercase(str) return string.match(str, "^[A-Z]") ~= nil end
@@ -954,8 +1019,8 @@ function M.uniform_path(path)
   if type(path) ~= "string" then path = tostring(path) end
   if not M.file.is_in_cwd(path) then return path end
   local project_root = M.get_project_root()
-  local abs_path = Path:new(path):is_absolute() and path or Path:new(project_root):joinpath(path):absolute()
-  local relative_path = Path:new(abs_path):make_relative(project_root)
+  local abs_path = M.is_absolute_path(path) and path or M.join_paths(project_root, path)
+  local relative_path = M.make_relative_path(abs_path, project_root)
   return relative_path
 end
 
