@@ -128,6 +128,10 @@ function M.generate_prompts(opts)
 
   local system_prompt = Path.prompts.render_mode(mode, template_opts)
 
+  if Config.system_prompt ~= nil and Config.system_prompt ~= "" and Config.system_prompt ~= "null" then
+    system_prompt = system_prompt .. "\n\n" .. Config.system_prompt
+  end
+
   ---@type AvanteLLMMessage[]
   local messages = {}
 

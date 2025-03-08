@@ -34,6 +34,7 @@ M._defaults = {
   -- For most providers that we support we will determine this automatically.
   -- If you wish to use a given implementation, then you can override it here.
   tokenizer = "tiktoken",
+  system_prompt = nil,
   rag_service = {
     enabled = false, -- Enables the rag service, requires OPENAI_API_KEY to be set
     host_mount = os.getenv("HOME"), -- Host mount path for the rag service (docker will mount this path)
