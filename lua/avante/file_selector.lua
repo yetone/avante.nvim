@@ -18,6 +18,7 @@ local FileSelector = {}
 local function has_scheme(path) return path:find("^%w+://") ~= nil end
 
 function FileSelector:process_directory(absolute_path, project_root)
+  if absolute_path:sub(-1) == Utils.path_sep then absolute_path = absolute_path:sub(1, -2) end
   local files = scan.scan_dir(absolute_path, {
     hidden = false,
     depth = math.huge,
@@ -26,7 +27,7 @@ function FileSelector:process_directory(absolute_path, project_root)
   })
 
   for _, file in ipairs(files) do
-    local rel_path = Path:new(file):make_relative(project_root)
+    local rel_path = Utils.make_relative_path(file, project_root)
     if not vim.tbl_contains(self.selected_filepaths, rel_path) then table.insert(self.selected_filepaths, rel_path) end
   end
   self:emit("update")
@@ -61,10 +62,10 @@ end
 local function get_project_filepaths()
   local project_root = Utils.get_project_root()
   local files = Utils.scan_directory({ directory = project_root, add_dirs = true })
-  files = vim.iter(files):map(function(filepath) return Path:new(filepath):make_relative(project_root) end):totable()
+  files = vim.iter(files):map(function(filepath) return Utils.make_relative_path(filepath, project_root) end):totable()
 
   return vim.tbl_map(function(path)
-    local rel_path = Path:new(path):make_relative(project_root)
+    local rel_path = Utils.make_relative_path(path, project_root)
     local stat = vim.loop.fs_stat(path)
     if stat and stat.type == "directory" then rel_path = rel_path .. "/" end
     return rel_path
