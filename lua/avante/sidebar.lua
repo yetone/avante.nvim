@@ -2355,6 +2355,13 @@ function Sidebar:create_input_container(opts)
   ---@param cb fun(opts: AvanteGeneratePromptsOptions): nil
   local function get_generate_prompts_options(request, summarize_memory, cb)
     local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
+    local file_ext = nil
+
+    -- Get file extension safely
+    local buf_name = api.nvim_buf_get_name(self.code.bufnr)
+    if buf_name and buf_name ~= "" then
+      file_ext = vim.fn.fnamemodify(buf_name, ":e")
+    end
 
     ---@type AvanteSelectedCode | nil
     local selected_code = nil
@@ -2369,9 +2376,10 @@ function Sidebar:create_input_container(opts)
     local mentions = Utils.extract_mentions(request)
     request = mentions.new_content
 
-    local file_ext = api.nvim_buf_get_name(self.code.bufnr):match("^.+%.(.+)$")
-
-    local project_context = mentions.enable_project_context and RepoMap.get_repo_map(file_ext) or nil
+    local project_context = mentions.enable_project_context
+      and file_ext
+      and RepoMap.get_repo_map(file_ext)
+      or nil
 
     local selected_files_contents = self.file_selector:get_selected_files_contents()
 
@@ -2427,6 +2435,11 @@ function Sidebar:create_input_container(opts)
 
   ---@param request string
   local function handle_submit(request)
+    if request:match("@codebase") and not vim.fn.expand("%:e") then
+      self:update_content("Please open a file first before using @codebase", { focus = false, scroll = false })
+      return
+    end
+
     local model = Config.has_provider(Config.provider) and Config.get_provider_config(Config.provider).model
       or "default"
 
