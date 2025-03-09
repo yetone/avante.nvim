@@ -67,12 +67,11 @@ function M.is_o_series_model(model) return model and string.match(model, "^o%d+"
 
 function M:parse_messages(opts)
   local messages = {}
-  local provider = P[Config.provider]
-  local base, _ = P.parse_config(provider)
+  local provider_conf, _ = P.parse_config(self)
 
   -- NOTE: Handle the case where the selected model is the `o1` model
   -- "o1" models are "smart" enough to understand user prompt as a system prompt in this context
-  if self.is_o_series_model(base.model) then
+  if self.is_o_series_model(provider_conf.model) then
     table.insert(messages, { role = "user", content = opts.system_prompt })
   else
     table.insert(messages, { role = "system", content = opts.system_prompt })
