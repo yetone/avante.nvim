@@ -30,61 +30,13 @@ E.cache = {}
 ---@param Opts AvanteSupportedProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor
 ---@return string | nil
 function E.parse_envvar(Opts)
-  local api_key_name = Opts.api_key_name
-  if api_key_name == nil then error("Requires api_key_name") end
-
-  local cache_key = type(api_key_name) == "table" and table.concat(api_key_name, "__") or api_key_name
-
-  if E.cache[cache_key] ~= nil then return E.cache[cache_key] end
-
-  local cmd = type(api_key_name) == "table" and api_key_name or api_key_name:match("^cmd:(.*)")
-
-  local value = nil
-
-  if cmd ~= nil then
-    -- NOTE: in case api_key_name is cmd, and users still set envvar
-    -- We will try to get envvar first
-    if Opts._shellenv ~= nil and Opts._shellenv ~= "" then
-      value = os.getenv(Opts._shellenv)
-      if value ~= nil then
-        E.cache[cache_key] = value
-        vim.g.avante_login = true
-        return value
-      end
-    end
-
-    if type(cmd) == "string" then cmd = vim.split(cmd, " ", { trimempty = true }) end
-
-    Utils.debug("running command:", cmd)
-    local exit_codes = { 0 }
-    local ok, job_or_err = pcall(vim.system, cmd, { text = true }, function(result)
-      Utils.debug("command result:", result)
-      local code = result.code
-      local stderr = result.stderr or ""
-      local stdout = result.stdout and vim.split(result.stdout, "\n") or {}
-      if vim.tbl_contains(exit_codes, code) then
-        value = stdout[1]
-        E.cache[cache_key] = value
-        vim.g.avante_login = true
-      else
-        Utils.error("Failed to get API key: (error code" .. code .. ")\n" .. stderr, { once = true, title = "Avante" })
-      end
-    end)
-
-    if not ok then
-      error("failed to run command: " .. cmd .. "\n" .. job_or_err)
-      return
-    end
-  else
-    value = os.getenv(api_key_name)
-  end
-
+  local value = Utils.environment.parse(Opts.api_key_name, Opts._shellenv)
   if value ~= nil then
-    E.cache[cache_key] = value
     vim.g.avante_login = true
+    return value
   end
 
-  return value
+  return nil
 end
 
 --- initialize the environment variable for current neovim session.
