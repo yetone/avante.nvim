@@ -716,97 +716,98 @@ end
 ---@param options { directory: string, add_dirs?: boolean, max_depth?: integer }
 ---@return string[]
 function M.scan_directory(options)
-  local cmd_supports_max_depth = true
-  local cmd = (function()
+  -- Fallback function using Lua's native file operations
+  local function scan_directory_lua(dir, depth)
+    if depth and depth < 1 then return {} end
+    local files = {}
+    local handle = vim.loop.fs_scandir(dir)
+    if not handle then return files end
+
+    while true do
+      local name, type = vim.loop.fs_scandir_next(handle)
+      if not name then break end
+
+      local path = dir .. M.path_sep .. name
+      if type == "file" then
+        table.insert(files, path)
+      elseif type == "directory" and name ~= ".git" and name ~= "node_modules" then
+        if options.add_dirs then
+          table.insert(files, path)
+        end
+        if not depth or depth > 1 then
+          local subfiles = scan_directory_lua(path, depth and depth - 1)
+          vim.list_extend(files, subfiles)
+        end
+      end
+    end
+    return files
+  end
+
+  -- Try using external commands first
+  local function try_external_commands()
+    local cmd
     if vim.fn.executable("rg") == 1 then
-      local cmd = { "rg", "--files", "--color", "never", "--no-require-git" }
-      if options.max_depth ~= nil then vim.list_extend(cmd, { "--max-depth", options.max_depth }) end
+      cmd = { "rg", "--files", "--color", "never", "--no-require-git" }
+      if options.max_depth then
+        vim.list_extend(cmd, { "--max-depth", tostring(options.max_depth) })
+      end
       table.insert(cmd, options.directory)
-      return cmd
-    end
-    if vim.fn.executable("fd") == 1 then
-      local cmd = { "fd", "--type", "f", "--color", "never", "--no-require-git" }
-      if options.max_depth ~= nil then vim.list_extend(cmd, { "--max-depth", options.max_depth }) end
-      vim.list_extend(cmd, { "--base-directory", options.directory })
-      return cmd
-    end
-    if vim.fn.executable("fdfind") == 1 then
-      local cmd = { "fdfind", "--type", "f", "--color", "never", "--no-require-git" }
-      if options.max_depth ~= nil then vim.list_extend(cmd, { "--max-depth", options.max_depth }) end
-      vim.list_extend(cmd, { "--base-directory", options.directory })
-      return cmd
-    end
-  end)()
-
-  if not cmd then
-    local p = Path:new(options.directory)
-    if p:joinpath(".git"):exists() and vim.fn.executable("git") == 1 then
-      if vim.fn.has("win32") == 1 then
-        cmd = {
-          "powershell",
-          "-NoProfile",
-          "-NonInteractive",
-          "-Command",
-          string.format(
-            "Push-Location '%s'; (git ls-files --exclude-standard), (git ls-files --exclude-standard --others)",
-            options.directory:gsub("/", "\\")
-          ),
-        }
-      else
-        cmd = {
-          "bash",
-          "-c",
-          string.format(
-            "cd %s && cat <(git ls-files --exclude-standard) <(git ls-files --exclude-standard --others)",
-            options.directory
-          ),
-        }
+    elseif vim.fn.executable("fd") == 1 then
+      cmd = { "fd", "--type", "f", "--color", "never", "--no-require-git" }
+      if options.max_depth then
+        vim.list_extend(cmd, { "--max-depth", tostring(options.max_depth) })
       end
-      cmd_supports_max_depth = false
-    else
-      M.error("No search command found")
-      return {}
+      vim.list_extend(cmd, { "--base-directory", options.directory })
     end
-  end
 
-  local files = vim.fn.systemlist(cmd)
+    if not cmd then return nil end
 
-  files = vim
-    .iter(files)
-    :map(function(file)
-      local p = Path:new(file)
-      if not p:is_absolute() then return tostring(Path:new(options.directory):joinpath(file):absolute()) end
-      return file
-    end)
-    :totable()
+    local output = ""
+    local error_output = ""
+    local job = vim.fn.jobstart(cmd, {
+      stdout_buffered = true,
+      stderr_buffered = true,
+      on_stdout = function(_, data)
+        if data then output = table.concat(data, "\n") end
+      end,
+      on_stderr = function(_, data)
+        if data then error_output = table.concat(data, "\n") end
+      end,
+    })
 
-  if options.max_depth ~= nil and not cmd_supports_max_depth then
-    files = vim
-      .iter(files)
-      :filter(function(file)
-        local base_dir = options.directory
-        if base_dir:sub(-2) == "/." then base_dir = base_dir:sub(1, -3) end
-        local rel_path = M.make_relative_path(file, base_dir)
-        local pieces = vim.split(rel_path, "/")
-        return #pieces <= options.max_depth
-      end)
-      :totable()
-  end
+    if job <= 0 then return nil end
 
-  if options.add_dirs then
-    local dirs = {}
-    local dirs_seen = {}
-    for _, file in ipairs(files) do
-      local dir = M.get_parent_path(file)
-      if not dirs_seen[dir] then
-        table.insert(dirs, dir)
-        dirs_seen[dir] = true
+    -- Wait for job with timeout
+    local timeout = 5000  -- 5 seconds timeout
+    local start_time = vim.loop.now()
+    while vim.fn.jobwait({job}, 0)[1] == -1 do
+      if (vim.loop.now() - start_time) > timeout then
+        vim.fn.jobstop(job)
+        return nil
       end
+      vim.cmd("sleep 1m")  -- Small sleep to prevent CPU hogging and NVIM crashes on large files / codebases
     end
-    files = vim.list_extend(dirs, files)
+
+    if error_output ~= "" then return nil end
+    return vim.split(output, "\n")
   end
 
-  return files
+  -- Try external commands first, fall back to Lua implementation
+  local files = try_external_commands()
+  if not files then
+    files = scan_directory_lua(options.directory, options.max_depth)
+  end
+
+  -- Filter and normalize paths
+  local result = {}
+  for _, file in ipairs(files) do
+    if file ~= "" then
+      local uniform_path = M.uniform_path(file)
+      table.insert(result, uniform_path)
+    end
+  end
+
+  return result
 end
 
 function M.get_parent_path(filepath)

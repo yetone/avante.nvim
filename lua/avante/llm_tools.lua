@@ -52,18 +52,36 @@ end
 function M.list_files(opts, on_log)
   local abs_path = get_abs_path(opts.rel_path)
   if not has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
-  if on_log then on_log("path: " .. abs_path) end
-  if on_log then on_log("max depth: " .. tostring(opts.max_depth)) end
+
+  -- Set a reasonable default max_depth if not specified
+  local max_depth = opts.max_depth or 100
+
   local files = Utils.scan_directory({
     directory = abs_path,
     add_dirs = true,
-    max_depth = opts.max_depth,
+    max_depth = max_depth,
   })
+
+  if on_log then on_log("Scanning directory: " .. abs_path) end
+  if on_log then on_log("path: " .. abs_path) end
+  if on_log then on_log("max depth: " .. tostring(opts.max_depth)) end
+
+  if not files or #files == 0 then
+    return "", "No files found in directory: " .. abs_path
+  end
+
   local filepaths = {}
   for _, file in ipairs(files) do
     local uniform_path = Utils.uniform_path(file)
     table.insert(filepaths, uniform_path)
   end
+
+  if on_log then
+    on_log(string.format("Found %d filepaths (max_depth: %s)", #files, tostring(max_depth)))
+  end
+
+
+
   return vim.json.encode(filepaths), nil
 end
 
