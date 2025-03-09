@@ -383,8 +383,17 @@ function M.debug(...)
 
   local args = { ... }
   if #args == 0 then return end
+
+  -- Get caller information
+  local info = debug.getinfo(2, "Sl")
+  local caller_source = info.source:match("@(.+)$") or "unknown"
+  local caller_module = caller_source:gsub("^.*/lua/", ""):gsub("%.lua$", ""):gsub("/", ".")
+
   local timestamp = os.date("%Y-%m-%d %H:%M:%S")
-  local formated_args = { "[" .. timestamp .. "] [AVANTE] [DEBUG]" }
+  local formated_args = {
+    "[" .. timestamp .. "] [AVANTE] [DEBUG] [" .. caller_module .. ":" .. info.currentline .. "]",
+  }
+
   for _, arg in ipairs(args) do
     if type(arg) == "string" then
       table.insert(formated_args, arg)
