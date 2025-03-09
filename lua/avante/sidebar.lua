@@ -2709,8 +2709,10 @@ function Sidebar:create_input_container(opts)
 
   self.input_container:map("n", Config.mappings.submit.normal, on_submit)
   self.input_container:map("i", Config.mappings.submit.insert, on_submit)
-  self.input_container:map("n", Config.mappings.sidebar.close_from_input.normal, function() self:shutdown() end)
-  self.input_container:map("i", Config.mappings.sidebar.close_from_input.insert, function() self:shutdown() end)
+  if Config.mappings.sidebar.close_from_input ~= nil then
+    self.input_container:map("n", Config.mappings.sidebar.close_from_input.normal, function() self:shutdown() end)
+    self.input_container:map("i", Config.mappings.sidebar.close_from_input.insert, function() self:shutdown() end)
+  end
 
   api.nvim_set_option_value("filetype", "AvanteInput", { buf = self.input_container.bufnr })
 
