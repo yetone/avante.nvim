@@ -298,6 +298,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@class AvanteTemplateOptions
 ---@field ask boolean
 ---@field code_lang string
+---@field recently_viewed_files string[] | nil
 ---@field selected_code AvanteSelectedCode | nil
 ---@field project_context string | nil
 ---@field selected_files AvanteSelectedFile[] | nil

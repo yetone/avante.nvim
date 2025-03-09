@@ -118,6 +118,7 @@ function M.generate_prompts(opts)
     code_lang = opts.code_lang,
     selected_files = opts.selected_files,
     selected_code = opts.selected_code,
+    recently_viewed_files = opts.recently_viewed_files,
     project_context = opts.project_context,
     diagnostics = opts.diagnostics,
     system_info = system_info,

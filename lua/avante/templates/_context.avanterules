@@ -23,3 +23,11 @@
 </content>
 </selected_code>
 {%- endif %}
+
+{% if recently_viewed_files -%}
+<recently_viewed_files>
+{%- for file in recently_viewed_files %}
+{{loop.index}}. {{file}}
+{%- endfor %}
+</recently_viewed_files>
+{%- endif %}

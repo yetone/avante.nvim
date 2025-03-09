@@ -2400,6 +2400,7 @@ function Sidebar:create_input_container(opts)
       ask = opts.ask or true,
       project_context = vim.json.encode(project_context),
       selected_files = selected_files_contents,
+      recently_viewed_files = Utils.get_recent_filepaths(),
       diagnostics = vim.json.encode(diagnostics),
       history_messages = history_messages,
       code_lang = filetype,
