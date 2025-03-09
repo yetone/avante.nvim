@@ -367,7 +367,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field response string
 ---@field original_response string
 ---@field selected_file {filepath: string}?
----@field selected_code {filetype: string, content: string}?
+---@field selected_code AvanteSelectedCode | nil
 ---@field reset_memory boolean?
 ---@field selected_filepaths string[] | nil
 ---

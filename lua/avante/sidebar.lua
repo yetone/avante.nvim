@@ -2031,13 +2031,13 @@ local function get_timestamp() return os.date("%Y-%m-%d %H:%M:%S") end
 ---@param model string
 ---@param request string
 ---@param selected_filepaths string[]
----@param selected_code {filetype: string, content: string}?
+---@param selected_code AvanteSelectedCode?
 ---@return string
 local function render_chat_record_prefix(timestamp, provider, model, request, selected_filepaths, selected_code)
   provider = provider or "unknown"
   model = model or "unknown"
   local res = "- Datetime: " .. timestamp .. "\n\n" .. "- Model: " .. provider .. "/" .. model
-  if selected_filepaths ~= nil then
+  if selected_filepaths ~= nil and #selected_filepaths > 0 then
     res = res .. "\n\n- Selected files:"
     for _, path in ipairs(selected_filepaths) do
       res = res .. "\n  - " .. path
@@ -2047,7 +2047,8 @@ local function render_chat_record_prefix(timestamp, provider, model, request, se
     res = res
       .. "\n\n- Selected code: "
       .. "\n\n```"
-      .. selected_code.filetype
+      .. (selected_code.file_type or "")
+      .. (selected_code.path and ":" .. selected_code.path or "")
       .. "\n"
       .. selected_code.content
       .. "\n```"
@@ -2085,7 +2086,7 @@ function Sidebar:render_history_content(history)
   for idx, entry in ipairs(history.entries) do
     if entry.reset_memory then
       content = content .. "***MEMORY RESET***\n\n"
-      if idx < #history then content = content .. "-------\n\n" end
+      if idx < #history.entries then content = content .. "-------\n\n" end
       goto continue
     end
     local selected_filepaths = entry.selected_filepaths
@@ -2102,7 +2103,7 @@ function Sidebar:render_history_content(history)
     )
     content = content .. prefix
     content = content .. entry.response .. "\n\n"
-    if idx < #history then content = content .. "-------\n\n" end
+    if idx < #history.entries then content = content .. "-------\n\n" end
     ::continue::
   end
   return content
@@ -2432,14 +2433,14 @@ function Sidebar:create_input_container(opts)
 
     local timestamp = get_timestamp()
 
-    local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
-
     local selected_filepaths = self.file_selector:get_selected_filepaths()
 
+    ---@type AvanteSelectedCode | nil
     local selected_code = nil
     if self.code.selection ~= nil then
       selected_code = {
-        filetype = filetype,
+        path = self.code.selection.filepath,
+        file_type = self.code.selection.filetype,
         content = self.code.selection.content,
       }
     end
