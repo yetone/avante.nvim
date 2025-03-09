@@ -220,13 +220,24 @@ function Selection:create_editing_input()
 
     local diagnostics = Utils.get_current_selection_diagnostics(code_bufnr, self.selection)
 
+    ---@type AvanteSelectedCode | nil
+    local selected_code = nil
+
+    if self.selection then
+      selected_code = {
+        content = self.selection.content,
+        file_type = self.selection.filetype,
+        path = self.selection.filepath,
+      }
+    end
+
     Llm.stream({
       ask = true,
       project_context = vim.json.encode(project_context),
       diagnostics = vim.json.encode(diagnostics),
       selected_files = { { content = code_content, file_type = filetype, path = "" } },
       code_lang = filetype,
-      selected_code = self.selection.content,
+      selected_code = selected_code,
       instructions = input,
       mode = "editing",
       on_start = on_start,

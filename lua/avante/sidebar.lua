@@ -166,7 +166,6 @@ end
 function Sidebar:focus_input()
   if self.input_container and self.input_container.winid and api.nvim_win_is_valid(self.input_container.winid) then
     api.nvim_set_current_win(self.input_container.winid)
-    api.nvim_feedkeys("i", "n", false)
   end
 end
 
@@ -2357,8 +2356,15 @@ function Sidebar:create_input_container(opts)
   local function get_generate_prompts_options(request, summarize_memory, cb)
     local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
 
-    local selected_code_content = nil
-    if self.code.selection ~= nil then selected_code_content = self.code.selection.content end
+    ---@type AvanteSelectedCode | nil
+    local selected_code = nil
+    if self.code.selection ~= nil then
+      selected_code = {
+        path = self.code.selection.filepath,
+        file_type = self.code.selection.filetype,
+        content = self.code.selection.content,
+      }
+    end
 
     local mentions = Utils.extract_mentions(request)
     request = mentions.new_content
@@ -2397,7 +2403,7 @@ function Sidebar:create_input_container(opts)
       diagnostics = vim.json.encode(diagnostics),
       history_messages = history_messages,
       code_lang = filetype,
-      selected_code = selected_code_content,
+      selected_code = selected_code,
       instructions = request,
       mode = Config.behaviour.enable_cursor_planning_mode and "cursor-planning" or "planning",
       tools = tools,
