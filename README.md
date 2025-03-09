@@ -694,6 +694,9 @@ ollama = {
 }
 ```
 
+> [!NOTE]
+> If you use ollama, the code planning effect may not be ideal, so it is strongly recommended that you enable [cursor-planning-mode](https://github.com/yetone/avante.nvim/blob/main/cursor-planning-mode.md)
+
 ## Custom providers
 
 Avante provides a set of default providers, but users can also create their own providers.
