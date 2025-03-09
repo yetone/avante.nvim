@@ -2363,6 +2363,13 @@ function Sidebar:create_input_container(opts)
 
     ---@type AvanteSelectedCode | nil
     local selected_code = nil
+    if self.code.selection ~= nil then
+      selected_code = {
+        path = self.code.selection.filepath,
+        file_type = self.code.selection.filetype,
+        content = self.code.selection.content,
+      }
+    end
 
     local mentions = Utils.extract_mentions(request)
     request = mentions.new_content
