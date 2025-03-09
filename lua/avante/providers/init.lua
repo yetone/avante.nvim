@@ -153,8 +153,13 @@ M = setmetatable(M, {
   __index = function(t, k)
     local provider_config = M.get_config(k)
 
+    if Config.vendors[k] ~= nil and k == "ollama" then
+      Utils.warn(
+        "ollama is now a first-class provider in avante.nvim, please stop using vendors to define ollama, for migration guide please refer to: https://github.com/yetone/avante.nvim/wiki/Custom-providers#ollama"
+      )
+    end
     ---@diagnostic disable: undefined-field,no-unknown,inject-field
-    if Config.vendors[k] ~= nil then
+    if Config.vendors[k] ~= nil and k ~= "ollama" then
       if provider_config.parse_response_data ~= nil then
         Utils.error("parse_response_data is not supported for avante.nvim vendors")
       end

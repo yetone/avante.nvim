@@ -683,6 +683,17 @@ return {
 
 See [highlights.lua](./lua/avante/highlights.lua) for more information
 
+## Ollama
+
+ollama is a first-class provider for avante.nvim. You can use it by setting `provider = "ollama"` in the configuration, and set the `model` field in `ollama` to the model you want to use. For example:
+
+```lua
+provider = "ollama",
+ollama = {
+  model = "qwq:32b",
+}
+```
+
 ## Custom providers
 
 Avante provides a set of default providers, but users can also create their own providers.

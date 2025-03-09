@@ -1,6 +1,4 @@
 local Utils = require("avante.utils")
-local Config = require("avante.config")
-local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
 
 ---@class AvanteProviderFunctor
@@ -8,88 +6,54 @@ local M = {}
 
 M.api_key_name = "" -- Ollama typically doesn't require API keys for local use
 
----@param opts AvantePromptOptions
-M.parse_messages = function(opts)
-  local messages = {}
-  local has_images = Config.behaviour.support_paste_from_clipboard and opts.image_paths and #opts.image_paths > 0
+M.role_map = {
+  user = "user",
+  assistant = "assistant",
+}
 
-  -- Convert avante messages to ollama format
-  for _, msg in ipairs(opts.messages) do
-    local role = msg.role == "user" and "user" or "assistant"
-    local content = msg.content
+M.parse_messages = P.openai.parse_messages
+M.is_o_series_model = P.openai.is_o_series_model
 
-    -- Handle multimodal content if images are present
-    if has_images and role == "user" then
-      local message_content = {
-        role = role,
-        content = content,
-        images = {},
-      }
+function M:is_disable_stream() return false end
 
-      for _, image_path in ipairs(opts.image_paths) do
-        table.insert(message_content.images, "data:image/png;base64," .. Clipboard.get_base64_content(image_path))
-      end
-
-      table.insert(messages, message_content)
-    else
-      table.insert(messages, {
-        role = role,
-        content = content,
-      })
-    end
-  end
-
-  return messages
-end
-
----@param data string
----@param handler_opts AvanteHandlerOptions
-M.parse_stream_data = function(data, handler_opts)
+function M:parse_stream_data(ctx, data, handler_opts)
   local ok, json_data = pcall(vim.json.decode, data)
   if not ok or not json_data then
     -- Add debug logging
-    Utils.debug("Failed to parse JSON: " .. data)
+    Utils.debug("Failed to parse JSON", data)
     return
   end
 
-  -- Add debug logging
-  Utils.debug("Received data: " .. vim.inspect(json_data))
-
   if json_data.message and json_data.message.content then
     local content = json_data.message.content
-    if content and content ~= "" then
-      Utils.debug("Sending chunk: " .. content)
-      handler_opts.on_chunk(content)
-    end
+    if content and content ~= "" then handler_opts.on_chunk(content) end
   end
 
   if json_data.done then
-    Utils.debug("Stream complete")
-    handler_opts.on_complete(nil)
+    handler_opts.on_stop({ reason = "complete" })
     return
   end
 end
 
----@param provider AvanteProvider
 ---@param prompt_opts AvantePromptOptions
-M.parse_curl_args = function(provider, prompt_opts)
-  local base, body_opts = P.parse_config(provider)
+function M:parse_curl_args(prompt_opts)
+  local provider_conf, request_body = P.parse_config(self)
 
-  if not base.model or base.model == "" then error("Ollama model must be specified in config") end
-  if not base.endpoint then error("Ollama requires endpoint configuration") end
+  if not provider_conf.model or provider_conf.model == "" then error("Ollama model must be specified in config") end
+  if not provider_conf.endpoint then error("Ollama requires endpoint configuration") end
 
   return {
-    url = Utils.url_join(base.endpoint, "/api/chat"),
+    url = Utils.url_join(provider_conf.endpoint, "/api/chat"),
     headers = {
       ["Content-Type"] = "application/json",
       ["Accept"] = "application/json",
     },
     body = vim.tbl_deep_extend("force", {
-      model = base.model,
-      messages = M.parse_messages(prompt_opts),
+      model = provider_conf.model,
+      messages = self:parse_messages(prompt_opts),
       stream = true,
       system = prompt_opts.system_prompt,
-    }, body_opts),
+    }, request_body),
   }
 end
 

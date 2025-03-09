@@ -257,7 +257,7 @@ M._defaults = {
   },
   ---@type AvanteSupportedProvider
   ollama = {
-    endpoint = "https://127.0.0.1:11434",
+    endpoint = "http://127.0.0.1:11434",
     timeout = 30000, -- Timeout in milliseconds
     options = {
       temperature = 0,
