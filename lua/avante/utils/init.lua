@@ -641,15 +641,21 @@ end
 -- Get recent filepaths in the same project and same file ext
 ---@param limit? integer
 ---@param filenames? string[]
+---@param same_file_ext? boolean
 ---@return string[]
-function M.get_recent_filepaths(limit, filenames)
+function M.get_recent_filepaths(limit, filenames, same_file_ext)
   local project_root = M.get_project_root()
   local current_ext = fn.expand("%:e")
   local oldfiles = vim.v.oldfiles
   local recent_files = {}
 
   for _, file in ipairs(oldfiles) do
-    if vim.startswith(file, project_root) and M.is_same_file_ext(current_ext, file) then
+    if vim.startswith(file, project_root) then
+      local has_ext = file:match("%.%w+$")
+      if not has_ext then goto continue end
+      if same_file_ext then
+        if not M.is_same_file_ext(current_ext, file) then goto continue end
+      end
       if filenames and #filenames > 0 then
         for _, filename in ipairs(filenames) do
           if file:find(filename) then table.insert(recent_files, file) end
@@ -659,6 +665,7 @@ function M.get_recent_filepaths(limit, filenames)
       end
       if #recent_files >= (limit or 10) then break end
     end
+    ::continue::
   end
 
   return recent_files
