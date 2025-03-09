@@ -31,13 +31,17 @@ function M.entries_to_llm_messages(entries)
   local messages = {}
   for _, entry in ipairs(entries) do
     local user_content = ""
-    if entry.selected_file ~= nil then
-      user_content = user_content .. "SELECTED FILE: " .. entry.selected_file.filepath .. "\n\n"
+    if entry.selected_filepaths ~= nil then
+      user_content = user_content .. "SELECTED FILES:\n\n"
+      for _, filepath in ipairs(entry.selected_filepaths) do
+        user_content = user_content .. filepath .. "\n"
+      end
     end
     if entry.selected_code ~= nil then
       user_content = user_content
         .. "SELECTED CODE:\n\n```"
-        .. entry.selected_code.filetype
+        .. (entry.selected_code.file_type or "")
+        .. (entry.selected_code.path and ":" .. entry.selected_code.path or "")
         .. "\n"
         .. entry.selected_code.content
         .. "\n```\n\n"
