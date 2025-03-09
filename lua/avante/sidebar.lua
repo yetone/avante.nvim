@@ -2359,29 +2359,17 @@ function Sidebar:create_input_container(opts)
 
     -- Get file extension safely
     local buf_name = api.nvim_buf_get_name(self.code.bufnr)
-    if buf_name and buf_name ~= "" then
-      file_ext = vim.fn.fnamemodify(buf_name, ":e")
-    end
+    if buf_name and buf_name ~= "" then file_ext = vim.fn.fnamemodify(buf_name, ":e") end
 
     ---@type AvanteSelectedCode | nil
     local selected_code = nil
-    if self.code.selection ~= nil then
-      selected_code = {
-        path = self.code.selection.filepath,
-        file_type = self.code.selection.filetype,
-        content = self.code.selection.content,
-      }
-    end
 
     local mentions = Utils.extract_mentions(request)
     request = mentions.new_content
 
-    local project_context = mentions.enable_project_context
-      and file_ext
-      and RepoMap.get_repo_map(file_ext)
-      or nil
+    local project_context = mentions.enable_project_context and file_ext and RepoMap.get_repo_map(file_ext) or nil
 
-    local selected_files_contents = self.file_selector:get_selected_files_contents()
+    local selected_files_contents = self.file_selector:get_selected_files_contents() or {}
 
     local diagnostics = nil
     if mentions.enable_diagnostics then

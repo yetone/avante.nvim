@@ -80,13 +80,9 @@ function RepoMap._get_repo_map(file_ext)
   if not file_ext then
     local current_buf = vim.api.nvim_get_current_buf()
     local buf_name = vim.api.nvim_buf_get_name(current_buf)
-    if buf_name and buf_name ~= "" then
-      file_ext = vim.fn.fnamemodify(buf_name, ":e")
-    end
+    if buf_name and buf_name ~= "" then file_ext = vim.fn.fnamemodify(buf_name, ":e") end
 
-    if not file_ext or file_ext == "" then
-      return {}
-    end
+    if not file_ext or file_ext == "" then return {} end
   end
 
   local project_root = Utils.root.get()
