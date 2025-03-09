@@ -114,7 +114,6 @@ function M.generate_prompts(opts)
   local system_info = Utils.get_system_info()
 
   local template_opts = {
-    use_xml_format = provider.use_xml_format,
     ask = opts.ask, -- TODO: add mode without ask instruction
     code_lang = opts.code_lang,
     selected_files = opts.selected_files,
@@ -156,11 +155,7 @@ function M.generate_prompts(opts)
   end
 
   if instructions then
-    if opts.use_xml_format then
-      table.insert(messages, { role = "user", content = string.format("<question>%s</question>", instructions) })
-    else
-      table.insert(messages, { role = "user", content = string.format("QUESTION:\n%s", instructions) })
-    end
+    table.insert(messages, { role = "user", content = string.format("<question>%s</question>", instructions) })
   end
 
   local remaining_tokens = max_tokens - Utils.tokens.calculate_tokens(system_prompt)
