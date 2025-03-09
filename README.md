@@ -409,6 +409,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
 For blink cmp users (nvim-cmp alternative) view below instruction for configuration
 This is achieved by emulating nvim-cmp using blink.compat
 or you can use [Kaiser-Yang/blink-cmp-avante](https://github.com/Kaiser-Yang/blink-cmp-avante).
+
 <details>
   <summary>Lua</summary>
 
@@ -529,10 +530,7 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 
 > [!IMPORTANT]
 >
-> ~~Due to the poor performance of other models, avante.nvim only recommends using the claude-3.5-sonnet model.~~
-> ~~All features can only be guaranteed to work properly on the claude-3.5-sonnet model.~~
-> ~~We do not accept changes to the code or prompts to accommodate other models. Otherwise, it will greatly increase our maintenance costs.~~
-> ~~We hope everyone can understand. Thank you!~~
+> ~~Due to the poor performance of other models, avante.nvim only recommends using the claude-3.5-sonnet model.~~ > ~~All features can only be guaranteed to work properly on the claude-3.5-sonnet model.~~ > ~~We do not accept changes to the code or prompts to accommodate other models. Otherwise, it will greatly increase our maintenance costs.~~ > ~~We hope everyone can understand. Thank you!~~
 
 > [!IMPORTANT]
 >
@@ -605,20 +603,66 @@ The following key bindings are available for use with `avante.nvim`:
 > If you are using `lazy.nvim`, then all keymap here will be safely set, meaning if `<leader>aa` is already binded, then avante.nvim won't bind this mapping.
 > In this case, user will be responsible for setting up their own. See [notes on keymaps](https://github.com/yetone/avante.nvim/wiki#keymaps-and-api-i-guess) for more details.
 
+### Neotree shortcut
+
+In the neotree sidebar, you can also add a new keyboard shortcut to quickly add `file/folder` to `Avante Selected Files`.
+
+```lua
+return {
+  {
+    'nvim-neo-tree/neo-tree.nvim',
+    config = function()
+      require('neo-tree').setup({
+        filesystem = {
+          commands = {
+            avante_add_files = function(state)
+              local node = state.tree:get_node()
+              local filepath = node:get_id()
+              local relative_path = require('avante.utils').relative_path(filepath)
+
+              local sidebar = require('avante').get()
+
+              local open = sidebar:is_open()
+              -- ensure avante sidebar is open
+              if not open then
+                require('avante.api').ask()
+                sidebar = require('avante').get()
+              end
+
+              sidebar.file_selector:add_selected_file(relative_path)
+
+              -- remove neo tree buffer
+              if not open then
+                sidebar.file_selector:remove_selected_file('neo-tree filesystem [1]')
+              end
+            end,
+          },
+          window = {
+            mappings = {
+              ['oa'] = 'avante_add_files',
+            },
+          },
+        },
+      })
+    end,
+  },
+}
+```
+
 ## Commands
 
-| Command | Description | Examples
-|---------|-------------| ------------------
-| `:AvanteAsk [question] [position]` | Ask AI about your code. Optional `position` set window position and `ask` enable/disable direct asking mode | `:AvanteAsk position=right Refactor this code here`
-| `:AvanteBuild` | Build dependencies for the project |
-| `:AvanteChat` | Start a chat session with AI about your codebase. Default is `ask`=false |
-| `:AvanteClear` | Clear the chat history |
-| `:AvanteEdit` | Edit the selected code blocks |
-| `:AvanteFocus` | Switch focus to/from the sidebar |
-| `:AvanteRefresh` | Refresh all Avante windows |
-| `:AvanteSwitchProvider` | Switch AI provider (e.g. openai) |
-| `:AvanteShowRepoMap` | Show repo map for project's structure |
-| `:AvanteToggle` | Toggle the Avante sidebar |
+| Command                            | Description                                                                                                 | Examples                                            |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `:AvanteAsk [question] [position]` | Ask AI about your code. Optional `position` set window position and `ask` enable/disable direct asking mode | `:AvanteAsk position=right Refactor this code here` |
+| `:AvanteBuild`                     | Build dependencies for the project                                                                          |
+| `:AvanteChat`                      | Start a chat session with AI about your codebase. Default is `ask`=false                                    |
+| `:AvanteClear`                     | Clear the chat history                                                                                      |
+| `:AvanteEdit`                      | Edit the selected code blocks                                                                               |
+| `:AvanteFocus`                     | Switch focus to/from the sidebar                                                                            |
+| `:AvanteRefresh`                   | Refresh all Avante windows                                                                                  |
+| `:AvanteSwitchProvider`            | Switch AI provider (e.g. openai)                                                                            |
+| `:AvanteShowRepoMap`               | Show repo map for project's structure                                                                       |
+| `:AvanteToggle`                    | Toggle the Avante sidebar                                                                                   |
 
 ## Highlight Groups
 
@@ -739,6 +783,7 @@ In case you want to ban some tools to avoid its usage (like Claude 3.7 overusing
 ```
 
 Tool list
+
 > rag_search, python, git_diff, git_commit, list_files, search_files, search_keyword, read_file_toplevel_symbols,
 > read_file, create_file, rename_file, delete_file, create_dir, rename_dir, delete_dir, bash, web_search, fetch
 
