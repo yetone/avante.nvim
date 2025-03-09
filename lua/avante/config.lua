@@ -383,7 +383,7 @@ M._defaults = {
       remove_file = "d",
       add_file = "@",
       close = { "<Esc>", "q" },
-      close_from_input = { "<Esc>" },
+      close_from_input = nil, -- e.g., { normal = "<Esc>", insert = "<C-d>" }
     },
     files = {
       add_current = "<leader>ac", -- Add current buffer to selected files
