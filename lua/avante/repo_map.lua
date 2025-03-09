@@ -62,6 +62,12 @@ end
 local cache = {}
 
 function RepoMap.get_repo_map(file_ext)
+  -- Add safety check for file_ext
+  if not file_ext then
+    Utils.warn("No file extension available - please open a file first")
+    return {}
+  end
+
   local repo_map = RepoMap._get_repo_map(file_ext) or {}
   if not repo_map or next(repo_map) == nil then
     Utils.warn("The repo map is empty. Maybe do not support this language: " .. file_ext)
@@ -70,7 +76,15 @@ function RepoMap.get_repo_map(file_ext)
 end
 
 function RepoMap._get_repo_map(file_ext)
-  file_ext = file_ext or vim.fn.expand("%:e")
+  -- Add safety check at the start of the function
+  if not file_ext then
+    local current_buf = vim.api.nvim_get_current_buf()
+    local buf_name = vim.api.nvim_buf_get_name(current_buf)
+    if buf_name and buf_name ~= "" then file_ext = vim.fn.fnamemodify(buf_name, ":e") end
+
+    if not file_ext or file_ext == "" then return {} end
+  end
+
   local project_root = Utils.root.get()
   local cache_key = project_root .. "." .. file_ext
   local cached = cache[cache_key]
