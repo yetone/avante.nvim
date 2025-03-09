@@ -731,9 +731,7 @@ function M.scan_directory(options)
       if type == "file" then
         table.insert(files, path)
       elseif type == "directory" and name ~= ".git" and name ~= "node_modules" then
-        if options.add_dirs then
-          table.insert(files, path)
-        end
+        if options.add_dirs then table.insert(files, path) end
         if not depth or depth > 1 then
           local subfiles = scan_directory_lua(path, depth and depth - 1)
           vim.list_extend(files, subfiles)
@@ -748,15 +746,11 @@ function M.scan_directory(options)
     local cmd
     if vim.fn.executable("rg") == 1 then
       cmd = { "rg", "--files", "--color", "never", "--no-require-git" }
-      if options.max_depth then
-        vim.list_extend(cmd, { "--max-depth", tostring(options.max_depth) })
-      end
+      if options.max_depth then vim.list_extend(cmd, { "--max-depth", tostring(options.max_depth) }) end
       table.insert(cmd, options.directory)
     elseif vim.fn.executable("fd") == 1 then
       cmd = { "fd", "--type", "f", "--color", "never", "--no-require-git" }
-      if options.max_depth then
-        vim.list_extend(cmd, { "--max-depth", tostring(options.max_depth) })
-      end
+      if options.max_depth then vim.list_extend(cmd, { "--max-depth", tostring(options.max_depth) }) end
       vim.list_extend(cmd, { "--base-directory", options.directory })
     end
 
@@ -778,14 +772,14 @@ function M.scan_directory(options)
     if job <= 0 then return nil end
 
     -- Wait for job with timeout
-    local timeout = 5000  -- 5 seconds timeout
+    local timeout = 5000 -- 5 seconds timeout
     local start_time = vim.loop.now()
-    while vim.fn.jobwait({job}, 0)[1] == -1 do
+    while vim.fn.jobwait({ job }, 0)[1] == -1 do
       if (vim.loop.now() - start_time) > timeout then
         vim.fn.jobstop(job)
         return nil
       end
-      vim.cmd("sleep 1m")  -- Small sleep to prevent CPU hogging and NVIM crashes on large files / codebases
+      vim.cmd("sleep 1m") -- Small sleep to prevent CPU hogging and NVIM crashes on large files / codebases
     end
 
     if error_output ~= "" then return nil end
@@ -794,9 +788,7 @@ function M.scan_directory(options)
 
   -- Try external commands first, fall back to Lua implementation
   local files = try_external_commands()
-  if not files then
-    files = scan_directory_lua(options.directory, options.max_depth)
-  end
+  if not files then files = scan_directory_lua(options.directory, options.max_depth) end
 
   -- Filter and normalize paths
   local result = {}

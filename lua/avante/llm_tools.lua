@@ -66,9 +66,7 @@ function M.list_files(opts, on_log)
   if on_log then on_log("path: " .. abs_path) end
   if on_log then on_log("max depth: " .. tostring(opts.max_depth)) end
 
-  if not files or #files == 0 then
-    return "", "No files found in directory: " .. abs_path
-  end
+  if not files or #files == 0 then return "", "No files found in directory: " .. abs_path end
 
   local filepaths = {}
   for _, file in ipairs(files) do
@@ -76,11 +74,7 @@ function M.list_files(opts, on_log)
     table.insert(filepaths, uniform_path)
   end
 
-  if on_log then
-    on_log(string.format("Found %d filepaths (max_depth: %s)", #files, tostring(max_depth)))
-  end
-
-
+  if on_log then on_log(string.format("Found %d filepaths (max_depth: %s)", #files, tostring(max_depth))) end
 
   return vim.json.encode(filepaths), nil
 end
