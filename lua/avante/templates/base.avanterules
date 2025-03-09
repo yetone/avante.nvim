@@ -1,7 +1,6 @@
 {# Uses https://mitsuhiko.github.io/minijinja-playground/ for testing:
 {
   "ask": true,
-  "use_xml_format": true,
   "question": "Refactor to include tab flow",
   "code_lang": "lua",
   "file_content": "local Config = require('avante.config')"

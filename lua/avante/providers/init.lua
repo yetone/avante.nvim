@@ -224,8 +224,6 @@ M = setmetatable(M, {
     -- default to gpt-4o as tokenizer
     if t[k].tokenizer_id == nil then t[k].tokenizer_id = "gpt-4o" end
 
-    if t[k].use_xml_format == nil then t[k].use_xml_format = true end
-
     if t[k].is_env_set == nil then t[k].is_env_set = function() return E.parse_envvar(t[k]) ~= nil end end
 
     if t[k].setup == nil then

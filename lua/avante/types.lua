@@ -266,7 +266,6 @@ vim.g.avante_login = vim.g.avante_login
 ---@field is_env_set fun(): boolean
 ---@field api_key_name string
 ---@field tokenizer_id string | "gpt-4o"
----@field use_xml_format boolean
 ---@field model? string
 ---@field parse_api_key fun(): string | nil
 ---@field parse_stream_data? AvanteStreamParser
@@ -286,18 +285,22 @@ vim.g.avante_login = vim.g.avante_login
 ---
 ---@alias AvanteLlmMode "planning" | "editing" | "suggesting" | "cursor-planning" | "cursor-applying"
 ---
----@class AvanteSelectedFiles
+---@class AvanteSelectedCode
+---@field path string
+---@field content string
+---@field file_type string
+---
+---@class AvanteSelectedFile
 ---@field path string
 ---@field content string
 ---@field file_type string
 ---
 ---@class AvanteTemplateOptions
----@field use_xml_format boolean | nil
 ---@field ask boolean
 ---@field code_lang string
----@field selected_code string | nil
+---@field selected_code AvanteSelectedCode | nil
 ---@field project_context string | nil
----@field selected_files AvanteSelectedFiles[] | nil
+---@field selected_files AvanteSelectedFile[] | nil
 ---@field diagnostics string | nil
 ---@field history_messages AvanteLLMMessage[] | nil
 ---@field memory string | nil

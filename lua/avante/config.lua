@@ -553,7 +553,6 @@ M.BASE_PROVIDER_KEYS = {
   "local",
   "_shellenv",
   "tokenizer_id",
-  "use_xml_format",
   "role_map",
   "support_prompt_caching",
   "__inherited_from",

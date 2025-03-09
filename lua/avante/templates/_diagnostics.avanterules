@@ -1,4 +1,3 @@
-{%- if use_xml_format -%}
 {%- if diagnostics -%}
 <diagnostic_field_description>
 content: The diagnostic content
@@ -10,17 +9,4 @@ source: The source of the diagnostic
 <diagnostics>
 {{diagnostics}}
 </diagnostics>
-{%- endif %}
-{%- else -%}
-{%- if diagnostics -%}
-DIAGNOSTIC_FIELD_DESCRIPTION:
-content: The diagnostic content
-start_line: The starting line of the diagnostic (1-indexed)
-end_line: The final line of the diagnostic (1-indexed)
-severity: The severity of the diagnostic
-source: The source of the diagnostic
-
-DIAGNOSTICS:
-{{diagnostics}}
-{%- endif %}
 {%- endif %}

@@ -1,54 +1,25 @@
-{%- if use_xml_format -%}
-
-{% if selected_code -%}
-{% for file in selected_files %}
+{% if selected_files -%}
+<selected_files>
+{%- for file in selected_files %}
+<file>
 <filepath>{{file.path}}</filepath>
-
-<context>
+<content>
 ```{{file.file_type}}
 {{file.content}}
 ```
-</context>
-{% endfor %}
-
-<code>
-```{{code_lang}}
-{{selected_code}}
-```
-</code>
-{%- else -%}
-{% for file in selected_files %}
-<filepath>{{file.path}}</filepath>
-
-<code>
-```{{file.file_type}}
-{{file.content}}
-```
-</code>
-{% endfor %}
+</content>
+</file>
+{%- endfor %}
+</selected_files>
 {%- endif %}
-{% else %}
+
 {% if selected_code -%}
-{% for file in selected_files %}
-FILEPATH: {{file.path}}
-
-CONTEXT:
-```{{file.file_type}}
-{{file.content}}
+<selected_code>
+<filepath>{{selected_code.path}}</filepath>
+<content>
+```{{selected_code.file_type}}
+{{selected_code.content}}
 ```
-{% endfor %}
-
-CODE:
-```{{code_lang}}
-{{selected_code}}
-```
-{%- else -%}
-{% for file in selected_files %}
-FILEPATH: {{file.path}}
-
-CODE:
-```{{file.file_type}}
-{{file.content}}
-```
-{% endfor %}
-{%- endif %}{%- endif %}
+</content>
+</selected_code>
+{%- endif %}

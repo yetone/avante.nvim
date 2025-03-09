@@ -275,8 +275,10 @@ function M.get_visual_selection_and_range()
     end
   end
   if not content then return nil end
+  local filepath = fn.expand("%:p")
+  local filetype = M.get_filetype(filepath)
   -- Return the selected content and range
-  return SelectionResult:new(content, range)
+  return SelectionResult:new(filepath, filetype, content, range)
 end
 
 ---Wrapper around `api.nvim_buf_get_lines` which defaults to the current buffer
@@ -637,6 +639,9 @@ function M.is_same_file_ext(target_ext, filepath)
 end
 
 -- Get recent filepaths in the same project and same file ext
+---@param limit? integer
+---@param filenames? string[]
+---@return string[]
 function M.get_recent_filepaths(limit, filenames)
   local project_root = M.get_project_root()
   local current_ext = fn.expand("%:e")

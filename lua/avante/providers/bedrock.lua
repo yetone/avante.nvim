@@ -5,7 +5,6 @@ local P = require("avante.providers")
 local M = {}
 
 M.api_key_name = "BEDROCK_KEYS"
-M.use_xml_format = true
 
 M = setmetatable(M, {
   __index = function(_, k)

@@ -29,7 +29,6 @@ end
 local M = {}
 
 M.api_key_name = "ANTHROPIC_API_KEY"
-M.use_xml_format = true
 M.support_prompt_caching = true
 
 M.role_map = {
