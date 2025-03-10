@@ -264,6 +264,14 @@ M._defaults = {
       num_ctx = 4096,
     },
   },
+  ---@type AvanteSupportedProvider
+  vertex_claude = {
+    endpoint = "https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/antrhopic/models",
+    model = "claude-3-5-sonnet-v2@20241022",
+    timeout = 30000, -- Timeout in milliseconds
+    temperature = 0,
+    max_tokens = 4096,
+  },
   ---To add support for custom provider, follow the format below
   ---See https://github.com/yetone/avante.nvim/wiki#custom-providers for more details
   ---@type {[string]: AvanteProvider}
