@@ -355,7 +355,7 @@ function M.curl(opts)
       end
 
       -- If stream is not enabled, then handle the response here
-      if provider:is_disable_stream() and result.status == 200 then
+      if (provider:is_disable_stream() or spec.body.stream == nil) and result.status == 200 then
         vim.schedule(function()
           completed = true
           parse_response_without_stream(result.body)
