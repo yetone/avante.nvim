@@ -392,6 +392,8 @@ M._defaults = {
       remove_file = "d",
       add_file = "@",
       close = { "<Esc>", "q" },
+      ---@alias AvanteCloseFromInput { normal: string | nil, insert: string | nil }
+      ---@type AvanteCloseFromInput | nil
       close_from_input = nil, -- e.g., { normal = "<Esc>", insert = "<C-d>" }
     },
     files = {
