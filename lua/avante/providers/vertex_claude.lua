@@ -1,5 +1,4 @@
 local P = require("avante.providers")
-local Utils = require("avante.utils")
 local Vertex = require("avante.providers.vertex")
 
 ---@class AvanteProviderFunctor
@@ -47,7 +46,6 @@ function M:parse_curl_args(prompt_opts)
     },
   })
 
-  Utils.debug("request body", request_body)
   return {
     url = url,
     headers = {
