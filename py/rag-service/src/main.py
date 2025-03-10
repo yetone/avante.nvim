@@ -660,21 +660,89 @@ def scan_directory(directory: Path) -> list[str]:
     """Scan directory and return a list of matched files."""
     spec = get_pathspec(directory)
 
-    audio_video_exts = [
+    binary_extensions = [
+        # Images
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".gif",
+        ".bmp",
+        ".ico",
+        ".webp",
+        ".tiff",
+        ".exr",
+        ".hdr",
+        ".svg",
+        ".psd",
+        ".ai",
+        ".eps",
+        # Audio/Video
         ".mp3",
         ".wav",
-        ".ogg",
-        ".flac",
-        ".aac",
-        ".m4a",
-        ".wma",
         ".mp4",
         ".avi",
         ".mov",
-        ".wmv",
+        ".webm",
+        ".flac",
+        ".ogg",
+        ".m4a",
+        ".aac",
+        ".wma",
         ".flv",
         ".mkv",
-        ".webm",
+        ".wmv",
+        # Documents
+        ".pdf",
+        ".doc",
+        ".docx",
+        ".xls",
+        ".xlsx",
+        ".ppt",
+        ".pptx",
+        ".odt",
+        # Archives
+        ".zip",
+        ".tar",
+        ".gz",
+        ".7z",
+        ".rar",
+        ".iso",
+        ".dmg",
+        ".pkg",
+        ".deb",
+        ".rpm",
+        ".msi",
+        ".apk",
+        ".xz",
+        ".bz2",
+        # Compiled
+        ".exe",
+        ".dll",
+        ".so",
+        ".dylib",
+        ".class",
+        ".pyc",
+        ".o",
+        ".obj",
+        ".lib",
+        ".a",
+        ".out",
+        ".app",
+        ".apk",
+        ".jar",
+        # Fonts
+        ".ttf",
+        ".otf",
+        ".woff",
+        ".woff2",
+        ".eot",
+        # Other binary
+        ".bin",
+        ".dat",
+        ".db",
+        ".sqlite",
+        ".db",
+        ".DS_Store",
     ]
 
     matched_files = []
@@ -683,8 +751,8 @@ def scan_directory(directory: Path) -> list[str]:
         file_paths = [str(Path(root) / file) for file in files]
         for file in file_paths:
             file_ext = Path(file).suffix.lower()
-            if file_ext in audio_video_exts:
-                logger.info("Skipping audio/video file: %s", file)
+            if file_ext in binary_extensions:
+                logger.info("Skipping binary file: %s", file)
                 continue
 
             if spec and spec.match_file(os.path.relpath(file, directory)):
