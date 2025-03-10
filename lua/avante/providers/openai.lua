@@ -27,21 +27,25 @@ function M.transform_tool(tool)
     }
     if not field.optional then table.insert(required, field.name) end
   end
-  local res = {
-    type = "function",
-    ["function"] = {
-      name = tool.name,
-      description = tool.description,
-    },
-  }
-  if vim.tbl_count(input_schema_properties) > 0 then
-    res["function"].parameters = {
+  ---@type AvanteOpenAIToolFunctionParameters
+  local parameters = nil
+  if not vim.tbl_isempty(input_schema_properties) then
+    parameters = {
       type = "object",
       properties = input_schema_properties,
       required = required,
       additionalProperties = false,
     }
   end
+  ---@type AvanteOpenAITool
+  local res = {
+    type = "function",
+    ["function"] = {
+      name = tool.name,
+      description = tool.description,
+      parameters = parameters,
+    },
+  }
   return res
 end
 

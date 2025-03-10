@@ -171,12 +171,12 @@ vim.g.avante_login = vim.g.avante_login
 ---
 ---@class AvanteOpenAIToolFunction
 ---@field name string
----@field description string
----@field parameters AvanteOpenAIToolFunctionParameters
----@field strict boolean
+---@field description string | nil
+---@field parameters AvanteOpenAIToolFunctionParameters | nil
+---@field strict boolean | nil
 ---
 ---@class AvanteOpenAIToolFunctionParameters
----@field type string
+---@field type "object"
 ---@field properties table<string, AvanteOpenAIToolFunctionParameterProperty>
 ---@field required string[]
 ---@field additionalProperties boolean
