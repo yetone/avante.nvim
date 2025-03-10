@@ -17,7 +17,7 @@ BUILD_DIR := build
 BUILD_FROM_SOURCE ?= false
 TARGET_LIBRARY ?= all
 
-RAG_SERVICE_VERSION ?= 0.0.7
+RAG_SERVICE_VERSION ?= 0.0.8
 RAG_SERVICE_IMAGE := quay.io/yetoneful/avante-rag-service:$(RAG_SERVICE_VERSION)
 
 all: luajit
