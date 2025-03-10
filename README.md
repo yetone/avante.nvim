@@ -349,8 +349,14 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     sidebar = {
       apply_all = "A",
       apply_cursor = "a",
+      retry_user_request = "r",
+      edit_user_request = "e",
       switch_windows = "<Tab>",
       reverse_switch_windows = "<S-Tab>",
+      remove_file = "d",
+      add_file = "@",
+      close = { "<Esc>", "q" },
+      close_from_input = nil, -- e.g., { normal = "<Esc>", insert = "<C-d>" }
     },
   },
   hints = { enabled = true },
