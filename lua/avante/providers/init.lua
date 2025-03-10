@@ -255,7 +255,7 @@ function M.parse_config(opts)
 
   request_body = vim
     .iter(request_body)
-    :filter(function(_, v) return type(v) ~= "function" end)
+    :filter(function(_, v) return type(v) ~= "function" and type(v) ~= "userdata" end)
     :fold({}, function(acc, k, v)
       acc[k] = v
       return acc
