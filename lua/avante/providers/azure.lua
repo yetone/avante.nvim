@@ -17,6 +17,7 @@ M.parse_messages = O.parse_messages
 M.parse_response = O.parse_response
 M.parse_response_without_stream = O.parse_response_without_stream
 M.is_disable_stream = O.is_disable_stream
+M.is_o_series_model = O.is_o_series_model
 
 function M:parse_curl_args(prompt_opts)
   local provider_conf, request_body = P.parse_config(self)
