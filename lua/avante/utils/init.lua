@@ -34,7 +34,12 @@ function M.has(plugin)
   return res
 end
 
-function M.is_win() return jit.os:find("Windows") ~= nil end
+local _is_win = nil
+
+function M.is_win()
+  if _is_win == nil then _is_win = jit.os:find("Windows") ~= nil end
+  return _is_win
+end
 
 M.path_sep = (function()
   if M.is_win() then
