@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Set the target directory (use the first argument or default to a temporary directory)
 TARGET_DIR=$1
