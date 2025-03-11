@@ -1,5 +1,3 @@
-local Path = require("plenary.path")
-
 local api = vim.api
 local fn = vim.fn
 local lsp = vim.lsp
@@ -744,8 +742,7 @@ function M.scan_directory(options)
   end)()
 
   if not cmd then
-    local p = Path:new(options.directory)
-    if p:joinpath(".git"):exists() and vim.fn.executable("git") == 1 then
+    if M.path_exists(M.join_paths(options.directory, ".git")) and vim.fn.executable("git") == 1 then
       if vim.fn.has("win32") == 1 then
         cmd = {
           "powershell",
@@ -779,8 +776,7 @@ function M.scan_directory(options)
   files = vim
     .iter(files)
     :map(function(file)
-      local p = Path:new(file)
-      if not p:is_absolute() then return tostring(Path:new(options.directory):joinpath(file):absolute()) end
+      if not M.is_absolute_path(file) then return M.join_paths(options.directory, file) end
       return file
     end)
     :totable()
@@ -872,6 +868,8 @@ function M.join_paths(...)
   return result
 end
 
+function M.path_exists(path) return vim.loop.fs_stat(path) ~= nil end
+
 function M.is_first_letter_uppercase(str) return string.match(str, "^[A-Z]") ~= nil end
 
 ---@param content string
@@ -913,9 +911,10 @@ function M.get_mentions()
 end
 
 local function get_opened_buffer_by_filepath(filepath)
-  local absolute_path = Path:new(filepath):absolute()
+  local project_root = M.get_project_root()
+  local absolute_path = M.join_paths(project_root, filepath)
   for _, buf in ipairs(api.nvim_list_bufs()) do
-    if Path:new(fn.bufname(buf)):absolute() == absolute_path then return buf end
+    if M.join_paths(project_root, fn.bufname(buf)) == absolute_path then return buf end
   end
   return nil
 end
