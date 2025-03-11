@@ -1247,6 +1247,11 @@ function Sidebar:apply(current_cursor)
 
           local resp_lines = vim.split(resp_content, "\n")
 
+          if #resp_lines > 0 and resp_lines[#resp_lines] == "" then
+            resp_lines = vim.list_slice(resp_lines, 0, #resp_lines - 1)
+            resp_content = table.concat(resp_lines, "\n")
+          end
+
           if require("avante.config").debug then
             local resp_content_file = fn.tempname() .. ".txt"
             fn.writefile(vim.split(resp_content, "\n"), resp_content_file)
