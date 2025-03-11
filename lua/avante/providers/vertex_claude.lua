@@ -1,6 +1,29 @@
 local P = require("avante.providers")
 local Vertex = require("avante.providers.vertex")
 
+---@param tool AvanteLLMTool
+---@return AvanteClaudeTool
+local function transform_tool(tool)
+  local input_schema_properties = {}
+  local required = {}
+  for _, field in ipairs(tool.param.fields) do
+    input_schema_properties[field.name] = {
+      type = field.type,
+      description = field.description,
+    }
+    if not field.optional then table.insert(required, field.name) end
+  end
+  return {
+    name = tool.name,
+    description = tool.description,
+    input_schema = {
+      type = "object",
+      properties = input_schema_properties,
+      required = required,
+    },
+  }
+end
+
 ---@class AvanteProviderFunctor
 local M = {}
 
@@ -20,6 +43,7 @@ Vertex.api_key_name = "cmd:gcloud auth print-access-token"
 ---@param prompt_opts AvantePromptOptions
 function M:parse_curl_args(prompt_opts)
   local provider_conf, request_body = P.parse_config(self)
+  local disable_tools = provider_conf.disable_tools or false
   local location = vim.fn.getenv("LOCATION")
   local project_id = vim.fn.getenv("PROJECT_ID")
   local model_id = provider_conf.model or "default-model-id"
@@ -31,6 +55,20 @@ function M:parse_curl_args(prompt_opts)
 
   local system_prompt = prompt_opts.system_prompt or ""
   local messages = self:parse_messages(prompt_opts)
+
+  local tools = {}
+  if not disable_tools and prompt_opts.tools then
+    for _, tool in ipairs(prompt_opts.tools) do
+      table.insert(tools, transform_tool(tool))
+    end
+  end
+
+  if self.support_prompt_caching and #tools > 0 then
+    local last_tool = vim.deepcopy(tools[#tools])
+    last_tool.cache_control = { type = "ephemeral" }
+    tools[#tools] = last_tool
+  end
+
   request_body = vim.tbl_deep_extend("force", request_body, {
     anthropic_version = "vertex-2023-10-16",
     temperature = 0,
@@ -44,6 +82,7 @@ function M:parse_curl_args(prompt_opts)
         cache_control = { type = "ephemeral" },
       },
     },
+    tools = tools,
   })
 
   return {
