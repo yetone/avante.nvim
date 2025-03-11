@@ -246,7 +246,9 @@ function M.curl(opts)
   end
 
   local function parse_response_without_stream(data)
-    provider:parse_response_without_stream(data, current_event_state, handler_opts)
+    if provider.parse_response_without_stream then
+      provider:parse_response_without_stream(data, current_event_state, handler_opts)
+    end
   end
 
   local completed = false
@@ -354,8 +356,8 @@ function M.curl(opts)
         end)
       end
 
-      -- If stream is not enabled, then handle the response here
-      if provider:is_disable_stream() and result.status == 200 then
+      -- Always handle the extra response outside of stream, such as the exceptions from bedrock
+      if result.status == 200 then
         vim.schedule(function()
           completed = true
           parse_response_without_stream(result.body)
