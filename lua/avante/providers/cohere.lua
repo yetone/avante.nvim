@@ -47,8 +47,6 @@ M.role_map = {
   assistant = "assistant",
 }
 
-function M:is_disable_stream() return false end
-
 function M:parse_messages(opts)
   local messages = {
     { role = "system", content = opts.system_prompt },

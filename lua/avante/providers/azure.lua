@@ -16,7 +16,6 @@ M.api_key_name = "AZURE_OPENAI_API_KEY"
 M.parse_messages = O.parse_messages
 M.parse_response = O.parse_response
 M.parse_response_without_stream = O.parse_response_without_stream
-M.is_disable_stream = O.is_disable_stream
 M.is_o_series_model = O.is_o_series_model
 M.role_map = O.role_map
 
