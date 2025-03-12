@@ -1039,6 +1039,7 @@ function Sidebar:apply(current_cursor)
         if not loading_win or not loading_buf or not api.nvim_win_is_valid(loading_win) then return end
         spinner_idx = (spinner_idx % #spinner_frames) + 1
         local text = spinner_frames[spinner_idx] .. " Applying changes..."
+        api.nvim_buf_set_lines(loading_buf, 0, -1, false, { text })
       end
 
       local function create_loading_window()
