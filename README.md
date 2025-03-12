@@ -291,8 +291,10 @@ require('avante').setup ({
 
 ### Default setup configuration
 
+_See [config.lua#L9](./lua/avante/config.lua) for the full config_
+
 <details>
-<summary>_See [config.lua#L9](./lua/avante/config.lua) for the full config_</summary>
+<summary>Default configuration</summary>
 
 ```lua
 {
@@ -626,8 +628,9 @@ The following key bindings are available for use with `avante.nvim`:
 
 ### Neotree shortcut
 
+In the neotree sidebar, you can also add a new keyboard shortcut to quickly add `file/folder` to `Avante Selected Files`.
 <details>
-<summary>In the neotree sidebar, you can also add a new keyboard shortcut to quickly add `file/folder` to `Avante Selected Files`.</summary>
+<summary>Neotree configuration</summary>
 
 ```lua
 return {
