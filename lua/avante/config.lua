@@ -574,6 +574,7 @@ M.BASE_PROVIDER_KEYS = {
   "__inherited_from",
   "disable_tools",
   "entra",
+  "hide_in_model_selector",
 }
 
 return M
