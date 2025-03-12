@@ -209,8 +209,6 @@ M.role_map = {
   assistant = "assistant",
 }
 
-function M:is_disable_stream() return false end
-
 M.parse_messages = OpenAI.parse_messages
 
 M.parse_response = OpenAI.parse_response

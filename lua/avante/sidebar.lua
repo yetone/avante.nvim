@@ -1028,14 +1028,14 @@ function Sidebar:apply(current_cursor)
       local function clear_highlights() api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1) end
 
       -- Create loading indicator float window
-      local loading_buf = api.nvim_create_buf(false, true)
+      local loading_buf = nil
       local loading_win = nil
       local spinner_frames = { "⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷" }
       local spinner_idx = 1
       local loading_timer = nil
 
       local function update_loading_indicator()
-        if not loading_win or not api.nvim_win_is_valid(loading_win) then return end
+        if not loading_win or not loading_buf or not api.nvim_win_is_valid(loading_win) then return end
         spinner_idx = (spinner_idx % #spinner_frames) + 1
         local text = spinner_frames[spinner_idx] .. " Applying changes..."
         api.nvim_buf_set_lines(loading_buf, 0, -1, false, { text })
@@ -1066,6 +1066,7 @@ function Sidebar:apply(current_cursor)
           zindex = 101,
         }
 
+        loading_buf = api.nvim_create_buf(false, true)
         loading_win = api.nvim_open_win(loading_buf, false, opts)
 
         -- Start timer to update spinner
@@ -1082,6 +1083,11 @@ function Sidebar:apply(current_cursor)
         if loading_win and api.nvim_win_is_valid(loading_win) then
           api.nvim_win_close(loading_win, true)
           loading_win = nil
+        end
+
+        if loading_buf then
+          api.nvim_buf_delete(loading_buf, { force = true })
+          loading_buf = nil
         end
       end
 
@@ -2792,7 +2798,9 @@ function Sidebar:create_input_container(opts)
   -- Close the floating window
   local function close_hint()
     if hint_window and api.nvim_win_is_valid(hint_window) then
+      local buf = api.nvim_win_get_buf(hint_window)
       api.nvim_win_close(hint_window, true)
+      api.nvim_buf_delete(buf, { force = true })
       hint_window = nil
     end
   end

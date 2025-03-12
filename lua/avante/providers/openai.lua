@@ -13,8 +13,6 @@ M.role_map = {
   assistant = "assistant",
 }
 
-function M:is_disable_stream() return false end
-
 ---@param tool AvanteLLMTool
 ---@return AvanteOpenAITool
 function M.transform_tool(tool)

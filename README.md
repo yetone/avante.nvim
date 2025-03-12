@@ -232,6 +232,19 @@ programs.neovim = {
 
 <details>
 
+  <summary><a href="https://nix-community.github.io/nixvim/plugins/avante/index.html">Nixvim</a></summary>
+
+```nix
+  plugins.avante.enable = true;
+  plugins.avante.settings = {
+    # setup options here
+  };
+```
+
+</details>
+
+<details>
+
   <summary>Lua</summary>
 
 ```lua
