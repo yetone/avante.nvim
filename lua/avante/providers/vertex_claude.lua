@@ -9,6 +9,7 @@ M.role_map = {
   assistant = "assistant",
 }
 
+M.is_disable_stream = P.claude.is_disable_stream
 M.parse_messages = P.claude.parse_messages
 M.parse_response = P.claude.parse_response
 M.parse_api_key = Vertex.parse_api_key
