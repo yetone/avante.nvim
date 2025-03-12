@@ -605,8 +605,10 @@ end
 
 ---@return AvanteLLMTool[]
 function M.get_tools()
+  local custom_tools = Config.custom_tools
+  if type(custom_tools) == "function" then custom_tools = custom_tools() end
   ---@type AvanteLLMTool[]
-  local unfiltered_tools = vim.list_extend(vim.list_extend({}, M._tools), Config.custom_tools)
+  local unfiltered_tools = vim.list_extend(vim.list_extend({}, M._tools), custom_tools)
   return vim
     .iter(unfiltered_tools)
     :filter(function(tool) ---@param tool AvanteLLMTool
