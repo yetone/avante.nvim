@@ -205,6 +205,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field _shellenv? string
 ---@field disable_tools? boolean
 ---@field entra? boolean
+---@field hide_in_model_selector? boolean
 ---
 ---@class AvanteSupportedProvider: AvanteDefaultBaseProvider
 ---@field __inherited_from? string
