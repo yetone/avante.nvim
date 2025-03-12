@@ -16,7 +16,7 @@
   <a href="https://github.com/yetone/avante.nvim/actions/workflows/python.yaml" target="_blank">
     <img src="https://img.shields.io/github/actions/workflow/status/yetone/avante.nvim/python.yaml?style=flat-square&logo=python&logoColor=ffffff&label=Python+CI&labelColor=3672A5&color=347D39&event=push" alt="Python CI status" />
   </a>
-  <a href="https://discord.com/invite/wUuZz7VxXD" target="_blank">
+  <a href="https://discord.gg/QfnEFEdSjz" target="_blank">
     <img src="https://img.shields.io/discord/1302530866362323016?style=flat-square&logo=discord&label=Discord&logoColor=ffffff&labelColor=7376CF&color=268165" alt="Discord" />
   </a>
   <a href="https://dotfyle.com/plugins/yetone/avante.nvim">
