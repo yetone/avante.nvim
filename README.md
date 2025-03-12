@@ -291,7 +291,8 @@ require('avante').setup ({
 
 ### Default setup configuration
 
-_See [config.lua#L9](./lua/avante/config.lua) for the full config_
+<details>
+<summary>_See [config.lua#L9](./lua/avante/config.lua) for the full config_</summary>
 
 ```lua
 {
@@ -422,6 +423,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
   },
 }
 ```
+</details>
 
 ## Blink.cmp users
 
@@ -624,7 +626,8 @@ The following key bindings are available for use with `avante.nvim`:
 
 ### Neotree shortcut
 
-In the neotree sidebar, you can also add a new keyboard shortcut to quickly add `file/folder` to `Avante Selected Files`.
+<details>
+<summary>In the neotree sidebar, you can also add a new keyboard shortcut to quickly add `file/folder` to `Avante Selected Files`.</summary>
 
 ```lua
 return {
@@ -667,6 +670,7 @@ return {
   },
 }
 ```
+</details>
 
 ## Commands
 
@@ -826,7 +830,8 @@ Avante allows you to define custom tools that can be used by the AI during code 
 
 ### Example: Go Test Runner
 
-Here's an example of a custom tool that runs Go unit tests:
+<details>
+<summary>Here's an example of a custom tool that runs Go unit tests:</summary>
 
 ```lua
 {
@@ -867,6 +872,11 @@ Here's an example of a custom tool that runs Go unit tests:
   },
 }
 ```
+</details>
+
+## MCP
+
+Now you can integrate MCP functionality for Avante through `mcphub.nvim`. For detailed documentation, please refer to [mcphub.nvim](https://github.com/ravitemer/mcphub.nvim#avante-integration)
 
 ## Custom prompts
 
@@ -935,7 +945,7 @@ If you have the following structure:
 - [x] Chat with project (You can use `@codebase` to chat with the whole project)
 - [x] Chat with selected files
 - [x] Tool use
-- [ ] MCP
+- [x] MCP
 
 ## Roadmap
 
