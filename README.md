@@ -680,15 +680,16 @@ return {
 | Command                            | Description                                                                                                 | Examples                                            |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
 | `:AvanteAsk [question] [position]` | Ask AI about your code. Optional `position` set window position and `ask` enable/disable direct asking mode | `:AvanteAsk position=right Refactor this code here` |
-| `:AvanteBuild`                     | Build dependencies for the project                                                                          |
-| `:AvanteChat`                      | Start a chat session with AI about your codebase. Default is `ask`=false                                    |
-| `:AvanteClear`                     | Clear the chat history                                                                                      |
-| `:AvanteEdit`                      | Edit the selected code blocks                                                                               |
-| `:AvanteFocus`                     | Switch focus to/from the sidebar                                                                            |
-| `:AvanteRefresh`                   | Refresh all Avante windows                                                                                  |
-| `:AvanteSwitchProvider`            | Switch AI provider (e.g. openai)                                                                            |
-| `:AvanteShowRepoMap`               | Show repo map for project's structure                                                                       |
-| `:AvanteToggle`                    | Toggle the Avante sidebar                                                                                   |
+| `:AvanteBuild`                     | Build dependencies for the project                                                                          | |
+| `:AvanteChat`                      | Start a chat session with AI about your codebase. Default is `ask`=false                                    | |
+| `:AvanteClear`                     | Clear the chat history                                                                                      | |
+| `:AvanteEdit`                      | Edit the selected code blocks                                                                               | |
+| `:AvanteFocus`                     | Switch focus to/from the sidebar                                                                            | |
+| `:AvanteRefresh`                   | Refresh all Avante windows                                                                                  | |
+| `:AvanteSwitchProvider`            | Switch AI provider (e.g. openai)                                                                            | |
+| `:AvanteShowRepoMap`               | Show repo map for project's structure                                                                       | |
+| `:AvanteToggle`                    | Toggle the Avante sidebar                                                                                   | |
+| `:AvanteModels`                    | Show model list                                                                                             | |
 
 ## Highlight Groups
 
