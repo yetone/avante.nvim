@@ -36,7 +36,6 @@ function M.transform_tool(tool)
   }
 end
 
-
 function M:parse_messages(opts)
   ---@type AvanteClaudeMessage[]
   local messages = {}
