@@ -17,7 +17,6 @@ local Utils = require("avante.utils")
 ---@class avante.CoreConfig: avante.Config
 local M = {}
 ---@class avante.Config
----@field custom_tools AvanteLLMToolPublic[]
 M._defaults = {
   debug = false,
   ---@alias ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | string
@@ -34,6 +33,7 @@ M._defaults = {
   -- For most providers that we support we will determine this automatically.
   -- If you wish to use a given implementation, then you can override it here.
   tokenizer = "tiktoken",
+  ---@type string | (fun(): string) | nil
   system_prompt = nil,
   rag_service = {
     enabled = false, -- Enables the rag service, requires OPENAI_API_KEY to be set
