@@ -1,28 +1,5 @@
 local P = require("avante.providers")
 local Vertex = require("avante.providers.vertex")
----
----@param tool AvanteLLMTool
----@return AvanteClaudeTool
-local function transform_tool(tool)
-  local input_schema_properties = {}
-  local required = {}
-  for _, field in ipairs(tool.param.fields) do
-    input_schema_properties[field.name] = {
-      type = field.type,
-      description = field.description,
-    }
-    if not field.optional then table.insert(required, field.name) end
-  end
-  return {
-    name = tool.name,
-    description = tool.description,
-    input_schema = {
-      type = "object",
-      properties = input_schema_properties,
-      required = required,
-    },
-  }
-end
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -59,7 +36,7 @@ function M:parse_curl_args(prompt_opts)
   local tools = {}
   if not disable_tools and prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
-      table.insert(tools, transform_tool(tool))
+      table.insert(tools, P.claude.transform_tool(tool))
     end
   end
 
