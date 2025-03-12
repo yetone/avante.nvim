@@ -374,9 +374,11 @@ end
 ---@param bufnr integer
 function H.clear_buffer_mappings(bufnr)
   if not bufnr or not vim.b[bufnr].avante_conflict_mappings_set then return end
-  for _, mapping in pairs(Config.mappings.diff) do
-    if vim.fn.hasmapto(mapping, "n") > 0 then api.nvim_buf_del_keymap(bufnr, "n", mapping) end
+
+  for _, diff_mapping in pairs(Config.mappings.diff) do
+    pcall(vim.api.nvim_buf_del_keymap, bufnr, "n", diff_mapping)
   end
+
   vim.b[bufnr].avante_conflict_mappings_set = false
   M.restore_timeoutlen(bufnr)
 end
