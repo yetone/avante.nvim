@@ -465,7 +465,7 @@ M._defaults = {
     throttle = 600,
   },
   disabled_tools = {}, ---@type string[]
-  ---@type AvanteLLMToolPublic[]
+  ---@type AvanteLLMToolPublic[] | fun(): AvanteLLMToolPublic[]
   custom_tools = {},
 }
 
