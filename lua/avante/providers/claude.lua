@@ -2,9 +2,20 @@ local Utils = require("avante.utils")
 local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
 
+---@class AvanteProviderFunctor
+local M = {}
+
+M.api_key_name = "ANTHROPIC_API_KEY"
+M.support_prompt_caching = true
+
+M.role_map = {
+  user = "user",
+  assistant = "assistant",
+}
+
 ---@param tool AvanteLLMTool
 ---@return AvanteClaudeTool
-local function transform_tool(tool)
+function M.transform_tool(tool)
   local input_schema_properties = {}
   local required = {}
   for _, field in ipairs(tool.param.fields) do
@@ -24,17 +35,6 @@ local function transform_tool(tool)
     },
   }
 end
-
----@class AvanteProviderFunctor
-local M = {}
-
-M.api_key_name = "ANTHROPIC_API_KEY"
-M.support_prompt_caching = true
-
-M.role_map = {
-  user = "user",
-  assistant = "assistant",
-}
 
 function M:parse_messages(opts)
   ---@type AvanteClaudeMessage[]
@@ -278,7 +278,7 @@ function M:parse_curl_args(prompt_opts)
   local tools = {}
   if not disable_tools and prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
-      table.insert(tools, transform_tool(tool))
+      table.insert(tools, self.transform_tool(tool))
     end
   end
 
