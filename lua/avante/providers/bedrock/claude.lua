@@ -17,7 +17,6 @@ M.role_map = {
   assistant = "assistant",
 }
 
-M.is_disable_stream = Claude.is_disable_stream
 M.parse_messages = Claude.parse_messages
 M.parse_response = Claude.parse_response
 

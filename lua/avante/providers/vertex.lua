@@ -11,7 +11,6 @@ M.role_map = {
   assistant = "model",
 }
 
-M.is_disable_stream = Gemini.is_disable_stream
 M.parse_messages = Gemini.parse_messages
 M.parse_response = Gemini.parse_response
 

@@ -261,7 +261,6 @@ vim.g.avante_login = vim.g.avante_login
 ---@field parse_messages AvanteMessagesParser
 ---@field parse_response AvanteResponseParser
 ---@field parse_curl_args AvanteCurlArgsParser
----@field is_disable_stream fun(self: AvanteProviderFunctor): boolean
 ---@field setup fun(): nil
 ---@field is_env_set fun(): boolean
 ---@field api_key_name string

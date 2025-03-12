@@ -12,8 +12,6 @@ M.role_map = {
 }
 -- M.tokenizer_id = "google/gemma-2b"
 
-function M:is_disable_stream() return false end
-
 function M:parse_messages(opts)
   local contents = {}
   local prev_role = nil
