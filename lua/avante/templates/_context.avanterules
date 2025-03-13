@@ -1,26 +1,16 @@
 {% if selected_files -%}
 <selected_files>
 {%- for file in selected_files %}
-<file>
-<filepath>{{file.path}}</filepath>
-<content>
-```{{file.file_type}}
+<file path="{{file.path}}" language="{{file.file_type}}">
 {{file.content}}
-```
-</content>
 </file>
 {%- endfor %}
 </selected_files>
 {%- endif %}
 
 {% if selected_code -%}
-<selected_code>
-<filepath>{{selected_code.path}}</filepath>
-<content>
-```{{selected_code.file_type}}
+<selected_code path="{{selected_code.path}}" language="{{selected_code.file_type}}">
 {{selected_code.content}}
-```
-</content>
 </selected_code>
 {%- endif %}
 
