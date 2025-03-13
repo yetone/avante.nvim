@@ -1101,7 +1101,7 @@ M._tools = {
   },
   {
     name = "bash",
-    description = "Run a bash command in a directory. Can't use search commands like find/grep or read tools like cat/ls.",
+    description = "Run a bash command in a directory. Can't use search commands like find/grep or read tools like cat/ls. Can't use it to read files or modify files.",
     param = {
       type = "table",
       fields = {
