@@ -767,10 +767,7 @@ function M.scan_directory(options)
         cmd = {
           "bash",
           "-c",
-          string.format(
-            "cd %s && cat <(git ls-files --exclude-standard) <(git ls-files --exclude-standard --others)",
-            options.directory
-          ),
+          string.format("cd %s && git ls-files -co --exclude-standard", options.directory),
         }
       end
       cmd_supports_max_depth = false
