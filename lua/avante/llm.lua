@@ -225,6 +225,20 @@ function M.calculate_tokens(opts)
   return tokens
 end
 
+local parse_headers = function(headers_file)
+  local headers = {}
+  local file = io.open(headers_file, "r")
+  if file then
+    for line in file:lines() do
+      line = line:gsub("\r$", "")
+      local key, value = line:match("^%s*(.-)%s*:%s*(.*)$")
+      if key and value then headers[key] = value end
+    end
+    file:close()
+  end
+  return headers
+end
+
 ---@param opts avante.CurlOpts
 function M.curl(opts)
   local provider = opts.provider
@@ -257,16 +271,26 @@ function M.curl(opts)
 
   local active_job
 
-  local curl_body_file = fn.tempname() .. ".json"
+  local temp_file = fn.tempname()
+  local curl_body_file = temp_file .. "-request-body.json"
   local json_content = vim.json.encode(spec.body)
   fn.writefile(vim.split(json_content, "\n"), curl_body_file)
 
   Utils.debug("curl body file:", curl_body_file)
 
+  local headers_file = temp_file .. "-headers.txt"
+
+  Utils.debug("curl headers file:", headers_file)
+
   local function cleanup()
     if Config.debug then return end
-    vim.schedule(function() fn.delete(curl_body_file) end)
+    vim.schedule(function()
+      fn.delete(curl_body_file)
+      fn.delete(headers_file)
+    end)
   end
+
+  local headers_reported = false
 
   active_job = curl.post(spec.url, {
     headers = spec.headers,
@@ -274,7 +298,12 @@ function M.curl(opts)
     insecure = spec.insecure,
     body = curl_body_file,
     raw = spec.rawArgs,
+    dump = { "-D", headers_file },
     stream = function(err, data, _)
+      if not headers_reported and opts.on_response_headers then
+        headers_reported = true
+        opts.on_response_headers(parse_headers(headers_file))
+      end
       if err then
         completed = true
         handler_opts.on_stop({ reason = "error", error = err })
@@ -393,6 +422,8 @@ function M._stream(opts)
 
   local prompt_opts = M.generate_prompts(opts)
 
+  local resp_headers = {}
+
   ---@type AvanteHandlerOptions
   local handler_opts = {
     on_start = opts.on_start,
@@ -406,7 +437,16 @@ function M._stream(opts)
           local new_opts = vim.tbl_deep_extend("force", opts, {
             tool_histories = tool_histories,
           })
-          return M._stream(new_opts)
+          if provider.get_rate_limit_sleep_time then
+            local sleep_time = provider:get_rate_limit_sleep_time(resp_headers)
+            if sleep_time and sleep_time > 0 then
+              Utils.info("Rate limit reached. Sleeping for " .. sleep_time .. " seconds ...")
+              vim.defer_fn(function() M._stream(new_opts) end, sleep_time * 1000)
+              return
+            end
+          end
+          M._stream(new_opts)
+          return
         end
         local tool_use = tool_use_list[tool_use_index]
         ---@param result string | nil
@@ -467,6 +507,7 @@ function M._stream(opts)
     provider = provider,
     prompt_opts = prompt_opts,
     handler_opts = handler_opts,
+    on_response_headers = function(headers) resp_headers = headers end,
   })
 end
 
