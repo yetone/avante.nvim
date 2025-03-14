@@ -355,6 +355,15 @@ function M.curl(opts)
     callback = function(result)
       active_job = nil
       cleanup()
+      local headers_map = vim.iter(result.headers):fold({}, function(acc, value)
+        local pieces = vim.split(value, ":")
+        local key = pieces[1]
+        local remain = vim.list_slice(pieces, 2)
+        if not remain then return acc end
+        local val = Utils.trim_spaces(table.concat(remain, ":"))
+        acc[key] = val
+        return acc
+      end)
       if result.status >= 400 then
         if provider.on_error then
           provider.on_error(result)
@@ -362,15 +371,6 @@ function M.curl(opts)
           Utils.error("API request failed with status " .. result.status, { once = true, title = "Avante" })
         end
         if result.status == 429 then
-          local headers_map = vim.iter(result.headers):fold({}, function(acc, value)
-            local pieces = vim.split(value, ":")
-            local key = pieces[1]
-            local remain = vim.list_slice(pieces, 2)
-            if not remain then return acc end
-            local val = Utils.trim_spaces(table.concat(remain, ":"))
-            acc[key] = val
-            return acc
-          end)
           local retry_after = 10
           if headers_map["retry-after"] then retry_after = tonumber(headers_map["retry-after"]) or 10 end
           handler_opts.on_stop({ reason = "rate_limit", retry_after = retry_after })
@@ -393,6 +393,16 @@ function M.curl(opts)
           completed = true
           parse_response_without_stream(result.body)
         end)
+      end
+
+      if result.status == 200 and spec.url:match("https://openrouter.ai") then
+        local content_type = headers_map["content-type"]
+        if content_type and content_type:match("text/html") then
+          handler_opts.on_stop({
+            reason = "error",
+            error = "Your openrouter endpoint setting is incorrect, please set it to https://openrouter.ai/api/v1",
+          })
+        end
       end
     end,
   })
