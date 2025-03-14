@@ -83,8 +83,8 @@ function M.search_files(opts, on_log)
   return vim.json.encode(filepaths), nil
 end
 
----@type AvanteLLMToolFunc<{ rel_path: string, keyword: string }>
-function M.search_keyword(opts, on_log)
+---@type AvanteLLMToolFunc<{ rel_path: string, query: string, case_sensitive?: boolean, include_pattern?: string, exclude_pattern?: string }>
+function M.grep_search(opts, on_log)
   local abs_path = get_abs_path(opts.rel_path)
   if not has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return "", "No such file or directory: " .. abs_path end
@@ -99,15 +99,32 @@ function M.search_keyword(opts, on_log)
   ---execute the search command
   local cmd = ""
   if search_cmd:find("rg") then
-    cmd = string.format("%s --files-with-matches --ignore-case --hidden --glob '!.git'", search_cmd)
-    cmd = string.format("%s '%s' %s", cmd, opts.keyword, abs_path)
+    cmd = string.format("%s --files-with-matches --hidden", search_cmd)
+    if opts.case_sensitive then
+      cmd = string.format("%s --case-sensitive", cmd)
+    else
+      cmd = string.format("%s --ignore-case", cmd)
+    end
+    if opts.include_pattern then cmd = string.format("%s --glob '%s'", cmd, opts.include_pattern) end
+    if opts.exclude_pattern then cmd = string.format("%s --glob '!%s'", cmd, opts.exclude_pattern) end
+    cmd = string.format("%s '%s' %s", cmd, opts.query, abs_path)
   elseif search_cmd:find("ag") then
-    cmd = string.format("%s '%s' --nocolor --nogroup --hidden --ignore .git %s", search_cmd, opts.keyword, abs_path)
+    cmd = string.format("%s --nocolor --nogroup --hidden", search_cmd)
+    if opts.case_sensitive then cmd = string.format("%s --case-sensitive", cmd) end
+    if opts.include_pattern then cmd = string.format("%s --ignore '!%s'", cmd, opts.include_pattern) end
+    if opts.exclude_pattern then cmd = string.format("%s --ignore '%s'", cmd, opts.exclude_pattern) end
+    cmd = string.format("%s '%s' %s", cmd, opts.query, abs_path)
   elseif search_cmd:find("ack") then
-    cmd = string.format("%s --nocolor --nogroup --hidden --ignore-dir .git", search_cmd)
-    cmd = string.format("%s '%s' %s", cmd, opts.keyword, abs_path)
+    cmd = string.format("%s --nocolor --nogroup --hidden", search_cmd)
+    if opts.case_sensitive then cmd = string.format("%s --smart-case", cmd) end
+    if opts.exclude_pattern then cmd = string.format("%s --ignore-dir '%s'", cmd, opts.exclude_pattern) end
+    cmd = string.format("%s '%s' %s", cmd, opts.query, abs_path)
   elseif search_cmd:find("grep") then
-    cmd = string.format("%s -riH --exclude-dir=.git %s %s", search_cmd, opts.keyword, abs_path)
+    cmd = string.format("cd %s && git ls-files -co --exclude-standard | xargs %s -rH", abs_path, search_cmd, abs_path)
+    if not opts.case_sensitive then cmd = string.format("%s -i", cmd) end
+    if opts.include_pattern then cmd = string.format("%s --include '%s'", cmd, opts.include_pattern) end
+    if opts.exclude_pattern then cmd = string.format("%s --exclude '%s'", cmd, opts.exclude_pattern) end
+    cmd = string.format("%s '%s'", cmd, opts.query)
   end
 
   Utils.debug("cmd", cmd)
@@ -842,8 +859,8 @@ M._tools = {
     },
   },
   {
-    name = "search_keyword",
-    description = "Search for a keyword in a directory",
+    name = "grep_search",
+    description = "Search for a keyword in a directory using grep",
     param = {
       type = "table",
       fields = {
@@ -853,9 +870,28 @@ M._tools = {
           type = "string",
         },
         {
-          name = "keyword",
-          description = "Keyword to search for",
+          name = "query",
+          description = "Query to search for",
           type = "string",
+        },
+        {
+          name = "case_sensitive",
+          description = "Whether to search case sensitively",
+          type = "boolean",
+          default = false,
+          optional = true,
+        },
+        {
+          name = "include_pattern",
+          description = "Glob pattern to include files",
+          type = "string",
+          optional = true,
+        },
+        {
+          name = "exclude_pattern",
+          description = "Glob pattern to exclude files",
+          type = "string",
+          optional = true,
         },
       },
     },
