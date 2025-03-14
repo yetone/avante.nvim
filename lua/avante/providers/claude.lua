@@ -13,6 +13,23 @@ M.role_map = {
   assistant = "assistant",
 }
 
+---@param headers table<string, string>
+---@return integer|nil
+function M:get_rate_limit_sleep_time(headers)
+  local remaining_tokens = tonumber(headers["anthropic-ratelimit-tokens-remaining"])
+  if remaining_tokens == nil then return end
+  if remaining_tokens > 10000 then return end
+  local reset_dt_str = headers["anthropic-ratelimit-tokens-reset"]
+  if remaining_tokens ~= 0 then reset_dt_str = reset_dt_str or headers["anthropic-ratelimit-requests-reset"] end
+  local reset_dt, err = Utils.parse_iso8601_date(reset_dt_str)
+  if err then
+    Utils.warn(err)
+    return
+  end
+  local now = Utils.utc_now()
+  return Utils.datetime_diff(tostring(now), tostring(reset_dt))
+end
+
 ---@param tool AvanteLLMTool
 ---@return AvanteClaudeTool
 function M.transform_tool(tool)

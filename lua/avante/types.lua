@@ -244,6 +244,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field usage? AvanteLLMUsage
 ---@field tool_use_list? AvanteLLMToolUse[]
 ---@field retry_after? integer
+---@field headers? table<string, string>
 ---
 ---@alias AvanteStreamParser fun(self: AvanteProviderFunctor, ctx: any, line: string, handler_opts: AvanteHandlerOptions): nil
 ---@alias AvanteLLMStartCallback fun(opts: AvanteLLMStartCallbackOptions): nil
@@ -272,6 +273,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field parse_stream_data? AvanteStreamParser
 ---@field on_error? fun(result: table<string, any>): nil
 ---@field transform_tool? fun(tool: AvanteLLMTool): AvanteOpenAITool | AvanteClaudeTool
+---@field get_rate_limit_sleep_time? fun(self: AvanteProviderFunctor, headers: table<string, string>): integer | nil
 ---
 ---@alias AvanteBedrockPayloadBuilder fun(self: AvanteBedrockModelHandler | AvanteBedrockProviderFunctor, prompt_opts: AvantePromptOptions, request_body: table<string, any>): table<string, any>
 ---
@@ -387,4 +389,5 @@ vim.g.avante_login = vim.g.avante_login
 ---@field provider AvanteProviderFunctor
 ---@field prompt_opts AvantePromptOptions
 ---@field handler_opts AvanteHandlerOptions
+---@field on_response_headers? fun(headers: table<string, string>): nil
 ---

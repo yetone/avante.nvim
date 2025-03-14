@@ -1119,4 +1119,48 @@ function M.deep_extend_with_metatable(behavior, ...)
   return result
 end
 
+function M.utc_now()
+  local utc_date = os.date("!*t")
+  ---@diagnostic disable-next-line: param-type-mismatch
+  local utc_time = os.time(utc_date)
+  return os.date("%Y-%m-%d %H:%M:%S", utc_time)
+end
+
+---@param dt1 string
+---@param dt2 string
+---@return integer delta_seconds
+function M.datetime_diff(dt1, dt2)
+  local pattern = "(%d+)-(%d+)-(%d+) (%d+):(%d+):(%d+)"
+  local y1, m1, d1, h1, min1, s1 = dt1:match(pattern)
+  local y2, m2, d2, h2, min2, s2 = dt2:match(pattern)
+
+  local time1 = os.time({ year = y1, month = m1, day = d1, hour = h1, min = min1, sec = s1 })
+  local time2 = os.time({ year = y2, month = m2, day = d2, hour = h2, min = min2, sec = s2 })
+
+  local delta_seconds = os.difftime(time2, time1)
+  return delta_seconds
+end
+
+---@param iso_str string
+---@return string|nil
+---@return string|nil error
+function M.parse_iso8601_date(iso_str)
+  local year, month, day, hour, min, sec = iso_str:match("(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)Z")
+  if not year then return nil, "Invalid ISO 8601 format" end
+
+  local time_table = {
+    year = tonumber(year),
+    month = tonumber(month),
+    day = tonumber(day),
+    hour = tonumber(hour),
+    min = tonumber(min),
+    sec = tonumber(sec),
+    isdst = false,
+  }
+
+  local timestamp = os.time(time_table)
+
+  return tostring(os.date("%Y-%m-%d %H:%M:%S", timestamp)), nil
+end
+
 return M
