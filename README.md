@@ -950,6 +950,7 @@ If you have the following structure:
 - [x] Chat with selected files
 - [x] Tool use
 - [x] MCP
+- [ ] Better codebase indexing
 
 ## Roadmap
 
