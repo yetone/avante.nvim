@@ -8,6 +8,7 @@ local lsp = vim.lsp
 ---@field file avante.utils.file
 ---@field history avante.utils.history
 ---@field environment avante.utils.environment
+---@field lsp avante.utils.lsp
 local M = {}
 
 setmetatable(M, {
@@ -311,18 +312,6 @@ end
 function M.get_hl(name)
   if not name then return {} end
   return api.nvim_get_hl(0, { name = name })
-end
-
-M.lsp = {}
-
----@alias vim.lsp.Client.filter {id?: number, bufnr?: number, name?: string, method?: string, filter?:fun(client: vim.lsp.Client):boolean}
-
----@param opts? vim.lsp.Client.filter
----@return vim.lsp.Client[]
-function M.lsp.get_clients(opts)
-  ---@type vim.lsp.Client[]
-  local ret = vim.lsp.get_clients(opts)
-  return (opts and opts.filter) and vim.tbl_filter(opts.filter, ret) or ret
 end
 
 --- vendor from lazy.nvim for early access and override
