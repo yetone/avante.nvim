@@ -124,7 +124,7 @@ describe("llm_tools", function()
     end)
   end)
 
-  describe("search_keyword", function()
+  describe("grep_search", function()
     local original_exepath = vim.fn.exepath
 
     after_each(function() vim.fn.exepath = original_exepath end)
@@ -147,10 +147,35 @@ describe("llm_tools", function()
       file:write("this is nothing")
       file:close()
 
-      local result, err = LlmTools.search_keyword({ rel_path = ".", keyword = "searchable" })
+      local result, err = LlmTools.grep_search({ rel_path = ".", query = "Searchable", case_sensitive = false })
       assert.is_nil(err)
       assert.truthy(result:find("searchable.txt"))
       assert.falsy(result:find("nothing.txt"))
+
+      local result2, err2 = LlmTools.grep_search({ rel_path = ".", query = "searchable", case_sensitive = true })
+      assert.is_nil(err2)
+      assert.truthy(result2:find("searchable.txt"))
+      assert.falsy(result2:find("nothing.txt"))
+
+      local result3, err3 = LlmTools.grep_search({ rel_path = ".", query = "Searchable", case_sensitive = true })
+      assert.is_nil(err3)
+      assert.falsy(result3:find("searchable.txt"))
+      assert.falsy(result3:find("nothing.txt"))
+
+      local result4, err4 = LlmTools.grep_search({ rel_path = ".", query = "searchable", case_sensitive = false })
+      assert.is_nil(err4)
+      assert.truthy(result4:find("searchable.txt"))
+      assert.falsy(result4:find("nothing.txt"))
+
+      local result5, err5 = LlmTools.grep_search({
+        rel_path = ".",
+        query = "searchable",
+        case_sensitive = false,
+        exclude_pattern = "search*",
+      })
+      assert.is_nil(err5)
+      assert.falsy(result5:find("searchable.txt"))
+      assert.falsy(result5:find("nothing.txt"))
     end)
 
     it("should search using ag when rg is not available", function()
@@ -166,7 +191,7 @@ describe("llm_tools", function()
       file:write("content for ag test")
       file:close()
 
-      local result, err = LlmTools.search_keyword({ rel_path = ".", keyword = "ag test" })
+      local result, err = LlmTools.grep_search({ rel_path = ".", query = "ag test" })
       assert.is_nil(err)
       assert.is_string(result)
       assert.truthy(result:find("ag_test.txt"))
@@ -179,27 +204,64 @@ describe("llm_tools", function()
         return ""
       end
 
-      local result, err = LlmTools.search_keyword({ rel_path = ".", keyword = "test" })
+      -- Create a test file with searchable content
+      local file = io.open(test_dir .. "/searchable.txt", "w")
+      if not file then error("Failed to create test file") end
+      file:write("this is searchable content")
+      file:close()
+
+      file = io.open(test_dir .. "/nothing.txt", "w")
+      if not file then error("Failed to create test file") end
+      file:write("this is nothing")
+      file:close()
+
+      local result, err = LlmTools.grep_search({ rel_path = ".", query = "Searchable", case_sensitive = false })
       assert.is_nil(err)
-      assert.truthy(result:find("test.txt"))
+      assert.truthy(result:find("searchable.txt"))
+      assert.falsy(result:find("nothing.txt"))
+
+      local result2, err2 = LlmTools.grep_search({ rel_path = ".", query = "searchable", case_sensitive = true })
+      assert.is_nil(err2)
+      assert.truthy(result2:find("searchable.txt"))
+      assert.falsy(result2:find("nothing.txt"))
+
+      local result3, err3 = LlmTools.grep_search({ rel_path = ".", query = "Searchable", case_sensitive = true })
+      assert.is_nil(err3)
+      assert.falsy(result3:find("searchable.txt"))
+      assert.falsy(result3:find("nothing.txt"))
+
+      local result4, err4 = LlmTools.grep_search({ rel_path = ".", query = "searchable", case_sensitive = false })
+      assert.is_nil(err4)
+      assert.truthy(result4:find("searchable.txt"))
+      assert.falsy(result4:find("nothing.txt"))
+
+      local result5, err5 = LlmTools.grep_search({
+        rel_path = ".",
+        query = "searchable",
+        case_sensitive = false,
+        exclude_pattern = "search*",
+      })
+      assert.is_nil(err5)
+      assert.falsy(result5:find("searchable.txt"))
+      assert.falsy(result5:find("nothing.txt"))
     end)
 
     it("should return error when no search tool is available", function()
       -- Mock exepath to return nothing
       vim.fn.exepath = function() return "" end
 
-      local result, err = LlmTools.search_keyword({ rel_path = ".", keyword = "test" })
+      local result, err = LlmTools.grep_search({ rel_path = ".", query = "test" })
       assert.equals("", result)
       assert.equals("No search command found", err)
     end)
 
     it("should respect path permissions", function()
-      local result, err = LlmTools.search_keyword({ rel_path = "../outside_project", keyword = "test" })
+      local result, err = LlmTools.grep_search({ rel_path = "../outside_project", query = "test" })
       assert.truthy(err:find("No permission to access path"))
     end)
 
     it("should handle non-existent paths", function()
-      local result, err = LlmTools.search_keyword({ rel_path = "non_existent_dir", keyword = "test" })
+      local result, err = LlmTools.grep_search({ rel_path = "non_existent_dir", query = "test" })
       assert.equals("", result)
       assert.truthy(err)
       assert.truthy(err:find("No such file or directory"))
