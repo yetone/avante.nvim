@@ -1221,6 +1221,80 @@ M._tools = {
       },
     },
   },
+  {
+    name = "read_definitions",
+    description = "Retrieves the complete source code definitions of any symbol (function, type, constant, etc.) from your codebase.",
+    param = {
+      type = "table",
+      fields = {
+        {
+          name = "symbol_name",
+          description = "The name of the symbol to retrieve the definition for",
+          type = "string",
+        },
+        {
+          name = "show_line_numbers",
+          description = "Whether to show line numbers in the definitions",
+          type = "boolean",
+          default = false,
+        },
+      },
+    },
+    returns = {
+      {
+        name = "definitions",
+        description = "The source code definitions of the symbol",
+        type = "string[]",
+      },
+      {
+        name = "error",
+        description = "Error message if the definition retrieval failed",
+        type = "string",
+        optional = true,
+      },
+    },
+    func = function(input_json, on_log, on_complete)
+      local symbol_name = input_json.symbol_name
+      local show_line_numbers = input_json.show_line_numbers
+      if on_log then on_log("Reading definition for " .. symbol_name) end
+      if not symbol_name then return nil, "No symbol name provided" end
+      local recent_files = Utils.get_recent_filepaths()
+      local ext_counter = {}
+      for _, filepath in ipairs(recent_files) do
+        local ext = vim.fn.fnamemodify(filepath, ":e")
+        if ext == nil or ext == "" then goto continue end
+        if ext_counter[ext] == nil then ext_counter[ext] = 0 end
+        ext_counter[ext] = ext_counter[ext] + 1
+        ::continue::
+      end
+      local most_common_ext = nil
+      local most_common_count = 0
+      for ext, count in pairs(ext_counter) do
+        if count > most_common_count then
+          most_common_ext = ext
+          most_common_count = count
+        end
+      end
+      local buffers = vim.api.nvim_list_bufs()
+      local bufnr
+      for _, bufnr_ in ipairs(buffers) do
+        if vim.api.nvim_buf_is_loaded(bufnr_) then
+          local filepath = vim.api.nvim_buf_get_name(bufnr_)
+          local ext = vim.fn.fnamemodify(filepath, ":e")
+          if ext == most_common_ext then
+            bufnr = bufnr_
+            break
+          end
+        end
+      end
+      if not bufnr then return nil, "No buffer found" end
+      Utils.lsp.read_definitions(bufnr, symbol_name, show_line_numbers, function(definitions, error)
+        vim.api.nvim_buf_delete(bufnr, { force = true })
+        local encoded_defs = vim.json.encode(definitions)
+        on_complete(encoded_defs, error)
+      end)
+    end,
+  },
 }
 
 ---@param tools AvanteLLMTool[]
