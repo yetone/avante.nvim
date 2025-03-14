@@ -398,3 +398,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field handler_opts AvanteHandlerOptions
 ---@field on_response_headers? fun(headers: table<string, string>): nil
 ---
+---@class avante.lsp.Definition
+---@field content string
+---@field uri string
+---
