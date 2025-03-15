@@ -130,8 +130,6 @@ function Sidebar:open(opts)
     vim.g.avante_login = true
   end
 
-  vim.cmd("wincmd =")
-
   return self
 end
 
@@ -198,8 +196,6 @@ function Sidebar:close(opts)
   end
 
   self:recover_code_winhl()
-
-  vim.cmd("wincmd =")
 end
 
 function Sidebar:shutdown()
