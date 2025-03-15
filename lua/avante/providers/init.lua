@@ -240,14 +240,16 @@ end
 ---@return AvanteDefaultBaseProvider provider_opts
 ---@return table<string, any> request_body
 function M.parse_config(opts)
+  if opts == nil then
+    opts = {}
+  end
+
   ---@type AvanteDefaultBaseProvider
   local provider_opts = {}
   ---@type table<string, any>
   local request_body = {}
 
-  if type(opts) ~= "table" then
-    error("Expected opts to be a table, got " .. type(opts))
-  end
+  if type(opts) ~= "table" then error("Expected opts to be a table, got " .. type(opts)) end
 
   for key, value in pairs(opts) do
     if vim.tbl_contains(Config.BASE_PROVIDER_KEYS, key) then
