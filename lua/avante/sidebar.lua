@@ -3168,10 +3168,8 @@ function Sidebar:get_result_container_width()
 end
 
 function Sidebar:adjust_result_container_layout()
-  local width = self:get_result_container_width()
   local height = self:get_result_container_height()
 
-  api.nvim_win_set_width(self.result_container.winid, width)
   api.nvim_win_set_height(self.result_container.winid, height)
 end
 
