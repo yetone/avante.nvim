@@ -296,6 +296,31 @@ function M.setup_file_watcher()
   )
 end
 
+function M.fetch_copilot_models()
+  H.refresh_token(false, false)
+
+  local provider_conf = P.parse_config(self)
+
+  local response = curl.get("https://api.githubcopilot.com/models", {
+    headers = {
+      ["Authorization"] = "Bearer " .. M.state.github_token.token,
+      ["Editor-Version"] = ("Neovim/%s.%s.%s"):format(vim.version().major, vim.version().minor, vim.version().patch),
+      ["Editor-Plugin-Version"] = "CopilotChat.nvim/1.0.0",
+      ["Copilot-Integration-Id"] = "vscode-chat",
+    },
+    timeout = provider_conf.timeout,
+    proxy = provider_conf.proxy,
+    insecure = provider_conf.allow_insecure,
+  })
+
+  if response.status == 200 then
+    local models = vim.json.decode(response.body).data
+    Config.override({ copilot = { dynamic_models = models } })
+  else
+    error("Failed to fetch Copilot models: " .. vim.inspect(response))
+  end
+end
+
 function M.setup()
   local copilot_token_file = Path:new(copilot_path)
 
@@ -324,6 +349,8 @@ function M.setup()
 
   require("avante.tokenizers").setup(M.tokenizer_id)
   vim.g.avante_login = true
+
+  M.fetch_copilot_models()
 end
 
 function M.cleanup()
