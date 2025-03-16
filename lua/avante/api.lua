@@ -99,6 +99,8 @@ end
 ---@field win? table<string, any> windows options similar to |nvim_open_win()|
 ---@field ask? boolean
 ---@field floating? boolean whether to open a floating input to enter the question
+---@field new_chat? boolean whether to open a new chat
+---@field without_selection? boolean whether to open a new chat without selection
 
 ---@param opts? AskOptions
 function M.ask(opts)
@@ -117,6 +119,7 @@ function M.ask(opts)
 
   opts = vim.tbl_extend("force", { selection = Utils.get_visual_selection_and_range() }, opts)
 
+  ---@param input string | nil
   local function ask(input)
     if input == nil or input == "" then input = opts.question end
     local sidebar = require("avante").get()
@@ -124,6 +127,12 @@ function M.ask(opts)
       sidebar:close({ goto_code_win = false })
     end
     require("avante").open_sidebar(opts)
+    if opts.new_chat then sidebar:new_chat() end
+    if opts.without_selection then
+      sidebar.code.selection = nil
+      sidebar.file_selector:reset()
+      if sidebar.selected_files_container then sidebar.selected_files_container:unmount() end
+    end
     if input == nil or input == "" then return true end
     vim.api.nvim_exec_autocmds("User", { pattern = "AvanteInputSubmitted", data = { request = input } })
     return true

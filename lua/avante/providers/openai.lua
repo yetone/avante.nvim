@@ -88,9 +88,54 @@ function M:parse_messages(opts)
     table.insert(messages, { role = "system", content = opts.system_prompt })
   end
 
-  vim
-    .iter(opts.messages)
-    :each(function(msg) table.insert(messages, { role = M.role_map[msg.role], content = msg.content }) end)
+  vim.iter(opts.messages):each(function(msg)
+    if type(msg.content) == "string" then
+      table.insert(messages, { role = self.role_map[msg.role], content = msg.content })
+    else
+      local content = {}
+      local tool_calls = {}
+      local tool_results = {}
+      for _, item in ipairs(msg.content) do
+        if type(item) == "string" then
+          table.insert(content, { type = "text", text = item })
+        elseif item.type == "text" then
+          table.insert(content, { type = "text", text = item.text })
+        elseif item.type == "image" then
+          table.insert(content, {
+            type = "image_url",
+            image_url = {
+              url = "data:" .. item.source.media_type .. ";" .. item.source.type .. "," .. item.source.data,
+            },
+          })
+        elseif item.type == "tool_use" then
+          table.insert(tool_calls, {
+            id = item.id,
+            type = "function",
+            ["function"] = { name = item.name, arguments = vim.json.encode(item.input) },
+          })
+        elseif item.type == "tool_result" then
+          table.insert(
+            tool_results,
+            { tool_call_id = item.tool_use_id, content = item.is_error and "Error: " .. item.content or item.content }
+          )
+        end
+      end
+      table.insert(messages, { role = self.role_map[msg.role], content = content })
+      if not provider_conf.disable_tools then
+        if #tool_calls > 0 then
+          table.insert(messages, { role = self.role_map["assistant"], tool_calls = tool_calls })
+        end
+        if #tool_results > 0 then
+          for _, tool_result in ipairs(tool_results) do
+            table.insert(
+              messages,
+              { role = "tool", tool_call_id = tool_result.tool_call_id, content = tool_result.content or "" }
+            )
+          end
+        end
+      end
+    end
+  end)
 
   if Config.behaviour.support_paste_from_clipboard and opts.image_paths and #opts.image_paths > 0 then
     local message_content = messages[#messages].content

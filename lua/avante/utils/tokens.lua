@@ -10,9 +10,29 @@ local cost_per_token = {
 }
 
 --- Calculate the number of tokens in a given text.
----@param text string The text to calculate the number of tokens for.
+---@param content AvanteLLMMessageContent The text to calculate the number of tokens in.
 ---@return integer The number of tokens in the given text.
-function Tokens.calculate_tokens(text)
+function Tokens.calculate_tokens(content)
+  local text = ""
+
+  if type(content) == "string" then
+    text = content
+  elseif type(content) == "table" then
+    for _, item in ipairs(content) do
+      if type(item) == "string" then
+        text = text .. item
+      elseif type(item) == "table" and item.type == "text" then
+        text = text .. item.text
+      elseif type(item) == "table" and item.type == "image" then
+        text = text .. item.source.data
+      elseif type(item) == "table" and item.type == "tool_use" then
+        text = text .. item.name .. item.id
+      elseif type(item) == "table" and item.type == "tool_result" then
+        text = text .. item.tool_use_id .. item.content
+      end
+    end
+  end
+
   if Tokenizer.available() then return Tokenizer.count(text) end
 
   local tokens = 0
