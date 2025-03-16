@@ -43,6 +43,7 @@ local Sidebar = {}
 ---@field selected_files_container NuiSplit | nil
 ---@field input_container NuiSplit | nil
 ---@field file_selector FileSelector
+---@field chat_history avante.ChatHistory | nil
 
 ---@param id integer the tabpage id retrieved from api.nvim_get_current_tabpage()
 function Sidebar:new(id)
@@ -61,6 +62,7 @@ function Sidebar:new(id)
     input_container = nil,
     file_selector = FileSelector:new(id),
     is_generating = false,
+    chat_history = nil,
   }, { __index = self })
 end
 
@@ -1906,6 +1908,8 @@ function Sidebar:initialize()
   self.file_selector:reset()
   self.file_selector:add_selected_file(filepath)
 
+  self:reload_chat_history()
+
   return self
 end
 
@@ -2095,6 +2099,7 @@ end
 function Sidebar:render_history_content(history)
   local content = ""
   for idx, entry in ipairs(history.entries) do
+    if entry.visible == false then goto continue end
     if entry.reset_memory then
       content = content .. "***MEMORY RESET***\n\n"
       if idx < #history.entries then content = content .. "-------\n\n" end
@@ -2180,12 +2185,32 @@ end
 
 function Sidebar:new_chat(args, cb)
   Path.history.new(self.code.bufnr)
-  Sidebar.reload_chat_history()
+  self:reload_chat_history()
   self:update_content(
     "New chat",
     { ignore_history = true, focus = false, scroll = false, callback = function() self:focus_input() end }
   )
   if cb then cb(args) end
+end
+
+---@param message AvanteLLMMessage
+---@param options {visible?: boolean}
+function Sidebar:add_chat_history(message, options)
+  local timestamp = get_timestamp()
+  self:reload_chat_history()
+  table.insert(self.chat_history.entries, {
+    timestamp = timestamp,
+    provider = Config.provider,
+    model = Config.get_provider_config(Config.provider).model,
+    request = message.role == "user" and message.content or "",
+    response = message.role == "assistant" and message.content or "",
+    original_response = "",
+    selected_filepaths = nil,
+    selected_code = nil,
+    reset_memory = false,
+    visible = options.visible,
+  })
+  Path.history.save(self.code.bufnr, self.chat_history)
 end
 
 function Sidebar:reset_memory(args, cb)
@@ -2203,7 +2228,7 @@ function Sidebar:reset_memory(args, cb)
       reset_memory = true,
     })
     Path.history.save(self.code.bufnr, chat_history)
-    Sidebar.reload_chat_history()
+    self:reload_chat_history()
     local history_content = self:render_history_content(chat_history)
     self:update_content(history_content, {
       focus = false,
@@ -2212,7 +2237,7 @@ function Sidebar:reset_memory(args, cb)
     })
     if cb then cb(args) end
   else
-    Sidebar.reload_chat_history()
+    self:reload_chat_history()
     self:update_content(
       "Chat history is already empty",
       { focus = false, scroll = false, callback = function() self:focus_input() end }
@@ -2321,46 +2346,18 @@ local generating_text = "**Generating response ...**\n"
 
 local hint_window = nil
 
+function Sidebar:reload_chat_history()
+  if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then return end
+  self.chat_history = Path.history.load(self.code.bufnr)
+end
+
 ---@param opts AskOptions
 function Sidebar:create_input_container(opts)
   if self.input_container then self.input_container:unmount() end
 
   if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then return end
 
-  local chat_history = Path.history.load(self.code.bufnr)
-
-  Sidebar.reload_chat_history = function() chat_history = Path.history.load(self.code.bufnr) end
-
-  local tools = vim.deepcopy(LLMTools.get_tools())
-  table.insert(tools, {
-    name = "add_file_to_context",
-    description = "Add a file to the context",
-    ---@type AvanteLLMToolFunc<{ rel_path: string }>
-    func = function(input)
-      self.file_selector:add_selected_file(input.rel_path)
-      return "Added file to context", nil
-    end,
-    param = {
-      type = "table",
-      fields = { { name = "rel_path", description = "Relative path to the file", type = "string" } },
-    },
-    returns = {},
-  })
-
-  table.insert(tools, {
-    name = "remove_file_from_context",
-    description = "Remove a file from the context",
-    ---@type AvanteLLMToolFunc<{ rel_path: string }>
-    func = function(input)
-      self.file_selector:remove_selected_file(input.rel_path)
-      return "Removed file from context", nil
-    end,
-    param = {
-      type = "table",
-      fields = { { name = "rel_path", description = "Relative path to the file", type = "string" } },
-    },
-    returns = {},
-  })
+  if self.chat_history == nil then self:reload_chat_history() end
 
   ---@param request string
   ---@param summarize_memory boolean
@@ -2399,16 +2396,47 @@ function Sidebar:create_input_container(opts)
       end
     end
 
-    local entries = Utils.history.filter_active_entries(chat_history.entries)
+    local entries = Utils.history.filter_active_entries(self.chat_history.entries)
 
-    if chat_history.memory then
+    if self.chat_history.memory then
       entries = vim
         .iter(entries)
-        :filter(function(entry) return entry.timestamp > chat_history.memory.last_summarized_timestamp end)
+        :filter(function(entry) return entry.timestamp > self.chat_history.memory.last_summarized_timestamp end)
         :totable()
     end
 
     local history_messages = Utils.history.entries_to_llm_messages(entries)
+
+    local tools = vim.deepcopy(LLMTools.get_tools(request, history_messages))
+    table.insert(tools, {
+      name = "add_file_to_context",
+      description = "Add a file to the context",
+      ---@type AvanteLLMToolFunc<{ rel_path: string }>
+      func = function(input)
+        self.file_selector:add_selected_file(input.rel_path)
+        return "Added file to context", nil
+      end,
+      param = {
+        type = "table",
+        fields = { { name = "rel_path", description = "Relative path to the file", type = "string" } },
+      },
+      returns = {},
+    })
+
+    table.insert(tools, {
+      name = "remove_file_from_context",
+      description = "Remove a file from the context",
+      ---@type AvanteLLMToolFunc<{ rel_path: string }>
+      func = function(input)
+        self.file_selector:remove_selected_file(input.rel_path)
+        return "Removed file from context", nil
+      end,
+      param = {
+        type = "table",
+        fields = { { name = "rel_path", description = "Relative path to the file", type = "string" } },
+      },
+      returns = {},
+    })
 
     ---@type AvanteGeneratePromptsOptions
     local prompts_opts = {
@@ -2425,7 +2453,7 @@ function Sidebar:create_input_container(opts)
       tools = tools,
     }
 
-    if chat_history.memory then prompts_opts.memory = chat_history.memory.content end
+    if self.chat_history.memory then prompts_opts.memory = self.chat_history.memory.content end
 
     if not summarize_memory or #history_messages < 8 then
       cb(prompts_opts)
@@ -2434,7 +2462,7 @@ function Sidebar:create_input_container(opts)
 
     prompts_opts.history_messages = vim.list_slice(prompts_opts.history_messages, 5)
 
-    Llm.summarize_memory(self.code.bufnr, chat_history, function(memory)
+    Llm.summarize_memory(self.code.bufnr, self.chat_history, function(memory)
       if memory then prompts_opts.memory = memory.content end
       cb(prompts_opts)
     end)
@@ -2628,8 +2656,8 @@ function Sidebar:create_input_container(opts)
       end, 0)
 
       -- Save chat history
-      chat_history.entries = chat_history.entries or {}
-      table.insert(chat_history.entries, {
+      self.chat_history.entries = self.chat_history.entries or {}
+      table.insert(self.chat_history.entries, {
         timestamp = timestamp,
         provider = Config.provider,
         model = model,
@@ -2639,7 +2667,7 @@ function Sidebar:create_input_container(opts)
         selected_filepaths = selected_filepaths,
         selected_code = selected_code,
       })
-      Path.history.save(self.code.bufnr, chat_history)
+      Path.history.save(self.code.bufnr, self.chat_history)
     end
 
     get_generate_prompts_options(request, true, function(generate_prompts_options)

@@ -342,7 +342,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field func? AvanteLLMToolFunc
 ---@field param AvanteLLMToolParam
 ---@field returns AvanteLLMToolReturn[]
----@field enabled? fun(): boolean
+---@field enabled? fun(opts: { user_input: string, history_messages: AvanteLLMMessage[] }): boolean
 
 ---@class AvanteLLMToolPublic : AvanteLLMTool
 ---@field func AvanteLLMToolFunc
@@ -374,6 +374,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field selected_code AvanteSelectedCode | nil
 ---@field reset_memory boolean?
 ---@field selected_filepaths string[] | nil
+---@field visible boolean?
 ---
 ---@class avante.ChatHistory
 ---@field title string

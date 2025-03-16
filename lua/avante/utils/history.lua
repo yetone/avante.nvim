@@ -11,14 +11,6 @@ function M.filter_active_entries(entries)
   for i = #entries, 1, -1 do
     local entry = entries[i]
     if entry.reset_memory then break end
-    if
-      entry.request == nil
-      or entry.original_response == nil
-      or entry.request == ""
-      or entry.original_response == ""
-    then
-      break
-    end
     table.insert(entries_, 1, entry)
   end
 
@@ -48,7 +40,8 @@ function M.entries_to_llm_messages(entries)
     end
     user_content = user_content .. "USER PROMPT:\n\n" .. entry.request
     table.insert(messages, { role = "user", content = user_content })
-    table.insert(messages, { role = "assistant", content = Utils.trim_think_content(entry.original_response) })
+    local assistant_content = Utils.trim_think_content(entry.original_response or "")
+    if assistant_content ~= "" then table.insert(messages, { role = "assistant", content = assistant_content }) end
   end
   return messages
 end
