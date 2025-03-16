@@ -2,7 +2,8 @@
 ---@field deployment string
 ---@field api_version string
 ---@field temperature number
----@field max_tokens number
+---@field max_completion_tokens number
+---@field reasoning_effort? string
 
 local Utils = require("avante.utils")
 local P = require("avante.providers")
