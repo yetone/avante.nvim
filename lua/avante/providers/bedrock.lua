@@ -34,6 +34,11 @@ function M:parse_response(ctx, data_stream, event_state, opts)
   return model_handler.parse_response(self, ctx, data_stream, event_state, opts)
 end
 
+function M:transform_tool(tool)
+  local model_handler = M.load_model_handler()
+  return model_handler.transform_tool(self, tool)
+end
+
 function M:build_bedrock_payload(prompt_opts, request_body)
   local model_handler = M.load_model_handler()
   return model_handler.build_bedrock_payload(self, prompt_opts, request_body)
