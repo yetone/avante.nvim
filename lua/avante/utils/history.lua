@@ -1,4 +1,5 @@
 local Utils = require("avante.utils")
+local Config = require("avante.config")
 
 ---@class avante.utils.history
 local M = {}
@@ -20,6 +21,7 @@ end
 ---@param entries avante.ChatHistoryEntry[]
 ---@return AvanteLLMMessage[]
 function M.entries_to_llm_messages(entries)
+  local current_provider_name = Config.provider
   local messages = {}
   for _, entry in ipairs(entries) do
     if entry.selected_filepaths ~= nil and #entry.selected_filepaths > 0 then
@@ -41,7 +43,7 @@ function M.entries_to_llm_messages(entries)
     if entry.request ~= nil and entry.request ~= "" then
       table.insert(messages, { role = "user", content = entry.request })
     end
-    if entry.tool_histories ~= nil and #entry.tool_histories > 0 then
+    if entry.tool_histories ~= nil and #entry.tool_histories > 0 and entry.provider == current_provider_name then
       for _, tool_history in ipairs(entry.tool_histories) do
         local assistant_content = {}
         if tool_history.tool_use ~= nil then
