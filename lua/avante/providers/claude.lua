@@ -77,6 +77,7 @@ function M:parse_messages(opts)
     end
   end
 
+  local has_tool_use = false
   for idx, message in ipairs(opts.messages) do
     local content_items = message.content
     local message_content = {}
@@ -102,8 +103,14 @@ function M:parse_messages(opts)
         elseif type(item) == "table" and item.type == "image" then
           table.insert(message_content, { type = "image", source = item.source })
         elseif not provider_conf.disable_tools and type(item) == "table" and item.type == "tool_use" then
+          has_tool_use = true
           table.insert(message_content, { type = "tool_use", name = item.name, id = item.id, input = item.input })
-        elseif not provider_conf.disable_tools and type(item) == "table" and item.type == "tool_result" then
+        elseif
+          not provider_conf.disable_tools
+          and type(item) == "table"
+          and item.type == "tool_result"
+          and has_tool_use
+        then
           table.insert(
             message_content,
             { type = "tool_result", tool_use_id = item.tool_use_id, content = item.content, is_error = item.is_error }
