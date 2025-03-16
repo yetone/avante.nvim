@@ -35,9 +35,36 @@ function M:parse_messages(opts)
       end
     end
     prev_role = role
-    table.insert(contents, { role = M.role_map[role] or role, parts = {
-      { text = message.content },
-    } })
+    local parts = {}
+    local content_items = message.content
+    if type(content_items) == "string" then
+      table.insert(parts, { text = content_items })
+    elseif type(content_items) == "table" then
+      ---@cast content_items AvanteLLMMessageContentItem[]
+      for _, item in ipairs(content_items) do
+        if type(item) == "string" then
+          table.insert(parts, { text = item })
+        elseif type(item) == "table" and item.type == "text" then
+          table.insert(parts, { text = item.text })
+        elseif type(item) == "table" and item.type == "image" then
+          table.insert(parts, {
+            inline_data = {
+              mime_type = "image/png",
+              data = item.source.data,
+            },
+          })
+        elseif type(item) == "table" and item.type == "tool_use" then
+          table.insert(parts, { text = item.name })
+        elseif type(item) == "table" and item.type == "tool_result" then
+          table.insert(parts, { text = item.content })
+        elseif type(item) == "table" and item.type == "thinking" then
+          table.insert(parts, { text = item.thinking })
+        elseif type(item) == "table" and item.type == "redacted_thinking" then
+          table.insert(parts, { text = item.data })
+        end
+      end
+    end
+    table.insert(contents, { role = M.role_map[role] or role, parts = parts })
   end)
 
   if Clipboard.support_paste_image() and opts.image_paths then

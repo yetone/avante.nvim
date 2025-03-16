@@ -11,14 +11,6 @@ function M.filter_active_entries(entries)
   for i = #entries, 1, -1 do
     local entry = entries[i]
     if entry.reset_memory then break end
-    if
-      entry.request == nil
-      or entry.original_response == nil
-      or entry.request == ""
-      or entry.original_response == ""
-    then
-      break
-    end
     table.insert(entries_, 1, entry)
   end
 
@@ -30,25 +22,62 @@ end
 function M.entries_to_llm_messages(entries)
   local messages = {}
   for _, entry in ipairs(entries) do
-    local user_content = ""
-    if entry.selected_filepaths ~= nil then
-      user_content = user_content .. "SELECTED FILES:\n\n"
+    if entry.selected_filepaths ~= nil and #entry.selected_filepaths > 0 then
+      local user_content = "SELECTED FILES:\n\n"
       for _, filepath in ipairs(entry.selected_filepaths) do
         user_content = user_content .. filepath .. "\n"
       end
+      table.insert(messages, { role = "user", content = user_content })
     end
     if entry.selected_code ~= nil then
-      user_content = user_content
-        .. "SELECTED CODE:\n\n```"
+      local user_content_ = "SELECTED CODE:\n\n```"
         .. (entry.selected_code.file_type or "")
         .. (entry.selected_code.path and ":" .. entry.selected_code.path or "")
         .. "\n"
         .. entry.selected_code.content
         .. "\n```\n\n"
+      table.insert(messages, { role = "user", content = user_content_ })
     end
-    user_content = user_content .. "USER PROMPT:\n\n" .. entry.request
-    table.insert(messages, { role = "user", content = user_content })
-    table.insert(messages, { role = "assistant", content = Utils.trim_think_content(entry.original_response) })
+    if entry.request ~= nil and entry.request ~= "" then
+      table.insert(messages, { role = "user", content = entry.request })
+    end
+    if entry.tool_histories ~= nil and #entry.tool_histories > 0 then
+      for _, tool_history in ipairs(entry.tool_histories) do
+        local assistant_content = {}
+        if tool_history.tool_use ~= nil then
+          if tool_history.tool_use.response_contents ~= nil then
+            for _, response_content in ipairs(tool_history.tool_use.response_contents) do
+              table.insert(assistant_content, { type = "text", text = response_content })
+            end
+          end
+          table.insert(assistant_content, {
+            type = "tool_use",
+            name = tool_history.tool_use.name,
+            id = tool_history.tool_use.id,
+            input = vim.json.decode(tool_history.tool_use.input_json),
+          })
+        end
+        table.insert(messages, {
+          role = "assistant",
+          content = assistant_content,
+        })
+        local user_content = {}
+        if tool_history.tool_result ~= nil and tool_history.tool_result.content ~= nil then
+          table.insert(user_content, {
+            type = "tool_result",
+            tool_use_id = tool_history.tool_result.tool_use_id,
+            content = tool_history.tool_result.content,
+            is_error = tool_history.tool_result.is_error,
+          })
+        end
+        table.insert(messages, {
+          role = "user",
+          content = user_content,
+        })
+      end
+    end
+    local assistant_content = Utils.trim_think_content(entry.original_response or "")
+    if assistant_content ~= "" then table.insert(messages, { role = "assistant", content = assistant_content }) end
   end
   return messages
 end

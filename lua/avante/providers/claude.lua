@@ -59,6 +59,8 @@ function M:parse_messages(opts)
   ---@type AvanteClaudeMessage[]
   local messages = {}
 
+  local provider_conf, _ = P.parse_config(self)
+
   ---@type {idx: integer, length: integer}[]
   local messages_with_length = {}
   for idx, message in ipairs(opts.messages) do
@@ -76,15 +78,46 @@ function M:parse_messages(opts)
   end
 
   for idx, message in ipairs(opts.messages) do
+    local content_items = message.content
+    local message_content = {}
+    if type(content_items) == "string" then
+      table.insert(message_content, {
+        type = "text",
+        text = message.content,
+        cache_control = top_two[idx] and { type = "ephemeral" } or nil,
+      })
+    elseif type(content_items) == "table" then
+      ---@cast content_items AvanteLLMMessageContentItem[]
+      for _, item in ipairs(content_items) do
+        if type(item) == "string" then
+          table.insert(
+            message_content,
+            { type = "text", text = item, cache_control = top_two[idx] and { type = "ephemeral" } or nil }
+          )
+        elseif type(item) == "table" and item.type == "text" then
+          table.insert(
+            message_content,
+            { type = "text", text = item.text, cache_control = top_two[idx] and { type = "ephemeral" } or nil }
+          )
+        elseif type(item) == "table" and item.type == "image" then
+          table.insert(message_content, { type = "image", source = item.source })
+        elseif not provider_conf.disable_tools and type(item) == "table" and item.type == "tool_use" then
+          table.insert(message_content, { type = "tool_use", name = item.name, id = item.id, input = item.input })
+        elseif not provider_conf.disable_tools and type(item) == "table" and item.type == "tool_result" then
+          table.insert(
+            message_content,
+            { type = "tool_result", tool_use_id = item.tool_use_id, content = item.content, is_error = item.is_error }
+          )
+        elseif type(item) == "table" and item.type == "thinking" then
+          table.insert(message_content, { type = "thinking", thinking = item.thinking, signature = item.signature })
+        elseif type(item) == "table" and item.type == "redacted_thinking" then
+          table.insert(message_content, { type = "redacted_thinking", data = item.data })
+        end
+      end
+    end
     table.insert(messages, {
       role = self.role_map[message.role],
-      content = {
-        {
-          type = "text",
-          text = message.content,
-          cache_control = top_two[idx] and { type = "ephemeral" } or nil,
-        },
-      },
+      content = message_content,
     })
   end
 

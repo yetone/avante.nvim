@@ -509,6 +509,7 @@ function M._stream(opts)
         end, stop_opts.retry_after * 1000)
         return
       end
+      stop_opts.tool_histories = opts.tool_histories
       return opts.on_stop(stop_opts)
     end,
   }

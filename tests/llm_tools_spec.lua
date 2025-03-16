@@ -3,7 +3,7 @@ local LlmTools = require("avante.llm_tools")
 local Config = require("avante.config")
 local Utils = require("avante.utils")
 
-LlmTools.confirm = function(msg) return true end
+LlmTools.confirm = function(msg, cb) return cb(true) end
 
 describe("llm_tools", function()
   local test_dir = "/tmp/test_llm_tools"
@@ -85,34 +85,37 @@ describe("llm_tools", function()
 
   describe("create_file", function()
     it("should create new file", function()
-      local success, err = LlmTools.create_file({ rel_path = "new_file.txt" })
-      assert.is_nil(err)
-      assert.is_true(success)
+      LlmTools.create_file({ rel_path = "new_file.txt" }, nil, function(success, err)
+        assert.is_nil(err)
+        assert.is_true(success)
 
-      local file_exists = io.open(test_dir .. "/new_file.txt", "r") ~= nil
-      assert.is_true(file_exists)
+        local file_exists = io.open(test_dir .. "/new_file.txt", "r") ~= nil
+        assert.is_true(file_exists)
+      end)
     end)
   end)
 
   describe("create_dir", function()
     it("should create new directory", function()
-      local success, err = LlmTools.create_dir({ rel_path = "new_dir" })
-      assert.is_nil(err)
-      assert.is_true(success)
+      LlmTools.create_dir({ rel_path = "new_dir" }, nil, function(success, err)
+        assert.is_nil(err)
+        assert.is_true(success)
 
-      local dir_exists = io.open(test_dir .. "/new_dir", "r") ~= nil
-      assert.is_true(dir_exists)
+        local dir_exists = io.open(test_dir .. "/new_dir", "r") ~= nil
+        assert.is_true(dir_exists)
+      end)
     end)
   end)
 
   describe("delete_file", function()
     it("should delete existing file", function()
-      local success, err = LlmTools.delete_file({ rel_path = "test.txt" })
-      assert.is_nil(err)
-      assert.is_true(success)
+      LlmTools.delete_file({ rel_path = "test.txt" }, nil, function(success, err)
+        assert.is_nil(err)
+        assert.is_true(success)
 
-      local file_exists = io.open(test_file, "r") ~= nil
-      assert.is_false(file_exists)
+        local file_exists = io.open(test_file, "r") ~= nil
+        assert.is_false(file_exists)
+      end)
     end)
   end)
 
@@ -270,68 +273,93 @@ describe("llm_tools", function()
 
   describe("bash", function()
     it("should execute command and return output", function()
-      local result, err = LlmTools.bash({ rel_path = ".", command = "echo 'test'" })
-      assert.is_nil(err)
-      assert.equals("test\n", result)
+      LlmTools.bash({ rel_path = ".", command = "echo 'test'" }, nil, function(result, err)
+        assert.is_nil(err)
+        assert.equals("test\n", result)
+      end)
     end)
 
     it("should return error when running outside current directory", function()
-      local result, err = LlmTools.bash({ rel_path = "../outside_project", command = "echo 'test'" })
-      assert.is_false(result)
-      assert.truthy(err)
-      assert.truthy(err:find("No permission to access path"))
+      LlmTools.bash({ rel_path = "../outside_project", command = "echo 'test'" }, nil, function(result, err)
+        assert.is_false(result)
+        assert.truthy(err)
+        assert.truthy(err:find("No permission to access path"))
+      end)
     end)
   end)
 
   describe("python", function()
-    local original_system = vim.fn.system
-
     it("should execute Python code and return output", function()
-      local result, err = LlmTools.python({
-        rel_path = ".",
-        code = "print('Hello from Python')",
-      })
-      assert.is_nil(err)
-      assert.equals("Hello from Python\n", result)
+      LlmTools.python(
+        {
+          rel_path = ".",
+          code = "print('Hello from Python')",
+        },
+        nil,
+        function(result, err)
+          assert.is_nil(err)
+          assert.equals("Hello from Python\n", result)
+        end
+      )
     end)
 
     it("should handle Python errors", function()
-      local result, err = LlmTools.python({
-        rel_path = ".",
-        code = "print(undefined_variable)",
-      })
-      assert.is_nil(result)
-      assert.truthy(err)
-      assert.truthy(err:find("Error"))
+      LlmTools.python(
+        {
+          rel_path = ".",
+          code = "print(undefined_variable)",
+        },
+        nil,
+        function(result, err)
+          assert.is_nil(result)
+          assert.truthy(err)
+          assert.truthy(err:find("Error"))
+        end
+      )
     end)
 
     it("should respect path permissions", function()
-      local result, err = LlmTools.python({
-        rel_path = "../outside_project",
-        code = "print('test')",
-      })
-      assert.is_nil(result)
-      assert.truthy(err:find("No permission to access path"))
+      LlmTools.python(
+        {
+          rel_path = "../outside_project",
+          code = "print('test')",
+        },
+        nil,
+        function(result, err)
+          assert.is_nil(result)
+          assert.truthy(err:find("No permission to access path"))
+        end
+      )
     end)
 
     it("should handle non-existent paths", function()
-      local result, err = LlmTools.python({
-        rel_path = "non_existent_dir",
-        code = "print('test')",
-      })
-      assert.is_nil(result)
-      assert.truthy(err:find("Path not found"))
+      LlmTools.python(
+        {
+          rel_path = "non_existent_dir",
+          code = "print('test')",
+        },
+        nil,
+        function(result, err)
+          assert.is_nil(result)
+          assert.truthy(err:find("Path not found"))
+        end
+      )
     end)
 
     it("should support custom container image", function()
       os.execute("docker image rm python:3.12-slim")
-      local result, err = LlmTools.python({
-        rel_path = ".",
-        code = "print('Hello from custom container')",
-        container_image = "python:3.12-slim",
-      })
-      assert.is_nil(err)
-      assert.equals("Hello from custom container\n", result)
+      LlmTools.python(
+        {
+          rel_path = ".",
+          code = "print('Hello from custom container')",
+          container_image = "python:3.12-slim",
+        },
+        nil,
+        function(result, err)
+          assert.is_nil(err)
+          assert.equals("Hello from custom container\n", result)
+        end
+      )
     end)
   end)
 
