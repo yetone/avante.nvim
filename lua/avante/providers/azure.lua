@@ -13,6 +13,7 @@ local M = {}
 
 M.api_key_name = "AZURE_OPENAI_API_KEY"
 
+-- Inherit from OpenAI class
 setmetatable(M, { __index = O })
 
 function M:parse_curl_args(prompt_opts)

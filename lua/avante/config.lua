@@ -196,7 +196,7 @@ M._defaults = {
     timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
     temperature = 0,
     max_completion_tokens = 8192, -- Increase this to include reasoning tokens (for reasoning models)
-    reasoning_effort = 'medium', -- low|medium|high, only used for reasoning models
+    reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
   },
   ---@type AvanteSupportedProvider
   copilot = {
@@ -216,7 +216,7 @@ M._defaults = {
     timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
     temperature = 0,
     max_completion_tokens = 8192, -- Increase this to include reasoning tokens (for reasoning models)
-    reasoning_effort = 'medium', -- low|medium|high, only used for reasoning models
+    reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
     max_tokens = 8192,
   },
   ---@type AvanteSupportedProvider
