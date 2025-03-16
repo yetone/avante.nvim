@@ -83,7 +83,7 @@ function M:parse_messages(opts)
   local provider_conf, _ = P.parse_config(self)
 
   if self.is_reasoning_model(provider_conf.model) then
-    table.insert(messages, { role = "user", content = opts.system_prompt })
+    table.insert(messages, { role = "developer", content = opts.system_prompt })
   else
     table.insert(messages, { role = "system", content = opts.system_prompt })
   end
