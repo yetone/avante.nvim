@@ -193,9 +193,10 @@ M._defaults = {
   openai = {
     endpoint = "https://api.openai.com/v1",
     model = "gpt-4o",
-    timeout = 30000, -- Timeout in milliseconds
+    timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
     temperature = 0,
-    max_tokens = 4096,
+    max_completion_tokens = 4096, -- Increase this to include reasoning tokens (for reasoning models)
+    reasoning_effort = 'medium', -- low|medium|high, only used for reasoning models
   },
   ---@type AvanteSupportedProvider
   copilot = {
@@ -211,10 +212,11 @@ M._defaults = {
   azure = {
     endpoint = "", -- example: "https://<your-resource-name>.openai.azure.com"
     deployment = "", -- Azure deployment name (e.g., "gpt-4o", "my-gpt-4o-deployment")
-    api_version = "2024-06-01",
-    timeout = 30000, -- Timeout in milliseconds
+    api_version = "2024-12-01-preview",
+    timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
     temperature = 0,
-    max_tokens = 4096,
+    max_completion_tokens = 4096, -- Increase this to include reasoning tokens (for reasoning models)
+    reasoning_effort = 'medium', -- low|medium|high, only used for reasoning models
   },
   ---@type AvanteSupportedProvider
   claude = {

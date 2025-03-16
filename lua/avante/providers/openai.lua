@@ -67,15 +67,22 @@ function M.get_user_message(opts)
   )
 end
 
-function M.is_o_series_model(model) return model and string.match(model, "^o%d+") ~= nil end
+function M.is_reasoning_model(model) return model and string.match(model, "^o%d+") ~= nil end
+
+function M.set_reasoning_params(provider_conf, request_body)
+  if M.is_reasoning_model(provider_conf.model) then
+    request_body.temperature = 1
+    request_body.reasoning_effort = request_body.reasoning_effort
+  else
+    request_body.reasoning_effort = nil
+  end
+end
 
 function M:parse_messages(opts)
   local messages = {}
   local provider_conf, _ = P.parse_config(self)
 
-  -- NOTE: Handle the case where the selected model is the `o1` model
-  -- "o1" models are "smart" enough to understand user prompt as a system prompt in this context
-  if self.is_o_series_model(provider_conf.model) then
+  if self.is_reasoning_model(provider_conf.model) then
     table.insert(messages, { role = "user", content = opts.system_prompt })
   else
     table.insert(messages, { role = "system", content = opts.system_prompt })
@@ -244,12 +251,8 @@ function M:parse_curl_args(prompt_opts)
     request_body.include_reasoning = true
   end
 
-  -- NOTE: When using "o" series set the supported parameters only
-  if self.is_o_series_model(provider_conf.model) then
-    request_body.max_completion_tokens = request_body.max_tokens
-    request_body.max_tokens = nil
-    request_body.temperature = 1
-  end
+  -- NOTE: When using reasoning models set supported parameters
+  self.set_reasoning_params(provider_conf, request_body)
 
   local tools = nil
   if not disable_tools and prompt_opts.tools then
