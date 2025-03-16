@@ -217,7 +217,7 @@ M._defaults = {
     temperature = 0,
     max_completion_tokens = 8192, -- Increase this to include reasoning tokens (for reasoning models)
     reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
-    max_tokens = 8192,
+    max_completion_tokens = 8192,
   },
   ---@type AvanteSupportedProvider
   claude = {
