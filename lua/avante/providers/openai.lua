@@ -81,6 +81,8 @@ function M:parse_messages(opts)
     table.insert(messages, { role = "system", content = opts.system_prompt })
   end
 
+  local has_tool_use = false
+
   vim.iter(opts.messages):each(function(msg)
     if type(msg.content) == "string" then
       table.insert(messages, { role = self.role_map[msg.role], content = msg.content })
@@ -101,12 +103,13 @@ function M:parse_messages(opts)
             },
           })
         elseif item.type == "tool_use" then
+          has_tool_use = true
           table.insert(tool_calls, {
             id = item.id,
             type = "function",
             ["function"] = { name = item.name, arguments = vim.json.encode(item.input) },
           })
-        elseif item.type == "tool_result" then
+        elseif item.type == "tool_result" and has_tool_use then
           table.insert(
             tool_results,
             { tool_call_id = item.tool_use_id, content = item.is_error and "Error: " .. item.content or item.content }
