@@ -1,11 +1,3 @@
-{# Uses https://mitsuhiko.github.io/minijinja-playground/ for testing:
-{
-  "ask": true,
-  "question": "Refactor to include tab flow",
-  "code_lang": "lua",
-  "file_content": "local Config = require('avante.config')"
-}
-#}
 Act as an expert software developer.
 Always use best practices when coding.
 Respect and use existing conventions, libraries, etc that are already present in the code base.

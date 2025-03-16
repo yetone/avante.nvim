@@ -85,6 +85,7 @@ end
 function FileSelector:reset()
   self.selected_filepaths = {}
   self.event_handlers = {}
+  self:emit("update")
 end
 
 function FileSelector:add_selected_file(filepath)

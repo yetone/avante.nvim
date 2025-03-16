@@ -17,9 +17,23 @@ local function get_abs_path(rel_path)
   return p
 end
 
-function M.confirm(msg)
-  local ok = vim.fn.confirm(msg, "&Yes\n&No", 2)
-  return ok == 1
+function M.confirm(message, callback)
+  local UI = require("avante.ui")
+  UI.confirm(message, callback)
+end
+
+---@param abs_path string
+---@return boolean
+local function is_ignored(abs_path)
+  local project_root = Utils.get_project_root()
+  local gitignore_path = project_root .. "/.gitignore"
+  local gitignore_patterns, gitignore_negate_patterns = Utils.parse_gitignore(gitignore_path)
+  -- The checker should only take care of the path inside the project root
+  -- Specifically, it should not check the project root itself
+  -- Otherwise if the binary is named the same as the project root (such as Go binary), any paths
+  -- insde the project root will be ignored
+  local rel_path = Utils.make_relative_path(abs_path, project_root)
+  return Utils.is_ignored(rel_path, gitignore_patterns, gitignore_negate_patterns)
 end
 
 ---@param abs_path string
@@ -28,14 +42,7 @@ local function has_permission_to_access(abs_path)
   if not Path:new(abs_path):is_absolute() then return false end
   local project_root = Utils.get_project_root()
   if abs_path:sub(1, #project_root) ~= project_root then return false end
-  local gitignore_path = project_root .. "/.gitignore"
-  local gitignore_patterns, gitignore_negate_patterns = Utils.parse_gitignore(gitignore_path)
-  -- The checker should only take care of the path inside the project root
-  -- Specifically, it should not check the project root itself
-  -- Otherwise if the binary is named the same as the project root (such as Go binary), any paths
-  -- insde the project root will be ignored
-  local rel_path = Utils.make_relative_path(abs_path, project_root)
-  return not Utils.is_ignored(rel_path, gitignore_patterns, gitignore_negate_patterns)
+  return not is_ignored(abs_path)
 end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string, pattern: string }>
@@ -164,6 +171,41 @@ function M.read_file(opts, on_log)
   return content, nil
 end
 
+---@type AvanteLLMToolFunc<{ abs_path: string }>
+function M.read_global_file(opts, on_log)
+  local abs_path = get_abs_path(opts.abs_path)
+  if is_ignored(abs_path) then return "", "This file is ignored: " .. abs_path end
+  if on_log then on_log("path: " .. abs_path) end
+  local file = io.open(abs_path, "r")
+  if not file then return "", "file not found: " .. abs_path end
+  local content = file:read("*a")
+  file:close()
+  return content, nil
+end
+
+---@type AvanteLLMToolFunc<{ abs_path: string, content: string }>
+function M.write_global_file(opts, on_log, on_complete)
+  local abs_path = get_abs_path(opts.abs_path)
+  if is_ignored(abs_path) then return false, "This file is ignored: " .. abs_path end
+  if on_log then on_log("path: " .. abs_path) end
+  if on_log then on_log("content: " .. opts.content) end
+  if not on_complete then return false, "on_complete not provided" end
+  M.confirm("Are you sure you want to write to the file: " .. abs_path, function(ok)
+    if not ok then
+      on_complete(false, "User canceled")
+      return
+    end
+    local file = io.open(abs_path, "w")
+    if not file then
+      on_complete(false, "file not found: " .. abs_path)
+      return
+    end
+    file:write(opts.content)
+    file:close()
+    on_complete(true, nil)
+  end)
+end
+
 ---@type AvanteLLMToolFunc<{ rel_path: string }>
 function M.create_file(opts, on_log)
   local abs_path = get_abs_path(opts.rel_path)
@@ -183,7 +225,7 @@ function M.create_file(opts, on_log)
 end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string, new_rel_path: string }>
-function M.rename_file(opts, on_log)
+function M.rename_file(opts, on_log, on_complete)
   local abs_path = get_abs_path(opts.rel_path)
   if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
@@ -192,11 +234,15 @@ function M.rename_file(opts, on_log)
   if on_log then on_log(abs_path .. " -> " .. new_abs_path) end
   if not has_permission_to_access(new_abs_path) then return false, "No permission to access path: " .. new_abs_path end
   if Path:new(new_abs_path):exists() then return false, "File already exists: " .. new_abs_path end
-  if not M.confirm("Are you sure you want to rename the file: " .. abs_path .. " to: " .. new_abs_path) then
-    return false, "User canceled"
-  end
-  os.rename(abs_path, new_abs_path)
-  return true, nil
+  if not on_complete then return false, "on_complete not provided" end
+  M.confirm("Are you sure you want to rename the file: " .. abs_path .. " to: " .. new_abs_path, function(ok)
+    if not ok then
+      on_complete(false, "User canceled")
+      return
+    end
+    os.rename(abs_path, new_abs_path)
+    on_complete(true, nil)
+  end)
 end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string, new_rel_path: string }>
@@ -214,32 +260,42 @@ function M.copy_file(opts, on_log)
 end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string }>
-function M.delete_file(opts, on_log)
+function M.delete_file(opts, on_log, on_complete)
   local abs_path = get_abs_path(opts.rel_path)
   if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
   if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
-  if not M.confirm("Are you sure you want to delete the file: " .. abs_path) then return false, "User canceled" end
-  if on_log then on_log("Deleting file: " .. abs_path) end
-  os.remove(abs_path)
-  return true, nil
+  if not on_complete then return false, "on_complete not provided" end
+  M.confirm("Are you sure you want to delete the file: " .. abs_path, function(ok)
+    if not ok then
+      on_complete(false, "User canceled")
+      return
+    end
+    if on_log then on_log("Deleting file: " .. abs_path) end
+    os.remove(abs_path)
+    on_complete(true, nil)
+  end)
 end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string }>
-function M.create_dir(opts, on_log)
+function M.create_dir(opts, on_log, on_complete)
   local abs_path = get_abs_path(opts.rel_path)
   if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if Path:new(abs_path):exists() then return false, "Directory already exists: " .. abs_path end
-  if not M.confirm("Are you sure you want to create the directory: " .. abs_path) then
-    return false, "User canceled"
-  end
-  if on_log then on_log("Creating directory: " .. abs_path) end
-  Path:new(abs_path):mkdir({ parents = true })
-  return true, nil
+  if not on_complete then return false, "on_complete not provided" end
+  M.confirm("Are you sure you want to create the directory: " .. abs_path, function(ok)
+    if not ok then
+      on_complete(false, "User canceled")
+      return
+    end
+    if on_log then on_log("Creating directory: " .. abs_path) end
+    Path:new(abs_path):mkdir({ parents = true })
+    on_complete(true, nil)
+  end)
 end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string, new_rel_path: string }>
-function M.rename_dir(opts, on_log)
+function M.rename_dir(opts, on_log, on_complete)
   local abs_path = get_abs_path(opts.rel_path)
   if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "Directory not found: " .. abs_path end
@@ -247,26 +303,34 @@ function M.rename_dir(opts, on_log)
   local new_abs_path = get_abs_path(opts.new_rel_path)
   if not has_permission_to_access(new_abs_path) then return false, "No permission to access path: " .. new_abs_path end
   if Path:new(new_abs_path):exists() then return false, "Directory already exists: " .. new_abs_path end
-  if not M.confirm("Are you sure you want to rename directory " .. abs_path .. " to " .. new_abs_path .. "?") then
-    return false, "User canceled"
-  end
-  if on_log then on_log("Renaming directory: " .. abs_path .. " to " .. new_abs_path) end
-  os.rename(abs_path, new_abs_path)
-  return true, nil
+  if not on_complete then return false, "on_complete not provided" end
+  M.confirm("Are you sure you want to rename directory " .. abs_path .. " to " .. new_abs_path .. "?", function(ok)
+    if not ok then
+      on_complete(false, "User canceled")
+      return
+    end
+    if on_log then on_log("Renaming directory: " .. abs_path .. " to " .. new_abs_path) end
+    os.rename(abs_path, new_abs_path)
+    on_complete(true, nil)
+  end)
 end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string }>
-function M.delete_dir(opts, on_log)
+function M.delete_dir(opts, on_log, on_complete)
   local abs_path = get_abs_path(opts.rel_path)
   if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "Directory not found: " .. abs_path end
   if not Path:new(abs_path):is_dir() then return false, "Path is not a directory: " .. abs_path end
-  if not M.confirm("Are you sure you want to delete the directory: " .. abs_path) then
-    return false, "User canceled"
-  end
-  if on_log then on_log("Deleting directory: " .. abs_path) end
-  os.remove(abs_path)
-  return true, nil
+  if not on_complete then return false, "on_complete not provided" end
+  M.confirm("Are you sure you want to delete the directory: " .. abs_path, function(ok)
+    if not ok then
+      on_complete(false, "User canceled")
+      return
+    end
+    if on_log then on_log("Deleting directory: " .. abs_path) end
+    os.remove(abs_path)
+    on_complete(true, nil)
+  end)
 end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string, command: string }>
@@ -275,11 +339,6 @@ function M.bash(opts, on_log, on_complete)
   if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "Path not found: " .. abs_path end
   if on_log then on_log("command: " .. opts.command) end
-  if
-    not M.confirm("Are you sure you want to run the command: `" .. opts.command .. "` in the directory: " .. abs_path)
-  then
-    return false, "User canceled"
-  end
   ---change cwd to abs_path
   ---@param output string
   ---@param exit_code integer
@@ -292,18 +351,20 @@ function M.bash(opts, on_log, on_complete)
     end
     return output, nil
   end
-  if on_complete then
-    Utils.shell_run_async(opts.command, "bash -c", function(output, exit_code)
-      local result, err = handle_result(output, exit_code)
-      on_complete(result, err)
-    end, abs_path)
-    return nil, nil
-  end
-  local old_cwd = vim.fn.getcwd()
-  vim.fn.chdir(abs_path)
-  local res = Utils.shell_run(opts.command, "bash -c")
-  vim.fn.chdir(old_cwd)
-  return handle_result(res.stdout, res.code)
+  if not on_complete then return false, "on_complete not provided" end
+  M.confirm(
+    "Are you sure you want to run the command: `" .. opts.command .. "` in the directory: " .. abs_path,
+    function(ok)
+      if not ok then
+        on_complete(false, "User canceled")
+        return
+      end
+      Utils.shell_run_async(opts.command, "bash -c", function(output, exit_code)
+        local result, err = handle_result(output, exit_code)
+        on_complete(result, err)
+      end, abs_path)
+    end
+  )
 end
 
 ---@type AvanteLLMToolFunc<{ query: string }>
@@ -464,7 +525,7 @@ function M.git_diff(opts, on_log)
 end
 
 ---@type AvanteLLMToolFunc<{ message: string, scope?: string }>
-function M.git_commit(opts, on_log)
+function M.git_commit(opts, on_log, on_complete)
   local git_cmd = vim.fn.exepath("git")
   if git_cmd == "" then return false, "Git command not found" end
   local project_root = Utils.get_project_root()
@@ -518,36 +579,46 @@ function M.git_commit(opts, on_log)
   -- Construct full commit message for confirmation
   local full_commit_msg = table.concat(commit_msg_lines, "\n")
 
+  if not on_complete then return false, "on_complete not provided" end
+
   -- Confirm with user
-  if not M.confirm("Are you sure you want to commit with message:\n" .. full_commit_msg) then
-    return false, "User canceled"
-  end
+  M.confirm("Are you sure you want to commit with message:\n" .. full_commit_msg, function(ok)
+    if not ok then
+      on_complete(false, "User canceled")
+      return
+    end
+    -- Stage changes if scope is provided
+    if opts.scope then
+      local stage_cmd = string.format("git add %s", opts.scope)
+      if on_log then on_log("Staging files: " .. stage_cmd) end
+      local stage_result = vim.fn.system(stage_cmd)
+      if vim.v.shell_error ~= 0 then
+        on_complete(false, "Failed to stage files: " .. stage_result)
+        return
+      end
+    end
 
-  -- Stage changes if scope is provided
-  if opts.scope then
-    local stage_cmd = string.format("git add %s", opts.scope)
-    if on_log then on_log("Staging files: " .. stage_cmd) end
-    local stage_result = vim.fn.system(stage_cmd)
-    if vim.v.shell_error ~= 0 then return false, "Failed to stage files: " .. stage_result end
-  end
+    -- Construct git commit command
+    local cmd_parts = { "git", "commit" }
+    -- Only add -S flag if GPG is available
+    if has_gpg then table.insert(cmd_parts, "-S") end
+    for _, line in ipairs(commit_msg_lines) do
+      table.insert(cmd_parts, "-m")
+      table.insert(cmd_parts, '"' .. line .. '"')
+    end
+    local cmd = table.concat(cmd_parts, " ")
 
-  -- Construct git commit command
-  local cmd_parts = { "git", "commit" }
-  -- Only add -S flag if GPG is available
-  if has_gpg then table.insert(cmd_parts, "-S") end
-  for _, line in ipairs(commit_msg_lines) do
-    table.insert(cmd_parts, "-m")
-    table.insert(cmd_parts, '"' .. line .. '"')
-  end
-  local cmd = table.concat(cmd_parts, " ")
+    -- Execute git commit
+    if on_log then on_log("Running command: " .. cmd) end
+    local result = vim.fn.system(cmd)
 
-  -- Execute git commit
-  if on_log then on_log("Running command: " .. cmd) end
-  local result = vim.fn.system(cmd)
+    if vim.v.shell_error ~= 0 then
+      on_complete(false, "Failed to commit: " .. result)
+      return
+    end
 
-  if vim.v.shell_error ~= 0 then return false, "Failed to commit: " .. result end
-
-  return true, nil
+    on_complete(true, nil)
+  end)
 end
 
 ---@type AvanteLLMToolFunc<{ query: string }>
@@ -571,57 +642,62 @@ function M.python(opts, on_log, on_complete)
   if on_log then on_log("cwd: " .. abs_path) end
   if on_log then on_log("code:\n" .. opts.code) end
   local container_image = opts.container_image or "python:3.11-slim-bookworm"
-  if
-    not M.confirm(
-      "Are you sure you want to run the following python code in the `"
-        .. container_image
-        .. "` container, in the directory: `"
-        .. abs_path
-        .. "`?\n"
-        .. opts.code
-    )
-  then
-    return nil, "User canceled"
-  end
-  if vim.fn.executable("docker") == 0 then return nil, "Python tool is not available to execute any code" end
+  if not on_complete then return nil, "on_complete not provided" end
+  M.confirm(
+    "Are you sure you want to run the following python code in the `"
+      .. container_image
+      .. "` container, in the directory: `"
+      .. abs_path
+      .. "`?\n"
+      .. opts.code,
+    function(ok)
+      if not ok then
+        on_complete(nil, "User canceled")
+        return
+      end
+      if vim.fn.executable("docker") == 0 then
+        on_complete(nil, "Python tool is not available to execute any code")
+        return
+      end
 
-  local function handle_result(result) ---@param result vim.SystemCompleted
-    if result.code ~= 0 then return nil, "Error: " .. (result.stderr or "Unknown error") end
+      local function handle_result(result) ---@param result vim.SystemCompleted
+        if result.code ~= 0 then return nil, "Error: " .. (result.stderr or "Unknown error") end
 
-    Utils.debug("output", result.stdout)
-    return result.stdout, nil
-  end
-  local job = vim.system(
-    {
-      "docker",
-      "run",
-      "--rm",
-      "-v",
-      abs_path .. ":" .. abs_path,
-      "-w",
-      abs_path,
-      container_image,
-      "python",
-      "-c",
-      opts.code,
-    },
-    {
-      text = true,
-      cwd = abs_path,
-    },
-    vim.schedule_wrap(function(result)
-      if not on_complete then return end
-      local output, err = handle_result(result)
-      on_complete(output, err)
-    end)
+        Utils.debug("output", result.stdout)
+        return result.stdout, nil
+      end
+      vim.system(
+        {
+          "docker",
+          "run",
+          "--rm",
+          "-v",
+          abs_path .. ":" .. abs_path,
+          "-w",
+          abs_path,
+          container_image,
+          "python",
+          "-c",
+          opts.code,
+        },
+        {
+          text = true,
+          cwd = abs_path,
+        },
+        vim.schedule_wrap(function(result)
+          if not on_complete then return end
+          local output, err = handle_result(result)
+          on_complete(output, err)
+        end)
+      )
+    end
   )
-  if on_complete then return end
-  local result = job:wait()
-  return handle_result(result)
 end
 
+---@param user_input string
+---@param history_messages AvanteLLMMessage[]
 ---@return AvanteLLMTool[]
-function M.get_tools()
+function M.get_tools(user_input, history_messages)
   local custom_tools = Config.custom_tools
   if type(custom_tools) == "function" then custom_tools = custom_tools() end
   ---@type AvanteLLMTool[]
@@ -634,7 +710,7 @@ function M.get_tools()
       if tool.enabled == nil then
         return true
       else
-        return tool.enabled()
+        return tool.enabled({ user_input = user_input, history_messages = history_messages })
       end
     end)
     :totable()
@@ -644,7 +720,7 @@ end
 M._tools = {
   {
     name = "glob",
-    description = 'Fast file pattern matching using glob patterns like "**/*.js"',
+    description = 'Fast file pattern matching using glob patterns like "**/*.js", in current project scope',
     param = {
       type = "table",
       fields = {
@@ -655,7 +731,7 @@ M._tools = {
         },
         {
           name = "rel_path",
-          description = "Relative path to the directory, as cwd",
+          description = "Relative path to the project directory, as cwd",
           type = "string",
         },
       },
@@ -704,7 +780,7 @@ M._tools = {
   },
   {
     name = "python",
-    description = "Run python code. Can't use it to read files or modify files.",
+    description = "Run python code in current project scope. Can't use it to read files or modify files.",
     param = {
       type = "table",
       fields = {
@@ -715,7 +791,7 @@ M._tools = {
         },
         {
           name = "rel_path",
-          description = "Relative path to the directory, as cwd",
+          description = "Relative path to the project directory, as cwd",
           type = "string",
         },
       },
@@ -736,7 +812,7 @@ M._tools = {
   },
   {
     name = "git_diff",
-    description = "Get git diff for generating commit message",
+    description = "Get git diff for generating commit message in current project scope",
     param = {
       type = "table",
       fields = {
@@ -763,7 +839,7 @@ M._tools = {
   },
   {
     name = "git_commit",
-    description = "Commit changes with the given commit message",
+    description = "Commit changes with the given commit message in current project scope",
     param = {
       type = "table",
       fields = {
@@ -796,13 +872,13 @@ M._tools = {
   },
   {
     name = "list_files",
-    description = "List files in a directory",
+    description = "List files in current project scope",
     param = {
       type = "table",
       fields = {
         {
           name = "rel_path",
-          description = "Relative path to the directory",
+          description = "Relative path to the project directory",
           type = "string",
         },
         {
@@ -815,7 +891,7 @@ M._tools = {
     returns = {
       {
         name = "files",
-        description = "List of files in the directory",
+        description = "List of filepaths in the directory",
         type = "string[]",
       },
       {
@@ -828,13 +904,13 @@ M._tools = {
   },
   {
     name = "search_files",
-    description = "Search for files in a directory",
+    description = "Search for files in current project scope",
     param = {
       type = "table",
       fields = {
         {
           name = "rel_path",
-          description = "Relative path to the directory",
+          description = "Relative path to the project directory",
           type = "string",
         },
         {
@@ -847,7 +923,7 @@ M._tools = {
     returns = {
       {
         name = "files",
-        description = "List of files that match the keyword",
+        description = "List of filepaths that match the keyword",
         type = "string",
       },
       {
@@ -860,13 +936,13 @@ M._tools = {
   },
   {
     name = "grep_search",
-    description = "Search for a keyword in a directory using grep",
+    description = "Search for a keyword in a directory using grep in current project scope",
     param = {
       type = "table",
       fields = {
         {
           name = "rel_path",
-          description = "Relative path to the directory",
+          description = "Relative path to the project directory",
           type = "string",
         },
         {
@@ -911,13 +987,13 @@ M._tools = {
   },
   {
     name = "read_file_toplevel_symbols",
-    description = "Read the top-level symbols of a file",
+    description = "Read the top-level symbols of a file in current project scope",
     param = {
       type = "table",
       fields = {
         {
           name = "rel_path",
-          description = "Relative path to the file",
+          description = "Relative path to the file in current project scope",
           type = "string",
         },
       },
@@ -938,13 +1014,28 @@ M._tools = {
   },
   {
     name = "read_file",
-    description = "Read the contents of a file. If the file content is already in the context, do not use this tool.",
+    description = "Read the contents of a file in current project scope. If the file content is already in the context, do not use this tool.",
+    enabled = function(opts)
+      if opts.user_input:match("@read_global_file") then return false end
+      for _, message in ipairs(opts.history_messages) do
+        if message.role == "user" then
+          local content = message.content
+          if type(content) == "string" and content:match("@read_global_file") then return false end
+          if type(content) == "table" then
+            for _, item in ipairs(content) do
+              if type(item) == "string" and item:match("@read_global_file") then return false end
+            end
+          end
+        end
+      end
+      return true
+    end,
     param = {
       type = "table",
       fields = {
         {
           name = "rel_path",
-          description = "Relative path to the file",
+          description = "Relative path to the file in current project scope",
           type = "string",
         },
       },
@@ -964,14 +1055,103 @@ M._tools = {
     },
   },
   {
+    name = "read_global_file",
+    description = "Read the contents of a file in the global scope. If the file content is already in the context, do not use this tool.",
+    enabled = function(opts)
+      if opts.user_input:match("@read_global_file") then return true end
+      for _, message in ipairs(opts.history_messages) do
+        if message.role == "user" then
+          local content = message.content
+          if type(content) == "string" and content:match("@read_global_file") then return true end
+          if type(content) == "table" then
+            for _, item in ipairs(content) do
+              if type(item) == "string" and item:match("@read_global_file") then return true end
+            end
+          end
+        end
+      end
+      return false
+    end,
+    param = {
+      type = "table",
+      fields = {
+        {
+          name = "abs_path",
+          description = "Absolute path to the file in global scope",
+          type = "string",
+        },
+      },
+    },
+    returns = {
+      {
+        name = "content",
+        description = "Contents of the file",
+        type = "string",
+      },
+      {
+        name = "error",
+        description = "Error message if the file was not read successfully",
+        type = "string",
+        optional = true,
+      },
+    },
+  },
+  {
+    name = "write_global_file",
+    description = "Write to a file in the global scope",
+    enabled = function(opts)
+      if opts.user_input:match("@write_global_file") then return true end
+      for _, message in ipairs(opts.history_messages) do
+        if message.role == "user" then
+          local content = message.content
+          if type(content) == "string" and content:match("@write_global_file") then return true end
+          if type(content) == "table" then
+            for _, item in ipairs(content) do
+              if type(item) == "string" and item:match("@write_global_file") then return true end
+            end
+          end
+        end
+      end
+      return false
+    end,
+    param = {
+      type = "table",
+      fields = {
+        {
+          name = "abs_path",
+          description = "Absolute path to the file in global scope",
+          type = "string",
+        },
+        {
+          name = "content",
+          description = "Content to write to the file",
+          type = "string",
+        },
+      },
+    },
+    returns = {
+      {
+        name = "success",
+        description = "True if the file was written successfully, false otherwise",
+        type = "boolean",
+      },
+      {
+        name = "error",
+        description = "Error message if the file was not written successfully",
+        type = "string",
+        optional = true,
+      },
+    },
+  },
+  {
     name = "create_file",
-    description = "Create a new file",
+    description = "Create a new file in current project scope",
     param = {
       type = "table",
       fields = {
         {
           name = "rel_path",
-          description = "Relative path to the file",
+          description = "Relative path to the file in current project scope",
           type = "string",
         },
       },
@@ -992,13 +1172,13 @@ M._tools = {
   },
   {
     name = "rename_file",
-    description = "Rename a file",
+    description = "Rename a file in current project scope",
     param = {
       type = "table",
       fields = {
         {
           name = "rel_path",
-          description = "Relative path to the file",
+          description = "Relative path to the file in current project scope",
           type = "string",
         },
         {
@@ -1024,13 +1204,13 @@ M._tools = {
   },
   {
     name = "delete_file",
-    description = "Delete a file",
+    description = "Delete a file in current project scope",
     param = {
       type = "table",
       fields = {
         {
           name = "rel_path",
-          description = "Relative path to the file",
+          description = "Relative path to the file in current project scope",
           type = "string",
         },
       },
@@ -1051,13 +1231,13 @@ M._tools = {
   },
   {
     name = "create_dir",
-    description = "Create a new directory",
+    description = "Create a new directory in current project scope",
     param = {
       type = "table",
       fields = {
         {
           name = "rel_path",
-          description = "Relative path to the directory",
+          description = "Relative path to the project directory",
           type = "string",
         },
       },
@@ -1078,13 +1258,13 @@ M._tools = {
   },
   {
     name = "rename_dir",
-    description = "Rename a directory",
+    description = "Rename a directory in current project scope",
     param = {
       type = "table",
       fields = {
         {
           name = "rel_path",
-          description = "Relative path to the directory",
+          description = "Relative path to the project directory",
           type = "string",
         },
         {
@@ -1110,13 +1290,13 @@ M._tools = {
   },
   {
     name = "delete_dir",
-    description = "Delete a directory",
+    description = "Delete a directory in current project scope",
     param = {
       type = "table",
       fields = {
         {
           name = "rel_path",
-          description = "Relative path to the directory",
+          description = "Relative path to the project directory",
           type = "string",
         },
       },
@@ -1137,13 +1317,13 @@ M._tools = {
   },
   {
     name = "bash",
-    description = "Run a bash command in a directory. Can't use search commands like find/grep or read tools like cat/ls. Can't use it to read files or modify files.",
+    description = "Run a bash command in current project scope. Can't use search commands like find/grep or read tools like cat/ls. Can't use it to read files or modify files.",
     param = {
       type = "table",
       fields = {
         {
           name = "rel_path",
-          description = "Relative path to the directory",
+          description = "Relative path to the project directory, as cwd",
           type = "string",
         },
         {

@@ -76,9 +76,13 @@ vim.g.avante_login = vim.g.avante_login
 ---@field on_chunk AvanteLLMChunkCallback
 ---@field on_stop AvanteLLMStopCallback
 ---
+---@alias AvanteLLMMessageContentItem string | { type: "text", text: string } | { type: "image", source: { type: "base64", media_type: string, data: string } } | { type: "tool_use", name: string, id: string, input: any } | { type: "tool_result", tool_use_id: string, content: string, is_error?: boolean } | { type: "thinking", thinking: string, signature: string } | { type: "redacted_thinking", data: string }
+---
+---@alias AvanteLLMMessageContent AvanteLLMMessageContentItem[] | string
+---
 ---@class AvanteLLMMessage
 ---@field role "user" | "assistant"
----@field content string
+---@field content AvanteLLMMessageContent
 ---
 ---@class AvanteLLMToolResult
 ---@field tool_name string
@@ -245,6 +249,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field tool_use_list? AvanteLLMToolUse[]
 ---@field retry_after? integer
 ---@field headers? table<string, string>
+---@field tool_histories? AvanteLLMToolHistory[]
 ---
 ---@alias AvanteStreamParser fun(self: AvanteProviderFunctor, ctx: any, line: string, handler_opts: AvanteHandlerOptions): nil
 ---@alias AvanteLLMStartCallback fun(opts: AvanteLLMStartCallbackOptions): nil
@@ -342,7 +347,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field func? AvanteLLMToolFunc
 ---@field param AvanteLLMToolParam
 ---@field returns AvanteLLMToolReturn[]
----@field enabled? fun(): boolean
+---@field enabled? fun(opts: { user_input: string, history_messages: AvanteLLMMessage[] }): boolean
 
 ---@class AvanteLLMToolPublic : AvanteLLMTool
 ---@field func AvanteLLMToolFunc
@@ -374,6 +379,8 @@ vim.g.avante_login = vim.g.avante_login
 ---@field selected_code AvanteSelectedCode | nil
 ---@field reset_memory boolean?
 ---@field selected_filepaths string[] | nil
+---@field visible boolean?
+---@field tool_histories? AvanteLLMToolHistory[]
 ---
 ---@class avante.ChatHistory
 ---@field title string
