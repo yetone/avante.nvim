@@ -30,6 +30,14 @@ function M.confirm(message, callback)
     },
   })
 
+  local function focus_button()
+    if focus_index == 1 then
+      vim.api.nvim_win_set_cursor(popup.winid, { 4, yes_button_pos[1] })
+    else
+      vim.api.nvim_win_set_cursor(popup.winid, { 4, no_button_pos[1] })
+    end
+  end
+
   local function render_buttons()
     local yes_style = (focus_index == 1) and BUTTON_FOCUS or BUTTON_NORMAL
     local no_style = (focus_index == 2) and BUTTON_FOCUS or BUTTON_NORMAL
@@ -44,6 +52,7 @@ function M.confirm(message, callback)
 
     vim.api.nvim_buf_add_highlight(popup.bufnr, 0, yes_style, 3, yes_button_pos[1], yes_button_pos[2])
     vim.api.nvim_buf_add_highlight(popup.bufnr, 0, no_style, 3, no_button_pos[1], no_button_pos[2])
+    focus_button()
   end
 
   local function select_button()
@@ -65,22 +74,22 @@ function M.confirm(message, callback)
 
   vim.keymap.set("n", "<Left>", function()
     focus_index = 1
-    render_buttons()
+    focus_button()
   end, { buffer = popup.bufnr })
 
   vim.keymap.set("n", "<Right>", function()
     focus_index = 2
-    render_buttons()
+    focus_button()
   end, { buffer = popup.bufnr })
 
   vim.keymap.set("n", "<Tab>", function()
     focus_index = (focus_index == 1) and 2 or 1
-    render_buttons()
+    focus_button()
   end, { buffer = popup.bufnr })
 
   vim.keymap.set("n", "<S-Tab>", function()
     focus_index = (focus_index == 1) and 2 or 1
-    render_buttons()
+    focus_button()
   end, { buffer = popup.bufnr })
 
   vim.keymap.set("n", "<CR>", function() select_button() end, { buffer = popup.bufnr })

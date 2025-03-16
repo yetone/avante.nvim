@@ -399,6 +399,7 @@ local function transform_result_content(selected_files, result_content, prev_fil
     elseif line_content == "<think>" then
       is_thinking = true
       last_think_tag_start_line = i
+      last_think_tag_end_line = 0
     elseif line_content == "</think>" then
       is_thinking = false
       last_think_tag_end_line = i
@@ -2666,6 +2667,7 @@ function Sidebar:create_input_container(opts)
         original_response = original_response,
         selected_filepaths = selected_filepaths,
         selected_code = selected_code,
+        tool_histories = stop_opts.tool_histories,
       })
       Path.history.save(self.code.bufnr, self.chat_history)
     end

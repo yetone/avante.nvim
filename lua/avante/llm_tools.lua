@@ -1016,7 +1016,15 @@ M._tools = {
     enabled = function(opts)
       if opts.user_input:match("@read_global_file") then return false end
       for _, message in ipairs(opts.history_messages) do
-        if message.role == "user" and message.content:match("@read_global_file") then return false end
+        if message.role == "user" then
+          local content = message.content
+          if type(content) == "string" and content:match("@read_global_file") then return false end
+          if type(content) == "table" then
+            for _, item in ipairs(content) do
+              if type(item) == "string" and item:match("@read_global_file") then return false end
+            end
+          end
+        end
       end
       return true
     end,
@@ -1050,7 +1058,15 @@ M._tools = {
     enabled = function(opts)
       if opts.user_input:match("@read_global_file") then return true end
       for _, message in ipairs(opts.history_messages) do
-        if message.role == "user" and message.content:match("@read_global_file") then return true end
+        if message.role == "user" then
+          local content = message.content
+          if type(content) == "string" and content:match("@read_global_file") then return true end
+          if type(content) == "table" then
+            for _, item in ipairs(content) do
+              if type(item) == "string" and item:match("@read_global_file") then return true end
+            end
+          end
+        end
       end
       return false
     end,
@@ -1084,7 +1100,15 @@ M._tools = {
     enabled = function(opts)
       if opts.user_input:match("@write_global_file") then return true end
       for _, message in ipairs(opts.history_messages) do
-        if message.role == "user" and message.content:match("@write_global_file") then return true end
+        if message.role == "user" then
+          local content = message.content
+          if type(content) == "string" and content:match("@write_global_file") then return true end
+          if type(content) == "table" then
+            for _, item in ipairs(content) do
+              if type(item) == "string" and item:match("@write_global_file") then return true end
+            end
+          end
+        end
       end
       return false
     end,
