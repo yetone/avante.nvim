@@ -122,10 +122,12 @@ function M:parse_messages(opts)
         end
       end
     end
-    table.insert(messages, {
-      role = self.role_map[message.role],
-      content = message_content,
-    })
+    if #message_content > 0 then
+      table.insert(messages, {
+        role = self.role_map[message.role],
+        content = message_content,
+      })
+    end
   end
 
   if Clipboard.support_paste_image() and opts.image_paths and #opts.image_paths > 0 then
