@@ -195,7 +195,7 @@ M._defaults = {
     model = "gpt-4o",
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
-    max_tokens = 10240,
+    max_tokens = 16384,
   },
   ---@type AvanteSupportedProvider
   copilot = {
@@ -205,7 +205,7 @@ M._defaults = {
     allow_insecure = false, -- Allow insecure server connections
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
-    max_tokens = 10240,
+    max_tokens = 20480,
   },
   ---@type AvanteAzureProvider
   azure = {
@@ -214,7 +214,7 @@ M._defaults = {
     api_version = "2024-06-01",
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
-    max_tokens = 10240,
+    max_tokens = 20480,
   },
   ---@type AvanteSupportedProvider
   claude = {
@@ -222,14 +222,14 @@ M._defaults = {
     model = "claude-3-7-sonnet-20250219",
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
-    max_tokens = 10240,
+    max_tokens = 20480,
   },
   ---@type AvanteSupportedProvider
   bedrock = {
     model = "anthropic.claude-3-5-sonnet-20241022-v2:0",
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
-    max_tokens = 10240,
+    max_tokens = 20480,
   },
   ---@type AvanteSupportedProvider
   gemini = {
@@ -237,7 +237,7 @@ M._defaults = {
     model = "gemini-1.5-flash-latest",
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
-    max_tokens = 10240,
+    max_tokens = 20480,
   },
   ---@type AvanteSupportedProvider
   vertex = {
@@ -245,7 +245,7 @@ M._defaults = {
     model = "gemini-1.5-flash-002",
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
-    max_tokens = 10240,
+    max_tokens = 20480,
   },
   ---@type AvanteSupportedProvider
   cohere = {
@@ -253,7 +253,7 @@ M._defaults = {
     model = "command-r-plus-08-2024",
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
-    max_tokens = 10240,
+    max_tokens = 20480,
   },
   ---@type AvanteSupportedProvider
   ollama = {
@@ -261,7 +261,7 @@ M._defaults = {
     timeout = 30000, -- Timeout in milliseconds
     options = {
       temperature = 0,
-      num_ctx = 10240,
+      num_ctx = 20480,
     },
   },
   ---@type AvanteSupportedProvider
@@ -270,7 +270,7 @@ M._defaults = {
     model = "claude-3-5-sonnet-v2@20241022",
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
-    max_tokens = 10240,
+    max_tokens = 20480,
   },
   ---To add support for custom provider, follow the format below
   ---See https://github.com/yetone/avante.nvim/wiki#custom-providers for more details
@@ -282,7 +282,7 @@ M._defaults = {
       model = "claude-3-5-haiku-20241022",
       timeout = 30000, -- Timeout in milliseconds
       temperature = 0,
-      max_tokens = 10240,
+      max_tokens = 20480,
     },
     ---@type AvanteSupportedProvider
     ["claude-opus"] = {
@@ -290,7 +290,7 @@ M._defaults = {
       model = "claude-3-opus-20240229",
       timeout = 30000, -- Timeout in milliseconds
       temperature = 0,
-      max_tokens = 10240,
+      max_tokens = 20480,
     },
     ["openai-gpt-4o-mini"] = {
       __inherited_from = "openai",
@@ -340,7 +340,7 @@ M._defaults = {
     use_cwd_as_project_root = false,
   },
   history = {
-    max_tokens = 4096,
+    max_tokens = 8192,
     storage_path = vim.fn.stdpath("state") .. "/avante",
     paste = {
       extension = "png",
