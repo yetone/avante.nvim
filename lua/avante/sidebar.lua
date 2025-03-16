@@ -3057,7 +3057,7 @@ function Sidebar:render(opts)
   -- reset states when buffer is closed
   api.nvim_buf_attach(self.code.bufnr, false, {
     on_detach = function(_, _)
-      if self and self.reset then self:reset() end
+      if self and self.reset then vim.schedule(function() self:reset() end) end
     end,
   })
 
