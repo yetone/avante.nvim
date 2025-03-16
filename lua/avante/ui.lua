@@ -7,18 +7,18 @@ local M = {}
 
 function M.confirm(message, callback)
   local focus_index = 2 -- 1 = Yes, 2 = No
-  local yes_button_pos = { 18, 23 }
-  local no_button_pos = { 28, 32 }
+  local yes_button_pos = { 23, 28 }
+  local no_button_pos = { 33, 37 }
 
   local BUTTON_NORMAL = Highlights.BUTTON_DEFAULT
   local BUTTON_FOCUS = Highlights.BUTTON_DEFAULT_HOVER
 
   local popup = Popup({
     position = {
-      row = vim.o.lines - 5,
+      row = vim.o.lines - 9,
       col = "50%",
     },
-    size = { width = 50, height = 7 },
+    size = { width = 60, height = 9 },
     enter = true,
     focusable = true,
     border = {
@@ -46,7 +46,7 @@ function M.confirm(message, callback)
       "",
       "  " .. message,
       "",
-      "                  " .. " Yes       No ",
+      "                       " .. " Yes       No ",
       "",
     })
 
