@@ -1813,6 +1813,7 @@ function Sidebar:on_mount(opts)
     group = self.augroup,
     callback = function(args)
       local closed_winid = tonumber(args.match)
+      if closed_winid == self.winids.selected_files_container then return end
       if not self:is_focused_on(closed_winid) then return end
       self:close()
     end,
@@ -1841,6 +1842,7 @@ function Sidebar:refresh_winids()
 
   local function switch_windows()
     local current_winid = api.nvim_get_current_win()
+    winids = vim.iter(winids):filter(function(winid) return api.nvim_win_is_valid(winid) end):totable()
     local current_idx = Utils.tbl_indexof(winids, current_winid) or 1
     if current_idx == #winids then
       current_idx = 1

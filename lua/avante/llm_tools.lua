@@ -3,7 +3,6 @@ local Utils = require("avante.utils")
 local Path = require("plenary.path")
 local Config = require("avante.config")
 local RagService = require("avante.rag_service")
-local UI = require("avante.ui")
 
 ---@class AvanteRagService
 local M = {}
@@ -18,7 +17,10 @@ local function get_abs_path(rel_path)
   return p
 end
 
-function M.confirm(message, callback) UI.confirm(message, callback) end
+function M.confirm(message, callback)
+  local UI = require("avante.ui")
+  UI.confirm(message, callback)
+end
 
 ---@param abs_path string
 ---@return boolean
