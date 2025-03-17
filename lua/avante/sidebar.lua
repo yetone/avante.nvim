@@ -880,16 +880,15 @@ local function parse_codeblocks(buf, current_filepath, current_filetype)
       lang = vim.treesitter.get_node_text(node, buf)
     elseif node:type() == "block_continuation" then
       start_line, _ = node:start()
-    elseif node:type() == "fenced_code_block_delimiter" then
+    elseif node:type() == "fenced_code_block_delimiter" and start_line ~= nil and node:start() >= start_line then
       local end_line, _ = node:start()
       if Config.behaviour.enable_cursor_planning_mode then
         local filepath = obtain_filepath_from_codeblock(lines, start_line)
         if not filepath and lang == current_filetype then filepath = current_filepath end
-        if filepath then valid = true end
+        valid = filepath ~= nil
       else
-        if lines[start_line - 1]:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)") then
-          valid = true
-        end
+        valid = lines[start_line - 1]:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)")
+          ~= nil
       end
       if valid then table.insert(codeblocks, { start_line = start_line, end_line = end_line + 1, lang = lang }) end
     end
