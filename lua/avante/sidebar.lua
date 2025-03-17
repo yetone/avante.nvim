@@ -598,7 +598,7 @@ local function extract_cursor_planning_code_snippets_map(response_content, curre
     if node:type() == "language" then
       lang = vim.treesitter.get_node_text(node, response_content)
       lang = vim.split(lang, ":")[1]
-    elseif node:type() == "code_fence_content" then
+    elseif node:type() == "block_continuation" then
       local start_line, _ = node:start()
       local end_line, _ = node:end_()
       local filepath, skip_next_line = obtain_filepath_from_codeblock(lines, start_line)
