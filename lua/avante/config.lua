@@ -557,6 +557,7 @@ end
 
 M.BASE_PROVIDER_KEYS = {
   "endpoint",
+  "extra_headers",
   "model",
   "deployment",
   "api_version",
