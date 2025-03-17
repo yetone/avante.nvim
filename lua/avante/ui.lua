@@ -42,13 +42,19 @@ function M.confirm(message, callback)
     local yes_style = (focus_index == 1) and BUTTON_FOCUS or BUTTON_NORMAL
     local no_style = (focus_index == 2) and BUTTON_FOCUS or BUTTON_NORMAL
 
-    vim.api.nvim_buf_set_lines(popup.bufnr, 0, -1, false, {
-      "",
-      "  " .. message,
-      "",
-      "                       " .. " Yes       No ",
-      "",
-    })
+    local button_line = string.rep(" ", 23) .. " Yes       No "
+    local replacement = vim
+      .iter({
+        "",
+        vim.tbl_map(function(line) return "  " .. line end, vim.split(message, "\n")),
+        "",
+        button_line,
+        "",
+      })
+      :flatten()
+      :totable()
+
+    vim.api.nvim_buf_set_lines(popup.bufnr, 0, -1, false, replacement)
 
     vim.api.nvim_buf_add_highlight(popup.bufnr, 0, yes_style, 3, yes_button_pos[1], yes_button_pos[2])
     vim.api.nvim_buf_add_highlight(popup.bufnr, 0, no_style, 3, no_button_pos[1], no_button_pos[2])
