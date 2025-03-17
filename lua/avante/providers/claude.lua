@@ -32,7 +32,7 @@ end
 
 ---@param tool AvanteLLMTool
 ---@return AvanteClaudeTool
-function M.transform_tool(tool)
+function M:transform_tool(tool)
   local input_schema_properties = {}
   local required = {}
   for _, field in ipairs(tool.param.fields) do
@@ -339,7 +339,7 @@ function M:parse_curl_args(prompt_opts)
   local tools = {}
   if not disable_tools and prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
-      table.insert(tools, self.transform_tool(tool))
+      table.insert(tools, self:transform_tool(tool))
     end
   end
 
