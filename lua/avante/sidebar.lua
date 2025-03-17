@@ -2606,6 +2606,7 @@ function Sidebar:create_input_container(opts)
       if is_first_chunk then
         is_first_chunk = false
         self:update_content(content_prefix .. chunk, { scroll = scroll })
+        displayed_response = cur_displayed_response
         return
       end
       local suffix = get_display_content_suffix(transformed)
