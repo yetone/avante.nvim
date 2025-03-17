@@ -336,6 +336,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     minimize_diff = true, -- Whether to remove unchanged lines when applying a code block
     enable_token_counting = true, -- Whether to enable token counting. Default to true.
     enable_cursor_planning_mode = false, -- Whether to enable Cursor Planning Mode. Default to false.
+    enable_claude_text_editor_tool_mode = false, -- Whether to enable Claude Text Editor Tool Mode.
   },
   mappings = {
     --- @class AvanteConflictMappings
@@ -881,6 +882,22 @@ Avante allows you to define custom tools that can be used by the AI during code 
 ## MCP
 
 Now you can integrate MCP functionality for Avante through `mcphub.nvim`. For detailed documentation, please refer to [mcphub.nvim](https://github.com/ravitemer/mcphub.nvim#avante-integration)
+
+## Claude Text Editor Tool Mode
+
+Avante leverages [Claude Text Editor Tool](https://docs.anthropic.com/en/docs/build-with-claude/tool-use/text-editor-tool) to provide a more elegant code editing experience. You can now enable this feature by setting `enable_claude_text_editor_tool_mode` to `true` in the `behaviour` configuration:
+
+```lua
+{
+  behaviour = {
+    enable_claude_text_editor_tool_mode = true,
+  },
+}
+```
+
+> [!NOTE]
+> To enable **Claude Text Editor Tool Mode**, you must use the `claude-3-5-sonnet-*` or `claude-3-7-sonnet-*` model with the `claude` provider! This feature is not supported by any other models!
+
 
 ## Custom prompts
 

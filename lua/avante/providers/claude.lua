@@ -1,6 +1,7 @@
 local Utils = require("avante.utils")
 local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
+local Config = require("avante.config")
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -340,6 +341,20 @@ function M:parse_curl_args(prompt_opts)
   if not disable_tools and prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
       table.insert(tools, self:transform_tool(tool))
+    end
+  end
+
+  if prompt_opts.tools and Config.behaviour.enable_claude_text_editor_tool_mode then
+    if provider_conf.model:match("claude%-3%-7%-sonnet") then
+      table.insert(tools, {
+        type = "text_editor_20250124",
+        name = "str_replace_editor",
+      })
+    elseif provider_conf.model:match("claude%-3%-5%-instruct") then
+      table.insert(tools, {
+        type = "text_editor_20241022",
+        name = "str_replace_editor",
+      })
     end
   end
 

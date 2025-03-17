@@ -19,7 +19,7 @@ local M = {}
 ---@class avante.Config
 M._defaults = {
   debug = false,
-  ---@alias ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | string
+  ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | string
   provider = "claude",
   -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
   -- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
@@ -340,6 +340,7 @@ M._defaults = {
     minimize_diff = true,
     enable_token_counting = true,
     enable_cursor_planning_mode = false,
+    enable_claude_text_editor_tool_mode = false,
     use_cwd_as_project_root = false,
   },
   history = {
@@ -476,7 +477,7 @@ M._defaults = {
 ---@diagnostic disable-next-line: missing-fields
 M._options = {}
 
----@type ProviderName[]
+---@type avante.ProviderName[]
 M.provider_names = {}
 
 ---@param opts? avante.Config
@@ -514,6 +515,14 @@ function M.setup(opts)
     vim.validate({ vendors = { M._options.vendors, "table", true } })
     M.provider_names = vim.list_extend(M.provider_names, vim.tbl_keys(M._options.vendors))
   end
+
+  if M._options.behaviour.enable_claude_text_editor_tool_mode and M._options.provider ~= "claude" then
+    Utils.warn(
+      "Claude text editor tool mode is only supported for claude provider! So it will be disabled!",
+      { title = "Avante" }
+    )
+    M._options.behaviour.enable_claude_text_editor_tool_mode = false
+  end
 end
 
 ---@param opts table<string, any>
@@ -541,12 +550,12 @@ function M.support_paste_image() return Utils.has("img-clip.nvim") or Utils.has(
 
 function M.get_window_width() return math.ceil(vim.o.columns * (M.windows.width / 100)) end
 
----@param provider_name ProviderName
+---@param provider_name avante.ProviderName
 ---@return boolean
 function M.has_provider(provider_name) return vim.list_contains(M.provider_names, provider_name) end
 
 ---get supported providers
----@param provider_name ProviderName
+---@param provider_name avante.ProviderName
 function M.get_provider_config(provider_name)
   if not M.has_provider(provider_name) then error("No provider found: " .. provider_name, 2) end
   if M._options[provider_name] ~= nil then
