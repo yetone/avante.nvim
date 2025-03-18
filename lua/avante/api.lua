@@ -20,7 +20,7 @@ function M.switch_file_selector_provider(target_provider)
   })
 end
 
----@param target ProviderName
+---@param target avante.ProviderName
 function M.switch_provider(target) require("avante.providers").refresh(target) end
 
 ---@param path string

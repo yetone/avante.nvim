@@ -3,6 +3,8 @@ local Utils = require("avante.utils")
 local Path = require("plenary.path")
 local Config = require("avante.config")
 local RagService = require("avante.rag_service")
+local Diff = require("avante.diff")
+local Highlights = require("avante.highlights")
 
 ---@class AvanteRagService
 local M = {}
@@ -19,7 +21,13 @@ end
 
 function M.confirm(message, callback)
   local UI = require("avante.ui")
-  UI.confirm(message, callback)
+  local sidebar = require("avante").get()
+  if not sidebar or not sidebar.input_container or not sidebar.input_container.winid then
+    Utils.error("Avante sidebar not found", { title = "Avante" })
+    callback(false)
+    return
+  end
+  UI.confirm(message, callback, { container_winid = sidebar.input_container.winid })
 end
 
 ---@param abs_path string
@@ -169,6 +177,170 @@ function M.read_file(opts, on_log)
   local content = file:read("*a")
   file:close()
   return content, nil
+end
+
+---@type AvanteLLMToolFunc<{ command: "view" | "str_replace" | "create" | "insert" | "undo_edit", path: string, old_str?: string, new_str?: string, file_text?: string, insert_line?: integer, new_str?: string }>
+function M.str_replace_editor(opts, on_log, on_complete)
+  if on_log then on_log("command: " .. opts.command) end
+  if on_log then on_log("path: " .. opts.path) end
+  if not on_complete then return false, "on_complete not provided" end
+  local abs_path = get_abs_path(opts.path)
+  if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
+  local sidebar = require("avante").get()
+  if not sidebar then return false, "Avante sidebar not found" end
+  local get_bufnr = function()
+    local current_winid = vim.api.nvim_get_current_win()
+    vim.api.nvim_set_current_win(sidebar.code.winid)
+    local bufnr = Utils.get_or_create_buffer_with_filepath(abs_path)
+    vim.api.nvim_set_current_win(current_winid)
+    return bufnr
+  end
+  if opts.command == "view" then
+    if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
+    if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
+    local file = io.open(abs_path, "r")
+    if not file then return false, "file not found: " .. abs_path end
+    local content = file:read("*a")
+    file:close()
+    on_complete(content, nil)
+    return
+  end
+  if opts.command == "str_replace" then
+    if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
+    if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
+    local file = io.open(abs_path, "r")
+    if not file then return false, "file not found: " .. abs_path end
+    if opts.old_str == nil then return false, "old_str not provided" end
+    if opts.new_str == nil then return false, "new_str not provided" end
+    local bufnr = get_bufnr()
+    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+    local old_lines = vim.split(opts.old_str, "\n")
+    local new_lines = vim.split(opts.new_str, "\n")
+    local start_line, end_line
+    for i = 1, #lines - #old_lines + 1 do
+      local match = true
+      for j = 1, #old_lines do
+        if lines[i + j - 1] ~= old_lines[j] then
+          match = false
+          break
+        end
+      end
+      if match then
+        start_line = i
+        end_line = i + #old_lines - 1
+        break
+      end
+    end
+    if start_line == nil or end_line == nil then
+      on_complete(false, "Failed to find the old string: " .. opts.old_str)
+      return
+    end
+    local patched_new_lines = { "<<<<<<< HEAD" }
+    vim.list_extend(patched_new_lines, old_lines)
+    table.insert(patched_new_lines, "=======")
+    vim.list_extend(patched_new_lines, new_lines)
+    table.insert(patched_new_lines, ">>>>>>> new")
+    vim.api.nvim_buf_set_lines(bufnr, start_line - 1, end_line, false, patched_new_lines)
+    local current_winid = vim.api.nvim_get_current_win()
+    vim.api.nvim_set_current_win(sidebar.code.winid)
+    Diff.add_visited_buffer(bufnr)
+    Diff.process(bufnr)
+    vim.api.nvim_win_set_cursor(sidebar.code.winid, { math.max(start_line - 1, 1), 0 })
+    vim.cmd("normal! zz")
+    vim.api.nvim_set_current_win(current_winid)
+    M.confirm("Are you sure you want to apply this modification?", function(ok)
+      vim.api.nvim_set_current_win(sidebar.code.winid)
+      vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
+      if not ok then
+        vim.cmd("undo")
+        vim.api.nvim_set_current_win(current_winid)
+        on_complete(false, "User canceled")
+        return
+      end
+      vim.cmd("undo")
+      vim.api.nvim_buf_set_lines(bufnr, start_line - 1, end_line, false, new_lines)
+      vim.api.nvim_set_current_win(current_winid)
+      on_complete(true, nil)
+    end)
+    return
+  end
+  if opts.command == "create" then
+    if opts.file_text == nil then return false, "file_text not provided" end
+    if Path:new(abs_path):exists() then return false, "File already exists: " .. abs_path end
+    local lines = vim.split(opts.file_text, "\n")
+    local bufnr = get_bufnr()
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+    M.confirm("Are you sure you want to create this file?", function(ok)
+      if not ok then
+        -- close the buffer
+        vim.api.nvim_buf_delete(bufnr, { force = true })
+        on_complete(false, "User canceled")
+        return
+      end
+      -- save the file
+      local current_winid = vim.api.nvim_get_current_win()
+      local winid = Utils.get_winid(bufnr)
+      vim.api.nvim_set_current_win(winid)
+      vim.cmd("write")
+      vim.api.nvim_set_current_win(current_winid)
+      on_complete(true, nil)
+    end)
+    return
+  end
+  if opts.command == "insert" then
+    if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
+    if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
+    if opts.insert_line == nil then return false, "insert_line not provided" end
+    if opts.new_str == nil then return false, "new_str not provided" end
+    local ns_id = vim.api.nvim_create_namespace("avante_insert_diff")
+    local bufnr = get_bufnr()
+    local function clear_highlights() vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1) end
+    local new_lines = vim.split(opts.new_str, "\n")
+    local max_col = vim.o.columns
+    local virt_lines = vim
+      .iter(new_lines)
+      :map(function(line)
+        --- append spaces to the end of the line
+        local line_ = line .. string.rep(" ", max_col - #line)
+        return { { line_, Highlights.INCOMING } }
+      end)
+      :totable()
+    vim.api.nvim_buf_set_extmark(bufnr, ns_id, opts.insert_line - 1, 0, {
+      virt_lines = virt_lines,
+      hl_eol = true,
+      hl_mode = "combine",
+    })
+    M.confirm("Are you sure you want to insert these lines?", function(ok)
+      clear_highlights()
+      if not ok then
+        on_complete(false, "User canceled")
+        return
+      end
+      vim.api.nvim_buf_set_lines(bufnr, opts.insert_line - 1, opts.insert_line - 1, false, new_lines)
+      on_complete(true, nil)
+    end)
+    return
+  end
+  if opts.command == "undo_edit" then
+    if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
+    if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
+    local bufnr = get_bufnr()
+    M.confirm("Are you sure you want to undo edit this file?", function(ok)
+      if not ok then
+        on_complete(false, "User canceled")
+        return
+      end
+      local current_winid = vim.api.nvim_get_current_win()
+      local winid = Utils.get_winid(bufnr)
+      vim.api.nvim_set_current_win(winid)
+      -- run undo
+      vim.cmd("undo")
+      vim.api.nvim_set_current_win(current_winid)
+      on_complete(true, nil)
+    end)
+    return
+  end
+  return false, "Unknown command: " .. opts.command
 end
 
 ---@type AvanteLLMToolFunc<{ abs_path: string }>
@@ -1411,20 +1583,26 @@ M._tools = {
 ---@return string | nil error
 function M.process_tool_use(tools, tool_use, on_log, on_complete)
   Utils.debug("use tool", tool_use.name, tool_use.input_json)
-  ---@type AvanteLLMTool?
-  local tool = vim.iter(tools):find(function(tool) return tool.name == tool_use.name end) ---@param tool AvanteLLMTool
-  if tool == nil then return end
+  local func
+  if tool_use.name == "str_replace_editor" then
+    func = M.str_replace_editor
+  else
+    ---@type AvanteLLMTool?
+    local tool = vim.iter(tools):find(function(tool) return tool.name == tool_use.name end) ---@param tool AvanteLLMTool
+    if tool == nil then return nil, "This tool is not provided: " .. tool_use.name end
+    func = tool.func or M[tool.name]
+  end
   local input_json = vim.json.decode(tool_use.input_json)
-  local func = tool.func or M[tool.name]
-  if on_log then on_log(tool.name, "running tool") end
+  if not func then return nil, "Tool not found: " .. tool_use.name end
+  if on_log then on_log(tool_use.name, "running tool") end
   ---@param result string | nil | boolean
   ---@param err string | nil
   local function handle_result(result, err)
-    if on_log then on_log(tool.name, "tool finished") end
+    if on_log then on_log(tool_use.name, "tool finished") end
     -- Utils.debug("result", result)
     -- Utils.debug("error", error)
     if err ~= nil then
-      if on_log then on_log(tool.name, "Error: " .. err) end
+      if on_log then on_log(tool_use.name, "Error: " .. err) end
     end
     local result_str ---@type string?
     if type(result) == "string" then
@@ -1435,11 +1613,11 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete)
     return result_str, err
   end
   local result, err = func(input_json, function(log)
-    if on_log then on_log(tool.name, log) end
+    if on_log then on_log(tool_use.name, log) end
   end, function(result, err)
     result, err = handle_result(result, err)
     if on_complete == nil then
-      Utils.error("asynchronous tool " .. tool.name .. " result not handled")
+      Utils.error("asynchronous tool " .. tool_use.name .. " result not handled")
       return
     end
     on_complete(result, err)
