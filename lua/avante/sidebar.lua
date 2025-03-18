@@ -1327,6 +1327,7 @@ function Sidebar:apply(current_cursor)
             process(winid)
           else
             api.nvim_create_autocmd("BufWinEnter", {
+              group = self.augroup,
               buffer = bufnr,
               once = true,
               callback = function()
@@ -1365,6 +1366,7 @@ function Sidebar:apply(current_cursor)
         process(winid)
       else
         api.nvim_create_autocmd("BufWinEnter", {
+          group = self.augroup,
           buffer = bufnr,
           once = true,
           callback = function()
@@ -1718,6 +1720,7 @@ function Sidebar:on_mount(opts)
   local codeblocks = {}
 
   api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
+    group = self.augroup,
     buffer = self.result_container.bufnr,
     callback = function(ev)
       local in_codeblock = is_cursor_in_codeblock(codeblocks)
@@ -1748,6 +1751,7 @@ function Sidebar:on_mount(opts)
   local current_filetype = Utils.get_filetype(current_filepath)
 
   api.nvim_create_autocmd({ "BufEnter", "BufWritePost" }, {
+    group = self.augroup,
     buffer = self.result_container.bufnr,
     callback = function(ev)
       codeblocks = parse_codeblocks(ev.buf, current_filepath, current_filetype)
@@ -1756,6 +1760,7 @@ function Sidebar:on_mount(opts)
   })
 
   api.nvim_create_autocmd("User", {
+    group = self.augroup,
     pattern = VIEW_BUFFER_UPDATED_PATTERN,
     callback = function()
       if
@@ -1771,6 +1776,7 @@ function Sidebar:on_mount(opts)
   })
 
   api.nvim_create_autocmd("BufLeave", {
+    group = self.augroup,
     buffer = self.result_container.bufnr,
     callback = function() self:unbind_sidebar_keys() end,
   })
@@ -2450,6 +2456,10 @@ function Sidebar:create_input_container(opts)
       returns = {},
     })
 
+    local mode = "planning"
+    if Config.behaviour.enable_cursor_planning_mode then mode = "cursor-planning" end
+    if Config.behaviour.enable_claude_text_editor_tool_mode then mode = "claude-text-editor-tool" end
+
     ---@type AvanteGeneratePromptsOptions
     local prompts_opts = {
       ask = opts.ask or true,
@@ -2461,7 +2471,7 @@ function Sidebar:create_input_container(opts)
       code_lang = filetype,
       selected_code = selected_code,
       instructions = request,
-      mode = Config.behaviour.enable_cursor_planning_mode and "cursor-planning" or "planning",
+      mode = mode,
       tools = tools,
     }
 
@@ -2950,6 +2960,7 @@ function Sidebar:create_input_container(opts)
   })
 
   api.nvim_create_autocmd("WinEnter", {
+    group = self.augroup,
     callback = function()
       local cur_win = api.nvim_get_current_win()
       if self.input_container and cur_win == self.input_container.winid then
@@ -3067,7 +3078,11 @@ function Sidebar:render(opts)
   -- reset states when buffer is closed
   api.nvim_buf_attach(self.code.bufnr, false, {
     on_detach = function(_, _)
-      if self and self.reset then vim.schedule(function() self:reset() end) end
+      vim.schedule(function()
+        local bufnr = api.nvim_win_get_buf(self.code.winid)
+        self.code.bufnr = bufnr
+        self:reload_chat_history()
+      end)
     end,
   })
 
