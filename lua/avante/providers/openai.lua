@@ -69,12 +69,15 @@ end
 
 function M.is_reasoning_model(model) return model and string.match(model, "^o%d+") ~= nil end
 
-function M.set_reasoning_params(provider_conf, request_body)
+function M.set_allowed_params(provider_conf, request_body)
   if M.is_reasoning_model(provider_conf.model) then
     request_body.temperature = 1
-    request_body.reasoning_effort = request_body.reasoning_effort
   else
     request_body.reasoning_effort = nil
+  end
+  -- If max_tokens is set in config, unset max_completion_tokens
+  if request_body.max_tokens then
+    request_body.max_completion_tokens = nil
   end
 end
 
@@ -305,8 +308,7 @@ function M:parse_curl_args(prompt_opts)
     request_body.include_reasoning = true
   end
 
-  -- NOTE: When using reasoning models set supported parameters
-  self.set_reasoning_params(provider_conf, request_body)
+  self.set_allowed_params(provider_conf, request_body)
 
   local tools = nil
   if not disable_tools and prompt_opts.tools then
