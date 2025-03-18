@@ -2,7 +2,8 @@
 ---@field deployment string
 ---@field api_version string
 ---@field temperature number
----@field max_tokens number
+---@field max_completion_tokens number
+---@field reasoning_effort? string
 
 local Utils = require("avante.utils")
 local P = require("avante.providers")
@@ -13,12 +14,8 @@ local M = {}
 
 M.api_key_name = "AZURE_OPENAI_API_KEY"
 
-M.parse_messages = O.parse_messages
-M.parse_response = O.parse_response
-M.parse_response_without_stream = O.parse_response_without_stream
-M.is_disable_stream = O.is_disable_stream
-M.is_o_series_model = O.is_o_series_model
-M.role_map = O.role_map
+-- Inherit from OpenAI class
+setmetatable(M, { __index = O })
 
 function M:parse_curl_args(prompt_opts)
   local provider_conf, request_body = P.parse_config(self)
@@ -35,11 +32,8 @@ function M:parse_curl_args(prompt_opts)
     end
   end
 
-  -- NOTE: When using "o" series set the supported parameters only
-  if O.is_o_series_model(provider_conf.model) then
-    request_body.max_tokens = nil
-    request_body.temperature = 1
-  end
+  -- NOTE: When using reasoning models set supported parameters
+  self.set_reasoning_params(provider_conf, request_body)
 
   return {
     url = Utils.url_join(
