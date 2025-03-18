@@ -76,9 +76,7 @@ function M.set_allowed_params(provider_conf, request_body)
     request_body.reasoning_effort = nil
   end
   -- If max_tokens is set in config, unset max_completion_tokens
-  if request_body.max_tokens then
-    request_body.max_completion_tokens = nil
-  end
+  if request_body.max_tokens then request_body.max_completion_tokens = nil end
 end
 
 function M:parse_messages(opts)
