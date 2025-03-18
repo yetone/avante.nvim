@@ -55,7 +55,7 @@ from markdownify import markdownify as md
 from models.indexing_history import IndexingHistory  # noqa: TC002
 from models.resource import Resource
 from pydantic import BaseModel, Field
-from tree_sitter_language_pack import get_parser
+from tree_sitter_language_pack import SupportedLanguage, get_parser
 from services.indexing_history import indexing_history_service
 from services.resource import resource_service
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
@@ -183,7 +183,7 @@ watched_resources: dict[str, BaseObserver] = {}  # Directory path -> Observer in
 file_last_modified: dict[Path, float] = {}  # File path -> Last modified time mapping
 index_lock = threading.Lock()
 
-code_ext_map = {
+code_ext_map: dict[str, SupportedLanguage] = {
     ".py": "python",
     ".js": "javascript",
     ".ts": "typescript",
