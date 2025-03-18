@@ -1419,12 +1419,14 @@ function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl)
   end
 
   if Config.windows.sidebar_header.rounded then
-    winbar_text = winbar_text .. "%#" .. reverse_hl .. "#" .. "" .. "%#" .. hl .. "#"
+    winbar_text = winbar_text .. "%#" .. reverse_hl .. "#" .. Utils.icon("", "『") .. "%#" .. hl .. "#"
   else
     winbar_text = winbar_text .. "%#" .. hl .. "#"
   end
   winbar_text = winbar_text .. header_text
-  if Config.windows.sidebar_header.rounded then winbar_text = winbar_text .. "%#" .. reverse_hl .. "#" end
+  if Config.windows.sidebar_header.rounded then
+    winbar_text = winbar_text .. "%#" .. reverse_hl .. "#" .. Utils.icon("", "』")
+  end
   winbar_text = winbar_text .. "%#Normal#"
   if Config.windows.sidebar_header.align == "center" then winbar_text = winbar_text .. "%=" end
   api.nvim_set_option_value("winbar", winbar_text, { win = winid })
