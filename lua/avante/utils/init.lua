@@ -1079,6 +1079,7 @@ function M.read_file_from_buf_or_disk(filepath)
   if file then
     local content = file:read("*all")
     file:close()
+    content = content:gsub("\r\n", "\n")
     return vim.split(content, "\n"), nil
   else
     return {}, open_err
