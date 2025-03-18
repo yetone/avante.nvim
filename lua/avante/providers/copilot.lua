@@ -215,7 +215,7 @@ M.parse_messages = OpenAI.parse_messages
 
 M.parse_response = OpenAI.parse_response
 
-M.is_o_series_model = OpenAI.is_o_series_model
+M.is_reasoning_model = OpenAI.is_reasoning_model
 
 function M:parse_curl_args(prompt_opts)
   -- refresh token synchronously, only if it has expired
