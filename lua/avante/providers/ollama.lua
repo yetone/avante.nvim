@@ -12,7 +12,7 @@ M.role_map = {
 }
 
 M.parse_messages = P.openai.parse_messages
-M.is_o_series_model = P.openai.is_o_series_model
+M.is_reasoning_model = P.openai.is_reasoning_model
 
 function M:is_disable_stream() return false end
 
