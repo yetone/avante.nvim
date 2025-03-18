@@ -19,6 +19,9 @@ local function get_abs_path(rel_path)
   return p
 end
 
+---@param message string
+---@param callback fun(yes: boolean)
+---@return NuiPopup | nil
 function M.confirm(message, callback)
   local UI = require("avante.ui")
   local sidebar = require("avante").get()
@@ -27,7 +30,7 @@ function M.confirm(message, callback)
     callback(false)
     return
   end
-  UI.confirm(message, callback, { container_winid = sidebar.input_container.winid })
+  return UI.confirm(message, callback, { container_winid = sidebar.input_container.winid })
 end
 
 ---@param abs_path string
@@ -182,7 +185,7 @@ end
 ---@type AvanteLLMToolFunc<{ command: "view" | "str_replace" | "create" | "insert" | "undo_edit", path: string, old_str?: string, new_str?: string, file_text?: string, insert_line?: integer, new_str?: string }>
 function M.str_replace_editor(opts, on_log, on_complete)
   if on_log then on_log("command: " .. opts.command) end
-  if on_log then on_log("path: " .. opts.path) end
+  if on_log then on_log("path: " .. vim.inspect(opts.path)) end
   if not on_complete then return false, "on_complete not provided" end
   local abs_path = get_abs_path(opts.path)
   if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
@@ -214,6 +217,7 @@ function M.str_replace_editor(opts, on_log, on_complete)
     if opts.new_str == nil then return false, "new_str not provided" end
     local bufnr = get_bufnr()
     local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+    local lines_content = table.concat(lines, "\n")
     local old_lines = vim.split(opts.old_str, "\n")
     local new_lines = vim.split(opts.new_str, "\n")
     local start_line, end_line
@@ -239,29 +243,49 @@ function M.str_replace_editor(opts, on_log, on_complete)
     vim.list_extend(patched_new_lines, old_lines)
     table.insert(patched_new_lines, "=======")
     vim.list_extend(patched_new_lines, new_lines)
-    table.insert(patched_new_lines, ">>>>>>> new")
+    local patch_end_line = ">>>>>>> new "
+    --- add random characters to the end of the line to avoid conflicts
+    patch_end_line = patch_end_line .. Utils.random_string(10)
+    table.insert(patched_new_lines, patch_end_line)
     vim.api.nvim_buf_set_lines(bufnr, start_line - 1, end_line, false, patched_new_lines)
     local current_winid = vim.api.nvim_get_current_win()
     vim.api.nvim_set_current_win(sidebar.code.winid)
     Diff.add_visited_buffer(bufnr)
     Diff.process(bufnr)
-    vim.api.nvim_win_set_cursor(sidebar.code.winid, { math.max(start_line - 1, 1), 0 })
+    vim.api.nvim_win_set_cursor(sidebar.code.winid, { math.max(start_line, 1), 0 })
     vim.cmd("normal! zz")
     vim.api.nvim_set_current_win(current_winid)
-    M.confirm("Are you sure you want to apply this modification?", function(ok)
+    local augroup = vim.api.nvim_create_augroup("avante_str_replace_editor", { clear = true })
+    local popup = M.confirm("Are you sure you want to apply this modification?", function(ok)
+      vim.api.nvim_del_augroup_by_id(augroup)
       vim.api.nvim_set_current_win(sidebar.code.winid)
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
+      vim.cmd("undo")
       if not ok then
-        vim.cmd("undo")
         vim.api.nvim_set_current_win(current_winid)
         on_complete(false, "User canceled")
         return
       end
-      vim.cmd("undo")
       vim.api.nvim_buf_set_lines(bufnr, start_line - 1, end_line, false, new_lines)
       vim.api.nvim_set_current_win(current_winid)
       on_complete(true, nil)
     end)
+    vim.api.nvim_create_autocmd({ "TextChangedI", "TextChanged" }, {
+      group = augroup,
+      buffer = bufnr,
+      callback = function()
+        local current_lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+        local current_lines_content = table.concat(current_lines, "\n")
+        if current_lines_content:find(patch_end_line) then return end
+        vim.api.nvim_del_augroup_by_id(augroup)
+        if popup then popup:unmount() end
+        if lines_content == current_lines_content then
+          on_complete(false, "User canceled")
+          return
+        end
+        on_complete(true, nil)
+      end,
+    })
     return
   end
   if opts.command == "create" then
