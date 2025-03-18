@@ -239,20 +239,41 @@ function M.str_replace_editor(opts, on_log, on_complete)
       on_complete(false, "Failed to find the old string: " .. opts.old_str)
       return
     end
-    local patched_new_lines = { "<<<<<<< HEAD" }
-    vim.list_extend(patched_new_lines, old_lines)
-    table.insert(patched_new_lines, "=======")
-    vim.list_extend(patched_new_lines, new_lines)
-    local patch_end_line = ">>>>>>> new "
+    ---@diagnostic disable-next-line: assign-type-mismatch, missing-fields
+    local patch = vim.diff(opts.old_str, opts.new_str, { ---@type integer[][]
+      algorithm = "histogram",
+      result_type = "indices",
+      ctxlen = vim.o.scrolloff,
+    })
+    local patch_start_line_content = "<<<<<<< HEAD"
+    local patch_end_line_content = ">>>>>>> new "
     --- add random characters to the end of the line to avoid conflicts
-    patch_end_line = patch_end_line .. Utils.random_string(10)
-    table.insert(patched_new_lines, patch_end_line)
+    patch_end_line_content = patch_end_line_content .. Utils.random_string(10)
+    local current_start_a = 1
+    local patched_new_lines = {}
+    for _, hunk in ipairs(patch) do
+      local start_a, count_a, start_b, count_b = unpack(hunk)
+      if current_start_a < start_a then
+        vim.list_extend(patched_new_lines, vim.list_slice(old_lines, current_start_a, start_a - 1))
+      end
+      table.insert(patched_new_lines, patch_start_line_content)
+      vim.list_extend(patched_new_lines, vim.list_slice(old_lines, start_a, start_a + count_a - 1))
+      table.insert(patched_new_lines, "=======")
+      vim.list_extend(patched_new_lines, vim.list_slice(new_lines, start_b, start_b + count_b - 1))
+      table.insert(patched_new_lines, patch_end_line_content)
+      current_start_a = start_a + count_a
+    end
+    if current_start_a <= #old_lines then
+      vim.list_extend(patched_new_lines, vim.list_slice(old_lines, current_start_a, #old_lines))
+    end
     vim.api.nvim_buf_set_lines(bufnr, start_line - 1, end_line, false, patched_new_lines)
     local current_winid = vim.api.nvim_get_current_win()
     vim.api.nvim_set_current_win(sidebar.code.winid)
     Diff.add_visited_buffer(bufnr)
     Diff.process(bufnr)
-    vim.api.nvim_win_set_cursor(sidebar.code.winid, { math.max(start_line, 1), 0 })
+    if #patch > 0 then
+      vim.api.nvim_win_set_cursor(sidebar.code.winid, { math.max(patch[1][1] + start_line - 1, 1), 0 })
+    end
     vim.cmd("normal! zz")
     vim.api.nvim_set_current_win(current_winid)
     local augroup = vim.api.nvim_create_augroup("avante_str_replace_editor", { clear = true })
@@ -276,7 +297,7 @@ function M.str_replace_editor(opts, on_log, on_complete)
       callback = function()
         local current_lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
         local current_lines_content = table.concat(current_lines, "\n")
-        if current_lines_content:find(patch_end_line) then return end
+        if current_lines_content:find(patch_end_line_content) then return end
         vim.api.nvim_del_augroup_by_id(augroup)
         if popup then popup:unmount() end
         if lines_content == current_lines_content then
