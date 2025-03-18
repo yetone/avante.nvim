@@ -575,7 +575,8 @@ local function tree_sitter_markdown_parse_code_blocks(source)
     [[ (fenced_code_block
       (info_string
         (language) @language)?
-      (code_fence_content) @code) ]]
+      (block_continuation) @code_start
+      (fenced_code_block_delimiter) @code_end) ]]
   )
   local nodes = {}
   for _, node in code_block_query:iter_captures(root, source) do
@@ -597,7 +598,7 @@ local function extract_cursor_planning_code_snippets_map(response_content, curre
     if node:type() == "language" then
       lang = vim.treesitter.get_node_text(node, response_content)
       lang = vim.split(lang, ":")[1]
-    elseif node:type() == "code_fence_content" then
+    elseif node:type() == "block_continuation" then
       local start_line, _ = node:start()
       local end_line, _ = node:end_()
       local filepath, skip_next_line = obtain_filepath_from_codeblock(lines, start_line)
@@ -648,15 +649,15 @@ local function extract_code_snippets_map(response_content)
 
   -- use tree-sitter-markdown to parse all code blocks in response_content
   local lang = "text"
+  local start_line, end_line
+  local start_line_in_response_buf, end_line_in_response_buf
   local explanation_start_line = 0
   for _, node in ipairs(tree_sitter_markdown_parse_code_blocks(response_content)) do
-    local start_line_in_response_buf, _ = node:start()
-    local end_line_in_response_buf, _ = node:end_()
     if node:type() == "language" then
       lang = vim.treesitter.get_node_text(node, response_content)
-    elseif node:type() == "code_fence_content" and start_line_in_response_buf > 1 then
+    elseif node:type() == "block_continuation" and node:start() > 1 then
+      start_line_in_response_buf = node:start()
       local number_line = lines[start_line_in_response_buf - 1]
-      local start_line, end_line
 
       local _, start_line_str, end_line_str =
         number_line:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)")
@@ -676,11 +677,17 @@ local function extract_code_snippets_map(response_content)
           end
         end
       end
-
+    elseif
+      node:type() == "fenced_code_block_delimiter"
+      and start_line_in_response_buf ~= nil
+      and node:start() >= start_line_in_response_buf
+    then
+      end_line_in_response_buf, _ = node:start()
       if start_line ~= nil and end_line ~= nil then
         local filepath = lines[start_line_in_response_buf - 2]
         if filepath:match("^[Ff]ilepath:") then filepath = filepath:match("^[Ff]ilepath:%s*(.+)") end
-        local content = vim.treesitter.get_node_text(node, response_content)
+        local content =
+          table.concat(vim.list_slice(lines, start_line_in_response_buf + 1, end_line_in_response_buf), "\n")
         local explanation = ""
         if start_line_in_response_buf > explanation_start_line + 2 then
           explanation =
@@ -867,21 +874,21 @@ end
 local function parse_codeblocks(buf, current_filepath, current_filetype)
   local codeblocks = {}
   local lines = Utils.get_buf_lines(0, -1, buf)
-  local lang, valid
+  local lang, start_line, valid
   for _, node in ipairs(tree_sitter_markdown_parse_code_blocks(buf)) do
     if node:type() == "language" then
       lang = vim.treesitter.get_node_text(node, buf)
-    elseif node:type() == "code_fence_content" then
-      local start_line, _ = node:start()
-      local end_line, _ = node:end_()
+    elseif node:type() == "block_continuation" then
+      start_line, _ = node:start()
+    elseif node:type() == "fenced_code_block_delimiter" and start_line ~= nil and node:start() >= start_line then
+      local end_line, _ = node:start()
       if Config.behaviour.enable_cursor_planning_mode then
         local filepath = obtain_filepath_from_codeblock(lines, start_line)
         if not filepath and lang == current_filetype then filepath = current_filepath end
-        if filepath then valid = true end
+        valid = filepath ~= nil
       else
-        if lines[start_line - 1]:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)") then
-          valid = true
-        end
+        valid = lines[start_line - 1]:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)")
+          ~= nil
       end
       if valid then table.insert(codeblocks, { start_line = start_line, end_line = end_line + 1, lang = lang }) end
     end
@@ -2598,6 +2605,7 @@ function Sidebar:create_input_container(opts)
       if is_first_chunk then
         is_first_chunk = false
         self:update_content(content_prefix .. chunk, { scroll = scroll })
+        displayed_response = cur_displayed_response
         return
       end
       local suffix = get_display_content_suffix(transformed)

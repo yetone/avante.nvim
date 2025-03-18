@@ -36,7 +36,7 @@ function M:parse_curl_args(prompt_opts)
   local tools = {}
   if not disable_tools and prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
-      table.insert(tools, P.claude.transform_tool(tool))
+      table.insert(tools, P.claude:transform_tool(tool))
     end
   end
 

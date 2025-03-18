@@ -30,11 +30,12 @@ function M.confirm(message, callback)
     },
   })
 
-  local function focus_button()
+  local function focus_button(row)
+    row = row or 4
     if focus_index == 1 then
-      vim.api.nvim_win_set_cursor(popup.winid, { 4, yes_button_pos[1] })
+      vim.api.nvim_win_set_cursor(popup.winid, { row, yes_button_pos[1] })
     else
-      vim.api.nvim_win_set_cursor(popup.winid, { 4, no_button_pos[1] })
+      vim.api.nvim_win_set_cursor(popup.winid, { row, no_button_pos[1] })
     end
   end
 
@@ -42,17 +43,24 @@ function M.confirm(message, callback)
     local yes_style = (focus_index == 1) and BUTTON_FOCUS or BUTTON_NORMAL
     local no_style = (focus_index == 2) and BUTTON_FOCUS or BUTTON_NORMAL
 
-    vim.api.nvim_buf_set_lines(popup.bufnr, 0, -1, false, {
-      "",
-      "  " .. message,
-      "",
-      "                       " .. " Yes       No ",
-      "",
-    })
+    local button_line = string.rep(" ", 23) .. " Yes       No "
+    local button_line_num = 2 + #vim.split(message, "\n")
+    local replacement = vim
+      .iter({
+        "",
+        vim.tbl_map(function(line) return "  " .. line end, vim.split(message, "\n")),
+        "",
+        button_line,
+        "",
+      })
+      :flatten()
+      :totable()
 
-    vim.api.nvim_buf_add_highlight(popup.bufnr, 0, yes_style, 3, yes_button_pos[1], yes_button_pos[2])
-    vim.api.nvim_buf_add_highlight(popup.bufnr, 0, no_style, 3, no_button_pos[1], no_button_pos[2])
-    focus_button()
+    vim.api.nvim_buf_set_lines(popup.bufnr, 0, -1, false, replacement)
+
+    vim.api.nvim_buf_add_highlight(popup.bufnr, 0, yes_style, button_line_num, yes_button_pos[1], yes_button_pos[2])
+    vim.api.nvim_buf_add_highlight(popup.bufnr, 0, no_style, button_line_num, no_button_pos[1], no_button_pos[2])
+    focus_button(button_line_num + 1)
   end
 
   local function select_button()
