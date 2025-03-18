@@ -1,6 +1,5 @@
 local Popup = require("nui.popup")
 local NuiText = require("nui.text")
-local event = require("nui.utils.autocmd").event
 local Highlights = require("avante.highlights")
 local Utils = require("avante.utils")
 
@@ -9,7 +8,7 @@ local M = {}
 ---@param message string
 ---@param callback fun(yes: boolean)
 ---@param opts { container_winid: number }
----@return nil
+---@return NuiPopup
 function M.confirm(message, callback, opts)
   local focus_index = 2 -- 1 = Yes, 2 = No
   local yes_button_pos = { 23, 28 }
@@ -162,6 +161,7 @@ function M.confirm(message, callback, opts)
 
   popup:mount()
   render_buttons()
+  return popup
 end
 
 return M
