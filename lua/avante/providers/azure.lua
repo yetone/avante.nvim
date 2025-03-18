@@ -32,8 +32,7 @@ function M:parse_curl_args(prompt_opts)
     end
   end
 
-  -- NOTE: When using reasoning models set supported parameters
-  self.set_reasoning_params(provider_conf, request_body)
+  self.set_allowed_params(provider_conf, request_body)
 
   return {
     url = Utils.url_join(
