@@ -1,6 +1,6 @@
 local Config = require("avante.config")
 local Utils = require("avante.utils")
-local PromptInput = require("avante.prompt_input")
+local PromptInput = require("avante.ui.prompt_input")
 
 ---@class avante.ApiToggle
 ---@operator call(): boolean

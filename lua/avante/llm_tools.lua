@@ -21,16 +21,18 @@ end
 
 ---@param message string
 ---@param callback fun(yes: boolean)
----@return NuiPopup | nil
+---@return avante.ui.Confirm | nil
 function M.confirm(message, callback)
-  local UI = require("avante.ui")
+  local Confirm = require("avante.ui.confirm")
   local sidebar = require("avante").get()
   if not sidebar or not sidebar.input_container or not sidebar.input_container.winid then
     Utils.error("Avante sidebar not found", { title = "Avante" })
     callback(false)
     return
   end
-  return UI.confirm(message, callback, { container_winid = sidebar.input_container.winid })
+  local confirm = Confirm:new(message, callback, { container_winid = sidebar.input_container.winid })
+  confirm:open()
+  return confirm
 end
 
 ---@param abs_path string
@@ -277,7 +279,7 @@ function M.str_replace_editor(opts, on_log, on_complete)
     vim.cmd("normal! zz")
     vim.api.nvim_set_current_win(current_winid)
     local augroup = vim.api.nvim_create_augroup("avante_str_replace_editor", { clear = true })
-    local popup = M.confirm("Are you sure you want to apply this modification?", function(ok)
+    local confirm = M.confirm("Are you sure you want to apply this modification?", function(ok)
       vim.api.nvim_del_augroup_by_id(augroup)
       vim.api.nvim_set_current_win(sidebar.code.winid)
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
@@ -299,7 +301,7 @@ function M.str_replace_editor(opts, on_log, on_complete)
         local current_lines_content = table.concat(current_lines, "\n")
         if current_lines_content:find(patch_end_line_content) then return end
         vim.api.nvim_del_augroup_by_id(augroup)
-        if popup then popup:unmount() end
+        if confirm then confirm:close() end
         if lines_content == current_lines_content then
           on_complete(false, "User canceled")
           return
