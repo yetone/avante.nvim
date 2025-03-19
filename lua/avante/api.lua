@@ -144,9 +144,10 @@ function M.ask(opts)
       close_on_submit = true,
       win_opts = {
         border = Config.windows.ask.border,
-        title = { { "ask", "FloatTitle" } },
+        title = { { "Avante Ask", "FloatTitle" } },
       },
       start_insert = Config.windows.ask.start_insert,
+      default_value = opts.question,
     })
     prompt_input:open()
     return true
