@@ -3,13 +3,31 @@ local NuiText = require("nui.text")
 local Highlights = require("avante.highlights")
 local Utils = require("avante.utils")
 
+---@class avante.ui.Confirm
+---@field message string
+---@field callback fun(yes: boolean)
+---@field opts { container_winid: number }
+---@field _popup NuiPopup | nil
 local M = {}
+M.__index = M
 
 ---@param message string
 ---@param callback fun(yes: boolean)
 ---@param opts { container_winid: number }
----@return NuiPopup
-function M.confirm(message, callback, opts)
+---@return avante.ui.Confirm
+function M:new(message, callback, opts)
+  local this = setmetatable({}, M)
+  this.message = message
+  this.callback = callback
+  this.opts = opts
+  return this
+end
+
+function M:open()
+  local message = self.message
+  local callback = self.callback
+  local opts = self.opts
+
   local focus_index = 2 -- 1 = Yes, 2 = No
   local yes_button_pos = { 23, 28 }
   local no_button_pos = { 33, 37 }
@@ -161,7 +179,16 @@ function M.confirm(message, callback, opts)
 
   popup:mount()
   render_buttons()
-  return popup
+  self._popup = popup
+end
+
+function M:close()
+  if self._popup then
+    self._popup:unmount()
+    self._popup = nil
+    return true
+  end
+  return false
 end
 
 return M

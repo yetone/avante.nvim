@@ -3,7 +3,7 @@ local fn = vim.fn
 local Config = require("avante.config")
 local Utils = require("avante.utils")
 
----@class PromptInput
+---@class avante.ui.PromptInput
 ---@field bufnr integer | nil
 ---@field winid integer | nil
 ---@field win_opts table
@@ -21,7 +21,7 @@ local Utils = require("avante.utils")
 local PromptInput = {}
 PromptInput.__index = PromptInput
 
----@class PromptInputOptions
+---@class avante.ui.PromptInputOptions
 ---@field start_insert? boolean
 ---@field submit_callback? fun(input: string):nil
 ---@field cancel_callback? fun():nil
@@ -29,7 +29,7 @@ PromptInput.__index = PromptInput
 ---@field win_opts? table
 ---@field default_value? string
 
----@param opts? PromptInputOptions
+---@param opts? avante.ui.PromptInputOptions
 function PromptInput:new(opts)
   opts = opts or {}
   local obj = setmetatable({}, PromptInput)
