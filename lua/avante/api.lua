@@ -101,7 +101,6 @@ end
 ---@field floating? boolean whether to open a floating input to enter the question
 ---@field new_chat? boolean whether to open a new chat
 ---@field without_selection? boolean whether to open a new chat without selection
----@field no_split? boolean whether to open a new chat without split side bar
 
 ---@param opts? AskOptions
 function M.ask(opts)
