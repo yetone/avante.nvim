@@ -2506,32 +2506,6 @@ function Sidebar:create_input_container(opts)
       return
     end
 
-    local model = Config.has_provider(Config.provider) and Config.get_provider_config(Config.provider).model
-      or "default"
-
-    local timestamp = get_timestamp()
-
-    local selected_filepaths = self.file_selector:get_selected_filepaths()
-
-    ---@type AvanteSelectedCode | nil
-    local selected_code = nil
-    if self.code.selection ~= nil then
-      selected_code = {
-        path = self.code.selection.filepath,
-        file_type = self.code.selection.filetype,
-        content = self.code.selection.content,
-      }
-    end
-
-    local content_prefix =
-      render_chat_record_prefix(timestamp, Config.provider, model, request, selected_filepaths, selected_code)
-
-    --- HACK: we need to set focus to true and scroll to false to
-    --- prevent the cursor from jumping to the bottom of the
-    --- buffer at the beginning
-    self:update_content("", { focus = true, scroll = false })
-    self:update_content(content_prefix .. generating_text)
-
     if request:sub(1, 1) == "/" then
       local command, args = request:match("^/(%S+)%s*(.*)")
       if command == nil then
@@ -2558,6 +2532,32 @@ function Sidebar:create_input_container(opts)
         return
       end
     end
+
+    local model = Config.has_provider(Config.provider) and Config.get_provider_config(Config.provider).model
+      or "default"
+
+    local timestamp = get_timestamp()
+
+    local selected_filepaths = self.file_selector:get_selected_filepaths()
+
+    ---@type AvanteSelectedCode | nil
+    local selected_code = nil
+    if self.code.selection ~= nil then
+      selected_code = {
+        path = self.code.selection.filepath,
+        file_type = self.code.selection.filetype,
+        content = self.code.selection.content,
+      }
+    end
+
+    local content_prefix =
+      render_chat_record_prefix(timestamp, Config.provider, model, request, selected_filepaths, selected_code)
+
+    --- HACK: we need to set focus to true and scroll to false to
+    --- prevent the cursor from jumping to the bottom of the
+    --- buffer at the beginning
+    self:update_content("", { focus = true, scroll = false })
+    self:update_content(content_prefix .. generating_text)
 
     local original_response = ""
     local transformed_response = ""
