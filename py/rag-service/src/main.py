@@ -55,9 +55,9 @@ from markdownify import markdownify as md
 from models.indexing_history import IndexingHistory  # noqa: TC002
 from models.resource import Resource
 from pydantic import BaseModel, Field
-from tree_sitter_language_pack import SupportedLanguage, get_parser
 from services.indexing_history import indexing_history_service
 from services.resource import resource_service
+from tree_sitter_language_pack import SupportedLanguage, get_parser
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
