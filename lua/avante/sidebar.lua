@@ -140,11 +140,17 @@ end
 function Sidebar:close(opts)
   opts = vim.tbl_extend("force", { goto_code_win = true }, opts or {})
   self:delete_autocmds()
+
+  if opts.goto_code_win and self.code then
+    if self.code.winid and api.nvim_win_is_valid(self.code.winid) then
+      fn.win_gotoid(self.code.winid)
+    else
+      vim.cmd("vert sb" .. self.code.bufnr)
+    end
+  end
+
   for _, comp in pairs(self) do
     if comp and type(comp) == "table" and comp.unmount then comp:unmount() end
-  end
-  if opts.goto_code_win and self.code and self.code.winid and api.nvim_win_is_valid(self.code.winid) then
-    fn.win_gotoid(self.code.winid)
   end
 
   vim.cmd("wincmd =")
@@ -2994,8 +3000,6 @@ function Sidebar:create_input_container(opts)
       if ev.data and ev.data.request then handle_submit(ev.data.request) end
     end,
   })
-
-  self:refresh_winids()
 end
 
 function Sidebar:get_selected_code_size()
@@ -3040,11 +3044,13 @@ function Sidebar:get_result_container_width()
 end
 
 function Sidebar:adjust_result_container_layout()
-  local width = self:get_result_container_width()
-  local height = self:get_result_container_height()
+  if self.code.winid ~= nil and api.nvim_win_is_valid(self.code.winid) then
+    local width = self:get_result_container_width()
+    local height = self:get_result_container_height()
 
-  api.nvim_win_set_width(self.result_container.winid, width)
-  api.nvim_win_set_height(self.result_container.winid, height)
+    api.nvim_win_set_width(self.result_container.winid, width)
+    api.nvim_win_set_height(self.result_container.winid, height)
+  end
 end
 
 ---@param opts AskOptions
@@ -3089,18 +3095,26 @@ function Sidebar:render(opts)
 
   self:update_content_with_history()
 
-  -- reset states when buffer is closed
-  api.nvim_buf_attach(self.code.bufnr, false, {
-    on_detach = function(_, _)
-      vim.schedule(function()
-        local bufnr = api.nvim_win_get_buf(self.code.winid)
-        self.code.bufnr = bufnr
-        self:reload_chat_history()
-      end)
-    end,
-  })
+  if opts.no_split == true then
+    vim.cmd(fn.win_getid(self.code.winid) .. "wincmd q")
+    self.code.winid = nil
+    fn.win_gotoid(self.input_container.winid)
+  else
+    -- reset states when buffer is closed
+    api.nvim_buf_attach(self.code.bufnr, false, {
+      on_detach = function(_, _)
+        vim.schedule(function()
+          local bufnr = api.nvim_win_get_buf(self.code.winid)
+          self.code.bufnr = bufnr
+          self:reload_chat_history()
+        end)
+      end,
+    })
+  end
 
   self:create_selected_code_container()
+
+  self:refresh_winids()
 
   self:on_mount(opts)
 
