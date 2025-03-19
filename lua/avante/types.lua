@@ -389,6 +389,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field timestamp string
 ---@field entries avante.ChatHistoryEntry[]
 ---@field memory avante.ChatMemory | nil
+---@field filename string
 ---
 ---@class avante.ChatMemory
 ---@field content string
