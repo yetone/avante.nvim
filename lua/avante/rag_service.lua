@@ -8,7 +8,7 @@ local M = {}
 local container_name = "avante-rag-service"
 local service_path = "/tmp/" .. container_name
 
-function M.get_rag_service_image() return "quay.io/yetoneful/avante-rag-service:0.0.8" end
+function M.get_rag_service_image() return "quay.io/yetoneful/avante-rag-service:0.0.9" end
 
 function M.get_rag_service_port() return 20250 end
 
@@ -74,8 +74,7 @@ function M.launch_rag_service(cb)
       M.stop_rag_service()
     end
     local cmd_ = string.format(
-      "docker run -d -p %d:8000 --name %s -v %s:/data -v %s:/host:ro -e ALLOW_RESET=TRUE -e DATA_DIR=/data -e RAG_PROVIDER=%s -e %s_API_KEY=%s -e %s_API_BASE=%s -e RAG_LLM_MODEL=%s -e RAG_EMBED_MODEL=%s %s %s",
-      port,
+      "docker run -d --network=host --name %s -v %s:/data -v %s:/host:ro -e ALLOW_RESET=TRUE -e DATA_DIR=/data -e RAG_PROVIDER=%s -e %s_API_KEY=%s -e %s_API_BASE=%s -e RAG_LLM_MODEL=%s -e RAG_EMBED_MODEL=%s %s %s",
       container_name,
       data_path,
       Config.rag_service.host_mount,
