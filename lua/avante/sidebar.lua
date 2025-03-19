@@ -1991,7 +1991,7 @@ function Sidebar:update_content(content, opts)
   opts = vim.tbl_deep_extend("force", { focus = false, scroll = true, stream = false, callback = nil }, opts or {})
   if not opts.ignore_history then
     local chat_history = Path.history.load(self.code.bufnr)
-    content = self:render_history_content(chat_history) .. "-------\n\n" .. content
+    content = self.render_history_content(chat_history) .. "-------\n\n" .. content
   end
   if opts.stream then
     local function scroll_to_bottom()
@@ -2114,7 +2114,7 @@ end
 
 ---@param history avante.ChatHistory
 ---@return string
-function Sidebar:render_history_content(history)
+function Sidebar.render_history_content(history)
   local content = ""
   for idx, entry in ipairs(history.entries) do
     if entry.visible == false then goto continue end
@@ -2143,8 +2143,9 @@ function Sidebar:render_history_content(history)
   return content
 end
 
-function Sidebar:update_content_with_history(history)
-  local content = self:render_history_content(history)
+function Sidebar:update_content_with_history()
+  self:reload_chat_history()
+  local content = self.render_history_content(self.chat_history)
   self:update_content(content, { ignore_history = true })
 end
 
@@ -2202,7 +2203,8 @@ function Sidebar:clear_history(args, cb)
 end
 
 function Sidebar:new_chat(args, cb)
-  Path.history.new(self.code.bufnr)
+  local history = Path.history.new(self.code.bufnr)
+  Path.history.save(self.code.bufnr, history)
   self:reload_chat_history()
   self:update_content(
     "New chat",
@@ -2228,7 +2230,14 @@ function Sidebar:add_chat_history(message, options)
     reset_memory = false,
     visible = options.visible,
   })
-  Path.history.save(self.code.bufnr, self.chat_history)
+  if self.chat_history.title == "untitled" then
+    Llm.summarize_chat_thread_title(message.content, function(title)
+      if title then self.chat_history.title = title end
+      Path.history.save(self.code.bufnr, self.chat_history)
+    end)
+  else
+    Path.history.save(self.code.bufnr, self.chat_history)
+  end
 end
 
 function Sidebar:reset_memory(args, cb)
@@ -2247,7 +2256,7 @@ function Sidebar:reset_memory(args, cb)
     })
     Path.history.save(self.code.bufnr, chat_history)
     self:reload_chat_history()
-    local history_content = self:render_history_content(chat_history)
+    local history_content = self.render_history_content(chat_history)
     self:update_content(history_content, {
       focus = false,
       scroll = true,
@@ -2691,7 +2700,14 @@ function Sidebar:create_input_container(opts)
         selected_code = selected_code,
         tool_histories = stop_opts.tool_histories,
       })
-      Path.history.save(self.code.bufnr, self.chat_history)
+      if self.chat_history.title == "untitled" then
+        Llm.summarize_chat_thread_title(request, function(title)
+          if title then self.chat_history.title = title end
+          Path.history.save(self.code.bufnr, self.chat_history)
+        end)
+      else
+        Path.history.save(self.code.bufnr, self.chat_history)
+      end
     end
 
     get_generate_prompts_options(request, true, function(generate_prompts_options)
@@ -3033,8 +3049,6 @@ end
 
 ---@param opts AskOptions
 function Sidebar:render(opts)
-  local chat_history = Path.history.load(self.code.bufnr)
-
   local function get_position()
     return (opts and opts.win and opts.win.position) and opts.win.position or calculate_config_window_position()
   end
@@ -3073,7 +3087,7 @@ function Sidebar:render(opts)
 
   self:create_selected_files_container()
 
-  self:update_content_with_history(chat_history)
+  self:update_content_with_history()
 
   -- reset states when buffer is closed
   api.nvim_buf_attach(self.code.bufnr, false, {

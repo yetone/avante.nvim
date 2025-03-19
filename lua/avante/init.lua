@@ -137,6 +137,12 @@ function H.keymaps()
       function() require("avante.api").select_model() end,
       { desc = "avante: select model" }
     )
+    Utils.safe_keymap_set(
+      "n",
+      Config.mappings.select_history,
+      function() require("avante.api").select_history() end,
+      { desc = "avante: select history" }
+    )
   end
 
   if Config.behaviour.auto_suggestions then

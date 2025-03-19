@@ -223,6 +223,20 @@ end
 
 function M.select_model() require("avante.model_selector").open() end
 
+function M.select_history()
+  require("avante.history_selector").open(vim.api.nvim_get_current_buf(), function(filename)
+    local Path = require("avante.path")
+    Path.history.save_latest_filename(vim.api.nvim_get_current_buf(), filename)
+    local sidebar = require("avante").get()
+    if not sidebar then
+      require("avante.api").ask()
+      sidebar = require("avante").get()
+    end
+    sidebar:update_content_with_history()
+    if not sidebar:is_open() then sidebar:open({}) end
+  end)
+end
+
 return setmetatable(M, {
   __index = function(t, k)
     local module = require("avante")

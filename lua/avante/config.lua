@@ -412,6 +412,7 @@ M._defaults = {
       add_current = "<leader>ac", -- Add current buffer to selected files
     },
     select_model = "<leader>a?", -- Select model command
+    select_history = "<leader>ah", -- Select history command
   },
   windows = {
     ---@alias AvantePosition "right" | "left" | "top" | "bottom" | "smart"
