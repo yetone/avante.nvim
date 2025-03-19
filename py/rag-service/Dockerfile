@@ -15,11 +15,8 @@ RUN uv venv
 RUN uv pip install -r requirements.txt
 
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PORT=8000
-
-EXPOSE ${PORT}
+    PYTHONDONTWRITEBYTECODE=1
 
 COPY . .
 
-CMD ["uv", "run", "fastapi", "run", "src/main.py", "--workers", "3"]
+CMD ["uv", "run", "fastapi", "run", "src/main.py", "--workers", "3", "--port", "20250"]
