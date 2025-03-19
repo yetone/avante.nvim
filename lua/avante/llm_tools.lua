@@ -179,8 +179,8 @@ function M.read_file(opts, on_log)
   if on_log then on_log("path: " .. abs_path) end
   local file = io.open(abs_path, "r")
   if not file then return "", "file not found: " .. abs_path end
-  local content = file:read("*a")
-  file:close()
+  local lines = Utils.read_file_from_buf_or_disk(abs_path)
+  local content = lines and table.concat(lines, "\n") or ""
   return content, nil
 end
 
@@ -205,8 +205,8 @@ function M.str_replace_editor(opts, on_log, on_complete)
     if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
     local file = io.open(abs_path, "r")
     if not file then return false, "file not found: " .. abs_path end
-    local content = file:read("*a")
-    file:close()
+    local lines = Utils.read_file_from_buf_or_disk(abs_path)
+    local content = lines and table.concat(lines, "\n") or ""
     on_complete(content, nil)
     return
   end
