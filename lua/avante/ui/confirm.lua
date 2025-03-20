@@ -253,6 +253,11 @@ end
 
 function M:unbind_window_focus_keymaps() vim.keymap.del({ "n", "i" }, "<C-w>f") end
 
+function M:cancel()
+  self.callback(false)
+  return self:close()
+end
+
 function M:close()
   self:unbind_window_focus_keymaps()
   if self._group then

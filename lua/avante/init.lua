@@ -96,6 +96,12 @@ function H.keymaps()
     )
     Utils.safe_keymap_set(
       "n",
+      Config.mappings.stop,
+      function() require("avante.api").stop() end,
+      { desc = "avante: stop" }
+    )
+    Utils.safe_keymap_set(
+      "n",
       Config.mappings.refresh,
       function() require("avante.api").refresh() end,
       { desc = "avante: refresh" }
