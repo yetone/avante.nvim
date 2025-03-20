@@ -594,13 +594,15 @@ local function extract_cursor_planning_code_snippets_map(response_content, curre
 
   -- use tree-sitter-markdown to parse all code blocks in response_content
   local lang = "unknown"
+  local start_line
   for _, node in ipairs(tree_sitter_markdown_parse_code_blocks(response_content)) do
     if node:type() == "language" then
       lang = vim.treesitter.get_node_text(node, response_content)
       lang = vim.split(lang, ":")[1]
     elseif node:type() == "block_continuation" then
-      local start_line, _ = node:start()
-      local end_line, _ = node:end_()
+      start_line, _ = node:start()
+    elseif node:type() == "fenced_code_block_delimiter" and start_line ~= nil and node:start() >= start_line then
+      local end_line, _ = node:start()
       local filepath, skip_next_line = obtain_filepath_from_codeblock(lines, start_line)
       if filepath == nil or filepath == "" then
         if lang == current_filetype then
