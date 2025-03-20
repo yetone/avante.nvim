@@ -2233,13 +2233,12 @@ function Sidebar:add_chat_history(message, options)
     reset_memory = false,
     visible = options.visible,
   })
+  Path.history.save(self.code.bufnr, self.chat_history)
   if self.chat_history.title == "untitled" then
     Llm.summarize_chat_thread_title(message.content, function(title)
       if title then self.chat_history.title = title end
       Path.history.save(self.code.bufnr, self.chat_history)
     end)
-  else
-    Path.history.save(self.code.bufnr, self.chat_history)
   end
 end
 
