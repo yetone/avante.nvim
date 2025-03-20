@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# Set the target directory (use the first argument or default to a temporary directory)
+# Set the target directory (use the first argument or default to a local state directory)
 TARGET_DIR=$1
 if [ -z "$TARGET_DIR" ]; then
-  TARGET_DIR="/tmp/avante-rag-service"
+  TARGET_DIR="$HOME/.local/state/avante-rag-service"
 fi
 # Create the target directory if it doesn't exist
 mkdir -p "$TARGET_DIR"
