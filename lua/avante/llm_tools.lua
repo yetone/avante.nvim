@@ -21,8 +21,9 @@ end
 
 ---@param message string
 ---@param callback fun(yes: boolean)
+---@param opts? { focus?: boolean }
 ---@return avante.ui.Confirm | nil
-function M.confirm(message, callback)
+function M.confirm(message, callback, opts)
   local Confirm = require("avante.ui.confirm")
   local sidebar = require("avante").get()
   if not sidebar or not sidebar.input_container or not sidebar.input_container.winid then
@@ -30,7 +31,8 @@ function M.confirm(message, callback)
     callback(false)
     return
   end
-  local confirm = Confirm:new(message, callback, { container_winid = sidebar.input_container.winid })
+  local confirm_opts = vim.tbl_deep_extend("force", { container_winid = sidebar.input_container.winid }, opts or {})
+  local confirm = Confirm:new(message, callback, confirm_opts)
   confirm:open()
   return confirm
 end
@@ -292,7 +294,8 @@ function M.str_replace_editor(opts, on_log, on_complete)
       vim.api.nvim_buf_set_lines(bufnr, start_line - 1, end_line, false, new_lines)
       vim.api.nvim_set_current_win(current_winid)
       on_complete(true, nil)
-    end)
+    end, { focus = false })
+    vim.api.nvim_set_current_win(sidebar.code.winid)
     vim.api.nvim_create_autocmd({ "TextChangedI", "TextChanged" }, {
       group = augroup,
       buffer = bufnr,
@@ -302,6 +305,7 @@ function M.str_replace_editor(opts, on_log, on_complete)
         if current_lines_content:find(patch_end_line_content) then return end
         vim.api.nvim_del_augroup_by_id(augroup)
         if confirm then confirm:close() end
+        if vim.api.nvim_win_is_valid(current_winid) then vim.api.nvim_set_current_win(current_winid) end
         if lines_content == current_lines_content then
           on_complete(false, "User canceled")
           return
