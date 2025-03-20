@@ -359,9 +359,9 @@ else:
     if base_url == "":
         base_url = "https://api.openai.com/v1"
     if rag_embed_model == "":
-        rag_embed_model = OpenAIEmbeddingModelType.TEXT_EMBED_ADA_002
+        rag_embed_model = "text-embedding-3-small"
     if rag_llm_model == "":
-        rag_llm_model = "gpt-3.5-turbo"
+        rag_llm_model = "gpt-4o-mini"
     embed_model = OpenAIEmbedding(model=rag_embed_model, api_base=base_url)
     llm_model = OpenAI(model=rag_llm_model, api_base=base_url)
 
