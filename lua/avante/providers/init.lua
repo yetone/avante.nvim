@@ -150,7 +150,7 @@ M.env = E
 
 M = setmetatable(M, {
   ---@param t avante.Providers
-  ---@param k ProviderName
+  ---@param k avante.ProviderName
   __index = function(t, k)
     local provider_config = M.get_config(k)
 
@@ -226,7 +226,7 @@ function M.setup()
   end
 end
 
----@param provider_name ProviderName
+---@param provider_name avante.ProviderName
 function M.refresh(provider_name)
   require("avante.config").override({ provider = provider_name })
 
@@ -265,7 +265,7 @@ function M.parse_config(opts)
 end
 
 ---@private
----@param provider_name ProviderName
+---@param provider_name avante.ProviderName
 function M.get_config(provider_name)
   provider_name = provider_name or Config.provider
   local cur = Config.get_provider_config(provider_name)

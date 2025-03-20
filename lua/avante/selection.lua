@@ -3,7 +3,7 @@ local Config = require("avante.config")
 local Llm = require("avante.llm")
 local Provider = require("avante.providers")
 local RepoMap = require("avante.repo_map")
-local PromptInput = require("avante.prompt_input")
+local PromptInput = require("avante.ui.prompt_input")
 
 local api = vim.api
 local fn = vim.fn
@@ -19,7 +19,7 @@ local PRIORITY = vim.highlight.priorities.user
 ---@field selected_code_extmark_id integer | nil
 ---@field augroup integer | nil
 ---@field code_winid integer | nil
----@field prompt_input PromptInput | nil
+---@field prompt_input avante.ui.PromptInput | nil
 local Selection = {}
 Selection.__index = Selection
 

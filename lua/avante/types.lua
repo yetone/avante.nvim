@@ -216,6 +216,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field __inherited_from? string
 ---@field temperature? number
 ---@field max_tokens? number
+---@field max_completion_tokens? number
 ---@field reasoning_effort? string
 ---@field display_name? string
 ---
@@ -293,7 +294,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field parse_response AvanteResponseParser
 ---@field build_bedrock_payload AvanteBedrockPayloadBuilder
 ---
----@alias AvanteLlmMode "planning" | "editing" | "suggesting" | "cursor-planning" | "cursor-applying"
+---@alias AvanteLlmMode "planning" | "editing" | "suggesting" | "cursor-planning" | "cursor-applying" | "claude-text-editor-tool"
 ---
 ---@class AvanteSelectedCode
 ---@field path string
@@ -388,6 +389,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field timestamp string
 ---@field entries avante.ChatHistoryEntry[]
 ---@field memory avante.ChatMemory | nil
+---@field filename string
 ---
 ---@class avante.ChatMemory
 ---@field content string

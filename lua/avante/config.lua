@@ -19,7 +19,7 @@ local M = {}
 ---@class avante.Config
 M._defaults = {
   debug = false,
-  ---@alias ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | string
+  ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | string
   provider = "claude",
   -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
   -- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
@@ -43,6 +43,7 @@ M._defaults = {
     llm_model = "", -- The LLM model to use for RAG service
     embed_model = "", -- The embedding model to use for RAG service
     endpoint = "https://api.openai.com/v1", -- The API endpoint for RAG service
+    docker_extra_args = "", -- Extra arguments to pass to the docker command
   },
   web_search_engine = {
     provider = "tavily",
@@ -193,9 +194,10 @@ M._defaults = {
   openai = {
     endpoint = "https://api.openai.com/v1",
     model = "gpt-4o",
-    timeout = 30000, -- Timeout in milliseconds
+    timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
     temperature = 0,
-    max_tokens = 16384,
+    max_completion_tokens = 16384, -- Increase this to include reasoning tokens (for reasoning models)
+    reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
   },
   ---@type AvanteSupportedProvider
   copilot = {
@@ -211,10 +213,11 @@ M._defaults = {
   azure = {
     endpoint = "", -- example: "https://<your-resource-name>.openai.azure.com"
     deployment = "", -- Azure deployment name (e.g., "gpt-4o", "my-gpt-4o-deployment")
-    api_version = "2024-06-01",
-    timeout = 30000, -- Timeout in milliseconds
+    api_version = "2024-12-01-preview",
+    timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
     temperature = 0,
-    max_tokens = 20480,
+    max_completion_tokens = 20480, -- Increase this to include reasoning tokens (for reasoning models)
+    reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
   },
   ---@type AvanteSupportedProvider
   claude = {
@@ -337,6 +340,7 @@ M._defaults = {
     minimize_diff = true,
     enable_token_counting = true,
     enable_cursor_planning_mode = false,
+    enable_claude_text_editor_tool_mode = false,
     use_cwd_as_project_root = false,
   },
   history = {
@@ -408,6 +412,7 @@ M._defaults = {
       add_current = "<leader>ac", -- Add current buffer to selected files
     },
     select_model = "<leader>a?", -- Select model command
+    select_history = "<leader>ah", -- Select history command
   },
   windows = {
     ---@alias AvantePosition "right" | "left" | "top" | "bottom" | "smart"
@@ -473,7 +478,7 @@ M._defaults = {
 ---@diagnostic disable-next-line: missing-fields
 M._options = {}
 
----@type ProviderName[]
+---@type avante.ProviderName[]
 M.provider_names = {}
 
 ---@param opts? avante.Config
@@ -511,6 +516,14 @@ function M.setup(opts)
     vim.validate({ vendors = { M._options.vendors, "table", true } })
     M.provider_names = vim.list_extend(M.provider_names, vim.tbl_keys(M._options.vendors))
   end
+
+  if M._options.behaviour.enable_claude_text_editor_tool_mode and M._options.provider ~= "claude" then
+    Utils.warn(
+      "Claude text editor tool mode is only supported for claude provider! So it will be disabled!",
+      { title = "Avante" }
+    )
+    M._options.behaviour.enable_claude_text_editor_tool_mode = false
+  end
 end
 
 ---@param opts table<string, any>
@@ -538,12 +551,12 @@ function M.support_paste_image() return Utils.has("img-clip.nvim") or Utils.has(
 
 function M.get_window_width() return math.ceil(vim.o.columns * (M.windows.width / 100)) end
 
----@param provider_name ProviderName
+---@param provider_name avante.ProviderName
 ---@return boolean
 function M.has_provider(provider_name) return vim.list_contains(M.provider_names, provider_name) end
 
 ---get supported providers
----@param provider_name ProviderName
+---@param provider_name avante.ProviderName
 function M.get_provider_config(provider_name)
   if not M.has_provider(provider_name) then error("No provider found: " .. provider_name, 2) end
   if M._options[provider_name] ~= nil then

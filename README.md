@@ -57,7 +57,7 @@ For building binary if you wish to build from source, then `cargo` is required. 
 {
   "yetone/avante.nvim",
   event = "VeryLazy",
-  version = false, -- Set this to "*" to always pull the latest release version, or set it to false to update to the latest code changes.
+  version = false, -- Never set this value to "*"! Never!
   opts = {
     -- add any opts here
     -- for example
@@ -65,10 +65,10 @@ For building binary if you wish to build from source, then `cargo` is required. 
     openai = {
       endpoint = "https://api.openai.com/v1",
       model = "gpt-4o", -- your desired model (or use gpt-4o, etc.)
-      timeout = 30000, -- timeout in milliseconds
-      temperature = 0, -- adjust if needed
-      max_tokens = 4096,
-      -- reasoning_effort = "high" -- only supported for reasoning models (o1, etc.)
+      timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
+      temperature = 0,
+      max_completion_tokens = 8192, -- Increase this to include reasoning tokens (for reasoning models)
+      --reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
     },
   },
   -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
@@ -336,6 +336,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     minimize_diff = true, -- Whether to remove unchanged lines when applying a code block
     enable_token_counting = true, -- Whether to enable token counting. Default to true.
     enable_cursor_planning_mode = false, -- Whether to enable Cursor Planning Mode. Default to false.
+    enable_claude_text_editor_tool_mode = false, -- Whether to enable Claude Text Editor Tool Mode.
   },
   mappings = {
     --- @class AvanteConflictMappings
@@ -881,6 +882,22 @@ Avante allows you to define custom tools that can be used by the AI during code 
 ## MCP
 
 Now you can integrate MCP functionality for Avante through `mcphub.nvim`. For detailed documentation, please refer to [mcphub.nvim](https://github.com/ravitemer/mcphub.nvim#avante-integration)
+
+## Claude Text Editor Tool Mode
+
+Avante leverages [Claude Text Editor Tool](https://docs.anthropic.com/en/docs/build-with-claude/tool-use/text-editor-tool) to provide a more elegant code editing experience. You can now enable this feature by setting `enable_claude_text_editor_tool_mode` to `true` in the `behaviour` configuration:
+
+```lua
+{
+  behaviour = {
+    enable_claude_text_editor_tool_mode = true,
+  },
+}
+```
+
+> [!NOTE]
+> To enable **Claude Text Editor Tool Mode**, you must use the `claude-3-5-sonnet-*` or `claude-3-7-sonnet-*` model with the `claude` provider! This feature is not supported by any other models!
+
 
 ## Custom prompts
 

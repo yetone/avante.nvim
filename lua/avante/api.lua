@@ -1,6 +1,6 @@
 local Config = require("avante.config")
 local Utils = require("avante.utils")
-local PromptInput = require("avante.prompt_input")
+local PromptInput = require("avante.ui.prompt_input")
 
 ---@class avante.ApiToggle
 ---@operator call(): boolean
@@ -20,7 +20,7 @@ function M.switch_file_selector_provider(target_provider)
   })
 end
 
----@param target ProviderName
+---@param target avante.ProviderName
 function M.switch_provider(target) require("avante.providers").refresh(target) end
 
 ---@param path string
@@ -144,9 +144,10 @@ function M.ask(opts)
       close_on_submit = true,
       win_opts = {
         border = Config.windows.ask.border,
-        title = { { "ask", "FloatTitle" } },
+        title = { { "Avante Ask", "FloatTitle" } },
       },
       start_insert = Config.windows.ask.start_insert,
+      default_value = opts.question,
     })
     prompt_input:open()
     return true
@@ -221,6 +222,20 @@ function M.focus(opts)
 end
 
 function M.select_model() require("avante.model_selector").open() end
+
+function M.select_history()
+  require("avante.history_selector").open(vim.api.nvim_get_current_buf(), function(filename)
+    local Path = require("avante.path")
+    Path.history.save_latest_filename(vim.api.nvim_get_current_buf(), filename)
+    local sidebar = require("avante").get()
+    if not sidebar then
+      require("avante.api").ask()
+      sidebar = require("avante").get()
+    end
+    sidebar:update_content_with_history()
+    if not sidebar:is_open() then sidebar:open({}) end
+  end)
+end
 
 return setmetatable(M, {
   __index = function(t, k)
