@@ -12,6 +12,7 @@ in pkgs.mkShell {
     PYTHONUNBUFFERED = 1;
     PYTHONDONTWRITEBYTECODE = 1;
     LD_LIBRARY_PATH = "${pkgs.stdenv.cc.cc.lib}/lib:$LD_LIBRARY_PATH";
+    PORT = 20250;
   };
   shellHook = ''
 
