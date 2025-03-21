@@ -25,7 +25,11 @@ local Highlights = {
   BUTTON_PRIMARY_HOVER = { name = "AvanteButtonPrimaryHover", fg = "#1e222a", bg = "#56b6c2" },
   BUTTON_DANGER = { name = "AvanteButtonDanger", fg = "#1e222a", bg = "#ABB2BF" },
   BUTTON_DANGER_HOVER = { name = "AvanteButtonDangerHover", fg = "#1e222a", bg = "#e06c75" },
-  AVANTE_SIDEBAR_WIN_SEPARATOR = { name = "AvanteSidebarWinSeparator", link = "FloatBorder" },
+  AVANTE_SIDEBAR_WIN_SEPARATOR = {
+    name = "AvanteSidebarWinSeparator",
+    fg_link_bg = "NormalFloat",
+    bg_link = "NormalFloat",
+  },
   AVANTE_SIDEBAR_WIN_HORIZONTAL_SEPARATOR = {
     name = "AvanteSidebarWinHorizontalSeparator",
     fg_link = "WinSeparator",
