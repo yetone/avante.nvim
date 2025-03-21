@@ -549,12 +549,8 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 
 > [!IMPORTANT]
 >
-> Avante will only support Claude, and OpenAI (and its variants including azure)out-of-the-box due to its high code quality generation.
+> Avante will only support Claude, and OpenAI (and its variants including azure) out-of-the-box due to its high code quality generation.
 > For all OpenAI-compatible providers, see [wiki](https://github.com/yetone/avante.nvim/wiki/Custom-providers) for more details.
-
-> [!IMPORTANT]
->
-> ~~Due to the poor performance of other models, avante.nvim only recommends using the claude-3.5-sonnet model.~~ > ~~All features can only be guaranteed to work properly on the claude-3.5-sonnet model.~~ > ~~We do not accept changes to the code or prompts to accommodate other models. Otherwise, it will greatly increase our maintenance costs.~~ > ~~We hope everyone can understand. Thank you!~~
 
 > [!IMPORTANT]
 >
