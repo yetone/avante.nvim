@@ -1021,9 +1021,10 @@ function Sidebar:edit_user_request()
   if not block then return end
 
   if self.input_container and self.input_container.bufnr and api.nvim_buf_is_valid(self.input_container.bufnr) then
-    api.nvim_buf_set_lines(self.input_container.bufnr, 0, -1, false, vim.split(block.content, "\n"))
+    local lines = vim.split(block.content, "\n")
+    api.nvim_buf_set_lines(self.input_container.bufnr, 0, -1, false, lines)
     api.nvim_set_current_win(self.input_container.winid)
-    api.nvim_win_set_cursor(self.input_container.winid, { 1, 0 })
+    api.nvim_win_set_cursor(self.input_container.winid, { 1, #lines > 0 and #lines[1] or 0 })
   end
 end
 
@@ -1890,7 +1891,7 @@ function Sidebar:on_mount(opts)
           vim.defer_fn(function()
             if Config.windows.ask.start_insert then
               Utils.debug("starting insert")
-              vim.cmd("startinsert")
+              vim.cmd("startinsert!")
             end
           end, 300)
         end
@@ -3030,7 +3031,7 @@ function Sidebar:create_input_container(opts)
     group = self.augroup,
     buffer = self.input_container.bufnr,
     callback = function()
-      if Config.windows.ask.start_insert then vim.cmd("startinsert") end
+      if Config.windows.ask.start_insert then vim.cmd("startinsert!") end
     end,
   })
 
