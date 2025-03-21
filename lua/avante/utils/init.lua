@@ -1181,4 +1181,27 @@ function M.random_string(length)
   return table.concat(result)
 end
 
+function M.is_left_adjacent(win_a, win_b)
+  if not vim.api.nvim_win_is_valid(win_a) or not vim.api.nvim_win_is_valid(win_b) then return false end
+
+  local _, col_a = unpack(vim.fn.win_screenpos(win_a))
+  local _, col_b = unpack(vim.fn.win_screenpos(win_b))
+  local width_a = vim.api.nvim_win_get_width(win_a)
+
+  local right_edge_a = col_a + width_a
+
+  return right_edge_a + 1 == col_b
+end
+
+function M.is_top_adjacent(win_a, win_b)
+  local row_a, _ = unpack(vim.fn.win_screenpos(win_a))
+  local row_b, _ = unpack(vim.fn.win_screenpos(win_b))
+  local height_a = vim.api.nvim_win_get_height(win_a)
+  return row_a + height_a + 1 == row_b
+end
+
+function M.should_hidden_border(win_a, win_b)
+  return M.is_left_adjacent(win_a, win_b) or M.is_top_adjacent(win_a, win_b)
+end
+
 return M
