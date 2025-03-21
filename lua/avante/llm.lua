@@ -385,10 +385,13 @@ function M.curl(opts)
           )
         end
       end
+
       active_job = nil
-      completed = true
-      cleanup()
-      handler_opts.on_stop({ reason = "error", error = err })
+      if not completed then
+        completed = true
+        cleanup()
+        handler_opts.on_stop({ reason = "error", error = err })
+      end
     end,
     callback = function(result)
       active_job = nil
@@ -452,9 +455,21 @@ function M.curl(opts)
     callback = function()
       -- Error: cannot resume dead coroutine
       if active_job then
-        xpcall(function() active_job:shutdown() end, function(err) return err end)
+        -- Mark as completed first to prevent error handler from running
+        completed = true
+
+        -- Attempt to shutdown the active job, but ignore any errors
+        xpcall(function() active_job:shutdown() end, function(err)
+          Utils.debug("Ignored error during job shutdown: " .. vim.inspect(err))
+          return err
+        end)
+
         Utils.debug("LLM request cancelled")
         active_job = nil
+
+        -- Clean up and notify of cancellation
+        cleanup()
+        vim.schedule(function() handler_opts.on_stop({ reason = "cancelled" }) end)
       end
     end,
   })
@@ -464,6 +479,9 @@ end
 
 ---@param opts AvanteLLMStreamOptions
 function M._stream(opts)
+  -- Reset the cancellation flag at the start of a new request
+  if LLMTools then LLMTools.is_cancelled = false end
+
   local provider = opts.provider or Providers[Config.provider]
 
   ---@cast provider AvanteProviderFunctor
@@ -500,6 +518,13 @@ function M._stream(opts)
         ---@param result string | nil
         ---@param error string | nil
         local function handle_tool_result(result, error)
+          -- Special handling for cancellation signal from tools
+          if error == LLMTools.CANCEL_TOKEN then
+            Utils.debug("Tool execution was cancelled by user")
+            opts.on_chunk("\n*[Request cancelled by user during tool execution.]*\n")
+            return opts.on_stop({ reason = "cancelled", tool_histories = tool_histories })
+          end
+
           local tool_result = {
             tool_use_id = tool_use.id,
             content = error ~= nil and error or result,
@@ -511,6 +536,10 @@ function M._stream(opts)
         -- Either on_complete handles the tool result asynchronously or we receive the result and error synchronously when either is not nil
         local result, error = LLMTools.process_tool_use(opts.tools, tool_use, opts.on_tool_log, handle_tool_result)
         if result ~= nil or error ~= nil then return handle_tool_result(result, error) end
+      end
+      if stop_opts.reason == "cancelled" then
+        opts.on_chunk("\n*[Request cancelled by user.]*\n")
+        return opts.on_stop({ reason = "cancelled", tool_histories = opts.tool_histories })
       end
       if stop_opts.reason == "tool_use" and stop_opts.tool_use_list then
         local old_tool_histories = vim.deepcopy(opts.tool_histories) or {}
@@ -667,7 +696,9 @@ function M.stream(opts)
     local original_on_stop = opts.on_stop
     opts.on_stop = vim.schedule_wrap(function(stop_opts)
       if is_completed then return end
-      if stop_opts.reason == "complete" or stop_opts.reason == "error" then is_completed = true end
+      if stop_opts.reason == "complete" or stop_opts.reason == "error" or stop_opts.reason == "cancelled" then
+        is_completed = true
+      end
       return original_on_stop(stop_opts)
     end)
   end
@@ -690,6 +721,14 @@ function M.stream(opts)
   end
 end
 
-function M.cancel_inflight_request() api.nvim_exec_autocmds("User", { pattern = M.CANCEL_PATTERN }) end
+function M.cancel_inflight_request()
+  if LLMTools.is_cancelled ~= nil then LLMTools.is_cancelled = true end
+  if LLMTools.confirm_popup ~= nil then
+    LLMTools.confirm_popup:cancel()
+    LLMTools.confirm_popup = nil
+  end
+
+  api.nvim_exec_autocmds("User", { pattern = M.CANCEL_PATTERN })
+end
 
 return M

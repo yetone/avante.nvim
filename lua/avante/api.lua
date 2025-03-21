@@ -237,6 +237,8 @@ function M.select_history()
   end)
 end
 
+function M.stop() require("avante.llm").cancel_inflight_request() end
+
 return setmetatable(M, {
   __index = function(t, k)
     local module = require("avante")

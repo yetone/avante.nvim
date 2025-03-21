@@ -611,6 +611,7 @@ The following key bindings are available for use with `avante.nvim`:
 | <kbd>Leader</kbd><kbd>a</kbd><kbd>f</kbd> | switch sidebar focus                         |
 | <kbd>Leader</kbd><kbd>a</kbd><kbd>?</kbd> | select model                                 |
 | <kbd>Leader</kbd><kbd>a</kbd><kbd>e</kbd> | edit selected blocks                         |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>S</kbd> | stop current AI request                      |
 | <kbd>c</kbd><kbd>o</kbd>                  | choose ours                                  |
 | <kbd>c</kbd><kbd>t</kbd>                  | choose theirs                                |
 | <kbd>c</kbd><kbd>a</kbd>                  | choose all theirs                            |
@@ -687,6 +688,7 @@ return {
 | `:AvanteEdit`                      | Edit the selected code blocks                                                                               | |
 | `:AvanteFocus`                     | Switch focus to/from the sidebar                                                                            | |
 | `:AvanteRefresh`                   | Refresh all Avante windows                                                                                  | |
+| `:AvanteStop`                      | Stop the current AI request                                                                                 | |
 | `:AvanteSwitchProvider`            | Switch AI provider (e.g. openai)                                                                            | |
 | `:AvanteShowRepoMap`               | Show repo map for project's structure                                                                       | |
 | `:AvanteToggle`                    | Toggle the Avante sidebar                                                                                   | |
