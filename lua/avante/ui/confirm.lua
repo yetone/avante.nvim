@@ -22,7 +22,7 @@ function M:new(message, callback, opts)
   local this = setmetatable({}, M)
   this.message = message
   this.callback = callback
-  this._container_winid = opts.container_winid
+  this._container_winid = opts.container_winid or vim.api.nvim_get_current_win()
   this._focus = opts.focus
   return this
 end
@@ -81,7 +81,7 @@ function M:open()
       text = { top = NuiText(" Confirmation ", Highlights.CONFIRM_TITLE) },
     },
     buf_options = {
-      filetype = "avante-confirm",
+      filetype = "AvanteConfirm",
       modifiable = false,
       readonly = true,
     },
