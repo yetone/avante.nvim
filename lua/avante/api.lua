@@ -1,6 +1,6 @@
 local Config = require("avante.config")
 local Utils = require("avante.utils")
-local PromptInput = require("avante.prompt_input")
+local PromptInput = require("avante.ui.prompt_input")
 
 ---@class avante.ApiToggle
 ---@operator call(): boolean
@@ -20,7 +20,7 @@ function M.switch_file_selector_provider(target_provider)
   })
 end
 
----@param target ProviderName
+---@param target avante.ProviderName
 function M.switch_provider(target) require("avante.providers").refresh(target) end
 
 ---@param path string
@@ -99,6 +99,8 @@ end
 ---@field win? table<string, any> windows options similar to |nvim_open_win()|
 ---@field ask? boolean
 ---@field floating? boolean whether to open a floating input to enter the question
+---@field new_chat? boolean whether to open a new chat
+---@field without_selection? boolean whether to open a new chat without selection
 
 ---@param opts? AskOptions
 function M.ask(opts)
@@ -117,6 +119,7 @@ function M.ask(opts)
 
   opts = vim.tbl_extend("force", { selection = Utils.get_visual_selection_and_range() }, opts)
 
+  ---@param input string | nil
   local function ask(input)
     if input == nil or input == "" then input = opts.question end
     local sidebar = require("avante").get()
@@ -124,6 +127,12 @@ function M.ask(opts)
       sidebar:close({ goto_code_win = false })
     end
     require("avante").open_sidebar(opts)
+    if opts.new_chat then sidebar:new_chat() end
+    if opts.without_selection then
+      sidebar.code.selection = nil
+      sidebar.file_selector:reset()
+      if sidebar.selected_files_container then sidebar.selected_files_container:unmount() end
+    end
     if input == nil or input == "" then return true end
     vim.api.nvim_exec_autocmds("User", { pattern = "AvanteInputSubmitted", data = { request = input } })
     return true
@@ -135,9 +144,10 @@ function M.ask(opts)
       close_on_submit = true,
       win_opts = {
         border = Config.windows.ask.border,
-        title = { { "ask", "FloatTitle" } },
+        title = { { "Avante Ask", "FloatTitle" } },
       },
       start_insert = Config.windows.ask.start_insert,
+      default_value = opts.question,
     })
     prompt_input:open()
     return true
@@ -212,6 +222,22 @@ function M.focus(opts)
 end
 
 function M.select_model() require("avante.model_selector").open() end
+
+function M.select_history()
+  require("avante.history_selector").open(vim.api.nvim_get_current_buf(), function(filename)
+    local Path = require("avante.path")
+    Path.history.save_latest_filename(vim.api.nvim_get_current_buf(), filename)
+    local sidebar = require("avante").get()
+    if not sidebar then
+      require("avante.api").ask()
+      sidebar = require("avante").get()
+    end
+    sidebar:update_content_with_history()
+    if not sidebar:is_open() then sidebar:open({}) end
+  end)
+end
+
+function M.stop() require("avante.llm").cancel_inflight_request() end
 
 return setmetatable(M, {
   __index = function(t, k)

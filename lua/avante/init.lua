@@ -96,6 +96,12 @@ function H.keymaps()
     )
     Utils.safe_keymap_set(
       "n",
+      Config.mappings.stop,
+      function() require("avante.api").stop() end,
+      { desc = "avante: stop" }
+    )
+    Utils.safe_keymap_set(
+      "n",
       Config.mappings.refresh,
       function() require("avante.api").refresh() end,
       { desc = "avante: refresh" }
@@ -136,6 +142,12 @@ function H.keymaps()
       Config.mappings.select_model,
       function() require("avante.api").select_model() end,
       { desc = "avante: select model" }
+    )
+    Utils.safe_keymap_set(
+      "n",
+      Config.mappings.select_history,
+      function() require("avante.api").select_history() end,
+      { desc = "avante: select history" }
     )
   end
 

@@ -8,7 +8,7 @@ local M = {}
 local container_name = "avante-rag-service"
 local service_path = "/tmp/" .. container_name
 
-function M.get_rag_service_image() return "quay.io/yetoneful/avante-rag-service:0.0.8" end
+function M.get_rag_service_image() return "quay.io/yetoneful/avante-rag-service:0.0.9" end
 
 function M.get_rag_service_port() return 20250 end
 
@@ -74,8 +74,7 @@ function M.launch_rag_service(cb)
       M.stop_rag_service()
     end
     local cmd_ = string.format(
-      "docker run -d -p %d:8000 --name %s -v %s:/data -v %s:/host:ro -e ALLOW_RESET=TRUE -e DATA_DIR=/data -e RAG_PROVIDER=%s -e %s_API_KEY=%s -e %s_API_BASE=%s -e RAG_LLM_MODEL=%s -e RAG_EMBED_MODEL=%s %s",
-      port,
+      "docker run -d --network=host --name %s -v %s:/data -v %s:/host:ro -e ALLOW_RESET=TRUE -e DATA_DIR=/data -e RAG_PROVIDER=%s -e %s_API_KEY=%s -e %s_API_BASE=%s -e RAG_LLM_MODEL=%s -e RAG_EMBED_MODEL=%s %s %s",
       container_name,
       data_path,
       Config.rag_service.host_mount,
@@ -86,6 +85,7 @@ function M.launch_rag_service(cb)
       Config.rag_service.endpoint,
       Config.rag_service.llm_model,
       Config.rag_service.embed_model,
+      Config.rag_service.docker_extra_args,
       image
     )
     vim.fn.jobstart(cmd_, {
@@ -197,12 +197,14 @@ end
 
 function M.to_local_uri(uri)
   local scheme = M.get_scheme(uri)
-  if scheme == "file" then
-    local path = uri:match("^file:///host(.*)$")
+  local path = uri:match("^file:///host(.*)$")
+
+  if scheme == "file" and path ~= nil then
     local host_dir = Config.rag_service.host_mount
     local full_path = Path:new(host_dir):joinpath(path:sub(2)):absolute()
     uri = string.format("file://%s", full_path)
   end
+
   return uri
 end
 

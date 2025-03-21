@@ -76,9 +76,13 @@ vim.g.avante_login = vim.g.avante_login
 ---@field on_chunk AvanteLLMChunkCallback
 ---@field on_stop AvanteLLMStopCallback
 ---
+---@alias AvanteLLMMessageContentItem string | { type: "text", text: string } | { type: "image", source: { type: "base64", media_type: string, data: string } } | { type: "tool_use", name: string, id: string, input: any } | { type: "tool_result", tool_use_id: string, content: string, is_error?: boolean } | { type: "thinking", thinking: string, signature: string } | { type: "redacted_thinking", data: string }
+---
+---@alias AvanteLLMMessageContent AvanteLLMMessageContentItem[] | string
+---
 ---@class AvanteLLMMessage
 ---@field role "user" | "assistant"
----@field content string
+---@field content AvanteLLMMessageContent
 ---
 ---@class AvanteLLMToolResult
 ---@field tool_name string
@@ -196,6 +200,7 @@ vim.g.avante_login = vim.g.avante_login
 ---
 ---@class AvanteDefaultBaseProvider: table<string, any>
 ---@field endpoint? string
+---@field extra_headers? table<string, any>
 ---@field model? string
 ---@field local? boolean
 ---@field proxy? string
@@ -211,6 +216,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field __inherited_from? string
 ---@field temperature? number
 ---@field max_tokens? number
+---@field max_completion_tokens? number
 ---@field reasoning_effort? string
 ---@field display_name? string
 ---
@@ -239,12 +245,13 @@ vim.g.avante_login = vim.g.avante_login
 ---@field usage? AvanteLLMUsage
 ---
 ---@class AvanteLLMStopCallbackOptions
----@field reason "complete" | "tool_use" | "error" | "rate_limit"
+---@field reason "complete" | "tool_use" | "error" | "rate_limit" | "cancelled"
 ---@field error? string | table
 ---@field usage? AvanteLLMUsage
 ---@field tool_use_list? AvanteLLMToolUse[]
 ---@field retry_after? integer
 ---@field headers? table<string, string>
+---@field tool_histories? AvanteLLMToolHistory[]
 ---
 ---@alias AvanteStreamParser fun(self: AvanteProviderFunctor, ctx: any, line: string, handler_opts: AvanteHandlerOptions): nil
 ---@alias AvanteLLMStartCallback fun(opts: AvanteLLMStartCallbackOptions): nil
@@ -272,7 +279,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field parse_api_key fun(): string | nil
 ---@field parse_stream_data? AvanteStreamParser
 ---@field on_error? fun(result: table<string, any>): nil
----@field transform_tool? fun(tool: AvanteLLMTool): AvanteOpenAITool | AvanteClaudeTool
+---@field transform_tool? fun(self: AvanteProviderFunctor, tool: AvanteLLMTool): AvanteOpenAITool | AvanteClaudeTool
 ---@field get_rate_limit_sleep_time? fun(self: AvanteProviderFunctor, headers: table<string, string>): integer | nil
 ---
 ---@alias AvanteBedrockPayloadBuilder fun(self: AvanteBedrockModelHandler | AvanteBedrockProviderFunctor, prompt_opts: AvantePromptOptions, request_body: table<string, any>): table<string, any>
@@ -287,7 +294,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field parse_response AvanteResponseParser
 ---@field build_bedrock_payload AvanteBedrockPayloadBuilder
 ---
----@alias AvanteLlmMode "planning" | "editing" | "suggesting" | "cursor-planning" | "cursor-applying"
+---@alias AvanteLlmMode "planning" | "editing" | "suggesting" | "cursor-planning" | "cursor-applying" | "claude-text-editor-tool"
 ---
 ---@class AvanteSelectedCode
 ---@field path string
@@ -342,7 +349,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field func? AvanteLLMToolFunc
 ---@field param AvanteLLMToolParam
 ---@field returns AvanteLLMToolReturn[]
----@field enabled? fun(): boolean
+---@field enabled? fun(opts: { user_input: string, history_messages: AvanteLLMMessage[] }): boolean
 
 ---@class AvanteLLMToolPublic : AvanteLLMTool
 ---@field func AvanteLLMToolFunc
@@ -374,12 +381,15 @@ vim.g.avante_login = vim.g.avante_login
 ---@field selected_code AvanteSelectedCode | nil
 ---@field reset_memory boolean?
 ---@field selected_filepaths string[] | nil
+---@field visible boolean?
+---@field tool_histories? AvanteLLMToolHistory[]
 ---
 ---@class avante.ChatHistory
 ---@field title string
 ---@field timestamp string
 ---@field entries avante.ChatHistoryEntry[]
 ---@field memory avante.ChatMemory | nil
+---@field filename string
 ---
 ---@class avante.ChatMemory
 ---@field content string

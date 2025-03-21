@@ -3,7 +3,7 @@ local fn = vim.fn
 local Config = require("avante.config")
 local Utils = require("avante.utils")
 
----@class PromptInput
+---@class avante.ui.PromptInput
 ---@field bufnr integer | nil
 ---@field winid integer | nil
 ---@field win_opts table
@@ -17,17 +17,19 @@ local Utils = require("avante.utils")
 ---@field spinner_index integer
 ---@field spinner_timer uv_timer_t | nil
 ---@field spinner_active boolean
+---@field default_value string | nil
 local PromptInput = {}
 PromptInput.__index = PromptInput
 
----@class PromptInputOptions
+---@class avante.ui.PromptInputOptions
 ---@field start_insert? boolean
 ---@field submit_callback? fun(input: string):nil
 ---@field cancel_callback? fun():nil
 ---@field close_on_submit? boolean
 ---@field win_opts? table
+---@field default_value? string
 
----@param opts? PromptInputOptions
+---@param opts? avante.ui.PromptInputOptions
 function PromptInput:new(opts)
   opts = opts or {}
   local obj = setmetatable({}, PromptInput)
@@ -40,6 +42,7 @@ function PromptInput:new(opts)
   obj.cancel_callback = opts.cancel_callback
   obj.close_on_submit = opts.close_on_submit or false
   obj.win_opts = opts.win_opts
+  obj.default_value = opts.default_value
   obj.spinner_chars = {
     "⡀",
     "⠄",
@@ -114,12 +117,19 @@ function PromptInput:open()
   api.nvim_set_option_value("cursorline", true, { win = winid })
   api.nvim_set_option_value("modifiable", true, { buf = bufnr })
 
+  local default_value_lines = {}
+  if self.default_value then default_value_lines = vim.split(self.default_value, "\n") end
+  if #default_value_lines > 0 then
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, default_value_lines)
+    api.nvim_win_set_cursor(winid, { #default_value_lines, #default_value_lines[#default_value_lines] })
+  end
+
   self:show_shortcuts_hints()
 
   self:setup_keymaps()
   self:setup_autocmds()
 
-  if self.start_insert then vim.cmd([[startinsert]]) end
+  if self.start_insert then vim.cmd([[startinsert!]]) end
 end
 
 function PromptInput:close()

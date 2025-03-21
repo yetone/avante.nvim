@@ -215,7 +215,7 @@ M.parse_messages = OpenAI.parse_messages
 
 M.parse_response = OpenAI.parse_response
 
-M.is_o_series_model = OpenAI.is_o_series_model
+M.is_reasoning_model = OpenAI.is_reasoning_model
 
 function M:parse_curl_args(prompt_opts)
   -- refresh token synchronously, only if it has expired
@@ -228,7 +228,7 @@ function M:parse_curl_args(prompt_opts)
   local tools = {}
   if not disable_tools and prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
-      table.insert(tools, OpenAI.transform_tool(tool))
+      table.insert(tools, OpenAI:transform_tool(tool))
     end
   end
 

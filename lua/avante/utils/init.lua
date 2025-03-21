@@ -455,12 +455,14 @@ function M.get_winid(bufnr)
 end
 
 function M.unlock_buf(bufnr)
+  vim.bo[bufnr].readonly = false
   vim.bo[bufnr].modified = false
   vim.bo[bufnr].modifiable = true
 end
 
 function M.lock_buf(bufnr)
   vim.cmd("stopinsert")
+  vim.bo[bufnr].readonly = true
   vim.bo[bufnr].modified = false
   vim.bo[bufnr].modifiable = false
 end
@@ -916,6 +918,8 @@ function M.get_mentions()
   }
 end
 
+---@param filepath string
+---@return integer|nil bufnr
 local function get_opened_buffer_by_filepath(filepath)
   local project_root = M.get_project_root()
   local absolute_path = M.join_paths(project_root, filepath)
@@ -925,10 +929,16 @@ local function get_opened_buffer_by_filepath(filepath)
   return nil
 end
 
+---@param filepath string
+---@return integer bufnr
 function M.get_or_create_buffer_with_filepath(filepath)
   -- Check if a buffer with this filepath already exists
   local existing_buf = get_opened_buffer_by_filepath(filepath)
-  if existing_buf then return existing_buf end
+  if existing_buf then
+    -- goto this buffer
+    api.nvim_set_current_buf(existing_buf)
+    return existing_buf
+  end
 
   -- Create a new buffer without setting its name
   local buf = api.nvim_create_buf(true, false)
@@ -1079,6 +1089,7 @@ function M.read_file_from_buf_or_disk(filepath)
   if file then
     local content = file:read("*all")
     file:close()
+    content = content:gsub("\r\n", "\n")
     return vim.split(content, "\n"), nil
   else
     return {}, open_err
@@ -1158,6 +1169,16 @@ function M.parse_iso8601_date(iso_str)
   local timestamp = os.time(time_table)
 
   return tostring(os.date("%Y-%m-%d %H:%M:%S", timestamp)), nil
+end
+
+function M.random_string(length)
+  local charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+  local result = {}
+  for _ = 1, length do
+    local rand = math.random(1, #charset)
+    table.insert(result, charset:sub(rand, rand))
+  end
+  return table.concat(result)
 end
 
 return M

@@ -43,7 +43,7 @@ function M.open()
   end
 
   vim.ui.select(models, {
-    prompt = "Select Model:",
+    prompt = "Select Avante Model:",
     format_item = function(item) return item.name end,
   }, function(choice)
     if not choice then return end

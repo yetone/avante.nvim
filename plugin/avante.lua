@@ -155,3 +155,5 @@ end, {
 })
 cmd("ShowRepoMap", function() require("avante.repo_map").show() end, { desc = "avante: show repo map" })
 cmd("Models", function() require("avante.model_selector").open() end, { desc = "avante: show models" })
+cmd("History", function() require("avante.api").select_history() end, { desc = "avante: show histories" })
+cmd("Stop", function() require("avante.api").stop() end, { desc = "avante: stop current AI request" })

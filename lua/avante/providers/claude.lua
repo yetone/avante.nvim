@@ -1,6 +1,7 @@
 local Utils = require("avante.utils")
 local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
+local Config = require("avante.config")
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -32,7 +33,7 @@ end
 
 ---@param tool AvanteLLMTool
 ---@return AvanteClaudeTool
-function M.transform_tool(tool)
+function M:transform_tool(tool)
   local input_schema_properties = {}
   local required = {}
   for _, field in ipairs(tool.param.fields) do
@@ -59,6 +60,8 @@ function M:parse_messages(opts)
   ---@type AvanteClaudeMessage[]
   local messages = {}
 
+  local provider_conf, _ = P.parse_config(self)
+
   ---@type {idx: integer, length: integer}[]
   local messages_with_length = {}
   for idx, message in ipairs(opts.messages) do
@@ -75,17 +78,57 @@ function M:parse_messages(opts)
     end
   end
 
+  local has_tool_use = false
   for idx, message in ipairs(opts.messages) do
-    table.insert(messages, {
-      role = self.role_map[message.role],
-      content = {
-        {
-          type = "text",
-          text = message.content,
-          cache_control = top_two[idx] and { type = "ephemeral" } or nil,
-        },
-      },
-    })
+    local content_items = message.content
+    local message_content = {}
+    if type(content_items) == "string" then
+      table.insert(message_content, {
+        type = "text",
+        text = message.content,
+        cache_control = top_two[idx] and { type = "ephemeral" } or nil,
+      })
+    elseif type(content_items) == "table" then
+      ---@cast content_items AvanteLLMMessageContentItem[]
+      for _, item in ipairs(content_items) do
+        if type(item) == "string" then
+          table.insert(
+            message_content,
+            { type = "text", text = item, cache_control = top_two[idx] and { type = "ephemeral" } or nil }
+          )
+        elseif type(item) == "table" and item.type == "text" then
+          table.insert(
+            message_content,
+            { type = "text", text = item.text, cache_control = top_two[idx] and { type = "ephemeral" } or nil }
+          )
+        elseif type(item) == "table" and item.type == "image" then
+          table.insert(message_content, { type = "image", source = item.source })
+        elseif not provider_conf.disable_tools and type(item) == "table" and item.type == "tool_use" then
+          has_tool_use = true
+          table.insert(message_content, { type = "tool_use", name = item.name, id = item.id, input = item.input })
+        elseif
+          not provider_conf.disable_tools
+          and type(item) == "table"
+          and item.type == "tool_result"
+          and has_tool_use
+        then
+          table.insert(
+            message_content,
+            { type = "tool_result", tool_use_id = item.tool_use_id, content = item.content, is_error = item.is_error }
+          )
+        elseif type(item) == "table" and item.type == "thinking" then
+          table.insert(message_content, { type = "thinking", thinking = item.thinking, signature = item.signature })
+        elseif type(item) == "table" and item.type == "redacted_thinking" then
+          table.insert(message_content, { type = "redacted_thinking", data = item.data })
+        end
+      end
+    end
+    if #message_content > 0 then
+      table.insert(messages, {
+        role = self.role_map[message.role],
+        content = message_content,
+      })
+    end
   end
 
   if Clipboard.support_paste_image() and opts.image_paths and #opts.image_paths > 0 then
@@ -297,7 +340,21 @@ function M:parse_curl_args(prompt_opts)
   local tools = {}
   if not disable_tools and prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
-      table.insert(tools, self.transform_tool(tool))
+      table.insert(tools, self:transform_tool(tool))
+    end
+  end
+
+  if prompt_opts.tools and Config.behaviour.enable_claude_text_editor_tool_mode then
+    if provider_conf.model:match("claude%-3%-7%-sonnet") then
+      table.insert(tools, {
+        type = "text_editor_20250124",
+        name = "str_replace_editor",
+      })
+    elseif provider_conf.model:match("claude%-3%-5%-instruct") then
+      table.insert(tools, {
+        type = "text_editor_20241022",
+        name = "str_replace_editor",
+      })
     end
   end
 
