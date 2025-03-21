@@ -32,6 +32,8 @@ local Highlights = {
     bg_link = "NormalFloat",
   },
   AVANTE_SIDEBAR_NORMAL = { name = "AvanteSidebarNormal", link = "NormalFloat" },
+  AVANTE_COMMENT_FG = { name = "AvanteCommentFg", fg_link = "Comment" },
+  AVANTE_REVERSED_NORMAL = { name = "AvanteReversedNormal", fg_link_bg = "Normal", bg_link_fg = "Normal" },
 }
 
 Highlights.conflict = {
@@ -65,6 +67,8 @@ function M.setup()
           local fg = hl.fg
           if hl.bg_link ~= nil then bg = api.nvim_get_hl(0, { name = hl.bg_link }).bg end
           if hl.fg_link ~= nil then fg = api.nvim_get_hl(0, { name = hl.fg_link }).fg end
+          if hl.bg_link_fg ~= nil then bg = api.nvim_get_hl(0, { name = hl.bg_link_fg }).fg end
+          if hl.fg_link_bg ~= nil then fg = api.nvim_get_hl(0, { name = hl.fg_link_bg }).bg end
           api.nvim_set_hl(
             0,
             hl.name,

@@ -2,6 +2,7 @@ local Popup = require("nui.popup")
 local NuiText = require("nui.text")
 local Highlights = require("avante.highlights")
 local Utils = require("avante.utils")
+local Line = require("avante.ui.line")
 
 ---@class avante.ui.Confirm
 ---@field message string
@@ -39,27 +40,50 @@ function M:open()
   local BUTTON_NORMAL = Highlights.BUTTON_DEFAULT
   local BUTTON_FOCUS = Highlights.BUTTON_DEFAULT_HOVER
 
-  local keybindings_content = "<C-w>f: focus; c: code; r: resp; i: input"
-  local keybidings_start_col = math.floor((win_width - #keybindings_content) / 2)
+  local commentfg = Highlights.AVANTE_COMMENT_FG
+
+  -- local keybindings_content = "<C-w>f: focus; c: code; r: resp; i: input"
+  local keybindings_line = Line:new({
+    { " <C-w>f ", "visual" },
+    { " - focus ", commentfg },
+    { "  " },
+    { " c ", "visual" },
+    { " - code ", commentfg },
+    { "  " },
+    { " r ", "visual" },
+    { " - resp ", commentfg },
+    { "  " },
+    { " i ", "visual" },
+    { " - input ", commentfg },
+    { "  " },
+  })
   local buttons_content = " Yes       No "
   local buttons_start_col = math.floor((win_width - #buttons_content) / 2)
   local yes_button_pos = { buttons_start_col, buttons_start_col + 5 }
   local no_button_pos = { buttons_start_col + 10, buttons_start_col + 14 }
-  local keybindings_line = string.rep(" ", keybidings_start_col) .. keybindings_content
   local buttons_line = string.rep(" ", buttons_start_col) .. buttons_content
-  local keybindings_line_num = 1 + #vim.split(message, "\n")
+  local keybindings_line_num = 5 + #vim.split(message, "\n")
   local buttons_line_num = 2 + #vim.split(message, "\n")
   local content = vim
     .iter({
       "",
       vim.tbl_map(function(line) return "  " .. line end, vim.split(message, "\n")),
-      keybindings_line,
+      "",
       buttons_line,
       "",
+      "",
+      tostring(keybindings_line),
     })
     :flatten()
     :totable()
-  local button_row = #content - 1
+
+  local win_height = #content
+
+  for _, line in ipairs(vim.split(message, "\n")) do
+    win_height = win_height + math.floor(#line / (win_width - 2))
+  end
+
+  local button_row = buttons_line_num + 1
 
   local container_winid = self._container_winid or vim.api.nvim_get_current_win()
   local container_width = vim.api.nvim_win_get_width(container_winid)
@@ -70,23 +94,28 @@ function M:open()
       winid = container_winid,
     },
     position = {
-      row = vim.o.lines - #content - 3,
-      col = (container_width - win_width) / 2,
+      row = vim.o.lines - win_height,
+      col = math.floor((container_width - win_width) / 2),
     },
-    size = { width = win_width, height = #content + 3 },
+    size = { width = win_width, height = win_height },
     enter = self._focus ~= false,
     focusable = true,
     border = {
-      style = "rounded",
+      padding = { 0, 1 },
       text = { top = NuiText(" Confirmation ", Highlights.CONFIRM_TITLE) },
+      style = { " ", " ", " ", " ", " ", " ", " ", " " },
     },
     buf_options = {
       filetype = "AvanteConfirm",
       modifiable = false,
       readonly = true,
+      buftype = "nofile",
     },
     win_options = {
-      winblend = 10,
+      winfixbuf = true,
+      cursorline = false,
+      winblend = 5,
+      winhighlight = "NormalFloat:Normal,FloatBorder:Comment",
     },
   })
 
@@ -107,14 +136,7 @@ function M:open()
     vim.api.nvim_buf_set_lines(popup.bufnr, 0, -1, false, content)
     Utils.lock_buf(popup.bufnr)
 
-    vim.api.nvim_buf_add_highlight(
-      popup.bufnr,
-      0,
-      "Comment",
-      keybindings_line_num,
-      keybidings_start_col,
-      keybidings_start_col + #keybindings_content
-    )
+    keybindings_line:set_highlights(0, popup.bufnr, keybindings_line_num)
     vim.api.nvim_buf_add_highlight(popup.bufnr, 0, yes_style, buttons_line_num, yes_button_pos[1], yes_button_pos[2])
     vim.api.nvim_buf_add_highlight(popup.bufnr, 0, no_style, buttons_line_num, no_button_pos[1], no_button_pos[2])
     focus_button(buttons_line_num + 1)
@@ -167,6 +189,16 @@ function M:open()
   end, { buffer = popup.bufnr })
 
   vim.keymap.set("n", "<Right>", function()
+    focus_index = 2
+    focus_button()
+  end, { buffer = popup.bufnr })
+
+  vim.keymap.set("n", "h", function()
+    focus_index = 1
+    focus_button()
+  end, { buffer = popup.bufnr })
+
+  vim.keymap.set("n", "l", function()
     focus_index = 2
     focus_button()
   end, { buffer = popup.bufnr })
@@ -251,7 +283,7 @@ function M:bind_window_focus_keymaps()
   vim.keymap.set({ "n", "i" }, "<C-w>f", function() self:window_focus_handler() end)
 end
 
-function M:unbind_window_focus_keymaps() vim.keymap.del({ "n", "i" }, "<C-w>f") end
+function M:unbind_window_focus_keymaps() pcall(vim.keymap.del, { "n", "i" }, "<C-w>f") end
 
 function M:cancel()
   self.callback(false)
