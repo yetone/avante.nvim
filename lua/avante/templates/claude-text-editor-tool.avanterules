@@ -1,1 +1,4 @@
 {% extends "base.avanterules" %}
+{% block extra_prompt %}
+Always reply to the user in the same language they are using.
+{% endblock %}
