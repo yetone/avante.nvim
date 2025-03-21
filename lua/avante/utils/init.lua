@@ -455,12 +455,14 @@ function M.get_winid(bufnr)
 end
 
 function M.unlock_buf(bufnr)
+  vim.bo[bufnr].readonly = false
   vim.bo[bufnr].modified = false
   vim.bo[bufnr].modifiable = true
 end
 
 function M.lock_buf(bufnr)
   vim.cmd("stopinsert")
+  vim.bo[bufnr].readonly = true
   vim.bo[bufnr].modified = false
   vim.bo[bufnr].modifiable = false
 end
