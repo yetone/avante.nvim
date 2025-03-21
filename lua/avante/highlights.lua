@@ -25,6 +25,13 @@ local Highlights = {
   BUTTON_PRIMARY_HOVER = { name = "AvanteButtonPrimaryHover", fg = "#1e222a", bg = "#56b6c2" },
   BUTTON_DANGER = { name = "AvanteButtonDanger", fg = "#1e222a", bg = "#ABB2BF" },
   BUTTON_DANGER_HOVER = { name = "AvanteButtonDangerHover", fg = "#1e222a", bg = "#e06c75" },
+  AVANTE_SIDEBAR_WIN_SEPARATOR = { name = "AvanteSidebarWinSeparator", link = "FloatBorder" },
+  AVANTE_SIDEBAR_WIN_HORIZONTAL_SEPARATOR = {
+    name = "AvanteSidebarWinHorizontalSeparator",
+    fg_link = "WinSeparator",
+    bg_link = "NormalFloat",
+  },
+  AVANTE_SIDEBAR_NORMAL = { name = "AvanteSidebarNormal", link = "NormalFloat" },
 }
 
 Highlights.conflict = {
@@ -54,10 +61,14 @@ function M.setup()
       end)
       :each(function(_, hl)
         if not has_set_colors(hl.name) then
+          local bg = hl.bg
+          local fg = hl.fg
+          if hl.bg_link ~= nil then bg = api.nvim_get_hl(0, { name = hl.bg_link }).bg end
+          if hl.fg_link ~= nil then fg = api.nvim_get_hl(0, { name = hl.fg_link }).fg end
           api.nvim_set_hl(
             0,
             hl.name,
-            { fg = hl.fg or nil, bg = hl.bg or nil, link = hl.link or nil, strikethrough = hl.strikethrough }
+            { fg = fg or nil, bg = bg or nil, link = hl.link or nil, strikethrough = hl.strikethrough }
           )
         end
       end)
