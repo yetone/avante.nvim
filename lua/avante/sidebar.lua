@@ -1453,7 +1453,7 @@ local base_win_options = {
   wrap = false,
   cursorline = false,
   fillchars = "eob: ",
-  winhl = "CursorLine:Normal,CursorColumn:Normal,WinSeparator:"
+  winhighlight = "CursorLine:Normal,CursorColumn:Normal,WinSeparator:"
     .. Highlights.AVANTE_SIDEBAR_WIN_SEPARATOR
     .. ",Normal:"
     .. Highlights.AVANTE_SIDEBAR_NORMAL,
