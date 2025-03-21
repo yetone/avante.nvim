@@ -57,6 +57,7 @@ from models.resource import Resource
 from pydantic import BaseModel, Field
 from services.indexing_history import indexing_history_service
 from services.resource import resource_service
+from tree_sitter_language_pack import SupportedLanguage, get_parser
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
@@ -182,7 +183,7 @@ watched_resources: dict[str, BaseObserver] = {}  # Directory path -> Observer in
 file_last_modified: dict[Path, float] = {}  # File path -> Last modified time mapping
 index_lock = threading.Lock()
 
-code_ext_map = {
+code_ext_map: dict[str, SupportedLanguage] = {
     ".py": "python",
     ".js": "javascript",
     ".ts": "typescript",
@@ -803,12 +804,6 @@ def split_documents(documents: list[Document]) -> list[Document]:
     """Split documents into code and non-code documents."""
     # Create file parser configuration
     # Initialize CodeSplitter
-    code_splitter = CodeSplitter(
-        language="python",  # Default is python, will auto-detect based on file extension
-        chunk_lines=80,  # Maximum number of lines per code block
-        chunk_lines_overlap=15,  # Number of overlapping lines to maintain context
-        max_chars=1500,  # Maximum number of characters per block
-    )
     # Split code documents using CodeSplitter
     processed_documents = []
     for doc in documents:
@@ -822,10 +817,18 @@ def split_documents(documents: list[Document]) -> list[Document]:
         file_ext = file_path.suffix.lower()
         if file_ext in code_ext_map:
             # Apply CodeSplitter to code files
-            code_splitter.language = code_ext_map.get(file_ext, "python")
-
+            language = code_ext_map.get(file_ext, "python")
+            parser = get_parser(language)
+            code_splitter = CodeSplitter(
+                language=language,  # Default is python, will auto-detect based on file extension
+                chunk_lines=80,  # Maximum number of lines per code block
+                chunk_lines_overlap=15,  # Number of overlapping lines to maintain context
+                max_chars=1500,  # Maximum number of characters per block
+                parser=parser,
+            )
             try:
-                texts = code_splitter.split_text(doc.get_content())
+                t = doc.get_content()
+                texts = code_splitter.split_text(t)
             except ValueError as e:
                 logger.error("Error splitting document: %s, so skipping split, error: %s", doc.doc_id, str(e))
                 processed_documents.append(doc)

@@ -148,8 +148,8 @@ tiktoken==0.8.0
 tokenizers==0.21.0
 tqdm==4.67.1
 traitlets==5.14.3
-tree-sitter==0.21.3
-tree-sitter-languages==1.10.2
+tree-sitter==0.24.0
+tree-sitter-language-pack==0.6.1
 typer==0.15.1
 typing-inspect==0.9.0
 typing_extensions==4.12.2
