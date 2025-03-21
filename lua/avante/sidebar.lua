@@ -1464,6 +1464,10 @@ local base_win_options = {
 function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl)
   if not bufnr or not api.nvim_buf_is_valid(bufnr) then return end
 
+  local is_result_win = self.winids.result_container == winid
+
+  local separator_char = is_result_win and " " or "-"
+
   if not Config.windows.sidebar_header.enabled then return end
 
   if not Config.windows.sidebar_header.rounded then header_text = " " .. header_text .. " " end
@@ -1477,7 +1481,7 @@ function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl)
 
   if Config.windows.sidebar_header.align ~= "left" then
     if not Config.windows.sidebar_header.rounded then winbar_text = winbar_text .. " " end
-    winbar_text = winbar_text .. string.rep("-", padding)
+    winbar_text = winbar_text .. string.rep(separator_char, padding)
   end
 
   -- if Config.windows.sidebar_header.align == "center" then
@@ -1498,7 +1502,9 @@ function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl)
   -- if Config.windows.sidebar_header.align == "center" then winbar_text = winbar_text .. "%=" end
 
   winbar_text = winbar_text .. "%#" .. Highlights.AVANTE_SIDEBAR_WIN_HORIZONTAL_SEPARATOR .. "#"
-  if Config.windows.sidebar_header.align ~= "right" then winbar_text = winbar_text .. string.rep("-", padding) end
+  if Config.windows.sidebar_header.align ~= "right" then
+    winbar_text = winbar_text .. string.rep(separator_char, padding)
+  end
 
   api.nvim_set_option_value("winbar", winbar_text, { win = winid })
 end
