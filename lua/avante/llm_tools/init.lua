@@ -5,171 +5,15 @@ local Config = require("avante.config")
 local RagService = require("avante.rag_service")
 local Diff = require("avante.diff")
 local Highlights = require("avante.highlights")
+local Helpers = require("avante.llm_tools.helpers")
 
----@class AvanteRagService
 local M = {}
-
-M.CANCEL_TOKEN = "__CANCELLED__"
-
--- Track cancellation state
-M.is_cancelled = false
----@type avante.ui.Confirm
-M.confirm_popup = nil
-
----@param rel_path string
----@return string
-local function get_abs_path(rel_path)
-  if Path:new(rel_path):is_absolute() then return rel_path end
-  local project_root = Utils.get_project_root()
-  local p = tostring(Path:new(project_root):joinpath(rel_path):absolute())
-  if p:sub(-2) == "/." then p = p:sub(1, -3) end
-  return p
-end
-
----@param message string
----@param callback fun(yes: boolean)
----@param opts? { focus?: boolean }
----@return avante.ui.Confirm | nil
-function M.confirm(message, callback, opts)
-  local Confirm = require("avante.ui.confirm")
-  local sidebar = require("avante").get()
-  if not sidebar or not sidebar.input_container or not sidebar.input_container.winid then
-    Utils.error("Avante sidebar not found", { title = "Avante" })
-    callback(false)
-    return
-  end
-  local confirm_opts = vim.tbl_deep_extend("force", { container_winid = sidebar.input_container.winid }, opts or {})
-  M.confirm_popup = Confirm:new(message, callback, confirm_opts)
-  M.confirm_popup:open()
-  return M.confirm_popup
-end
-
----@param abs_path string
----@return boolean
-local function is_ignored(abs_path)
-  local project_root = Utils.get_project_root()
-  local gitignore_path = project_root .. "/.gitignore"
-  local gitignore_patterns, gitignore_negate_patterns = Utils.parse_gitignore(gitignore_path)
-  -- The checker should only take care of the path inside the project root
-  -- Specifically, it should not check the project root itself
-  -- Otherwise if the binary is named the same as the project root (such as Go binary), any paths
-  -- insde the project root will be ignored
-  local rel_path = Utils.make_relative_path(abs_path, project_root)
-  return Utils.is_ignored(rel_path, gitignore_patterns, gitignore_negate_patterns)
-end
-
----@param abs_path string
----@return boolean
-local function has_permission_to_access(abs_path)
-  if not Path:new(abs_path):is_absolute() then return false end
-  local project_root = Utils.get_project_root()
-  if abs_path:sub(1, #project_root) ~= project_root then return false end
-  return not is_ignored(abs_path)
-end
-
----@type AvanteLLMToolFunc<{ rel_path: string, pattern: string }>
-function M.glob(opts, on_log)
-  local abs_path = get_abs_path(opts.rel_path)
-  if not has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
-  if on_log then on_log("path: " .. abs_path) end
-  if on_log then on_log("pattern: " .. opts.pattern) end
-  local files = vim.fn.glob(abs_path .. "/" .. opts.pattern, true, true)
-  return vim.json.encode(files), nil
-end
-
----@type AvanteLLMToolFunc<{ rel_path: string, max_depth?: integer }>
-function M.list_files(opts, on_log)
-  local abs_path = get_abs_path(opts.rel_path)
-  if not has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
-  if on_log then on_log("path: " .. abs_path) end
-  if on_log then on_log("max depth: " .. tostring(opts.max_depth)) end
-  local files = Utils.scan_directory({
-    directory = abs_path,
-    add_dirs = true,
-    max_depth = opts.max_depth,
-  })
-  local filepaths = {}
-  for _, file in ipairs(files) do
-    local uniform_path = Utils.uniform_path(file)
-    table.insert(filepaths, uniform_path)
-  end
-  return vim.json.encode(filepaths), nil
-end
-
----@type AvanteLLMToolFunc<{ rel_path: string, keyword: string }>
-function M.search_files(opts, on_log)
-  local abs_path = get_abs_path(opts.rel_path)
-  if not has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
-  if on_log then on_log("path: " .. abs_path) end
-  if on_log then on_log("keyword: " .. opts.keyword) end
-  local files = Utils.scan_directory({
-    directory = abs_path,
-  })
-  local filepaths = {}
-  for _, file in ipairs(files) do
-    if file:find(opts.keyword) then table.insert(filepaths, file) end
-  end
-  return vim.json.encode(filepaths), nil
-end
-
----@type AvanteLLMToolFunc<{ rel_path: string, query: string, case_sensitive?: boolean, include_pattern?: string, exclude_pattern?: string }>
-function M.grep_search(opts, on_log)
-  local abs_path = get_abs_path(opts.rel_path)
-  if not has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
-  if not Path:new(abs_path):exists() then return "", "No such file or directory: " .. abs_path end
-
-  ---check if any search cmd is available
-  local search_cmd = vim.fn.exepath("rg")
-  if search_cmd == "" then search_cmd = vim.fn.exepath("ag") end
-  if search_cmd == "" then search_cmd = vim.fn.exepath("ack") end
-  if search_cmd == "" then search_cmd = vim.fn.exepath("grep") end
-  if search_cmd == "" then return "", "No search command found" end
-
-  ---execute the search command
-  local cmd = ""
-  if search_cmd:find("rg") then
-    cmd = string.format("%s --files-with-matches --hidden", search_cmd)
-    if opts.case_sensitive then
-      cmd = string.format("%s --case-sensitive", cmd)
-    else
-      cmd = string.format("%s --ignore-case", cmd)
-    end
-    if opts.include_pattern then cmd = string.format("%s --glob '%s'", cmd, opts.include_pattern) end
-    if opts.exclude_pattern then cmd = string.format("%s --glob '!%s'", cmd, opts.exclude_pattern) end
-    cmd = string.format("%s '%s' %s", cmd, opts.query, abs_path)
-  elseif search_cmd:find("ag") then
-    cmd = string.format("%s --nocolor --nogroup --hidden", search_cmd)
-    if opts.case_sensitive then cmd = string.format("%s --case-sensitive", cmd) end
-    if opts.include_pattern then cmd = string.format("%s --ignore '!%s'", cmd, opts.include_pattern) end
-    if opts.exclude_pattern then cmd = string.format("%s --ignore '%s'", cmd, opts.exclude_pattern) end
-    cmd = string.format("%s '%s' %s", cmd, opts.query, abs_path)
-  elseif search_cmd:find("ack") then
-    cmd = string.format("%s --nocolor --nogroup --hidden", search_cmd)
-    if opts.case_sensitive then cmd = string.format("%s --smart-case", cmd) end
-    if opts.exclude_pattern then cmd = string.format("%s --ignore-dir '%s'", cmd, opts.exclude_pattern) end
-    cmd = string.format("%s '%s' %s", cmd, opts.query, abs_path)
-  elseif search_cmd:find("grep") then
-    cmd = string.format("cd %s && git ls-files -co --exclude-standard | xargs %s -rH", abs_path, search_cmd, abs_path)
-    if not opts.case_sensitive then cmd = string.format("%s -i", cmd) end
-    if opts.include_pattern then cmd = string.format("%s --include '%s'", cmd, opts.include_pattern) end
-    if opts.exclude_pattern then cmd = string.format("%s --exclude '%s'", cmd, opts.exclude_pattern) end
-    cmd = string.format("%s '%s'", cmd, opts.query)
-  end
-
-  Utils.debug("cmd", cmd)
-  if on_log then on_log("Running command: " .. cmd) end
-  local result = vim.fn.system(cmd)
-
-  local filepaths = vim.split(result, "\n")
-
-  return vim.json.encode(filepaths), nil
-end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string }>
 function M.read_file_toplevel_symbols(opts, on_log)
   local RepoMap = require("avante.repo_map")
-  local abs_path = get_abs_path(opts.rel_path)
-  if not has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
+  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  if not Helpers.has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
   if on_log then on_log("path: " .. abs_path) end
   if not Path:new(abs_path):exists() then return "", "File does not exists: " .. abs_path end
   local filetype = RepoMap.get_ts_lang(abs_path)
@@ -181,25 +25,13 @@ function M.read_file_toplevel_symbols(opts, on_log)
   return definitions, nil
 end
 
----@type AvanteLLMToolFunc<{ rel_path: string }>
-function M.read_file(opts, on_log)
-  local abs_path = get_abs_path(opts.rel_path)
-  if not has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
-  if on_log then on_log("path: " .. abs_path) end
-  local file = io.open(abs_path, "r")
-  if not file then return "", "file not found: " .. abs_path end
-  local lines = Utils.read_file_from_buf_or_disk(abs_path)
-  local content = lines and table.concat(lines, "\n") or ""
-  return content, nil
-end
-
 ---@type AvanteLLMToolFunc<{ command: "view" | "str_replace" | "create" | "insert" | "undo_edit", path: string, old_str?: string, new_str?: string, file_text?: string, insert_line?: integer, new_str?: string }>
 function M.str_replace_editor(opts, on_log, on_complete)
   if on_log then on_log("command: " .. opts.command) end
   if on_log then on_log("path: " .. vim.inspect(opts.path)) end
   if not on_complete then return false, "on_complete not provided" end
-  local abs_path = get_abs_path(opts.path)
-  if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
+  local abs_path = Helpers.get_abs_path(opts.path)
+  if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   local sidebar = require("avante").get()
   if not sidebar then return false, "Avante sidebar not found" end
   local get_bufnr = function()
@@ -288,7 +120,7 @@ function M.str_replace_editor(opts, on_log, on_complete)
     vim.cmd("normal! zz")
     vim.api.nvim_set_current_win(current_winid)
     local augroup = vim.api.nvim_create_augroup("avante_str_replace_editor", { clear = true })
-    local confirm = M.confirm("Are you sure you want to apply this modification?", function(ok)
+    local confirm = Helpers.confirm("Are you sure you want to apply this modification?", function(ok)
       pcall(vim.api.nvim_del_augroup_by_id, augroup)
       vim.api.nvim_set_current_win(sidebar.code.winid)
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
@@ -328,7 +160,7 @@ function M.str_replace_editor(opts, on_log, on_complete)
     local lines = vim.split(opts.file_text, "\n")
     local bufnr = get_bufnr()
     vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
-    M.confirm("Are you sure you want to create this file?", function(ok)
+    Helpers.confirm("Are you sure you want to create this file?", function(ok)
       if not ok then
         -- close the buffer
         vim.api.nvim_buf_delete(bufnr, { force = true })
@@ -368,7 +200,7 @@ function M.str_replace_editor(opts, on_log, on_complete)
       hl_eol = true,
       hl_mode = "combine",
     })
-    M.confirm("Are you sure you want to insert these lines?", function(ok)
+    Helpers.confirm("Are you sure you want to insert these lines?", function(ok)
       clear_highlights()
       if not ok then
         on_complete(false, "User canceled")
@@ -383,7 +215,7 @@ function M.str_replace_editor(opts, on_log, on_complete)
     if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
     if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
     local bufnr = get_bufnr()
-    M.confirm("Are you sure you want to undo edit this file?", function(ok)
+    Helpers.confirm("Are you sure you want to undo edit this file?", function(ok)
       if not ok then
         on_complete(false, "User canceled")
         return
@@ -403,8 +235,8 @@ end
 
 ---@type AvanteLLMToolFunc<{ abs_path: string }>
 function M.read_global_file(opts, on_log)
-  local abs_path = get_abs_path(opts.abs_path)
-  if is_ignored(abs_path) then return "", "This file is ignored: " .. abs_path end
+  local abs_path = Helpers.get_abs_path(opts.abs_path)
+  if Helpers.is_ignored(abs_path) then return "", "This file is ignored: " .. abs_path end
   if on_log then on_log("path: " .. abs_path) end
   local file = io.open(abs_path, "r")
   if not file then return "", "file not found: " .. abs_path end
@@ -415,12 +247,12 @@ end
 
 ---@type AvanteLLMToolFunc<{ abs_path: string, content: string }>
 function M.write_global_file(opts, on_log, on_complete)
-  local abs_path = get_abs_path(opts.abs_path)
-  if is_ignored(abs_path) then return false, "This file is ignored: " .. abs_path end
+  local abs_path = Helpers.get_abs_path(opts.abs_path)
+  if Helpers.is_ignored(abs_path) then return false, "This file is ignored: " .. abs_path end
   if on_log then on_log("path: " .. abs_path) end
   if on_log then on_log("content: " .. opts.content) end
   if not on_complete then return false, "on_complete not provided" end
-  M.confirm("Are you sure you want to write to the file: " .. abs_path, function(ok)
+  Helpers.confirm("Are you sure you want to write to the file: " .. abs_path, function(ok)
     if not ok then
       on_complete(false, "User canceled")
       return
@@ -438,8 +270,8 @@ end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string }>
 function M.create_file(opts, on_log)
-  local abs_path = get_abs_path(opts.rel_path)
-  if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
+  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if on_log then on_log("path: " .. abs_path) end
   ---create directory if it doesn't exist
   local dir = Path:new(abs_path):parent()
@@ -456,16 +288,18 @@ end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string, new_rel_path: string }>
 function M.rename_file(opts, on_log, on_complete)
-  local abs_path = get_abs_path(opts.rel_path)
-  if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
+  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
   if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
-  local new_abs_path = get_abs_path(opts.new_rel_path)
+  local new_abs_path = Helpers.get_abs_path(opts.new_rel_path)
   if on_log then on_log(abs_path .. " -> " .. new_abs_path) end
-  if not has_permission_to_access(new_abs_path) then return false, "No permission to access path: " .. new_abs_path end
+  if not Helpers.has_permission_to_access(new_abs_path) then
+    return false, "No permission to access path: " .. new_abs_path
+  end
   if Path:new(new_abs_path):exists() then return false, "File already exists: " .. new_abs_path end
   if not on_complete then return false, "on_complete not provided" end
-  M.confirm("Are you sure you want to rename the file: " .. abs_path .. " to: " .. new_abs_path, function(ok)
+  Helpers.confirm("Are you sure you want to rename the file: " .. abs_path .. " to: " .. new_abs_path, function(ok)
     if not ok then
       on_complete(false, "User canceled")
       return
@@ -477,12 +311,14 @@ end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string, new_rel_path: string }>
 function M.copy_file(opts, on_log)
-  local abs_path = get_abs_path(opts.rel_path)
-  if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
+  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
   if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
-  local new_abs_path = get_abs_path(opts.new_rel_path)
-  if not has_permission_to_access(new_abs_path) then return false, "No permission to access path: " .. new_abs_path end
+  local new_abs_path = Helpers.get_abs_path(opts.new_rel_path)
+  if not Helpers.has_permission_to_access(new_abs_path) then
+    return false, "No permission to access path: " .. new_abs_path
+  end
   if Path:new(new_abs_path):exists() then return false, "File already exists: " .. new_abs_path end
   if on_log then on_log("Copying file: " .. abs_path .. " to " .. new_abs_path) end
   Path:new(new_abs_path):write(Path:new(abs_path):read())
@@ -491,12 +327,12 @@ end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string }>
 function M.delete_file(opts, on_log, on_complete)
-  local abs_path = get_abs_path(opts.rel_path)
-  if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
+  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
   if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
   if not on_complete then return false, "on_complete not provided" end
-  M.confirm("Are you sure you want to delete the file: " .. abs_path, function(ok)
+  Helpers.confirm("Are you sure you want to delete the file: " .. abs_path, function(ok)
     if not ok then
       on_complete(false, "User canceled")
       return
@@ -509,11 +345,11 @@ end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string }>
 function M.create_dir(opts, on_log, on_complete)
-  local abs_path = get_abs_path(opts.rel_path)
-  if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
+  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if Path:new(abs_path):exists() then return false, "Directory already exists: " .. abs_path end
   if not on_complete then return false, "on_complete not provided" end
-  M.confirm("Are you sure you want to create the directory: " .. abs_path, function(ok)
+  Helpers.confirm("Are you sure you want to create the directory: " .. abs_path, function(ok)
     if not ok then
       on_complete(false, "User canceled")
       return
@@ -526,33 +362,38 @@ end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string, new_rel_path: string }>
 function M.rename_dir(opts, on_log, on_complete)
-  local abs_path = get_abs_path(opts.rel_path)
-  if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
+  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "Directory not found: " .. abs_path end
   if not Path:new(abs_path):is_dir() then return false, "Path is not a directory: " .. abs_path end
-  local new_abs_path = get_abs_path(opts.new_rel_path)
-  if not has_permission_to_access(new_abs_path) then return false, "No permission to access path: " .. new_abs_path end
+  local new_abs_path = Helpers.get_abs_path(opts.new_rel_path)
+  if not Helpers.has_permission_to_access(new_abs_path) then
+    return false, "No permission to access path: " .. new_abs_path
+  end
   if Path:new(new_abs_path):exists() then return false, "Directory already exists: " .. new_abs_path end
   if not on_complete then return false, "on_complete not provided" end
-  M.confirm("Are you sure you want to rename directory " .. abs_path .. " to " .. new_abs_path .. "?", function(ok)
-    if not ok then
-      on_complete(false, "User canceled")
-      return
+  Helpers.confirm(
+    "Are you sure you want to rename directory " .. abs_path .. " to " .. new_abs_path .. "?",
+    function(ok)
+      if not ok then
+        on_complete(false, "User canceled")
+        return
+      end
+      if on_log then on_log("Renaming directory: " .. abs_path .. " to " .. new_abs_path) end
+      os.rename(abs_path, new_abs_path)
+      on_complete(true, nil)
     end
-    if on_log then on_log("Renaming directory: " .. abs_path .. " to " .. new_abs_path) end
-    os.rename(abs_path, new_abs_path)
-    on_complete(true, nil)
-  end)
+  )
 end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string }>
 function M.delete_dir(opts, on_log, on_complete)
-  local abs_path = get_abs_path(opts.rel_path)
-  if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
+  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "Directory not found: " .. abs_path end
   if not Path:new(abs_path):is_dir() then return false, "Path is not a directory: " .. abs_path end
   if not on_complete then return false, "on_complete not provided" end
-  M.confirm("Are you sure you want to delete the directory: " .. abs_path, function(ok)
+  Helpers.confirm("Are you sure you want to delete the directory: " .. abs_path, function(ok)
     if not ok then
       on_complete(false, "User canceled")
       return
@@ -561,40 +402,6 @@ function M.delete_dir(opts, on_log, on_complete)
     os.remove(abs_path)
     on_complete(true, nil)
   end)
-end
-
----@type AvanteLLMToolFunc<{ rel_path: string, command: string }>
-function M.bash(opts, on_log, on_complete)
-  local abs_path = get_abs_path(opts.rel_path)
-  if not has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
-  if not Path:new(abs_path):exists() then return false, "Path not found: " .. abs_path end
-  if on_log then on_log("command: " .. opts.command) end
-  ---change cwd to abs_path
-  ---@param output string
-  ---@param exit_code integer
-  ---@return string | boolean | nil result
-  ---@return string | nil error
-  local function handle_result(output, exit_code)
-    if exit_code ~= 0 then
-      if output then return false, "Error: " .. output .. "; Error code: " .. tostring(exit_code) end
-      return false, "Error code: " .. tostring(exit_code)
-    end
-    return output, nil
-  end
-  if not on_complete then return false, "on_complete not provided" end
-  M.confirm(
-    "Are you sure you want to run the command: `" .. opts.command .. "` in the directory: " .. abs_path,
-    function(ok)
-      if not ok then
-        on_complete(false, "User canceled")
-        return
-      end
-      Utils.shell_run_async(opts.command, "bash -c", function(output, exit_code)
-        local result, err = handle_result(output, exit_code)
-        on_complete(result, err)
-      end, abs_path)
-    end
-  )
 end
 
 ---@type AvanteLLMToolFunc<{ query: string }>
@@ -802,6 +609,10 @@ function M.git_commit(opts, on_log, on_complete)
   for line in opts.message:gmatch("[^\r\n]+") do
     commit_msg_lines[#commit_msg_lines + 1] = line:gsub('"', '\\"')
   end
+
+  commit_msg_lines[#commit_msg_lines + 1] = ""
+  commit_msg_lines[#commit_msg_lines + 1] = "🤖 Generated with [avante.nvim](https://github.com/yetone/avante.nvim)"
+  commit_msg_lines[#commit_msg_lines + 1] = "Co-Authored-By: avante.nvim <noreply-avante@yetone.ai>"
   if git_user ~= "" and git_email ~= "" then
     commit_msg_lines[#commit_msg_lines + 1] = string.format("Signed-off-by: %s <%s>", git_user, git_email)
   end
@@ -812,7 +623,7 @@ function M.git_commit(opts, on_log, on_complete)
   if not on_complete then return false, "on_complete not provided" end
 
   -- Confirm with user
-  M.confirm("Are you sure you want to commit with message:\n" .. full_commit_msg, function(ok)
+  Helpers.confirm("Are you sure you want to commit with message:\n" .. full_commit_msg, function(ok)
     if not ok then
       on_complete(false, "User canceled")
       return
@@ -866,14 +677,14 @@ end
 
 ---@type AvanteLLMToolFunc<{ code: string, rel_path: string, container_image?: string }>
 function M.python(opts, on_log, on_complete)
-  local abs_path = get_abs_path(opts.rel_path)
-  if not has_permission_to_access(abs_path) then return nil, "No permission to access path: " .. abs_path end
+  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  if not Helpers.has_permission_to_access(abs_path) then return nil, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return nil, "Path not found: " .. abs_path end
   if on_log then on_log("cwd: " .. abs_path) end
   if on_log then on_log("code:\n" .. opts.code) end
   local container_image = opts.container_image or "python:3.11-slim-bookworm"
   if not on_complete then return nil, "on_complete not provided" end
-  M.confirm(
+  Helpers.confirm(
     "Are you sure you want to run the following python code in the `"
       .. container_image
       .. "` container, in the directory: `"
@@ -948,38 +759,8 @@ end
 
 ---@type AvanteLLMTool[]
 M._tools = {
-  {
-    name = "glob",
-    description = 'Fast file pattern matching using glob patterns like "**/*.js", in current project scope',
-    param = {
-      type = "table",
-      fields = {
-        {
-          name = "pattern",
-          description = "Glob pattern",
-          type = "string",
-        },
-        {
-          name = "rel_path",
-          description = "Relative path to the project directory, as cwd",
-          type = "string",
-        },
-      },
-    },
-    returns = {
-      {
-        name = "matches",
-        description = "List of matched files",
-        type = "string",
-      },
-      {
-        name = "err",
-        description = "Error message",
-        type = "string",
-        optional = true,
-      },
-    },
-  },
+  require("avante.llm_tools.dispatch_agent"),
+  require("avante.llm_tools.glob"),
   {
     name = "rag_search",
     enabled = function() return Config.rag_service.enabled and RagService.is_ready() end,
@@ -1100,121 +881,8 @@ M._tools = {
       },
     },
   },
-  {
-    name = "list_files",
-    description = "List files in current project scope",
-    param = {
-      type = "table",
-      fields = {
-        {
-          name = "rel_path",
-          description = "Relative path to the project directory",
-          type = "string",
-        },
-        {
-          name = "max_depth",
-          description = "Maximum depth of the directory",
-          type = "integer",
-        },
-      },
-    },
-    returns = {
-      {
-        name = "files",
-        description = "List of filepaths in the directory",
-        type = "string[]",
-      },
-      {
-        name = "error",
-        description = "Error message if the directory was not listed successfully",
-        type = "string",
-        optional = true,
-      },
-    },
-  },
-  {
-    name = "search_files",
-    description = "Search for files in current project scope",
-    param = {
-      type = "table",
-      fields = {
-        {
-          name = "rel_path",
-          description = "Relative path to the project directory",
-          type = "string",
-        },
-        {
-          name = "keyword",
-          description = "Keyword to search for",
-          type = "string",
-        },
-      },
-    },
-    returns = {
-      {
-        name = "files",
-        description = "List of filepaths that match the keyword",
-        type = "string",
-      },
-      {
-        name = "error",
-        description = "Error message if the directory was not searched successfully",
-        type = "string",
-        optional = true,
-      },
-    },
-  },
-  {
-    name = "grep_search",
-    description = "Search for a keyword in a directory using grep in current project scope",
-    param = {
-      type = "table",
-      fields = {
-        {
-          name = "rel_path",
-          description = "Relative path to the project directory",
-          type = "string",
-        },
-        {
-          name = "query",
-          description = "Query to search for",
-          type = "string",
-        },
-        {
-          name = "case_sensitive",
-          description = "Whether to search case sensitively",
-          type = "boolean",
-          default = false,
-          optional = true,
-        },
-        {
-          name = "include_pattern",
-          description = "Glob pattern to include files",
-          type = "string",
-          optional = true,
-        },
-        {
-          name = "exclude_pattern",
-          description = "Glob pattern to exclude files",
-          type = "string",
-          optional = true,
-        },
-      },
-    },
-    returns = {
-      {
-        name = "files",
-        description = "List of files that match the keyword",
-        type = "string",
-      },
-      {
-        name = "error",
-        description = "Error message if the directory was not searched successfully",
-        type = "string",
-        optional = true,
-      },
-    },
-  },
+  require("avante.llm_tools.ls"),
+  require("avante.llm_tools.grep"),
   {
     name = "read_file_toplevel_symbols",
     description = "Read the top-level symbols of a file in current project scope",
@@ -1242,48 +910,7 @@ M._tools = {
       },
     },
   },
-  {
-    name = "read_file",
-    description = "Read the contents of a file in current project scope. If the file content is already in the context, do not use this tool.",
-    enabled = function(opts)
-      if opts.user_input:match("@read_global_file") then return false end
-      for _, message in ipairs(opts.history_messages) do
-        if message.role == "user" then
-          local content = message.content
-          if type(content) == "string" and content:match("@read_global_file") then return false end
-          if type(content) == "table" then
-            for _, item in ipairs(content) do
-              if type(item) == "string" and item:match("@read_global_file") then return false end
-            end
-          end
-        end
-      end
-      return true
-    end,
-    param = {
-      type = "table",
-      fields = {
-        {
-          name = "rel_path",
-          description = "Relative path to the file in current project scope",
-          type = "string",
-        },
-      },
-    },
-    returns = {
-      {
-        name = "content",
-        description = "Contents of the file",
-        type = "string",
-      },
-      {
-        name = "error",
-        description = "Error message if the file was not read successfully",
-        type = "string",
-        optional = true,
-      },
-    },
-  },
+  require("avante.llm_tools.read_file"),
   {
     name = "read_global_file",
     description = "Read the contents of a file in the global scope. If the file content is already in the context, do not use this tool.",
@@ -1545,38 +1172,7 @@ M._tools = {
       },
     },
   },
-  {
-    name = "bash",
-    description = "Run a bash command in current project scope. Can't use search commands like find/grep or read tools like cat/ls. Can't use it to read files or modify files.",
-    param = {
-      type = "table",
-      fields = {
-        {
-          name = "rel_path",
-          description = "Relative path to the project directory, as cwd",
-          type = "string",
-        },
-        {
-          name = "command",
-          description = "Command to run",
-          type = "string",
-        },
-      },
-    },
-    returns = {
-      {
-        name = "stdout",
-        description = "Output of the command",
-        type = "string",
-      },
-      {
-        name = "error",
-        description = "Error message if the command was not run successfully",
-        type = "string",
-        optional = true,
-      },
-    },
-  },
+  require("avante.llm_tools.bash"),
   {
     name = "web_search",
     description = "Search the web",
@@ -1694,13 +1290,13 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete)
   Utils.debug("use tool", tool_use.name, tool_use.input_json)
 
   -- Check if execution is already cancelled
-  if M.is_cancelled then
+  if Helpers.is_cancelled then
     Utils.debug("Tool execution cancelled before starting: " .. tool_use.name)
     if on_complete then
-      on_complete(nil, M.CANCEL_TOKEN)
+      on_complete(nil, Helpers.CANCEL_TOKEN)
       return
     end
-    return nil, M.CANCEL_TOKEN
+    return nil, Helpers.CANCEL_TOKEN
   end
 
   local func
@@ -1725,13 +1321,13 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete)
         100,
         100,
         vim.schedule_wrap(function()
-          if M.is_cancelled then
+          if Helpers.is_cancelled then
             Utils.debug("Tool execution cancelled during execution: " .. tool_use.name)
             if cancel_timer and not cancel_timer:is_closing() then
               cancel_timer:stop()
               cancel_timer:close()
             end
-            on_complete(nil, M.CANCEL_TOKEN)
+            on_complete(nil, Helpers.CANCEL_TOKEN)
           end
         end)
       )
@@ -1748,9 +1344,9 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete)
     end
 
     -- Check for cancellation one more time before processing result
-    if M.is_cancelled then
+    if Helpers.is_cancelled then
       if on_log then on_log(tool_use.name, "cancelled during result handling") end
-      return nil, M.CANCEL_TOKEN
+      return nil, Helpers.CANCEL_TOKEN
     end
 
     if on_log then on_log(tool_use.name, "tool finished") end
@@ -1770,12 +1366,12 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete)
 
   local result, err = func(input_json, function(log)
     -- Check for cancellation during logging
-    if M.is_cancelled then return end
+    if Helpers.is_cancelled then return end
     if on_log then on_log(tool_use.name, log) end
   end, function(result, err)
     -- Check for cancellation before completing
-    if M.is_cancelled then
-      if on_complete then on_complete(nil, M.CANCEL_TOKEN) end
+    if Helpers.is_cancelled then
+      if on_complete then on_complete(nil, Helpers.CANCEL_TOKEN) end
       return
     end
 

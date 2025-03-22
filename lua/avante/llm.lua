@@ -8,6 +8,7 @@ local Utils = require("avante.utils")
 local Config = require("avante.config")
 local Path = require("avante.path")
 local Providers = require("avante.providers")
+local LLMToolHelpers = require("avante.llm_tools.helpers")
 local LLMTools = require("avante.llm_tools")
 
 ---@class avante.LLM
@@ -125,6 +126,7 @@ end
 ---@param opts AvanteGeneratePromptsOptions
 ---@return AvantePromptOptions
 function M.generate_prompts(opts)
+  if opts.prompt_opts then return opts.prompt_opts end
   local provider = opts.provider or Providers[Config.provider]
   local mode = opts.mode or "planning"
   ---@type AvanteProviderFunctor | AvanteBedrockProviderFunctor
@@ -480,7 +482,7 @@ end
 ---@param opts AvanteLLMStreamOptions
 function M._stream(opts)
   -- Reset the cancellation flag at the start of a new request
-  if LLMTools then LLMTools.is_cancelled = false end
+  if LLMToolHelpers then LLMToolHelpers.is_cancelled = false end
 
   local provider = opts.provider or Providers[Config.provider]
 
@@ -519,7 +521,7 @@ function M._stream(opts)
         ---@param error string | nil
         local function handle_tool_result(result, error)
           -- Special handling for cancellation signal from tools
-          if error == LLMTools.CANCEL_TOKEN then
+          if error == LLMToolHelpers.CANCEL_TOKEN then
             Utils.debug("Tool execution was cancelled by user")
             opts.on_chunk("\n*[Request cancelled by user during tool execution.]*\n")
             return opts.on_stop({ reason = "cancelled", tool_histories = tool_histories })
@@ -722,10 +724,10 @@ function M.stream(opts)
 end
 
 function M.cancel_inflight_request()
-  if LLMTools.is_cancelled ~= nil then LLMTools.is_cancelled = true end
-  if LLMTools.confirm_popup ~= nil then
-    LLMTools.confirm_popup:cancel()
-    LLMTools.confirm_popup = nil
+  if LLMToolHelpers.is_cancelled ~= nil then LLMToolHelpers.is_cancelled = true end
+  if LLMToolHelpers.confirm_popup ~= nil then
+    LLMToolHelpers.confirm_popup:cancel()
+    LLMToolHelpers.confirm_popup = nil
   end
 
   api.nvim_exec_autocmds("User", { pattern = M.CANCEL_PATTERN })
