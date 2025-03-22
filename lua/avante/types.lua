@@ -318,14 +318,14 @@ vim.g.avante_login = vim.g.avante_login
 ---@field memory string | nil
 ---
 ---@class AvanteGeneratePromptsOptions: AvanteTemplateOptions
----@field ask boolean
 ---@field instructions? string
----@field mode AvanteLlmMode
+---@field mode? AvanteLlmMode
 ---@field provider AvanteProviderFunctor | AvanteBedrockProviderFunctor | nil
 ---@field tools? AvanteLLMTool[]
 ---@field tool_histories? AvanteLLMToolHistory[]
 ---@field original_code? string
 ---@field update_snippets? string[]
+---@field prompt_opts? AvantePromptOptions
 ---
 ---@class AvanteLLMToolHistory
 ---@field tool_result? AvanteLLMToolResult
