@@ -112,7 +112,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: ARG001
                     directory = uri_to_path(resource.uri)
                     if not directory.exists():
                         logger.error("Directory not found: %s", directory)
-                        resource_service.update_resource_status(resource.uri, "error", "Directory not found")
+                        resource_service.update_resource_status(resource.uri, "error", f"Directory not found: {directory}")
                         continue
 
                     # Start file system watcher
