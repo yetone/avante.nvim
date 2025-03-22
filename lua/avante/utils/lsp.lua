@@ -79,18 +79,19 @@ function M.read_definitions(bufnr, symbol_name, show_line_numbers, on_complete)
       on_complete(nil, "No results")
       return
     end
+    ---@type avante.lsp.Definition[]
+    local res = {}
     for _, result in ipairs(results) do
       if result.error then
         on_complete(nil, result.error.message)
         return
       end
+      if not result.result then goto continue end
       local definitions = vim.tbl_filter(function(d) return d.name == symbol_name end, result.result)
       if #definitions == 0 then
         on_complete(nil, "No definition found")
         return
       end
-      ---@type avante.lsp.Definition[]
-      local res = {}
       for _, definition in ipairs(definitions) do
         local lines = get_full_definition(definition.location)
         if show_line_numbers then
@@ -104,8 +105,9 @@ function M.read_definitions(bufnr, symbol_name, show_line_numbers, on_complete)
         local uri = definition.location.uri
         table.insert(res, { content = table.concat(lines, "\n"), uri = uri })
       end
-      on_complete(res, nil)
+      ::continue::
     end
+    on_complete(res, nil)
   end)
 end
 
