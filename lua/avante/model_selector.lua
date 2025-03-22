@@ -28,6 +28,16 @@ function M.open()
     ::continue::
   end
 
+  -- Include dynamic models from Copilot
+  local copilot_config = Config.get_provider_config("copilot")
+  for _, model in ipairs(copilot_config.dynamic_models or {}) do
+    table.insert(models, {
+      name = "copilot/" .. model.id,
+      provider_name = "copilot",
+      model = model.id,
+    })
+  end
+
   if #models == 0 then
     Utils.warn("No models available in config")
     return

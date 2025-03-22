@@ -32,6 +32,7 @@ local Path = require("plenary.path")
 local Utils = require("avante.utils")
 local P = require("avante.providers")
 local OpenAI = require("avante.providers").openai
+local ModelFetcher = require("avante.providers.model_fetcher")
 
 local H = {}
 
@@ -296,6 +297,8 @@ function M.setup_file_watcher()
   )
 end
 
+function M.fetch_copilot_models() ModelFetcher.fetch_models("copilot", M.state) end
+
 function M.setup()
   local copilot_token_file = Path:new(copilot_path)
 
@@ -324,6 +327,8 @@ function M.setup()
 
   require("avante.tokenizers").setup(M.tokenizer_id)
   vim.g.avante_login = true
+
+  M.fetch_copilot_models()
 end
 
 function M.cleanup()

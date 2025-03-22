@@ -208,6 +208,7 @@ M._defaults = {
     timeout = 30000, -- Timeout in milliseconds
     temperature = 0,
     max_tokens = 20480,
+    dynamic_models = {}, -- Pc3e4
   },
   ---@type AvanteAzureProvider
   azure = {
