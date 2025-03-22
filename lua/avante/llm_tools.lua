@@ -289,7 +289,7 @@ function M.str_replace_editor(opts, on_log, on_complete)
     vim.api.nvim_set_current_win(current_winid)
     local augroup = vim.api.nvim_create_augroup("avante_str_replace_editor", { clear = true })
     local confirm = M.confirm("Are you sure you want to apply this modification?", function(ok)
-      vim.api.nvim_del_augroup_by_id(augroup)
+      pcall(vim.api.nvim_del_augroup_by_id, augroup)
       vim.api.nvim_set_current_win(sidebar.code.winid)
       vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
       vim.cmd("undo")
@@ -310,7 +310,7 @@ function M.str_replace_editor(opts, on_log, on_complete)
         local current_lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
         local current_lines_content = table.concat(current_lines, "\n")
         if current_lines_content:find(patch_end_line_content) then return end
-        vim.api.nvim_del_augroup_by_id(augroup)
+        pcall(vim.api.nvim_del_augroup_by_id, augroup)
         if confirm then confirm:close() end
         if vim.api.nvim_win_is_valid(current_winid) then vim.api.nvim_set_current_win(current_winid) end
         if lines_content == current_lines_content then
