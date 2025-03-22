@@ -240,9 +240,7 @@ end
 ---@return AvanteDefaultBaseProvider provider_opts
 ---@return table<string, any> request_body
 function M.parse_config(opts)
-  if opts == nil then
-    opts = {}
-  end
+  if opts == nil then opts = {} end
 
   ---@type AvanteDefaultBaseProvider
   local provider_opts = {}
