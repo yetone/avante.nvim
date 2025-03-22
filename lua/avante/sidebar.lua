@@ -32,6 +32,7 @@ local Sidebar = {}
 ---@field winid integer
 ---@field bufnr integer
 ---@field selection avante.SelectionResult | nil
+---@field old_winhl string | nil
 
 ---@class avante.Sidebar
 ---@field id integer
@@ -49,7 +50,7 @@ local Sidebar = {}
 function Sidebar:new(id)
   return setmetatable({
     id = id,
-    code = { bufnr = 0, winid = 0, selection = nil },
+    code = { bufnr = 0, winid = 0, selection = nil, old_winhl = nil },
     winids = {
       result_container = 0,
       selected_files_container = 0,
@@ -130,7 +131,56 @@ function Sidebar:open(opts)
   end
 
   vim.cmd("wincmd =")
+
   return self
+end
+
+function Sidebar:setup_colors()
+  self:set_code_winhl()
+  vim.api.nvim_create_autocmd("WinNew", {
+    group = self.augroup,
+    callback = function()
+      for _, winid in ipairs(vim.api.nvim_list_wins()) do
+        if not vim.api.nvim_win_is_valid(winid) or self:is_sidebar_winid(winid) then goto continue end
+        local winhl = vim.wo[winid].winhl
+        if
+          winhl:find(Highlights.AVANTE_SIDEBAR_WIN_SEPARATOR)
+          and not Utils.should_hidden_border(self.code.winid, winid)
+        then
+          vim.wo[winid].winhl = self.code.old_winhl or ""
+        end
+        ::continue::
+      end
+      self:set_code_winhl()
+    end,
+  })
+end
+
+function Sidebar:set_code_winhl()
+  if Utils.should_hidden_border(self.code.winid, self.winids.result_container) then
+    Utils.debug("setting winhl")
+    local old_winhl = vim.wo[self.code.winid].winhl
+    if self.code.old_winhl == nil then
+      self.code.old_winhl = old_winhl
+    else
+      old_winhl = self.code.old_winhl
+    end
+    local pieces = vim.split(old_winhl or "", ",")
+    local new_pieces = {}
+    for _, piece in ipairs(pieces) do
+      if not piece:find("WinSeparator:") and piece ~= "" then table.insert(new_pieces, piece) end
+    end
+    table.insert(new_pieces, "WinSeparator:" .. Highlights.AVANTE_SIDEBAR_WIN_SEPARATOR)
+    local new_winhl = table.concat(new_pieces, ",")
+    vim.wo[self.code.winid].winhl = new_winhl
+  end
+end
+
+function Sidebar:recover_code_winhl()
+  if self.code.old_winhl ~= nil then
+    vim.wo[self.code.winid].winhl = self.code.old_winhl
+    self.code.old_winhl = nil
+  end
 end
 
 ---@class SidebarCloseOptions
@@ -146,6 +196,8 @@ function Sidebar:close(opts)
   if opts.goto_code_win and self.code and self.code.winid and api.nvim_win_is_valid(self.code.winid) then
     fn.win_gotoid(self.code.winid)
   end
+
+  self:recover_code_winhl()
 
   vim.cmd("wincmd =")
 end
@@ -969,9 +1021,10 @@ function Sidebar:edit_user_request()
   if not block then return end
 
   if self.input_container and self.input_container.bufnr and api.nvim_buf_is_valid(self.input_container.bufnr) then
-    api.nvim_buf_set_lines(self.input_container.bufnr, 0, -1, false, vim.split(block.content, "\n"))
+    local lines = vim.split(block.content, "\n")
+    api.nvim_buf_set_lines(self.input_container.bufnr, 0, -1, false, lines)
     api.nvim_set_current_win(self.input_container.winid)
-    api.nvim_win_set_cursor(self.input_container.winid, { 1, 0 })
+    api.nvim_win_set_cursor(self.input_container.winid, { 1, #lines > 0 and #lines[1] or 0 })
   end
 end
 
@@ -1396,13 +1449,15 @@ local base_win_options = {
   relativenumber = false,
   winfixwidth = true,
   list = false,
-  winhl = "",
   linebreak = true,
   breakindent = true,
   wrap = false,
   cursorline = false,
   fillchars = "eob: ",
-  winhighlight = "CursorLine:Normal,CursorColumn:Normal",
+  winhighlight = "CursorLine:Normal,CursorColumn:Normal,WinSeparator:"
+    .. Highlights.AVANTE_SIDEBAR_WIN_SEPARATOR
+    .. ",Normal:"
+    .. Highlights.AVANTE_SIDEBAR_NORMAL,
   winbar = "",
   statusline = "",
 }
@@ -1410,17 +1465,31 @@ local base_win_options = {
 function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl)
   if not bufnr or not api.nvim_buf_is_valid(bufnr) then return end
 
+  local is_result_win = self.winids.result_container == winid
+
+  local separator_char = is_result_win and " " or "-"
+
   if not Config.windows.sidebar_header.enabled then return end
 
   if not Config.windows.sidebar_header.rounded then header_text = " " .. header_text .. " " end
 
-  local winbar_text = "%#Normal#"
+  local win_width = vim.api.nvim_win_get_width(winid)
 
-  if Config.windows.sidebar_header.align == "center" then
-    winbar_text = winbar_text .. "%="
-  elseif Config.windows.sidebar_header.align == "right" then
-    winbar_text = winbar_text .. "%="
+  local padding = math.floor((win_width - #header_text) / 2)
+  if Config.windows.sidebar_header.align ~= "center" then padding = win_width - #header_text end
+
+  local winbar_text = "%#" .. Highlights.AVANTE_SIDEBAR_WIN_HORIZONTAL_SEPARATOR .. "#"
+
+  if Config.windows.sidebar_header.align ~= "left" then
+    if not Config.windows.sidebar_header.rounded then winbar_text = winbar_text .. " " end
+    winbar_text = winbar_text .. string.rep(separator_char, padding)
   end
+
+  -- if Config.windows.sidebar_header.align == "center" then
+  --   winbar_text = winbar_text .. "%="
+  -- elseif Config.windows.sidebar_header.align == "right" then
+  --   winbar_text = winbar_text .. "%="
+  -- end
 
   if Config.windows.sidebar_header.rounded then
     winbar_text = winbar_text .. "%#" .. reverse_hl .. "#" .. Utils.icon("", "『") .. "%#" .. hl .. "#"
@@ -1431,8 +1500,13 @@ function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl)
   if Config.windows.sidebar_header.rounded then
     winbar_text = winbar_text .. "%#" .. reverse_hl .. "#" .. Utils.icon("", "』")
   end
-  winbar_text = winbar_text .. "%#Normal#"
-  if Config.windows.sidebar_header.align == "center" then winbar_text = winbar_text .. "%=" end
+  -- if Config.windows.sidebar_header.align == "center" then winbar_text = winbar_text .. "%=" end
+
+  winbar_text = winbar_text .. "%#" .. Highlights.AVANTE_SIDEBAR_WIN_HORIZONTAL_SEPARATOR .. "#"
+  if Config.windows.sidebar_header.align ~= "right" then
+    winbar_text = winbar_text .. string.rep(separator_char, padding)
+  end
+
   api.nvim_set_option_value("winbar", winbar_text, { win = winid })
 end
 
@@ -1817,7 +1891,7 @@ function Sidebar:on_mount(opts)
           vim.defer_fn(function()
             if Config.windows.ask.start_insert then
               Utils.debug("starting insert")
-              vim.cmd("startinsert")
+              vim.cmd("startinsert!")
             end
           end, 300)
         end
@@ -1831,7 +1905,7 @@ function Sidebar:on_mount(opts)
     callback = function(args)
       local closed_winid = tonumber(args.match)
       if closed_winid == self.winids.selected_files_container then return end
-      if not self:is_focused_on(closed_winid) then return end
+      if not self:is_sidebar_winid(closed_winid) then return end
       self:close()
     end,
   })
@@ -1952,7 +2026,7 @@ function Sidebar:is_focused_on_result()
   return self:is_open() and self.result_container and self.result_container.winid == api.nvim_get_current_win()
 end
 
-function Sidebar:is_focused_on(winid)
+function Sidebar:is_sidebar_winid(winid)
   for _, stored_winid in pairs(self.winids) do
     if stored_winid == winid then return true end
   end
@@ -2354,6 +2428,9 @@ function Sidebar:create_selected_code_container()
         winid = self.input_container.winid,
       },
       buf_options = buf_options,
+      win_options = {
+        winhl = base_win_options.winhl,
+      },
       size = {
         height = selected_code_size + 3,
       },
@@ -2954,7 +3031,7 @@ function Sidebar:create_input_container(opts)
     group = self.augroup,
     buffer = self.input_container.bufnr,
     callback = function()
-      if Config.windows.ask.start_insert then vim.cmd("startinsert") end
+      if Config.windows.ask.start_insert then vim.cmd("startinsert!") end
     end,
   })
 
@@ -3112,6 +3189,8 @@ function Sidebar:render(opts)
   self:create_selected_code_container()
 
   self:on_mount(opts)
+
+  self:setup_colors()
 
   return self
 end
