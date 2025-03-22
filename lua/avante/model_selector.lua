@@ -29,7 +29,8 @@ function M.open()
   end
 
   -- Include dynamic models from Copilot
-  for _, model in ipairs(Config.copilot.dynamic_models or {}) do
+  local copilot_config = Config.get_provider_config("copilot")
+  for _, model in ipairs(copilot_config.dynamic_models or {}) do
     table.insert(models, {
       name = "copilot/" .. model.id,
       provider_name = "copilot",
