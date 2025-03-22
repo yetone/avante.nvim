@@ -1631,6 +1631,57 @@ M._tools = {
       },
     },
   },
+  {
+    name = "read_definitions",
+    description = "Retrieves the complete source code definitions of any symbol (function, type, constant, etc.) from your codebase.",
+    param = {
+      type = "table",
+      fields = {
+        {
+          name = "symbol_name",
+          description = "The name of the symbol to retrieve the definition for",
+          type = "string",
+        },
+        {
+          name = "show_line_numbers",
+          description = "Whether to show line numbers in the definitions",
+          type = "boolean",
+          default = false,
+        },
+      },
+    },
+    returns = {
+      {
+        name = "definitions",
+        description = "The source code definitions of the symbol",
+        type = "string[]",
+      },
+      {
+        name = "error",
+        description = "Error message if the definition retrieval failed",
+        type = "string",
+        optional = true,
+      },
+    },
+    func = function(input_json, on_log, on_complete)
+      local symbol_name = input_json.symbol_name
+      local show_line_numbers = input_json.show_line_numbers
+      if on_log then on_log("symbol_name: " .. vim.inspect(symbol_name)) end
+      if on_log then on_log("show_line_numbers: " .. vim.inspect(show_line_numbers)) end
+      if not symbol_name then return nil, "No symbol name provided" end
+      local sidebar = require("avante").get()
+      if not sidebar then return nil, "No sidebar" end
+      local bufnr = sidebar.code.bufnr
+      if not bufnr then return nil, "No bufnr" end
+      if not vim.api.nvim_buf_is_valid(bufnr) then return nil, "Invalid bufnr" end
+      if on_log then on_log("bufnr: " .. vim.inspect(bufnr)) end
+      Utils.lsp.read_definitions(bufnr, symbol_name, show_line_numbers, function(definitions, error)
+        local encoded_defs = vim.json.encode(definitions)
+        on_complete(encoded_defs, error)
+      end)
+      return nil, nil
+    end,
+  },
 }
 
 ---@param tools AvanteLLMTool[]
