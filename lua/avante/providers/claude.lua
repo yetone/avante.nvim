@@ -340,7 +340,9 @@ function M:parse_curl_args(prompt_opts)
   local tools = {}
   if not disable_tools and prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
+      if tool.name == "create_file" then goto continue end
       table.insert(tools, self:transform_tool(tool))
+      ::continue::
     end
   end
 
