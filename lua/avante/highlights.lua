@@ -53,7 +53,7 @@ local H = {}
 local M = {}
 
 local function has_set_colors(hl_group)
-  local hl = api.nvim_get_hl(0, { name = hl_group })
+  local hl = api.nvim_get_hl(0, { name = hl_group, link = false })
   return next(hl) ~= nil
 end
 
