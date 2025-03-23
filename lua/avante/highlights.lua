@@ -90,12 +90,12 @@ function M.setup_conflict_highlights()
 
   ---@return number | nil
   local function get_bg(hl_name)
-    local hl = api.nvim_get_hl(0, { name = hl_name })
+    local hl = api.nvim_get_hl(0, { name = hl_name, link = false })
     return hl.bg
   end
 
   local function get_bold(hl_name)
-    local hl = api.nvim_get_hl(0, { name = hl_name })
+    local hl = api.nvim_get_hl(0, { name = hl_name, link = false })
     return hl.bold
   end
 
