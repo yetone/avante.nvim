@@ -53,7 +53,7 @@ local H = {}
 local M = {}
 
 local function has_set_colors(hl_group)
-  local hl = api.nvim_get_hl(0, { name = hl_group })
+  local hl = api.nvim_get_hl(0, { name = hl_group, link = false })
   return next(hl) ~= nil
 end
 
@@ -69,10 +69,10 @@ function M.setup()
         if not has_set_colors(hl.name) then
           local bg = hl.bg
           local fg = hl.fg
-          if hl.bg_link ~= nil then bg = api.nvim_get_hl(0, { name = hl.bg_link }).bg end
-          if hl.fg_link ~= nil then fg = api.nvim_get_hl(0, { name = hl.fg_link }).fg end
-          if hl.bg_link_fg ~= nil then bg = api.nvim_get_hl(0, { name = hl.bg_link_fg }).fg end
-          if hl.fg_link_bg ~= nil then fg = api.nvim_get_hl(0, { name = hl.fg_link_bg }).bg end
+          if hl.bg_link ~= nil then bg = api.nvim_get_hl(0, { name = hl.bg_link, link = false }).bg end
+          if hl.fg_link ~= nil then fg = api.nvim_get_hl(0, { name = hl.fg_link, link = false }).fg end
+          if hl.bg_link_fg ~= nil then bg = api.nvim_get_hl(0, { name = hl.bg_link_fg, link = false }).fg end
+          if hl.fg_link_bg ~= nil then fg = api.nvim_get_hl(0, { name = hl.fg_link_bg, link = false }).bg end
           api.nvim_set_hl(
             0,
             hl.name,
@@ -90,12 +90,12 @@ function M.setup_conflict_highlights()
 
   ---@return number | nil
   local function get_bg(hl_name)
-    local hl = api.nvim_get_hl(0, { name = hl_name })
+    local hl = api.nvim_get_hl(0, { name = hl_name, link = false })
     return hl.bg
   end
 
   local function get_bold(hl_name)
-    local hl = api.nvim_get_hl(0, { name = hl_name })
+    local hl = api.nvim_get_hl(0, { name = hl_name, link = false })
     return hl.bold
   end
 

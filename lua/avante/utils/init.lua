@@ -311,7 +311,7 @@ end
 ---@return table<string, string>
 function M.get_hl(name)
   if not name then return {} end
-  return api.nvim_get_hl(0, { name = name })
+  return api.nvim_get_hl(0, { name = name, link = false })
 end
 
 --- vendor from lazy.nvim for early access and override
