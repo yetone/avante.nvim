@@ -57,6 +57,9 @@ local function has_set_colors(hl_group)
   return next(hl) ~= nil
 end
 
+local first_setup = true
+local already_set_highlights = {}
+
 function M.setup()
   if Config.behaviour.auto_set_highlight_group then
     vim
@@ -66,7 +69,8 @@ function M.setup()
         return k:match("^%u+_") or k:match("^%u+$")
       end)
       :each(function(_, hl)
-        if not has_set_colors(hl.name) then
+        if first_setup and has_set_colors(hl.name) then already_set_highlights[hl.name] = true end
+        if not already_set_highlights[hl.name] then
           local bg = hl.bg
           local fg = hl.fg
           if hl.bg_link ~= nil then bg = api.nvim_get_hl(0, { name = hl.bg_link, link = false }).bg end
@@ -81,6 +85,13 @@ function M.setup()
         end
       end)
   end
+
+  if first_setup then
+    vim.iter(Highlights.conflict):each(function(_, hl)
+      if hl.name and has_set_colors(hl.name) then already_set_highlights[hl.name] = true end
+    end)
+  end
+  first_setup = false
 
   M.setup_conflict_highlights()
 end
@@ -103,7 +114,7 @@ function M.setup_conflict_highlights()
     --- set none shade linked highlights first
     if hl.shade_link ~= nil and hl.shade ~= nil then return end
 
-    if has_set_colors(hl.name) then return end
+    if already_set_highlights[hl.name] then return end
 
     local bg = hl.bg
     local bold = hl.bold
@@ -121,7 +132,7 @@ function M.setup_conflict_highlights()
     --- only set shade linked highlights
     if hl.shade_link == nil or hl.shade == nil then return end
 
-    if has_set_colors(hl.name) then return end
+    if already_set_highlights[hl.name] then return end
 
     local bg
     local bold = hl.bold
