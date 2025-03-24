@@ -345,7 +345,8 @@ vim.g.avante_login = vim.g.avante_login
 ---
 ---@class AvanteLLMTool
 ---@field name string
----@field description string
+---@field description? string
+---@field get_description? fun(): string
 ---@field func? AvanteLLMToolFunc
 ---@field param AvanteLLMToolParam
 ---@field returns AvanteLLMToolReturn[]
@@ -360,7 +361,8 @@ vim.g.avante_login = vim.g.avante_login
 
 ---@class AvanteLLMToolParamField
 ---@field name string
----@field description string
+---@field description? string
+---@field get_description? fun(): string
 ---@field type 'string' | 'integer' | 'boolean' | 'object'
 ---@field fields? AvanteLLMToolParamField[]
 ---@field optional? boolean
