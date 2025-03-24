@@ -9,10 +9,10 @@ local M = setmetatable({}, Base)
 M.name = "dispatch_agent"
 
 M.description =
-  [[Launch a new agent that has access to the following tools: `glob`, `grep`, `ls`, `read_file`. When you are searching for a keyword or file and are not confident that you will find the right match on the first try, use the Agent tool to perform the search for you. For example:
+  [[Launch a new agent that has access to the following tools: `glob`, `grep`, `ls`, `view`. When you are searching for a keyword or file and are not confident that you will find the right match on the first try, use the Agent tool to perform the search for you. For example:
 
 - If you are searching for a keyword like "config" or "logger", the Agent tool is appropriate
-- If you want to read a specific file path, use the `read_file` or `glob` tool instead of the `dispatch_agent` tool, to find the match more quickly
+- If you want to read a specific file path, use the `view` or `glob` tool instead of the `dispatch_agent` tool, to find the match more quickly
 - If you are searching for a specific class definition like "class Foo", use the `glob` tool instead, to find the match more quickly
 
 Usage notes:
@@ -54,7 +54,7 @@ local function get_available_tools()
     require("avante.llm_tools.ls"),
     require("avante.llm_tools.grep"),
     require("avante.llm_tools.glob"),
-    require("avante.llm_tools.read_file"),
+    require("avante.llm_tools.view"),
   }
 end
 

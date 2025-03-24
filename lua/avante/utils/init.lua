@@ -1193,4 +1193,30 @@ function M.should_hidden_border(win_a, win_b)
   return M.is_left_adjacent(win_a, win_b) or M.is_top_adjacent(win_a, win_b)
 end
 
+---@param fields AvanteLLMToolParamField[]
+---@return table[] properties
+---@return string[] required
+function M.llm_tool_param_fields_to_json_schema(fields)
+  local properties = {}
+  local required = {}
+  for _, field in ipairs(fields) do
+    if field.type == "object" and field.fields then
+      local properties_, required_ = M.llm_tool_param_fields_to_json_schema(field.fields)
+      properties[field.name] = {
+        type = field.type,
+        description = field.description,
+        properties = properties_,
+        required = required_,
+      }
+    else
+      properties[field.name] = {
+        type = field.type,
+        description = field.description,
+      }
+    end
+    if not field.optional then table.insert(required, field.name) end
+  end
+  return properties, required
+end
+
 return M

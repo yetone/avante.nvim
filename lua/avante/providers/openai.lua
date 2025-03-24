@@ -18,15 +18,7 @@ function M:is_disable_stream() return false end
 ---@param tool AvanteLLMTool
 ---@return AvanteOpenAITool
 function M:transform_tool(tool)
-  local input_schema_properties = {}
-  local required = {}
-  for _, field in ipairs(tool.param.fields) do
-    input_schema_properties[field.name] = {
-      type = field.type,
-      description = field.description,
-    }
-    if not field.optional then table.insert(required, field.name) end
-  end
+  local input_schema_properties, required = Utils.llm_tool_param_fields_to_json_schema(tool.param.fields)
   ---@type AvanteOpenAIToolFunctionParameters
   local parameters = nil
   if not vim.tbl_isempty(input_schema_properties) then
