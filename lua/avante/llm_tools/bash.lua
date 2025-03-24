@@ -2,14 +2,21 @@ local Path = require("plenary.path")
 local Utils = require("avante.utils")
 local Helpers = require("avante.llm_tools.helpers")
 local Base = require("avante.llm_tools.base")
+local Config = require("avante.config")
+local Providers = require("avante.providers")
 
 ---@class AvanteLLMTool
 local M = setmetatable({}, Base)
 
 M.name = "bash"
 
-M.description =
-  [[Executes a given bash command in a persistent shell session with optional timeout, ensuring proper handling and security measures.
+M.get_description = function()
+  local provider = Providers[Config.provider]
+  if Config.provider:match("copilot") and provider.model and provider.model:match("gpt") then
+    return [[Executes a given bash command in a persistent shell session with optional timeout, ensuring proper handling and security measures.]]
+  end
+
+  return [[Executes a given bash command in a persistent shell session with optional timeout, ensuring proper handling and security measures.
 
 Before executing the command, please follow these steps:
 
@@ -154,6 +161,7 @@ EOF
 Important:
 - Return an empty response - the user will see the gh output directly
 - Never update git config]]
+end
 
 ---@type AvanteLLMToolParam
 M.param = {

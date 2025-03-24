@@ -34,7 +34,7 @@ function M:transform_tool(tool)
     type = "function",
     ["function"] = {
       name = tool.name,
-      description = tool.description,
+      description = tool.get_description and tool.get_description() or tool.description,
       parameters = parameters,
     },
   }

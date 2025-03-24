@@ -37,7 +37,7 @@ function M:transform_tool(tool)
   local input_schema_properties, required = Utils.llm_tool_param_fields_to_json_schema(tool.param.fields)
   return {
     name = tool.name,
-    description = tool.description,
+    description = tool.get_description and tool.get_description() or tool.description,
     input_schema = {
       type = "object",
       properties = input_schema_properties,
