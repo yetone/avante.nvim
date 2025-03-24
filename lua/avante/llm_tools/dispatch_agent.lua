@@ -19,7 +19,7 @@ Usage notes:
 1. Launch multiple agents concurrently whenever possible, to maximize performance
 2. When the agent is done, it will return a single message back to you
 3. Each agent invocation is stateless
-4. The agent's outputs should generally be trusted]]
+4. The agent's outputs should generally be trusted
 
 ---@type AvanteLLMToolParam
 M.param = {
