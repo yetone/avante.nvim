@@ -1005,10 +1005,14 @@ local severity = {
 function M.get_diagnostics(bufnr)
   if bufnr == nil then bufnr = api.nvim_get_current_buf() end
   local diagnositcs = ---@type vim.Diagnostic[]
-    vim.diagnostic.get(
-      bufnr,
-      { severity = { vim.diagnostic.severity.ERROR, vim.diagnostic.severity.WARN, vim.diagnostic.severity.HINT } }
-    )
+    vim.diagnostic.get(bufnr, {
+      severity = {
+        vim.diagnostic.severity.ERROR,
+        vim.diagnostic.severity.WARN,
+        vim.diagnostic.severity.INFO,
+        vim.diagnostic.severity.HINT,
+      },
+    })
   return vim
     .iter(diagnositcs)
     :map(function(diagnostic)
