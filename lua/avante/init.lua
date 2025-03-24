@@ -244,19 +244,22 @@ function H.autocmds()
   end)
 
   local function setup_colors()
+    Utils.debug("Setting up avante colors")
     require("avante.highlights").setup()
-    -- local sidebar = require("avante").get()
-    -- if sidebar then sidebar:setup_colors() end
   end
 
   api.nvim_create_autocmd("ColorSchemePre", {
     group = H.augroup,
-    callback = setup_colors,
+    callback = function()
+      vim.schedule(function() setup_colors() end)
+    end,
   })
 
   api.nvim_create_autocmd("ColorScheme", {
     group = H.augroup,
-    callback = setup_colors,
+    callback = function()
+      vim.schedule(function() setup_colors() end)
+    end,
   })
 
   -- automatically setup Avante filetype to markdown
