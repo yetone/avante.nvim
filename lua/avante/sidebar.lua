@@ -2429,7 +2429,7 @@ function Sidebar:create_selected_code_container()
       },
       buf_options = buf_options,
       win_options = {
-        winhl = base_win_options.winhl,
+        winhighlight = base_win_options.winhighlight,
       },
       size = {
         height = selected_code_size + 3,
