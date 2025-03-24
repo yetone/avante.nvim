@@ -1208,14 +1208,14 @@ function M.llm_tool_param_fields_to_json_schema(fields)
       local properties_, required_ = M.llm_tool_param_fields_to_json_schema(field.fields)
       properties[field.name] = {
         type = field.type,
-        description = field.description,
+        description = field.get_description and field.get_description() or field.description,
         properties = properties_,
         required = required_,
       }
     else
       properties[field.name] = {
         type = field.type,
-        description = field.description,
+        description = field.get_description and field.get_description() or field.description,
       }
     end
     if not field.optional then table.insert(required, field.name) end
