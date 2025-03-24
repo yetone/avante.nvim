@@ -837,10 +837,6 @@ local function insert_conflict_contents(bufnr, snippets)
 
   for _, snippet in ipairs(snippets) do
     local start_line, end_line = unpack(snippet.range)
-    if start_line > end_line then
-      start_line = start_line + 1
-      end_line = end_line + 1
-    end
 
     local result = {}
     table.insert(result, "<<<<<<< HEAD")
