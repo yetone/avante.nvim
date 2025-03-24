@@ -974,7 +974,10 @@ local function minimize_snippet(original_lines, snippet)
     local start_a, count_a, start_b, count_b = unpack(hunk)
     ---@type AvanteCodeSnippet
     local new_snippet = {
-      range = { start_line + start_a - 1, start_line + start_a + math.max(count_a, 1) - 2 },
+      range = {
+        count_a > 0 and start_line + start_a - 1 or start_line + start_a,
+        start_line + start_a + math.max(count_a, 1) - 2,
+      },
       content = table.concat(vim.list_slice(snippet_lines, start_b, start_b + count_b - 1), "\n"),
       lang = snippet.lang,
       explanation = snippet.explanation,
