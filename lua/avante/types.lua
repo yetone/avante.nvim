@@ -361,7 +361,8 @@ vim.g.avante_login = vim.g.avante_login
 ---@class AvanteLLMToolParamField
 ---@field name string
 ---@field description string
----@field type 'string' | 'integer' | 'boolean'
+---@field type 'string' | 'integer' | 'boolean' | 'object'
+---@field fields? AvanteLLMToolParamField[]
 ---@field optional? boolean
 
 ---@class AvanteLLMToolReturn
