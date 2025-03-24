@@ -99,14 +99,20 @@ function M.str_replace_editor(opts, on_log, on_complete)
     for _, hunk in ipairs(patch) do
       local start_a, count_a, start_b, count_b = unpack(hunk)
       if current_start_a < start_a then
-        vim.list_extend(patched_new_lines, vim.list_slice(old_lines, current_start_a, start_a - 1))
+        if count_a > 0 then
+          vim.list_extend(patched_new_lines, vim.list_slice(old_lines, current_start_a, start_a - 1))
+        else
+          vim.list_extend(patched_new_lines, vim.list_slice(old_lines, current_start_a, start_a))
+        end
       end
       table.insert(patched_new_lines, patch_start_line_content)
-      vim.list_extend(patched_new_lines, vim.list_slice(old_lines, start_a, start_a + count_a - 1))
+      if count_a > 0 then
+        vim.list_extend(patched_new_lines, vim.list_slice(old_lines, start_a, start_a + count_a - 1))
+      end
       table.insert(patched_new_lines, "=======")
       vim.list_extend(patched_new_lines, vim.list_slice(new_lines, start_b, start_b + count_b - 1))
       table.insert(patched_new_lines, patch_end_line_content)
-      current_start_a = start_a + count_a
+      current_start_a = start_a + math.max(count_a, 1)
     end
     if current_start_a <= #old_lines then
       vim.list_extend(patched_new_lines, vim.list_slice(old_lines, current_start_a, #old_lines))
