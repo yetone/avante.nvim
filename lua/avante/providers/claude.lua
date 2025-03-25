@@ -335,6 +335,7 @@ function M:parse_curl_args(prompt_opts)
       if Config.behaviour.enable_claude_text_editor_tool_mode then
         if tool.name == "create_file" then goto continue end
         if tool.name == "view" then goto continue end
+        if tool.name == "str_replace" then goto continue end
       end
       table.insert(tools, self:transform_tool(tool))
       ::continue::
