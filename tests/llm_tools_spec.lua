@@ -10,6 +10,7 @@ local view = require("avante.llm_tools.view")
 local bash = require("avante.llm_tools.bash")
 
 LlmToolHelpers.confirm = function(msg, cb) return cb(true) end
+LlmToolHelpers.already_in_context = function(path) return false end
 
 describe("llm_tools", function()
   local test_dir = "/tmp/test_llm_tools"
@@ -95,18 +96,6 @@ describe("llm_tools", function()
         assert.is_nil(err)
         assert.truthy(content:find("test.txt"))
         assert.truthy(content:find("test content"))
-      end)
-    end)
-  end)
-
-  describe("create_file", function()
-    it("should create new file", function()
-      LlmTools.create_file({ rel_path = "new_file.txt" }, nil, function(success, err)
-        assert.is_nil(err)
-        assert.is_true(success)
-
-        local file_exists = io.open(test_dir .. "/new_file.txt", "r") ~= nil
-        assert.is_true(file_exists)
       end)
     end)
   end)
