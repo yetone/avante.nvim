@@ -2708,7 +2708,7 @@ function Sidebar:create_input_container(opts)
 
       local selected_files = self.file_selector:get_selected_files_contents()
 
-      local transformed_response_ = transformed_response
+      local transformed_response_
       if waiting_for_breakline and chunk and chunk:sub(1, 1) ~= "\n" then
         transformed_response_ = transformed_response .. "\n" .. chunk
       else

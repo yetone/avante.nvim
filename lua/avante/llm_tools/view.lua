@@ -75,6 +75,14 @@ M.returns = {
 ---@type AvanteLLMToolFunc<{ path: string, view_range?: { start_line: integer, end_line: integer } }>
 function M.func(opts, on_log, on_complete)
   if not on_complete then return false, "on_complete not provided" end
+  local sidebar = require("avante").get()
+  if sidebar and sidebar.file_selector then
+    local rel_path = Utils.uniform_path(opts.path)
+    if vim.tbl_contains(sidebar.file_selector.selected_filepaths, rel_path) then
+      on_complete(nil, "Ooooops! This file is already in the context! Why you are trying to read it again?")
+      return
+    end
+  end
   local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if on_log then on_log("path: " .. abs_path) end
