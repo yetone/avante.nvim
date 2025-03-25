@@ -345,6 +345,7 @@ M._defaults = {
   },
   history = {
     max_tokens = 4096,
+    carried_entry_count = nil,
     storage_path = vim.fn.stdpath("state") .. "/avante",
     paste = {
       extension = "png",

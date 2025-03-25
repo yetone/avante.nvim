@@ -2578,7 +2578,7 @@ function Sidebar:create_input_container(opts)
 
     prompts_opts.history_messages = vim.list_slice(prompts_opts.history_messages, 5)
 
-    Llm.summarize_memory(self.code.bufnr, self.chat_history, function(memory)
+    Llm.summarize_memory(self.code.bufnr, self.chat_history, nil, function(memory)
       if memory then prompts_opts.memory = memory.content end
       cb(prompts_opts)
     end)
@@ -2814,6 +2814,28 @@ function Sidebar:create_input_container(opts)
         on_tool_log = on_tool_log,
         session_ctx = {},
       })
+
+      local function on_memory_summarize(dropped_history_messages)
+        local entries = Utils.history.filter_active_entries(self.chat_history.entries)
+
+        if self.chat_history.memory then
+          entries = vim
+            .iter(entries)
+            :filter(function(entry) return entry.timestamp > self.chat_history.memory.last_summarized_timestamp end)
+            :totable()
+        end
+
+        entries = vim.list_slice(entries, 1, #dropped_history_messages)
+
+        Llm.summarize_memory(self.code.bufnr, self.chat_history, entries, function(memory)
+          if memory then stream_options.memory = memory.content end
+          stream_options.history_messages =
+            vim.list_slice(stream_options.history_messages, #dropped_history_messages + 1)
+          Llm.stream(stream_options)
+        end)
+      end
+
+      stream_options.on_memory_summarize = on_memory_summarize
 
       Llm.stream(stream_options)
     end)
