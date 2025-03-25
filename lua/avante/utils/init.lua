@@ -308,7 +308,7 @@ function M.is_valid_buf(bufnr)
 end
 
 ---@param name string?
----@return table<string, string>
+---@return table
 function M.get_hl(name)
   if not name then return {} end
   return api.nvim_get_hl(0, { name = name, link = false })
