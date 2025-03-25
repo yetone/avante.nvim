@@ -344,7 +344,7 @@ M._defaults = {
     use_cwd_as_project_root = false,
   },
   history = {
-    max_tokens = 8192,
+    max_tokens = 4096,
     storage_path = vim.fn.stdpath("state") .. "/avante",
     paste = {
       extension = "png",
