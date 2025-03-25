@@ -2576,12 +2576,12 @@ function Sidebar:create_input_container(opts)
 
     if self.chat_history.memory then prompts_opts.memory = self.chat_history.memory.content end
 
-    if not summarize_memory or #history_messages < 12 then
+    if not summarize_memory or #history_messages < 8 then
       cb(prompts_opts)
       return
     end
 
-    prompts_opts.history_messages = vim.list_slice(prompts_opts.history_messages, 7)
+    prompts_opts.history_messages = vim.list_slice(prompts_opts.history_messages, 5)
 
     Llm.summarize_memory(self.code.bufnr, self.chat_history, function(memory)
       if memory then prompts_opts.memory = memory.content end
