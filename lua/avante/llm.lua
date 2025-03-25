@@ -62,15 +62,13 @@ end
 ---@param history avante.ChatHistory
 ---@param cb fun(memory: avante.ChatMemory | nil): nil
 function M.summarize_memory(bufnr, history, cb)
-  local system_prompt =
-    [[Summarize the following conversation to extract the most critical information (such as languages used, conversation style, tech stack, considerations, user information, etc.) for memory in subsequent conversations. Since it is for memory purposes, be detailed and rigorous to ensure that no information from previous summaries is lost in the newly generated summary.]]
+  local system_prompt = [[You are a helpful AI assistant tasked with summarizing conversations.]]
   local entries = Utils.history.filter_active_entries(history.entries)
   if #entries == 0 then
     cb(nil)
     return
   end
   if history.memory then
-    system_prompt = system_prompt .. "\n\nThe previous summary is:\n\n" .. history.memory.content
     entries = vim
       .iter(entries)
       :filter(function(entry) return entry.timestamp > history.memory.last_summarized_timestamp end)
@@ -87,15 +85,20 @@ function M.summarize_memory(bufnr, history, cb)
     return
   end
   Utils.debug("summarize memory", #history_messages, history_messages[#history_messages].content)
+  local user_prompt =
+    [[Provide a detailed but concise summary of our conversation above. Focus on information that would be helpful for continuing the conversation, including what we did, what we're doing, which files we're working on, and what we're going to do next.]]
+  if history.memory then user_prompt = user_prompt .. "\n\nThe previous summary is:\n\n" .. history.memory.content end
+  table.insert(history_messages, {
+    role = "user",
+    content = user_prompt,
+  })
   local response_content = ""
   local provider = Providers[Config.memory_summary_provider or Config.provider]
   M.curl({
     provider = provider,
     prompt_opts = {
       system_prompt = system_prompt,
-      messages = {
-        { role = "user", content = vim.json.encode(history_messages) },
-      },
+      messages = history_messages,
     },
     handler_opts = {
       on_start = function(_) end,

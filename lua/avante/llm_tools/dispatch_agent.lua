@@ -16,10 +16,11 @@ M.description =
 - If you are searching for a specific class definition like "class Foo", use the `glob` tool instead, to find the match more quickly
 
 Usage notes:
-1. Launch multiple agents concurrently whenever possible, to maximize performance
-2. When the agent is done, it will return a single message back to you
-3. Each agent invocation is stateless
-4. The agent's outputs should generally be trusted]]
+1. Launch multiple agents concurrently whenever possible, to maximize performance; to do that, use a single message with multiple tool uses
+2. When the agent is done, it will return a single message back to you. The result returned by the agent is not visible to the user. To show the user the result, you should send a text message back to the user with a concise summary of the result.
+3. Each agent invocation is stateless. You will not be able to send additional messages to the agent, nor will the agent be able to communicate with you outside of its final report. Therefore, your prompt should contain a highly detailed task description for the agent to perform autonomously and you should specify exactly what information the agent should return back to you in its final and only message to you.
+4. The agent's outputs should generally be trusted
+5. IMPORTANT: The agent can not use `bash`, `write`, `str_replace`, so can not modify files. If you want to use these tools, use them directly instead of going through the agent.]]
 
 ---@type AvanteLLMToolParam
 M.param = {
