@@ -73,11 +73,21 @@ M.returns = {
 }
 
 ---@type AvanteLLMToolFunc<{ path: string, view_range?: { start_line: integer, end_line: integer } }>
-function M.func(opts, on_log, on_complete)
+function M.func(opts, on_log, on_complete, session_ctx)
   if not on_complete then return false, "on_complete not provided" end
   if Helpers.already_in_context(opts.path) then
     on_complete(nil, "Ooooops! This file is already in the context! Why you are trying to read it again?")
     return
+  end
+  if session_ctx then
+    local view_history = session_ctx.view_history or {}
+    local uniform_path = Utils.uniform_path(opts.path)
+    if view_history[uniform_path] then
+      on_complete(nil, "Ooooops! You have already viewed this file! Why you are trying to read it again?")
+      return
+    end
+    view_history[uniform_path] = true
+    session_ctx.view_history = view_history
   end
   local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
