@@ -332,6 +332,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field tool_use? AvanteLLMToolUse
 ---
 ---@class AvanteLLMStreamOptions: AvanteGeneratePromptsOptions
+---@field session_ctx? table
 ---@field on_start AvanteLLMStartCallback
 ---@field on_chunk AvanteLLMChunkCallback
 ---@field on_stop AvanteLLMStopCallback
@@ -339,8 +340,9 @@ vim.g.avante_login = vim.g.avante_login
 ---
 ---@alias AvanteLLMToolFunc<T> fun(
 ---  input: T,
----  on_log?: (fun(log: string): nil) | nil,
----  on_complete?: (fun(result: boolean | string | nil, error: string | nil): nil) | nil)
+---  on_log?: (fun(log: string): nil),
+---  on_complete?: (fun(result: boolean | string | nil, error: string | nil): nil),
+---  session_ctx?: table)
 ---  : (boolean | string | nil, string | nil)
 ---
 ---@class AvanteLLMTool
