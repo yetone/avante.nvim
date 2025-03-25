@@ -252,6 +252,7 @@ end
 ---@field is_searching boolean
 ---@field is_replacing boolean
 ---@field is_thinking boolean
+---@field waiting_for_breakline boolean
 ---@field last_search_tag_start_line integer
 ---@field last_replace_tag_start_line integer
 ---@field last_think_tag_start_line integer
@@ -278,6 +279,7 @@ local function transform_result_content(selected_files, result_content, prev_fil
 
   local current_filepath
 
+  local waiting_for_breakline = false
   local i = 1
   while true do
     if i > #result_lines then break end
@@ -414,6 +416,7 @@ local function transform_result_content(selected_files, result_content, prev_fil
       if search_start_tag_idx_in_transformed_lines > 0 then
         transformed_lines = vim.list_slice(transformed_lines, 1, search_start_tag_idx_in_transformed_lines - 1)
       end
+      waiting_for_breakline = true
       vim.list_extend(transformed_lines, {
         string.format("Replace lines: %d-%d", start_line, end_line),
         string.format("```%s", match_filetype),
@@ -456,6 +459,7 @@ local function transform_result_content(selected_files, result_content, prev_fil
       is_thinking = false
       last_think_tag_end_line = i
     end
+    waiting_for_breakline = false
     table.insert(transformed_lines, line_content)
     ::continue::
     i = i + 1
@@ -465,6 +469,7 @@ local function transform_result_content(selected_files, result_content, prev_fil
   return {
     current_filepath = current_filepath,
     content = table.concat(transformed_lines, "\n"),
+    waiting_for_breakline = waiting_for_breakline,
     is_searching = is_searching,
     is_replacing = is_replacing,
     is_thinking = is_thinking,
@@ -2645,6 +2650,7 @@ function Sidebar:create_input_container(opts)
     self:update_content(content_prefix .. generating_text)
 
     local original_response = ""
+    local waiting_for_breakline = false
     local transformed_response = ""
     local displayed_response = ""
     local current_path = ""
@@ -2702,7 +2708,15 @@ function Sidebar:create_input_container(opts)
 
       local selected_files = self.file_selector:get_selected_files_contents()
 
-      local transformed = transform_result_content(selected_files, transformed_response .. chunk, current_path)
+      local transformed_response_ = transformed_response
+      if waiting_for_breakline and chunk and chunk:sub(1, 1) ~= "\n" then
+        transformed_response_ = transformed_response .. "\n" .. chunk
+      else
+        transformed_response_ = transformed_response .. chunk
+      end
+
+      local transformed = transform_result_content(selected_files, transformed_response_, current_path)
+      waiting_for_breakline = transformed.waiting_for_breakline
       transformed_response = transformed.content
       if transformed.current_filepath and transformed.current_filepath ~= "" then
         current_path = transformed.current_filepath
