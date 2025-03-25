@@ -276,24 +276,6 @@ function M.write_global_file(opts, on_log, on_complete)
   end)
 end
 
----@type AvanteLLMToolFunc<{ rel_path: string }>
-function M.create_file(opts, on_log)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
-  if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
-  if on_log then on_log("path: " .. abs_path) end
-  ---create directory if it doesn't exist
-  local dir = Path:new(abs_path):parent()
-  if not dir:exists() then dir:mkdir({ parents = true }) end
-  ---create file if it doesn't exist
-  if not dir:joinpath(opts.rel_path):exists() then
-    local file = io.open(abs_path, "w")
-    if not file then return false, "file not found: " .. abs_path end
-    file:close()
-  end
-
-  return true, nil
-end
-
 ---@type AvanteLLMToolFunc<{ rel_path: string, new_rel_path: string }>
 function M.rename_file(opts, on_log, on_complete)
   local abs_path = Helpers.get_abs_path(opts.rel_path)
@@ -1003,33 +985,6 @@ M._tools = {
       {
         name = "error",
         description = "Error message if the file was not written successfully",
-        type = "string",
-        optional = true,
-      },
-    },
-  },
-  {
-    name = "create_file",
-    description = "Create a new file in current project scope",
-    param = {
-      type = "table",
-      fields = {
-        {
-          name = "rel_path",
-          description = "Relative path to the file in current project scope",
-          type = "string",
-        },
-      },
-    },
-    returns = {
-      {
-        name = "success",
-        description = "True if the file was created successfully, false otherwise",
-        type = "boolean",
-      },
-      {
-        name = "error",
-        description = "Error message if the file was not created successfully",
         type = "string",
         optional = true,
       },
