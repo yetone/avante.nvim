@@ -2551,13 +2551,7 @@ function Sidebar:create_input_container(opts)
     local mode = "planning"
     if Config.behaviour.enable_cursor_planning_mode then mode = "cursor-planning" end
 
-    local provider_config = Config.get_provider_config(Config.provider)
-    local is_claude_model = provider_config
-      and provider_config.model
-      and (provider_config.model:lower():match("claude") or Config.provider:lower():match("claude"))
-    if Config.behaviour.enable_claude_text_editor_tool_mode and is_claude_model then
-      mode = "claude-text-editor-tool"
-    end
+    if Config.behaviour.enable_claude_text_editor_tool_mode then mode = "claude-text-editor-tool" end
 
     ---@type AvanteGeneratePromptsOptions
     local prompts_opts = {

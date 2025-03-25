@@ -517,14 +517,6 @@ function M.setup(opts)
     vim.validate({ vendors = { M._options.vendors, "table", true } })
     M.provider_names = vim.list_extend(M.provider_names, vim.tbl_keys(M._options.vendors))
   end
-
-  if M._options.behaviour.enable_claude_text_editor_tool_mode and M._options.provider ~= "claude" then
-    Utils.warn(
-      "Claude text editor tool mode is only supported for claude provider! So it will be disabled!",
-      { title = "Avante" }
-    )
-    M._options.behaviour.enable_claude_text_editor_tool_mode = false
-  end
 end
 
 ---@param opts table<string, any>
