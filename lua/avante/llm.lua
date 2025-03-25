@@ -60,10 +60,11 @@ end
 
 ---@param bufnr integer
 ---@param history avante.ChatHistory
+---@param entries? avante.ChatHistoryEntry[]
 ---@param cb fun(memory: avante.ChatMemory | nil): nil
-function M.summarize_memory(bufnr, history, cb)
+function M.summarize_memory(bufnr, history, entries, cb)
   local system_prompt = [[You are a helpful AI assistant tasked with summarizing conversations.]]
-  local entries = Utils.history.filter_active_entries(history.entries)
+  if not entries then entries = Utils.history.filter_active_entries(history.entries) end
   if #entries == 0 then
     cb(nil)
     return
@@ -202,9 +203,7 @@ function M.generate_prompts(opts)
     if memory ~= "" then table.insert(messages, { role = "user", content = memory }) end
   end
 
-  if instructions then
-    table.insert(messages, { role = "user", content = string.format("<question>%s</question>", instructions) })
-  end
+  if instructions then table.insert(messages, { role = "user", content = instructions }) end
 
   local remaining_tokens = max_tokens - Utils.tokens.calculate_tokens(system_prompt)
 
@@ -212,20 +211,29 @@ function M.generate_prompts(opts)
     remaining_tokens = remaining_tokens - Utils.tokens.calculate_tokens(message.content)
   end
 
+  local dropped_history_messages = {}
   if opts.history_messages then
     if Config.history.max_tokens > 0 then remaining_tokens = math.min(Config.history.max_tokens, remaining_tokens) end
     -- Traverse the history in reverse, keeping only the latest history until the remaining tokens are exhausted and the first message role is "user"
     local history_messages = {}
     for i = #opts.history_messages, 1, -1 do
       local message = opts.history_messages[i]
-      local tokens = Utils.tokens.calculate_tokens(message.content)
-      remaining_tokens = remaining_tokens - tokens
-      if remaining_tokens > 0 then
+      if Config.history.carried_entry_count ~= nil then
+        if #history_messages > Config.history.carried_entry_count then break end
         table.insert(history_messages, message)
       else
-        break
+        local tokens = Utils.tokens.calculate_tokens(message.content)
+        remaining_tokens = remaining_tokens - tokens
+        if remaining_tokens > 0 then
+          table.insert(history_messages, message)
+        else
+          break
+        end
       end
     end
+
+    dropped_history_messages = vim.list_slice(opts.history_messages, 1, #opts.history_messages - #history_messages)
+
     -- prepend the history messages to the messages table
     vim.iter(history_messages):each(function(msg) table.insert(messages, 1, msg) end)
     if #messages > 0 and messages[1].role == "assistant" then table.remove(messages, 1) end
@@ -254,6 +262,7 @@ Merge all changes from the <update> snippet into the <code> below.
     image_paths = image_paths,
     tools = opts.tools,
     tool_histories = opts.tool_histories,
+    dropped_history_messages = dropped_history_messages,
   }
 end
 
@@ -492,6 +501,15 @@ function M._stream(opts)
   ---@cast provider AvanteProviderFunctor
 
   local prompt_opts = M.generate_prompts(opts)
+
+  if
+    prompt_opts.dropped_history_messages
+    and #prompt_opts.dropped_history_messages > 0
+    and opts.on_memory_summarize
+  then
+    opts.on_memory_summarize(prompt_opts.dropped_history_messages)
+    return
+  end
 
   local resp_headers = {}
 
