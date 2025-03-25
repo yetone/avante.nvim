@@ -6,7 +6,15 @@ local ModelFetcher = {}
 function ModelFetcher.fetch_models(provider_name, state)
   local fetch_functions = {
     copilot = function()
-      local response = curl.get("https://api.githubcopilot.com/models", {
+      if not state.github_token then
+        vim.notify("GitHub token not available. Cannot fetch Copilot models.", vim.log.levels.WARN)
+        return
+      end
+      
+      local provider_config = Config.get_provider_config("copilot")
+      local endpoint = provider_config.endpoint
+      
+      local response = curl.get(endpoint .. "/models", {
         headers = {
           ["Authorization"] = "Bearer " .. state.github_token.token,
           ["Editor-Version"] = ("Neovim/%s.%s.%s"):format(
