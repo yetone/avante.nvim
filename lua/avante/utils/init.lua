@@ -308,10 +308,10 @@ function M.is_valid_buf(bufnr)
 end
 
 ---@param name string?
----@return table<string, string>
+---@return table
 function M.get_hl(name)
   if not name then return {} end
-  return api.nvim_get_hl(0, { name = name })
+  return api.nvim_get_hl(0, { name = name, link = false })
 end
 
 --- vendor from lazy.nvim for early access and override
@@ -1005,10 +1005,14 @@ local severity = {
 function M.get_diagnostics(bufnr)
   if bufnr == nil then bufnr = api.nvim_get_current_buf() end
   local diagnositcs = ---@type vim.Diagnostic[]
-    vim.diagnostic.get(
-      bufnr,
-      { severity = { vim.diagnostic.severity.ERROR, vim.diagnostic.severity.WARN, vim.diagnostic.severity.HINT } }
-    )
+    vim.diagnostic.get(bufnr, {
+      severity = {
+        vim.diagnostic.severity.ERROR,
+        vim.diagnostic.severity.WARN,
+        vim.diagnostic.severity.INFO,
+        vim.diagnostic.severity.HINT,
+      },
+    })
   return vim
     .iter(diagnositcs)
     :map(function(diagnostic)
@@ -1191,6 +1195,32 @@ end
 
 function M.should_hidden_border(win_a, win_b)
   return M.is_left_adjacent(win_a, win_b) or M.is_top_adjacent(win_a, win_b)
+end
+
+---@param fields AvanteLLMToolParamField[]
+---@return table[] properties
+---@return string[] required
+function M.llm_tool_param_fields_to_json_schema(fields)
+  local properties = {}
+  local required = {}
+  for _, field in ipairs(fields) do
+    if field.type == "object" and field.fields then
+      local properties_, required_ = M.llm_tool_param_fields_to_json_schema(field.fields)
+      properties[field.name] = {
+        type = field.type,
+        description = field.get_description and field.get_description() or field.description,
+        properties = properties_,
+        required = required_,
+      }
+    else
+      properties[field.name] = {
+        type = field.type,
+        description = field.get_description and field.get_description() or field.description,
+      }
+    end
+    if not field.optional then table.insert(required, field.name) end
+  end
+  return properties, required
 end
 
 return M

@@ -2,14 +2,43 @@ local Path = require("plenary.path")
 local Utils = require("avante.utils")
 local Helpers = require("avante.llm_tools.helpers")
 local Base = require("avante.llm_tools.base")
+local Config = require("avante.config")
+local Providers = require("avante.providers")
 
 ---@class AvanteLLMTool
 local M = setmetatable({}, Base)
 
 M.name = "bash"
 
-M.description =
-  [[Executes a given bash command in a persistent shell session with optional timeout, ensuring proper handling and security measures.
+local banned_commands = {
+  "alias",
+  "curl",
+  "curlie",
+  "wget",
+  "axel",
+  "aria2c",
+  "nc",
+  "telnet",
+  "lynx",
+  "w3m",
+  "links",
+  "httpie",
+  "xh",
+  "http-prompt",
+  "chrome",
+  "firefox",
+  "safari",
+}
+
+M.get_description = function()
+  local provider = Providers[Config.provider]
+  if Config.provider:match("copilot") and provider.model and provider.model:match("gpt") then
+    return [[Executes a given bash command in a persistent shell session with optional timeout, ensuring proper handling and security measures. Do not use bash command to read or modify files, or you will be fired!]]
+  end
+
+  local res = ([[Executes a given bash command in a persistent shell session with optional timeout, ensuring proper handling and security measures.
+
+Do not use bash command to read or modify files, or you will be fired!
 
 Before executing the command, please follow these steps:
 
@@ -19,7 +48,7 @@ Before executing the command, please follow these steps:
 
 2. Security Check:
    - For security and to limit the threat of a prompt injection attack, some commands are limited or banned. If you use a disallowed command, you will receive an error message explaining the restriction. Explain the error to the User.
-   - Verify that the command is not one of the banned commands: ${BANNED_COMMANDS.join(', ')}.
+   - Verify that the command is not one of the banned commands: ${BANNED_COMMANDS}.
 
 3. Command Execution:
    - After ensuring proper quoting, execute the command.
@@ -146,14 +175,16 @@ gh pr create --title "the pr title" --body "$(cat <<'EOF'
 ## Test plan
 [Checklist of TODOs for testing the pull request...]
 
-🤖 Generated with ${process.env.USER_TYPE === 'ant' ? `[${PRODUCT_NAME}](${PRODUCT_URL})` : PRODUCT_NAME}
+🤖 Generated with [avante.nvim](https://github.com/yetone/avante.nvim)
 EOF
 )"
 </example>
 
 Important:
 - Return an empty response - the user will see the gh output directly
-- Never update git config]]
+- Never update git config]]):gsub("${BANNED_COMMANDS}", table.concat(banned_commands, ", "))
+  return res
+end
 
 ---@type AvanteLLMToolParam
 M.param = {

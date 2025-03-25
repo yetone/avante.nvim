@@ -34,18 +34,10 @@ end
 ---@param tool AvanteLLMTool
 ---@return AvanteClaudeTool
 function M:transform_tool(tool)
-  local input_schema_properties = {}
-  local required = {}
-  for _, field in ipairs(tool.param.fields) do
-    input_schema_properties[field.name] = {
-      type = field.type,
-      description = field.description,
-    }
-    if not field.optional then table.insert(required, field.name) end
-  end
+  local input_schema_properties, required = Utils.llm_tool_param_fields_to_json_schema(tool.param.fields)
   return {
     name = tool.name,
-    description = tool.description,
+    description = tool.get_description and tool.get_description() or tool.description,
     input_schema = {
       type = "object",
       properties = input_schema_properties,
@@ -340,7 +332,11 @@ function M:parse_curl_args(prompt_opts)
   local tools = {}
   if not disable_tools and prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
-      if tool.name == "create_file" then goto continue end
+      if Config.behaviour.enable_claude_text_editor_tool_mode then
+        if tool.name == "create_file" then goto continue end
+        if tool.name == "view" then goto continue end
+        if tool.name == "str_replace" then goto continue end
+      end
       table.insert(tools, self:transform_tool(tool))
       ::continue::
     end

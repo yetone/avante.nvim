@@ -96,6 +96,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field image_paths? string[]
 ---@field tools? AvanteLLMTool[]
 ---@field tool_histories? AvanteLLMToolHistory[]
+---@field dropped_history_messages? AvanteLLMMessage[]
 ---
 ---@class AvanteGeminiMessage
 ---@field role "user"
@@ -331,21 +332,27 @@ vim.g.avante_login = vim.g.avante_login
 ---@field tool_result? AvanteLLMToolResult
 ---@field tool_use? AvanteLLMToolUse
 ---
+---@alias AvanteLLMMemorySummarizeCallback fun(dropped_history_messages: AvanteLLMMessage[]): nil
+---
 ---@class AvanteLLMStreamOptions: AvanteGeneratePromptsOptions
+---@field session_ctx? table
 ---@field on_start AvanteLLMStartCallback
 ---@field on_chunk AvanteLLMChunkCallback
 ---@field on_stop AvanteLLMStopCallback
+---@field on_memory_summarize? AvanteLLMMemorySummarizeCallback
 ---@field on_tool_log? function(tool_name: string, log: string): nil
 ---
 ---@alias AvanteLLMToolFunc<T> fun(
 ---  input: T,
----  on_log?: (fun(log: string): nil) | nil,
----  on_complete?: (fun(result: boolean | string | nil, error: string | nil): nil) | nil)
+---  on_log?: (fun(log: string): nil),
+---  on_complete?: (fun(result: boolean | string | nil, error: string | nil): nil),
+---  session_ctx?: table)
 ---  : (boolean | string | nil, string | nil)
 ---
 ---@class AvanteLLMTool
 ---@field name string
----@field description string
+---@field description? string
+---@field get_description? fun(): string
 ---@field func? AvanteLLMToolFunc
 ---@field param AvanteLLMToolParam
 ---@field returns AvanteLLMToolReturn[]
@@ -360,8 +367,10 @@ vim.g.avante_login = vim.g.avante_login
 
 ---@class AvanteLLMToolParamField
 ---@field name string
----@field description string
----@field type 'string' | 'integer' | 'boolean'
+---@field description? string
+---@field get_description? fun(): string
+---@field type 'string' | 'integer' | 'boolean' | 'object'
+---@field fields? AvanteLLMToolParamField[]
 ---@field optional? boolean
 
 ---@class AvanteLLMToolReturn
