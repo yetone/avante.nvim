@@ -26,7 +26,7 @@ function M.read_file_toplevel_symbols(opts, on_log)
 end
 
 ---@type AvanteLLMToolFunc<{ command: "view" | "str_replace" | "create" | "insert" | "undo_edit", path: string, old_str?: string, new_str?: string, file_text?: string, insert_line?: integer, new_str?: string, view_range?: integer[] }>
-function M.str_replace_editor(opts, on_log, on_complete)
+function M.str_replace_editor(opts, on_log, on_complete, session_ctx)
   if on_log then on_log("command: " .. opts.command) end
   if on_log then on_log("path: " .. vim.inspect(opts.path)) end
   if not on_complete then return false, "on_complete not provided" end
@@ -51,7 +51,7 @@ function M.str_replace_editor(opts, on_log, on_complete)
         end_line = end_line,
       }
     end
-    return view(opts_, on_log, on_complete)
+    return view(opts_, on_log, on_complete, session_ctx)
   end
   if opts.command == "str_replace" then
     if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
@@ -1247,9 +1247,10 @@ M._tools = {
 ---@param tool_use AvanteLLMToolUse
 ---@param on_log? fun(tool_name: string, log: string): nil
 ---@param on_complete? fun(result: string | nil, error: string | nil): nil
+---@param session_ctx? table
 ---@return string | nil result
 ---@return string | nil error
-function M.process_tool_use(tools, tool_use, on_log, on_complete)
+function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
   Utils.debug("use tool", tool_use.name, tool_use.input_json)
 
   -- Check if execution is already cancelled
@@ -1344,7 +1345,7 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete)
       return
     end
     on_complete(result, err)
-  end)
+  end, session_ctx)
 
   -- Result and error being nil means that the tool was executed asynchronously
   if result == nil and err == nil and on_complete then return end

@@ -2817,6 +2817,7 @@ function Sidebar:create_input_container(opts)
         on_chunk = on_chunk,
         on_stop = on_stop,
         on_tool_log = on_tool_log,
+        session_ctx = {},
       })
 
       Llm.stream(stream_options)
