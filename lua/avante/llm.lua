@@ -294,12 +294,12 @@ function M.curl(opts)
 
   ---@param line string
   local function parse_stream_data(line)
-    local event = line:match("^event: (.+)$")
+    local event = line:match("^event:%s*(.+)$")
     if event then
       current_event_state = event
       return
     end
-    local data_match = line:match("^data: (.+)$")
+    local data_match = line:match("^data:%s*(.+)$")
     if data_match then provider:parse_response(resp_ctx, data_match, current_event_state, handler_opts) end
   end
 
