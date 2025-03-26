@@ -1001,6 +1001,15 @@ We would like to express our heartfelt gratitude to the contributors of the foll
 
 The high quality and ingenuity of these projects' source code have been immensely beneficial throughout our development process. We extend our sincere thanks and respect to the authors and contributors of these projects. It is the selfless dedication of the open-source community that drives projects like avante.nvim forward.
 
+## Business Sponsors
+
+<div align="center">
+  <a href="https://www.meshy.ai/" target="_blank" align="center">
+    <img width="80" src="https://github.com/user-attachments/assets/50667a04-6f3f-421e-9d96-c3896f4cece8" alt="Meshy AI" />
+    <div>Meshy AI</div>
+  </a>
+</div>
+
 ## License
 
 avante.nvim is licensed under the Apache 2.0 License. For more details, please refer to the [LICENSE](./LICENSE) file.
