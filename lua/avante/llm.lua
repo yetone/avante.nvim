@@ -557,8 +557,13 @@ function M._stream(opts)
           return handle_next_tool_use(tool_use_list, tool_use_index + 1, tool_histories)
         end
         -- Either on_complete handles the tool result asynchronously or we receive the result and error synchronously when either is not nil
-        local result, error =
-          LLMTools.process_tool_use(opts.tools, tool_use, opts.on_tool_log, handle_tool_result, opts.session_ctx)
+        local result, error = LLMTools.process_tool_use(
+          prompt_opts.tools,
+          tool_use,
+          opts.on_tool_log,
+          handle_tool_result,
+          opts.session_ctx
+        )
         if result ~= nil or error ~= nil then return handle_tool_result(result, error) end
       end
       if stop_opts.reason == "cancelled" then
