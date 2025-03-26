@@ -32,7 +32,7 @@ E.cache = {}
 ---@param Opts AvanteSupportedProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor
 ---@return string | nil
 function E.parse_envvar(Opts)
-  local value = Utils.environment.parse(Opts.api_key_name, Opts._shellenv)
+  local value = Utils.environment.parse(Opts.api_key_name, Opts._shellenv, true)
   if value ~= nil then
     vim.g.avante_login = true
     return value
@@ -259,12 +259,12 @@ function M.parse_config(opts)
   end
 
   request_body = vim
-    .iter(request_body)
-    :filter(function(_, v) return type(v) ~= "function" and type(v) ~= "userdata" end)
-    :fold({}, function(acc, k, v)
-      acc[k] = v
-      return acc
-    end)
+      .iter(request_body)
+      :filter(function(_, v) return type(v) ~= "function" and type(v) ~= "userdata" end)
+      :fold({}, function(acc, k, v)
+        acc[k] = v
+        return acc
+      end)
 
   return provider_opts, request_body
 end
