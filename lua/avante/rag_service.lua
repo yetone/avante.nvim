@@ -35,7 +35,7 @@ function M.get_rag_service_runner() return (Config.rag_service and Config.rag_se
 
 ---@param cb fun()
 function M.launch_rag_service(cb)
-  local openai_api_key = Utils.environment.parse(Config.rag_service.api_key_name)
+  local openai_api_key = Utils.environment.parse(Config.rag_service.api_key_name, nil, true)
   if Config.rag_service.provider == "openai" then
     if openai_api_key == nil then
       error("cannot launch avante rag service, OPENAI_API_KEY is not set")
@@ -110,7 +110,7 @@ function M.launch_rag_service(cb)
     end
 
     local dirname =
-      Utils.trim(string.sub(debug.getinfo(1).source, 2, #"/lua/avante/rag_service.lua" * -1), { suffix = "/" })
+        Utils.trim(string.sub(debug.getinfo(1).source, 2, #"/lua/avante/rag_service.lua" * -1), { suffix = "/" })
     local rag_service_dir = dirname .. "/py/rag-service"
 
     Utils.debug(string.format("launching %s with nix...", container_name))
@@ -320,12 +320,12 @@ function M.retrieve(base_uri, query)
   end
   local jsn = vim.json.decode(resp.body)
   jsn.sources = vim
-    .iter(jsn.sources)
-    :map(function(source)
-      local uri = M.to_local_uri(source.uri)
-      return vim.tbl_deep_extend("force", source, { uri = uri })
-    end)
-    :totable()
+      .iter(jsn.sources)
+      :map(function(source)
+        local uri = M.to_local_uri(source.uri)
+        return vim.tbl_deep_extend("force", source, { uri = uri })
+      end)
+      :totable()
   return jsn, nil
 end
 
@@ -388,12 +388,12 @@ function M.get_resources()
   end
   local jsn = vim.json.decode(resp.body)
   jsn.resources = vim
-    .iter(jsn.resources)
-    :map(function(resource)
-      local uri = M.to_local_uri(resource.uri)
-      return vim.tbl_deep_extend("force", resource, { uri = uri })
-    end)
-    :totable()
+      .iter(jsn.resources)
+      :map(function(resource)
+        local uri = M.to_local_uri(resource.uri)
+        return vim.tbl_deep_extend("force", resource, { uri = uri })
+      end)
+      :totable()
   return jsn
 end
 
