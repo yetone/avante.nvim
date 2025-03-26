@@ -43,7 +43,7 @@ function M.summarize_chat_thread_title(content, cb)
       end,
       on_stop = function(stop_opts)
         if stop_opts.error ~= nil then
-          Utils.error(string.format("summarize failed: %s", vim.inspect(stop_opts.error)))
+          Utils.error(string.format("summarize chat thread title failed: %s", vim.inspect(stop_opts.error)))
           return
         end
         if stop_opts.reason == "complete" then
@@ -56,6 +56,30 @@ function M.summarize_chat_thread_title(content, cb)
       end,
     },
   })
+end
+
+---@param messages AvanteLLMMessage[]
+---@return AvanteLLMMessage[]
+local function filter_out_tool_use_messages(messages)
+  local filtered_messages = {}
+  for _, message in ipairs(messages) do
+    local content = message.content
+    if type(content) == "table" then
+      local new_content = {}
+      for _, item in ipairs(content) do
+        if item.type == "tool_use" or item.type == "tool_result" then goto continue end
+        table.insert(new_content, item)
+        ::continue::
+      end
+      content = new_content
+    end
+    if type(content) == "table" then
+      if #content > 0 then table.insert(filtered_messages, { role = message.role, content = content }) end
+    else
+      table.insert(filtered_messages, { role = message.role, content = content })
+    end
+  end
+  return filtered_messages
 end
 
 ---@param bufnr integer
@@ -80,6 +104,7 @@ function M.summarize_memory(bufnr, history, entries, cb)
     return
   end
   local history_messages = Utils.history.entries_to_llm_messages(entries)
+  history_messages = filter_out_tool_use_messages(history_messages)
   history_messages = vim.list_slice(history_messages, 1, 4)
   if #history_messages == 0 then
     cb(history.memory)
@@ -109,7 +134,7 @@ function M.summarize_memory(bufnr, history, entries, cb)
       end,
       on_stop = function(stop_opts)
         if stop_opts.error ~= nil then
-          Utils.error(string.format("summarize failed: %s", vim.inspect(stop_opts.error)))
+          Utils.error(string.format("summarize memory failed: %s", vim.inspect(stop_opts.error)))
           return
         end
         if stop_opts.reason == "complete" then
