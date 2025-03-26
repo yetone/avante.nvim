@@ -383,6 +383,10 @@ M._defaults = {
       normal = "<CR>",
       insert = "<C-s>",
     },
+    cancel = {
+      normal = { "<C-c>", "<Esc>", "q" },
+      insert = { "<C-c>" },
+    },
     -- NOTE: The following will be safely set by avante.nvim
     ask = "<leader>aa",
     edit = "<leader>ae",
