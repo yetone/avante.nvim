@@ -268,8 +268,12 @@ function PromptInput:setup_keymaps()
     { buffer = bufnr, noremap = true, silent = true }
   )
 
-  vim.keymap.set("n", "<Esc>", function() self:cancel() end, { buffer = bufnr })
-  vim.keymap.set("n", "q", function() self:cancel() end, { buffer = bufnr })
+  for _, key in ipairs(Config.mappings.cancel.normal) do
+    vim.keymap.set("n", key, function() self:cancel() end, { buffer = bufnr })
+  end
+  for _, key in ipairs(Config.mappings.cancel.insert) do
+    vim.keymap.set("i", key, function() self:cancel() end, { buffer = bufnr })
+  end
 end
 
 function PromptInput:setup_autocmds()
