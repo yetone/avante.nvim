@@ -66,6 +66,7 @@ function M.func(opts, on_log, on_complete)
       return
     end
     -- save the file
+    Path:new(abs_path):parent():mkdir({ parents = true, exists_ok = true })
     local current_winid = vim.api.nvim_get_current_win()
     local winid = Utils.get_winid(bufnr)
     vim.api.nvim_set_current_win(winid)
