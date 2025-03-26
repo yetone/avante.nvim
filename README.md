@@ -541,6 +541,9 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 > For most consistency between neovim session, it is recommended to set the environment variables in your shell file.
 > By default, `Avante` will prompt you at startup to input the API key for the provider you have selected.
 >
+> You can also specify `api_key_name` in the providers configuration to set a custom environment variable or run a
+> command (for example `api_key_name = "cmd:op read op://Employee/OpenAI/credential"`)
+>
 > For Claude:
 >
 > ```sh
@@ -752,6 +755,7 @@ rag_service = {
   llm_model = "", -- The LLM model to use for RAG service
   embed_model = "", -- The embedding model to use for RAG service
   endpoint = "https://api.openai.com/v1", -- The API endpoint for RAG service
+  api_key_name = "OPENAI_API_KEY" -- Optionally set a custom env variable (or cmd:<shell command>)
 },
 ```
 

@@ -35,7 +35,7 @@ function M.get_rag_service_runner() return (Config.rag_service and Config.rag_se
 
 ---@param cb fun()
 function M.launch_rag_service(cb)
-  local openai_api_key = os.getenv("OPENAI_API_KEY")
+  local openai_api_key = Utils.environment.parse(Config.rag_service.api_key_name)
   if Config.rag_service.provider == "openai" then
     if openai_api_key == nil then
       error("cannot launch avante rag service, OPENAI_API_KEY is not set")
