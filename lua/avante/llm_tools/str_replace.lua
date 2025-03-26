@@ -10,7 +10,7 @@ local M = setmetatable({}, Base)
 M.name = "str_replace"
 
 M.description =
-  "The str_replace command allows you to replace a specific string in a file with a new string. This is used for making precise edits."
+  "The str_replace tool allows you to replace a specific string in a file with a new string. This is used for making precise edits."
 
 ---@type AvanteLLMToolParam
 M.param = {
@@ -56,13 +56,6 @@ function M.func(opts, on_log, on_complete)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   local sidebar = require("avante").get()
   if not sidebar then return false, "Avante sidebar not found" end
-  local get_bufnr = function()
-    local current_winid = vim.api.nvim_get_current_win()
-    vim.api.nvim_set_current_win(sidebar.code.winid)
-    local bufnr = Utils.get_or_create_buffer_with_filepath(abs_path)
-    vim.api.nvim_set_current_win(current_winid)
-    return bufnr
-  end
   if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
   if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
   local file = io.open(abs_path, "r")
@@ -71,7 +64,8 @@ function M.func(opts, on_log, on_complete)
   if opts.new_str == nil then return false, "new_str not provided" end
   Utils.debug("old_str", opts.old_str)
   Utils.debug("new_str", opts.new_str)
-  local bufnr = get_bufnr()
+  local bufnr, err = Helpers.get_bufnr(abs_path)
+  if err then return false, err end
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local lines_content = table.concat(lines, "\n")
   local old_lines = vim.split(opts.old_str, "\n")

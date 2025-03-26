@@ -336,6 +336,9 @@ function M:parse_curl_args(prompt_opts)
         if tool.name == "create_file" then goto continue end
         if tool.name == "view" then goto continue end
         if tool.name == "str_replace" then goto continue end
+        if tool.name == "create" then goto continue end
+        if tool.name == "insert" then goto continue end
+        if tool.name == "undo_edit" then goto continue end
       end
       table.insert(tools, self:transform_tool(tool))
       ::continue::

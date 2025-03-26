@@ -9,7 +9,7 @@ local M = setmetatable({}, Base)
 M.name = "view"
 
 M.description =
-  "The view command allows you to examine the contents of a file or list the contents of a directory. It can read the entire file or a specific range of lines. If the file content is already in the context, do not use this tool."
+  "The view tool allows you to examine the contents of a file or list the contents of a directory. It can read the entire file or a specific range of lines. If the file content is already in the context, do not use this tool."
 
 M.enabled = function(opts)
   if opts.user_input:match("@read_global_file") then return false end
