@@ -3058,6 +3058,14 @@ function Sidebar:create_input_container(opts)
     callback = function() close_hint() end,
   })
 
+  api.nvim_create_autocmd("WinClosed", {
+    group = self.augroup,
+    callback = function(args)
+      local closed_winid = tonumber(args.match)
+      if closed_winid == self.input_container.winid then close_hint() end
+    end,
+  })
+
   api.nvim_create_autocmd("BufEnter", {
     group = self.augroup,
     buffer = self.input_container.bufnr,
