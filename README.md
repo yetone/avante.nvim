@@ -1005,7 +1005,7 @@ The high quality and ingenuity of these projects' source code have been immensel
 
 <div align="center">
   <a href="https://www.meshy.ai/" target="_blank" align="center">
-    <img width="80" src="https://github.com/user-attachments/assets/50667a04-6f3f-421e-9d96-c3896f4cece8" alt="Meshy AI" />
+    <img height="80" src="https://github.com/user-attachments/assets/1abd8ede-bd98-4e6e-8ee0-5a661b40344a" alt="Meshy AI" />
     <div>Meshy AI</div>
   </a>
 </div>
