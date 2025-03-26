@@ -366,6 +366,10 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
       normal = "<CR>",
       insert = "<C-s>",
     },
+    cancel = {
+      normal = { "<C-c>", "<Esc>", "q" },
+      insert = { "<C-c>" },
+    },
     sidebar = {
       apply_all = "A",
       apply_cursor = "a",
