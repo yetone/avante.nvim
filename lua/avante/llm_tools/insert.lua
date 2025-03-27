@@ -10,6 +10,8 @@ M.name = "insert"
 
 M.description = "The insert tool allows you to insert text at a specific location in a file."
 
+function M.enabled() return require("avante.config").behaviour.enable_claude_text_editor_tool_mode end
+
 ---@type AvanteLLMToolParam
 M.param = {
   type = "table",
