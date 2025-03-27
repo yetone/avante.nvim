@@ -129,14 +129,14 @@ function PromptInput:open()
   self:setup_keymaps()
   self:setup_autocmds()
 
-  if self.start_insert then vim.cmd([[startinsert!]]) end
+  if self.start_insert then vim.cmd("noautocmd startinsert!") end
 end
 
 function PromptInput:close()
   if not self.bufnr then return end
   self:stop_spinner()
   self:close_shortcuts_hints()
-  if api.nvim_get_mode().mode == "i" then vim.cmd([[stopinsert]]) end
+  if api.nvim_get_mode().mode == "i" then vim.cmd("noautocmd stopinsert") end
   if self.winid and api.nvim_win_is_valid(self.winid) then
     api.nvim_win_close(self.winid, true)
     self.winid = nil

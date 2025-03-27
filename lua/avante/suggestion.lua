@@ -417,7 +417,7 @@ function Suggestion:accept()
       self:set_internal_move(true)
       api.nvim_win_set_cursor(0, { first_line_row, col })
       vim.cmd("normal! zz")
-      vim.cmd("startinsert")
+      vim.cmd("noautocmd startinsert")
       self:set_internal_move(false)
       return
     end
