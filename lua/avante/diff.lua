@@ -515,7 +515,7 @@ end
 function M.choose(side)
   local bufnr = api.nvim_get_current_buf()
   if vim.fn.mode() == "v" or vim.fn.mode() == "V" or vim.fn.mode() == "" then
-    api.nvim_feedkeys(api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
+    vim.cmd("noautocmd stopinsert")
     -- have to defer so that the < and > marks are set
     vim.defer_fn(function()
       local start = api.nvim_buf_get_mark(0, "<")[1]

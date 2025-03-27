@@ -205,7 +205,7 @@ end
 function Sidebar:shutdown()
   Llm.cancel_inflight_request()
   self:close()
-  vim.cmd("stopinsert")
+  vim.cmd("noautocmd stopinsert")
 end
 
 ---@return boolean
@@ -1371,7 +1371,7 @@ function Sidebar:apply(current_cursor)
 
           local function process(winid)
             api.nvim_set_current_win(winid)
-            api.nvim_feedkeys(api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
+            vim.cmd("noautocmd stopinsert")
             Diff.add_visited_buffer(bufnr)
             Diff.process(bufnr)
             api.nvim_win_set_cursor(winid, { 1, 0 })
@@ -1411,7 +1411,7 @@ function Sidebar:apply(current_cursor)
       insert_conflict_contents(bufnr, snippets)
       local function process(winid)
         api.nvim_set_current_win(winid)
-        api.nvim_feedkeys(api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
+        vim.cmd("noautocmd stopinsert")
         Diff.add_visited_buffer(bufnr)
         Diff.process(bufnr)
         api.nvim_win_set_cursor(winid, { 1, 0 })
@@ -1893,10 +1893,7 @@ function Sidebar:on_mount(opts)
         then
           api.nvim_set_current_win(self.input_container.winid)
           vim.defer_fn(function()
-            if Config.windows.ask.start_insert then
-              Utils.debug("starting insert")
-              vim.cmd("startinsert!")
-            end
+            if Config.windows.ask.start_insert then vim.cmd("noautocmd startinsert!") end
           end, 300)
         end
       end
@@ -2910,7 +2907,7 @@ function Sidebar:create_input_container(opts)
 
   if Utils.in_visual_mode() then
     -- Exit visual mode
-    api.nvim_feedkeys(api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
+    vim.cmd("noautocmd stopinsert")
   end
 
   self.input_container:map("n", Config.mappings.submit.normal, on_submit)
@@ -3070,14 +3067,14 @@ function Sidebar:create_input_container(opts)
     group = self.augroup,
     buffer = self.input_container.bufnr,
     callback = function()
-      if Config.windows.ask.start_insert then vim.cmd("startinsert!") end
+      if Config.windows.ask.start_insert then vim.cmd("noautocmd startinsert!") end
     end,
   })
 
   api.nvim_create_autocmd("BufLeave", {
     group = self.augroup,
     buffer = self.input_container.bufnr,
-    callback = function() vim.cmd("stopinsert") end,
+    callback = function() vim.cmd("noautocmd stopinsert") end,
   })
 
   -- Show hint in insert mode
