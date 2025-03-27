@@ -22,7 +22,7 @@ function M.check()
     },
     ["nui.nvim"] = {
       path = "MunifTanjim/nui.nvim",
-      module = "nui",
+      module = "nui.popup",
     },
   }
 
