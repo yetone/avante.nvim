@@ -1,10 +1,17 @@
 local Utils = require("avante.utils")
 local P = require("avante.providers")
+local Job = require("plenary.job")
 
 ---@class AvanteBedrockProviderFunctor
 local M = {}
 
 M.api_key_name = "BEDROCK_KEYS"
+
+---@class AWSCreds
+---@field access_key_id string
+---@field secret_access_key string
+---@field session_token string
+local AWSCreds = {}
 
 M = setmetatable(M, {
   __index = function(_, k)
@@ -71,35 +78,36 @@ end
 ---@return table
 function M:parse_curl_args(prompt_opts)
   local provider_conf, request_body = P.parse_config(self)
+  ---@diagnostic disable-next-line: undefined-field
+  local region = provider_conf.aws_region
+  ---@diagnostic disable-next-line: undefined-field
+  local profile = provider_conf.aws_profile
 
-  local api_key = self.parse_api_key()
-  if api_key == nil then error("Cannot get the bedrock api key!") end
-  local parts = vim.split(api_key, ",")
-  local aws_access_key_id = parts[1]
-  local aws_secret_access_key = parts[2]
-  local aws_region = parts[3]
-  local aws_session_token = parts[4]
+  local awsCreds = M:get_aws_credentials(region, profile)
+
+  if not region or region == "" then error("No aws_region specified in bedrock config") end
 
   local endpoint = string.format(
     "https://bedrock-runtime.%s.amazonaws.com/model/%s/invoke-with-response-stream",
-    aws_region,
+    region,
     provider_conf.model
   )
 
   local headers = {
     ["Content-Type"] = "application/json",
   }
-
-  if aws_session_token and aws_session_token ~= "" then headers["x-amz-security-token"] = aws_session_token end
+  headers["x-amz-security-token"] = awsCreds.session_token
 
   local body_payload = self:build_bedrock_payload(prompt_opts, request_body)
 
   local rawArgs = {
     "--aws-sigv4",
-    string.format("aws:amz:%s:bedrock", aws_region),
+    string.format("aws:amz:%s:bedrock", region),
     "--user",
-    string.format("%s:%s", aws_access_key_id, aws_secret_access_key),
+    string.format("%s:%s", awsCreds.access_key_id, awsCreds.secret_access_key),
   }
+
+  Utils.info(vim.json.encode(rawArgs))
 
   return {
     url = endpoint,
@@ -124,6 +132,50 @@ function M.on_error(result)
   local error_msg = body.error.message
 
   Utils.error(error_msg, { once = true, title = "Avante" })
+end
+
+--- get_aws_credentials returns aws credentials using the aws cli
+---@param region string
+---@param profile string
+---@return AWSCreds
+function M:get_aws_credentials(region, profile)
+  local awsCreds = {
+    access_key_id = "",
+    secret_access_key = "",
+    session_token = "",
+  }
+
+  local args = { "configure", "export-credentials" }
+
+  if profile and profile ~= "" then
+    table.insert(args, "--profile")
+    table.insert(args, profile)
+  end
+
+  if region and region ~= "" then
+    table.insert(args, "--region")
+    table.insert(args, region)
+  end
+
+  -- run aws configure export-credentials and capture the json output
+  Job:new({
+    command = "aws",
+    args = args,
+    on_exit = function(j, return_val)
+      if return_val == 0 then
+        local result = table.concat(j:result(), "\n")
+        local credentials = vim.json.decode(result)
+
+        awsCreds.access_key_id = credentials.AccessKeyId
+        awsCreds.secret_access_key = credentials.SecretAccessKey
+        awsCreds.session_token = credentials.SessionToken
+      else
+        print("Failed to run AWS command")
+      end
+    end,
+  }):sync()
+
+  return awsCreds
 end
 
 return M
