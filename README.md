@@ -829,7 +829,7 @@ In case you want to ban some tools to avoid its usage (like Claude 3.7 overusing
 
 ```lua
 {
-  disabled_tools = { "python" },
+  disable_tools = { "python" },
 }
 ```
 
