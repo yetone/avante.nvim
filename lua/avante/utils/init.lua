@@ -450,7 +450,7 @@ function M.unlock_buf(bufnr)
 end
 
 function M.lock_buf(bufnr)
-  vim.cmd("stopinsert")
+  vim.cmd("noautocmd stopinsert")
   vim.bo[bufnr].readonly = true
   vim.bo[bufnr].modified = false
   vim.bo[bufnr].modifiable = false
