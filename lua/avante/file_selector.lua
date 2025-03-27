@@ -77,7 +77,7 @@ end
 function FileSelector:new(id)
   return setmetatable({
     id = id,
-    selected_files = {},
+    selected_filepaths = {},
     event_handlers = {},
   }, { __index = self })
 end

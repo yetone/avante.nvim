@@ -416,6 +416,7 @@ M._defaults = {
     },
     files = {
       add_current = "<leader>ac", -- Add current buffer to selected files
+      add_all_buffers = "<leader>aB", -- Add all buffer files to selected files
     },
     select_model = "<leader>a?", -- Select model command
     select_history = "<leader>ah", -- Select history command

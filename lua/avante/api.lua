@@ -237,6 +237,16 @@ function M.select_history()
   end)
 end
 
+function M.add_buffer_files()
+  local sidebar = require("avante").get()
+  if not sidebar then
+    require("avante.api").ask()
+    sidebar = require("avante").get()
+  end
+  if not sidebar:is_open() then sidebar:open({}) end
+  sidebar.file_selector:add_buffer_files()
+end
+
 function M.stop() require("avante.llm").cancel_inflight_request() end
 
 return setmetatable(M, {
