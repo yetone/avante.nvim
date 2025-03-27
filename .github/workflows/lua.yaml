@@ -82,7 +82,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        nvim_version: [ stable ]
+        nvim_version: [ "v0.10.4" ]
         luals_version: [ 3.13.6 ]
     steps:
       - name: Checkout Code
