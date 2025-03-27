@@ -10,6 +10,8 @@ M.name = "undo_edit"
 
 M.description = "The undo_edit tool allows you to revert the last edit made to a file."
 
+function M.enabled() return require("avante.config").behaviour.enable_claude_text_editor_tool_mode end
+
 ---@type AvanteLLMToolParam
 M.param = {
   type = "table",
