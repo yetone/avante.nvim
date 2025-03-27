@@ -20,6 +20,28 @@ M = setmetatable(M, {
   end,
 })
 
+function M.setup()
+  -- Check if AWS CLI is installed
+  if not M.check_aws_cli_installed() then
+    Utils.error(
+      "AWS CLI not found. Please install it to use the Bedrock provider: https://aws.amazon.com/cli/",
+      { once = true, title = "Avante Bedrock" }
+    )
+    return false
+  end
+
+  -- Check if curl supports AWS signature v4
+  if not M.check_curl_supports_aws_sig() then
+    Utils.error(
+      "Your curl version doesn't support AWS signature v4 properly. Please upgrade to curl 8.10.0 or newer.",
+      { once = true, title = "Avante Bedrock" }
+    )
+    return false
+  end
+
+  return true
+end
+
 function M.load_model_handler()
   local provider_conf, _ = P.parse_config(P["bedrock"])
   local bedrock_model = provider_conf.model
@@ -107,8 +129,6 @@ function M:parse_curl_args(prompt_opts)
     string.format("%s:%s", awsCreds.access_key_id, awsCreds.secret_access_key),
   }
 
-  Utils.info(vim.json.encode(rawArgs))
-
   return {
     url = endpoint,
     proxy = provider_conf.proxy,
@@ -158,6 +178,7 @@ function M:get_aws_credentials(region, profile)
   end
 
   -- run aws configure export-credentials and capture the json output
+  local start_time = vim.loop.hrtime()
   Job:new({
     command = "aws",
     args = args,
@@ -175,7 +196,60 @@ function M:get_aws_credentials(region, profile)
     end,
   }):sync()
 
+  local end_time = vim.loop.hrtime()
+  local duration_ms = (end_time - start_time) / 1000000
+  Utils.debug(string.format("AWS credentials fetch took %.2f ms", duration_ms))
+
   return awsCreds
+end
+
+--- check_aws_cli_installed returns true when the aws cli is installed
+--- @return boolean
+function M.check_aws_cli_installed()
+  local job = Job:new({
+    command = "aws",
+    args = { "--version" },
+  })
+
+  local _, _, exitCode = pcall(function() return job:sync() end)
+
+  return exitCode == 0
+end
+
+--- check_curl_version_supports_aws_sig checks if the given curl version supports aws sigv4 correctly
+--- we require at least version 8.10.0 because it contains critical fixes for aws sigv4 support
+--- https://curl.se/ch/8.10.0.html
+--- @param version_string string The curl version string to check
+--- @return boolean
+function M.check_curl_version_supports_aws_sig(version_string)
+  -- Extract the version number
+  local major, minor = version_string:match("curl (%d+)%.(%d+)")
+
+  if major and minor then
+    major = tonumber(major)
+    minor = tonumber(minor)
+
+    -- Check if the version is at least 8.10
+    if major > 8 or (major == 8 and minor >= 10) then return true end
+  end
+
+  return false
+end
+
+--- check_curl_supports_aws_sig returns true when the installed curl version supports aws sigv4
+--- @return boolean
+function M.check_curl_supports_aws_sig()
+  local job = Job:new({
+    command = "curl",
+    args = { "--version" },
+  })
+
+  job:sync()
+
+  -- curl 8.11.0 (aarch64-apple-darwin23.6.0) libcurl/8.11.0 OpenSSL/3.4.0 (SecureTransport) zlib/1.2.12 brotli/1.1.0 zstd/1.5.6 AppleIDN libssh2/1.11.1 nghttp2/1.64.0 librtmp/2.3
+  local version_string = job:result()[1]
+
+  return M.check_curl_version_supports_aws_sig(version_string)
 end
 
 return M
