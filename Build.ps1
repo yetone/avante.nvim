@@ -89,6 +89,20 @@ function Main {
         Write-Host "Building for $Version..."
         Build-FromSource $Version
     } else {
+        $latestTag = git tag --sort=-creatordate | Select-Object -First 1
+        $latestTagTime = [int](git log -1 $latestTag --format=%at 2>&1 | Where-Object { $_ -match '^\d+$' })
+
+        $currentBuildTime = if ($buildFiles = Get-ChildItem -Path "build/avante_html2md*" -ErrorAction SilentlyContinue) {
+            [long](($buildFiles | ForEach-Object { $_.LastWriteTime } |
+                Measure-Object -Maximum).Maximum.Subtract([datetime]'1970-01-01').TotalSeconds)
+        } else {
+            $latestTagTime
+        }
+
+        if ($latestTagTime -lt $currentBuildTime) {
+            Write-Host "Local build is up to date. No download needed."
+            return
+        }
         Write-Host "Downloading for $Version..."
         Download-Prebuilt $Version
     }
