@@ -100,14 +100,32 @@ end
 ---@return table
 function M:parse_curl_args(prompt_opts)
   local provider_conf, request_body = P.parse_config(self)
-  ---@diagnostic disable-next-line: undefined-field
-  local region = provider_conf.aws_region
-  ---@diagnostic disable-next-line: undefined-field
-  local profile = provider_conf.aws_profile
 
-  local awsCreds = M:get_aws_credentials(region, profile)
+  local access_key_id, secret_access_key, session_token, region = "", "", "", ""
 
-  if not region or region == "" then error("No aws_region specified in bedrock config") end
+  -- try to parse credentials from api key
+  local api_key = self.parse_api_key()
+  if api_key ~= nil then
+    local parts = vim.split(api_key, ",")
+    access_key_id = parts[1]
+    secret_access_key = parts[2]
+    region = parts[3]
+    session_token = parts[4]
+  else
+    -- alternatively parse credentials from default AWS credentials provider chain
+
+    ---@diagnostic disable-next-line: undefined-field
+    region = provider_conf.aws_region
+    ---@diagnostic disable-next-line: undefined-field
+    local profile = provider_conf.aws_profile
+
+    local awsCreds = M:get_aws_credentials(region, profile)
+    if not region or region == "" then error("No aws_region specified in bedrock config") end
+
+    access_key_id = awsCreds.access_key_id
+    secret_access_key = awsCreds.secret_access_key
+    session_token = awsCreds.session_token
+  end
 
   local endpoint = string.format(
     "https://bedrock-runtime.%s.amazonaws.com/model/%s/invoke-with-response-stream",
@@ -118,7 +136,8 @@ function M:parse_curl_args(prompt_opts)
   local headers = {
     ["Content-Type"] = "application/json",
   }
-  headers["x-amz-security-token"] = awsCreds.session_token
+
+  if session_token and session_token ~= "" then headers["x-amz-security-token"] = session_token end
 
   local body_payload = self:build_bedrock_payload(prompt_opts, request_body)
 
@@ -126,7 +145,7 @@ function M:parse_curl_args(prompt_opts)
     "--aws-sigv4",
     string.format("aws:amz:%s:bedrock", region),
     "--user",
-    string.format("%s:%s", awsCreds.access_key_id, awsCreds.secret_access_key),
+    string.format("%s:%s", access_key_id, secret_access_key),
   }
 
   return {
