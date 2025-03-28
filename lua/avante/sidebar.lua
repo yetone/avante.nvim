@@ -284,13 +284,18 @@ local function transform_result_content(selected_files, result_content, prev_fil
   while true do
     if i > #result_lines then break end
     local line_content = result_lines[i]
-    if line_content:match("<[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]>.+</[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]>") then
-      local filepath = line_content:match("<[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]>(.+)</[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]>")
-      if filepath then
-        current_filepath = filepath
-        table.insert(transformed_lines, string.format("Filepath: %s", filepath))
-        goto continue
+    local matched_filepath =
+      line_content:match("<[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]>(.+)</[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]>")
+    if matched_filepath then
+      if i > 1 then
+        local prev_line = result_lines[i - 1]
+        if prev_line and prev_line:match("^%s*```%w+$") then
+          transformed_lines = vim.list_slice(transformed_lines, 1, #transformed_lines - 1)
+        end
       end
+      current_filepath = matched_filepath
+      table.insert(transformed_lines, string.format("Filepath: %s", matched_filepath))
+      goto continue
     end
     if line_content:match("^%s*<[Ss][Ee][Aa][Rr][Cc][Hh]>") then
       is_searching = true
@@ -450,6 +455,8 @@ local function transform_result_content(selected_files, result_content, prev_fil
       is_replacing = false
       local prev_line = result_lines[i - 1]
       if not (prev_line and prev_line:match("^%s*```$")) then table.insert(transformed_lines, "```") end
+      local next_line = result_lines[i + 1]
+      if next_line and next_line:match("^%s*```%s*$") then i = i + 1 end
       goto continue
     elseif line_content == "<think>" then
       is_thinking = true
@@ -458,6 +465,9 @@ local function transform_result_content(selected_files, result_content, prev_fil
     elseif line_content == "</think>" then
       is_thinking = false
       last_think_tag_end_line = i
+    elseif line_content:match("^%s*```%s*$") then
+      local prev_line = result_lines[i - 1]
+      if prev_line and prev_line:match("^%s*```$") then goto continue end
     end
     waiting_for_breakline = false
     table.insert(transformed_lines, line_content)
