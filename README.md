@@ -1007,12 +1007,22 @@ The high quality and ingenuity of these projects' source code have been immensel
 
 ## Business Sponsors
 
-<div align="center">
-  <a href="https://www.meshy.ai/" target="_blank" align="center">
-    <img height="80" src="https://github.com/user-attachments/assets/1abd8ede-bd98-4e6e-8ee0-5a661b40344a" alt="Meshy AI" />
-    <div>Meshy AI</div>
-  </a>
-</div>
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://www.meshy.ai/" target="_blank">
+        <img height="80" src="https://github.com/user-attachments/assets/1abd8ede-bd98-4e6e-8ee0-5a661b40344a" alt="Meshy AI" /><br/>
+        <strong>Meshy AI</strong>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://babeltower.pro/models/claude-3-7-sonnet" target="_blank">
+        <img height="80" src="https://github.com/user-attachments/assets/e90197b2-f4f6-47ed-b2c5-e560cc38ce66" alt="babeltower" /><br/>
+        <strong>BabelTower AI</strong>
+      </a>
+    </td>
+  </tr>
+</table>
 
 ## License
 
