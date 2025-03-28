@@ -68,7 +68,7 @@ fi
 
 latest_tag_time=$(git tag --sort=-creatordate | xargs git log -1 --format=%at)
 current_build_time=$(stat -c %Y build/avante_html2md* 2>/dev/null || echo "$latest_tag_time")
-if [[ "$latest_tag_time" -gt "$current_build_time" ]]; then
+if [[ "$latest_tag_time" -ge "$current_build_time" ]]; then
   if test_command "gh" && test_gh_auth; then
     gh release download --repo "github.com/$REPO_OWNER/$REPO_NAME" --pattern "*$ARTIFACT_NAME_PATTERN*" --clobber --output - | tar -zxv -C "$TARGET_DIR"
   else
