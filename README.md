@@ -1013,12 +1013,16 @@ The high quality and ingenuity of these projects' source code have been immensel
       <a href="https://www.meshy.ai/" target="_blank">
         <img height="80" src="https://github.com/user-attachments/assets/1abd8ede-bd98-4e6e-8ee0-5a661b40344a" alt="Meshy AI" /><br/>
         <strong>Meshy AI</strong>
+        <div>&nbsp;</div>
+        <div>The #1 AI 3D Model Generator for Creators</div>
       </a>
     </td>
     <td align="center">
       <a href="https://babeltower.pro/models/claude-3-7-sonnet" target="_blank">
-        <img height="80" src="https://github.com/user-attachments/assets/e90197b2-f4f6-47ed-b2c5-e560cc38ce66" alt="babeltower" /><br/>
-        <strong>BabelTower AI</strong>
+        <img height="80" src="https://github.com/user-attachments/assets/7b7bd75e-1fd2-48cc-a71a-cff206e4fbd7" alt="BabelTower API" /><br/>
+        <strong>BabelTower API</strong>
+        <div>&nbsp;</div>
+        <div>No account needed, use any model instantly</div>
       </a>
     </td>
   </tr>
