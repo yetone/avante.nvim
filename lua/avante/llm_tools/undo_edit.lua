@@ -40,7 +40,7 @@ M.returns = {
 }
 
 ---@type AvanteLLMToolFunc<{ path: string }>
-function M.func(opts, on_log, on_complete)
+function M.func(opts, on_log, on_complete, session_ctx)
   if on_log then on_log("path: " .. opts.path) end
   local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
@@ -52,9 +52,9 @@ function M.func(opts, on_log, on_complete)
   local winid = Utils.get_winid(bufnr)
   vim.api.nvim_set_current_win(winid)
   vim.api.nvim_set_current_win(current_winid)
-  Helpers.confirm("Are you sure you want to undo edit this file?", function(ok)
+  Helpers.confirm("Are you sure you want to undo edit this file?", function(ok, reason)
     if not ok then
-      on_complete(false, "User canceled")
+      on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
     end
     vim.api.nvim_set_current_win(winid)
@@ -62,7 +62,7 @@ function M.func(opts, on_log, on_complete)
     vim.cmd("undo")
     vim.api.nvim_set_current_win(current_winid)
     on_complete(true, nil)
-  end)
+  end, { focus = true }, session_ctx)
 end
 
 return M

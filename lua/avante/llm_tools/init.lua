@@ -42,11 +42,17 @@ function M.str_replace_editor(opts, on_log, on_complete, session_ctx)
     return view(opts_, on_log, on_complete, session_ctx)
   end
   if opts.command == "str_replace" then
-    return require("avante.llm_tools.str_replace").func(opts, on_log, on_complete)
+    return require("avante.llm_tools.str_replace").func(opts, on_log, on_complete, session_ctx)
   end
-  if opts.command == "create" then return require("avante.llm_tools.create").func(opts, on_log, on_complete) end
-  if opts.command == "insert" then return require("avante.llm_tools.insert").func(opts, on_log, on_complete) end
-  if opts.command == "undo_edit" then return require("avante.llm_tools.undo_edit").func(opts, on_log, on_complete) end
+  if opts.command == "create" then
+    return require("avante.llm_tools.create").func(opts, on_log, on_complete, session_ctx)
+  end
+  if opts.command == "insert" then
+    return require("avante.llm_tools.insert").func(opts, on_log, on_complete, session_ctx)
+  end
+  if opts.command == "undo_edit" then
+    return require("avante.llm_tools.undo_edit").func(opts, on_log, on_complete, session_ctx)
+  end
   return false, "Unknown command: " .. opts.command
 end
 

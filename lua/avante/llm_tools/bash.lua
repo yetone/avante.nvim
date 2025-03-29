@@ -219,7 +219,7 @@ M.returns = {
 }
 
 ---@type AvanteLLMToolFunc<{ rel_path: string, command: string }>
-function M.func(opts, on_log, on_complete)
+function M.func(opts, on_log, on_complete, session_ctx)
   local abs_path = Helpers.get_abs_path(opts.rel_path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "Path not found: " .. abs_path end
@@ -248,7 +248,9 @@ function M.func(opts, on_log, on_complete)
         local result, err = handle_result(output, exit_code)
         on_complete(result, err)
       end, abs_path)
-    end
+    end,
+    { focus = true },
+    session_ctx
   )
 end
 
