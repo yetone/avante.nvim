@@ -563,6 +563,54 @@ function M.get_tools(user_input, history_messages)
 end
 
 ---@type AvanteLLMTool[]
+---@type AvanteLLMToolFunc<{ rel_path: string }>
+function M.add_file_to_context(opts, on_log, on_complete, session_ctx)
+  if not on_complete then return false, "on_complete not provided" end
+  if not session_ctx or not session_ctx.sidebar then return false, "Sidebar context not available" end
+  ---@cast session_ctx { sidebar: avante.Sidebar }
+
+  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
+
+  if not Path:new(abs_path):exists() then
+    on_complete(nil, "File not found: " .. abs_path)
+    return
+  end
+
+  if Helpers.already_in_context(opts.rel_path) then
+    on_complete("File already in context", nil)
+    return
+  end
+
+  if Config.behaviour.auto_add_files_confirmation then
+    Helpers.confirm("Add file '" .. opts.rel_path .. "' to context?", function(ok)
+      if ok then
+        if on_log then on_log("User confirmed adding file: " .. opts.rel_path) end
+        session_ctx.sidebar.file_selector:add_selected_file(opts.rel_path)
+        on_complete("File added to context", nil)
+      else
+        if on_log then on_log("User cancelled adding file: " .. opts.rel_path) end
+        on_complete(nil, "User cancelled")
+      end
+    end)
+  else
+    if on_log then on_log("Automatically adding file: " .. opts.rel_path) end
+    session_ctx.sidebar.file_selector:add_selected_file(opts.rel_path)
+    on_complete("File added to context", nil)
+  end
+end
+
+---@type AvanteLLMToolFunc<{ rel_path: string }>
+function M.remove_file_from_context(opts, on_log, on_complete, session_ctx)
+  if not on_complete then return false, "on_complete not provided" end
+  if not session_ctx or not session_ctx.sidebar then return false, "Sidebar context not available" end
+  ---@cast session_ctx { sidebar: avante.Sidebar }
+
+  if on_log then on_log("Removing file: " .. opts.rel_path) end
+  session_ctx.sidebar.file_selector:remove_selected_file(opts.rel_path)
+  on_complete("File removed from context", nil)
+end
+
 M._tools = {
   require("avante.llm_tools.dispatch_agent"),
   require("avante.llm_tools.glob"),
@@ -1059,6 +1107,35 @@ M._tools = {
       end)
       return nil, nil
     end,
+  },
+  {
+    name = "add_file_to_context",
+    description = "Add a file to the context if it's not already present. Use this when you need information from a file that is not listed in the <selected_files> section.",
+    param = {
+      type = "table",
+      fields = { { name = "rel_path", description = "Relative path to the file within the project", type = "string" } },
+    },
+    returns = {
+      { name = "result", description = "Success message or 'File already in context'", type = "string" },
+      {
+        name = "error",
+        description = "Error message if adding failed (e.g., file not found, user cancelled)",
+        type = "string",
+        optional = true,
+      },
+    },
+  },
+  {
+    name = "remove_file_from_context",
+    description = "Remove a file from the context.",
+    param = {
+      type = "table",
+      fields = { { name = "rel_path", description = "Relative path of the file to remove", type = "string" } },
+    },
+    returns = {
+      { name = "result", description = "Success message", type = "string" },
+      { name = "error", description = "Error message if removing failed", type = "string", optional = true },
+    },
   },
 }
 
