@@ -1010,7 +1010,7 @@ The high quality and ingenuity of these projects' source code have been immensel
 <table>
   <tr>
     <td align="center">
-      <a href="https://www.meshy.ai/" target="_blank">
+      <a href="https://slash.kiiro.ai/s/meshy" target="_blank">
         <img height="80" src="https://github.com/user-attachments/assets/1abd8ede-bd98-4e6e-8ee0-5a661b40344a" alt="Meshy AI" /><br/>
         <strong>Meshy AI</strong>
         <div>&nbsp;</div>
@@ -1018,7 +1018,7 @@ The high quality and ingenuity of these projects' source code have been immensel
       </a>
     </td>
     <td align="center">
-      <a href="https://babeltower.pro/models/claude-3-7-sonnet" target="_blank">
+      <a href="https://slash.kiiro.ai/s/babeltower" target="_blank">
         <img height="80" src="https://github.com/user-attachments/assets/7b7bd75e-1fd2-48cc-a71a-cff206e4fbd7" alt="BabelTower API" /><br/>
         <strong>BabelTower API</strong>
         <div>&nbsp;</div>
