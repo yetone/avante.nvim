@@ -212,7 +212,7 @@ function M.web_search(opts, on_log)
   local search_engine = Config.web_search_engine.providers[provider_type]
   if search_engine == nil then return nil, "No search engine found: " .. provider_type end
   if search_engine.api_key_name == "" then return nil, "No API key provided" end
-  local api_key = Utils.environment.parse(search_engine.api_key_name)
+  local api_key = Utils.environment.parse(search_engine.api_key_name, nil, true)
   if api_key == nil or api_key == "" then
     return nil, "Environment variable " .. search_engine.api_key_name .. " is not set"
   end
@@ -264,7 +264,7 @@ function M.web_search(opts, on_log)
     local jsn = vim.json.decode(resp.body)
     return search_engine.format_response_body(jsn)
   elseif provider_type == "google" then
-    local engine_id = Utils.environment.parse(search_engine.engine_id_name)
+    local engine_id = Utils.environment.parse(search_engine.engine_id_name, nil, true)
     if engine_id == nil or engine_id == "" then
       return nil, "Environment variable " .. search_engine.engine_id_name .. " is not set"
     end

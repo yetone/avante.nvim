@@ -8,10 +8,12 @@ local M = {}
 M.cache = {}
 
 ---Parse environment variable using optional cmd: feature with an override fallback
+---Set sync to true if the function should block until the variable is parsed.
 ---@param key_name string
 ---@param override? string
+---@param sync? boolean
 ---@return string | nil
-function M.parse(key_name, override)
+function M.parse(key_name, override, sync)
   if key_name == nil then error("Requires key_name") end
 
   local cache_key = type(key_name) == "table" and table.concat(key_name, "__") or key_name
@@ -35,22 +37,38 @@ function M.parse(key_name, override)
 
     Utils.debug("running command:", cmd)
     local exit_codes = { 0 }
-    local ok, job_or_err = pcall(vim.system, cmd, { text = true }, function(result)
-      Utils.debug("command result:", result)
-      local code = result.code
-      local stderr = result.stderr or ""
-      local stdout = result.stdout and vim.split(result.stdout, "\n") or {}
-      if vim.tbl_contains(exit_codes, code) then
-        value = stdout[1]
-        M.cache[cache_key] = value
-      else
-        Utils.error("failed to get key: (error code" .. code .. ")\n" .. stderr, { once = true, title = "Avante" })
-      end
-    end)
+    if not sync then
+      local ok, job_or_err = pcall(vim.system, cmd, { text = true }, function(result)
+        Utils.debug("command result:", result)
+        local code = result.code
+        local stderr = result.stderr or ""
+        local stdout = result.stdout and vim.split(result.stdout, "\n") or {}
+        if vim.tbl_contains(exit_codes, code) then
+          value = stdout[1]
+          M.cache[cache_key] = value
+        else
+          Utils.error("failed to get key: (error code" .. code .. ")\n" .. stderr, { once = true, title = "Avante" })
+        end
+      end)
 
-    if not ok then
-      Utils.error("failed to run command: " .. cmd .. "\n" .. job_or_err)
-      return
+      if not ok then
+        Utils.error("failed to run command: " .. table.concat(cmd, " ") .. "\n" .. (job_or_err or "unknown error"))
+        return
+      end
+    else
+      local handle = io.popen(table.concat(cmd, " "))
+      if handle then
+        local result = handle:read("*a")
+        handle:close()
+        value = result:match("^(.-)\n?$")
+        if value then
+          M.cache[cache_key] = value
+        else
+          Utils.error("failed to get key synchronously", { once = true, title = "Avante" })
+        end
+      else
+        Utils.error("failed to open command handle", { once = true, title = "Avante" })
+      end
     end
   else
     value = os.getenv(key_name)
