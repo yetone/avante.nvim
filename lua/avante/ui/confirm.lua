@@ -3,11 +3,13 @@ local NuiText = require("nui.text")
 local Highlights = require("avante.highlights")
 local Utils = require("avante.utils")
 local Line = require("avante.ui.line")
+local PromptInput = require("avante.ui.prompt_input")
+local Config = require("avante.config")
 
 ---@class avante.ui.Confirm
 ---@field message string
----@field callback fun(yes: boolean)
----@field _container_winid number | nil
+---@field callback fun(type: "yes" | "all" | "no", reason?: string)
+---@field _container_winid number
 ---@field _focus boolean | nil
 ---@field _group number | nil
 ---@field _popup NuiPopup | nil
@@ -16,7 +18,7 @@ local M = {}
 M.__index = M
 
 ---@param message string
----@param callback fun(yes: boolean)
+---@param callback fun(type: "yes" | "all" | "no", reason?: string)
 ---@param opts { container_winid: number, focus?: boolean }
 ---@return avante.ui.Confirm
 function M:new(message, callback, opts)
@@ -35,7 +37,7 @@ function M:open()
 
   local win_width = 60
 
-  local focus_index = 2 -- 1 = Yes, 2 = No
+  local focus_index = 3 -- 1 = Yes, 2 = All Yes, 3 = No
 
   local BUTTON_NORMAL = Highlights.BUTTON_DEFAULT
   local BUTTON_FOCUS = Highlights.BUTTON_DEFAULT_HOVER
@@ -57,11 +59,19 @@ function M:open()
     { " - input ", commentfg },
     { "  " },
   })
-  local buttons_content = " Yes       No "
+  local buttons_line = Line:new({
+    { " [Y]es ", function() return focus_index == 1 and BUTTON_FOCUS or BUTTON_NORMAL end },
+    { "   " },
+    { " [A]ll yes ", function() return focus_index == 2 and BUTTON_FOCUS or BUTTON_NORMAL end },
+    { "    " },
+    { " [N]o ", function() return focus_index == 3 and BUTTON_FOCUS or BUTTON_NORMAL end },
+  })
+  local buttons_content = tostring(buttons_line)
   local buttons_start_col = math.floor((win_width - #buttons_content) / 2)
-  local yes_button_pos = { buttons_start_col, buttons_start_col + 5 }
-  local no_button_pos = { buttons_start_col + 10, buttons_start_col + 14 }
-  local buttons_line = string.rep(" ", buttons_start_col) .. buttons_content
+  local yes_button_pos = buttons_line:get_section_pos(1, buttons_start_col)
+  local all_button_pos = buttons_line:get_section_pos(3, buttons_start_col)
+  local no_button_pos = buttons_line:get_section_pos(5, buttons_start_col)
+  local buttons_line_content = string.rep(" ", buttons_start_col) .. buttons_content
   local keybindings_line_num = 5 + #vim.split(message, "\n")
   local buttons_line_num = 2 + #vim.split(message, "\n")
   local content = vim
@@ -69,7 +79,7 @@ function M:open()
       "",
       vim.tbl_map(function(line) return "  " .. line end, vim.split(message, "\n")),
       "",
-      buttons_line,
+      buttons_line_content,
       "",
       "",
       tostring(keybindings_line),
@@ -85,7 +95,7 @@ function M:open()
 
   local button_row = buttons_line_num + 1
 
-  local container_winid = self._container_winid or vim.api.nvim_get_current_win()
+  local container_winid = self._container_winid
   local container_width = vim.api.nvim_win_get_width(container_winid)
 
   local popup = Popup({
@@ -119,32 +129,49 @@ function M:open()
     },
   })
 
-  local function focus_button(row)
-    row = row or button_row
+  local function focus_button()
     if focus_index == 1 then
-      vim.api.nvim_win_set_cursor(popup.winid, { row, yes_button_pos[1] })
+      vim.api.nvim_win_set_cursor(popup.winid, { button_row, yes_button_pos[1] })
+    elseif focus_index == 2 then
+      vim.api.nvim_win_set_cursor(popup.winid, { button_row, all_button_pos[1] })
     else
-      vim.api.nvim_win_set_cursor(popup.winid, { row, no_button_pos[1] })
+      vim.api.nvim_win_set_cursor(popup.winid, { button_row, no_button_pos[1] })
     end
   end
 
   local function render_content()
-    local yes_style = (focus_index == 1) and BUTTON_FOCUS or BUTTON_NORMAL
-    local no_style = (focus_index == 2) and BUTTON_FOCUS or BUTTON_NORMAL
-
     Utils.unlock_buf(popup.bufnr)
     vim.api.nvim_buf_set_lines(popup.bufnr, 0, -1, false, content)
     Utils.lock_buf(popup.bufnr)
 
+    buttons_line:set_highlights(0, popup.bufnr, buttons_line_num, buttons_start_col)
     keybindings_line:set_highlights(0, popup.bufnr, keybindings_line_num)
-    vim.api.nvim_buf_add_highlight(popup.bufnr, 0, yes_style, buttons_line_num, yes_button_pos[1], yes_button_pos[2])
-    vim.api.nvim_buf_add_highlight(popup.bufnr, 0, no_style, buttons_line_num, no_button_pos[1], no_button_pos[2])
-    focus_button(buttons_line_num + 1)
+    focus_button()
   end
 
-  local function select_button()
+  local function click_button()
     self:close()
-    callback(focus_index == 1)
+    if focus_index == 1 then
+      callback("yes")
+      return
+    end
+    if focus_index == 2 then
+      Utils.notify("Accept all")
+      callback("all")
+      return
+    end
+    local prompt_input = PromptInput:new({
+      submit_callback = function(input) callback("no", input ~= "" and input or nil) end,
+      close_on_submit = true,
+      win_opts = {
+        relative = "win",
+        win = self._container_winid,
+        border = Config.windows.ask.border,
+        title = { { "Reject reason", "FloatTitle" } },
+      },
+      start_insert = Config.windows.ask.start_insert,
+    })
+    prompt_input:open()
   end
 
   vim.keymap.set("n", "c", function()
@@ -174,22 +201,48 @@ function M:open()
   vim.keymap.set("n", "y", function()
     focus_index = 1
     render_content()
-    select_button()
+    click_button()
+  end, { buffer = popup.bufnr })
+
+  vim.keymap.set("n", "Y", function()
+    focus_index = 1
+    render_content()
+    click_button()
+  end, { buffer = popup.bufnr })
+
+  vim.keymap.set("n", "a", function()
+    focus_index = 2
+    render_content()
+    click_button()
+  end, { buffer = popup.bufnr })
+
+  vim.keymap.set("n", "A", function()
+    focus_index = 2
+    render_content()
+    click_button()
   end, { buffer = popup.bufnr })
 
   vim.keymap.set("n", "n", function()
-    focus_index = 2
+    focus_index = 3
     render_content()
-    select_button()
+    click_button()
+  end, { buffer = popup.bufnr })
+
+  vim.keymap.set("n", "N", function()
+    focus_index = 3
+    render_content()
+    click_button()
   end, { buffer = popup.bufnr })
 
   vim.keymap.set("n", "<Left>", function()
-    focus_index = 1
+    focus_index = focus_index - 1
+    if focus_index < 1 then focus_index = 3 end
     focus_button()
   end, { buffer = popup.bufnr })
 
   vim.keymap.set("n", "<Right>", function()
-    focus_index = 2
+    focus_index = focus_index + 1
+    if focus_index > 3 then focus_index = 1 end
     focus_button()
   end, { buffer = popup.bufnr })
 
@@ -204,16 +257,18 @@ function M:open()
   end, { buffer = popup.bufnr })
 
   vim.keymap.set("n", "<Tab>", function()
-    focus_index = (focus_index == 1) and 2 or 1
+    focus_index = focus_index + 1
+    if focus_index > 3 then focus_index = 1 end
     focus_button()
   end, { buffer = popup.bufnr })
 
   vim.keymap.set("n", "<S-Tab>", function()
-    focus_index = (focus_index == 1) and 2 or 1
+    focus_index = focus_index - 1
+    if focus_index < 1 then focus_index = 3 end
     focus_button()
   end, { buffer = popup.bufnr })
 
-  vim.keymap.set("n", "<CR>", function() select_button() end, { buffer = popup.bufnr })
+  vim.keymap.set("n", "<CR>", function() click_button() end, { buffer = popup.bufnr })
 
   vim.api.nvim_buf_set_keymap(popup.bufnr, "n", "<LeftMouse>", "", {
     callback = function()
@@ -222,13 +277,13 @@ function M:open()
       if row == button_row then
         if col >= yes_button_pos[1] and col <= yes_button_pos[2] then
           focus_index = 1
-          render_content()
-          select_button()
-        elseif col >= no_button_pos[1] and col <= no_button_pos[2] then
+        elseif col >= all_button_pos[1] and col <= all_button_pos[2] then
           focus_index = 2
-          render_content()
-          select_button()
+        elseif col >= no_button_pos[1] and col <= no_button_pos[2] then
+          focus_index = 3
         end
+        render_content()
+        click_button()
       end
     end,
     noremap = true,
@@ -243,8 +298,11 @@ function M:open()
       if col >= yes_button_pos[1] and col <= yes_button_pos[2] then
         focus_index = 1
         render_content()
-      elseif col >= no_button_pos[1] and col <= no_button_pos[2] then
+      elseif col >= all_button_pos[1] and col <= all_button_pos[2] then
         focus_index = 2
+        render_content()
+      elseif col >= no_button_pos[1] and col <= no_button_pos[2] then
+        focus_index = 3
         render_content()
       end
     end,
@@ -286,7 +344,7 @@ end
 function M:unbind_window_focus_keymaps() pcall(vim.keymap.del, { "n", "i" }, "<C-w>f") end
 
 function M:cancel()
-  self.callback(false)
+  self.callback("no", "cancel")
   return self:close()
 end
 

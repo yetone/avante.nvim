@@ -21,10 +21,15 @@ function M.get_abs_path(rel_path)
 end
 
 ---@param message string
----@param callback fun(yes: boolean)
----@param opts? { focus?: boolean }
+---@param callback fun(yes: boolean, reason?: string)
+---@param confirm_opts? { focus?: boolean }
+---@param session_ctx? table
 ---@return avante.ui.Confirm | nil
-function M.confirm(message, callback, opts)
+function M.confirm(message, callback, confirm_opts, session_ctx)
+  if session_ctx and session_ctx.always_yes then
+    callback(true)
+    return
+  end
   local Confirm = require("avante.ui.confirm")
   local sidebar = require("avante").get()
   if not sidebar or not sidebar.input_container or not sidebar.input_container.winid then
@@ -32,8 +37,22 @@ function M.confirm(message, callback, opts)
     callback(false)
     return
   end
-  local confirm_opts = vim.tbl_deep_extend("force", { container_winid = sidebar.input_container.winid }, opts or {})
-  M.confirm_popup = Confirm:new(message, callback, confirm_opts)
+  confirm_opts = vim.tbl_deep_extend("force", { container_winid = sidebar.input_container.winid }, confirm_opts or {})
+  M.confirm_popup = Confirm:new(message, function(type, reason)
+    if type == "yes" then
+      callback(true)
+      return
+    end
+    if type == "all" then
+      if session_ctx then session_ctx.always_yes = true end
+      callback(true)
+      return
+    end
+    if type == "no" then
+      callback(false, reason)
+      return
+    end
+  end, confirm_opts)
   M.confirm_popup:open()
   return M.confirm_popup
 end
