@@ -285,7 +285,7 @@ M._defaults = {
       model = "claude-3-5-haiku-20241022",
       timeout = 30000, -- Timeout in milliseconds
       temperature = 0,
-      max_tokens = 20480,
+      max_tokens = 8192,
     },
     ---@type AvanteSupportedProvider
     ["claude-opus"] = {
