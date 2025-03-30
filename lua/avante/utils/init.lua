@@ -96,9 +96,6 @@ local function get_cmd_for_shell(input_cmd, shell_cmd)
   -- powershell then we can just run the cmd
   if shell:match("powershell") or shell:match("pwsh") then
     cmd = input_cmd
-  elseif fn.has("wsl") > 0 then
-    -- wsl: powershell.exe -Command 'command "/path"'
-    cmd = "powershell.exe -NoProfile -Command '" .. input_cmd:gsub("'", '"') .. "'"
   elseif fn.has("win32") > 0 then
     cmd = 'powershell.exe -NoProfile -Command "' .. input_cmd:gsub('"', "'") .. '"'
   else
