@@ -52,7 +52,7 @@ M.returns = {
 }
 
 ---@type AvanteLLMToolFunc<{ path: string, old_str: string, new_str: string }>
-function M.func(opts, on_log, on_complete)
+function M.func(opts, on_log, on_complete, session_ctx)
   if on_log then on_log("path: " .. opts.path) end
   local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
@@ -135,21 +135,8 @@ function M.func(opts, on_log, on_complete)
   vim.cmd("normal! zz")
   vim.api.nvim_set_current_win(current_winid)
   local augroup = vim.api.nvim_create_augroup("avante_str_replace_editor", { clear = true })
-  local confirm = Helpers.confirm("Are you sure you want to apply this modification?", function(ok)
-    pcall(vim.api.nvim_del_augroup_by_id, augroup)
-    vim.api.nvim_set_current_win(sidebar.code.winid)
-    vim.cmd("noautocmd stopinsert")
-    vim.cmd("noautocmd undo")
-    if not ok then
-      vim.api.nvim_set_current_win(current_winid)
-      on_complete(false, "User canceled")
-      return
-    end
-    vim.api.nvim_buf_set_lines(bufnr, start_line - 1, end_line, false, new_lines)
-    vim.api.nvim_set_current_win(current_winid)
-    on_complete(true, nil)
-  end, { focus = false })
   vim.api.nvim_set_current_win(sidebar.code.winid)
+  local confirm
   vim.api.nvim_create_autocmd({ "TextChangedI", "TextChanged" }, {
     group = augroup,
     buffer = bufnr,
@@ -167,6 +154,20 @@ function M.func(opts, on_log, on_complete)
       on_complete(true, nil)
     end,
   })
+  confirm = Helpers.confirm("Are you sure you want to apply this modification?", function(ok, reason)
+    pcall(vim.api.nvim_del_augroup_by_id, augroup)
+    vim.api.nvim_set_current_win(sidebar.code.winid)
+    vim.cmd("noautocmd stopinsert")
+    vim.cmd("noautocmd undo")
+    if not ok then
+      vim.api.nvim_set_current_win(current_winid)
+      on_complete(false, "User declined, reason: " .. (reason or "unknown"))
+      return
+    end
+    vim.api.nvim_buf_set_lines(bufnr, start_line - 1, end_line, false, new_lines)
+    vim.api.nvim_set_current_win(current_winid)
+    on_complete(true, nil)
+  end, { focus = false }, session_ctx)
 end
 
 return M
