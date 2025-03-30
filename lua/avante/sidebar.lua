@@ -205,7 +205,7 @@ end
 function Sidebar:shutdown()
   Llm.cancel_inflight_request()
   self:close()
-  vim.cmd("stopinsert")
+  vim.cmd("noautocmd stopinsert")
 end
 
 ---@return boolean
@@ -284,13 +284,18 @@ local function transform_result_content(selected_files, result_content, prev_fil
   while true do
     if i > #result_lines then break end
     local line_content = result_lines[i]
-    if line_content:match("<[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]>.+</[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]>") then
-      local filepath = line_content:match("<[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]>(.+)</[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]>")
-      if filepath then
-        current_filepath = filepath
-        table.insert(transformed_lines, string.format("Filepath: %s", filepath))
-        goto continue
+    local matched_filepath =
+      line_content:match("<[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]>(.+)</[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]>")
+    if matched_filepath then
+      if i > 1 then
+        local prev_line = result_lines[i - 1]
+        if prev_line and prev_line:match("^%s*```%w+$") then
+          transformed_lines = vim.list_slice(transformed_lines, 1, #transformed_lines - 1)
+        end
       end
+      current_filepath = matched_filepath
+      table.insert(transformed_lines, string.format("Filepath: %s", matched_filepath))
+      goto continue
     end
     if line_content:match("^%s*<[Ss][Ee][Aa][Rr][Cc][Hh]>") then
       is_searching = true
@@ -450,6 +455,8 @@ local function transform_result_content(selected_files, result_content, prev_fil
       is_replacing = false
       local prev_line = result_lines[i - 1]
       if not (prev_line and prev_line:match("^%s*```$")) then table.insert(transformed_lines, "```") end
+      local next_line = result_lines[i + 1]
+      if next_line and next_line:match("^%s*```%s*$") then i = i + 1 end
       goto continue
     elseif line_content == "<think>" then
       is_thinking = true
@@ -458,6 +465,9 @@ local function transform_result_content(selected_files, result_content, prev_fil
     elseif line_content == "</think>" then
       is_thinking = false
       last_think_tag_end_line = i
+    elseif line_content:match("^%s*```%s*$") then
+      local prev_line = result_lines[i - 1]
+      if prev_line and prev_line:match("^%s*```$") then goto continue end
     end
     waiting_for_breakline = false
     table.insert(transformed_lines, line_content)
@@ -1371,7 +1381,7 @@ function Sidebar:apply(current_cursor)
 
           local function process(winid)
             api.nvim_set_current_win(winid)
-            api.nvim_feedkeys(api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
+            vim.cmd("noautocmd stopinsert")
             Diff.add_visited_buffer(bufnr)
             Diff.process(bufnr)
             api.nvim_win_set_cursor(winid, { 1, 0 })
@@ -1411,7 +1421,7 @@ function Sidebar:apply(current_cursor)
       insert_conflict_contents(bufnr, snippets)
       local function process(winid)
         api.nvim_set_current_win(winid)
-        api.nvim_feedkeys(api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
+        vim.cmd("noautocmd stopinsert")
         Diff.add_visited_buffer(bufnr)
         Diff.process(bufnr)
         api.nvim_win_set_cursor(winid, { 1, 0 })
@@ -1893,10 +1903,7 @@ function Sidebar:on_mount(opts)
         then
           api.nvim_set_current_win(self.input_container.winid)
           vim.defer_fn(function()
-            if Config.windows.ask.start_insert then
-              Utils.debug("starting insert")
-              vim.cmd("startinsert!")
-            end
+            if Config.windows.ask.start_insert then vim.cmd("noautocmd startinsert!") end
           end, 300)
         end
       end
@@ -2910,7 +2917,7 @@ function Sidebar:create_input_container(opts)
 
   if Utils.in_visual_mode() then
     -- Exit visual mode
-    api.nvim_feedkeys(api.nvim_replace_termcodes("<Esc>", true, false, true), "n", true)
+    vim.cmd("noautocmd stopinsert")
   end
 
   self.input_container:map("n", Config.mappings.submit.normal, on_submit)
@@ -3058,18 +3065,26 @@ function Sidebar:create_input_container(opts)
     callback = function() close_hint() end,
   })
 
+  api.nvim_create_autocmd("WinClosed", {
+    group = self.augroup,
+    callback = function(args)
+      local closed_winid = tonumber(args.match)
+      if closed_winid == self.input_container.winid then close_hint() end
+    end,
+  })
+
   api.nvim_create_autocmd("BufEnter", {
     group = self.augroup,
     buffer = self.input_container.bufnr,
     callback = function()
-      if Config.windows.ask.start_insert then vim.cmd("startinsert!") end
+      if Config.windows.ask.start_insert then vim.cmd("noautocmd startinsert!") end
     end,
   })
 
   api.nvim_create_autocmd("BufLeave", {
     group = self.augroup,
     buffer = self.input_container.bufnr,
-    callback = function() vim.cmd("stopinsert") end,
+    callback = function() vim.cmd("noautocmd stopinsert") end,
   })
 
   -- Show hint in insert mode

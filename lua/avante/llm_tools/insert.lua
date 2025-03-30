@@ -10,6 +10,8 @@ M.name = "insert"
 
 M.description = "The insert tool allows you to insert text at a specific location in a file."
 
+function M.enabled() return require("avante.config").behaviour.enable_claude_text_editor_tool_mode end
+
 ---@type AvanteLLMToolParam
 M.param = {
   type = "table",
@@ -48,7 +50,7 @@ M.returns = {
 }
 
 ---@type AvanteLLMToolFunc<{ path: string, insert_line: integer, new_str: string }>
-function M.func(opts, on_log, on_complete)
+function M.func(opts, on_log, on_complete, session_ctx)
   if on_log then on_log("path: " .. opts.path) end
   local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
@@ -75,15 +77,15 @@ function M.func(opts, on_log, on_complete)
     hl_eol = true,
     hl_mode = "combine",
   })
-  Helpers.confirm("Are you sure you want to insert these lines?", function(ok)
+  Helpers.confirm("Are you sure you want to insert these lines?", function(ok, reason)
     clear_highlights()
     if not ok then
-      on_complete(false, "User canceled")
+      on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
     end
     vim.api.nvim_buf_set_lines(bufnr, opts.insert_line, opts.insert_line, false, new_lines)
     on_complete(true, nil)
-  end)
+  end, { focus = true }, session_ctx)
 end
 
 return M

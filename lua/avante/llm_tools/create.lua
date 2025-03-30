@@ -10,6 +10,8 @@ M.name = "create"
 
 M.description = "The create tool allows you to create a new file with specified content."
 
+function M.enabled() return require("avante.config").behaviour.enable_claude_text_editor_tool_mode end
+
 ---@type AvanteLLMToolParam
 M.param = {
   type = "table",
@@ -43,7 +45,7 @@ M.returns = {
 }
 
 ---@type AvanteLLMToolFunc<{ path: string, file_text: string }>
-function M.func(opts, on_log, on_complete)
+function M.func(opts, on_log, on_complete, session_ctx)
   if not on_complete then return false, "on_complete not provided" end
   if on_log then on_log("path: " .. opts.path) end
   if Helpers.already_in_context(opts.path) then
@@ -58,21 +60,22 @@ function M.func(opts, on_log, on_complete)
   local bufnr, err = Helpers.get_bufnr(abs_path)
   if err then return false, err end
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
-  Helpers.confirm("Are you sure you want to create this file?", function(ok)
+  Helpers.confirm("Are you sure you want to create this file?", function(ok, reason)
     if not ok then
       -- close the buffer
       vim.api.nvim_buf_delete(bufnr, { force = true })
-      on_complete(false, "User canceled")
+      on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
     end
     -- save the file
+    Path:new(abs_path):parent():mkdir({ parents = true, exists_ok = true })
     local current_winid = vim.api.nvim_get_current_win()
     local winid = Utils.get_winid(bufnr)
     vim.api.nvim_set_current_win(winid)
     vim.cmd("write")
     vim.api.nvim_set_current_win(current_winid)
     on_complete(true, nil)
-  end)
+  end, { focus = true }, session_ctx)
 end
 
 return M

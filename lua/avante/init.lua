@@ -149,6 +149,13 @@ function H.keymaps()
       function() require("avante.api").select_history() end,
       { desc = "avante: select history" }
     )
+
+    Utils.safe_keymap_set(
+      "n",
+      Config.mappings.files.add_all_buffers,
+      function() require("avante.api").add_buffer_files() end,
+      { desc = "avante: add all open buffers" }
+    )
   end
 
   if Config.behaviour.auto_suggestions then

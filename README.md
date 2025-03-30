@@ -67,7 +67,7 @@ For building binary if you wish to build from source, then `cargo` is required. 
       model = "gpt-4o", -- your desired model (or use gpt-4o, etc.)
       timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
       temperature = 0,
-      max_completion_tokens = 8192, -- Increase this to include reasoning tokens (for reasoning models)
+      max_tokens = 8192, -- Increase this to include reasoning tokens (for reasoning models)
       --reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
     },
   },
@@ -365,6 +365,10 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     submit = {
       normal = "<CR>",
       insert = "<C-s>",
+    },
+    cancel = {
+      normal = { "<C-c>", "<Esc>", "q" },
+      insert = { "<C-c>" },
     },
     sidebar = {
       apply_all = "A",
@@ -1007,12 +1011,26 @@ The high quality and ingenuity of these projects' source code have been immensel
 
 ## Business Sponsors
 
-<div align="center">
-  <a href="https://www.meshy.ai/" target="_blank" align="center">
-    <img height="80" src="https://github.com/user-attachments/assets/1abd8ede-bd98-4e6e-8ee0-5a661b40344a" alt="Meshy AI" />
-    <div>Meshy AI</div>
-  </a>
-</div>
+<table>
+  <tr>
+    <td align="center">
+      <a href="https://s.kiiro.ai/r/ylVbT6" target="_blank">
+        <img height="80" src="https://github.com/user-attachments/assets/1abd8ede-bd98-4e6e-8ee0-5a661b40344a" alt="Meshy AI" /><br/>
+        <strong>Meshy AI</strong>
+        <div>&nbsp;</div>
+        <div>The #1 AI 3D Model Generator for Creators</div>
+      </a>
+    </td>
+    <td align="center">
+      <a href="https://s.kiiro.ai/r/mGPJOd" target="_blank">
+        <img height="80" src="https://github.com/user-attachments/assets/7b7bd75e-1fd2-48cc-a71a-cff206e4fbd7" alt="BabelTower API" /><br/>
+        <strong>BabelTower API</strong>
+        <div>&nbsp;</div>
+        <div>No account needed, use any model instantly</div>
+      </a>
+    </td>
+  </tr>
+</table>
 
 ## License
 

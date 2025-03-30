@@ -66,9 +66,12 @@ if [ ! -d "$TARGET_DIR" ]; then
     mkdir -p "$TARGET_DIR"
 fi
 
-if test_command "gh" && test_gh_auth; then
+latest_tag_time=$(git tag --sort=-creatordate | xargs git log -1 --format=%at)
+current_build_time=$(stat -c %Y build/avante_html2md* 2>/dev/null || echo "$latest_tag_time")
+if [[ "$latest_tag_time" -ge "$current_build_time" ]]; then
+  if test_command "gh" && test_gh_auth; then
     gh release download --repo "github.com/$REPO_OWNER/$REPO_NAME" --pattern "*$ARTIFACT_NAME_PATTERN*" --clobber --output - | tar -zxv -C "$TARGET_DIR"
-else
+  else
     # Get the artifact download URL
     ARTIFACT_URL=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest" | grep "browser_download_url" | cut -d '"' -f 4 | grep $ARTIFACT_NAME_PATTERN)
 
@@ -77,4 +80,7 @@ else
     mkdir -p "$TARGET_DIR"
 
     curl -L "$ARTIFACT_URL" | tar -zxv -C "$TARGET_DIR"
+  fi
+else
+  echo "Local build is up to date. No download needed."
 fi

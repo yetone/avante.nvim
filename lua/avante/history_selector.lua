@@ -75,7 +75,7 @@ function M.open(bufnr, cb)
 
   vim.ui.select(selector_items, {
     prompt = "Select Avante History:",
-    format_item = function(item) return item.name end,
+    format_item = function(item) return item.name:gsub("\n", "\\n") end,
   }, function(choice)
     if not choice then return end
     cb(choice.filename)

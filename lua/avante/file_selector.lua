@@ -77,7 +77,7 @@ end
 function FileSelector:new(id)
   return setmetatable({
     id = id,
-    selected_files = {},
+    selected_filepaths = {},
     event_handlers = {},
   }, { __index = self })
 end
@@ -421,9 +421,11 @@ end
 function FileSelector:add_buffer_files()
   local buffers = vim.api.nvim_list_bufs()
   for _, bufnr in ipairs(buffers) do
-    if vim.api.nvim_buf_is_loaded(bufnr) then
+    -- Skip invalid or unlisted buffers
+    if vim.api.nvim_buf_is_valid(bufnr) and vim.bo[bufnr].buflisted then
       local filepath = vim.api.nvim_buf_get_name(bufnr)
-      if filepath and filepath ~= "" and not has_scheme(filepath) then
+      -- Skip empty paths and special buffers (like terminals)
+      if filepath ~= "" and not has_scheme(filepath) then
         local relative_path = Utils.relative_path(filepath)
         self:add_selected_file(relative_path)
       end

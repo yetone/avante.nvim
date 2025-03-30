@@ -1,4 +1,4 @@
----@alias avante.ui.LineSection string[]
+---@alias avante.ui.LineSection table
 ---
 ---@class avante.ui.Line
 ---@field sections avante.ui.LineSection[]
@@ -15,15 +15,32 @@ end
 ---@param ns_id number
 ---@param bufnr number
 ---@param line number
-function M:set_highlights(ns_id, bufnr, line)
+---@param offset number | nil
+function M:set_highlights(ns_id, bufnr, line, offset)
   if not vim.api.nvim_buf_is_valid(bufnr) then return end
-  local col_start = 0
+  local col_start = offset or 0
   for _, section in ipairs(self.sections) do
     local text = section[1]
     local highlight = section[2]
+    if type(highlight) == "function" then highlight = highlight() end
     if highlight then vim.api.nvim_buf_add_highlight(bufnr, ns_id, highlight, line, col_start, col_start + #text) end
     col_start = col_start + #text
   end
+end
+
+---@param section_index number
+---@param offset number | nil
+---@return number[]
+function M:get_section_pos(section_index, offset)
+  offset = offset or 0
+  local col_start = 0
+  for i = 1, section_index - 1 do
+    if i == section_index then break end
+    local section = self.sections[i]
+    col_start = col_start + #section
+  end
+
+  return { offset + col_start, offset + col_start + #self.sections[section_index] }
 end
 
 function M:__tostring()
