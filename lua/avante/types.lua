@@ -273,6 +273,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field is_disable_stream fun(self: AvanteProviderFunctor): boolean
 ---@field setup fun(): nil
 ---@field is_env_set fun(): boolean
+---@field is_parse_api_key_set boolean
 ---@field api_key_name string
 ---@field tokenizer_id string | "gpt-4o"
 ---@field model? string

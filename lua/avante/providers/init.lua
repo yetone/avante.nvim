@@ -91,7 +91,11 @@ function E.setup(opts)
         "noice",
       }
 
-      if not vim.tbl_contains(exclude_filetypes, vim.bo.filetype) and not opts.provider.is_env_set() then
+      if
+        not vim.tbl_contains(exclude_filetypes, vim.bo.filetype)
+        and not opts.provider.is_env_set()
+        and not opts.provider.is_parse_api_key_set
+      then
         DressingState.winid = api.nvim_get_current_win()
         vim.ui.input({ default = "", prompt = "Enter " .. var .. ": " }, on_confirm)
         for _, winid in ipairs(api.nvim_list_wins()) do
@@ -178,7 +182,11 @@ M = setmetatable(M, {
       t[k] = Utils.deep_extend_with_metatable("keep", provider_config, module)
     end
 
-    if t[k].parse_api_key == nil then t[k].parse_api_key = function() return E.parse_envvar(t[k]) end end
+    if t[k].parse_api_key ~= nil then
+      t[k].is_parse_api_key_set = true
+    else
+      t[k].parse_api_key = function() return E.parse_envvar(t[k]) end
+    end
 
     -- default to gpt-4o as tokenizer
     if t[k].tokenizer_id == nil then t[k].tokenizer_id = "gpt-4o" end
