@@ -739,7 +739,7 @@ ollama = {
 
 ## AiHubMix
 
-AiHubMix is a built-in provider for avante.nvim. You can register an account on the [AiHubMix official website](https://s.kiiro.ai/r/PPELHy), then create an API Key within the website, and set this API Key in your environment variables:
+[AiHubMix](https://s.kiiro.ai/r/PPELHy) is a built-in provider for avante.nvim. You can register an account on the [AiHubMix official website](https://s.kiiro.ai/r/PPELHy), then create an API Key within the website, and set this API Key in your environment variables:
 
 ```bash
 export AIHUBMIX_API_KEY=your_api_key
