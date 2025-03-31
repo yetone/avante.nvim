@@ -26,6 +26,9 @@
 
 **avante.nvim** is a Neovim plugin designed to emulate the behaviour of the [Cursor](https://www.cursor.com) AI IDE. It provides users with AI-driven code suggestions and the ability to apply these recommendations directly to their source files with minimal effort.
 
+[查看中文版](README_zh.md)
+
+
 > [!NOTE]
 >
 > 🥰 This project is undergoing rapid iterations, and many exciting features will be added successively. Stay tuned!
@@ -731,6 +734,9 @@ ollama = {
 }
 ```
 
+> [!NOTE]
+> If you use ollama, the code planning effect may not be ideal, so it is strongly recommended that you enable [cursor-planning-mode](https://github.com/yetone/avante.nvim/blob/main/cursor-planning-mode.md)
+
 ## AiHubMix
 
 AiHubMix is a built-in provider for avante.nvim. You can register an account on the [AiHubMix official website](https://s.kiiro.ai/r/PPELHy), then create an API Key within the website, and set this API Key in your environment variables:
@@ -747,9 +753,6 @@ aihubmix = {
   model = "gpt-4o-2024-11-20",
 }
 ```
-
-> [!NOTE]
-> If you use ollama, the code planning effect may not be ideal, so it is strongly recommended that you enable [cursor-planning-mode](https://github.com/yetone/avante.nvim/blob/main/cursor-planning-mode.md)
 
 ## Custom providers
 
