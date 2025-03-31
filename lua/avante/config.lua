@@ -299,6 +299,18 @@ M._defaults = {
       __inherited_from = "openai",
       model = "gpt-4o-mini",
     },
+    aihubmix = {
+      __inherited_from = "openai",
+      endpoint = "https://aihubmix.com/v1",
+      model = "gpt-4o-2024-11-20",
+      api_key_name = "AIHUBMIX_API_KEY",
+    },
+    ["aihubmix-claude"] = {
+      __inherited_from = "claude",
+      endpoint = "https://aihubmix.com",
+      model = "claude-3-7-sonnet-20250219",
+      api_key_name = "AIHUBMIX_API_KEY",
+    },
   },
   ---Specify the special dual_boost mode
   ---1. enabled: Whether to enable dual_boost mode. Default to false.
