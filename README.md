@@ -731,6 +731,23 @@ ollama = {
 }
 ```
 
+## AiHubMix
+
+AiHubMix is a built-in provider for avante.nvim. You can register an account on the [AiHubMix official website](https://s.kiiro.ai/r/PPELHy), then create an API Key within the website, and set this API Key in your environment variables:
+
+```bash
+export AIHUBMIX_API_KEY=your_api_key
+```
+
+Then in your configuration, set `provider = "aihubmix"`, and set the `model` field to the model name you want to use, for example:
+
+```lua
+provider = "aihubmix",
+aihubmix = {
+  model = "gpt-4o-2024-11-20",
+}
+```
+
 > [!NOTE]
 > If you use ollama, the code planning effect may not be ideal, so it is strongly recommended that you enable [cursor-planning-mode](https://github.com/yetone/avante.nvim/blob/main/cursor-planning-mode.md)
 
