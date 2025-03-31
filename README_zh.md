@@ -739,7 +739,7 @@ ollama = {
 
 ## AiHubMix
 
-AiHubMix 是 avante.nvim 的内置提供者。您可以在 [AiHubMix 官方网站](https://s.kiiro.ai/r/PPELHy) 上注册一个帐户，然后在网站内创建一个 API 密钥，并在环境变量中设置此 API 密钥：
+[AiHubMix](https://s.kiiro.ai/r/PPELHy) 是 avante.nvim 的内置提供者。您可以在 [AiHubMix 官方网站](https://s.kiiro.ai/r/PPELHy) 上注册一个帐户，然后在网站内创建一个 API 密钥，并在环境变量中设置此 API 密钥：
 
 ```bash
 export AIHUBMIX_API_KEY=your_api_key
