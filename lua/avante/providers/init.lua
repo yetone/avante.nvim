@@ -178,7 +178,7 @@ M = setmetatable(M, {
       t[k] = Utils.deep_extend_with_metatable("keep", provider_config, module)
     end
 
-    t[k].parse_api_key = function() return E.parse_envvar(t[k]) end
+    if t[k].parse_api_key == nil then t[k].parse_api_key = function() return E.parse_envvar(t[k]) end end
 
     -- default to gpt-4o as tokenizer
     if t[k].tokenizer_id == nil then t[k].tokenizer_id = "gpt-4o" end
