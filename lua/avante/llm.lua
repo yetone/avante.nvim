@@ -155,7 +155,13 @@ end
 ---@param opts AvanteGeneratePromptsOptions
 ---@return AvantePromptOptions
 function M.generate_prompts(opts)
-  if opts.prompt_opts then return opts.prompt_opts end
+  if opts.prompt_opts then
+    local prompt_opts = vim.tbl_deep_extend("force", opts.prompt_opts, {
+      tool_histories = opts.tool_histories,
+    })
+    ---@cast prompt_opts AvantePromptOptions
+    return prompt_opts
+  end
   local provider = opts.provider or Providers[Config.provider]
   local mode = opts.mode or "planning"
   ---@type AvanteProviderFunctor | AvanteBedrockProviderFunctor
@@ -279,6 +285,10 @@ Merge all changes from the <update> snippet into the <code> below.
     user_prompt = user_prompt .. "Provide the complete updated code."
     table.insert(messages, { role = "user", content = user_prompt })
   end
+
+  opts.session_ctx = opts.session_ctx or {}
+  opts.session_ctx.system_prompt = system_prompt
+  opts.session_ctx.messages = messages
 
   ---@type AvantePromptOptions
   return {
@@ -522,6 +532,7 @@ function M._stream(opts)
   if LLMToolHelpers then LLMToolHelpers.is_cancelled = false end
 
   local provider = opts.provider or Providers[Config.provider]
+  opts.session_ctx = opts.session_ctx or {}
 
   ---@cast provider AvanteProviderFunctor
 
