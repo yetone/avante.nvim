@@ -239,9 +239,9 @@ function M.func(opts, on_log, on_complete, session_ctx)
   if not on_complete then return false, "on_complete not provided" end
   Helpers.confirm(
     "Are you sure you want to run the command: `" .. opts.command .. "` in the directory: " .. abs_path,
-    function(ok)
+    function(ok, reason)
       if not ok then
-        on_complete(false, "User canceled")
+        on_complete(false, "User declined, reason: " .. (reason and reason or "unknown"))
         return
       end
       Utils.shell_run_async(opts.command, "bash -c", function(output, exit_code)

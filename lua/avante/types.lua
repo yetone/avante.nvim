@@ -326,6 +326,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field original_code? string
 ---@field update_snippets? string[]
 ---@field prompt_opts? AvantePromptOptions
+---@field session_ctx? table
 ---
 ---@class AvanteLLMToolHistory
 ---@field tool_result? AvanteLLMToolResult
@@ -334,7 +335,6 @@ vim.g.avante_login = vim.g.avante_login
 ---@alias AvanteLLMMemorySummarizeCallback fun(dropped_history_messages: AvanteLLMMessage[]): nil
 ---
 ---@class AvanteLLMStreamOptions: AvanteGeneratePromptsOptions
----@field session_ctx? table
 ---@field on_start AvanteLLMStartCallback
 ---@field on_chunk AvanteLLMChunkCallback
 ---@field on_stop AvanteLLMStopCallback

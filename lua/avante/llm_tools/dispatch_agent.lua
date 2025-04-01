@@ -66,7 +66,7 @@ local function get_available_tools()
 end
 
 ---@type AvanteLLMToolFunc<{ prompt: string }>
-function M.func(opts, on_log, on_complete)
+function M.func(opts, on_log, on_complete, session_ctx)
   local Llm = require("avante.llm")
   if not on_complete then return false, "on_complete not provided" end
   local prompt = opts.prompt
@@ -80,18 +80,24 @@ Your task is to help the user with their request: "${prompt}"
 Be thorough and use the tools available to you to find the most relevant information.
 When you're done, provide a clear and concise summary of what you found.]]):gsub("${prompt}", prompt)
 
+  local messages = session_ctx and session_ctx.messages or {}
+  messages = messages or {}
+  table.insert(messages, { role = "user", content = prompt })
+
   local total_tokens = 0
   local final_response = ""
   Llm._stream({
     ask = true,
     code_lang = "unknown",
     provider = Providers[Config.provider],
+    on_tool_log = function(tool_name, log)
+      if on_log then on_log(string.format("[%s] %s", tool_name, log)) end
+    end,
+    session_ctx = session_ctx,
     prompt_opts = {
       system_prompt = system_prompt,
       tools = tools,
-      messages = {
-        { role = "user", content = prompt },
-      },
+      messages = messages,
     },
     on_start = function(_) end,
     on_chunk = function(chunk)
