@@ -165,6 +165,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
       return
     end
     vim.api.nvim_buf_set_lines(bufnr, start_line - 1, end_line, false, new_lines)
+    vim.cmd("noautocmd write")
     vim.api.nvim_set_current_win(current_winid)
     on_complete(true, nil)
   end, { focus = false }, session_ctx)
