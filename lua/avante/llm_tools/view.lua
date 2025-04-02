@@ -8,8 +8,18 @@ local M = setmetatable({}, Base)
 
 M.name = "view"
 
-M.description =
-  "The view tool allows you to examine the contents of a file or list the contents of a directory. It can read the entire file or a specific range of lines. If the file content is already in the context, do not use this tool."
+M.description = [[
+Use this tool to view the content of a file within the current project.
+- Use it to examine code, configuration files, or any text-based file.
+- Specify the 'path' parameter as the relative path to the file within the project.
+- You MUST provide a valid file path that exists in the project.
+- If you have just listed files using the 'ls' tool, you can use the file paths from that list as input to this 'view' tool.
+- Do NOT use this tool if the file content is already provided in the current context.
+
+Example:
+To view the file 'init.lua' in the current directory, use:
+{ "name": "view", "parameters": { "path": "init.lua" } }
+]]
 
 M.enabled = function(opts)
   if opts.user_input:match("@read_global_file") then return false end
@@ -33,7 +43,12 @@ M.param = {
   fields = {
     {
       name = "path",
-      description = "The path to the file in the current project scope",
+      description = [[
+REQUIRED: The relative path to the file you want to view within the current project.
+- Example: "lua/avante/llm.lua"
+- MUST be a valid file path that exists in the project.
+- If you just used the 'ls' tool, use the file paths from its 'entries' output here.
+      ]],
       type = "string",
     },
     {
@@ -75,6 +90,11 @@ M.returns = {
 ---@type AvanteLLMToolFunc<{ path: string, view_range?: { start_line: integer, end_line: integer } }>
 function M.func(opts, on_log, on_complete, session_ctx)
   if not on_complete then return false, "on_complete not provided" end
+
+  -- Validate required 'path' parameter
+  if not opts.path or type(opts.path) ~= "string" or opts.path == "" then
+    return nil, "Error: The 'path' parameter is required for the view tool and must be a non-empty string."
+  end
   if on_log then on_log("path: " .. opts.path) end
   if Helpers.already_in_context(opts.path) then
     on_complete(nil, "Ooooops! This file is already in the context! Why you are trying to read it again?")

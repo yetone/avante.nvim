@@ -682,24 +682,31 @@ local function pattern_to_lua(pattern)
 end
 
 function M.parse_gitignore(gitignore_path)
-  local ignore_patterns = {}
-  local negate_patterns = {}
+  local ignore_patterns = {} -- Now { [lua_pattern] = original_pattern }
+  local negate_patterns = {} -- Now { [lua_pattern] = original_pattern }
   local file = io.open(gitignore_path, "r")
   if not file then return ignore_patterns, negate_patterns end
 
   for line in file:lines() do
     if line:match("%S") and not line:match("^#") then
       local trimmed_line = line:match("^%s*(.-)%s*$")
-      if trimmed_line:sub(1, 1) == "!" then
-        table.insert(negate_patterns, pattern_to_lua(trimmed_line:sub(2)))
+      if trimmed_line:sub(1, 1) == "!" then -- Handle negation patterns
+        local original_pattern = trimmed_line:sub(2)
+        negate_patterns[pattern_to_lua(original_pattern)] = original_pattern
       else
-        table.insert(ignore_patterns, pattern_to_lua(trimmed_line))
+        local original_pattern = trimmed_line
+        ignore_patterns[pattern_to_lua(original_pattern)] = original_pattern
       end
     end
   end
 
   file:close()
-  ignore_patterns = vim.list_extend(ignore_patterns, { "%.git", "%.worktree", "__pycache__", "node_modules" })
+  -- Add default ignores (assuming they don't need original pattern check)
+  ignore_patterns[pattern_to_lua(".git/")] = ".git/"
+  ignore_patterns[pattern_to_lua(".worktree/")] = ".worktree/"
+  ignore_patterns[pattern_to_lua("__pycache__/")] = "__pycache__/"
+  ignore_patterns[pattern_to_lua("node_modules/")] = "node_modules/"
+
   return ignore_patterns, negate_patterns
 end
 
@@ -1202,18 +1209,29 @@ function M.llm_tool_param_fields_to_json_schema(fields)
   local required = {}
   for _, field in ipairs(fields) do
     if field.type == "object" and field.fields then
+      -- Handle nested objects (recursive call)
       local properties_, required_ = M.llm_tool_param_fields_to_json_schema(field.fields)
+      local description = field.get_description and field.get_description() or field.description or ""
       properties[field.name] = {
         type = field.type,
-        description = field.get_description and field.get_description() or field.description,
+        description = description, -- Keep original description for object itself
         properties = properties_,
         required = required_,
       }
     else
+      -- Handle primitive types (string, integer, boolean, etc.)
+      local description = field.get_description and field.get_description() or field.description or ""
+      local type_info = "(Type: " .. field.type .. ")"
+      local default_info = ""
+      if field.default ~= nil then default_info = " (Default: " .. vim.inspect(field.default) .. ")" end
+      local enhanced_description = type_info .. " " .. description .. default_info -- <<< ENHANCE DESCRIPTION
       properties[field.name] = {
         type = field.type,
-        description = field.get_description and field.get_description() or field.description,
+        description = enhanced_description, -- <<< USE ENHANCED DESCRIPTION
       }
+      -- Add default value to schema if specified in the tool definition
+      if field.default ~= nil then properties[field.name].default = field.default end -- <<< ADD THIS LINE
+
     end
     if not field.optional then table.insert(required, field.name) end
   end

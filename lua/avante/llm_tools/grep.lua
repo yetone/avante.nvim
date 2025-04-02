@@ -16,8 +16,9 @@ M.param = {
   fields = {
     {
       name = "rel_path",
-      description = "Relative path to the project directory",
+      description = "Optional. Specify a directory path relative to the project root to limit the search scope. Use this to search only within specific subdirectories. If omitted, searches the entire project root ('.'). Example: To search for 'query' only inside 'src/api', set this to 'src/api'.",
       type = "string",
+      optional = true,
     },
     {
       name = "query",
@@ -61,9 +62,15 @@ M.returns = {
   },
 }
 
----@type AvanteLLMToolFunc<{ rel_path: string, query: string, case_sensitive?: boolean, include_pattern?: string, exclude_pattern?: string }>
+---@type AvanteLLMToolFunc<{ rel_path?: string, query: string, case_sensitive?: boolean, include_pattern?: string, exclude_pattern?: string }>
 function M.func(opts, on_log)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local rel_path = opts.rel_path
+  if not rel_path or rel_path == "" then
+    rel_path = "." -- Default to project root
+    if on_log then on_log("rel_path not specified, defaulting to project root: " .. rel_path) end
+  end
+
+  local abs_path = Helpers.get_abs_path(rel_path)
   if not Helpers.has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return "", "No such file or directory: " .. abs_path end
 

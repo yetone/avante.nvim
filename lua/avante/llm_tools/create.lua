@@ -8,7 +8,17 @@ local M = setmetatable({}, Base)
 
 M.name = "create"
 
-M.description = "The create tool allows you to create a new file with specified content."
+M.description = [[
+Creates a new file in the current project scope with specified content.
+- Use this tool to generate new files, such as code files, configuration files, or documents.
+- Specify the 'rel_path' parameter for the relative path to the new file within the project.
+- Specify the 'file_text' parameter with the content to write into the new file.
+- Ensure the 'rel_path' is valid and does not overwrite existing important files.
+
+Example:
+To create a new file named 'hello.txt' with the content 'Hello, world!', use:
+{ "name": "create", "parameters": { "rel_path": "hello.txt", "file_text": "Hello, world!" } }
+]]
 
 function M.enabled() return require("avante.config").behaviour.enable_claude_text_editor_tool_mode end
 

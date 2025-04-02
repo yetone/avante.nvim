@@ -15,11 +15,26 @@ function M.read_file_toplevel_symbols(opts, on_log)
   if on_log then on_log("path: " .. abs_path) end
   if not Path:new(abs_path):exists() then return "", "File does not exists: " .. abs_path end
   local filetype = RepoMap.get_ts_lang(abs_path)
+  Utils.debug("RepoMap: filetype detected as:", filetype)
   local repo_map_lib = RepoMap._init_repo_map_lib()
-  if not repo_map_lib then return "", "Failed to load avante_repo_map" end
+  if not repo_map_lib then
+    Utils.error("RepoMap: Failed to load avante_repo_map")
+    return "", "Failed to load avante_repo_map"
+  end
   local lines = Utils.read_file_from_buf_or_disk(abs_path)
   local content = lines and table.concat(lines, "\n") or ""
-  local definitions = filetype and repo_map_lib.stringify_definitions(filetype, content) or ""
+  local definitions = ""
+  if filetype then
+    local ok, result = pcall(repo_map_lib.stringify_definitions, filetype, content)
+    if ok then
+      definitions = result or ""
+    else
+      Utils.error("RepoMap: Error stringifying definitions: " .. result)
+    end
+  else
+    Utils.warn("RepoMap: No filetype detected, skipping stringify_definitions")
+  end
+  Utils.debug("RepoMap: definitions:", definitions)
   return definitions, nil
 end
 
@@ -1090,92 +1105,172 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
     local tool = vim.iter(tools):find(function(tool) return tool.name == tool_use.name end) ---@param tool AvanteLLMTool
     if tool == nil then return nil, "This tool is not provided: " .. tool_use.name end
     func = tool.func or M[tool.name]
-  end
-  local input_json = vim.json.decode(tool_use.input_json)
-  if not func then return nil, "Tool not found: " .. tool_use.name end
-  if on_log then on_log(tool_use.name, "running tool") end
+    -- Find the tool definition from the provided list
+    ---@type AvanteLLMTool?
+    local tool = vim.iter(tools):find(function(t) return t.name == tool_use.name end) ---@param t AvanteLLMTool
+    if tool == nil then return nil, "This tool is not provided: " .. tool_use.name end
 
-  -- Set up a timer to periodically check for cancellation
-  local cancel_timer
-  if on_complete then
-    cancel_timer = vim.loop.new_timer()
-    if cancel_timer then
-      cancel_timer:start(
-        100,
-        100,
-        vim.schedule_wrap(function()
-          if Helpers.is_cancelled then
-            Utils.debug("Tool execution cancelled during execution: " .. tool_use.name)
-            if cancel_timer and not cancel_timer:is_closing() then
-              cancel_timer:stop()
-              cancel_timer:close()
-            end
-            on_complete(nil, Helpers.CANCEL_TOKEN)
+    -- Assign the function to be called
+    local func = tool.func or M[tool.name]
+    if not func then return nil, "Tool function not found for: " .. tool_use.name end
+
+    -- Decode input arguments provided by the LLM
+    local ok, input_json = pcall(vim.json.decode, tool_use.input_json)
+    if not ok or type(input_json) ~= "table" then
+      local err_msg = "Error decoding tool arguments for '" .. tool_use.name .. "': Invalid JSON provided."
+      -- Use handle_result if on_complete is defined, otherwise return directly
+      if on_complete then
+        return handle_result(nil, err_msg)
+      else
+        return nil, err_msg
+      end
+    end
+
+    ---@param result string | nil | boolean
+    ---@param err string | nil
+    local function handle_result(result, err)
+      -- Stop the cancellation timer if it exists
+      if cancel_timer and not cancel_timer:is_closing() then
+        cancel_timer:stop()
+        cancel_timer:close()
+      end
+
+      -- Check for cancellation one more time before processing result
+      if Helpers.is_cancelled then
+        if on_log then on_log(tool_use.name, "cancelled during result handling") end
+        return nil, Helpers.CANCEL_TOKEN
+      end
+
+      if on_log then on_log(tool_use.name, "tool finished") end
+      -- Utils.debug("result", result)
+      -- Utils.debug("error", error)
+      if err ~= nil then
+        if on_log then on_log(tool_use.name, "Error: " .. err) end
+      end
+      local result_str ---@type string?
+      if type(result) == "string" then
+        result_str = result
+      elseif result ~= nil then
+        result_str = vim.json.encode(result)
+      end
+      return result_str, err
+    end
+
+    -- *** Centralized Argument Validation ***
+    -- Now 'tool' is guaranteed to be non-nil if we reached this point
+    if tool.param and tool.param.fields then
+      for _, field in ipairs(tool.param.fields) do
+        if not field.optional then -- Check only required fields
+          local arg_value = input_json[field.name]
+          if arg_value == nil then
+            local err_msg = "Error: Missing required parameter '"
+              .. field.name
+              .. "' for tool '"
+              .. tool_use.name
+              .. "'."
+            return handle_result(nil, err_msg) -- Use handle_result to manage state/cancellation
           end
-        end)
-      )
+          -- Basic type check (can be expanded if needed)
+          if field.type ~= "any" and type(arg_value) ~= field.type and field.type ~= "object" then -- Allow any type for 'object' for now
+            local err_msg = "Error: Invalid type for required parameter '"
+              .. field.name
+              .. "' for tool '"
+              .. tool_use.name
+              .. "'. Expected "
+              .. field.type
+              .. ", got "
+              .. type(arg_value)
+              .. "."
+            return handle_result(nil, err_msg) -- Use handle_result
+          end
+        end
+      end
     end
+    -- *** End Validation ***
+
+    if not func then return nil, "Tool not found: " .. tool_use.name end
+    if on_log then on_log(tool_use.name, "running tool") end
+    -- Set up a timer to periodically check for cancellation
+    local cancel_timer
+    if on_complete then
+      cancel_timer = vim.loop.new_timer()
+      if cancel_timer then
+        cancel_timer:start(
+          100,
+          100,
+          vim.schedule_wrap(function()
+            if Helpers.is_cancelled then
+              Utils.debug("Tool execution cancelled during execution: " .. tool_use.name)
+              if cancel_timer and not cancel_timer:is_closing() then
+                cancel_timer:stop()
+                cancel_timer:close()
+              end
+              on_complete(nil, Helpers.CANCEL_TOKEN)
+            end
+          end)
+        )
+      end
+    end
+
+    ---@param result string | nil | boolean
+    ---@param err string | nil
+    local function handle_result(result, err)
+      -- Stop the cancellation timer if it exists
+      if cancel_timer and not cancel_timer:is_closing() then
+        cancel_timer:stop()
+        cancel_timer:close()
+      end
+
+      -- Check for cancellation one more time before processing result
+      if Helpers.is_cancelled then
+        if on_log then on_log(tool_use.name, "cancelled during result handling") end
+        return nil, Helpers.CANCEL_TOKEN
+      end
+
+      if on_log then on_log(tool_use.name, "tool finished") end
+      -- Utils.debug("result", result)
+      -- Utils.debug("error", error)
+      if err ~= nil then
+        if on_log then on_log(tool_use.name, "Error: " .. err) end
+      end
+      local result_str ---@type string?
+      if type(result) == "string" then
+        result_str = result
+      elseif result ~= nil then
+        result_str = vim.json.encode(result)
+      end
+      return result_str, err
+    end
+
+    local result, err = func(input_json, function(log)
+      -- Check for cancellation during logging
+      if Helpers.is_cancelled then return end
+      if on_log then on_log(tool_use.name, log) end
+    end, function(result, err)
+      -- Check for cancellation before completing
+      if Helpers.is_cancelled then
+        if on_complete then on_complete(nil, Helpers.CANCEL_TOKEN) end
+        return
+      end
+
+      result, err = handle_result(result, err)
+      if on_complete == nil then
+        Utils.error("asynchronous tool " .. tool_use.name .. " result not handled")
+        return
+      end
+      on_complete(result, err)
+    end, session_ctx)
+
+    -- Result and error being nil means that the tool was executed asynchronously
+    if result == nil and err == nil and on_complete then return end
+    return handle_result(result, err)
   end
 
-  ---@param result string | nil | boolean
-  ---@param err string | nil
-  local function handle_result(result, err)
-    -- Stop the cancellation timer if it exists
-    if cancel_timer and not cancel_timer:is_closing() then
-      cancel_timer:stop()
-      cancel_timer:close()
-    end
-
-    -- Check for cancellation one more time before processing result
-    if Helpers.is_cancelled then
-      if on_log then on_log(tool_use.name, "cancelled during result handling") end
-      return nil, Helpers.CANCEL_TOKEN
-    end
-
-    if on_log then on_log(tool_use.name, "tool finished") end
-    -- Utils.debug("result", result)
-    -- Utils.debug("error", error)
-    if err ~= nil then
-      if on_log then on_log(tool_use.name, "Error: " .. err) end
-    end
-    local result_str ---@type string?
-    if type(result) == "string" then
-      result_str = result
-    elseif result ~= nil then
-      result_str = vim.json.encode(result)
-    end
-    return result_str, err
+  ---@param tool_use AvanteLLMToolUse
+  ---@return string
+  function M.stringify_tool_use(tool_use)
+    local s = string.format("`%s`", tool_use.name)
+    return s
   end
-
-  local result, err = func(input_json, function(log)
-    -- Check for cancellation during logging
-    if Helpers.is_cancelled then return end
-    if on_log then on_log(tool_use.name, log) end
-  end, function(result, err)
-    -- Check for cancellation before completing
-    if Helpers.is_cancelled then
-      if on_complete then on_complete(nil, Helpers.CANCEL_TOKEN) end
-      return
-    end
-
-    result, err = handle_result(result, err)
-    if on_complete == nil then
-      Utils.error("asynchronous tool " .. tool_use.name .. " result not handled")
-      return
-    end
-    on_complete(result, err)
-  end, session_ctx)
-
-  -- Result and error being nil means that the tool was executed asynchronously
-  if result == nil and err == nil and on_complete then return end
-  return handle_result(result, err)
 end
-
----@param tool_use AvanteLLMToolUse
----@return string
-function M.stringify_tool_use(tool_use)
-  local s = string.format("`%s`", tool_use.name)
-  return s
-end
-
 return M

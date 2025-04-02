@@ -51,6 +51,16 @@ local cmd = function(n, c, o)
   api.nvim_create_user_command("Avante" .. n, c, o)
 end
 
+cmd("RepoMapClearCache", function()
+  local Path = require("avante.path")
+  local project_root = require("avante.root").get()
+  if project_root then
+    Path.RepoMap.clear_cache(project_root)
+  else
+    Utils.error("Not in a project")
+  end
+end, { desc = "Clear the repo map cache for the current project" })
+
 cmd("Ask", function(opts)
   ---@type AskOptions
   local args = { question = nil, win = {} }
