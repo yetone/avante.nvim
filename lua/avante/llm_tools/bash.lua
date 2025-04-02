@@ -76,6 +76,7 @@ M.returns = {
 
 ---@type AvanteLLMToolFunc<{ rel_path: string, command: string }>
 function M.func(opts, on_log, on_complete, session_ctx)
+  opts.rel_path = opts.rel_path or "." -- Default to current directory if not provided
   local abs_path = Helpers.get_abs_path(opts.rel_path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "Path not found: " .. abs_path end

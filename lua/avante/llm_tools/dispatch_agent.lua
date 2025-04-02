@@ -62,6 +62,10 @@ end
 
 ---@type AvanteLLMToolFunc<{ prompt: string }>
 function M.func(opts, on_log, on_complete, session_ctx)
+  if not opts or not opts.prompt or opts.prompt == "" then
+    if on_complete then on_complete(nil, "Error: Missing required parameter 'prompt' for tool 'dispatch_agent'.") end
+    return
+  end
   local Llm = require("avante.llm")
   if not on_complete then return false, "on_complete not provided" end
   local prompt = opts.prompt
