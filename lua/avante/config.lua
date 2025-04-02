@@ -449,7 +449,7 @@ M._defaults = {
       height = 8, -- Height of the input window in vertical layout
     },
     edit = {
-      border = "rounded",
+      border = { " ", " ", " ", " ", " ", " ", " ", " " },
       start_insert = true, -- Start insert mode when opening the edit window
     },
     ask = {
