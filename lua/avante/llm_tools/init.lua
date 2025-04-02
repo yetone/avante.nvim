@@ -326,6 +326,7 @@ function M.web_search(opts, on_log)
     local jsn = vim.json.decode(resp.body)
     return search_engine.format_response_body(jsn)
   end
+  return nil, "Error: No search engine found"
 end
 
 ---@type AvanteLLMToolFunc<{ url: string }>
