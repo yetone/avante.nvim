@@ -7,6 +7,8 @@ local SelectionResult = {}
 SelectionResult.__index = SelectionResult
 
 -- Create a selection content and range
+---@param filepath string Filepath of the selected content
+---@param filetype string Filetype of the selected content
 ---@param content string Selected content
 ---@param range avante.Range Selection range
 function SelectionResult:new(filepath, filetype, content, range)
