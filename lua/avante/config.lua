@@ -354,6 +354,7 @@ M._defaults = {
     enable_cursor_planning_mode = false,
     enable_claude_text_editor_tool_mode = false,
     use_cwd_as_project_root = false,
+    auto_add_files_confirmation = true, -- Confirm before automatically adding files requested by the AI tool
   },
   history = {
     max_tokens = 4096,

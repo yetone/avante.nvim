@@ -2526,35 +2526,6 @@ function Sidebar:create_input_container(opts)
     local history_messages = Utils.history.entries_to_llm_messages(entries)
 
     local tools = vim.deepcopy(LLMTools.get_tools(request, history_messages))
-    table.insert(tools, {
-      name = "add_file_to_context",
-      description = "Add a file to the context",
-      ---@type AvanteLLMToolFunc<{ rel_path: string }>
-      func = function(input)
-        self.file_selector:add_selected_file(input.rel_path)
-        return "Added file to context", nil
-      end,
-      param = {
-        type = "table",
-        fields = { { name = "rel_path", description = "Relative path to the file", type = "string" } },
-      },
-      returns = {},
-    })
-
-    table.insert(tools, {
-      name = "remove_file_from_context",
-      description = "Remove a file from the context",
-      ---@type AvanteLLMToolFunc<{ rel_path: string }>
-      func = function(input)
-        self.file_selector:remove_selected_file(input.rel_path)
-        return "Removed file from context", nil
-      end,
-      param = {
-        type = "table",
-        fields = { { name = "rel_path", description = "Relative path to the file", type = "string" } },
-      },
-      returns = {},
-    })
 
     local mode = "planning"
     if Config.behaviour.enable_cursor_planning_mode then mode = "cursor-planning" end
@@ -2819,7 +2790,7 @@ function Sidebar:create_input_container(opts)
         on_chunk = on_chunk,
         on_stop = on_stop,
         on_tool_log = on_tool_log,
-        session_ctx = {},
+        session_ctx = { sidebar = self }, -- Pass sidebar instance to tools
       })
 
       local function on_memory_summarize(dropped_history_messages)
