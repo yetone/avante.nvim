@@ -46,7 +46,7 @@ end
 ---@param n string
 ---@param c vim.api.keyset.user_command.callback
 ---@param o vim.api.keyset.user_command.opts
-local cmd = function(n, c, o)
+local function cmd(n, c, o)
   o = vim.tbl_extend("force", { nargs = 0 }, o or {})
   api.nvim_create_user_command("Avante" .. n, c, o)
 end
@@ -112,8 +112,8 @@ end, {
 })
 cmd(
   "Edit",
-  function(opts) require("avante.api").edit(vim.trim(opts.args)) end,
-  { desc = "avante: edit selected block", nargs = "*" }
+  function(opts) require("avante.api").edit(vim.trim(opts.args), opts.line1, opts.line2) end,
+  { desc = "avante: edit selected block", nargs = "*", range = 2 }
 )
 cmd("Refresh", function() require("avante.api").refresh() end, { desc = "avante: refresh windows" })
 cmd("Focus", function() require("avante.api").focus() end, { desc = "avante: switch focus windows" })

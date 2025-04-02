@@ -4,6 +4,8 @@ local Llm = require("avante.llm")
 local Provider = require("avante.providers")
 local RepoMap = require("avante.repo_map")
 local PromptInput = require("avante.ui.prompt_input")
+local SelectionResult = require("avante.selection_result")
+local Range = require("avante.range")
 
 local api = vim.api
 local fn = vim.fn
@@ -19,6 +21,7 @@ local PRIORITY = vim.highlight.priorities.user
 ---@field selected_code_extmark_id integer | nil
 ---@field augroup integer | nil
 ---@field code_winid integer | nil
+---@field code_bufnr integer | nil
 ---@field prompt_input avante.ui.PromptInput | nil
 local Selection = {}
 Selection.__index = Selection
@@ -34,6 +37,7 @@ function Selection:new(id)
     selection = nil,
     cursor_pos = nil,
     code_winid = nil,
+    code_bufnr = nil,
     prompt_input = nil,
   }, Selection)
 end
@@ -88,7 +92,7 @@ function Selection:close_editing_input()
       self.selected_code_extmark_id = nil
     end
   end
-  if self.cursor_pos and self.code_winid then
+  if self.cursor_pos and self.code_winid and api.nvim_win_is_valid(self.code_winid) then
     vim.schedule(function()
       local bufnr = api.nvim_win_get_buf(self.code_winid)
       local line_count = api.nvim_buf_line_count(bufnr)
@@ -100,7 +104,124 @@ function Selection:close_editing_input()
   end
 end
 
-function Selection:create_editing_input()
+function Selection:submit_input(input)
+  if not input then
+    Utils.error("No input provided", { once = true, title = "Avante" })
+    return
+  end
+  if self.prompt_input and self.prompt_input.spinner_active then
+    Utils.error(
+      "Please wait for the previous request to finish before submitting another",
+      { once = true, title = "Avante" }
+    )
+    return
+  end
+  local code_lines = api.nvim_buf_get_lines(self.code_bufnr, 0, -1, false)
+  local code_content = table.concat(code_lines, "\n")
+
+  local full_response = ""
+  local start_line = self.selection.range.start.lnum
+  local finish_line = self.selection.range.finish.lnum
+
+  local original_first_line_indentation = Utils.get_indentation(code_lines[self.selection.range.start.lnum])
+
+  local need_prepend_indentation = false
+
+  if self.prompt_input then self.prompt_input:start_spinner() end
+
+  ---@type AvanteLLMStartCallback
+  local function on_start(_) end
+
+  ---@type AvanteLLMChunkCallback
+  local function on_chunk(chunk)
+    full_response = full_response .. chunk
+    local response_lines_ = vim.split(full_response, "\n")
+    local response_lines = {}
+    local in_code_block = false
+    for _, line in ipairs(response_lines_) do
+      if line:match("^<code>") then
+        in_code_block = true
+        line = line:gsub("^<code>", "")
+        if line ~= "" then table.insert(response_lines, line) end
+      elseif line:match("</code>") then
+        in_code_block = false
+        line = line:gsub("</code>.*$", "")
+        if line ~= "" then table.insert(response_lines, line) end
+      elseif in_code_block then
+        table.insert(response_lines, line)
+      end
+    end
+    if #response_lines == 1 then
+      local first_line = response_lines[1]
+      local first_line_indentation = Utils.get_indentation(first_line)
+      need_prepend_indentation = first_line_indentation ~= original_first_line_indentation
+    end
+    if need_prepend_indentation then
+      for i, line in ipairs(response_lines) do
+        response_lines[i] = original_first_line_indentation .. line
+      end
+    end
+    api.nvim_buf_set_lines(self.code_bufnr, start_line - 1, finish_line, true, response_lines)
+    finish_line = start_line + #response_lines - 1
+  end
+
+  ---@type AvanteLLMStopCallback
+  local function on_stop(stop_opts)
+    if stop_opts.error then
+      -- NOTE: in Ubuntu 22.04+ you will see this ignorable error from ~/.local/share/nvim/lazy/avante.nvim/lua/avante/llm.lua `on_error = function(err)`, check to avoid showing this error.
+      if type(stop_opts.error) == "table" and stop_opts.error.exit == nil and stop_opts.error.stderr == "{}" then
+        return
+      end
+      Utils.error(
+        "Error occurred while processing the response: " .. vim.inspect(stop_opts.error),
+        { once = true, title = "Avante" }
+      )
+      return
+    end
+    if self.prompt_input then self.prompt_input:stop_spinner() end
+    vim.defer_fn(function() self:close_editing_input() end, 0)
+    Utils.debug("full response:", full_response)
+  end
+
+  local filetype = api.nvim_get_option_value("filetype", { buf = self.code_bufnr })
+  local file_ext = api.nvim_buf_get_name(self.code_bufnr):match("^.+%.(.+)$")
+
+  local mentions = Utils.extract_mentions(input)
+  input = mentions.new_content
+  local project_context = mentions.enable_project_context and RepoMap.get_repo_map(file_ext) or nil
+
+  local diagnostics = Utils.get_current_selection_diagnostics(self.code_bufnr, self.selection)
+
+  ---@type AvanteSelectedCode | nil
+  local selected_code = nil
+
+  if self.selection then
+    selected_code = {
+      content = self.selection.content,
+      file_type = self.selection.filetype,
+      path = self.selection.filepath,
+    }
+  end
+
+  Llm.stream({
+    ask = true,
+    project_context = vim.json.encode(project_context),
+    diagnostics = vim.json.encode(diagnostics),
+    selected_files = { { content = code_content, file_type = filetype, path = "" } },
+    code_lang = filetype,
+    selected_code = selected_code,
+    instructions = input,
+    mode = "editing",
+    on_start = on_start,
+    on_chunk = on_chunk,
+    on_stop = on_stop,
+  })
+end
+
+---@param request? string
+---@param line1? integer
+---@param line2? integer
+function Selection:create_editing_input(request, line1, line2)
   self:close_editing_input()
 
   if not vim.g.avante_login or vim.g.avante_login == false then
@@ -108,14 +229,24 @@ function Selection:create_editing_input()
     vim.g.avante_login = true
   end
 
-  local code_bufnr = api.nvim_get_current_buf()
-  local code_winid = api.nvim_get_current_win()
-  self.cursor_pos = api.nvim_win_get_cursor(code_winid)
-  self.code_winid = code_winid
-  local code_lines = api.nvim_buf_get_lines(code_bufnr, 0, -1, false)
-  local code_content = table.concat(code_lines, "\n")
+  self.code_bufnr = api.nvim_get_current_buf()
+  self.code_winid = api.nvim_get_current_win()
+  self.cursor_pos = api.nvim_win_get_cursor(self.code_winid)
+  local code_lines = api.nvim_buf_get_lines(self.code_bufnr, 0, -1, false)
 
-  self.selection = Utils.get_visual_selection_and_range()
+  if line1 ~= nil and line2 ~= nil then
+    local filepath = vim.fn.expand("%:p")
+    local filetype = Utils.get_filetype(filepath)
+    local content_lines = vim.list_slice(code_lines, line1, line2)
+    local content = table.concat(content_lines, "\n")
+    local range = Range:new(
+      { lnum = line1, col = #content_lines[1] },
+      { lnum = line2, col = #content_lines[#content_lines] }
+    )
+    self.selection = SelectionResult:new(filepath, filetype, content, range)
+  else
+    self.selection = Utils.get_visual_selection_and_range()
+  end
 
   if self.selection == nil then
     Utils.error("No visual selection found", { once = true, title = "Avante" })
@@ -138,116 +269,18 @@ function Selection:create_editing_input()
     end_col = math.min(self.selection.range.finish.col, #code_lines[self.selection.range.finish.lnum])
   end
 
-  self.selected_code_extmark_id = api.nvim_buf_set_extmark(code_bufnr, SELECTED_CODE_NAMESPACE, start_row, start_col, {
-    hl_group = "Visual",
-    hl_mode = "combine",
-    end_row = end_row,
-    end_col = end_col,
-    priority = PRIORITY,
-  })
-
-  local function submit_input(input)
-    local full_response = ""
-    local start_line = self.selection.range.start.lnum
-    local finish_line = self.selection.range.finish.lnum
-
-    local original_first_line_indentation = Utils.get_indentation(code_lines[self.selection.range.start.lnum])
-
-    local need_prepend_indentation = false
-
-    self.prompt_input:start_spinner()
-
-    ---@type AvanteLLMStartCallback
-    local function on_start(start_opts) end
-
-    ---@type AvanteLLMChunkCallback
-    local function on_chunk(chunk)
-      full_response = full_response .. chunk
-      local response_lines_ = vim.split(full_response, "\n")
-      local response_lines = {}
-      local in_code_block = false
-      for _, line in ipairs(response_lines_) do
-        if line:match("^<code>") then
-          in_code_block = true
-          line = line:gsub("^<code>", "")
-          if line ~= "" then table.insert(response_lines, line) end
-        elseif line:match("</code>") then
-          in_code_block = false
-          line = line:gsub("</code>.*$", "")
-          if line ~= "" then table.insert(response_lines, line) end
-        elseif in_code_block then
-          table.insert(response_lines, line)
-        end
-      end
-      if #response_lines == 1 then
-        local first_line = response_lines[1]
-        local first_line_indentation = Utils.get_indentation(first_line)
-        need_prepend_indentation = first_line_indentation ~= original_first_line_indentation
-      end
-      if need_prepend_indentation then
-        for i, line in ipairs(response_lines) do
-          response_lines[i] = original_first_line_indentation .. line
-        end
-      end
-      api.nvim_buf_set_lines(code_bufnr, start_line - 1, finish_line, true, response_lines)
-      finish_line = start_line + #response_lines - 1
-    end
-
-    ---@type AvanteLLMStopCallback
-    local function on_stop(stop_opts)
-      if stop_opts.error then
-        -- NOTE: in Ubuntu 22.04+ you will see this ignorable error from ~/.local/share/nvim/lazy/avante.nvim/lua/avante/llm.lua `on_error = function(err)`, check to avoid showing this error.
-        if type(stop_opts.error) == "table" and stop_opts.error.exit == nil and stop_opts.error.stderr == "{}" then
-          return
-        end
-        Utils.error(
-          "Error occurred while processing the response: " .. vim.inspect(stop_opts.error),
-          { once = true, title = "Avante" }
-        )
-        return
-      end
-      self.prompt_input:stop_spinner()
-      vim.defer_fn(function() self:close_editing_input() end, 0)
-      Utils.debug("full response:", full_response)
-    end
-
-    local filetype = api.nvim_get_option_value("filetype", { buf = code_bufnr })
-    local file_ext = api.nvim_buf_get_name(code_bufnr):match("^.+%.(.+)$")
-
-    local mentions = Utils.extract_mentions(input)
-    input = mentions.new_content
-    local project_context = mentions.enable_project_context and RepoMap.get_repo_map(file_ext) or nil
-
-    local diagnostics = Utils.get_current_selection_diagnostics(code_bufnr, self.selection)
-
-    ---@type AvanteSelectedCode | nil
-    local selected_code = nil
-
-    if self.selection then
-      selected_code = {
-        content = self.selection.content,
-        file_type = self.selection.filetype,
-        path = self.selection.filepath,
-      }
-    end
-
-    Llm.stream({
-      ask = true,
-      project_context = vim.json.encode(project_context),
-      diagnostics = vim.json.encode(diagnostics),
-      selected_files = { { content = code_content, file_type = filetype, path = "" } },
-      code_lang = filetype,
-      selected_code = selected_code,
-      instructions = input,
-      mode = "editing",
-      on_start = on_start,
-      on_chunk = on_chunk,
-      on_stop = on_stop,
+  self.selected_code_extmark_id =
+    api.nvim_buf_set_extmark(self.code_bufnr, SELECTED_CODE_NAMESPACE, start_row, start_col, {
+      hl_group = "Visual",
+      hl_mode = "combine",
+      end_row = end_row,
+      end_col = end_col,
+      priority = PRIORITY,
     })
-  end
 
   local prompt_input = PromptInput:new({
-    submit_callback = submit_input,
+    default_value = request,
+    submit_callback = function(input) self:submit_input(input) end,
     cancel_callback = function() self:close_editing_input() end,
     win_opts = {
       border = Config.windows.edit.border,
@@ -285,6 +318,13 @@ end
 
 function Selection:setup_autocmds()
   Selection.did_setup = true
+
+  api.nvim_create_autocmd("User", {
+    group = self.augroup,
+    pattern = "AvanteEditSubmitted",
+    callback = function(ev) self:submit_input(ev.data.request) end,
+  })
+
   api.nvim_create_autocmd({ "ModeChanged" }, {
     group = self.augroup,
     pattern = { "n:v", "n:V", "n:" }, -- Entering Visual mode from Normal mode
