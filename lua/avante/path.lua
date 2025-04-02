@@ -259,7 +259,20 @@ function RepoMap.filename(project_root, ext)
   return fn.substitute(path_with_separators, "[^A-Za-z0-9._]", "_", "g") .. "." .. ext .. ".repo_map.json"
 end
 
+---@param project_root string
+---@param ext string
 function RepoMap.get(project_root, ext) return Path:new(P.data_path):joinpath(RepoMap.filename(project_root, ext)) end
+
+---@param project_root string
+function RepoMap.clear_cache(project_root)
+  local repo_map_path = RepoMap.get(project_root, "json")
+  if repo_map_path:exists() then
+    repo_map_path:delete()
+    Utils.info("Repo map cache cleared for project: " .. project_root)
+  else
+    Utils.warn("No repo map cache found for project: " .. project_root)
+  end
+end
 
 function RepoMap.save(project_root, ext, data)
   local file = RepoMap.get(project_root, ext)

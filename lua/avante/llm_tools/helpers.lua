@@ -13,11 +13,44 @@ M.confirm_popup = nil
 ---@param rel_path string
 ---@return string
 function M.get_abs_path(rel_path)
-  if Path:new(rel_path):is_absolute() then return rel_path end
+  Utils.debug("get_abs_path: Input rel_path:", rel_path) -- Debug log
+  -- Check if already absolute first (less prone to errors)
+  local is_abs_ok, is_abs = pcall(function()
+    return Path:new(rel_path):is_absolute()
+  end)
+  Utils.debug("get_abs_path: is_absolute check result:", is_abs_ok and is_abs) -- Debug log
+  if is_abs_ok and is_abs then
+    Utils.debug("get_abs_path: Returning early as path is already absolute:", rel_path) -- Debug log
+    return rel_path
+  end
+
   local project_root = Utils.get_project_root()
-  local p = tostring(Path:new(project_root):joinpath(rel_path):absolute())
-  if p:sub(-2) == "/." then p = p:sub(1, -3) end
-  return p
+  Utils.debug("get_abs_path: project_root:", project_root) -- Debug log
+  if not project_root then
+    Utils.error("get_abs_path: Project root not found.")
+    return nil
+  end
+
+  local ok, abs_path_obj = pcall(function()
+    return Path:new(project_root):joinpath(rel_path):absolute()
+  end)
+  Utils.debug("get_abs_path: pcall result (ok):", ok, "abs_path_obj:", abs_path_obj) -- Debug log
+  if not ok or not abs_path_obj then
+    Utils.warn(
+      "get_abs_path: Failed to calculate absolute path for '" .. rel_path .. "'. Error: " .. tostring(abs_path_obj)
+    ) -- abs_path_obj contains error on failure
+    return nil
+  end
+
+  local p = tostring(abs_path_obj)
+  Utils.debug("get_abs_path: Path after tostring:", p) -- Debug log
+  -- Remove trailing '/.' if present (e.g., from joining with '.')
+  if #p > 1 and p:sub(-2) == "/." then
+    p = p:sub(1, -3)
+  end
+  Utils.debug("get_abs_path: Path after removing trailing /. :", p) -- Debug log
+  Utils.debug("get_abs_path: Final return value:", p) -- Debug log (updated to show 'p')
+  return p -- Return the absolute path directly
 end
 
 ---@param message string
@@ -68,16 +101,58 @@ function M.is_ignored(abs_path)
   -- Otherwise if the binary is named the same as the project root (such as Go binary), any paths
   -- insde the project root will be ignored
   local rel_path = Utils.make_relative_path(abs_path, project_root)
-  return Utils.is_ignored(rel_path, gitignore_patterns, gitignore_negate_patterns)
+
+  -- Check negation patterns first
+  for lua_pattern, original_pattern in pairs(gitignore_negate_patterns) do
+    if rel_path:match(lua_pattern) then
+      -- If a negation pattern matches, it's definitely NOT ignored
+      return false
+    end
+  end
+
+  -- Check ignore patterns
+  for lua_pattern, original_pattern in pairs(gitignore_patterns) do
+    if rel_path:match(lua_pattern) then
+      -- Pattern matches. If it's a directory pattern, ensure path is actually a dir.
+      if original_pattern:sub(-1) == "/" and not Path:new(abs_path):is_dir() then return false end -- Don't ignore file if pattern is for dir
+      return true -- Otherwise, ignore
+    end
+  end
+
+  return false -- Not ignored by any pattern
 end
 
 ---@param abs_path string
 ---@return boolean
 function M.has_permission_to_access(abs_path)
+  Utils.debug("has_permission_to_access: Checking path:", abs_path) -- Debug log
   if not Path:new(abs_path):is_absolute() then return false end
   local project_root = Utils.get_project_root()
+  Utils.debug("has_permission_to_access: Project root:", project_root) -- Debug log
+
+  -- Normalize paths before comparison for robustness
+  local normalized_abs_path = Utils.norm(abs_path)
+  local normalized_project_root = project_root and Utils.norm(project_root) or nil -- Normalize only if project_root exists
+  Utils.debug("has_permission_to_access: Normalized abs_path:", normalized_abs_path) -- Debug log
+  Utils.debug("has_permission_to_access: Normalized project_root:", normalized_project_root) -- Debug log
+
+  -- Allow access to the project root directory itself, regardless of gitignore
+  local is_root = normalized_project_root and normalized_abs_path == normalized_project_root
+  Utils.debug("has_permission_to_access: Is root comparison result:", is_root) -- Debug log
+
+  if is_root then
+    Utils.debug("has_permission_to_access: Allowing access because it is the project root.") -- Debug log
+    return true
+  end
+
+  Utils.debug("has_permission_to_access: Path is not root, proceeding with checks.") -- Debug log
   if abs_path:sub(1, #project_root) ~= project_root then return false end
-  return not M.is_ignored(abs_path)
+
+  local ignore_patterns, negate_patterns = Utils.parse_gitignore(project_root and Path:new(project_root):joinpath(".gitignore"):absolute() or nil)
+  local ignored = M.is_ignored(abs_path, ignore_patterns, negate_patterns)
+  Utils.debug("has_permission_to_access: Is ignored result:", ignored) -- Debug log
+  Utils.debug("has_permission_to_access: Final return value:", not ignored) -- Debug log
+  return not ignored
 end
 
 ---@param path string
