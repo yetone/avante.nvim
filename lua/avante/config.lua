@@ -195,7 +195,7 @@ M._defaults = {
           format = "json",
         },
         format_response_body = function(body)
-          if body.web == nil then return "", nil end
+          if body.results == nil then return "", nil end
 
           local jsn = vim.iter(body.results):map(
             function(result)
