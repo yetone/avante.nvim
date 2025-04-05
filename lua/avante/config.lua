@@ -194,6 +194,7 @@ M._defaults = {
         extra_request_body = {
           format = "json",
         },
+        ---@type WebSearchEngineProviderResponseBodyFormatter
         format_response_body = function(body)
           if body.results == nil then return "", nil end
 
