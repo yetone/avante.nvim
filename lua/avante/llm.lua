@@ -586,6 +586,7 @@ function M._stream(opts)
 
           local tool_result = {
             tool_use_id = tool_use.id,
+            tool_name = tool_use.name,
             content = error ~= nil and error or result,
             is_error = error ~= nil,
           }

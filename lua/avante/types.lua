@@ -76,7 +76,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field on_chunk AvanteLLMChunkCallback
 ---@field on_stop AvanteLLMStopCallback
 ---
----@alias AvanteLLMMessageContentItem string | { type: "text", text: string } | { type: "image", source: { type: "base64", media_type: string, data: string } } | { type: "tool_use", name: string, id: string, input: any } | { type: "tool_result", tool_use_id: string, content: string, is_error?: boolean } | { type: "thinking", thinking: string, signature: string } | { type: "redacted_thinking", data: string }
+---@alias AvanteLLMMessageContentItem string | { type: "text", text: string } | { type: "image", source: { type: "base64", media_type: string, data: string } } | { type: "tool_use", name: string, id: string, input: any } | { type: "tool_result", tool_use_id: string, tool_name: string, content: string, is_error?: boolean } | { type: "thinking", thinking: string, signature: string } | { type: "redacted_thinking", data: string }
 ---
 ---@alias AvanteLLMMessageContent AvanteLLMMessageContentItem[] | string
 ---
@@ -189,6 +189,19 @@ vim.g.avante_login = vim.g.avante_login
 ---@class AvanteOpenAIToolFunctionParameterProperty
 ---@field type string
 ---@field description string
+---
+---@class AvanteGeminiTool
+---@field functionDeclarations AvanteGeminiToolFunction[]
+---
+---@class AvanteGeminiToolFunction
+---@field name string
+---@field description string | nil
+---@field parameters AvanteGeminiToolFunctionParameters | nil
+---
+---@class AvanteGeminiToolFunctionParameters
+---@field type "object"
+---@field properties table<string, AvanteOpenAIToolFunctionParameterProperty>
+---@field required string[]
 ---
 ---@alias AvanteChatMessage AvanteClaudeMessage | AvanteOpenAIMessage | AvanteGeminiMessage
 ---
