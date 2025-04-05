@@ -196,7 +196,7 @@ M._defaults = {
     model = "gpt-4o",
     timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
     temperature = 0,
-    max_tokens = 16384, -- Increase this to include reasoning tokens (for reasoning models)
+    max_completion_tokens = 16384, -- Increase this to include reasoning tokens (for reasoning models)
     reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
   },
   ---@type AvanteSupportedProvider
