@@ -406,10 +406,29 @@ function M:parse_curl_args(prompt_opts)
   local all_tools_for_gemini = {}
 
   -- 1. Add standard Avante tools (excluding the generic MCP ones if they were passed)
+  -- Define standard Avante tools that might be redundant with MCP tools
+  local redundant_avante_tools = {
+    ls = { "filesystem_list_directory", "neovim_list_directory" },
+    view = { "filesystem_read_file", "neovim_read_file" },
+    grep = { "filesystem_search_files" }, -- Assuming MCP search is preferred over grep
+    python = {}, -- No direct MCP equivalent shown, keep for now
+    bash = { "neovim_execute_command" },
+    rename_file = { "filesystem_move_file", "neovim_move_item" },
+    delete_file = { "filesystem_delete_item", "neovim_delete_item" }, -- Assuming MCP delete covers files
+    create_dir = { "filesystem_create_directory" },
+    rename_dir = { "filesystem_move_file", "neovim_move_item" }, -- Assuming MCP move covers dirs
+    delete_dir = { "filesystem_delete_item", "neovim_delete_item" }, -- Assuming MCP delete covers dirs
+    write_file = { "filesystem_write_file", "neovim_write_file" },
+    replace_in_file = { "filesystem_edit_file", "neovim_replace_in_file" },
+    -- Add other potential redundancies here
+  }
+  local mcp_tools_added_map = {} -- Keep track of which MCP tools were added
+
+  -- 1. Add standard Avante tools, filtering out the old generic 'mcp' tool explicitly
   if prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
-      -- Skip the generic MCP tool definitions provided by the extension, if any
-      if tool.name ~= "use_mcp_tool" and tool.name ~= "access_mcp_resource" then
+      -- Skip the old generic MCP tool and the specific MCP actions if they somehow slip through
+      if tool.name ~= "mcp" and tool.name ~= "use_mcp_tool" and tool.name ~= "access_mcp_resource" then
         local transformed = self:transform_tool(tool)
         if transformed then table.insert(all_tools_for_gemini, transformed) end
       end
@@ -450,7 +469,10 @@ function M:parse_curl_args(prompt_opts)
            _mcp_original_tool = mcp_tool.name,
            _mcp_type = "tool",
         })
-        if transformed then table.insert(all_tools_for_gemini, transformed) end
+        if transformed then
+           table.insert(all_tools_for_gemini, transformed)
+           mcp_tools_added_map[transformed.name] = true -- Mark this MCP tool as added
+        end
       end
       -- Resource templates are not directly exposed as tools in this version.
     else
@@ -460,10 +482,34 @@ function M:parse_curl_args(prompt_opts)
      Utils.debug("Gemini: MCP Hub module not found.")
   end
 
+  -- 3. Filter out redundant standard Avante tools if corresponding MCP tools were added
+  local final_tools_for_gemini = {}
+  local removed_standard_tools = {}
+  for _, tool_def in ipairs(all_tools_for_gemini) do
+    local is_redundant = false
+    -- Check if this is a standard tool that has an MCP equivalent added
+    if redundant_avante_tools[tool_def.name] then
+      for _, mcp_equivalent_name in ipairs(redundant_avante_tools[tool_def.name]) do
+        if mcp_tools_added_map[mcp_equivalent_name] then
+          is_redundant = true
+          table.insert(removed_standard_tools, tool_def.name)
+          break
+        end
+      end
+    end
+
+    if not is_redundant then table.insert(final_tools_for_gemini, tool_def) end
+  end
+
+  if #removed_standard_tools > 0 then
+     Utils.debug("Gemini: Removed redundant standard tools:", removed_standard_tools)
+  end
+
+
   -- Add the combined list of tools to the request body if any exist
-  if #all_tools_for_gemini > 0 then
-    request_body.tools = { { functionDeclarations = all_tools_for_gemini } }
-    Utils.debug("Gemini: Sending dynamically generated tool definitions:", request_body.tools)
+  if #final_tools_for_gemini > 0 then
+    request_body.tools = { { functionDeclarations = final_tools_for_gemini } }
+    Utils.debug("Gemini: Sending final tool definitions:", request_body.tools)
   end
 
   -- Add contents (the main conversation history)
