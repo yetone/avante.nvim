@@ -10,8 +10,8 @@ local M = {}
 ---@return GeminiFunctionDeclaration
 function M:transform_tool(tool)
   local Utils = require("avante.utils")
-  -- Read parameters from tool.param.fields (MCP) or tool.parameters (standard)
-  local tool_param_fields = (tool.param and tool.param.fields) or tool.parameters or {}
+    -- Read parameters from tool.param.fields (MCP) or tool.parameters (standard)
+    local tool_param_fields = (tool.param and tool.param.fields) or tool.parameters or {}
 
   -- If the tool definition has no parameters, omit the 'parameters' field entirely
   if vim.tbl_isempty(tool_param_fields) then
@@ -92,8 +92,12 @@ function M:transform_tool(tool)
     if parameters_schema.properties then
       -- Hint for server_name in both MCP tools
       if parameters_schema.properties.server_name and parameters_schema.properties.server_name.description then
+        local hub = require("mcphub").get_hub_instance()
+        local server_names = hub and hub:get_server_names() or {}
+        local server_names_str = #server_names > 0 and "Available servers: " .. table.concat(server_names, ", ") or "No servers available."
         parameters_schema.properties.server_name.description = parameters_schema.properties.server_name.description
-          .. " (REQUIRED: Refer to the system prompt for available server names. DO NOT guess.)"
+          .. " (REQUIRED: Refer to the system prompt for available server names. DO NOT guess. "
+          .. server_names_str .. ")"
         Utils.debug("Gemini: Enhanced server_name description for MCP tools.")
       end
       -- Hint for tool_name in use_mcp_tool
