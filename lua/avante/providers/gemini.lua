@@ -420,6 +420,7 @@ function M:parse_curl_args(prompt_opts)
     delete_dir = { "filesystem_delete_item", "neovim_delete_item" }, -- Assuming MCP delete covers dirs
     write_file = { "filesystem_write_file", "neovim_write_file" },
     replace_in_file = { "filesystem_edit_file", "neovim_replace_in_file" },
+    fetch = { "fetch_fetch" }, -- Add fetch redundancy
     -- Add other potential redundancies here
   }
   local mcp_tools_added_map = {} -- Keep track of which MCP tools were added
