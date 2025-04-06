@@ -92,9 +92,20 @@ function M:transform_tool(tool)
     if parameters_schema.properties then
       -- Hint for server_name in both MCP tools
       if parameters_schema.properties.server_name and parameters_schema.properties.server_name.description then
-        local hub = require("mcphub").get_hub_instance()
-        local server_names = hub and hub:get_server_names() or {}
-        local server_names_str = #server_names > 0 and "Available servers: " .. table.concat(server_names, ", ") or "No servers available."
+        -- Safely attempt to get MCP Hub server names
+        local server_names_str = "No MCP Hub servers found or MCP Hub not available."
+        local mcp_ok, mcphub = pcall(require, "mcphub")
+        if mcp_ok and mcphub then
+          local hub = mcphub.get_hub_instance()
+          if hub then
+            local server_names = hub:get_server_names() or {}
+            if #server_names > 0 then
+              server_names_str = "Available servers: " .. table.concat(server_names, ", ")
+            else
+              server_names_str = "No servers currently registered with MCP Hub."
+            end
+          end
+        end
         parameters_schema.properties.server_name.description = parameters_schema.properties.server_name.description
           .. " (REQUIRED: Refer to the system prompt for available server names. DO NOT guess. "
           .. server_names_str .. ")"
