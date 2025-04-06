@@ -111,8 +111,8 @@ function M:transform_tool(tool)
           end
         end
         parameters_schema.properties.server_name.description = parameters_schema.properties.server_name.description
-          .. " (REQUIRED: Refer to the system prompt for available server names. DO NOT guess. "
-          .. server_names_str .. ")"
+          .. " (**MANDATORY**: You MUST provide a server name from the available list: "
+          .. server_names_str .. ". Do NOT guess.)"
         Utils.debug("Gemini: Enhanced server_name description for MCP tools.")
       end
       -- Hint for tool_name in use_mcp_tool
@@ -122,7 +122,7 @@ function M:transform_tool(tool)
         and parameters_schema.properties.tool_name.description
       then
         parameters_schema.properties.tool_name.description = parameters_schema.properties.tool_name.description
-          .. " (REQUIRED: Specify the exact tool to use on the server.)"
+          .. " (**MANDATORY**: You MUST specify the exact tool name to use on the selected server.)"
         Utils.debug("Gemini: Enhanced tool_name description for use_mcp_tool.")
       end
       -- Hint for uri in access_mcp_resource
@@ -132,7 +132,7 @@ function M:transform_tool(tool)
         and parameters_schema.properties.uri.description
       then
         parameters_schema.properties.uri.description = parameters_schema.properties.uri.description
-          .. " (REQUIRED: Specify the exact resource URI to access.)"
+          .. " (**MANDATORY**: You MUST specify the exact resource URI (e.g., '/resource/id') to access on the selected server.)"
         Utils.debug("Gemini: Enhanced uri description for access_mcp_resource.")
       end
     end
@@ -146,7 +146,7 @@ function M:transform_tool(tool)
       and parameters_schema.properties.path.description
     then
       parameters_schema.properties.path.description = parameters_schema.properties.path.description
-        .. " (REQUIRED: You MUST provide the file path, usually mentioned in the user request or previous context)."
+        .. " (**MANDATORY**: You MUST provide the file path, usually mentioned in the user request or previous context.)"
       Utils.debug("Gemini: Enhanced path description for view tool.")
     end
     -- *** End View Enhancement ***
