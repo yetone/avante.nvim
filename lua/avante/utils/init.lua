@@ -1229,8 +1229,7 @@ function M.llm_tool_param_fields_to_json_schema(fields)
         type = field.type,
         description = enhanced_description, -- <<< USE ENHANCED DESCRIPTION
       }
-      -- Add default value to schema if specified in the tool definition
-      if field.default ~= nil then properties[field.name].default = field.default end -- <<< ADD THIS LINE
+      -- Default value is included in the enhanced_description above
 
     end
     if not field.optional then table.insert(required, field.name) end
