@@ -23,16 +23,20 @@ function M:transform_tool(tool)
     Utils.debug("Gemini: Truncated description for tool:", tool.name)
   end
 
-  -- If the tool definition has no parameters, omit the 'parameters' field entirely
+  -- If the tool definition has no parameters, provide an empty schema
   if vim.tbl_isempty(tool_param_fields) then
     return {
       name = tool.name,
-      description = enhanced_description, -- Use enhanced description
-      -- No 'parameters' field
+      description = enhanced_description,
+      parameters = { -- Explicitly provide empty schema for parameter-less tools
+        type = "object",
+        properties = {},
+        required = {},
+      },
     }
   end
 
-  -- Parameters exist, proceed with generating the schema using the correct source
+  -- Parameters exist, proceed with generating the schema
   local properties, generated_required = Utils.llm_tool_param_fields_to_json_schema(tool_param_fields)
 
   -- For dynamically generated MCP tools, the 'required' list should come directly
