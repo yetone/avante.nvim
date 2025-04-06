@@ -5,15 +5,16 @@ local Clipboard = require("avante.clipboard")
 ---@class AvanteProviderFunctor
 local M = {}
 
----@param tool AvanteLLMTool
+---@param tool AvanteLLMTool | AvanteMCPTool -- Allow MCP tool structure
 ---
 ---@return GeminiFunctionDeclaration
 function M:transform_tool(tool)
   local Utils = require("avante.utils")
-  local tool_params = tool.parameters or {}
+  -- Read parameters from tool.param.fields (MCP) or tool.parameters (standard)
+  local tool_param_fields = (tool.param and tool.param.fields) or tool.parameters or {}
 
   -- If the tool definition has no parameters, omit the 'parameters' field entirely
-  if vim.tbl_isempty(tool_params) then
+  if vim.tbl_isempty(tool_param_fields) then
     return {
       name = tool.name,
       description = tool.description,
@@ -21,8 +22,8 @@ function M:transform_tool(tool)
     }
   end
 
-  -- Parameters exist, proceed with generating the schema
-  local parameters_schema = Utils.llm_tool_param_fields_to_json_schema(tool_params)
+  -- Parameters exist, proceed with generating the schema using the correct source
+  local parameters_schema = Utils.llm_tool_param_fields_to_json_schema(tool_param_fields)
 
   -- Check if the generated schema is effectively empty or lacks properties
   if
@@ -88,22 +89,38 @@ function M:transform_tool(tool)
       return { name = tool.name, description = tool.description }
     end
 
-    -- *** MCP Tool Specific Enhancement for Gemini ***
-    -- Add a hint to the server_name parameter description for the 'mcp' tool
-    if
-      tool.name == "mcp"
-      and parameters_schema.properties
-      and parameters_schema.properties.server_name
-      and parameters_schema.properties.server_name.description
-    then
-      parameters_schema.properties.server_name.description = parameters_schema.properties.server_name.description
-        .. " (Refer to the start of the conversation or system prompt for available server names)."
-      Utils.debug("Gemini: Enhanced server_name description for mcp tool.")
+    -- *** MCP Tool Specific Enhancements for Gemini ***
+    if parameters_schema.properties then
+      -- Hint for server_name in both MCP tools
+      if parameters_schema.properties.server_name and parameters_schema.properties.server_name.description then
+        parameters_schema.properties.server_name.description = parameters_schema.properties.server_name.description
+          .. " (REQUIRED: Refer to the system prompt for available server names. DO NOT guess.)"
+        Utils.debug("Gemini: Enhanced server_name description for MCP tools.")
+      end
+      -- Hint for tool_name in use_mcp_tool
+      if
+        tool.name == "use_mcp_tool"
+        and parameters_schema.properties.tool_name
+        and parameters_schema.properties.tool_name.description
+      then
+        parameters_schema.properties.tool_name.description = parameters_schema.properties.tool_name.description
+          .. " (REQUIRED: Specify the exact tool to use on the server.)"
+        Utils.debug("Gemini: Enhanced tool_name description for use_mcp_tool.")
+      end
+      -- Hint for uri in access_mcp_resource
+      if
+        tool.name == "access_mcp_resource"
+        and parameters_schema.properties.uri
+        and parameters_schema.properties.uri.description
+      then
+        parameters_schema.properties.uri.description = parameters_schema.properties.uri.description
+          .. " (REQUIRED: Specify the exact resource URI to access.)"
+        Utils.debug("Gemini: Enhanced uri description for access_mcp_resource.")
+      end
     end
-    -- *** End MCP Enhancement ***
+    -- *** End MCP Enhancements ***
 
-    -- *** View Tool Specific Enhancement for Gemini ***
-    -- Add a hint to the path parameter description for the 'view' tool
+    -- *** View Tool Specific Enhancement for Gemini (Keep this if 'view' tool exists separately) ***
     if
       tool.name == "view"
       and parameters_schema.properties
@@ -116,23 +133,10 @@ function M:transform_tool(tool)
     end
     -- *** End View Enhancement ***
 
-    local final_description = tool.description
-    -- *** MCP Tool Description Override for Gemini ***
-    if tool.name == "mcp" then
-      final_description = [[
-IMPORTANT: This tool executes actions on Model Context Protocol (MCP) servers.
-VALID ACTIONS: Only 'access_mcp_resource' (requires 'uri') or 'use_mcp_tool' (requires 'tool_name' and 'arguments') are supported.
-SERVER NAMES: You MUST provide a 'server_name'. Available server names are listed in the system prompt at the start of the conversation. DO NOT try to list servers using this tool.
-DO NOT use this tool to list available actions or tools.
-Original Description: ]] .. tool.description
-      Utils.debug("Gemini: Overrode description for mcp tool.")
-    end
-    -- *** End MCP Description Override ***
-
     -- Return the declaration WITH the valid parameters schema
     return {
       name = tool.name,
-      description = final_description, -- Use potentially overridden description
+      description = tool.description, -- Use original description (MCP overrides removed)
       parameters = parameters_schema, -- Use the corrected schema
     }
   end
