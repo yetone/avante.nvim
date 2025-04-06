@@ -36,15 +36,10 @@ function M:transform_tool(tool)
   -- Parameters exist, proceed with generating the schema using the correct source
   local properties, generated_required = Utils.llm_tool_param_fields_to_json_schema(tool_param_fields)
 
-  -- Determine the correct required fields based on the specific MCP tool
-  local required = generated_required -- Start with generated, override if MCP tool
-  if tool.name == "use_mcp_tool" then
-    required = { "server_name", "tool_name", "tool_input" }
-    Utils.debug("Gemini: Overriding required fields for use_mcp_tool:", required)
-  elseif tool.name == "access_mcp_resource" then
-    required = { "server_name", "uri" }
-    Utils.debug("Gemini: Overriding required fields for access_mcp_resource:", required)
-  end
+  -- For dynamically generated MCP tools, the 'required' list should come directly
+  -- from the tool's/template's schema via llm_tool_param_fields_to_json_schema.
+  -- No need to override here based on generic names.
+  local required = generated_required
 
   -- Construct the full schema object expected by Gemini
   local parameters_schema = {
@@ -109,55 +104,22 @@ function M:transform_tool(tool)
        return { name = tool.name, description = tool.description }
     end
 
-    -- *** MCP Tool Specific Enhancements for Gemini (Descriptions) ***
+    -- *** Parameter Description Enhancements (Apply generally) ***
+    -- We can keep general enhancements, but remove MCP-specific logic tied to the old generic tools.
     if parameters_schema.properties then
-      -- Hint for server_name (applies to both MCP tools)
-      if parameters_schema.properties.server_name and parameters_schema.properties.server_name.description then
-        local server_names_str = "No MCP Hub servers found or MCP Hub not available."
-        local mcp_ok, mcphub = pcall(require, "mcphub")
-        if mcp_ok and mcphub then
-          local hub = mcphub.get_hub_instance()
-          if hub then
-            local servers = hub:get_servers() or {}
-            local server_names = {}
-            for _, server in ipairs(servers) do
-              table.insert(server_names, server.name)
-            end
-            if #server_names > 0 then
-              server_names_str = "Available servers: " .. table.concat(server_names, ", ")
-            else
-              server_names_str = "No servers currently registered with MCP Hub."
-            end
-          end
-        end
-        parameters_schema.properties.server_name.description = parameters_schema.properties.server_name.description
-          .. " (**MANDATORY**: You MUST provide a server name from the available list: "
-          .. server_names_str .. ". Do NOT guess.)"
-        Utils.debug("Gemini: Enhanced server_name description for MCP tools.")
-      end
-
-      -- Hint for tool_name (only for use_mcp_tool)
-      if tool.name == "use_mcp_tool" and parameters_schema.properties.tool_name and parameters_schema.properties.tool_name.description then
-        parameters_schema.properties.tool_name.description = parameters_schema.properties.tool_name.description
-          .. " (**MANDATORY**: You MUST specify the exact tool name (e.g., 'brave_web_search', 'readFile') available on the selected server. Refer to the system prompt for the list of tools available on each server.)"
-        Utils.debug("Gemini: Enhanced tool_name description for use_mcp_tool.")
-      end
-
-      -- Hint for tool_input (only for use_mcp_tool)
-      if tool.name == "use_mcp_tool" and parameters_schema.properties.tool_input and parameters_schema.properties.tool_input.description then
-         parameters_schema.properties.tool_input.description = parameters_schema.properties.tool_input.description
-           .. " (**MANDATORY**: Provide the required arguments for the specific tool being called as a JSON object. Example: `{\"prompt\": \"user query\"}`)"
-         Utils.debug("Gemini: Enhanced tool_input description for use_mcp_tool.")
-      end
-
-      -- Hint for uri (only for access_mcp_resource)
-      if tool.name == "access_mcp_resource" and parameters_schema.properties.uri and parameters_schema.properties.uri.description then
-        parameters_schema.properties.uri.description = parameters_schema.properties.uri.description
-          .. " (**MANDATORY**: You MUST specify the exact resource URI (e.g., '/search?q=your_query', '/files/path/to/file.txt') available on the selected server. Refer to the system prompt for the list of resources available on each server.)"
-        Utils.debug("Gemini: Enhanced uri description for access_mcp_resource.")
-      end
+       -- Example: Enhance any 'query' parameter description
+       if parameters_schema.properties.query and parameters_schema.properties.query.description then
+          parameters_schema.properties.query.description = parameters_schema.properties.query.description .. " (Provide a concise search query based on the user's request.)"
+          Utils.debug("Gemini: Enhanced 'query' parameter description for tool: " .. tool.name)
+       end
+       -- Example: Enhance any 'path' parameter description
+       if parameters_schema.properties.path and parameters_schema.properties.path.description then
+          parameters_schema.properties.path.description = parameters_schema.properties.path.description .. " (Provide the relative file path within the project.)"
+           Utils.debug("Gemini: Enhanced 'path' parameter description for tool: " .. tool.name)
+       end
+       -- Add more general enhancements as needed...
     end
-    -- *** End MCP Description Enhancements ***
+    -- *** End Parameter Description Enhancements ***
 
     -- *** View Tool Specific Enhancement for Gemini (Keep this if 'view' tool exists separately) ***
     if
@@ -441,16 +403,82 @@ function M:parse_curl_args(prompt_opts)
   -- Add system instruction if present
   if system_instruction then request_body.system_instruction = system_instruction end
 
-  -- Add tools if present
-  if prompt_opts.tools and #prompt_opts.tools > 0 then
-    local transformed_tools = {}
+  -- Dynamically generate tool definitions including specific MCP tools/resources
+  local all_tools_for_gemini = {}
+
+  -- 1. Add standard Avante tools (excluding the generic MCP ones if they were passed)
+  if prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
-      table.insert(transformed_tools, self:transform_tool(tool))
+      -- Skip the generic MCP tool definitions provided by the extension, if any
+      if tool.name ~= "use_mcp_tool" and tool.name ~= "access_mcp_resource" then
+        local transformed = self:transform_tool(tool)
+        if transformed then table.insert(all_tools_for_gemini, transformed) end
+      end
     end
-    -- Gemini expects tools under a 'tools' key, containing an array (usually one element)
-    -- which in turn contains 'functionDeclarations'
-    request_body.tools = { { functionDeclarations = transformed_tools } }
-    Utils.debug("Gemini: Sending tool definitions:", request_body.tools) -- <<< ADD THIS DEBUG LINE
+  end
+
+  -- 2. Add dynamically generated MCP tools and resource templates
+  local mcp_ok, mcphub = pcall(require, "mcphub")
+  if mcp_ok and mcphub then
+    local hub = mcphub.get_hub_instance()
+    if hub and hub:is_ready() then
+      -- Add MCP Tools
+      local mcp_tools = hub:get_tools() or {}
+      Utils.debug("Gemini: Found MCP Tools from Hub:", mcp_tools)
+      for _, mcp_tool in ipairs(mcp_tools) do
+        -- Create a Gemini-specific tool definition
+        local tool_name = (mcp_tool.server_name or "unknown"):gsub("[^%w_]", "_") .. "_" .. mcp_tool.name
+        local description = string.format(
+          "MCP Tool (%s Server): %s",
+          mcp_tool.server_name or "Unknown",
+          mcp_tool.description or "No description"
+        )
+        -- Use transform_tool to handle parameter schema generation, but pass the specific MCP tool schema
+        local transformed = self:transform_tool({
+           name = tool_name, -- Use the generated unique name
+           description = description,
+           parameters = mcp_tool.inputSchema and mcp_tool.inputSchema.fields or {}, -- Adapt based on actual MCP tool schema structure
+           -- Store original info for potential later use if needed
+           _mcp_original_server = mcp_tool.server_name,
+           _mcp_original_tool = mcp_tool.name,
+           _mcp_type = "tool",
+        })
+        if transformed then table.insert(all_tools_for_gemini, transformed) end
+      end
+
+      -- Add MCP Resource Templates (Treating them like tools)
+      local mcp_templates = hub:get_resource_templates() or {} -- Assuming hub:get_resource_templates() exists
+       Utils.debug("Gemini: Found MCP Resource Templates from Hub:", mcp_templates)
+      for _, template in ipairs(mcp_templates) do
+         local tool_name = (template.server_name or "unknown"):gsub("[^%w_]", "_") .. "_" .. (template.name or "resource"):gsub("[^%w_]", "_")
+         local description = string.format(
+           "MCP Resource (%s Server): Access %s. %s",
+           template.server_name or "Unknown",
+           template.uriTemplate or "resource",
+           template.description or "No description"
+         )
+         -- Use transform_tool, passing template parameters if they exist
+         local transformed = self:transform_tool({
+            name = tool_name,
+            description = description,
+            parameters = template.parameters or {}, -- Adapt based on actual template schema structure
+            _mcp_original_server = template.server_name,
+            _mcp_original_uri_template = template.uriTemplate,
+            _mcp_type = "resource_template",
+         })
+         if transformed then table.insert(all_tools_for_gemini, transformed) end
+      end
+    else
+       Utils.debug("Gemini: MCP Hub not ready or not available for dynamic tool generation.")
+    end
+  else
+     Utils.debug("Gemini: MCP Hub module not found.")
+  end
+
+  -- Add the combined list of tools to the request body if any exist
+  if #all_tools_for_gemini > 0 then
+    request_body.tools = { { functionDeclarations = all_tools_for_gemini } }
+    Utils.debug("Gemini: Sending dynamically generated tool definitions:", request_body.tools)
   end
 
   -- Add contents (the main conversation history)
