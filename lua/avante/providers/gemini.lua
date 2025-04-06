@@ -13,11 +13,22 @@ function M:transform_tool(tool)
     -- Read parameters from tool.param.fields (MCP) or tool.parameters (standard)
     local tool_param_fields = (tool.param and tool.param.fields) or tool.parameters or {}
 
+  local base_description = tool.description or ""
+  local enhanced_description = base_description
+
+  -- Add specific instructions to the main description for MCP tools
+  if tool.name == "use_mcp_tool" then
+    enhanced_description = enhanced_description .. "\n**Instruction:** Based on the user's request and the available tools listed in the system prompt for the chosen `server_name`, determine the correct `tool_name` to use and construct the required `tool_input` object."
+  elseif tool.name == "access_mcp_resource" then
+    enhanced_description = enhanced_description .. "\n**Instruction:** Based on the user's request and the available resources listed in the system prompt for the chosen `server_name`, determine the correct `uri` to access (e.g., '/search?q=query')."
+  end
+
+
   -- If the tool definition has no parameters, omit the 'parameters' field entirely
   if vim.tbl_isempty(tool_param_fields) then
     return {
       name = tool.name,
-      description = tool.description,
+      description = enhanced_description, -- Use enhanced description
       -- No 'parameters' field
     }
   end
@@ -132,10 +143,10 @@ function M:transform_tool(tool)
         Utils.debug("Gemini: Enhanced tool_name description for use_mcp_tool.")
       end
 
-      -- Hint for tool_input (only for use_mcp_tool) - Assuming the parameter name is 'tool_input'
+      -- Hint for tool_input (only for use_mcp_tool)
       if tool.name == "use_mcp_tool" and parameters_schema.properties.tool_input and parameters_schema.properties.tool_input.description then
          parameters_schema.properties.tool_input.description = parameters_schema.properties.tool_input.description
-           .. " (**MANDATORY**: You MUST provide the necessary input arguments for the tool as a JSON object.)"
+           .. " (**MANDATORY**: Provide the required arguments for the specific tool being called as a JSON object. Example: `{\"prompt\": \"user query\"}`)"
          Utils.debug("Gemini: Enhanced tool_input description for use_mcp_tool.")
       end
 
@@ -164,7 +175,7 @@ function M:transform_tool(tool)
     -- Return the declaration WITH the valid parameters schema
     return {
       name = tool.name,
-      description = tool.description, -- Use original description (MCP overrides removed)
+      description = enhanced_description, -- Use the potentially enhanced description
       parameters = parameters_schema, -- Use the corrected schema
     }
   end
