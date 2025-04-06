@@ -23,7 +23,17 @@ function M:transform_tool(tool)
   end
 
   -- Parameters exist, proceed with generating the schema using the correct source
-  local properties, required = Utils.llm_tool_param_fields_to_json_schema(tool_param_fields)
+  local properties, generated_required = Utils.llm_tool_param_fields_to_json_schema(tool_param_fields)
+
+  -- Determine the correct required fields based on the specific MCP tool
+  local required = generated_required -- Start with generated, override if MCP tool
+  if tool.name == "use_mcp_tool" then
+    required = { "server_name", "tool_name", "tool_input" }
+    Utils.debug("Gemini: Overriding required fields for use_mcp_tool:", required)
+  elseif tool.name == "access_mcp_resource" then
+    required = { "server_name", "uri" }
+    Utils.debug("Gemini: Overriding required fields for access_mcp_resource:", required)
+  end
 
   -- Construct the full schema object expected by Gemini
   local parameters_schema = {
@@ -88,11 +98,10 @@ function M:transform_tool(tool)
        return { name = tool.name, description = tool.description }
     end
 
-    -- *** MCP Tool Specific Enhancements for Gemini ***
+    -- *** MCP Tool Specific Enhancements for Gemini (Descriptions) ***
     if parameters_schema.properties then
-      -- Hint for server_name in both MCP tools
+      -- Hint for server_name (applies to both MCP tools)
       if parameters_schema.properties.server_name and parameters_schema.properties.server_name.description then
-        -- Safely attempt to get MCP Hub server names
         local server_names_str = "No MCP Hub servers found or MCP Hub not available."
         local mcp_ok, mcphub = pcall(require, "mcphub")
         if mcp_ok and mcphub then
@@ -115,28 +124,29 @@ function M:transform_tool(tool)
           .. server_names_str .. ". Do NOT guess.)"
         Utils.debug("Gemini: Enhanced server_name description for MCP tools.")
       end
-      -- Hint for tool_name in use_mcp_tool
-      if
-        tool.name == "use_mcp_tool"
-        and parameters_schema.properties.tool_name
-        and parameters_schema.properties.tool_name.description
-      then
+
+      -- Hint for tool_name (only for use_mcp_tool)
+      if tool.name == "use_mcp_tool" and parameters_schema.properties.tool_name and parameters_schema.properties.tool_name.description then
         parameters_schema.properties.tool_name.description = parameters_schema.properties.tool_name.description
           .. " (**MANDATORY**: You MUST specify the exact tool name (e.g., 'brave_web_search', 'readFile') available on the selected server. Refer to the system prompt for the list of tools available on each server.)"
         Utils.debug("Gemini: Enhanced tool_name description for use_mcp_tool.")
       end
-      -- Hint for uri in access_mcp_resource
-      if
-        tool.name == "access_mcp_resource"
-        and parameters_schema.properties.uri
-        and parameters_schema.properties.uri.description
-      then
+
+      -- Hint for tool_input (only for use_mcp_tool) - Assuming the parameter name is 'tool_input'
+      if tool.name == "use_mcp_tool" and parameters_schema.properties.tool_input and parameters_schema.properties.tool_input.description then
+         parameters_schema.properties.tool_input.description = parameters_schema.properties.tool_input.description
+           .. " (**MANDATORY**: You MUST provide the necessary input arguments for the tool as a JSON object.)"
+         Utils.debug("Gemini: Enhanced tool_input description for use_mcp_tool.")
+      end
+
+      -- Hint for uri (only for access_mcp_resource)
+      if tool.name == "access_mcp_resource" and parameters_schema.properties.uri and parameters_schema.properties.uri.description then
         parameters_schema.properties.uri.description = parameters_schema.properties.uri.description
           .. " (**MANDATORY**: You MUST specify the exact resource URI (e.g., '/search?q=your_query', '/files/path/to/file.txt') available on the selected server. Refer to the system prompt for the list of resources available on each server.)"
         Utils.debug("Gemini: Enhanced uri description for access_mcp_resource.")
       end
     end
-    -- *** End MCP Enhancements ***
+    -- *** End MCP Description Enhancements ***
 
     -- *** View Tool Specific Enhancement for Gemini (Keep this if 'view' tool exists separately) ***
     if
