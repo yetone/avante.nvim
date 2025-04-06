@@ -14,15 +14,14 @@ function M:transform_tool(tool)
     local tool_param_fields = (tool.param and tool.param.fields) or tool.parameters or {}
 
   local base_description = tool.description or ""
-  local enhanced_description = base_description
+  local enhanced_description = base_description -- Start with the base
 
-  -- Add specific instructions to the main description for MCP tools
-  if tool.name == "use_mcp_tool" then
-    enhanced_description = enhanced_description .. "\n**Instruction:** Based on the user's request and the available tools listed in the system prompt for the chosen `server_name`, determine the correct `tool_name` to use and construct the required `tool_input` object."
-  elseif tool.name == "access_mcp_resource" then
-    enhanced_description = enhanced_description .. "\n**Instruction:** Based on the user's request and the available resources listed in the system prompt for the chosen `server_name`, determine the correct `uri` to access (e.g., '/search?q=query')."
+  -- Truncate description if it's too long
+  local MAX_DESC_LENGTH = 500 -- Adjust as needed
+  if #enhanced_description > MAX_DESC_LENGTH then
+    enhanced_description = enhanced_description:sub(1, MAX_DESC_LENGTH) .. "..."
+    Utils.debug("Gemini: Truncated description for tool:", tool.name)
   end
-
 
   -- If the tool definition has no parameters, omit the 'parameters' field entirely
   if vim.tbl_isempty(tool_param_fields) then
@@ -424,13 +423,21 @@ function M:parse_curl_args(prompt_opts)
     if hub and hub:is_ready() then
       -- Add MCP Tools
       local mcp_tools = hub:get_tools() or {}
-      Utils.debug("Gemini: Found MCP Tools from Hub:", mcp_tools)
+      Utils.debug("Gemini: Found MCP Tools from Hub:", #mcp_tools)
       for _, mcp_tool in ipairs(mcp_tools) do
-        -- Create a Gemini-specific tool definition
-        local tool_name = (mcp_tool.server_name or "unknown"):gsub("[^%w_]", "_") .. "_" .. mcp_tool.name
+        -- Simplify server name for the tool name generation
+        local server_alias = mcp_tool.server_name or "unknown"
+        -- Attempt to extract the last part of the path/URL
+        local alias_match = server_alias:match(".*/([^/]+)$") or server_alias:match("([^%.]+)$") -- Basic attempt
+        if alias_match and alias_match ~= "" then server_alias = alias_match end
+        -- Sanitize further
+        server_alias = server_alias:gsub("[^%w_]", "_")
+
+        -- Create a Gemini-specific tool definition with simplified name
+        local tool_name = server_alias .. "_" .. mcp_tool.name
         local description = string.format(
-          "MCP Tool (%s Server): %s",
-          mcp_tool.server_name or "Unknown",
+          "MCP Tool (from %s server): %s",
+          server_alias, -- Use the shorter alias in description too
           mcp_tool.description or "No description"
         )
         -- Use transform_tool to handle parameter schema generation, but pass the specific MCP tool schema
@@ -448,12 +455,20 @@ function M:parse_curl_args(prompt_opts)
 
       -- Add MCP Resource Templates (Treating them like tools)
       local mcp_templates = hub:get_resource_templates() or {} -- Assuming hub:get_resource_templates() exists
-       Utils.debug("Gemini: Found MCP Resource Templates from Hub:", mcp_templates)
+       Utils.debug("Gemini: Found MCP Resource Templates from Hub:", #mcp_templates)
       for _, template in ipairs(mcp_templates) do
-         local tool_name = (template.server_name or "unknown"):gsub("[^%w_]", "_") .. "_" .. (template.name or "resource"):gsub("[^%w_]", "_")
+         -- Simplify server name for the tool name generation
+         local server_alias = template.server_name or "unknown"
+         local alias_match = server_alias:match(".*/([^/]+)$") or server_alias:match("([^%.]+)$")
+         if alias_match and alias_match ~= "" then server_alias = alias_match end
+         server_alias = server_alias:gsub("[^%w_]", "_")
+
+         -- Generate name for the resource template tool
+         local template_base_name = (template.name or "resource"):gsub("[^%w_]", "_")
+         local tool_name = server_alias .. "_" .. template_base_name
          local description = string.format(
-           "MCP Resource (%s Server): Access %s. %s",
-           template.server_name or "Unknown",
+           "MCP Resource (from %s server): Access %s. %s",
+           server_alias, -- Use shorter alias
            template.uriTemplate or "resource",
            template.description or "No description"
          )
