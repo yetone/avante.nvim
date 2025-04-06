@@ -23,14 +23,17 @@ function M:transform_tool(tool)
   end
 
   -- Parameters exist, proceed with generating the schema using the correct source
-  local parameters_schema = Utils.llm_tool_param_fields_to_json_schema(tool_param_fields)
+  local properties, required = Utils.llm_tool_param_fields_to_json_schema(tool_param_fields)
 
-  -- Check if the generated schema is effectively empty or lacks properties
-  if
-    vim.tbl_isempty(parameters_schema)
-    or not parameters_schema.properties
-    or vim.tbl_isempty(parameters_schema.properties)
-  then
+  -- Construct the full schema object expected by Gemini
+  local parameters_schema = {
+    type = "object",
+    properties = properties,
+    required = required,
+  }
+
+  -- Check if the generated properties are empty
+  if not properties or vim.tbl_isempty(properties) then
     -- If parameters were defined but schema generation resulted in empty properties,
     -- this indicates an issue, but we must still omit the parameters field for the API.
     Utils.warn(
@@ -46,47 +49,43 @@ function M:transform_tool(tool)
     }
   else
     -- Parameters exist AND properties are non-empty, ensure the structure is correct
-    if not parameters_schema.type then parameters_schema.type = "object" end
 
-    -- Ensure 'properties' is a map (object), not a list (array). Should be guaranteed non-empty here.
-    if type(parameters_schema.properties) ~= "table" or vim.tbl_islist(parameters_schema.properties) then
-      Utils.error(
-        "Gemini Provider: Tool '"
-          .. tool.name
-          .. "' parameters.properties is invalid (not a map or is a list) despite being non-empty.",
+    -- Ensure 'required' is a list of strings (it should be from the util function, but double-check)
+    if not parameters_schema.required then parameters_schema.required = {} end
+    if type(parameters_schema.required) ~= "table" or not vim.tbl_islist(parameters_schema.required) then
+      Utils.warn(
+        "Gemini Provider: Correcting invalid 'required' field for tool '" .. tool.name .. "'.",
         { title = "Avante" }
       )
-      -- Fallback: omit parameters to avoid API error
-      return { name = tool.name, description = tool.description }
-    end
-
-    -- Ensure 'required' is a list of strings
-    if not parameters_schema.required then parameters_schema.required = {} end -- Ensure required exists
-    if type(parameters_schema.required) == "table" then
       local req_strings = {}
-      -- Iterate safely in case required itself is not a simple list
-      for _, v in pairs(parameters_schema.required) do
-        if type(v) == "string" then table.insert(req_strings, v) end
+      if type(parameters_schema.required) == "table" then -- Attempt recovery if it's a map
+        for _, v in pairs(parameters_schema.required) do
+          if type(v) == "string" then table.insert(req_strings, v) end
+        end
       end
-      parameters_schema.required = req_strings
-    else
-      -- If required is not a table, reset it to an empty list
-      parameters_schema.required = {}
+      parameters_schema.required = req_strings -- Reset to list (potentially empty)
     end
 
-    -- Final check: Ensure the parameters object itself is valid before returning
-    if
-      not parameters_schema
-      or not parameters_schema.type
-      or not parameters_schema.properties
-      or not parameters_schema.required
-    then
-      Utils.error(
-        "Gemini Provider: Invalid final parameters_schema for tool '" .. tool.name .. "'",
-        { title = "Avante" }
-      )
-      -- Fallback to omitting parameters
-      return { name = tool.name, description = tool.description }
+    -- Ensure 'properties' is a map (it should be, but double-check)
+    if type(parameters_schema.properties) ~= "table" or vim.tbl_islist(parameters_schema.properties) then
+       Utils.error(
+         "Gemini Provider: Tool '"
+           .. tool.name
+           .. "' parameters.properties is invalid (not a map or is a list) despite being non-empty.",
+         { title = "Avante" }
+       )
+       -- Fallback: omit parameters to avoid API error
+       return { name = tool.name, description = tool.description }
+    end
+
+    -- Final check: Ensure the parameters object itself has the required fields
+    if not parameters_schema.type or not parameters_schema.properties or not parameters_schema.required then
+       Utils.error(
+         "Gemini Provider: Invalid final parameters_schema structure for tool '" .. tool.name .. "'",
+         { title = "Avante" }
+       )
+       -- Fallback to omitting parameters
+       return { name = tool.name, description = tool.description }
     end
 
     -- *** MCP Tool Specific Enhancements for Gemini ***
