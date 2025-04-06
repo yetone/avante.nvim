@@ -98,7 +98,11 @@ function M:transform_tool(tool)
         if mcp_ok and mcphub then
           local hub = mcphub.get_hub_instance()
           if hub then
-            local server_names = hub:get_server_names() or {}
+            local servers = hub:get_servers() or {}
+            local server_names = {}
+            for _, server in ipairs(servers) do
+              table.insert(server_names, server.name)
+            end
             if #server_names > 0 then
               server_names_str = "Available servers: " .. table.concat(server_names, ", ")
             else
