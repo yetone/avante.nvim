@@ -122,7 +122,7 @@ function M:transform_tool(tool)
         and parameters_schema.properties.tool_name.description
       then
         parameters_schema.properties.tool_name.description = parameters_schema.properties.tool_name.description
-          .. " (**MANDATORY**: You MUST specify the exact tool name to use on the selected server.)"
+          .. " (**MANDATORY**: You MUST specify the exact tool name (e.g., 'brave_web_search', 'readFile') available on the selected server. Refer to the system prompt for the list of tools available on each server.)"
         Utils.debug("Gemini: Enhanced tool_name description for use_mcp_tool.")
       end
       -- Hint for uri in access_mcp_resource
@@ -132,7 +132,7 @@ function M:transform_tool(tool)
         and parameters_schema.properties.uri.description
       then
         parameters_schema.properties.uri.description = parameters_schema.properties.uri.description
-          .. " (**MANDATORY**: You MUST specify the exact resource URI (e.g., '/resource/id') to access on the selected server.)"
+          .. " (**MANDATORY**: You MUST specify the exact resource URI (e.g., '/search?q=your_query', '/files/path/to/file.txt') available on the selected server. Refer to the system prompt for the list of resources available on each server.)"
         Utils.debug("Gemini: Enhanced uri description for access_mcp_resource.")
       end
     end
