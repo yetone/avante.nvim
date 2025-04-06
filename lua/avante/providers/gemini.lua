@@ -452,37 +452,7 @@ function M:parse_curl_args(prompt_opts)
         })
         if transformed then table.insert(all_tools_for_gemini, transformed) end
       end
-
-      -- Add MCP Resource Templates (Treating them like tools)
-      local mcp_templates = hub:get_resource_templates() or {} -- Assuming hub:get_resource_templates() exists
-       Utils.debug("Gemini: Found MCP Resource Templates from Hub:", #mcp_templates)
-      for _, template in ipairs(mcp_templates) do
-         -- Simplify server name for the tool name generation
-         local server_alias = template.server_name or "unknown"
-         local alias_match = server_alias:match(".*/([^/]+)$") or server_alias:match("([^%.]+)$")
-         if alias_match and alias_match ~= "" then server_alias = alias_match end
-         server_alias = server_alias:gsub("[^%w_]", "_")
-
-         -- Generate name for the resource template tool
-         local template_base_name = (template.name or "resource"):gsub("[^%w_]", "_")
-         local tool_name = server_alias .. "_" .. template_base_name
-         local description = string.format(
-           "MCP Resource (from %s server): Access %s. %s",
-           server_alias, -- Use shorter alias
-           template.uriTemplate or "resource",
-           template.description or "No description"
-         )
-         -- Use transform_tool, passing template parameters if they exist
-         local transformed = self:transform_tool({
-            name = tool_name,
-            description = description,
-            parameters = template.parameters or {}, -- Adapt based on actual template schema structure
-            _mcp_original_server = template.server_name,
-            _mcp_original_uri_template = template.uriTemplate,
-            _mcp_type = "resource_template",
-         })
-         if transformed then table.insert(all_tools_for_gemini, transformed) end
-      end
+      -- Resource templates are not directly exposed as tools in this version.
     else
        Utils.debug("Gemini: MCP Hub not ready or not available for dynamic tool generation.")
     end
