@@ -48,6 +48,7 @@ M._defaults = {
   },
   web_search_engine = {
     provider = "tavily",
+    proxy = nil,
     providers = {
       tavily = {
         api_key_name = "TAVILY_API_KEY",
@@ -65,7 +66,7 @@ M._defaults = {
         },
         ---@type WebSearchEngineProviderResponseBodyFormatter
         format_response_body = function(body)
-          if body.answer_box ~= nil then return body.answer_box.result, nil end
+          if body.answer_box ~= nil and body.answer_box.result ~= nil then return body.answer_box.result, nil end
           if body.organic_results ~= nil then
             local jsn = vim
               .iter(body.organic_results)
@@ -450,7 +451,7 @@ M._defaults = {
       height = 8, -- Height of the input window in vertical layout
     },
     edit = {
-      border = "rounded",
+      border = { " ", " ", " ", " ", " ", " ", " ", " " },
       start_insert = true, -- Start insert mode when opening the edit window
     },
     ask = {
@@ -492,6 +493,8 @@ M._defaults = {
   disabled_tools = {}, ---@type string[]
   ---@type AvanteLLMToolPublic[] | fun(): AvanteLLMToolPublic[]
   custom_tools = {},
+  ---@type AvanteSlashCommand[]
+  slash_commands = {},
 }
 
 ---@type avante.Config

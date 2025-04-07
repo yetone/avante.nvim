@@ -326,6 +326,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field original_code? string
 ---@field update_snippets? string[]
 ---@field prompt_opts? AvantePromptOptions
+---@field session_ctx? table
 ---
 ---@class AvanteLLMToolHistory
 ---@field tool_result? AvanteLLMToolResult
@@ -334,7 +335,6 @@ vim.g.avante_login = vim.g.avante_login
 ---@alias AvanteLLMMemorySummarizeCallback fun(dropped_history_messages: AvanteLLMMessage[]): nil
 ---
 ---@class AvanteLLMStreamOptions: AvanteGeneratePromptsOptions
----@field session_ctx? table
 ---@field on_start AvanteLLMStartCallback
 ---@field on_chunk AvanteLLMChunkCallback
 ---@field on_stop AvanteLLMStopCallback
@@ -398,6 +398,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field entries avante.ChatHistoryEntry[]
 ---@field memory avante.ChatMemory | nil
 ---@field filename string
+---@field system_prompt string | nil
 ---
 ---@class avante.ChatMemory
 ---@field content string
@@ -413,3 +414,11 @@ vim.g.avante_login = vim.g.avante_login
 ---@field content string
 ---@field uri string
 ---
+---@alias AvanteSlashCommandBuiltInName "clear" | "help" | "lines" | "reset" | "commit" | "new"
+---@alias AvanteSlashCommandCallback fun(self: avante.Sidebar, args: string, cb?: fun(args: string): nil): nil
+---@class AvanteSlashCommand
+---@field name AvanteSlashCommandBuiltInName | string
+---@field description string
+---@field details string
+---@field shorthelp? string
+---@field callback? AvanteSlashCommandCallback

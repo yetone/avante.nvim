@@ -12,6 +12,10 @@ repos:
   hooks:
     - id: stylua-system # or stylua-system / stylua-github
       files: \.lua$
+- repo: https://github.com/Calinou/pre-commit-luacheck
+  rev: v1.0.0
+  hooks:
+    - id: luacheck
 - repo: https://github.com/doublify/pre-commit-rust
   rev: v1.0
   hooks:

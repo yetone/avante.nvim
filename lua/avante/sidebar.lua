@@ -21,7 +21,7 @@ local VIEW_BUFFER_UPDATED_PATTERN = "AvanteViewBufferUpdated"
 local CODEBLOCK_KEYBINDING_NAMESPACE = api.nvim_create_namespace("AVANTE_CODEBLOCK_KEYBINDING")
 local USER_REQUEST_BLOCK_KEYBINDING_NAMESPACE = api.nvim_create_namespace("AVANTE_USER_REQUEST_BLOCK_KEYBINDING")
 local SELECTED_FILES_HINT_NAMESPACE = api.nvim_create_namespace("AVANTE_SELECTED_FILES_HINT")
-local PRIORITY = vim.highlight.priorities.user
+local PRIORITY = (vim.hl or vim.highlight).priorities.user
 
 local RESP_SEPARATOR = "-------"
 
@@ -634,6 +634,10 @@ local function tree_sitter_markdown_parse_code_blocks(source)
     parser = vim.treesitter.get_string_parser(source, "markdown")
   else
     parser = vim.treesitter.get_parser(source, "markdown")
+  end
+  if parser == nil then
+    Utils.warn("Failed to get markdown parser")
+    return {}
   end
   local tree = parser:parse()[1]
   local root = tree:root()
@@ -2203,29 +2207,46 @@ end
 ---@param history avante.ChatHistory
 ---@return string
 function Sidebar.render_history_content(history)
+  local added_breakline = false
   local content = ""
   for idx, entry in ipairs(history.entries) do
     if entry.visible == false then goto continue end
     if entry.reset_memory then
       content = content .. "***MEMORY RESET***\n\n"
-      if idx < #history.entries then content = content .. "-------\n\n" end
+      if idx < #history.entries and not added_breakline then
+        added_breakline = true
+        content = content .. "-------\n\n"
+      end
       goto continue
     end
     local selected_filepaths = entry.selected_filepaths
     if not selected_filepaths and entry.selected_file ~= nil then
       selected_filepaths = { entry.selected_file.filepath }
     end
-    local prefix = render_chat_record_prefix(
-      entry.timestamp,
-      entry.provider,
-      entry.model,
-      entry.request or "",
-      selected_filepaths or {},
-      entry.selected_code
-    )
-    content = content .. prefix
-    content = content .. entry.response .. "\n\n"
-    if idx < #history.entries then content = content .. "-------\n\n" end
+    if entry.request and entry.request ~= "" then
+      if idx ~= 1 and not added_breakline then
+        added_breakline = true
+        content = content .. "-------\n\n"
+      end
+      local prefix = render_chat_record_prefix(
+        entry.timestamp,
+        entry.provider,
+        entry.model,
+        entry.request or "",
+        selected_filepaths or {},
+        entry.selected_code
+      )
+      content = content .. prefix
+    end
+    if entry.response and entry.response ~= "" then
+      content = content .. entry.response .. "\n\n"
+      if idx < #history.entries then
+        added_breakline = true
+        content = content .. "-------\n\n"
+      end
+    else
+      added_breakline = false
+    end
     ::continue::
   end
   return content
@@ -2301,26 +2322,38 @@ function Sidebar:new_chat(args, cb)
   if cb then cb(args) end
 end
 
----@param message AvanteLLMMessage
+---@param messages AvanteLLMMessage | AvanteLLMMessage[]
 ---@param options {visible?: boolean}
-function Sidebar:add_chat_history(message, options)
+function Sidebar:add_chat_history(messages, options)
+  options = options or {}
   local timestamp = get_timestamp()
+  messages = vim.islist(messages) and messages or { messages }
   self:reload_chat_history()
-  table.insert(self.chat_history.entries, {
-    timestamp = timestamp,
-    provider = Config.provider,
-    model = Config.get_provider_config(Config.provider).model,
-    request = message.role == "user" and message.content or "",
-    response = message.role == "assistant" and message.content or "",
-    original_response = "",
-    selected_filepaths = nil,
-    selected_code = nil,
-    reset_memory = false,
-    visible = options.visible,
-  })
+  for _, message in ipairs(messages) do
+    local content = message.content
+    if message.role == "system" and type(content) == "string" then
+      ---@cast content string
+      self.chat_history.system_prompt = content
+      goto continue
+    end
+    table.insert(self.chat_history.entries, {
+      timestamp = timestamp,
+      provider = Config.provider,
+      model = Config.get_provider_config(Config.provider).model,
+      request = message.role == "user" and message.content or "",
+      response = message.role == "assistant" and message.content or "",
+      original_response = message.role == "assistant" and message.content or "",
+      selected_filepaths = nil,
+      selected_code = nil,
+      reset_memory = false,
+      visible = options.visible,
+    })
+    ::continue::
+  end
   Path.history.save(self.code.bufnr, self.chat_history)
-  if self.chat_history.title == "untitled" then
-    Llm.summarize_chat_thread_title(message.content, function(title)
+  if options.visible then self:update_content_with_history() end
+  if self.chat_history.title == "untitled" and #messages > 0 then
+    Llm.summarize_chat_thread_title(messages[1].content, function(title)
       self:reload_chat_history()
       if title then self.chat_history.title = title end
       Path.history.save(self.code.bufnr, self.chat_history)
@@ -2358,70 +2391,6 @@ function Sidebar:reset_memory(args, cb)
       { focus = false, scroll = false, callback = function() self:focus_input() end }
     )
   end
-end
-
----@alias AvanteSlashCommandType "clear" | "help" | "lines" | "reset" | "commit" | "new"
----@alias AvanteSlashCommandCallback fun(args: string, cb?: fun(args: string): nil): nil
----@alias AvanteSlashCommand {description: string, command: AvanteSlashCommandType, details: string, shorthelp?: string, callback?: AvanteSlashCommandCallback}
----@return AvanteSlashCommand[]
-function Sidebar:get_commands()
-  ---@param items_ {command: string, description: string, shorthelp?: string}[]
-  ---@return string
-  local function get_help_text(items_)
-    local help_text = ""
-    for _, item in ipairs(items_) do
-      help_text = help_text .. "- " .. item.command .. ": " .. (item.shorthelp or item.description) .. "\n"
-    end
-    return help_text
-  end
-
-  ---@type AvanteSlashCommand[]
-  local items = {
-    { description = "Show help message", command = "help" },
-    { description = "Clear chat history", command = "clear" },
-    { description = "Reset memory", command = "reset" },
-    { description = "New chat", command = "new" },
-    {
-      shorthelp = "Ask a question about specific lines",
-      description = "/lines <start>-<end> <question>",
-      command = "lines",
-    },
-    { description = "Commit the changes", command = "commit" },
-  }
-
-  ---@type {[AvanteSlashCommandType]: AvanteSlashCommandCallback}
-  local cbs = {
-    help = function(args, cb)
-      local help_text = get_help_text(items)
-      self:update_content(help_text, { focus = false, scroll = false })
-      if cb then cb(args) end
-    end,
-    clear = function(args, cb) self:clear_history(args, cb) end,
-    reset = function(args, cb) self:reset_memory(args, cb) end,
-    new = function(args, cb) self:new_chat(args, cb) end,
-    lines = function(args, cb)
-      if cb then cb(args) end
-    end,
-    commit = function(_, cb)
-      local question = "Please commit the changes"
-      if cb then cb(question) end
-    end,
-  }
-
-  return vim
-    .iter(items)
-    :map(
-      ---@param item AvanteSlashCommand
-      function(item)
-        return {
-          command = item.command,
-          description = item.description,
-          callback = cbs[item.command],
-          details = item.shorthelp and table.concat({ item.shorthelp, item.description }, "\n") or item.description,
-        }
-      end
-    )
-    :totable()
 end
 
 function Sidebar:create_selected_code_container()
@@ -2576,6 +2545,13 @@ function Sidebar:create_input_container(opts)
       tools = tools,
     }
 
+    if self.chat_history.system_prompt then
+      prompts_opts.prompt_opts = {
+        system_prompt = self.chat_history.system_prompt,
+        messages = {},
+      }
+    end
+
     if self.chat_history.memory then prompts_opts.memory = self.chat_history.memory.content end
 
     if not summarize_memory or #history_messages < 8 then
@@ -2598,25 +2574,26 @@ function Sidebar:create_input_container(opts)
       return
     end
 
-    if request:sub(1, 1) == "/" then
+    local has_cmp = pcall(require, "cmp")
+    if request:sub(1, 1) == "/" and not has_cmp then
       local command, args = request:match("^/(%S+)%s*(.*)")
       if command == nil then
         self:update_content("Invalid command", { focus = false, scroll = false })
         return
       end
-      local cmds = self:get_commands()
+      local cmds = Utils.get_commands()
       ---@type AvanteSlashCommand
-      local cmd = vim.iter(cmds):filter(function(_) return _.command == command end):totable()[1]
+      local cmd = vim.iter(cmds):filter(function(cmd) return cmd.name == command end):totable()[1]
       if cmd then
         if command == "lines" then
-          cmd.callback(args, function(args_)
+          cmd.callback(self, args, function(args_)
             local _, _, question = args_:match("(%d+)-(%d+)%s+(.*)")
             request = question
           end)
         elseif command == "commit" then
-          cmd.callback(args, function(question) request = question end)
+          cmd.callback(self, args, function(question) request = question end)
         else
-          cmd.callback(args)
+          cmd.callback(self, args)
           return
         end
       else
@@ -2940,51 +2917,7 @@ function Sidebar:create_input_container(opts)
     buffer = self.input_container.bufnr,
     once = true,
     desc = "Setup the completion of helpers in the input buffer",
-    callback = function()
-      local has_cmp, cmp = pcall(require, "cmp")
-      if has_cmp then
-        local mentions = Utils.get_mentions()
-
-        table.insert(mentions, {
-          description = "file",
-          command = "file",
-          details = "add files...",
-          callback = function() self.file_selector:open() end,
-        })
-
-        table.insert(mentions, {
-          description = "quickfix",
-          command = "quickfix",
-          details = "add files in quickfix list to chat context",
-          callback = function() self.file_selector:add_quickfix_files() end,
-        })
-
-        table.insert(mentions, {
-          description = "buffers",
-          command = "buffers",
-          details = "add open buffers to the chat context",
-          callback = function() self.file_selector:add_buffer_files() end,
-        })
-
-        cmp.register_source(
-          "avante_commands",
-          require("cmp_avante.commands"):new(self:get_commands(), self.input_container.bufnr)
-        )
-        cmp.register_source(
-          "avante_mentions",
-          require("cmp_avante.mentions"):new(mentions, self.input_container.bufnr)
-        )
-
-        cmp.setup.buffer({
-          enabled = true,
-          sources = {
-            { name = "avante_commands" },
-            { name = "avante_mentions" },
-            { name = "avante_files" },
-          },
-        })
-      end
-    end,
+    callback = function() end,
   })
 
   -- Close the floating window
@@ -3128,6 +3061,20 @@ function Sidebar:create_input_container(opts)
   })
 
   self:refresh_winids()
+end
+
+---@param value string
+function Sidebar:set_input_value(value)
+  if not self.input_container then return end
+  if not value then return end
+  api.nvim_buf_set_lines(self.input_container.bufnr, 0, -1, false, vim.split(value, "\n"))
+end
+
+---@return string
+function Sidebar:get_input_value()
+  if not self.input_container then return "" end
+  local lines = api.nvim_buf_get_lines(self.input_container.bufnr, 0, -1, false)
+  return table.concat(lines, "\n")
 end
 
 function Sidebar:get_selected_code_size()

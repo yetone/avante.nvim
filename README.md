@@ -13,8 +13,8 @@
   <a href="https://github.com/yetone/avante.nvim/actions/workflows/rust.yaml" target="_blank">
     <img src="https://img.shields.io/github/actions/workflow/status/yetone/avante.nvim/rust.yaml?style=flat-square&logo=rust&logoColor=ffffff&label=Rust+CI&labelColor=BC826A&color=347D39&event=push" alt="Rust CI status" />
   </a>
-  <a href="https://github.com/yetone/avante.nvim/actions/workflows/python.yaml" target="_blank">
-    <img src="https://img.shields.io/github/actions/workflow/status/yetone/avante.nvim/python.yaml?style=flat-square&logo=python&logoColor=ffffff&label=Python+CI&labelColor=3672A5&color=347D39&event=push" alt="Python CI status" />
+  <a href="https://github.com/yetone/avante.nvim/actions/workflows/pre-commit.yaml" target="_blank">
+    <img src="https://img.shields.io/github/actions/workflow/status/yetone/avante.nvim/pre-commit.yaml?style=flat-square&logo=pre-commit&logoColor=ffffff&label=pre-commit&labelColor=FAAF3F&color=347D39&event=push" alt="pre-commit status" />
   </a>
   <a href="https://discord.gg/QfnEFEdSjz" target="_blank">
     <img src="https://img.shields.io/discord/1302530866362323016?style=flat-square&logo=discord&label=Discord&logoColor=ffffff&labelColor=7376CF&color=268165" alt="Discord" />
@@ -27,7 +27,6 @@
 **avante.nvim** is a Neovim plugin designed to emulate the behaviour of the [Cursor](https://www.cursor.com) AI IDE. It provides users with AI-driven code suggestions and the ability to apply these recommendations directly to their source files with minimal effort.
 
 [查看中文版](README_zh.md)
-
 
 > [!NOTE]
 >
@@ -436,6 +435,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
   },
 }
 ```
+
 </details>
 
 ## Blink.cmp users
@@ -644,6 +644,7 @@ The following key bindings are available for use with `avante.nvim`:
 ### Neotree shortcut
 
 In the neotree sidebar, you can also add a new keyboard shortcut to quickly add `file/folder` to `Avante Selected Files`.
+
 <details>
 <summary>Neotree configuration</summary>
 
@@ -688,6 +689,7 @@ return {
   },
 }
 ```
+
 </details>
 
 ## Commands
@@ -695,17 +697,17 @@ return {
 | Command                            | Description                                                                                                 | Examples                                            |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
 | `:AvanteAsk [question] [position]` | Ask AI about your code. Optional `position` set window position and `ask` enable/disable direct asking mode | `:AvanteAsk position=right Refactor this code here` |
-| `:AvanteBuild`                     | Build dependencies for the project                                                                          | |
-| `:AvanteChat`                      | Start a chat session with AI about your codebase. Default is `ask`=false                                    | |
-| `:AvanteClear`                     | Clear the chat history                                                                                      | |
-| `:AvanteEdit`                      | Edit the selected code blocks                                                                               | |
-| `:AvanteFocus`                     | Switch focus to/from the sidebar                                                                            | |
-| `:AvanteRefresh`                   | Refresh all Avante windows                                                                                  | |
-| `:AvanteStop`                      | Stop the current AI request                                                                                 | |
-| `:AvanteSwitchProvider`            | Switch AI provider (e.g. openai)                                                                            | |
-| `:AvanteShowRepoMap`               | Show repo map for project's structure                                                                       | |
-| `:AvanteToggle`                    | Toggle the Avante sidebar                                                                                   | |
-| `:AvanteModels`                    | Show model list                                                                                             | |
+| `:AvanteBuild`                     | Build dependencies for the project                                                                          |                                                     |
+| `:AvanteChat`                      | Start a chat session with AI about your codebase. Default is `ask`=false                                    |                                                     |
+| `:AvanteClear`                     | Clear the chat history                                                                                      |                                                     |
+| `:AvanteEdit`                      | Edit the selected code blocks                                                                               |                                                     |
+| `:AvanteFocus`                     | Switch focus to/from the sidebar                                                                            |                                                     |
+| `:AvanteRefresh`                   | Refresh all Avante windows                                                                                  |                                                     |
+| `:AvanteStop`                      | Stop the current AI request                                                                                 |                                                     |
+| `:AvanteSwitchProvider`            | Switch AI provider (e.g. openai)                                                                            |                                                     |
+| `:AvanteShowRepoMap`               | Show repo map for project's structure                                                                       |                                                     |
+| `:AvanteToggle`                    | Toggle the Avante sidebar                                                                                   |                                                     |
+| `:AvanteModels`                    | Show model list                                                                                             |                                                     |
 
 ## Highlight Groups
 
@@ -818,6 +820,7 @@ The default is Tavily, and can be changed through configuring `Config.web_search
 ```lua
 web_search_engine = {
   provider = "tavily", -- tavily, serpapi, searchapi, google or kagi
+  proxy = nil, -- proxy support, e.g., http://127.0.0.1:7890
 }
 ```
 
@@ -910,6 +913,7 @@ Avante allows you to define custom tools that can be used by the AI during code 
   },
 }
 ```
+
 </details>
 
 ## MCP
@@ -930,7 +934,6 @@ Avante leverages [Claude Text Editor Tool](https://docs.anthropic.com/en/docs/bu
 
 > [!NOTE]
 > To enable **Claude Text Editor Tool Mode**, you must use the `claude-3-5-sonnet-*` or `claude-3-7-sonnet-*` model with the `claude` provider! This feature is not supported by any other models!
-
 
 ## Custom prompts
 
