@@ -67,6 +67,13 @@ function M.set_allowed_params(provider_conf, request_body)
   else
     request_body.reasoning_effort = nil
   end
+
+  if M.is_reasoning_model(provider_conf.model) then
+    if request_body.max_tokens then
+      request_body.max_completion_tokens = request_body.max_tokens
+      request_body.max_tokens = nil
+    end
+  end
 end
 
 function M:parse_messages(opts)
