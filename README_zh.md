@@ -28,7 +28,6 @@
 
 [View in English](README.md)
 
-
 > [!NOTE]
 >
 > 🥰 该项目正在快速迭代中，许多令人兴奋的功能将陆续添加。敬请期待！
@@ -436,6 +435,7 @@ _请参见 [config.lua#L9](./lua/avante/config.lua) 以获取完整配置_
   },
 }
 ```
+
 </details>
 
 ## Blink.cmp 用户
@@ -613,25 +613,25 @@ _请参见 [config.lua#L9](./lua/avante/config.lua) 以获取完整配置_
 
 以下键绑定可用于 `avante.nvim`：
 
-| 键绑定                               | 描述                                  |
-| ----------------------------------------- | -------------------------------------------- |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>a</kbd> | 显示侧边栏                                 |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>t</kbd> | 切换侧边栏可见性                    |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>r</kbd> | 刷新侧边栏                              |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>f</kbd> | 切换侧边栏焦点                         |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>?</kbd> | 选择模型                                 |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>e</kbd> | 编辑选定的块                         |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>S</kbd> | 停止当前 AI 请求                      |
-| <kbd>c</kbd><kbd>o</kbd>                  | 选择我们的                                  |
-| <kbd>c</kbd><kbd>t</kbd>                  | 选择他们的                                |
-| <kbd>c</kbd><kbd>a</kbd>                  | 选择所有他们的                            |
-| <kbd>c</kbd><kbd>0</kbd>                  | 选择无                                  |
-| <kbd>c</kbd><kbd>b</kbd>                  | 选择两者                                  |
-| <kbd>c</kbd><kbd>c</kbd>                  | 选择光标                                |
-| <kbd>]</kbd><kbd>x</kbd>                  | 移动到上一个冲突                    |
-| <kbd>[</kbd><kbd>x</kbd>                  | 移动到下一个冲突                        |
+| 键绑定                                    | 描述                          |
+| ----------------------------------------- | ----------------------------- |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>a</kbd> | 显示侧边栏                    |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>t</kbd> | 切换侧边栏可见性              |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>r</kbd> | 刷新侧边栏                    |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>f</kbd> | 切换侧边栏焦点                |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>?</kbd> | 选择模型                      |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>e</kbd> | 编辑选定的块                  |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>S</kbd> | 停止当前 AI 请求              |
+| <kbd>c</kbd><kbd>o</kbd>                  | 选择我们的                    |
+| <kbd>c</kbd><kbd>t</kbd>                  | 选择他们的                    |
+| <kbd>c</kbd><kbd>a</kbd>                  | 选择所有他们的                |
+| <kbd>c</kbd><kbd>0</kbd>                  | 选择无                        |
+| <kbd>c</kbd><kbd>b</kbd>                  | 选择两者                      |
+| <kbd>c</kbd><kbd>c</kbd>                  | 选择光标                      |
+| <kbd>]</kbd><kbd>x</kbd>                  | 移动到上一个冲突              |
+| <kbd>[</kbd><kbd>x</kbd>                  | 移动到下一个冲突              |
 | <kbd>[</kbd><kbd>[</kbd>                  | 跳转到上一个代码块 (结果窗口) |
-| <kbd>]</kbd><kbd>]</kbd>                  | 跳转到下一个代码块 (结果窗口)    |
+| <kbd>]</kbd><kbd>]</kbd>                  | 跳转到下一个代码块 (结果窗口) |
 
 > [!NOTE]
 >
@@ -641,6 +641,7 @@ _请参见 [config.lua#L9](./lua/avante/config.lua) 以获取完整配置_
 ### Neotree 快捷方式
 
 在 neotree 侧边栏中，您还可以添加新的键盘快捷方式，以快速将 `file/folder` 添加到 `Avante Selected Files`。
+
 <details>
 <summary>Neotree 配置</summary>
 
@@ -685,41 +686,42 @@ return {
   },
 }
 ```
+
 </details>
 
 ## 命令
 
-| 命令                            | 描述                                                                                                 | 示例                                            |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| 命令                               | 描述                                                                                     | 示例                                                |
+| ---------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------- |
 | `:AvanteAsk [question] [position]` | 询问 AI 关于您的代码的问题。可选的 `position` 设置窗口位置和 `ask` 启用/禁用直接询问模式 | `:AvanteAsk position=right Refactor this code here` |
-| `:AvanteBuild`                     | 构建项目的依赖项                                                                          | |
-| `:AvanteChat`                      | 启动与 AI 的聊天会话，讨论您的代码库。默认情况下 `ask`=false                                    | |
-| `:AvanteClear`                     | 清除聊天记录                                                                                      | |
-| `:AvanteEdit`                      | 编辑选定的代码块                                                                               | |
-| `:AvanteFocus`                     | 切换焦点到/从侧边栏                                                                            | |
-| `:AvanteRefresh`                   | 刷新所有 Avante 窗口                                                                                  | |
-| `:AvanteStop`                      | 停止当前 AI 请求                                                                                 | |
-| `:AvanteSwitchProvider`            | 切换 AI 提供者（例如 openai）                                                                            | |
-| `:AvanteShowRepoMap`               | 显示项目结构的 repo map                                                                       | |
-| `:AvanteToggle`                    | 切换 Avante 侧边栏                                                                                   | |
-| `:AvanteModels`                    | 显示模型列表                                                                                             | |
+| `:AvanteBuild`                     | 构建项目的依赖项                                                                         |                                                     |
+| `:AvanteChat`                      | 启动与 AI 的聊天会话，讨论您的代码库。默认情况下 `ask`=false                             |                                                     |
+| `:AvanteClear`                     | 清除聊天记录                                                                             |                                                     |
+| `:AvanteEdit`                      | 编辑选定的代码块                                                                         |                                                     |
+| `:AvanteFocus`                     | 切换焦点到/从侧边栏                                                                      |                                                     |
+| `:AvanteRefresh`                   | 刷新所有 Avante 窗口                                                                     |                                                     |
+| `:AvanteStop`                      | 停止当前 AI 请求                                                                         |                                                     |
+| `:AvanteSwitchProvider`            | 切换 AI 提供者（例如 openai）                                                            |                                                     |
+| `:AvanteShowRepoMap`               | 显示项目结构的 repo map                                                                  |                                                     |
+| `:AvanteToggle`                    | 切换 Avante 侧边栏                                                                       |                                                     |
+| `:AvanteModels`                    | 显示模型列表                                                                             |                                                     |
 
 ## 高亮组
 
-| 高亮组             | 描述                                   | 备注                                        |
-| --------------------------- | --------------------------------------------- | -------------------------------------------- |
-| AvanteTitle                 | 标题                                         |                                              |
-| AvanteReversedTitle         | 用于圆角边框                       |                                              |
-| AvanteSubtitle              | 选定代码标题                           |                                              |
-| AvanteReversedSubtitle      | 用于圆角边框                       |                                              |
-| AvanteThirdTitle            | 提示标题                                  |                                              |
-| AvanteReversedThirdTitle    | 用于圆角边框                       |                                              |
-| AvanteConflictCurrent       | 当前冲突高亮                    | 默认值为 `Config.highlights.diff.current`  |
-| AvanteConflictIncoming      | 即将到来的冲突高亮                   | 默认值为 `Config.highlights.diff.incoming` |
-| AvanteConflictCurrentLabel  | 当前冲突标签高亮              | 默认值为 `AvanteConflictCurrent` 的阴影  |
-| AvanteConflictIncomingLabel | 即将到来的冲突标签高亮             | 默认值为 `AvanteConflictIncoming` 的阴影 |
-| AvantePopupHint             | 弹出菜单中的使用提示                    |                                              |
-| AvanteInlineHint            | 在可视模式下显示的行尾提示 |                                              |
+| 高亮组                      | 描述                       | 备注                                       |
+| --------------------------- | -------------------------- | ------------------------------------------ |
+| AvanteTitle                 | 标题                       |                                            |
+| AvanteReversedTitle         | 用于圆角边框               |                                            |
+| AvanteSubtitle              | 选定代码标题               |                                            |
+| AvanteReversedSubtitle      | 用于圆角边框               |                                            |
+| AvanteThirdTitle            | 提示标题                   |                                            |
+| AvanteReversedThirdTitle    | 用于圆角边框               |                                            |
+| AvanteConflictCurrent       | 当前冲突高亮               | 默认值为 `Config.highlights.diff.current`  |
+| AvanteConflictIncoming      | 即将到来的冲突高亮         | 默认值为 `Config.highlights.diff.incoming` |
+| AvanteConflictCurrentLabel  | 当前冲突标签高亮           | 默认值为 `AvanteConflictCurrent` 的阴影    |
+| AvanteConflictIncomingLabel | 即将到来的冲突标签高亮     | 默认值为 `AvanteConflictIncoming` 的阴影   |
+| AvantePopupHint             | 弹出菜单中的使用提示       |                                            |
+| AvanteInlineHint            | 在可视模式下显示的行尾提示 |                                            |
 
 有关更多信息，请参见 [highlights.lua](./lua/avante/highlights.lua)
 
@@ -811,6 +813,8 @@ Avante 的工具包括一些 Web 搜索引擎，目前支持：
 ```lua
 web_search_engine = {
   provider = "tavily", -- tavily, serpapi, searchapi, google 或 kagi
+  proxy = nil, -- proxy support, e.g., http://127.0.0.1:7890
+
 }
 ```
 
@@ -903,6 +907,7 @@ Avante 允许您定义自定义工具，AI 可以在代码生成和分析期间�
   },
 }
 ```
+
 </details>
 
 ## MCP
@@ -923,7 +928,6 @@ Avante 利用 [Claude 文本编辑器工具](https://docs.anthropic.com/en/docs/
 
 > [!NOTE]
 > 要启用 **Claude 文本编辑器工具模式**，您必须使用 `claude-3-5-sonnet-*` 或 `claude-3-7-sonnet-*` 模型与 `claude` 提供者！此功能不支持任何其他模型！
-
 
 ## 自定义提示
 
@@ -1009,15 +1013,15 @@ vim.keymap.set("n", "<leader>am", function() vim.api.nvim_exec_autocmds("User", 
 
 我们要向以下开源项目的贡献者表示衷心的感谢，他们的代码为 avante.nvim 的开发提供了宝贵的灵感和参考：
 
-| Nvim 插件                                                           | 许可证            | 功能                 | 位置                                                                                                                               |
-| --------------------------------------------------------------------- | ------------------ | ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| [git-conflict.nvim](https://github.com/akinsho/git-conflict.nvim)     | 无许可证         | 差异比较功能 | [lua/avante/diff.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/diff.lua)                                             |
+| Nvim 插件                                                             | 许可证            | 功能             | 位置                                                                                                                                   |
+| --------------------------------------------------------------------- | ----------------- | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| [git-conflict.nvim](https://github.com/akinsho/git-conflict.nvim)     | 无许可证          | 差异比较功能     | [lua/avante/diff.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/diff.lua)                                             |
 | [ChatGPT.nvim](https://github.com/jackMort/ChatGPT.nvim)              | Apache 2.0 许可证 | 令牌计数的计算   | [lua/avante/utils/tokens.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/utils/tokens.lua)                             |
-| [img-clip.nvim](https://github.com/HakonHarnes/img-clip.nvim)         | MIT 许可证        | 剪贴板图像支持       | [lua/avante/clipboard.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/clipboard.lua)                                   |
-| [copilot.lua](https://github.com/zbirenbaum/copilot.lua)              | MIT 许可证        | Copilot 支持               | [lua/avante/providers/copilot.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/copilot.lua)                   |
-| [jinja.vim](https://github.com/HiPhish/jinja.vim)                     | MIT 许可证        | 模板文件类型支持     | [syntax/jinja.vim](https://github.com/yetone/avante.nvim/blob/main/syntax/jinja.vim)                                                   |
-| [codecompanion.nvim](https://github.com/olimorris/codecompanion.nvim) | MIT 许可证        | Secrets 逻辑支持         | [lua/avante/providers/init.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/init.lua)                         |
-| [aider](https://github.com/paul-gauthier/aider)                       | Apache 2.0 许可证 | 规划模式用户提示     | [lua/avante/templates/planning.avanterules](https://github.com/yetone/avante.nvim/blob/main/lua/avante/templates/planning.avanterules) |
+| [img-clip.nvim](https://github.com/HakonHarnes/img-clip.nvim)         | MIT 许可证        | 剪贴板图像支持   | [lua/avante/clipboard.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/clipboard.lua)                                   |
+| [copilot.lua](https://github.com/zbirenbaum/copilot.lua)              | MIT 许可证        | Copilot 支持     | [lua/avante/providers/copilot.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/copilot.lua)                   |
+| [jinja.vim](https://github.com/HiPhish/jinja.vim)                     | MIT 许可证        | 模板文件类型支持 | [syntax/jinja.vim](https://github.com/yetone/avante.nvim/blob/main/syntax/jinja.vim)                                                   |
+| [codecompanion.nvim](https://github.com/olimorris/codecompanion.nvim) | MIT 许可证        | Secrets 逻辑支持 | [lua/avante/providers/init.lua](https://github.com/yetone/avante.nvim/blob/main/lua/avante/providers/init.lua)                         |
+| [aider](https://github.com/paul-gauthier/aider)                       | Apache 2.0 许可证 | 规划模式用户提示 | [lua/avante/templates/planning.avanterules](https://github.com/yetone/avante.nvim/blob/main/lua/avante/templates/planning.avanterules) |
 
 这些项目的源代码的高质量和独创性在我们的开发过程中提供了极大的帮助。我们向这些项目的作者和贡献者表示诚挚的感谢和敬意。正是开源社区的无私奉献推动了像 avante.nvim 这样的项目向前发展。
 
