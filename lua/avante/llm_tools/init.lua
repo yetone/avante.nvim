@@ -233,9 +233,7 @@ function M.web_search(opts, on_log)
         query = opts.query,
       }, search_engine.extra_request_body)),
     }
-    if proxy then
-      curl_opts.proxy = proxy
-    end
+    if proxy then curl_opts.proxy = proxy end
     local resp = curl.post("https://api.tavily.com/search", curl_opts)
     if resp.status ~= 200 then return nil, "Error: " .. resp.body end
     local jsn = vim.json.decode(resp.body)
@@ -254,9 +252,7 @@ function M.web_search(opts, on_log)
         ["Content-Type"] = "application/json",
       },
     }
-    if proxy then
-      curl_opts.proxy = proxy
-    end
+    if proxy then curl_opts.proxy = proxy end
     local resp = curl.get("https://serpapi.com/search?" .. query_string, curl_opts)
     if resp.status ~= 200 then return nil, "Error: " .. resp.body end
     local jsn = vim.json.decode(resp.body)
@@ -275,9 +271,7 @@ function M.web_search(opts, on_log)
         ["Content-Type"] = "application/json",
       },
     }
-    if proxy then
-      curl_opts.proxy = proxy
-    end
+    if proxy then curl_opts.proxy = proxy end
     local resp = curl.get("https://searchapi.io/api/v1/search?" .. query_string, curl_opts)
     if resp.status ~= 200 then return nil, "Error: " .. resp.body end
     local jsn = vim.json.decode(resp.body)
@@ -301,9 +295,7 @@ function M.web_search(opts, on_log)
         ["Content-Type"] = "application/json",
       },
     }
-    if proxy then
-      curl_opts.proxy = proxy
-    end
+    if proxy then curl_opts.proxy = proxy end
     local resp = curl.get("https://www.googleapis.com/customsearch/v1?" .. query_string, curl_opts)
     if resp.status ~= 200 then return nil, "Error: " .. resp.body end
     local jsn = vim.json.decode(resp.body)
@@ -322,9 +314,7 @@ function M.web_search(opts, on_log)
         ["Content-Type"] = "application/json",
       },
     }
-    if proxy then
-      curl_opts.proxy = proxy
-    end
+    if proxy then curl_opts.proxy = proxy end
     local resp = curl.get("https://kagi.com/api/v0/search?" .. query_string, curl_opts)
     if resp.status ~= 200 then return nil, "Error: " .. resp.body end
     local jsn = vim.json.decode(resp.body)
@@ -343,9 +333,7 @@ function M.web_search(opts, on_log)
         ["X-Subscription-Token"] = api_key,
       },
     }
-    if proxy then
-      curl_opts.proxy = proxy
-    end
+    if proxy then curl_opts.proxy = proxy end
     local resp = curl.get("https://api.search.brave.com/res/v1/web/search?" .. query_string, curl_opts)
     if resp.status ~= 200 then return nil, "Error: " .. resp.body end
     local jsn = vim.json.decode(resp.body)
