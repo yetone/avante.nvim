@@ -292,28 +292,6 @@ function Selection:create_editing_input(request, line1, line2)
   self.prompt_input = prompt_input
 
   prompt_input:open()
-
-  api.nvim_create_autocmd("InsertEnter", {
-    group = self.augroup,
-    buffer = prompt_input.bufnr,
-    once = true,
-    desc = "Setup the completion of helpers in the input buffer",
-    callback = function()
-      local has_cmp, cmp = pcall(require, "cmp")
-      if has_cmp then
-        cmp.register_source(
-          "avante_mentions",
-          require("cmp_avante.mentions"):new(Utils.get_mentions(), prompt_input.bufnr)
-        )
-        cmp.setup.buffer({
-          enabled = true,
-          sources = {
-            { name = "avante_mentions" },
-          },
-        })
-      end
-    end,
-  })
 end
 
 function Selection:setup_autocmds()
