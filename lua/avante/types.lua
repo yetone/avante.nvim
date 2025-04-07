@@ -398,6 +398,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field entries avante.ChatHistoryEntry[]
 ---@field memory avante.ChatMemory | nil
 ---@field filename string
+---@field system_prompt string | nil
 ---
 ---@class avante.ChatMemory
 ---@field content string
@@ -413,3 +414,11 @@ vim.g.avante_login = vim.g.avante_login
 ---@field content string
 ---@field uri string
 ---
+---@alias AvanteSlashCommandBuiltInName "clear" | "help" | "lines" | "reset" | "commit" | "new"
+---@alias AvanteSlashCommandCallback fun(self: avante.Sidebar, args: string, cb?: fun(args: string): nil): nil
+---@class AvanteSlashCommand
+---@field name AvanteSlashCommandBuiltInName | string
+---@field description string
+---@field details string
+---@field shorthelp? string
+---@field callback? AvanteSlashCommandCallback

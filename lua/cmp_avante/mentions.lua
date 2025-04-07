@@ -1,36 +1,37 @@
 local api = vim.api
 
 ---@class mentions_source : cmp.Source
----@field mentions {description: string, command: AvanteMentions, details: string, shorthelp?: string, callback?: AvanteMentionCallback}[]
----@field bufnr integer
-local mentions_source = {}
-mentions_source.__index = mentions_source
+---@field get_mentions fun(): {description: string, command: AvanteMentions, details: string, shorthelp?: string, callback?: AvanteMentionCallback}[]
+local MentionsSource = {}
+MentionsSource.__index = MentionsSource
 
----@param mentions {description: string, command: AvanteMentions, details: string, shorthelp?: string, callback?: AvanteMentionCallback}[]
----@param bufnr integer
-function mentions_source:new(mentions, bufnr)
-  local instance = setmetatable({}, mentions_source)
+---@param get_mentions fun(): {description: string, command: AvanteMentions, details: string, shorthelp?: string, callback?: AvanteMentionCallback}[]
+function MentionsSource:new(get_mentions)
+  local instance = setmetatable({}, MentionsSource)
 
-  instance.mentions = mentions
-  instance.bufnr = bufnr
+  instance.get_mentions = get_mentions
 
   return instance
 end
 
-function mentions_source:is_available() return api.nvim_get_current_buf() == self.bufnr end
+function MentionsSource:is_available()
+  return vim.bo.filetype == "AvanteInput" or vim.bo.filetype == "AvantePromptInput"
+end
 
-function mentions_source.get_position_encoding_kind() return "utf-8" end
+function MentionsSource.get_position_encoding_kind() return "utf-8" end
 
-function mentions_source:get_trigger_characters() return { "@" } end
+function MentionsSource:get_trigger_characters() return { "@" } end
 
-function mentions_source:get_keyword_pattern() return [[\%(@\|#\|/\)\k*]] end
+function MentionsSource:get_keyword_pattern() return [[\%(@\|#\|/\)\k*]] end
 
-function mentions_source:complete(_, callback)
+function MentionsSource:complete(_, callback)
   local kind = require("cmp").lsp.CompletionItemKind.Variable
 
   local items = {}
 
-  for _, mention in ipairs(self.mentions) do
+  local mentions = self.get_mentions()
+
+  for _, mention in ipairs(mentions) do
     table.insert(items, {
       label = "@" .. mention.command .. " ",
       kind = kind,
@@ -46,22 +47,26 @@ end
 
 ---@param completion_item table
 ---@param callback fun(response: {behavior: number})
-function mentions_source:execute(completion_item, callback)
+function MentionsSource:execute(completion_item, callback)
   local current_line = api.nvim_get_current_line()
   local label = completion_item.label:match("^@(%S+)") -- Extract mention command without '@' and space
 
+  local mentions = self.get_mentions()
+
   -- Find the corresponding mention
   local selected_mention
-  for _, mention in ipairs(self.mentions) do
+  for _, mention in ipairs(mentions) do
     if mention.command == label then
       selected_mention = mention
       break
     end
   end
 
+  local sidebar = require("avante").get()
+
   -- Execute the mention's callback if it exists
   if selected_mention and type(selected_mention.callback) == "function" then
-    selected_mention.callback(selected_mention)
+    selected_mention.callback(sidebar)
     -- Get the current cursor position
     local row, col = unpack(api.nvim_win_get_cursor(0))
 
@@ -77,4 +82,4 @@ function mentions_source:execute(completion_item, callback)
   callback({ behavior = require("cmp").ConfirmBehavior.Insert })
 end
 
-return mentions_source
+return MentionsSource
