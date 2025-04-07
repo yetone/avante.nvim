@@ -447,6 +447,59 @@ function M.setup(opts)
   end
 
   if Config.rag_service.enabled then run_rag_service() end
+
+  local has_cmp, cmp = pcall(require, "cmp")
+  if has_cmp then
+    cmp.register_source("avante_commands", require("cmp_avante.commands"):new())
+
+    cmp.register_source(
+      "avante_mentions",
+      require("cmp_avante.mentions"):new(function()
+        local mentions = Utils.get_mentions()
+
+        table.insert(mentions, {
+          description = "file",
+          command = "file",
+          details = "add files...",
+          callback = function(sidebar) sidebar.file_selector:open() end,
+        })
+
+        table.insert(mentions, {
+          description = "quickfix",
+          command = "quickfix",
+          details = "add files in quickfix list to chat context",
+          callback = function(sidebar) sidebar.file_selector:add_quickfix_files() end,
+        })
+
+        table.insert(mentions, {
+          description = "buffers",
+          command = "buffers",
+          details = "add open buffers to the chat context",
+          callback = function(sidebar) sidebar.file_selector:add_buffer_files() end,
+        })
+
+        return mentions
+      end)
+    )
+
+    cmp.register_source("avante_prompt_mentions", require("cmp_avante.mentions"):new(Utils.get_mentions))
+
+    cmp.setup.filetype({ "AvanteInput" }, {
+      enabled = true,
+      sources = {
+        { name = "avante_commands" },
+        { name = "avante_mentions" },
+        { name = "avante_files" },
+      },
+    })
+
+    cmp.setup.filetype({ "AvantePromptInput" }, {
+      enabled = true,
+      sources = {
+        { name = "avante_prompt_mentions" },
+      },
+    })
+  end
 end
 
 return M

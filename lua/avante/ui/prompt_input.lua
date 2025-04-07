@@ -95,7 +95,7 @@ function PromptInput:open()
 
   local bufnr = api.nvim_create_buf(false, true)
   self.bufnr = bufnr
-  vim.bo[bufnr].filetype = "AvanteInput"
+  vim.bo[bufnr].filetype = "AvantePromptInput"
   Utils.mark_as_sidebar_buffer(bufnr)
 
   local win_opts = vim.tbl_extend("force", {
