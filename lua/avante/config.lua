@@ -47,6 +47,7 @@ M._defaults = {
   },
   web_search_engine = {
     provider = "tavily",
+    proxy = nil,
     providers = {
       tavily = {
         api_key_name = "TAVILY_API_KEY",
