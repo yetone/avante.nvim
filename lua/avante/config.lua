@@ -371,6 +371,10 @@ M._defaults = {
       incoming = nil,
     },
   },
+  img_paste = {
+    url_encode_path = true,
+    template = "\nimage: $FILE_PATH\n",
+  },
   mappings = {
     ---@class AvanteConflictMappings
     diff = {

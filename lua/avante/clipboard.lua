@@ -42,7 +42,7 @@ function M.paste_image(line)
     dir_path = paste_directory:absolute(),
     prompt_for_file_name = false,
     filetypes = {
-      AvanteInput = { url_encode_path = true, template = "\nimage: $FILE_PATH\n" },
+      AvanteInput = Config.img_paste,
     },
   }
 
