@@ -2574,8 +2574,7 @@ function Sidebar:create_input_container(opts)
       return
     end
 
-    local has_cmp = pcall(require, "cmp")
-    if request:sub(1, 1) == "/" and not has_cmp then
+    if request:sub(1, 1) == "/" then
       local command, args = request:match("^/(%S+)%s*(.*)")
       if command == nil then
         self:update_content("Invalid command", { focus = false, scroll = false })
