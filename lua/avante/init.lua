@@ -232,6 +232,34 @@ function H.autocmds()
     end,
   })
 
+  api.nvim_create_autocmd("QuitPre", {
+    group = H.augroup,
+    callback = function()
+      local current_buf = vim.api.nvim_get_current_buf()
+      if Utils.is_sidebar_buffer(current_buf) then return end
+
+      local non_sidebar_wins = 0
+      local sidebar_wins = {}
+      for _, win in ipairs(vim.api.nvim_list_wins()) do
+        if vim.api.nvim_win_is_valid(win) then
+          local win_buf = vim.api.nvim_win_get_buf(win)
+          if Utils.is_sidebar_buffer(win_buf) then
+            table.insert(sidebar_wins, win)
+          else
+            non_sidebar_wins = non_sidebar_wins + 1
+          end
+        end
+      end
+
+      if non_sidebar_wins <= 1 then
+        for _, win in ipairs(sidebar_wins) do
+          pcall(vim.api.nvim_win_close, win, false)
+        end
+      end
+    end,
+    nested = true,
+  })
+
   api.nvim_create_autocmd("TabClosed", {
     group = H.augroup,
     pattern = "*",
