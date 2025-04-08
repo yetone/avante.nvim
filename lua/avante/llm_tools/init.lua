@@ -1105,7 +1105,8 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
     if tool == nil then return nil, "This tool is not provided: " .. tool_use.name end
     func = tool.func or M[tool.name]
   end
-  local input_json = vim.json.decode(tool_use.input_json)
+  local ok, input_json = pcall(vim.json.decode, tool_use.input_json)
+  if not ok then return nil, "Failed to decode tool input json: " .. vim.inspect(input_json) end
   if not func then return nil, "Tool not found: " .. tool_use.name end
   if on_log then on_log(tool_use.name, "running tool") end
 
