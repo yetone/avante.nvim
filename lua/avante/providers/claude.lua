@@ -345,7 +345,7 @@ function M:parse_curl_args(prompt_opts)
     end
   end
 
-  if prompt_opts.tools and Config.behaviour.enable_claude_text_editor_tool_mode then
+  if prompt_opts.tools and #prompt_opts.tools > 0 and Config.behaviour.enable_claude_text_editor_tool_mode then
     if provider_conf.model:match("claude%-3%-7%-sonnet") then
       table.insert(tools, {
         type = "text_editor_20250124",
