@@ -51,9 +51,15 @@ function CommandsSource:execute(item, callback)
 
   local sidebar = require("avante").get()
   command.callback(sidebar, nil, function()
-    local content = table.concat(api.nvim_buf_get_lines(sidebar.input_container.bufnr, 0, -1, false), "\n")
-    content = content:gsub(item.label, "")
-    api.nvim_buf_set_lines(sidebar.input_container.bufnr, 0, -1, false, vim.split(content, "\n"))
+    local bufnr = sidebar.input_container.bufnr ---@type integer
+    local content = table.concat(api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n")
+    vim.defer_fn(function()
+      if vim.api.nvim_buf_is_valid(bufnr) then
+        local lines = vim.split(content:gsub(item.label, ""), "\n") ---@type string[]
+        api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+      end
+    end, 20)
+
     callback()
   end)
 end
