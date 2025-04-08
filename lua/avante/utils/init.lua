@@ -1230,7 +1230,6 @@ function M.llm_tool_param_fields_to_json_schema(fields)
         description = enhanced_description, -- <<< USE ENHANCED DESCRIPTION
       }
       -- Default value is included in the enhanced_description above
-
     end
     if not field.optional then table.insert(required, field.name) end
   end

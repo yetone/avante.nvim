@@ -10,8 +10,8 @@ local M = {}
 ---@return GeminiFunctionDeclaration
 function M:transform_tool(tool)
   local Utils = require("avante.utils")
-    -- Read parameters from tool.param.fields (MCP) or tool.parameters (standard)
-    local tool_param_fields = (tool.param and tool.param.fields) or tool.parameters or {}
+  -- Read parameters from tool.param.fields (MCP) or tool.parameters (standard)
+  local tool_param_fields = (tool.param and tool.param.fields) or tool.parameters or {}
 
   local base_description = tool.description or ""
   local enhanced_description = base_description -- Start with the base
@@ -83,40 +83,42 @@ function M:transform_tool(tool)
 
     -- Ensure 'properties' is a map (it should be, but double-check)
     if type(parameters_schema.properties) ~= "table" or vim.tbl_islist(parameters_schema.properties) then
-       Utils.error(
-         "Gemini Provider: Tool '"
-           .. tool.name
-           .. "' parameters.properties is invalid (not a map or is a list) despite being non-empty.",
-         { title = "Avante" }
-       )
-       -- Fallback: omit parameters to avoid API error
-       return { name = tool.name, description = tool.description }
+      Utils.error(
+        "Gemini Provider: Tool '"
+          .. tool.name
+          .. "' parameters.properties is invalid (not a map or is a list) despite being non-empty.",
+        { title = "Avante" }
+      )
+      -- Fallback: omit parameters to avoid API error
+      return { name = tool.name, description = tool.description }
     end
 
     -- Final check: Ensure the parameters object itself has the required fields
     if not parameters_schema.type or not parameters_schema.properties or not parameters_schema.required then
-       Utils.error(
-         "Gemini Provider: Invalid final parameters_schema structure for tool '" .. tool.name .. "'",
-         { title = "Avante" }
-       )
-       -- Fallback to omitting parameters
-       return { name = tool.name, description = tool.description }
+      Utils.error(
+        "Gemini Provider: Invalid final parameters_schema structure for tool '" .. tool.name .. "'",
+        { title = "Avante" }
+      )
+      -- Fallback to omitting parameters
+      return { name = tool.name, description = tool.description }
     end
 
     -- *** Parameter Description Enhancements (Apply generally) ***
     -- We can keep general enhancements, but remove MCP-specific logic tied to the old generic tools.
     if parameters_schema.properties then
-       -- Example: Enhance any 'query' parameter description
-       if parameters_schema.properties.query and parameters_schema.properties.query.description then
-          parameters_schema.properties.query.description = parameters_schema.properties.query.description .. " (Provide a concise search query based on the user's request.)"
-          Utils.debug("Gemini: Enhanced 'query' parameter description for tool: " .. tool.name)
-       end
-       -- Example: Enhance any 'path' parameter description
-       if parameters_schema.properties.path and parameters_schema.properties.path.description then
-          parameters_schema.properties.path.description = parameters_schema.properties.path.description .. " (Provide the relative file path within the project.)"
-           Utils.debug("Gemini: Enhanced 'path' parameter description for tool: " .. tool.name)
-       end
-       -- Add more general enhancements as needed...
+      -- Example: Enhance any 'query' parameter description
+      if parameters_schema.properties.query and parameters_schema.properties.query.description then
+        parameters_schema.properties.query.description = parameters_schema.properties.query.description
+          .. " (Provide a concise search query based on the user's request.)"
+        Utils.debug("Gemini: Enhanced 'query' parameter description for tool: " .. tool.name)
+      end
+      -- Example: Enhance any 'path' parameter description
+      if parameters_schema.properties.path and parameters_schema.properties.path.description then
+        parameters_schema.properties.path.description = parameters_schema.properties.path.description
+          .. " (Provide the relative file path within the project.)"
+        Utils.debug("Gemini: Enhanced 'path' parameter description for tool: " .. tool.name)
+      end
+      -- Add more general enhancements as needed...
     end
     -- *** End Parameter Description Enhancements ***
 
@@ -462,25 +464,25 @@ function M:parse_curl_args(prompt_opts)
         )
         -- Use transform_tool to handle parameter schema generation, but pass the specific MCP tool schema
         local transformed = self:transform_tool({
-           name = tool_name, -- Use the generated unique name
-           description = description,
-           parameters = mcp_tool.inputSchema and mcp_tool.inputSchema.fields or {}, -- Adapt based on actual MCP tool schema structure
-           -- Store original info for potential later use if needed
-           _mcp_original_server = mcp_tool.server_name,
-           _mcp_original_tool = mcp_tool.name,
-           _mcp_type = "tool",
+          name = tool_name, -- Use the generated unique name
+          description = description,
+          parameters = mcp_tool.inputSchema and mcp_tool.inputSchema.fields or {}, -- Adapt based on actual MCP tool schema structure
+          -- Store original info for potential later use if needed
+          _mcp_original_server = mcp_tool.server_name,
+          _mcp_original_tool = mcp_tool.name,
+          _mcp_type = "tool",
         })
         if transformed then
-           table.insert(all_tools_for_gemini, transformed)
-           mcp_tools_added_map[transformed.name] = true -- Mark this MCP tool as added
+          table.insert(all_tools_for_gemini, transformed)
+          mcp_tools_added_map[transformed.name] = true -- Mark this MCP tool as added
         end
       end
       -- Resource templates are not directly exposed as tools in this version.
     else
-       Utils.debug("Gemini: MCP Hub not ready or not available for dynamic tool generation.")
+      Utils.debug("Gemini: MCP Hub not ready or not available for dynamic tool generation.")
     end
   else
-     Utils.debug("Gemini: MCP Hub module not found.")
+    Utils.debug("Gemini: MCP Hub module not found.")
   end
 
   -- 3. Filter out redundant standard Avante tools if corresponding MCP tools were added
@@ -503,9 +505,8 @@ function M:parse_curl_args(prompt_opts)
   end
 
   if #removed_standard_tools > 0 then
-     Utils.debug("Gemini: Removed redundant standard tools:", removed_standard_tools)
+    Utils.debug("Gemini: Removed redundant standard tools:", removed_standard_tools)
   end
-
 
   -- Add the combined list of tools to the request body if any exist
   if #final_tools_for_gemini > 0 then

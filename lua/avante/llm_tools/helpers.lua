@@ -15,9 +15,7 @@ M.confirm_popup = nil
 function M.get_abs_path(rel_path)
   Utils.debug("get_abs_path: Input rel_path:", rel_path) -- Debug log
   -- Check if already absolute first (less prone to errors)
-  local is_abs_ok, is_abs = pcall(function()
-    return Path:new(rel_path):is_absolute()
-  end)
+  local is_abs_ok, is_abs = pcall(function() return Path:new(rel_path):is_absolute() end)
   Utils.debug("get_abs_path: is_absolute check result:", is_abs_ok and is_abs) -- Debug log
   if is_abs_ok and is_abs then
     Utils.debug("get_abs_path: Returning early as path is already absolute:", rel_path) -- Debug log
@@ -31,9 +29,7 @@ function M.get_abs_path(rel_path)
     return nil
   end
 
-  local ok, abs_path_obj = pcall(function()
-    return Path:new(project_root):joinpath(rel_path):absolute()
-  end)
+  local ok, abs_path_obj = pcall(function() return Path:new(project_root):joinpath(rel_path):absolute() end)
   Utils.debug("get_abs_path: pcall result (ok):", ok, "abs_path_obj:", abs_path_obj) -- Debug log
   if not ok or not abs_path_obj then
     Utils.warn(
@@ -45,9 +41,7 @@ function M.get_abs_path(rel_path)
   local p = tostring(abs_path_obj)
   Utils.debug("get_abs_path: Path after tostring:", p) -- Debug log
   -- Remove trailing '/.' if present (e.g., from joining with '.')
-  if #p > 1 and p:sub(-2) == "/." then
-    p = p:sub(1, -3)
-  end
+  if #p > 1 and p:sub(-2) == "/." then p = p:sub(1, -3) end
   Utils.debug("get_abs_path: Path after removing trailing /. :", p) -- Debug log
   Utils.debug("get_abs_path: Final return value:", p) -- Debug log (updated to show 'p')
   return p -- Return the absolute path directly
@@ -148,7 +142,8 @@ function M.has_permission_to_access(abs_path)
   Utils.debug("has_permission_to_access: Path is not root, proceeding with checks.") -- Debug log
   if abs_path:sub(1, #project_root) ~= project_root then return false end
 
-  local ignore_patterns, negate_patterns = Utils.parse_gitignore(project_root and Path:new(project_root):joinpath(".gitignore"):absolute() or nil)
+  local ignore_patterns, negate_patterns =
+    Utils.parse_gitignore(project_root and Path:new(project_root):joinpath(".gitignore"):absolute() or nil)
   local ignored = M.is_ignored(abs_path, ignore_patterns, negate_patterns)
   Utils.debug("has_permission_to_access: Is ignored result:", ignored) -- Debug log
   Utils.debug("has_permission_to_access: Final return value:", not ignored) -- Debug log

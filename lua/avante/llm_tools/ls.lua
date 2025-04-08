@@ -7,7 +7,8 @@ local M = setmetatable({}, Base)
 
 M.name = "ls"
 
-M.description = "Lists files and directories within the project scope. Can target specific subdirectories using 'rel_path' and control recursion depth with 'max_depth'. Use initially to see the project root, then use 'rel_path' to explore specific subdirectories found in the initial listing."
+M.description =
+  "Lists files and directories within the project scope. Can target specific subdirectories using 'rel_path' and control recursion depth with 'max_depth'. Use initially to see the project root, then use 'rel_path' to explore specific subdirectories found in the initial listing."
 
 ---@type AvanteLLMToolParam
 M.param = {
@@ -57,9 +58,7 @@ function M.func(opts, on_log)
 
   local abs_path = Helpers.get_abs_path(rel_path) -- Use the potentially defaulted rel_path
   -- Check if get_abs_path failed
-  if not abs_path then
-    return "", "Failed to resolve or access the specified path: " .. rel_path
-  end
+  if not abs_path then return "", "Failed to resolve or access the specified path: " .. rel_path end
 
   -- Debug: Log the path being checked for permissions
   Utils.debug("ls: Checking permission for abs_path:", abs_path)
