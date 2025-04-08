@@ -2658,6 +2658,12 @@ function Sidebar:create_input_container(opts)
     vim.keymap.set("n", "j", on_j, { buffer = self.result_container.bufnr })
     vim.keymap.set("n", "k", on_k, { buffer = self.result_container.bufnr })
     vim.keymap.set("n", "G", on_G, { buffer = self.result_container.bufnr })
+    -- Add keybinding to cancel generation with Ctrl-C
+    vim.keymap.set("n", "<C-c>", function()
+      Llm.cancel_inflight_request()
+      self:update_content(content_prefix .. displayed_response .. "\n\n**Generation cancelled by user**", { scroll = scroll })
+    end, { buffer = self.result_container.bufnr })
+
 
     ---@type AvanteLLMStartCallback
     local function on_start(_) end
@@ -2708,7 +2714,17 @@ function Sidebar:create_input_container(opts)
       end
       local suffix = get_display_content_suffix(transformed)
       self:update_content(content_prefix .. cur_displayed_response .. suffix, { scroll = scroll })
-      vim.schedule(function() vim.cmd("redraw") end)
+    vim.schedule(function()
+      vim.cmd("redraw")
+      -- Check for Ctrl-C press to cancel generation
+      local char = vim.fn.getchar(0)
+      if char == 3 then -- ASCII value for Ctrl-C
+        Llm.cancel_inflight_request()
+        vim.schedule(function()
+          self:update_content(content_prefix .. displayed_response .. "\n\n**Generation cancelled by user**", { scroll = scroll })
+        end)
+      end
+    end)
       displayed_response = cur_displayed_response
     end
 
