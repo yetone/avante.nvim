@@ -227,6 +227,7 @@ end
 ---@type AvanteLLMToolFunc<{ query: string }>
 function M.web_search(opts, on_log)
   local provider_type = Config.web_search_engine.provider
+  local proxy = Config.web_search_engine.proxy
   if provider_type == nil then return nil, "Search engine provider is not set" end
   if on_log then on_log("provider: " .. provider_type) end
   if on_log then on_log("query: " .. opts.query) end
@@ -238,7 +239,7 @@ function M.web_search(opts, on_log)
     return nil, "Environment variable " .. search_engine.api_key_name .. " is not set"
   end
   if provider_type == "tavily" then
-    local resp = curl.post("https://api.tavily.com/search", {
+    local curl_opts = {
       headers = {
         ["Content-Type"] = "application/json",
         ["Authorization"] = "Bearer " .. api_key,
@@ -246,7 +247,9 @@ function M.web_search(opts, on_log)
       body = vim.json.encode(vim.tbl_deep_extend("force", {
         query = opts.query,
       }, search_engine.extra_request_body)),
-    })
+    }
+    if proxy then curl_opts.proxy = proxy end
+    local resp = curl.post("https://api.tavily.com/search", curl_opts)
     if resp.status ~= 200 then return nil, "Error: " .. resp.body end
     local jsn = vim.json.decode(resp.body)
     return search_engine.format_response_body(jsn)
@@ -259,11 +262,13 @@ function M.web_search(opts, on_log)
     for key, value in pairs(query_params) do
       query_string = query_string .. key .. "=" .. vim.uri_encode(value) .. "&"
     end
-    local resp = curl.get("https://serpapi.com/search?" .. query_string, {
+    local curl_opts = {
       headers = {
         ["Content-Type"] = "application/json",
       },
-    })
+    }
+    if proxy then curl_opts.proxy = proxy end
+    local resp = curl.get("https://serpapi.com/search?" .. query_string, curl_opts)
     if resp.status ~= 200 then return nil, "Error: " .. resp.body end
     local jsn = vim.json.decode(resp.body)
     return search_engine.format_response_body(jsn)
@@ -276,11 +281,13 @@ function M.web_search(opts, on_log)
     for key, value in pairs(query_params) do
       query_string = query_string .. key .. "=" .. vim.uri_encode(value) .. "&"
     end
-    local resp = curl.get("https://searchapi.io/api/v1/search?" .. query_string, {
+    local curl_opts = {
       headers = {
         ["Content-Type"] = "application/json",
       },
-    })
+    }
+    if proxy then curl_opts.proxy = proxy end
+    local resp = curl.get("https://searchapi.io/api/v1/search?" .. query_string, curl_opts)
     if resp.status ~= 200 then return nil, "Error: " .. resp.body end
     local jsn = vim.json.decode(resp.body)
     return search_engine.format_response_body(jsn)
@@ -298,11 +305,13 @@ function M.web_search(opts, on_log)
     for key, value in pairs(query_params) do
       query_string = query_string .. key .. "=" .. vim.uri_encode(value) .. "&"
     end
-    local resp = curl.get("https://www.googleapis.com/customsearch/v1?" .. query_string, {
+    local curl_opts = {
       headers = {
         ["Content-Type"] = "application/json",
       },
-    })
+    }
+    if proxy then curl_opts.proxy = proxy end
+    local resp = curl.get("https://www.googleapis.com/customsearch/v1?" .. query_string, curl_opts)
     if resp.status ~= 200 then return nil, "Error: " .. resp.body end
     local jsn = vim.json.decode(resp.body)
     return search_engine.format_response_body(jsn)
@@ -314,12 +323,14 @@ function M.web_search(opts, on_log)
     for key, value in pairs(query_params) do
       query_string = query_string .. key .. "=" .. vim.uri_encode(value) .. "&"
     end
-    local resp = curl.get("https://kagi.com/api/v0/search?" .. query_string, {
+    local curl_opts = {
       headers = {
         ["Authorization"] = "Bot " .. api_key,
         ["Content-Type"] = "application/json",
       },
-    })
+    }
+    if proxy then curl_opts.proxy = proxy end
+    local resp = curl.get("https://kagi.com/api/v0/search?" .. query_string, curl_opts)
     if resp.status ~= 200 then return nil, "Error: " .. resp.body end
     local jsn = vim.json.decode(resp.body)
     return search_engine.format_response_body(jsn)
@@ -331,12 +342,14 @@ function M.web_search(opts, on_log)
     for key, value in pairs(query_params) do
       query_string = query_string .. key .. "=" .. vim.uri_encode(value) .. "&"
     end
-    local resp = curl.get("https://api.search.brave.com/res/v1/web/search?" .. query_string, {
+    local curl_opts = {
       headers = {
         ["Content-Type"] = "application/json",
         ["X-Subscription-Token"] = api_key,
       },
-    })
+    }
+    if proxy then curl_opts.proxy = proxy end
+    local resp = curl.get("https://api.search.brave.com/res/v1/web/search?" .. query_string, curl_opts)
     if resp.status ~= 200 then return nil, "Error: " .. resp.body end
     local jsn = vim.json.decode(resp.body)
     return search_engine.format_response_body(jsn)

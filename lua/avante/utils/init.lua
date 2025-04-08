@@ -1237,4 +1237,68 @@ function M.llm_tool_param_fields_to_json_schema(fields)
   return properties, required
 end
 
+---@return AvanteSlashCommand[]
+function M.get_commands()
+  local Config = require("avante.config")
+
+  ---@param items_ {name: string, description: string, shorthelp?: string}[]
+  ---@return string
+  local function get_help_text(items_)
+    local help_text = ""
+    for _, item in ipairs(items_) do
+      help_text = help_text .. "- " .. item.name .. ": " .. (item.shorthelp or item.description) .. "\n"
+    end
+    return help_text
+  end
+
+  local builtin_items = {
+    { description = "Show help message", name = "help" },
+    { description = "Clear chat history", name = "clear" },
+    { description = "Reset memory", name = "reset" },
+    { description = "New chat", name = "new" },
+    {
+      shorthelp = "Ask a question about specific lines",
+      description = "/lines <start>-<end> <question>",
+      name = "lines",
+    },
+    { description = "Commit the changes", name = "commit" },
+  }
+
+  ---@type {[AvanteSlashCommandBuiltInName]: AvanteSlashCommandCallback}
+  local builtin_cbs = {
+    help = function(sidebar, args, cb)
+      local help_text = get_help_text(builtin_items)
+      sidebar:update_content(help_text, { focus = false, scroll = false })
+      if cb then cb(args) end
+    end,
+    clear = function(sidebar, args, cb) sidebar:clear_history(args, cb) end,
+    reset = function(sidebar, args, cb) sidebar:reset_memory(args, cb) end,
+    new = function(sidebar, args, cb) sidebar:new_chat(args, cb) end,
+    lines = function(_, args, cb)
+      if cb then cb(args) end
+    end,
+    commit = function(_, _, cb)
+      local question = "Please commit the changes"
+      if cb then cb(question) end
+    end,
+  }
+
+  local builtin_commands = vim
+    .iter(builtin_items)
+    :map(
+      ---@param item AvanteSlashCommand
+      function(item)
+        return {
+          name = item.name,
+          description = item.description,
+          callback = builtin_cbs[item.name],
+          details = item.shorthelp and table.concat({ item.shorthelp, item.description }, "\n") or item.description,
+        }
+      end
+    )
+    :totable()
+
+  return vim.list_extend(builtin_commands, Config.slash_commands)
+end
+
 return M

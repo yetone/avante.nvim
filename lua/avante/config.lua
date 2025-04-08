@@ -47,6 +47,7 @@ M._defaults = {
   },
   web_search_engine = {
     provider = "tavily",
+    proxy = nil,
     providers = {
       tavily = {
         api_key_name = "TAVILY_API_KEY",
@@ -491,6 +492,8 @@ M._defaults = {
   disabled_tools = {}, ---@type string[]
   ---@type AvanteLLMToolPublic[] | fun(): AvanteLLMToolPublic[]
   custom_tools = {},
+  ---@type AvanteSlashCommand[]
+  slash_commands = {},
 }
 
 ---@type avante.Config

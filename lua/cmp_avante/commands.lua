@@ -1,40 +1,38 @@
 local api = vim.api
 
----@class commands_source : cmp.Source
----@field commands AvanteSlashCommand[]
----@field bufnr integer
-local commands_source = {}
-commands_source.__index = commands_source
+---@class CommandsSource : cmp.Source
+local CommandsSource = {}
+CommandsSource.__index = CommandsSource
 
----@param commands AvanteSlashCommand[]
----@param bufnr integer
-function commands_source:new(commands, bufnr)
-  local instance = setmetatable({}, commands_source)
-
-  instance.commands = commands
-  instance.bufnr = bufnr
+function CommandsSource:new()
+  local instance = setmetatable({}, CommandsSource)
 
   return instance
 end
 
-function commands_source:is_available() return api.nvim_get_current_buf() == self.bufnr end
+function CommandsSource:is_available() return vim.bo.filetype == "AvanteInput" end
 
-function commands_source.get_position_encoding_kind() return "utf-8" end
+function CommandsSource.get_position_encoding_kind() return "utf-8" end
 
-function commands_source:get_trigger_characters() return { "/" } end
+function CommandsSource:get_trigger_characters() return { "/" } end
 
-function commands_source:get_keyword_pattern() return [[\%(@\|#\|/\)\k*]] end
+function CommandsSource:get_keyword_pattern() return [[\%(@\|#\|/\)\k*]] end
 
-function commands_source:complete(_, callback)
+function CommandsSource:complete(_, callback)
+  local Utils = require("avante.utils")
   local kind = require("cmp").lsp.CompletionItemKind.Variable
+  local commands = Utils.get_commands()
 
   local items = {}
 
-  for _, command in ipairs(self.commands) do
+  for _, command in ipairs(commands) do
     table.insert(items, {
-      label = "/" .. command.command,
+      label = "/" .. command.name,
       kind = kind,
       detail = command.details,
+      data = {
+        name = command.name,
+      },
     })
   end
 
@@ -44,4 +42,20 @@ function commands_source:complete(_, callback)
   })
 end
 
-return commands_source
+function CommandsSource:execute(item, callback)
+  local Utils = require("avante.utils")
+  local commands = Utils.get_commands()
+  local command = vim.iter(commands):find(function(command) return command.name == item.data.name end)
+
+  if not command then return end
+
+  local sidebar = require("avante").get()
+  command.callback(sidebar, nil, function()
+    local content = table.concat(api.nvim_buf_get_lines(sidebar.input_container.bufnr, 0, -1, false), "\n")
+    content = content:gsub(item.label, "")
+    api.nvim_buf_set_lines(sidebar.input_container.bufnr, 0, -1, false, vim.split(content, "\n"))
+    callback()
+  end)
+end
+
+return CommandsSource
