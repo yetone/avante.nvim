@@ -236,9 +236,7 @@ function H.autocmds()
     group = H.augroup,
     callback = function()
       local current_buf = vim.api.nvim_get_current_buf()
-      if Utils.is_sidebar_buffer(current_buf) then
-        return
-      end
+      if Utils.is_sidebar_buffer(current_buf) then return end
 
       local non_sidebar_wins = 0
       local sidebar_wins = {}
