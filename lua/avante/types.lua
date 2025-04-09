@@ -217,6 +217,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field __inherited_from? string
 ---@field temperature? number
 ---@field max_tokens? number
+---@field max_completion_tokens? number
 ---@field reasoning_effort? string
 ---@field display_name? string
 ---

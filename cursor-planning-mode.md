@@ -35,7 +35,7 @@ Then enable it in avante.nvim:
             api_key_name = 'GROQ_API_KEY',
             endpoint = 'https://api.groq.com/openai/v1/',
             model = 'llama-3.3-70b-versatile',
-            max_tokens = 32768, -- remember to increase this value, otherwise it will stop generating halfway
+            max_completion_tokens = 32768, -- remember to increase this value, otherwise it will stop generating halfway
         },
     },
     --- ... existing configurations
