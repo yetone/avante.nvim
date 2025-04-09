@@ -218,9 +218,9 @@ function M.web_search(opts, on_log)
   if on_log then on_log("query: " .. opts.query) end
   local search_engine = Config.web_search_engine.providers[provider_type]
   if search_engine == nil then return nil, "No search engine found: " .. provider_type end
-  if search_engine.api_key_name == "" then return nil, "No API key provided" end
-  local api_key = Utils.environment.parse(search_engine.api_key_name)
-  if api_key == nil or api_key == "" then
+  if provider_type ~= "searxng" and search_engine.api_key_name == "" then return nil, "No API key provided" end
+  local api_key = provider_type ~= "searxng" and Utils.environment.parse(search_engine.api_key_name) or nil
+  if provider_type ~= "searxng" and api_key == nil or api_key == "" then
     return nil, "Environment variable " .. search_engine.api_key_name .. " is not set"
   end
   if provider_type == "tavily" then
@@ -335,6 +335,26 @@ function M.web_search(opts, on_log)
     }
     if proxy then curl_opts.proxy = proxy end
     local resp = curl.get("https://api.search.brave.com/res/v1/web/search?" .. query_string, curl_opts)
+    if resp.status ~= 200 then return nil, "Error: " .. resp.body end
+    local jsn = vim.json.decode(resp.body)
+    return search_engine.format_response_body(jsn)
+  elseif provider_type == "searxng" then
+    local searxng_api_url = Utils.environment.parse(search_engine.api_url_name)
+    if searxng_api_url == nil or searxng_api_url == "" then
+      return nil, "Environment variable " .. search_engine.api_url_name .. " is not set"
+    end
+    local query_params = vim.tbl_deep_extend("force", {
+      q = opts.query,
+    }, search_engine.extra_request_body)
+    local query_string = ""
+    for key, value in pairs(query_params) do
+      query_string = query_string .. key .. "=" .. vim.uri_encode(value) .. "&"
+    end
+    local resp = curl.get(searxng_api_url .. "?" .. query_string, {
+      headers = {
+        ["Content-Type"] = "application/json",
+      },
+    })
     if resp.status ~= 200 then return nil, "Error: " .. resp.body end
     local jsn = vim.json.decode(resp.body)
     return search_engine.format_response_body(jsn)
