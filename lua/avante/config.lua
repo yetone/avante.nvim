@@ -44,6 +44,7 @@ M._defaults = {
     embed_model = "", -- The embedding model to use for RAG service
     endpoint = "https://api.openai.com/v1", -- The API endpoint for RAG service
     docker_extra_args = "", -- Extra arguments to pass to the docker command
+    api_key_name = "OPENAI_API_KEY",
   },
   web_search_engine = {
     provider = "tavily",
