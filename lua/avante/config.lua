@@ -189,6 +189,28 @@ M._defaults = {
           return vim.json.encode(jsn), nil
         end,
       },
+      searxng = {
+        api_url_name = "SEARXNG_API_URL",
+        extra_request_body = {
+          format = "json",
+        },
+        ---@type WebSearchEngineProviderResponseBodyFormatter
+        format_response_body = function(body)
+          if body.results == nil then return "", nil end
+
+          local jsn = vim.iter(body.results):map(
+            function(result)
+              return {
+                title = result.title,
+                url = result.url,
+                snippet = result.content,
+              }
+            end
+          )
+
+          return vim.json.encode(jsn), nil
+        end,
+      },
     },
   },
   ---@type AvanteSupportedProvider

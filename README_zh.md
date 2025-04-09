@@ -807,14 +807,14 @@ Avante 的工具包括一些 Web 搜索引擎，目前支持：
 - Google's [Programmable Search Engine](https://developers.google.com/custom-search/v1/overview)
 - [Kagi](https://help.kagi.com/kagi/api/search.html)
 - [Brave Search](https://api-dashboard.search.brave.com/app/documentation/web-search/get-started)
+- [SearXNG](https://searxng.github.io/searxng/)
 
 默认是 Tavily，可以通过配置 `Config.web_search_engine.provider` 进行更改：
 
 ```lua
 web_search_engine = {
-  provider = "tavily", -- tavily, serpapi, searchapi, google 或 kagi
+  provider = "tavily", -- tavily, serpapi, searchapi, google, kagi, brave 或 searxng
   proxy = nil, -- proxy support, e.g., http://127.0.0.1:7890
-
 }
 ```
 
@@ -828,6 +828,7 @@ web_search_engine = {
   - `GOOGLE_SEARCH_ENGINE_ID` 作为 [搜索引擎](https://programmablesearchengine.google.com) ID
 - Kagi: `KAGI_API_KEY` 作为 [API 令牌](https://kagi.com/settings?p=api)
 - Brave Search: `BRAVE_API_KEY` 作为 [API 密钥](https://api-dashboard.search.brave.com/app/keys)
+- SearXNG: `SEARXNG_API_URL` 作为 [API URL](https://docs.searxng.org/dev/search_api.html)
 
 ## 禁用工具
 

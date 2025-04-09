@@ -810,12 +810,13 @@ Avante's tools include some web search engines, currently support:
 - Google's [Programmable Search Engine](https://developers.google.com/custom-search/v1/overview)
 - [Kagi](https://help.kagi.com/kagi/api/search.html)
 - [Brave Search](https://api-dashboard.search.brave.com/app/documentation/web-search/get-started)
+- [SearXNG](https://searxng.github.io/searxng/)
 
 The default is Tavily, and can be changed through configuring `Config.web_search_engine.provider`:
 
 ```lua
 web_search_engine = {
-  provider = "tavily", -- tavily, serpapi, searchapi, google or kagi
+  provider = "tavily", -- tavily, serpapi, searchapi, google, kagi, brave, or searxng
   proxy = nil, -- proxy support, e.g., http://127.0.0.1:7890
 }
 ```
@@ -830,6 +831,7 @@ Environment variables required for providers:
   - `GOOGLE_SEARCH_ENGINE_ID` as the [search engine](https://programmablesearchengine.google.com) ID
 - Kagi: `KAGI_API_KEY` as the [API Token](https://kagi.com/settings?p=api)
 - Brave Search: `BRAVE_API_KEY` as the [API key](https://api-dashboard.search.brave.com/app/keys)
+- SearXNG: `SEARXNG_API_URL` as the [API URL](https://docs.searxng.org/dev/search_api.html)
 
 ## Disable Tools
 
