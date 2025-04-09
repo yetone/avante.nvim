@@ -459,7 +459,7 @@ M._defaults = {
     },
     ask = {
       floating = false, -- Open the 'AvanteAsk' prompt in a floating window
-      border = "rounded",
+      border = { " ", " ", " ", " ", " ", " ", " ", " " },
       start_insert = true, -- Start insert mode when opening the ask window
       ---@alias AvanteInitialDiff "ours" | "theirs"
       focus_on_apply = "ours", -- which diff to focus after applying
