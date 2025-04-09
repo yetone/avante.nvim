@@ -1,5 +1,6 @@
 local Utils = require("avante.utils")
 local P = require("avante.providers")
+local Curl = require("plenary.curl")
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -65,6 +66,52 @@ M.on_error = function(result)
     if ok and body.error then error_msg = body.error end
   end
   Utils.error(error_msg, { title = "Ollama" })
+end
+
+function M:get_available_models(callback)
+  local provider_conf, _ = P.parse_config(self)
+
+  if not provider_conf.endpoint then
+    callback(nil, "Ollama endpoint not configured")
+    return
+  end
+
+  local url = Utils.url_join(provider_conf.endpoint, "/api/tags")
+
+  local curl_opts = {
+    headers = {
+      ["Content-Type"] = "application/json",
+      ["Accept"] = "application/json",
+    },
+    callback = function(response)
+      ---@type AvanteProvider
+      local models = {}
+
+      if response.status ~= 200 then
+        callback(models, "Failed to fetch models: " .. response.body)
+        return
+      end
+
+      local ok, result = pcall(vim.json.decode, response.body)
+      if not ok then
+        callback(models, "Failed to parse response: " .. result)
+        return
+      end
+
+      if result.models then
+        for _, model in ipairs(result.models) do
+          table.insert(models, {
+            name = model.name,
+          })
+        end
+      end
+
+      callback(models)
+    end,
+    on_error = function(err) callback(nil, "Error fetching Ollama models: " .. vim.inspect(err)) end,
+  }
+
+  Curl.get(url, curl_opts)
 end
 
 return M
