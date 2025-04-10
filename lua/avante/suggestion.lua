@@ -23,7 +23,7 @@ local SUGGESTION_NS = api.nvim_create_namespace("avante_suggestion")
 ---@field augroup integer
 ---@field ignore_patterns table
 ---@field negate_patterns table
----@field _timer? table
+---@field _timer? integer
 ---@field _contexts table
 ---@field is_on_throttle boolean
 local Suggestion = {}
@@ -302,7 +302,14 @@ function Suggestion:show()
     for i = start_row, end_row do
       if i == start_row and start_row == cursor_row and virt_text_win_col > 0 then goto continue end
       Utils.debug("add highlight", i - 1)
-      api.nvim_buf_add_highlight(bufnr, SUGGESTION_NS, Highlights.TO_BE_DELETED, i - 1, 0, -1)
+      local old_line = current_lines[i]
+      api.nvim_buf_set_extmark(
+        bufnr,
+        SUGGESTION_NS,
+        i - 1,
+        0,
+        { hl_group = Highlights.TO_BE_DELETED, end_row = i - 1, end_col = #old_line }
+      )
       ::continue::
     end
   end

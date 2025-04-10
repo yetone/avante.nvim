@@ -23,7 +23,9 @@ function M:set_highlights(ns_id, bufnr, line, offset)
     local text = section[1]
     local highlight = section[2]
     if type(highlight) == "function" then highlight = highlight() end
-    if highlight then vim.api.nvim_buf_add_highlight(bufnr, ns_id, highlight, line, col_start, col_start + #text) end
+    if highlight then
+      vim.highlight.range(bufnr, ns_id, highlight, { line, col_start }, { line, col_start + #text })
+    end
     col_start = col_start + #text
   end
 end

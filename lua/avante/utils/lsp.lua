@@ -82,7 +82,13 @@ function M.read_definitions(bufnr, symbol_name, show_line_numbers, on_complete)
     ---@type avante.lsp.Definition[]
     local res = {}
     for _, result in ipairs(results) do
+      if result.err then
+        on_complete(nil, result.err.message)
+        return
+      end
+      ---@diagnostic disable-next-line: undefined-field
       if result.error then
+        ---@diagnostic disable-next-line: undefined-field
         on_complete(nil, result.error.message)
         return
       end

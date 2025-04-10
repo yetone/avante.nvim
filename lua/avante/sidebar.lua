@@ -2919,10 +2919,13 @@ function Sidebar:create_input_container(opts)
     callback = function() end,
   })
 
+  local hint_ns_id = api.nvim_create_namespace("avante_hint")
+
   -- Close the floating window
   local function close_hint()
     if hint_window and api.nvim_win_is_valid(hint_window) then
       local buf = api.nvim_win_get_buf(hint_window)
+      if hint_ns_id then api.nvim_buf_clear_namespace(buf, hint_ns_id, 0, -1) end
       api.nvim_win_close(hint_window, true)
       api.nvim_buf_delete(buf, { force = true })
       hint_window = nil
@@ -2946,7 +2949,7 @@ function Sidebar:create_input_container(opts)
     local function show()
       local buf = api.nvim_create_buf(false, true)
       api.nvim_buf_set_lines(buf, 0, -1, false, { hint_text })
-      api.nvim_buf_add_highlight(buf, 0, "AvantePopupHint", 0, 0, -1)
+      api.nvim_buf_set_extmark(buf, hint_ns_id, 0, 0, { hl_group = "AvantePopupHint", end_col = #hint_text })
 
       -- Get the current window size
       local win_width = api.nvim_win_get_width(self.input_container.winid)

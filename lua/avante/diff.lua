@@ -432,7 +432,6 @@ function M.setup()
   })
 
   api.nvim_set_decoration_provider(NAMESPACE, {
-    on_buf = function(_, bufnr, _) return Utils.is_valid_buf(bufnr) end,
     on_win = function(_, _, bufnr, _, _)
       if visited_buffers[bufnr] then M.process(bufnr) end
     end,
