@@ -722,6 +722,8 @@ return {
 | AvanteConflictIncomingLabel | Incoming conflict label highlight             | Default to shade of `AvanteConflictIncoming` |
 | AvantePopupHint             | Usage hints in popup menus                    |                                              |
 | AvanteInlineHint            | The end-of-line hint displayed in visual mode |                                              |
+| AvantePromptInput           | The body highlight of the prompt input        |                                              |
+| AvantePromptInputBorder     | The border highlight of the prompt input      | Default to `NormalFloat`                     |
 
 See [highlights.lua](./lua/avante/highlights.lua) for more information
 
