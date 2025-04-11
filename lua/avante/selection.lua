@@ -314,7 +314,7 @@ function Selection:setup_autocmds()
   api.nvim_create_autocmd({ "CursorMoved" }, {
     group = self.augroup,
     callback = function(ev)
-      if not Utils.is_sidebar_buffer(ev.buf) then
+      if vim.bo[ev.buf].buftype ~= "terminal" and not Utils.is_sidebar_buffer(ev.buf) then
         if Utils.in_visual_mode() then
           self:show_shortcuts_hints_popup()
         else
