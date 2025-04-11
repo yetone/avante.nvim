@@ -377,6 +377,7 @@ M._defaults = {
     enable_cursor_planning_mode = false,
     enable_claude_text_editor_tool_mode = false,
     use_cwd_as_project_root = false,
+    auto_focus_on_diff_view = false,
   },
   history = {
     max_tokens = 4096,
