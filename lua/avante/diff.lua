@@ -167,10 +167,10 @@ end
 ---Highlight each part of a git conflict i.e. the incoming changes vs the current/HEAD changes
 ---TODO: should extmarks be ephemeral? or is it less expensive to save them and only re-apply
 ---them when a buffer changes since otherwise we have to reparse the whole buffer constantly
+---@param bufnr integer
 ---@param positions table
 ---@param lines string[]
-local function highlight_conflicts(positions, lines)
-  local bufnr = api.nvim_get_current_buf()
+local function highlight_conflicts(bufnr, positions, lines)
   M.clear(bufnr)
 
   for _, position in ipairs(positions) do
@@ -326,7 +326,7 @@ local function parse_buffer(bufnr, range_start, range_end)
   update_visited_buffers(bufnr, positions)
   if has_conflict then
     register_cursor_move_events(bufnr)
-    highlight_conflicts(positions, lines)
+    highlight_conflicts(bufnr, positions, lines)
   else
     M.clear(bufnr)
   end
@@ -337,11 +337,11 @@ local function parse_buffer(bufnr, range_start, range_end)
 end
 
 ---Process a buffer if the changed tick has changed
----@param bufnr integer?
+---@param bufnr integer
 ---@param range_start integer?
 ---@param range_end integer?
 function M.process(bufnr, range_start, range_end)
-  bufnr = bufnr or api.nvim_get_current_buf()
+  bufnr = bufnr
   if visited_buffers[bufnr] and visited_buffers[bufnr].tick == vim.b[bufnr].changedtick then return end
   parse_buffer(bufnr, range_start, range_end)
 end
