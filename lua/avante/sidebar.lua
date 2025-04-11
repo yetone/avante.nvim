@@ -3147,6 +3147,7 @@ function Sidebar:render(opts)
     }),
     win_options = vim.tbl_deep_extend("force", base_win_options, {
       wrap = Config.windows.wrap,
+      fillchars = Config.windows.fillchars,
     }),
     size = {
       width = self:get_result_container_width(),
@@ -3230,6 +3231,7 @@ function Sidebar:create_selected_files_container()
     }),
     win_options = vim.tbl_deep_extend("force", base_win_options, {
       wrap = Config.windows.wrap,
+      fillchars = Config.windows.fillchars,
     }),
     position = "top",
     size = {
