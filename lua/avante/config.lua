@@ -464,6 +464,7 @@ M._defaults = {
   windows = {
     ---@alias AvantePosition "right" | "left" | "top" | "bottom" | "smart"
     position = "right",
+    fillchars = "eob: ",
     wrap = true, -- similar to vim.o.wrap
     width = 30, -- default % based on available width in vertical layout
     height = 30, -- default % based on available height in horizontal layout
