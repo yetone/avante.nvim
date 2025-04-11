@@ -141,7 +141,7 @@ function Selection:submit_input(input)
     for _, line in ipairs(response_lines_) do
       if line:match("^<code>") then
         in_code_block = true
-        line = line:gsub("^<code>", "")
+        line = line:gsub("^<code>", ""):gsub("</code>.*$", "")
         if line ~= "" then table.insert(response_lines, line) end
       elseif line:match("</code>") then
         in_code_block = false
