@@ -52,8 +52,20 @@ function M.open(bufnr, cb)
             local history = Path.history.load(vim.api.nvim_get_current_buf(), item.filename)
             local Sidebar = require("avante.sidebar")
             local content = Sidebar.render_history_content(history)
-            vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, vim.split(content or "", "\n"))
-            vim.api.nvim_set_option_value("filetype", "markdown", { buf = self.state.bufnr })
+            local lines = vim.split(content or "", "\n")
+            -- Ensure the buffer exists and is valid before setting lines
+            if vim.api.nvim_buf_is_valid(self.state.bufnr) then
+              vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, lines)
+              -- Set filetype after content is loaded
+              vim.api.nvim_set_option_value("filetype", "markdown", { buf = self.state.bufnr })
+              -- Ensure cursor is within bounds
+              vim.schedule(function()
+                if vim.api.nvim_buf_is_valid(self.state.bufnr) then
+                  local row = math.min(vim.api.nvim_buf_line_count(self.state.bufnr), 1)
+                  pcall(vim.api.nvim_win_set_cursor, self.state.winnr, { row, 0 })
+                end
+              end)
+            end
           end,
         }),
         attach_mappings = function(prompt_bufnr, map)
