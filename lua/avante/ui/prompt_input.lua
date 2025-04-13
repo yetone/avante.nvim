@@ -303,47 +303,25 @@ function PromptInput:setup_autocmds()
 
   api.nvim_create_autocmd("ModeChanged", {
     group = group,
-    pattern = "i:*",
+    pattern = { "i:*", "*:i" },
     callback = function()
       local cur_buf = api.nvim_get_current_buf()
       if cur_buf == bufnr then self:show_shortcuts_hints() end
     end,
   })
 
-  api.nvim_create_autocmd("ModeChanged", {
-    group = group,
-    pattern = "*:i",
-    callback = function()
-      local cur_buf = api.nvim_get_current_buf()
-      if cur_buf == bufnr then self:show_shortcuts_hints() end
-    end,
-  })
-
-  local quit_id, close_unfocus
-  quit_id = api.nvim_create_autocmd("QuitPre", {
+  api.nvim_create_autocmd("QuitPre", {
     group = group,
     buffer = bufnr,
     once = true,
     nested = true,
-    callback = function()
-      self:cancel()
-      if not quit_id then
-        api.nvim_del_autocmd(quit_id)
-        quit_id = nil
-      end
-    end,
+    callback = function() self:cancel() end,
   })
 
-  close_unfocus = api.nvim_create_autocmd("WinLeave", {
+  api.nvim_create_autocmd("WinLeave", {
     group = group,
     buffer = bufnr,
-    callback = function()
-      self:cancel()
-      if close_unfocus then
-        api.nvim_del_autocmd(close_unfocus)
-        close_unfocus = nil
-      end
-    end,
+    callback = function() self:cancel() end,
   })
 end
 
