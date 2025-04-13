@@ -85,6 +85,11 @@ end, {
   end,
 })
 cmd("Chat", function() require("avante.api").ask({ ask = false }) end, { desc = "avante: chat with the codebase" })
+cmd(
+  "ChatNew",
+  function() require("avante.api").ask({ ask = false, new_chat = true }) end,
+  { desc = "avante: create new chat" }
+)
 cmd("Toggle", function() require("avante").toggle() end, { desc = "avante: toggle AI panel" })
 cmd("Build", function(opts)
   local args = {}

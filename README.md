@@ -622,6 +622,7 @@ The following key bindings are available for use with `avante.nvim`:
 | <kbd>Leader</kbd><kbd>a</kbd><kbd>?</kbd> | select model                                 |
 | <kbd>Leader</kbd><kbd>a</kbd><kbd>e</kbd> | edit selected blocks                         |
 | <kbd>Leader</kbd><kbd>a</kbd><kbd>S</kbd> | stop current AI request                      |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>h</kbd> | select between chat histories                |
 | <kbd>c</kbd><kbd>o</kbd>                  | choose ours                                  |
 | <kbd>c</kbd><kbd>t</kbd>                  | choose theirs                                |
 | <kbd>c</kbd><kbd>a</kbd>                  | choose all theirs                            |
@@ -696,7 +697,9 @@ return {
 | `:AvanteAsk [question] [position]` | Ask AI about your code. Optional `position` set window position and `ask` enable/disable direct asking mode | `:AvanteAsk position=right Refactor this code here` |
 | `:AvanteBuild`                     | Build dependencies for the project                                                                          |                                                     |
 | `:AvanteChat`                      | Start a chat session with AI about your codebase. Default is `ask`=false                                    |                                                     |
-| `:AvanteClear`                     | Clear the chat history                                                                                      |                                                     |
+| `:AvanteChatNew`                   | Start a new chat session. The current chat can be re-opened with the chat session selector                  |                                                     |
+| `:AvanteHistory`                   | Opens a picker for your previous chat sessions                                                              |                                                     |
+| `:AvanteClear`                     | Clear the chat history for your current chat session                                                        |                                                     |
 | `:AvanteEdit`                      | Edit the selected code blocks                                                                               |                                                     |
 | `:AvanteFocus`                     | Switch focus to/from the sidebar                                                                            |                                                     |
 | `:AvanteRefresh`                   | Refresh all Avante windows                                                                                  |                                                     |
