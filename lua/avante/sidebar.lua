@@ -2472,8 +2472,6 @@ function Sidebar:create_input_container(opts)
 
     local project_context = mentions.enable_project_context and file_ext and RepoMap.get_repo_map(file_ext) or nil
 
-    local selected_files_contents = self.file_selector:get_selected_files_contents() or {}
-
     local diagnostics = nil
     if mentions.enable_diagnostics then
       if self.code ~= nil and self.code.bufnr ~= nil and self.code.selection ~= nil then
@@ -2530,11 +2528,13 @@ function Sidebar:create_input_container(opts)
 
     if Config.behaviour.enable_claude_text_editor_tool_mode then mode = "claude-text-editor-tool" end
 
+    local selected_filepaths = self.file_selector.selected_filepaths or {}
+
     ---@type AvanteGeneratePromptsOptions
     local prompts_opts = {
       ask = opts.ask or true,
       project_context = vim.json.encode(project_context),
-      selected_files = selected_files_contents,
+      selected_filepaths = selected_filepaths,
       recently_viewed_files = Utils.get_recent_filepaths(),
       diagnostics = vim.json.encode(diagnostics),
       history_messages = history_messages,
