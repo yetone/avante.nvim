@@ -630,7 +630,7 @@ function M.winline(winid)
   return line
 end
 
-function M.get_project_root() return M.root.get() end
+function M.get_project_root() return vim.fn.getcwd() end
 
 function M.is_same_file_ext(target_ext, filepath)
   local ext = fn.fnamemodify(filepath, ":e")
