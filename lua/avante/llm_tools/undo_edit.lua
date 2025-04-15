@@ -48,19 +48,15 @@ function M.func(opts, on_log, on_complete, session_ctx)
   if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
   local bufnr, err = Helpers.get_bufnr(abs_path)
   if err then return false, err end
-  local current_winid = vim.api.nvim_get_current_win()
   local winid = Utils.get_winid(bufnr)
-  vim.api.nvim_set_current_win(winid)
-  vim.api.nvim_set_current_win(current_winid)
   Helpers.confirm("Are you sure you want to undo edit this file?", function(ok, reason)
     if not ok then
       on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
     end
-    vim.api.nvim_set_current_win(winid)
-    -- run undo
-    vim.cmd("undo")
-    vim.api.nvim_set_current_win(current_winid)
+    vim.api.nvim_win_call(winid, function() vim.cmd("noautocmd undo") end)
+    vim.api.nvim_buf_call(bufnr, function() vim.cmd("noautocmd write") end)
+    if session_ctx then Helpers.mark_as_not_viewed(opts.path, session_ctx) end
     on_complete(true, nil)
   end, { focus = true }, session_ctx)
 end
