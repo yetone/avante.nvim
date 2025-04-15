@@ -448,60 +448,26 @@ _请参见 [config.lua#L9](./lua/avante/config.lua) 以获取完整配置_
   <summary>Lua</summary>
 
 ```lua
-      file_selector = {
-        --- @alias FileSelectorProvider "native" | "fzf" | "mini.pick" | "snacks" | "telescope" | string | fun(params: avante.file_selector.IParams|nil): nil
+      selector = {
+        --- @alias avante.SelectorProvider "native" | "fzf_lua" | "mini_pick" | "snacks" | "telescope" | fun(selector: avante.ui.Selector): nil
         provider = "fzf",
         -- 自定义提供者的选项覆盖
         provider_opts = {},
       }
 ```
 
-要创建自定义文件选择器，您可以指定一个自定义函数来启动选择器以选择项目，并将选定的项目传递给 `handler` 回调。
+要创建自定义选择器，您可以指定一个自定义函数来启动选择器以选择项目，并将选定的项目传递给 `on_select` 回调。
 
 ```lua
-      file_selector = {
-        ---@param params avante.file_selector.IParams
-        provider = function(params)
-          local filepaths = params.filepaths ---@type string[]
-          local title = params.title ---@type string
-          local handler = params.handler ---@type fun(selected_filepaths: string[]|nil): nil
+      selector = {
+        ---@param selector avante.ui.Selector
+        provider = function(selector)
+          local items = selector.items ---@type avante.ui.SelectorItem[]
+          local title = selector.title ---@type string
+          local on_select = selector.on_select ---@type fun(selected_item_ids: string[]|nil): nil
 
-          -- 使用从 `filepaths` 构建的项目启动自定义选择器，然后在 `on_confirm` 回调中，
-          -- 将选定的项目（转换回文件路径）传递给 `handler` 函数。
-
-          local items = __your_items_formatter__(filepaths)
-          __your_picker__({
-            items = items,
-            on_cancel = function()
-              handler(nil)
-            end,
-            on_confirm = function(selected_items)
-              local selected_filepaths = {}
-              for _, item in ipairs(selected_items) do
-                table.insert(selected_filepaths, item.filepath)
-              end
-              handler(selected_filepaths)
-            end
-          })
+          --- 在这里添加您的自定义选择器逻辑
         end,
-        ---以下是可选的
-        provider_opts = {
-          ---@param params avante.file_selector.opts.IGetFilepathsParams
-          get_filepaths = function(params)
-            local cwd = params.cwd ---@type string
-            local selected_filepaths = params.selected_filepaths ---@type string[]
-            local cmd = string.format("fd --base-directory '%s' --hidden", vim.fn.fnameescape(cwd))
-            local output = vim.fn.system(cmd)
-            local filepaths = vim.split(output, "\n", { trimempty = true })
-            return vim
-              .iter(filepaths)
-              :filter(function(filepath)
-                return not vim.tbl_contains(selected_filepaths, filepath)
-              end)
-              :totable()
-          end
-        }
-        end
       }
 ```
 

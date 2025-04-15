@@ -448,60 +448,26 @@ or you can use [Kaiser-Yang/blink-cmp-avante](https://github.com/Kaiser-Yang/bli
   <summary>Lua</summary>
 
 ```lua
-      file_selector = {
-        --- @alias FileSelectorProvider "native" | "fzf" | "mini.pick" | "snacks" | "telescope" | string | fun(params: avante.file_selector.IParams|nil): nil
+      selector = {
+        --- @alias avante.SelectorProvider "native" | "fzf_lua" | "mini_pick" | "snacks" | "telescope" | fun(selector: avante.ui.Selector): nil
         provider = "fzf",
         -- Options override for custom providers
         provider_opts = {},
       }
 ```
 
-To create a customized file_selector, you can specify a customized function to launch a picker to select items and pass the selected items to the `handler` callback.
+To create a customized selector provider, you can specify a customized function to launch a picker to select items and pass the selected items to the `on_select` callback.
 
 ```lua
-      file_selector = {
-        ---@param params avante.file_selector.IParams
-        provider = function(params)
-          local filepaths = params.filepaths ---@type string[]
-          local title = params.title ---@type string
-          local handler = params.handler ---@type fun(selected_filepaths: string[]|nil): nil
+      selector = {
+        ---@param selector avante.ui.Selector
+        provider = function(selector)
+          local items = selector.items ---@type avante.ui.SelectorItem[]
+          local title = selector.title ---@type string
+          local on_select = selector.on_select ---@type fun(selected_item_ids: string[]|nil): nil
 
-          -- Launch your customized picker with the items built from `filepaths`, then in the `on_confirm` callback,
-          -- pass the selected items (convert back to file paths) to the `handler` function.
-
-          local items = __your_items_formatter__(filepaths)
-          __your_picker__({
-            items = items,
-            on_cancel = function()
-              handler(nil)
-            end,
-            on_confirm = function(selected_items)
-              local selected_filepaths = {}
-              for _, item in ipairs(selected_items) do
-                table.insert(selected_filepaths, item.filepath)
-              end
-              handler(selected_filepaths)
-            end
-          })
+          --- your customized picker logic here
         end,
-        ---below is optional
-        provider_opts = {
-          ---@param params avante.file_selector.opts.IGetFilepathsParams
-          get_filepaths = function(params)
-            local cwd = params.cwd ---@type string
-            local selected_filepaths = params.selected_filepaths ---@type string[]
-            local cmd = string.format("fd --base-directory '%s' --hidden", vim.fn.fnameescape(cwd))
-            local output = vim.fn.system(cmd)
-            local filepaths = vim.split(output, "\n", { trimempty = true })
-            return vim
-              .iter(filepaths)
-              :filter(function(filepath)
-                return not vim.tbl_contains(selected_filepaths, filepath)
-              end)
-              :totable()
-          end
-        }
-        end
       }
 ```
 
@@ -708,6 +674,7 @@ return {
 | `:AvanteShowRepoMap`               | Show repo map for project's structure                                                                       |                                                     |
 | `:AvanteToggle`                    | Toggle the Avante sidebar                                                                                   |                                                     |
 | `:AvanteModels`                    | Show model list                                                                                             |                                                     |
+| `:AvanteSwitchSelectorProvider`    | Switch avante selector provider (e.g. native, telescope, fzf_lua, mini_pick, snacks)                        |                                                     |
 
 ## Highlight Groups
 
