@@ -244,7 +244,7 @@ function M.generate_prompts(opts)
     if diagnostics ~= "" then table.insert(messages, { role = "user", content = diagnostics }) end
   end
 
-  if (opts.selected_files and #opts.selected_files > 0 or false) or opts.selected_code ~= nil then
+  if #selected_files > 0 or opts.selected_code ~= nil then
     local code_context = Path.prompts.render_file("_context.avanterules", template_opts)
     if code_context ~= "" then table.insert(messages, { role = "user", content = code_context }) end
   end
