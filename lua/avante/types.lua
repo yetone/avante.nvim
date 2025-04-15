@@ -314,6 +314,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field selected_code AvanteSelectedCode | nil
 ---@field project_context string | nil
 ---@field selected_files AvanteSelectedFile[] | nil
+---@field selected_filepaths string[] | nil
 ---@field diagnostics string | nil
 ---@field history_messages AvanteLLMMessage[] | nil
 ---@field memory string | nil
