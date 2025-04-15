@@ -1,5 +1,6 @@
 local Utils = require("avante.utils")
 local Config = require("avante.config")
+local Selector = require("avante.ui.selector")
 
 ---@class avante.ModelSelector
 local M = {}
@@ -33,10 +34,21 @@ function M.open()
     return
   end
 
-  vim.ui.select(models, {
-    prompt = "Select Avante Model:",
-    format_item = function(item) return item.name end,
-  }, function(choice)
+  local items = vim
+    .iter(models)
+    :map(function(item)
+      return {
+        id = item.name,
+        title = item.name,
+      }
+    end)
+    :totable()
+
+  local default_item = vim.iter(models):find(function(item) return item.provider == Config.provider end)
+
+  local function on_select(item_ids)
+    if not item_ids then return end
+    local choice = vim.iter(models):find(function(item) return item.name == item_ids[1] end)
     if not choice then return end
 
     -- Switch provider if needed
@@ -52,7 +64,18 @@ function M.open()
     })
 
     Utils.info("Switched to model: " .. choice.name)
-  end)
+  end
+
+  local selector = Selector:new({
+    title = "Select Avante Model",
+    items = items,
+    default_item_id = default_item and default_item.name or nil,
+    provider = Config.selector.provider,
+    provider_opts = Config.selector.provider_opts,
+    on_select = on_select,
+  })
+
+  selector:open()
 end
 
 return M
