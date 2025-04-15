@@ -361,7 +361,6 @@ function M:close()
     self._popup = nil
     return true
   end
-  if self._ns_id then vim.api.nvim_del_namespace(self._ns_id) end
   return false
 end
 
