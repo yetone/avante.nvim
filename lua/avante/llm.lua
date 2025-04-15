@@ -184,10 +184,26 @@ function M.generate_prompts(opts)
 
   local system_info = Utils.get_system_info()
 
+  local selected_files = opts.selected_files or {}
+
+  if opts.selected_filepaths then
+    for _, filepath in ipairs(opts.selected_filepaths) do
+      local lines, error = Utils.read_file_from_buf_or_disk(filepath)
+      lines = lines or {}
+      local filetype = Utils.get_filetype(filepath)
+      if error ~= nil then
+        Utils.error("error reading file: " .. error)
+      else
+        local content = table.concat(lines, "\n")
+        table.insert(selected_files, { path = filepath, content = content, file_type = filetype })
+      end
+    end
+  end
+
   local template_opts = {
     ask = opts.ask, -- TODO: add mode without ask instruction
     code_lang = opts.code_lang,
-    selected_files = opts.selected_files,
+    selected_files = selected_files,
     selected_code = opts.selected_code,
     recently_viewed_files = opts.recently_viewed_files,
     project_context = opts.project_context,

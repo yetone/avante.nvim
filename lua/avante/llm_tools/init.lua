@@ -104,14 +104,17 @@ function M.rename_file(opts, on_log, on_complete)
   end
   if Path:new(new_abs_path):exists() then return false, "File already exists: " .. new_abs_path end
   if not on_complete then return false, "on_complete not provided" end
-  Helpers.confirm("Are you sure you want to rename the file: " .. abs_path .. " to: " .. new_abs_path, function(ok)
-    if not ok then
-      on_complete(false, "User canceled")
-      return
+  Helpers.confirm(
+    "Are you sure you want to rename the file: " .. abs_path .. " to: " .. new_abs_path,
+    function(ok, reason)
+      if not ok then
+        on_complete(false, "User declined, reason: " .. (reason or "unknown"))
+        return
+      end
+      os.rename(abs_path, new_abs_path)
+      on_complete(true, nil)
     end
-    os.rename(abs_path, new_abs_path)
-    on_complete(true, nil)
-  end)
+  )
 end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string, new_rel_path: string }>
@@ -137,9 +140,9 @@ function M.delete_file(opts, on_log, on_complete)
   if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
   if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
   if not on_complete then return false, "on_complete not provided" end
-  Helpers.confirm("Are you sure you want to delete the file: " .. abs_path, function(ok)
+  Helpers.confirm("Are you sure you want to delete the file: " .. abs_path, function(ok, reason)
     if not ok then
-      on_complete(false, "User canceled")
+      on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
     end
     if on_log then on_log("Deleting file: " .. abs_path) end
@@ -154,9 +157,9 @@ function M.create_dir(opts, on_log, on_complete)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if Path:new(abs_path):exists() then return false, "Directory already exists: " .. abs_path end
   if not on_complete then return false, "on_complete not provided" end
-  Helpers.confirm("Are you sure you want to create the directory: " .. abs_path, function(ok)
+  Helpers.confirm("Are you sure you want to create the directory: " .. abs_path, function(ok, reason)
     if not ok then
-      on_complete(false, "User canceled")
+      on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
     end
     if on_log then on_log("Creating directory: " .. abs_path) end
@@ -179,9 +182,9 @@ function M.rename_dir(opts, on_log, on_complete)
   if not on_complete then return false, "on_complete not provided" end
   Helpers.confirm(
     "Are you sure you want to rename directory " .. abs_path .. " to " .. new_abs_path .. "?",
-    function(ok)
+    function(ok, reason)
       if not ok then
-        on_complete(false, "User canceled")
+        on_complete(false, "User declined, reason: " .. (reason or "unknown"))
         return
       end
       if on_log then on_log("Renaming directory: " .. abs_path .. " to " .. new_abs_path) end
@@ -198,9 +201,9 @@ function M.delete_dir(opts, on_log, on_complete)
   if not Path:new(abs_path):exists() then return false, "Directory not found: " .. abs_path end
   if not Path:new(abs_path):is_dir() then return false, "Path is not a directory: " .. abs_path end
   if not on_complete then return false, "on_complete not provided" end
-  Helpers.confirm("Are you sure you want to delete the directory: " .. abs_path, function(ok)
+  Helpers.confirm("Are you sure you want to delete the directory: " .. abs_path, function(ok, reason)
     if not ok then
-      on_complete(false, "User canceled")
+      on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
     end
     if on_log then on_log("Deleting directory: " .. abs_path) end
@@ -462,9 +465,9 @@ function M.git_commit(opts, on_log, on_complete)
   if not on_complete then return false, "on_complete not provided" end
 
   -- Confirm with user
-  Helpers.confirm("Are you sure you want to commit with message:\n" .. full_commit_msg, function(ok)
+  Helpers.confirm("Are you sure you want to commit with message:\n" .. full_commit_msg, function(ok, reason)
     if not ok then
-      on_complete(false, "User canceled")
+      on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
     end
     -- Stage changes if scope is provided
@@ -530,9 +533,9 @@ function M.python(opts, on_log, on_complete)
       .. abs_path
       .. "`?\n"
       .. opts.code,
-    function(ok)
+    function(ok, reason)
       if not ok then
-        on_complete(nil, "User canceled")
+        on_complete(nil, "User declined, reason: " .. (reason or "unknown"))
         return
       end
       if vim.fn.executable("docker") == 0 then
