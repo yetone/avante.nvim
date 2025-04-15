@@ -217,6 +217,7 @@ function FileSelector:show_selector_ui()
         local params = { title = title, filepaths = filepaths, handler = handler } ---@type avante.file_selector.IParams
         Config.file_selector.provider(params)
       else
+        ---@type avante.SelectorProvider
         local provider = "native"
         if Config.file_selector.provider == "native" then
           provider = "native"
