@@ -130,8 +130,6 @@ function Sidebar:open(opts)
     vim.g.avante_login = true
   end
 
-  vim.cmd("wincmd =")
-
   return self
 end
 
@@ -198,8 +196,6 @@ function Sidebar:close(opts)
   end
 
   self:recover_code_winhl()
-
-  vim.cmd("wincmd =")
 end
 
 function Sidebar:shutdown()
@@ -3062,10 +3058,8 @@ function Sidebar:get_result_container_width()
 end
 
 function Sidebar:adjust_result_container_layout()
-  local width = self:get_result_container_width()
   local height = self:get_result_container_height()
 
-  api.nvim_win_set_width(self.result_container.winid, width)
   api.nvim_win_set_height(self.result_container.winid, height)
 end
 
