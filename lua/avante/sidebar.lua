@@ -696,8 +696,10 @@ local function extract_cursor_planning_code_snippets_map(response_content, curre
 
   local snippets_map = {}
   for _, snippet in ipairs(snippets) do
+    if snippet.filepath == "" then goto continue end
     snippets_map[snippet.filepath] = snippets_map[snippet.filepath] or {}
     table.insert(snippets_map[snippet.filepath], snippet)
+    ::continue::
   end
 
   return snippets_map
@@ -773,8 +775,10 @@ local function extract_code_snippets_map(response_content)
 
   local snippets_map = {}
   for _, snippet in ipairs(snippets) do
+    if snippet.filepath == "" then goto continue end
     snippets_map[snippet.filepath] = snippets_map[snippet.filepath] or {}
     table.insert(snippets_map[snippet.filepath], snippet)
+    ::continue::
   end
 
   return snippets_map
