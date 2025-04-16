@@ -218,18 +218,10 @@ function Sidebar:focus()
 end
 
 function Sidebar:focus_input()
-  if self.input_container and self.input_container.winid and api.nvim_win_is_valid(self.input_container.winid) then
-    api.nvim_set_current_win(self.input_container.winid)
-  end
+  if Utils.is_valid_container(self.input_container, true) then api.nvim_set_current_win(self.input_container.winid) end
 end
 
-function Sidebar:is_open()
-  return self.result_container
-    and self.result_container.bufnr
-    and api.nvim_buf_is_valid(self.result_container.bufnr)
-    and self.result_container.winid
-    and api.nvim_win_is_valid(self.result_container.winid)
-end
+function Sidebar:is_open() return Utils.is_valid_container(self.result_container, true) end
 
 function Sidebar:in_code_win() return self.code.winid == api.nvim_get_current_win() end
 
@@ -1038,7 +1030,7 @@ function Sidebar:edit_user_request()
   local block = self:get_current_user_request_block()
   if not block then return end
 
-  if self.input_container and self.input_container.bufnr and api.nvim_buf_is_valid(self.input_container.bufnr) then
+  if Utils.is_valid_container(self.input_container) then
     local lines = vim.split(block.content, "\n")
     api.nvim_buf_set_lines(self.input_container.bufnr, 0, -1, false, lines)
     api.nvim_set_current_win(self.input_container.winid)
@@ -1529,13 +1521,7 @@ function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl)
 end
 
 function Sidebar:render_result()
-  if
-    not self.result_container
-    or not self.result_container.bufnr
-    or not api.nvim_buf_is_valid(self.result_container.bufnr)
-  then
-    return
-  end
+  if not Utils.is_valid_container(self.result_container) then return end
   local header_text = Utils.icon("󰭻 ") .. "Avante"
   self:render_header(
     self.result_container.winid,
@@ -1549,13 +1535,7 @@ end
 ---@param ask? boolean
 function Sidebar:render_input(ask)
   if ask == nil then ask = true end
-  if
-    not self.input_container
-    or not self.input_container.bufnr
-    or not api.nvim_buf_is_valid(self.input_container.bufnr)
-  then
-    return
-  end
+  if not Utils.is_valid_container(self.input_container) then return end
 
   local header_text = string.format(
     "%s%s (" .. Config.mappings.sidebar.switch_windows .. ": switch focus)",
@@ -1583,13 +1563,7 @@ function Sidebar:render_input(ask)
 end
 
 function Sidebar:render_selected_code()
-  if
-    not self.selected_code_container
-    or not self.selected_code_container.bufnr
-    or not api.nvim_buf_is_valid(self.selected_code_container.bufnr)
-  then
-    return
-  end
+  if not Utils.is_valid_container(self.selected_code_container) then return end
 
   local selected_code_lines_count = 0
   local selected_code_max_lines_count = 12
@@ -1719,7 +1693,7 @@ function Sidebar:bind_sidebar_keys(codeblocks)
 end
 
 function Sidebar:unbind_sidebar_keys()
-  if self.result_container and self.result_container.bufnr and api.nvim_buf_is_valid(self.result_container.bufnr) then
+  if Utils.is_valid_container(self.result_container) then
     pcall(vim.keymap.del, "n", Config.mappings.sidebar.apply_all, { buffer = self.result_container.bufnr })
     pcall(vim.keymap.del, "n", Config.mappings.jump.next, { buffer = self.result_container.bufnr })
     pcall(vim.keymap.del, "n", Config.mappings.jump.prev, { buffer = self.result_container.bufnr })
@@ -1857,13 +1831,7 @@ function Sidebar:on_mount(opts)
     group = self.augroup,
     pattern = VIEW_BUFFER_UPDATED_PATTERN,
     callback = function()
-      if
-        not self.result_container
-        or not self.result_container.bufnr
-        or not api.nvim_buf_is_valid(self.result_container.bufnr)
-      then
-        return
-      end
+      if not Utils.is_valid_container(self.result_container) then return end
       codeblocks = parse_codeblocks(self.result_container.bufnr, current_filepath, current_filetype)
       self:bind_sidebar_keys(codeblocks)
     end,
@@ -1900,11 +1868,7 @@ function Sidebar:on_mount(opts)
     callback = function()
       if Config.behaviour.auto_focus_sidebar then
         self:focus()
-        if
-          self.input_container
-          and self.input_container.winid
-          and api.nvim_win_is_valid(self.input_container.winid)
-        then
+        if Utils.is_valid_container(self.input_container, true) then
           api.nvim_set_current_win(self.input_container.winid)
           vim.defer_fn(function()
             if Config.windows.ask.start_insert then vim.cmd("noautocmd startinsert!") end
@@ -2102,13 +2066,7 @@ function Sidebar:update_content(content, opts)
     end
 
     vim.schedule(function()
-      if
-        not self.result_container
-        or not self.result_container.bufnr
-        or not api.nvim_buf_is_valid(self.result_container.bufnr)
-      then
-        return
-      end
+      if not Utils.is_valid_container(self.result_container) then return end
       Utils.unlock_buf(self.result_container.bufnr)
       if opts.backspace ~= nil and opts.backspace > 0 then
         delete_last_n_chars(self.result_container.bufnr, opts.backspace)
@@ -2123,13 +2081,7 @@ function Sidebar:update_content(content, opts)
     end)
   else
     vim.defer_fn(function()
-      if
-        not self.result_container
-        or not self.result_container.bufnr
-        or not api.nvim_buf_is_valid(self.result_container.bufnr)
-      then
-        return
-      end
+      if not Utils.is_valid_container(self.result_container) then return end
       local lines = vim.split(content, "\n")
       Utils.unlock_buf(self.result_container.bufnr)
       Utils.update_buffer_content(self.result_container.bufnr, lines)
@@ -2753,12 +2705,7 @@ function Sidebar:create_input_container(opts)
       )
 
       vim.defer_fn(function()
-        if
-          self.result_container
-          and self.result_container.winid
-          and api.nvim_win_is_valid(self.result_container.winid)
-          and Config.behaviour.jump_result_buffer_on_finish
-        then
+        if Utils.is_valid_container(self.result_container, true) and Config.behaviour.jump_result_buffer_on_finish then
           api.nvim_set_current_win(self.result_container.winid)
         end
         if Config.behaviour.auto_apply_diff_after_generation then self:apply(false) end
@@ -2862,13 +2809,7 @@ function Sidebar:create_input_container(opts)
       Utils.warn("Sending message to fast!, API key is not yet set", { title = "Avante" })
       return
     end
-    if
-      not self.input_container
-      or not self.input_container.bufnr
-      or not api.nvim_buf_is_valid(self.input_container.bufnr)
-    then
-      return
-    end
+    if not Utils.is_valid_container(self.input_container) then return end
     local lines = api.nvim_buf_get_lines(self.input_container.bufnr, 0, -1, false)
     local request = table.concat(lines, "\n")
     if request == "" then return end
@@ -3197,10 +3138,7 @@ function Sidebar:get_selected_files_container_height()
 end
 
 function Sidebar:adjust_selected_files_container_layout()
-  if not self.selected_files_container then return end
-  if not self.selected_files_container.winid or not api.nvim_win_is_valid(self.selected_files_container.winid) then
-    return
-  end
+  if not Utils.is_valid_container(self.selected_files_container, true) then return end
 
   local win_height = self:get_selected_files_container_height()
   api.nvim_win_set_height(self.selected_files_container.winid, win_height)
