@@ -585,6 +585,7 @@ function M._stream(opts)
 
   ---@type AvanteHandlerOptions
   local handler_opts = {
+    on_partial_tool_use = opts.on_partial_tool_use,
     on_start = opts.on_start,
     on_chunk = opts.on_chunk,
     on_stop = function(stop_opts)
@@ -779,9 +780,9 @@ function M.stream(opts)
   local is_completed = false
   if opts.on_tool_log ~= nil then
     local original_on_tool_log = opts.on_tool_log
-    opts.on_tool_log = vim.schedule_wrap(function(tool_name, log)
+    opts.on_tool_log = vim.schedule_wrap(function(...)
       if not original_on_tool_log then return end
-      return original_on_tool_log(tool_name, log)
+      return original_on_tool_log(...)
     end)
   end
   if opts.on_chunk ~= nil then
@@ -799,6 +800,13 @@ function M.stream(opts)
         is_completed = true
       end
       return original_on_stop(stop_opts)
+    end)
+  end
+  if opts.on_partial_tool_use ~= nil then
+    local original_on_partial_tool_use = opts.on_partial_tool_use
+    opts.on_partial_tool_use = vim.schedule_wrap(function(tool_use)
+      if is_completed then return end
+      return original_on_partial_tool_use(tool_use)
     end)
   end
 

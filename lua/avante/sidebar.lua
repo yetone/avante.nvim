@@ -27,6 +27,7 @@ local RESP_SEPARATOR = "-------"
 
 ---@class avante.Sidebar
 local Sidebar = {}
+Sidebar.__index = Sidebar
 
 ---@class avante.CodeState
 ---@field winid integer
@@ -64,7 +65,7 @@ function Sidebar:new(id)
     file_selector = FileSelector:new(id),
     is_generating = false,
     chat_history = nil,
-  }, { __index = self })
+  }, Sidebar)
 end
 
 function Sidebar:delete_autocmds()
@@ -2660,7 +2661,17 @@ function Sidebar:create_input_container(opts)
       displayed_response = cur_displayed_response
     end
 
-    local function on_tool_log(tool_name, log)
+    local tool_use_log_history = {}
+
+    ---@param tool_id string
+    ---@param tool_name string
+    ---@param log string
+    ---@param state AvanteLLMToolUseState
+    local function on_tool_log(tool_id, tool_name, log, state)
+      if state == "generating" then
+        if tool_use_log_history[tool_id] then return end
+        tool_use_log_history[tool_id] = true
+      end
       if transformed_response:sub(-1) ~= "\n" then transformed_response = transformed_response .. "\n" end
       transformed_response = transformed_response .. "[" .. tool_name .. "]: " .. log .. "\n"
       local breakline = ""
@@ -2669,6 +2680,13 @@ function Sidebar:create_input_container(opts)
       self:update_content(content_prefix .. displayed_response, {
         scroll = scroll,
       })
+    end
+
+    ---@param tool_use AvantePartialLLMToolUse
+    local function on_partial_tool_use(tool_use)
+      if not tool_use.name then return end
+      if not tool_use.id then return end
+      on_tool_log(tool_use.id, tool_use.name, "calling...", tool_use.state)
     end
 
     ---@type AvanteLLMStopCallback
@@ -2738,6 +2756,7 @@ function Sidebar:create_input_container(opts)
         on_chunk = on_chunk,
         on_stop = on_stop,
         on_tool_log = on_tool_log,
+        on_partial_tool_use = on_partial_tool_use,
         session_ctx = {},
       })
 
