@@ -334,6 +334,11 @@ M._defaults = {
       model = "claude-3-7-sonnet-20250219",
       api_key_name = "AIHUBMIX_API_KEY",
     },
+    ["bedrock-claude-3.7-sonnet"] = {
+      __inherited_from = "bedrock",
+      model = "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+      max_tokens = 4096,
+    },
   },
   ---Specify the special dual_boost mode
   ---1. enabled: Whether to enable dual_boost mode. Default to false.
