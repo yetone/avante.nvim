@@ -1101,7 +1101,7 @@ M._tools = {
 
 ---@param tools AvanteLLMTool[]
 ---@param tool_use AvanteLLMToolUse
----@param on_log? fun(tool_name: string, log: string): nil
+---@param on_log? fun(tool_id: string, tool_name: string, log: string, state: AvanteLLMToolUseState): nil
 ---@param on_complete? fun(result: string | nil, error: string | nil): nil
 ---@param session_ctx? table
 ---@return string | nil result
@@ -1131,7 +1131,7 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
   local ok, input_json = pcall(vim.json.decode, tool_use.input_json)
   if not ok then return nil, "Failed to decode tool input json: " .. vim.inspect(input_json) end
   if not func then return nil, "Tool not found: " .. tool_use.name end
-  if on_log then on_log(tool_use.name, "running tool") end
+  if on_log then on_log(tool_use.id, tool_use.name, "running tool", "running") end
 
   -- Set up a timer to periodically check for cancellation
   local cancel_timer
@@ -1166,15 +1166,14 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
 
     -- Check for cancellation one more time before processing result
     if Helpers.is_cancelled then
-      if on_log then on_log(tool_use.name, "cancelled during result handling") end
+      if on_log then on_log(tool_use.id, tool_use.name, "cancelled during result handling", "failed") end
       return nil, Helpers.CANCEL_TOKEN
     end
 
-    if on_log then on_log(tool_use.name, "tool finished") end
-    -- Utils.debug("result", result)
-    -- Utils.debug("error", error)
     if err ~= nil then
-      if on_log then on_log(tool_use.name, "Error: " .. err) end
+      if on_log then on_log(tool_use.id, tool_use.name, "Error: " .. err, "failed") end
+    else
+      if on_log then on_log(tool_use.id, tool_use.name, "tool finished", "succeeded") end
     end
     local result_str ---@type string?
     if type(result) == "string" then
@@ -1188,7 +1187,7 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
   local result, err = func(input_json, function(log)
     -- Check for cancellation during logging
     if Helpers.is_cancelled then return end
-    if on_log then on_log(tool_use.name, log) end
+    if on_log then on_log(tool_use.id, tool_use.name, log, "running") end
   end, function(result, err)
     -- Check for cancellation before completing
     if Helpers.is_cancelled then

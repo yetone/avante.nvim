@@ -3,7 +3,7 @@ local StreamingJSONParser = require("avante.utils.streaming_json_parser")
 describe("StreamingJSONParser", function()
   local parser
 
-  before_each(function() parser = StreamingJSONParser.new() end)
+  before_each(function() parser = StreamingJSONParser:new() end)
 
   describe("initialization", function()
     it("should create a new parser with empty state", function()

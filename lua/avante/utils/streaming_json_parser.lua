@@ -3,10 +3,10 @@ local StreamingJSONParser = {}
 StreamingJSONParser.__index = StreamingJSONParser
 
 -- Create a new StreamingJSONParser instance
-function StreamingJSONParser.new()
-  local self = setmetatable({}, StreamingJSONParser)
-  self:reset()
-  return self
+function StreamingJSONParser:new()
+  local obj = setmetatable({}, StreamingJSONParser)
+  obj:reset()
+  return obj
 end
 
 -- Reset the parser state

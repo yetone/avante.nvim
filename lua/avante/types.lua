@@ -75,6 +75,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field on_start AvanteLLMStartCallback
 ---@field on_chunk AvanteLLMChunkCallback
 ---@field on_stop AvanteLLMStopCallback
+---@field on_partial_tool_use? fun(tool_use: AvantePartialLLMToolUse): nil
 ---
 ---@alias AvanteLLMMessageContentItem string | { type: "text", text: string } | { type: "image", source: { type: "base64", media_type: string, data: string } } | { type: "tool_use", name: string, id: string, input: any } | { type: "tool_result", tool_use_id: string, content: string, is_error?: boolean } | { type: "thinking", thinking: string, signature: string } | { type: "redacted_thinking", data: string }
 ---
@@ -234,6 +235,12 @@ vim.g.avante_login = vim.g.avante_login
 ---@class AvanteLLMRedactedThinkingBlock
 ---@field data string
 ---
+---@class AvantePartialLLMToolUse
+---@field name string
+---@field id string
+---@field partial_json table
+---@field state "generating" | "generated"
+---
 ---@class AvanteLLMToolUse
 ---@field name string
 ---@field id string
@@ -336,12 +343,15 @@ vim.g.avante_login = vim.g.avante_login
 ---
 ---@alias AvanteLLMMemorySummarizeCallback fun(dropped_history_messages: AvanteLLMMessage[]): nil
 ---
+---@alias AvanteLLMToolUseState "generating" | "generated" | "running" | "succeeded" | "failed"
+---
 ---@class AvanteLLMStreamOptions: AvanteGeneratePromptsOptions
 ---@field on_start AvanteLLMStartCallback
 ---@field on_chunk AvanteLLMChunkCallback
 ---@field on_stop AvanteLLMStopCallback
 ---@field on_memory_summarize? AvanteLLMMemorySummarizeCallback
----@field on_tool_log? function(tool_name: string, log: string): nil
+---@field on_tool_log? fun(tool_id: string, tool_name: string, log: string, state: AvanteLLMToolUseState): nil
+---@field on_partial_tool_use? fun(tool_use: AvantePartialLLMToolUse): nil
 ---
 ---@alias AvanteLLMToolFunc<T> fun(
 ---  input: T,
