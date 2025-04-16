@@ -525,11 +525,11 @@ function M.python(opts, on_log, on_complete)
   if not on_complete then return nil, "on_complete not provided" end
   Helpers.confirm(
     "Are you sure you want to run the following python code in the `"
-    .. container_image
-    .. "` container, in the directory: `"
-    .. abs_path
-    .. "`?\n"
-    .. opts.code,
+      .. container_image
+      .. "` container, in the directory: `"
+      .. abs_path
+      .. "`?\n"
+      .. opts.code,
     function(ok, reason)
       if not ok then
         on_complete(nil, "User declined, reason: " .. (reason or "unknown"))
@@ -583,17 +583,17 @@ function M.get_tools(user_input, history_messages)
   ---@type AvanteLLMTool[]
   local unfiltered_tools = vim.list_extend(vim.list_extend({}, M._tools), custom_tools)
   return vim
-      .iter(unfiltered_tools)
-      :filter(function(tool) ---@param tool AvanteLLMTool
-        -- Always disable tools that are explicitly disabled
-        if vim.tbl_contains(Config.disabled_tools, tool.name) then return false end
-        if tool.enabled == nil then
-          return true
-        else
-          return tool.enabled({ user_input = user_input, history_messages = history_messages })
-        end
-      end)
-      :totable()
+    .iter(unfiltered_tools)
+    :filter(function(tool) ---@param tool AvanteLLMTool
+      -- Always disable tools that are explicitly disabled
+      if vim.tbl_contains(Config.disabled_tools, tool.name) then return false end
+      if tool.enabled == nil then
+        return true
+      else
+        return tool.enabled({ user_input = user_input, history_messages = history_messages })
+      end
+    end)
+    :totable()
 end
 
 ---@type AvanteLLMTool[]
@@ -603,8 +603,7 @@ M._tools = {
   {
     name = "rag_search",
     enabled = function() return Config.rag_service.enabled and RagService.is_ready() end,
-    description =
-    "Use Retrieval-Augmented Generation (RAG) to search for relevant information from an external knowledge base or documents. This tool retrieves relevant context from a large dataset and integrates it into the response generation process, improving accuracy and relevance. Use it when answering questions that require factual knowledge beyond what the model has been trained on.",
+    description = "Use Retrieval-Augmented Generation (RAG) to search for relevant information from an external knowledge base or documents. This tool retrieves relevant context from a large dataset and integrates it into the response generation process, improving accuracy and relevance. Use it when answering questions that require factual knowledge beyond what the model has been trained on.",
     param = {
       type = "table",
       fields = {
@@ -757,8 +756,7 @@ M._tools = {
   require("avante.llm_tools.undo_edit"),
   {
     name = "read_global_file",
-    description =
-    "Read the contents of a file in the global scope. If the file content is already in the context, do not use this tool.",
+    description = "Read the contents of a file in the global scope. If the file content is already in the context, do not use this tool.",
     enabled = function(opts)
       if opts.user_input:match("@read_global_file") then return true end
       for _, message in ipairs(opts.history_messages) do
@@ -1047,8 +1045,7 @@ M._tools = {
   },
   {
     name = "read_definitions",
-    description =
-    "Retrieves the complete source code definitions of any symbol (function, type, constant, etc.) from your codebase.",
+    description = "Retrieves the complete source code definitions of any symbol (function, type, constant, etc.) from your codebase.",
     param = {
       type = "table",
       fields = {
