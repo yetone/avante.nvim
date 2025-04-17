@@ -38,6 +38,7 @@ end
 ---@param prompt_opts AvantePromptOptions
 function M:parse_curl_args(prompt_opts)
   local provider_conf, request_body = P.parse_config(self)
+  local keep_alive = provider_conf.keep_alive or "5m"
 
   if not provider_conf.model or provider_conf.model == "" then error("Ollama model must be specified in config") end
   if not provider_conf.endpoint then error("Ollama requires endpoint configuration") end
@@ -53,6 +54,7 @@ function M:parse_curl_args(prompt_opts)
       messages = self:parse_messages(prompt_opts),
       stream = true,
       system = prompt_opts.system_prompt,
+      keep_alive = keep_alive,
     }, request_body),
   }
 end

@@ -206,6 +206,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field model? string
 ---@field local? boolean
 ---@field proxy? string
+---@field keep_alive? string
 ---@field timeout? integer
 ---@field allow_insecure? boolean
 ---@field api_key_name? string
