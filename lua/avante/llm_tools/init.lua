@@ -451,10 +451,7 @@ function M.git_commit(opts, on_log, on_complete)
   for line in opts.message:gmatch("[^\r\n]+") do
     commit_msg_lines[#commit_msg_lines + 1] = line:gsub('"', '\\"')
   end
-
   commit_msg_lines[#commit_msg_lines + 1] = ""
-  commit_msg_lines[#commit_msg_lines + 1] = "🤖 Generated with [avante.nvim](https://github.com/yetone/avante.nvim)"
-  commit_msg_lines[#commit_msg_lines + 1] = "Co-Authored-By: avante.nvim <noreply-avante@yetone.ai>"
   if git_user ~= "" and git_email ~= "" then
     commit_msg_lines[#commit_msg_lines + 1] = string.format("Signed-off-by: %s <%s>", git_user, git_email)
   end
