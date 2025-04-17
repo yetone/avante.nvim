@@ -13,7 +13,7 @@ M.name = "str_replace"
 M.description =
   "The str_replace tool allows you to replace a specific string in a file with a new string. This is used for making precise edits."
 
-function M.enabled() return require("avante.config").behaviour.enable_claude_text_editor_tool_mode end
+function M.enabled() return false end
 
 ---@type AvanteLLMToolParam
 M.param = {
@@ -65,8 +65,8 @@ function M.func(opts, on_log, on_complete, session_ctx)
   if not file then return false, "file not found: " .. abs_path end
   if opts.old_str == nil then return false, "old_str not provided" end
   if opts.new_str == nil then return false, "new_str not provided" end
-  Utils.debug("old_str", opts.old_str)
-  Utils.debug("new_str", opts.new_str)
+  -- Utils.debug("old_str", opts.old_str)
+  -- Utils.debug("new_str", opts.new_str)
   local bufnr, err = Helpers.get_bufnr(abs_path)
   if err then return false, err end
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
@@ -77,7 +77,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
   for i = 1, #lines - #old_lines + 1 do
     local match = true
     for j = 1, #old_lines do
-      if lines[i + j - 1] ~= old_lines[j] then
+      if Utils.remove_indentation(lines[i + j - 1]) ~= Utils.remove_indentation(old_lines[j]) then
         match = false
         break
       end
@@ -89,11 +89,20 @@ function M.func(opts, on_log, on_complete, session_ctx)
     end
   end
   if start_line == nil or end_line == nil then
-    on_complete(false, "Failed to find the old string: " .. opts.old_str)
+    on_complete(false, "Failed to find the old string:\n" .. opts.old_str)
     return
   end
+  local old_str = opts.old_str
+  local new_str = opts.new_str
+  local original_indentation = Utils.get_indentation(lines[start_line])
+  if original_indentation ~= Utils.get_indentation(old_lines[1]) then
+    old_lines = vim.tbl_map(function(line) return original_indentation .. line end, old_lines)
+    new_lines = vim.tbl_map(function(line) return original_indentation .. line end, new_lines)
+    old_str = table.concat(old_lines, "\n")
+    new_str = table.concat(new_lines, "\n")
+  end
   ---@diagnostic disable-next-line: assign-type-mismatch, missing-fields
-  local patch = vim.diff(opts.old_str, opts.new_str, { ---@type integer[][]
+  local patch = vim.diff(old_str, new_str, { ---@type integer[][]
     algorithm = "histogram",
     result_type = "indices",
     ctxlen = vim.o.scrolloff,

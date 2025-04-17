@@ -277,4 +277,13 @@ function M.get_config(provider_name)
   return type(cur) == "function" and cur() or cur
 end
 
+function M.get_memory_summary_provider()
+  local provider_name = Config.memory_summary_provider
+  if provider_name == nil then
+    if M.openai.is_env_set() then provider_name = "openai-gpt-4o-mini" end
+  end
+  if provider_name == nil then provider_name = Config.provider end
+  return M[provider_name]
+end
+
 return M

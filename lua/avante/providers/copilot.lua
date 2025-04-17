@@ -211,11 +211,7 @@ M.role_map = {
 
 function M:is_disable_stream() return false end
 
-M.parse_messages = OpenAI.parse_messages
-
-M.parse_response = OpenAI.parse_response
-
-M.is_reasoning_model = OpenAI.is_reasoning_model
+setmetatable(M, { __index = OpenAI })
 
 function M:parse_curl_args(prompt_opts)
   -- refresh token synchronously, only if it has expired

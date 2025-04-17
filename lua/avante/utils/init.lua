@@ -6,7 +6,6 @@ local lsp = vim.lsp
 ---@field tokens avante.utils.tokens
 ---@field root avante.utils.root
 ---@field file avante.utils.file
----@field history avante.utils.history
 ---@field environment avante.utils.environment
 ---@field lsp avante.utils.lsp
 local M = {}
@@ -415,7 +414,7 @@ function M.debug(...)
   local caller_source = info.source:match("@(.+)$") or "unknown"
   local caller_module = caller_source:gsub("^.*/lua/", ""):gsub("%.lua$", ""):gsub("/", ".")
 
-  local timestamp = os.date("%Y-%m-%d %H:%M:%S")
+  local timestamp = M.get_timestamp()
   local formated_args = {
     "[" .. timestamp .. "] [AVANTE] [DEBUG] [" .. caller_module .. ":" .. info.currentline .. "]",
   }
@@ -1263,7 +1262,6 @@ function M.get_commands()
   local builtin_items = {
     { description = "Show help message", name = "help" },
     { description = "Clear chat history", name = "clear" },
-    { description = "Reset memory", name = "reset" },
     { description = "New chat", name = "new" },
     {
       shorthelp = "Ask a question about specific lines",
@@ -1281,7 +1279,6 @@ function M.get_commands()
       if cb then cb(args) end
     end,
     clear = function(sidebar, args, cb) sidebar:clear_history(args, cb) end,
-    reset = function(sidebar, args, cb) sidebar:reset_memory(args, cb) end,
     new = function(sidebar, args, cb) sidebar:new_chat(args, cb) end,
     lines = function(_, args, cb)
       if cb then cb(args) end
@@ -1308,6 +1305,99 @@ function M.get_commands()
     :totable()
 
   return vim.list_extend(builtin_commands, Config.slash_commands)
+end
+
+---@param history avante.ChatHistory
+---@return avante.HistoryMessage[]
+function M.get_history_messages(history)
+  local HistoryMessage = require("avante.history_message")
+  if history.messages then return history.messages end
+  local messages = {}
+  for _, entry in ipairs(history.entries or {}) do
+    if entry.request and entry.request ~= "" then
+      local message = HistoryMessage:new({
+        role = "user",
+        content = entry.request,
+      }, {
+        timestamp = entry.timestamp,
+        is_user_submission = true,
+        visible = entry.visible,
+        selected_filepaths = entry.selected_filepaths,
+        selected_code = entry.selected_code,
+      })
+      table.insert(messages, message)
+    end
+    if entry.response and entry.response ~= "" then
+      local message = HistoryMessage:new({
+        role = "assistant",
+        content = entry.response,
+      }, {
+        timestamp = entry.timestamp,
+        visible = entry.visible,
+      })
+      table.insert(messages, message)
+    end
+  end
+  history.messages = messages
+  return messages
+end
+
+function M.get_timestamp() return tostring(os.date("%Y-%m-%d %H:%M:%S")) end
+
+---@param history_messages avante.HistoryMessage[]
+---@return AvanteLLMMessage[]
+function M.history_messages_to_messages(history_messages)
+  local messages = {}
+  for _, history_message in ipairs(history_messages) do
+    if history_message.just_for_display then goto continue end
+    table.insert(messages, history_message.message)
+    ::continue::
+  end
+  return messages
+end
+
+function M.uuid()
+  local template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
+  return string.gsub(template, "[xy]", function(c)
+    local v = (c == "x") and math.random(0, 0xf) or math.random(8, 0xb)
+    return string.format("%x", v)
+  end)
+end
+
+---@param item AvanteLLMMessageContentItem
+---@param message avante.HistoryMessage
+---@return string
+function M.message_content_item_to_text(item, message)
+  if type(item) == "string" then return item end
+  if type(item) == "table" then
+    if item.type == "text" then return item.text end
+    if item.type == "image" then return "![image](" .. item.source.media_type .. ": " .. item.source.data .. ")" end
+    if item.type == "tool_use" then
+      local pieces = {}
+      table.insert(pieces, string.format("[%s]: calling", item.name))
+      for _, log in ipairs(message.tool_use_logs or {}) do
+        table.insert(pieces, log)
+      end
+      return table.concat(pieces, "\n")
+    end
+  end
+  return ""
+end
+
+---@param message avante.HistoryMessage
+---@return string
+function M.message_to_text(message)
+  local content = message.message.content
+  if type(content) == "string" then return content end
+  if vim.islist(content) then
+    local pieces = {}
+    for _, item in ipairs(content) do
+      local text = M.message_content_item_to_text(item, message)
+      if text ~= "" then table.insert(pieces, text) end
+    end
+    return table.concat(pieces, "\n")
+  end
+  return ""
 end
 
 return M
