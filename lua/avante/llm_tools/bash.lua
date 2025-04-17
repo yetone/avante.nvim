@@ -103,17 +103,10 @@ When the user asks you to create a new git commit, follow these steps carefully:
 - Review the draft message to ensure it accurately reflects the changes and their purpose
 </commit_analysis>
 
-4. Create the commit with a message ending with:
-🤖 Generated with [avante.nvim](https://github.com/yetone/avante.nvim)
-Co-Authored-By: avante.nvim <noreply-avante@yetone.ai>
-
 - In order to ensure good formatting, ALWAYS pass the commit message via a HEREDOC, a la this example:
 <example>
 git commit -m "$(cat <<'EOF'
    Commit message here.
-
-   🤖 Generated with [avante.nvim](https://github.com/yetone/avante.nvim)
-   Co-Authored-By: avante.nvim <noreply-avante@yetone.ai>
    EOF
    )"
 </example>
@@ -175,7 +168,6 @@ gh pr create --title "the pr title" --body "$(cat <<'EOF'
 ## Test plan
 [Checklist of TODOs for testing the pull request...]
 
-🤖 Generated with [avante.nvim](https://github.com/yetone/avante.nvim)
 EOF
 )"
 </example>
