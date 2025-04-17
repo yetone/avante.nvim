@@ -494,7 +494,7 @@ end
 function M.find_next(side)
   local pos = find_position(
     0,
-    function(line, position) return position.current.range_start >= line and position.incoming.range_end >= line end
+    function(line, position) return position.current.range_start > line and position.incoming.range_end > line end
   )
   set_cursor(pos, side)
 end
