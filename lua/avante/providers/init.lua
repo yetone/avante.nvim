@@ -55,6 +55,11 @@ function E.setup(opts)
     return
   end
 
+  if vim.env[var] ~= nil then
+    vim.g.avante_login = true
+    return
+  end
+
   -- check if var is a all caps string
   if type(var) == "table" or var:match("^cmd:(.*)") then return end
 
