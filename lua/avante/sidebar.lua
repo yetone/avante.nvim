@@ -2485,7 +2485,7 @@ function Sidebar:create_input_container(opts)
 
     ---@type AvanteGeneratePromptsOptions
     local prompts_opts = {
-      ask = opts.ask or true,
+      ask = (opts.ask==nil) and true or opts.ask,
       project_context = vim.json.encode(project_context),
       selected_filepaths = selected_filepaths,
       recently_viewed_files = Utils.get_recent_filepaths(),
