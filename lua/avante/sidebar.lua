@@ -2174,7 +2174,7 @@ function Sidebar:get_generate_prompts_options(request, cb)
 
   ---@type AvanteGeneratePromptsOptions
   local prompts_opts = {
-    ask = self.ask_opts.ask or true,
+    ask = (self.ask_opts.ask == nil) and true or self.ask_opts.ask and true or false,
     project_context = vim.json.encode(project_context),
     selected_filepaths = selected_filepaths,
     recently_viewed_files = Utils.get_recent_filepaths(),
