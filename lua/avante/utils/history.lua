@@ -67,6 +67,7 @@ function M.entries_to_llm_messages(entries)
         if tool_history.tool_result ~= nil and tool_history.tool_result.content ~= nil then
           table.insert(user_content, {
             type = "tool_result",
+            tool_name = tool_history.tool_result.tool_name,
             tool_use_id = tool_history.tool_result.tool_use_id,
             content = tool_history.tool_result.content,
             is_error = tool_history.tool_result.is_error,
