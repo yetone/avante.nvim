@@ -42,13 +42,20 @@ function M:parse_curl_args(prompt_opts)
 
   if not provider_conf.model or provider_conf.model == "" then error("Ollama model must be specified in config") end
   if not provider_conf.endpoint then error("Ollama requires endpoint configuration") end
+  local headers = {
+    ["Content-Type"] = "application/json",
+    ["Accept"] = "application/json",
+  }
+
+  if provider_conf.extra_headers then
+    for key, value in pairs(provider_conf.extra_headers) do
+      headers[key] = value
+    end
+  end
 
   return {
     url = Utils.url_join(provider_conf.endpoint, "/api/chat"),
-    headers = {
-      ["Content-Type"] = "application/json",
-      ["Accept"] = "application/json",
-    },
+    headers = headers,
     body = vim.tbl_deep_extend("force", {
       model = provider_conf.model,
       messages = self:parse_messages(prompt_opts),
