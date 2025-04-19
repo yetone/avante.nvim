@@ -47,10 +47,12 @@ function M:parse_curl_args(prompt_opts)
     ["Accept"] = "application/json",
   }
 
-  if provider_conf.extra_headers then
-    for key, value in pairs(provider_conf.extra_headers) do
-      headers[key] = value
+  if Providers.env.require_api_key(provider_conf) then
+    local api_key = self.parse_api_key()
+    if api_key == nil then
+      error(Config.provider .. " API key is not set, please set it in your environment variable or config file")
     end
+    headers["Authorization"] = "Bearer " .. api_key
   end
 
   return {
