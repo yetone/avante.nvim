@@ -1,5 +1,6 @@
 local Utils = require("avante.utils")
 local P = require("avante.providers")
+local Config = require("avante.config")
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -47,10 +48,10 @@ function M:parse_curl_args(prompt_opts)
     ["Accept"] = "application/json",
   }
 
-  if Providers.env.require_api_key(provider_conf) then
+  if P.env.require_api_key(provider_conf) then
     local api_key = self.parse_api_key()
     if api_key == nil then
-      error(Config.provider .. " API key is not set, please set it in your environment variable or config file")
+      error((Config.provider or "Ollama") .. " API key is not set, please set it in your environment variable or config file")
     end
     headers["Authorization"] = "Bearer " .. api_key
   end
