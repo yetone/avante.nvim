@@ -50,10 +50,11 @@ function M:parse_curl_args(prompt_opts)
 
   if P.env.require_api_key(provider_conf) then
     local api_key = self.parse_api_key()
-    if api_key == nil then
-      error((Config.provider or "Ollama") .. " API key is not set, please set it in your environment variable or config file")
+    if api_key and api_key ~= "" then
+      headers["Authorization"] = "Bearer " .. api_key
+    else
+      Utils.info((Config.provider or "Provider") .. ": API key not set, continuing without authentication")
     end
-    headers["Authorization"] = "Bearer " .. api_key
   end
 
   return {
