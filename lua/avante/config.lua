@@ -190,6 +190,28 @@ M._defaults = {
           return vim.json.encode(jsn), nil
         end,
       },
+      searxng = {
+        api_url_name = "SEARXNG_API_URL",
+        extra_request_body = {
+          format = "json",
+        },
+        ---@type WebSearchEngineProviderResponseBodyFormatter
+        format_response_body = function(body)
+          if body.results == nil then return "", nil end
+
+          local jsn = vim.iter(body.results):map(
+            function(result)
+              return {
+                title = result.title,
+                url = result.url,
+                snippet = result.content,
+              }
+            end
+          )
+
+          return vim.json.encode(jsn), nil
+        end,
+      },
     },
   },
   ---@type AvanteSupportedProvider
@@ -198,7 +220,7 @@ M._defaults = {
     model = "gpt-4o",
     timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
     temperature = 0,
-    max_tokens = 16384, -- Increase this to include reasoning tokens (for reasoning models)
+    max_completion_tokens = 16384, -- Increase this to include reasoning tokens (for reasoning models)
     reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
   },
   ---@type AvanteSupportedProvider
@@ -218,7 +240,7 @@ M._defaults = {
     api_version = "2024-12-01-preview",
     timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
     temperature = 0,
-    max_tokens = 20480, -- Increase this to include reasoning tokens (for reasoning models)
+    max_completion_tokens = 20480, -- Increase this to include reasoning tokens (for reasoning models)
     reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
   },
   ---@type AvanteSupportedProvider
@@ -267,6 +289,7 @@ M._defaults = {
     options = {
       temperature = 0,
       num_ctx = 20480,
+      keep_alive = "5m",
     },
   },
   ---@type AvanteSupportedProvider
@@ -313,6 +336,11 @@ M._defaults = {
       model = "claude-3-7-sonnet-20250219",
       api_key_name = "AIHUBMIX_API_KEY",
     },
+    ["bedrock-claude-3.7-sonnet"] = {
+      __inherited_from = "bedrock",
+      model = "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+      max_tokens = 4096,
+    },
   },
   ---Specify the special dual_boost mode
   ---1. enabled: Whether to enable dual_boost mode. Default to false.
@@ -356,6 +384,7 @@ M._defaults = {
     enable_cursor_planning_mode = false,
     enable_claude_text_editor_tool_mode = false,
     use_cwd_as_project_root = false,
+    auto_focus_on_diff_view = false,
   },
   history = {
     max_tokens = 4096,
@@ -371,6 +400,10 @@ M._defaults = {
       current = nil,
       incoming = nil,
     },
+  },
+  img_paste = {
+    url_encode_path = true,
+    template = "\nimage: $FILE_PATH\n",
   },
   mappings = {
     ---@class AvanteConflictMappings
@@ -423,7 +456,7 @@ M._defaults = {
       reverse_switch_windows = "<S-Tab>",
       remove_file = "d",
       add_file = "@",
-      close = { "<Esc>", "q" },
+      close = { "q" },
       ---@alias AvanteCloseFromInput { normal: string | nil, insert: string | nil }
       ---@type AvanteCloseFromInput | nil
       close_from_input = nil, -- e.g., { normal = "<Esc>", insert = "<C-d>" }
@@ -438,6 +471,7 @@ M._defaults = {
   windows = {
     ---@alias AvantePosition "right" | "left" | "top" | "bottom" | "smart"
     position = "right",
+    fillchars = "eob: ",
     wrap = true, -- similar to vim.o.wrap
     width = 30, -- default % based on available width in vertical layout
     height = 30, -- default % based on available height in horizontal layout
@@ -456,7 +490,7 @@ M._defaults = {
     },
     ask = {
       floating = false, -- Open the 'AvanteAsk' prompt in a floating window
-      border = "rounded",
+      border = { " ", " ", " ", " ", " ", " ", " ", " " },
       start_insert = true, -- Start insert mode when opening the ask window
       ---@alias AvanteInitialDiff "ours" | "theirs"
       focus_on_apply = "ours", -- which diff to focus after applying
@@ -481,9 +515,13 @@ M._defaults = {
   },
   --- @class AvanteFileSelectorConfig
   file_selector = {
-    --- @alias FileSelectorProvider "native" | "fzf" | "mini.pick" | "snacks" | "telescope" | string | fun(params: avante.file_selector.IParams|nil): nil
-    provider = "native",
+    provider = nil,
     -- Options override for custom providers
+    provider_opts = {},
+  },
+  selector = {
+    ---@alias avante.SelectorProvider "native" | "fzf_lua" | "mini_pick" | "snacks" | "telescope" | fun(selector: avante.ui.Selector): nil
+    provider = "native",
     provider_opts = {},
   },
   suggestion = {

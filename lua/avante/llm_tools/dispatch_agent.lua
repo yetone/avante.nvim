@@ -90,7 +90,7 @@ When you're done, provide a clear and concise summary of what you found.]]):gsub
     ask = true,
     code_lang = "unknown",
     provider = Providers[Config.provider],
-    on_tool_log = function(tool_name, log)
+    on_tool_log = function(tool_id, tool_name, log, state)
       if on_log then on_log(string.format("[%s] %s", tool_name, log)) end
     end,
     session_ctx = session_ctx,

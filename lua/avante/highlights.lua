@@ -25,6 +25,8 @@ local Highlights = {
   BUTTON_PRIMARY_HOVER = { name = "AvanteButtonPrimaryHover", fg = "#1e222a", bg = "#56b6c2" },
   BUTTON_DANGER = { name = "AvanteButtonDanger", fg = "#1e222a", bg = "#ABB2BF" },
   BUTTON_DANGER_HOVER = { name = "AvanteButtonDangerHover", fg = "#1e222a", bg = "#e06c75" },
+  AVANTE_PROMPT_INPUT = { name = "AvantePromptInput" },
+  AVANTE_PROMPT_INPUT_BORDER = { name = "AvantePromptInputBorder", link = "NormalFloat" },
   AVANTE_SIDEBAR_WIN_SEPARATOR = {
     name = "AvanteSidebarWinSeparator",
     fg_link_bg = "NormalFloat",
@@ -162,7 +164,7 @@ setmetatable(M, {
 ---@param rgb_24bit number 24-bit RGB value
 ---@return {r: integer, g: integer, b: integer} with keys 'r', 'g', 'b' in [0,255]
 function H.decode_24bit_rgb(rgb_24bit)
-  vim.validate({ rgb_24bit = { rgb_24bit, "n", true } })
+  vim.validate({ rgb_24bit = { rgb_24bit, "number", true } })
   local r = band(rshift(rgb_24bit, 16), 255)
   local g = band(rshift(rgb_24bit, 8), 255)
   local b = band(rgb_24bit, 255)

@@ -81,14 +81,11 @@ function M.func(opts, on_log, on_complete, session_ctx)
     return
   end
   if session_ctx then
-    local view_history = session_ctx.view_history or {}
-    local uniform_path = Utils.uniform_path(opts.path)
-    if view_history[uniform_path] then
+    if Helpers.already_viewed(opts.path, session_ctx) then
       on_complete(nil, "Ooooops! You have already viewed this file! Why you are trying to read it again?")
       return
     end
-    view_history[uniform_path] = true
-    session_ctx.view_history = view_history
+    Helpers.mark_as_viewed(opts.path, session_ctx)
   end
   local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end

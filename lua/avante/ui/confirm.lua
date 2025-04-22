@@ -14,6 +14,7 @@ local Config = require("avante.config")
 ---@field _group number | nil
 ---@field _popup NuiPopup | nil
 ---@field _prev_winid number | nil
+---@field _ns_id number | nil
 local M = {}
 M.__index = M
 
@@ -27,6 +28,7 @@ function M:new(message, callback, opts)
   this.callback = callback
   this._container_winid = opts.container_winid or vim.api.nvim_get_current_win()
   this._focus = opts.focus
+  this._ns_id = vim.api.nvim_create_namespace("avante_confirm")
   return this
 end
 
@@ -144,8 +146,8 @@ function M:open()
     vim.api.nvim_buf_set_lines(popup.bufnr, 0, -1, false, content)
     Utils.lock_buf(popup.bufnr)
 
-    buttons_line:set_highlights(0, popup.bufnr, buttons_line_num, buttons_start_col)
-    keybindings_line:set_highlights(0, popup.bufnr, keybindings_line_num)
+    buttons_line:set_highlights(self._ns_id, popup.bufnr, buttons_line_num, buttons_start_col)
+    keybindings_line:set_highlights(self._ns_id, popup.bufnr, keybindings_line_num)
     focus_button()
   end
 

@@ -85,6 +85,11 @@ end, {
   end,
 })
 cmd("Chat", function() require("avante.api").ask({ ask = false }) end, { desc = "avante: chat with the codebase" })
+cmd(
+  "ChatNew",
+  function() require("avante.api").ask({ ask = false, new_chat = true }) end,
+  { desc = "avante: create new chat" }
+)
 cmd("Toggle", function() require("avante").toggle() end, { desc = "avante: toggle AI panel" })
 cmd("Build", function(opts)
   local args = {}
@@ -117,11 +122,11 @@ cmd("SwitchProvider", function(opts) require("avante.api").switch_provider(vim.t
   end,
 })
 cmd(
-  "SwitchFileSelectorProvider",
-  function(opts) require("avante.api").switch_file_selector_provider(vim.trim(opts.args or "")) end,
+  "SwitchSelectorProvider",
+  function(opts) require("avante.api").switch_selector_provider(vim.trim(opts.args or "")) end,
   {
     nargs = 1,
-    desc = "avante: switch file selector provider",
+    desc = "avante: switch selector provider",
   }
 )
 cmd("Clear", function(opts)
