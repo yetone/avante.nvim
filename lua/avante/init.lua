@@ -426,6 +426,13 @@ M.toggle.suggestion = H.api(Utils.toggle_wrap({
   end,
 }))
 
+function M.add_resource_to_rag()
+  Utils.info("Adding project root to Rag Service ...")
+  local uri = "file://" .. Utils.get_project_root()
+  if uri:sub(-1) ~= "/" then uri = uri .. "/" end
+  RagService.add_resource(uri)
+end
+
 setmetatable(M.toggle, {
   __index = M.toggle,
   __call = function() M.toggle_sidebar() end,
@@ -470,12 +477,12 @@ function M.setup(opts)
         add_resource_with_delay()
         return
       end
-      vim.defer_fn(function()
-        Utils.info("Adding project root to Rag Service ...")
-        local uri = "file://" .. Utils.get_project_root()
-        if uri:sub(-1) ~= "/" then uri = uri .. "/" end
-        RagService.add_resource(uri)
-      end, 5000)
+      -- vim.defer_fn(function()
+      --   Utils.info("Adding project root to Rag Service ...")
+      --   local uri = "file://" .. Utils.get_project_root()
+      --   if uri:sub(-1) ~= "/" then uri = uri .. "/" end
+      --   RagService.add_resource(uri)
+      -- end, 5000)
     end
     add_resource_with_delay = function()
       vim.defer_fn(function() add_resource() end, 5000)
