@@ -288,6 +288,7 @@ M._defaults = {
     options = {
       temperature = 0,
       num_ctx = 20480,
+      keep_alive = "5m",
     },
   },
   ---@type AvanteSupportedProvider
@@ -333,6 +334,11 @@ M._defaults = {
       endpoint = "https://aihubmix.com",
       model = "claude-3-7-sonnet-20250219",
       api_key_name = "AIHUBMIX_API_KEY",
+    },
+    ["bedrock-claude-3.7-sonnet"] = {
+      __inherited_from = "bedrock",
+      model = "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+      max_tokens = 4096,
     },
   },
   ---Specify the special dual_boost mode
@@ -449,7 +455,7 @@ M._defaults = {
       reverse_switch_windows = "<S-Tab>",
       remove_file = "d",
       add_file = "@",
-      close = { "<Esc>", "q" },
+      close = { "q" },
       ---@alias AvanteCloseFromInput { normal: string | nil, insert: string | nil }
       ---@type AvanteCloseFromInput | nil
       close_from_input = nil, -- e.g., { normal = "<Esc>", insert = "<C-d>" }
@@ -508,9 +514,13 @@ M._defaults = {
   },
   --- @class AvanteFileSelectorConfig
   file_selector = {
-    --- @alias FileSelectorProvider "native" | "fzf" | "mini.pick" | "snacks" | "telescope" | string | fun(params: avante.file_selector.IParams|nil): nil
-    provider = "native",
+    provider = nil,
     -- Options override for custom providers
+    provider_opts = {},
+  },
+  selector = {
+    ---@alias avante.SelectorProvider "native" | "fzf_lua" | "mini_pick" | "snacks" | "telescope" | fun(selector: avante.ui.Selector): nil
+    provider = "native",
     provider_opts = {},
   },
   suggestion = {

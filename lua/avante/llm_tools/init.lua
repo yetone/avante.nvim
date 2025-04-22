@@ -104,14 +104,17 @@ function M.rename_file(opts, on_log, on_complete)
   end
   if Path:new(new_abs_path):exists() then return false, "File already exists: " .. new_abs_path end
   if not on_complete then return false, "on_complete not provided" end
-  Helpers.confirm("Are you sure you want to rename the file: " .. abs_path .. " to: " .. new_abs_path, function(ok)
-    if not ok then
-      on_complete(false, "User canceled")
-      return
+  Helpers.confirm(
+    "Are you sure you want to rename the file: " .. abs_path .. " to: " .. new_abs_path,
+    function(ok, reason)
+      if not ok then
+        on_complete(false, "User declined, reason: " .. (reason or "unknown"))
+        return
+      end
+      os.rename(abs_path, new_abs_path)
+      on_complete(true, nil)
     end
-    os.rename(abs_path, new_abs_path)
-    on_complete(true, nil)
-  end)
+  )
 end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string, new_rel_path: string }>
@@ -137,9 +140,9 @@ function M.delete_file(opts, on_log, on_complete)
   if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
   if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
   if not on_complete then return false, "on_complete not provided" end
-  Helpers.confirm("Are you sure you want to delete the file: " .. abs_path, function(ok)
+  Helpers.confirm("Are you sure you want to delete the file: " .. abs_path, function(ok, reason)
     if not ok then
-      on_complete(false, "User canceled")
+      on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
     end
     if on_log then on_log("Deleting file: " .. abs_path) end
@@ -154,9 +157,9 @@ function M.create_dir(opts, on_log, on_complete)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if Path:new(abs_path):exists() then return false, "Directory already exists: " .. abs_path end
   if not on_complete then return false, "on_complete not provided" end
-  Helpers.confirm("Are you sure you want to create the directory: " .. abs_path, function(ok)
+  Helpers.confirm("Are you sure you want to create the directory: " .. abs_path, function(ok, reason)
     if not ok then
-      on_complete(false, "User canceled")
+      on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
     end
     if on_log then on_log("Creating directory: " .. abs_path) end
@@ -179,9 +182,9 @@ function M.rename_dir(opts, on_log, on_complete)
   if not on_complete then return false, "on_complete not provided" end
   Helpers.confirm(
     "Are you sure you want to rename directory " .. abs_path .. " to " .. new_abs_path .. "?",
-    function(ok)
+    function(ok, reason)
       if not ok then
-        on_complete(false, "User canceled")
+        on_complete(false, "User declined, reason: " .. (reason or "unknown"))
         return
       end
       if on_log then on_log("Renaming directory: " .. abs_path .. " to " .. new_abs_path) end
@@ -198,9 +201,9 @@ function M.delete_dir(opts, on_log, on_complete)
   if not Path:new(abs_path):exists() then return false, "Directory not found: " .. abs_path end
   if not Path:new(abs_path):is_dir() then return false, "Path is not a directory: " .. abs_path end
   if not on_complete then return false, "on_complete not provided" end
-  Helpers.confirm("Are you sure you want to delete the directory: " .. abs_path, function(ok)
+  Helpers.confirm("Are you sure you want to delete the directory: " .. abs_path, function(ok, reason)
     if not ok then
-      on_complete(false, "User canceled")
+      on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
     end
     if on_log then on_log("Deleting directory: " .. abs_path) end
@@ -448,10 +451,7 @@ function M.git_commit(opts, on_log, on_complete)
   for line in opts.message:gmatch("[^\r\n]+") do
     commit_msg_lines[#commit_msg_lines + 1] = line:gsub('"', '\\"')
   end
-
   commit_msg_lines[#commit_msg_lines + 1] = ""
-  commit_msg_lines[#commit_msg_lines + 1] = "🤖 Generated with [avante.nvim](https://github.com/yetone/avante.nvim)"
-  commit_msg_lines[#commit_msg_lines + 1] = "Co-Authored-By: avante.nvim <noreply-avante@yetone.ai>"
   if git_user ~= "" and git_email ~= "" then
     commit_msg_lines[#commit_msg_lines + 1] = string.format("Signed-off-by: %s <%s>", git_user, git_email)
   end
@@ -462,9 +462,9 @@ function M.git_commit(opts, on_log, on_complete)
   if not on_complete then return false, "on_complete not provided" end
 
   -- Confirm with user
-  Helpers.confirm("Are you sure you want to commit with message:\n" .. full_commit_msg, function(ok)
+  Helpers.confirm("Are you sure you want to commit with message:\n" .. full_commit_msg, function(ok, reason)
     if not ok then
-      on_complete(false, "User canceled")
+      on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
     end
     -- Stage changes if scope is provided
@@ -530,9 +530,9 @@ function M.python(opts, on_log, on_complete)
       .. abs_path
       .. "`?\n"
       .. opts.code,
-    function(ok)
+    function(ok, reason)
       if not ok then
-        on_complete(nil, "User canceled")
+        on_complete(nil, "User declined, reason: " .. (reason or "unknown"))
         return
       end
       if vim.fn.executable("docker") == 0 then
@@ -1098,7 +1098,7 @@ M._tools = {
 
 ---@param tools AvanteLLMTool[]
 ---@param tool_use AvanteLLMToolUse
----@param on_log? fun(tool_name: string, log: string): nil
+---@param on_log? fun(tool_id: string, tool_name: string, log: string, state: AvanteLLMToolUseState): nil
 ---@param on_complete? fun(result: string | nil, error: string | nil): nil
 ---@param session_ctx? table
 ---@return string | nil result
@@ -1128,7 +1128,7 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
   local ok, input_json = pcall(vim.json.decode, tool_use.input_json)
   if not ok then return nil, "Failed to decode tool input json: " .. vim.inspect(input_json) end
   if not func then return nil, "Tool not found: " .. tool_use.name end
-  if on_log then on_log(tool_use.name, "running tool") end
+  if on_log then on_log(tool_use.id, tool_use.name, "running tool", "running") end
 
   -- Set up a timer to periodically check for cancellation
   local cancel_timer
@@ -1163,15 +1163,14 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
 
     -- Check for cancellation one more time before processing result
     if Helpers.is_cancelled then
-      if on_log then on_log(tool_use.name, "cancelled during result handling") end
+      if on_log then on_log(tool_use.id, tool_use.name, "cancelled during result handling", "failed") end
       return nil, Helpers.CANCEL_TOKEN
     end
 
-    if on_log then on_log(tool_use.name, "tool finished") end
-    -- Utils.debug("result", result)
-    -- Utils.debug("error", error)
     if err ~= nil then
-      if on_log then on_log(tool_use.name, "Error: " .. err) end
+      if on_log then on_log(tool_use.id, tool_use.name, "Error: " .. err, "failed") end
+    else
+      if on_log then on_log(tool_use.id, tool_use.name, "tool finished", "succeeded") end
     end
     local result_str ---@type string?
     if type(result) == "string" then
@@ -1185,7 +1184,7 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
   local result, err = func(input_json, function(log)
     -- Check for cancellation during logging
     if Helpers.is_cancelled then return end
-    if on_log then on_log(tool_use.name, log) end
+    if on_log then on_log(tool_use.id, tool_use.name, log, "running") end
   end, function(result, err)
     -- Check for cancellation before completing
     if Helpers.is_cancelled then
