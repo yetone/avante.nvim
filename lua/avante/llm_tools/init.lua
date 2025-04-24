@@ -129,7 +129,10 @@ function M.rename_file(opts, on_log, on_complete)
       os.rename(abs_path, new_abs_path)
       on_complete(true, nil)
     end
-  )
+    if on_log then on_log("Renaming file: " .. abs_path .. " to " .. new_abs_path) end
+    os.rename(abs_path, new_abs_path)
+    on_complete(true, nil)
+  end)
 end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string, new_rel_path: string }>
