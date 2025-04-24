@@ -30,7 +30,13 @@ local banned_commands = {
   "safari",
 }
 
-M.description = function()
+M.get_description = function()
+  local provider = Providers[Config.provider]
+  if Config.provider:match("copilot") and provider.model and provider.model:match("gpt") then
+    return [[Executes a given bash command in a persistent shell session with optional timeout, ensuring proper handling and security measures. Do not use bash command to read or modify files, or you will be fired!]]
+  elseif Config.provider:match("gemini") then
+    return "Execute a bash command in the given path."
+  end
   local res = ([[Executes a given bash command in a persistent shell session with optional timeout, ensuring proper handling and security measures.
 
 Do not use bash command to read or modify files, or you will be fired!

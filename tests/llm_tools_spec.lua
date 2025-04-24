@@ -20,7 +20,7 @@ describe("llm_tools", function()
     Config.setup()
     -- 创建测试目录和文件
     os.execute("mkdir -p " .. test_dir)
-    os.execute(string.format("cd %s; git init", test_dir))
+    os.execute(string.format("cd %s; git init 1>/dev/null", test_dir))
     local file = io.open(test_file, "w")
     if not file then error("Failed to create test file") end
     file:write("test content")
@@ -344,7 +344,9 @@ describe("llm_tools", function()
     end)
 
     it("should support custom container image", function()
-      os.execute("docker image rm python:3.12-slim")
+      -- Make sure to clean up the image after the test to force
+      -- re-pulling the image in the next call
+      os.execute("docker image rm -f python:3.12-slim 2>/dev/null")
       LlmTools.python(
         {
           rel_path = ".",
@@ -430,5 +432,78 @@ describe("llm_tools", function()
       -- If in the future, the function is modified to respect gitignore,
       -- this test can be updated
     end)
+  end)
+end)
+
+describe("process_tool_use", function()
+  local tools = {
+    {
+      name = "mock_tool",
+      ---@diagnostic disable-next-line: unused-local
+      func = function(input, on_log, on_complete)
+        if input.should_fail then
+          return nil, "Intentional failure"
+        else
+          return "Success", nil
+        end
+      end,
+    },
+  }
+
+  it("should successfully process a valid tool use", function()
+    local tool_use = {
+      name = "mock_tool",
+      input_json = vim.json.encode({ should_fail = false }),
+    }
+    local result, err = LlmTools.process_tool_use(tools, tool_use)
+    assert.is_nil(err)
+    assert.equals("Success", result)
+  end)
+
+  it("should handle tool failure gracefully", function()
+    local tool_use = {
+      name = "mock_tool",
+      input_json = vim.json.encode({ should_fail = true }),
+    }
+    local result, err = LlmTools.process_tool_use(tools, tool_use)
+    assert.is_nil(result)
+    assert.equals("Intentional failure", err)
+  end)
+
+  it("should return error for unknown tool", function()
+    local tool_use = {
+      name = "unknown_tool",
+      input_json = vim.json.encode({}),
+    }
+    local result, err = LlmTools.process_tool_use(tools, tool_use)
+    assert.is_nil(result)
+    assert.equals("This tool is not provided: unknown_tool", err)
+  end)
+
+  it("should return error for invalid JSON input", function()
+    local tool_use = {
+      name = "mock_tool",
+      input_json = "{ invalid_json }",
+    }
+    local result, err = LlmTools.process_tool_use(tools, tool_use)
+    assert.is_nil(result)
+    assert.truthy(err:find("Failed to decode tool input json"))
+  end)
+
+  it("should handle cancellation", function()
+    -- Mock the cancellation
+    local original_is_cancelled = LlmToolHelpers.is_cancelled
+    LlmToolHelpers.is_cancelled = true
+
+    local tool_use = {
+      name = "mock_tool",
+      input_json = vim.json.encode({ should_fail = false }),
+    }
+    local result, err = LlmTools.process_tool_use(tools, tool_use)
+    assert.is_nil(result)
+    assert.equals(LlmToolHelpers.CANCEL_TOKEN, err)
+
+    -- Restore the original cancellation state
+    LlmToolHelpers.is_cancelled = original_is_cancelled
   end)
 end)

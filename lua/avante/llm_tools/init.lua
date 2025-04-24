@@ -1003,40 +1003,7 @@ M._tools = {
       },
     },
   },
-  -- require("avante.llm_tools.bash"), -- Replaced with inline definition below
-  {
-    name = "bash",
-    description = "Execute a bash command in the project's root directory.", -- Added static description
-    param = {
-      type = "table",
-      fields = {
-        {
-          name = "command",
-          description = "Bash command to execute",
-          type = "string",
-        },
-      },
-    },
-    returns = {
-      {
-        name = "stdout",
-        description = "Standard output of the command",
-        type = "string",
-      },
-      {
-        name = "stderr",
-        description = "Standard error of the command",
-        type = "string",
-        optional = true,
-      },
-      {
-        name = "exit_code",
-        description = "Exit code of the command",
-        type = "integer",
-      },
-    },
-    func = require("avante.llm_tools.bash").func, -- Keep the original function logic
-  },
+  require("avante.llm_tools.bash"),
   {
     name = "web_search",
     description = "Search the web",
@@ -1164,6 +1131,7 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
     return nil, Helpers.CANCEL_TOKEN -- Return for sync case or if on_complete wasn't provided
   end
 
+
   -- Find the tool definition from the provided list
   ---@type AvanteLLMTool?
   local tool = vim.iter(tools):find(function(t) return t.name == tool_use.name end) ---@param t AvanteLLMTool
@@ -1178,18 +1146,22 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
   end
 
   -- Assign the function to be called
-  local func = tool.func or M[tool.name]
-  if not func then
-    local err_msg = "Tool function not found for: " .. tool_use.name
-    -- Handle error before handle_result is defined
-    if on_log then on_log(tool_use.id, tool_use.name, "Error: " .. err_msg, "failed") end
-    if on_complete then
-      on_complete(nil, err_msg)
+  local func
+  if tool_use.name == "str_replace_editor" then
+    func = M.str_replace_editor
+  else
+    func = tool.func or M[tool.name]
+    if not func then
+      local err_msg = "Tool function not found for: " .. tool_use.name
+      -- Handle error before handle_result is defined
+      if on_log then on_log(tool_use.id, tool_use.name, "Error: " .. err_msg, "failed") end
+      if on_complete then
+        on_complete(nil, err_msg)
+      end
+      return nil, err_msg
     end
-    return nil, err_msg
   end
 
-  -- Decode input arguments provided by the LLM
   local ok, input_json = pcall(vim.json.decode, tool_use.input_json)
   if not ok or type(input_json) ~= "table" then
     local err_msg = "Error decoding tool arguments for '"
@@ -1248,7 +1220,6 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
     else
       if on_log then on_log(tool_use.id, tool_use.name, "tool finished", "succeeded") end
     end
-
     local result_str ---@type string?
     if type(result) == "string" then
       result_str = result
@@ -1258,7 +1229,6 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
     end
     return result_str, err
   end
-
   -- *** Centralized Argument Validation (from HEAD, adapted logging/return) ***
   if tool.param and tool.param.fields then
     for _, field in ipairs(tool.param.fields) do
