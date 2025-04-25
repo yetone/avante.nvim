@@ -103,6 +103,20 @@ vim.g.avante_login = vim.g.avante_login
 ---@field role "user"
 ---@field parts { text: string }[]
 ---
+---@class AvanteGeminiTool
+---@field name string
+---@field description string
+---@field parameters? AvanteGeminiToolInputSchema
+---
+---@class AvanteGeminiToolInputSchema
+---@field type "object"
+---@field properties table<string, AvanteGeminiToolInputSchemaProperty>
+---@field required string[]
+---
+---@class AvanteGeminiToolInputSchemaProperty
+---@field type "string" | "number" | "boolean"
+---@field description string
+---
 ---@class AvanteClaudeBaseMessage
 ---@field cache_control {type: "ephemeral"}?
 ---
@@ -288,7 +302,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field parse_api_key fun(): string | nil
 ---@field parse_stream_data? AvanteStreamParser
 ---@field on_error? fun(result: table<string, any>): nil
----@field transform_tool? fun(self: AvanteProviderFunctor, tool: AvanteLLMTool): AvanteOpenAITool | AvanteClaudeTool
+---@field transform_tool? fun(self: AvanteProviderFunctor, tool: AvanteLLMTool): AvanteOpenAITool | AvanteClaudeTool | AvanteGeminiTool
 ---@field get_rate_limit_sleep_time? fun(self: AvanteProviderFunctor, headers: table<string, string>): integer | nil
 ---
 ---@alias AvanteBedrockPayloadBuilder fun(self: AvanteBedrockModelHandler | AvanteBedrockProviderFunctor, prompt_opts: AvantePromptOptions, request_body: table<string, any>): table<string, any>

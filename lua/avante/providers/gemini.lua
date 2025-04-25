@@ -5,13 +5,11 @@ local Clipboard = require("avante.clipboard")
 ---@class AvanteProviderFunctor
 local M = {}
 
----@param tool AvanteLLMTool | AvanteMCPTool -- Allow MCP tool structure
----
----@return GeminiFunctionDeclaration
+---@param tool AvanteLLMTool
+---@return AvanteGeminiTool
 function M:transform_tool(tool)
-  local Utils = require("avante.utils")
   -- Read parameters from tool.param.fields (MCP) or tool.parameters (standard)
-  local tool_param_fields = (tool.param and tool.param.fields) or tool.parameters or {}
+  local tool_param_fields = (tool.param and tool.param.fields) or {}
 
   -- Ensure base_description is a string
   local base_description

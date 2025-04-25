@@ -504,7 +504,7 @@ function M.setup(opts)
           command = "buffers",
           details = "add open buffers to the chat context",
           callback = function(sidebar) sidebar.file_selector:add_buffer_files() end,
-        }) -- Added missing closing parenthesis for table.insert
+        })
 
         return mentions
       end)
