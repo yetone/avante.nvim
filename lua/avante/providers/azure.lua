@@ -19,6 +19,7 @@ setmetatable(M, { __index = O })
 
 function M:parse_curl_args(prompt_opts)
   local provider_conf, request_body = P.parse_config(self)
+  local disable_tools = provider_conf.disable_tools or false
 
   local headers = {
     ["Content-Type"] = "application/json",
@@ -33,6 +34,14 @@ function M:parse_curl_args(prompt_opts)
   end
 
   self.set_allowed_params(provider_conf, request_body)
+
+  local tools = nil
+  if not disable_tools and prompt_opts.tools then
+    tools = {}
+    for _, tool in ipairs(prompt_opts.tools) do
+      table.insert(tools, self:transform_tool(tool))
+    end
+  end
 
   return {
     url = Utils.url_join(
@@ -50,6 +59,7 @@ function M:parse_curl_args(prompt_opts)
     body = vim.tbl_deep_extend("force", {
       messages = self:parse_messages(prompt_opts),
       stream = true,
+      tools = tools,
     }, request_body),
   }
 end
