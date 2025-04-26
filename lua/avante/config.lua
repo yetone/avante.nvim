@@ -640,6 +640,7 @@ M.BASE_PROVIDER_KEYS = {
   "proxy",
   "allow_insecure",
   "api_key_name",
+  "reevaluate_api_key_after", -- Time in seconds after which to re-evaluate the api_key_name command
   "timeout",
   "display_name",
   -- internal

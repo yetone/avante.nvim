@@ -25,16 +25,52 @@ local M = {}
 ---@class EnvironmentHandler
 local E = {}
 
+---@class CacheEntry
+---@field value string
+---@field expires_at number|nil
+
 ---@private
----@type table<string, string>
+---@type table<string, CacheEntry>
 E.cache = {}
+
+---@private
+---@param entry CacheEntry
+---@return boolean
+function E.is_expired(entry)
+  if not entry.expires_at then
+    return false
+  end
+  return os.time() >= entry.expires_at
+end
 
 ---@param Opts AvanteSupportedProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor
 ---@return string | nil
 function E.parse_envvar(Opts)
-  local value = Utils.environment.parse(Opts.api_key_name, Opts._shellenv)
+  local key = Opts.api_key_name
+
+  -- Check cache first
+  if E.cache[key] and not E.is_expired(E.cache[key]) then
+    return E.cache[key].value
+  end
+
+  -- Force cache invalidation when re-evaluating expired keys
+  local force_invalidate = E.cache[key] and E.is_expired(E.cache[key])
+  local value = Utils.environment.parse(key, Opts._shellenv, force_invalidate)
   if value ~= nil then
     vim.g.avante_login = true
+
+    -- Calculate expiry if reevaluate_api_key_after is set
+    local expires_at = nil
+    if Opts.reevaluate_api_key_after then
+      expires_at = os.time() + Opts.reevaluate_api_key_after
+    end
+
+    -- Cache the value with expiry
+    E.cache[key] = {
+      value = value,
+      expires_at = expires_at
+    }
+
     return value
   end
 
