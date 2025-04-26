@@ -398,6 +398,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@class AvanteLLMToolParam
 ---@field type 'table'
 ---@field fields AvanteLLMToolParamField[]
+---@field required string[]
 
 ---@class AvanteLLMToolParamField
 ---@field name string

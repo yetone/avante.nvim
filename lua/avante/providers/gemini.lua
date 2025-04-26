@@ -8,7 +8,7 @@ local M = {}
 ---@param tool AvanteLLMTool
 ---@return AvanteGeminiTool
 function M:transform_tool(tool)
-  local tool_param_fields = tool.param.fields
+  local tool_param_fields = tool.param.fields or {}
 
   -- Ensure base_description is a string
   local base_description
@@ -125,13 +125,13 @@ function M:transform_tool(tool)
       if parameters_schema.properties.query and parameters_schema.properties.query.description then
         parameters_schema.properties.query.description = parameters_schema.properties.query.description
           .. " (Provide a concise search query based on the user's request.)"
-        Utils.debug("Gemini: Enhanced 'query' parameter description for tool: " .. tool.name)
+        -- Utils.debug("Gemini: Enhanced 'query' parameter description for tool: " .. tool.name)
       end
       -- Example: Enhance any 'path' parameter description
       if parameters_schema.properties.path and parameters_schema.properties.path.description then
         parameters_schema.properties.path.description = parameters_schema.properties.path.description
           .. " (Provide the relative file path within the project.)"
-        Utils.debug("Gemini: Enhanced 'path' parameter description for tool: " .. tool.name)
+        -- Utils.debug("Gemini: Enhanced 'path' parameter description for tool: " .. tool.name)
       end
       -- Add more general enhancements as needed...
     end
@@ -351,9 +351,10 @@ function M:parse_response(ctx, data_stream, event_state, opts)  -- type: ignore[
         local chunk = part.text
         event_state.content = event_state.content .. chunk
         if opts.on_chunk then opts.on_chunk(chunk) end
-      elseif part.functionCall then
+      end
+      if part.functionCall then
         local func_call = part.functionCall
-        Utils.debug("Gemini: Detected function call raw args:", func_call.args) -- <<< ADD THIS DEBUG LINE
+        -- Utils.debug("Gemini: Detected function call raw args:", func_call.args) -- <<< ADD THIS DEBUG LINE
         Utils.debug("Gemini: Detected function call:", func_call)
         -- Gemini provides 'args' as a JSON object. Encode to string for consistency.
         local input_json_str = vim.fn.json_encode(func_call.args or {})
@@ -473,13 +474,21 @@ function M:parse_curl_args(prompt_opts)
   local mcp_tools_added_map = {} -- Keep track of which MCP tools were added
   local all_tools_for_gemini = {} -- Combined list before filtering
 
-  -- 1. Add standard Avante tools (copy from above, put into all_tools_for_gemini)
+  -- 1. Add standard Avante tools, filtering out the old generic 'mcp' tool explicitly
+  -- local load_mcp = false
+  local access_mcp_resource_tool
   if prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
       if tool.name ~= "mcp" and tool.name ~= "use_mcp_tool" and tool.name ~= "access_mcp_resource" then
         local transformed = self:transform_tool(tool)
         if transformed then table.insert(all_tools_for_gemini, transformed) end
       end
+      if tool.name == "access_mcp_resource" then
+        access_mcp_resource_tool = self:transform_tool(tool)
+      end
+      -- if tool.name == "use_mcp_tool" or tool.name == "access_mcp_resource" then
+      --   load_mcp = true -- Flag to load MCP tools/resources
+      -- end
     end
   end
 
@@ -508,19 +517,86 @@ function M:parse_curl_args(prompt_opts)
           server_alias, -- Use the shorter alias in description too
           mcp_tool.description or "No description"
         )
+        ---@type AvanteLLMToolParam
+        local mcp_tool_param = {
+          type = "table",
+          fields = {},
+          required = {},
+        }
+        if mcp_tool.inputSchema then
+          -- Check if the input schema is a valid JSON object
+          mcp_tool_param.required = mcp_tool.inputSchema.required or {}
+          if type(mcp_tool.inputSchema) ~= "table" or vim.islist(mcp_tool.inputSchema) then
+            Utils.warn("MCP Tool '" .. mcp_tool.name .. "' has an invalid input schema. Skipping.")
+          else
+            -- iterate over mcp_tool.inputSchema.properties Table<string, Table<"description" | "type", string>>
+            for field_name, field_def in pairs(mcp_tool.inputSchema.properties) do
+              if type(field_def) == "table" and field_def.type then
+                -- Add the field to the param definition
+                -- mcp_tool_param.fields[field_name] = {
+                --   name = field_name,
+                --   type = field_def.type,
+                --   description = field_def.description or "",
+                -- }
+                -- append to mcp_tool_param.fields
+                table.insert(mcp_tool_param.fields, {
+                  name = field_name,
+                  type = field_def.type,
+                  description = field_def.description or "",
+                })
+                -- Check if this field is required
+                if vim.tbl_contains(mcp_tool_param.required, field_name) then
+                  table.insert(mcp_tool_param.required, field_name)
+                end
+              else
+                Utils.warn("MCP Tool '" ..
+                  mcp_tool.name .. "' has an invalid field definition for '" .. field_name .. "'.")
+              end
+            end
+          end
+        end
+
         -- Use transform_tool to handle parameter schema generation, but pass the specific MCP tool schema
         local transformed = self:transform_tool({
           name = tool_name, -- Use the generated unique name
           description = description,
-          param = mcp_tool.inputSchema and mcp_tool.inputSchema.fields or {}, -- Adapt based on actual MCP tool schema structure
+          param = mcp_tool_param,
+          -- param = mcp_tool.inputSchema and mcp_tool.inputSchema.fields or {}, -- Adapt based on actual MCP tool schema structure
           returns = {},
         })
         if transformed then
           table.insert(all_tools_for_gemini, transformed)
-          mcp_tools_added_map[transformed.name] = true -- Mark this MCP tool as added
+          -- mcp_tools_added_map[transformed.name] = true -- Mark this MCP tool as added
         end
       end
-      -- Resource templates are not directly exposed as tools in this version.
+      if access_mcp_resource_tool then
+        local mcp_resources = hub:get_resources() or {}
+        Utils.debug("Gemini: Found MCP Resources from Hub:", #mcp_resources)
+        -- include resources documentation in the description of the "access_mcp_resource" tool
+        local resource_docs = {}
+        for _, resource in ipairs(mcp_resources) do
+          if resource.server_name and resource.name and resource.uri then
+            local resource_doc = string.format(
+              "MCP Resource (from %s server): name: %s\nuri: %s\ndescription: %s\nmimeType: %s\n",
+              resource.server_name,
+              resource.name,
+              resource.uri,
+              resource.description or "No description",
+              resource.mimeType or "unknown"
+            )
+            table.insert(resource_docs, resource_doc)
+          end
+        end
+        -- Add the resource documentation to the description
+        local resource_docs_str = table.concat(resource_docs, "\n")
+        access_mcp_resource_tool.description = access_mcp_resource_tool.description
+          .. "\n\nAvailable MCP Resources:\n" .. resource_docs_str
+        -- Add the access_mcp_resource tool to the list of tools
+        table.insert(all_tools_for_gemini, access_mcp_resource_tool)
+        mcp_tools_added_map[access_mcp_resource_tool.name] = true -- Mark this MCP tool as added
+      end
+
+
     else
       Utils.debug("Gemini: MCP Hub not ready or not available for dynamic tool generation.")
     end
