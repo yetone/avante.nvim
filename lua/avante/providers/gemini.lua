@@ -306,7 +306,8 @@ end
 ---@param data_stream string Raw data chunk from the stream
 ---@param event_state table Persistent state for the current request (e.g., collected content, tool calls)
 ---@param opts AvanteHandlerOptions Callbacks (on_chunk, on_stop)
-function M:parse_response(ctx, data_stream, event_state, opts)
+---@diagnostic disable-next-line: unused-local
+function M:parse_response(ctx, data_stream, event_state, opts)  -- type: ignore[unused-local]
   local ok, decoded = pcall(vim.json.decode, data_stream)
   if not ok or not decoded then
     Utils.debug("Gemini: Failed to decode JSON chunk:", data_stream)
@@ -380,6 +381,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
         opts.on_stop({ reason = "complete" })
       end
     elseif reason == "MAX_TOKENS" then
+      ---@diagnostic disable-next-line: assign-type-mismatch
       opts.on_stop({ reason = "max_tokens" })
     elseif reason == "SAFETY" then
       local safety_ratings = vim.inspect(candidate.safetyRatings)
@@ -510,11 +512,8 @@ function M:parse_curl_args(prompt_opts)
         local transformed = self:transform_tool({
           name = tool_name, -- Use the generated unique name
           description = description,
-          parameters = mcp_tool.inputSchema and mcp_tool.inputSchema.fields or {}, -- Adapt based on actual MCP tool schema structure
-          -- Store original info for potential later use if needed
-          _mcp_original_server = mcp_tool.server_name,
-          _mcp_original_tool = mcp_tool.name,
-          _mcp_type = "tool",
+          param = mcp_tool.inputSchema and mcp_tool.inputSchema.fields or {}, -- Adapt based on actual MCP tool schema structure
+          returns = {},
         })
         if transformed then
           table.insert(all_tools_for_gemini, transformed)

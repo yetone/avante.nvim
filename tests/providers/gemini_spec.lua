@@ -1,3 +1,4 @@
+local stub = require("luassert.stub")
 local GeminiProvider = require("avante.providers.gemini")
 local Utils = require("avante.utils")
 
@@ -83,6 +84,60 @@ describe("GeminiProvider", function()
 
       assert.equals("model", result.contents[2].role)
       assert.equals("I'm fine, thank you!", result.contents[2].parts[1].text)
+    end)
+  end)
+
+  describe("parse_curl_args", function()
+  local parse_api_key_stub
+    before_each(function()
+      GeminiProvider["model"] = "gemini"
+      parse_api_key_stub = stub(GeminiProvider, "parse_api_key")
+      parse_api_key_stub.returns("mocked_api_key")
+    end)
+    it("should parse curl arguments correctly", function()
+      ---@type AvantePromptOptions
+      local prompt_opts = {
+        system_prompt = "This is a system prompt.",
+        messages = {
+          { role = "user", content = "Hello, how are you?" },
+          { role = "assistant", content = "I'm fine, thank you!" },
+        },
+        tools = {
+          {
+            name = "sample_tool",
+            description = "This is a sample tool",
+            param = {
+              type = "table",
+              fields = {
+                { name = "query", type = "string", description = "A search query" },
+                { name = "path", type = "string", description = "A file path" },
+              },
+            },
+            returns = {
+              {
+                name = "stdout",
+                description = "List of sentences where the query was found",
+                type = "string[]",
+              },
+            },
+          },
+        },
+      }
+
+      ---@type AvanteCurlOutput
+      local result = GeminiProvider:parse_curl_args(prompt_opts)
+
+      assert.is_table(result)
+      assert.is_string(result.url)
+      assert.is_table(result.headers)
+      assert.equals("application/json", result.headers["Content-Type"])
+      assert.is_table(result.body)
+      assert.is_table(result.body.contents)
+      assert.equals("This is a system prompt.", result.body.system_instruction.parts[1].text)
+
+      -- Check if the tools are correctly added
+      assert.is_table(result.body.tools)
+      assert.equals("sample_tool", result.body.tools[1].functionDeclarations[1].name)
     end)
   end)
 end)

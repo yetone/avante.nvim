@@ -396,15 +396,11 @@ function M.curl(opts)
   local curl_body_file = temp_file .. "-request-body.json"
   local json_content = vim.json.encode(spec.body)
 
-  Utils.debug("JSON before properties hack:", json_content) -- DEBUG ADDED
-
   -- HACK: Force empty properties array `[]` to be an empty object `{}`
   -- This is necessary because vim.json.encode might serialize empty Lua tables {} as []
   -- but the Gemini API requires properties to be an object {}.
   -- Make pattern more robust to whitespace inside brackets: [%s*]
   json_content = json_content:gsub('("properties"%s*:%s*)%[%s*%]', "%1{}") -- PATTERN UPDATED
-
-  Utils.debug("JSON after properties hack:", json_content) -- DEBUG ADDED
 
   fn.writefile(vim.split(json_content, "\n"), curl_body_file)
 
