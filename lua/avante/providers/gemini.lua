@@ -55,6 +55,7 @@ function M:transform_tool(tool)
   local required = generated_required
 
   -- Construct the full schema object expected by Gemini
+  ---@type AvanteGeminiToolInputSchema
   local parameters_schema = {
     type = "object",
     properties = properties,
@@ -81,7 +82,7 @@ function M:transform_tool(tool)
 
     -- Ensure 'required' is a list of strings (it should be from the util function, but double-check)
     if not parameters_schema.required then parameters_schema.required = {} end
-    if type(parameters_schema.required) ~= "table" or not vim.tbl_islist(parameters_schema.required) then
+    if type(parameters_schema.required) ~= "table" or not vim.islist(parameters_schema.required) then
       Utils.warn(
         "Gemini Provider: Correcting invalid 'required' field for tool '" .. tool.name .. "'.",
         { title = "Avante" }
@@ -96,7 +97,7 @@ function M:transform_tool(tool)
     end
 
     -- Ensure 'properties' is a map (it should be, but double-check)
-    if type(parameters_schema.properties) ~= "table" or vim.tbl_islist(parameters_schema.properties) then
+    if type(parameters_schema.properties) ~= "table" or vim.islist(parameters_schema.properties) then
       Utils.error(
         "Gemini Provider: Tool '"
           .. tool.name
