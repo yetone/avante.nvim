@@ -8,8 +8,7 @@ local M = {}
 ---@param tool AvanteLLMTool
 ---@return AvanteGeminiTool
 function M:transform_tool(tool)
-  -- Read parameters from tool.param.fields (MCP) or tool.parameters (standard)
-  local tool_param_fields = (tool.param and tool.param.fields) or {}
+  local tool_param_fields = tool.param.fields
 
   -- Ensure base_description is a string
   local base_description

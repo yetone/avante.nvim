@@ -21,8 +21,8 @@ describe("GeminiProvider", function()
         param = {
           type = "table",
           fields = {
-            query = { type = "string", description = "A search query" },
-            path = { type = "string", description = "A file path" },
+            { name = "query", type = "string", description = "A search query" },
+            { name = "path",  type = "string", description = "A file path" },
           },
         },
         returns = {
@@ -61,8 +61,17 @@ describe("GeminiProvider", function()
       assert.is_table(transformed_tool.parameters)
       assert.equals("object", transformed_tool.parameters.type)
       assert.is_table(transformed_tool.parameters.properties)
+      -- check properties
+      assert.is_table(transformed_tool.parameters.properties.query)
+      assert.equals("string", transformed_tool.parameters.properties.query.type)
+      assert.equals("(Type: string) A search query (Provide a concise search query based on the user's request.)", transformed_tool.parameters.properties.query.description)
+      assert.is_table(transformed_tool.parameters.properties.path)
+      assert.equals("string", transformed_tool.parameters.properties.path.type)
+      assert.equals("(Type: string) A file path (Provide the relative file path within the project.)", transformed_tool.parameters.properties.path.description)
+      -- check required
       assert.is_table(transformed_tool.parameters.required)
       assert.equals("query", transformed_tool.parameters.required[1])
+      assert.equals("path", transformed_tool.parameters.required[2])
     end)
 
     -- it("should transform tool without parameters", function()
