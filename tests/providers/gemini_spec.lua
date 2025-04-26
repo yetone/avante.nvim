@@ -102,4 +102,35 @@ describe("GeminiProvider", function()
     --   )
     -- end)
   end)
+  describe("parse_messages", function()
+    local gemini_provider
+
+    before_each(function()
+      gemini_provider = GeminiProvider
+    end)
+
+    it("should parse messages correctly", function()
+      ---@type AvantePromptOptions
+      local opts = {
+        system_prompt = "This is a system prompt.",
+        messages = {
+          { role = "user", content = "Hello, how are you?" },
+          { role = "assistant", content = "I'm fine, thank you!" },
+        },
+      }
+
+      ---@type AvanteGeminiMessage
+      local result = gemini_provider:parse_messages(opts)
+
+      assert.is_table(result)
+      assert.is_table(result.contents)
+      assert.equals("This is a system prompt.", result.system_instruction.parts[1].text)
+
+      assert.equals("user", result.contents[1].role)
+      assert.equals("Hello, how are you?", result.contents[1].parts[1].text)
+
+      assert.equals("model", result.contents[2].role)
+      assert.equals("I'm fine, thank you!", result.contents[2].parts[1].text)
+    end)
+  end)
 end)

@@ -169,7 +169,7 @@ M.role_map = {
 function M:is_disable_stream() return false end
 
 ---@param opts AvantePromptOptions
----@return GeminiContent[], GeminiPart | nil -- contents, system_instruction
+---@return AvanteGeminiMessage
 function M:parse_messages(opts)
   ---@type GeminiContent[]
   local contents = {}
@@ -295,7 +295,11 @@ function M:parse_messages(opts)
     end
   end
 
-  return contents, system_instruction
+  -- return contents, system_instruction
+  return {
+    contents = contents,
+    system_instruction = system_instruction,
+  }
 end
 
 ---@param ctx table Response context (can be used to store state across chunks)
@@ -395,6 +399,8 @@ function M:parse_response(ctx, data_stream, event_state, opts)
   end
 end
 
+---@param prompt_opts AvantePromptOptions
+---@return AvanteCurlOutput
 function M:parse_curl_args(prompt_opts)
   local provider_conf, request_body = P.parse_config(self)
 
@@ -414,7 +420,10 @@ function M:parse_curl_args(prompt_opts)
   if not api_key then error("Cannot get the Gemini API key (" .. M.api_key_name .. ")!") end
 
   -- Parse messages and system instruction
-  local contents, system_instruction = self:parse_messages(prompt_opts)
+  ---@type AvanteGeminiMessage
+  local avante_gemini_message = self:parse_messages(prompt_opts)
+  local contents = avante_gemini_message.contents
+  local system_instruction = avante_gemini_message.system_instruction
 
   -- Add system instruction if present
   if system_instruction then request_body.system_instruction = system_instruction end

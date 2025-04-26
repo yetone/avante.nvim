@@ -99,9 +99,17 @@ vim.g.avante_login = vim.g.avante_login
 ---@field tool_histories? AvanteLLMToolHistory[]
 ---@field dropped_history_messages? AvanteLLMMessage[]
 ---
+---@class GeminiPart
+---@field text? string
+---
+---@class GeminiContent
+---@field role? "user"
+---@field parts GeminiPart[]
+---
 ---@class AvanteGeminiMessage
----@field role "user"
----@field parts { text: string }[]
+---@field contents GeminiContent[]
+---@field tools? table<string, AvanteGeminiTool>[]
+---@field system_instruction? GeminiContent
 ---
 ---@class AvanteGeminiTool
 ---@field name string
