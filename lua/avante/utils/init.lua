@@ -933,7 +933,7 @@ end
 ---@param filepath string
 ---@return integer|nil bufnr
 local function get_opened_buffer_by_filepath(filepath)
-  local project_root = M.get_project_root()
+  local project_root = vim.fn.getcwd()
   local absolute_path = M.join_paths(project_root, filepath)
   for _, buf in ipairs(api.nvim_list_bufs()) do
     if M.join_paths(project_root, fn.bufname(buf)) == absolute_path then return buf end
