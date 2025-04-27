@@ -13,8 +13,25 @@ function M:transform_tool(tool)
   -- Read parameters from tool.param.fields (MCP) or tool.parameters (standard)
   local tool_param_fields = (tool.param and tool.param.fields) or tool.parameters or {}
 
-  local base_description = tool.description or ""
-  local enhanced_description = base_description -- Start with the base
+  -- Ensure base_description is a string
+  local base_description
+  if type(tool.description) == "string" then
+    base_description = tool.description
+  else
+    if tool.description ~= nil then -- Log if it was defined but not a string
+      Utils.warn(
+        "Gemini Provider: Tool '"
+          .. (tool.name or "unknown")
+          .. "' has a non-string description (type: "
+          .. type(tool.description)
+          .. "). Using empty description.",
+        { title = "Avante" }
+      )
+    end
+    base_description = "" -- Fallback to empty string
+  end
+
+  local enhanced_description = base_description -- Start with the (potentially empty) base
 
   -- Truncate description if it's too long
   local MAX_DESC_LENGTH = 500 -- Adjust as needed
