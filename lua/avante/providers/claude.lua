@@ -2,6 +2,7 @@ local Utils = require("avante.utils")
 local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
 local Config = require("avante.config")
+local StreamingJsonParser = require("avante.utils.streaming_json_parser")
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -226,6 +227,14 @@ function M:parse_response(ctx, data_stream, event_state, opts)
     content_block.stoppped = false
     ctx.content_blocks[jsn.index + 1] = content_block
     if content_block.type == "thinking" then opts.on_chunk("<think>\n") end
+    if content_block.type == "tool_use" and opts.on_partial_tool_use then
+      opts.on_partial_tool_use({
+        name = content_block.name,
+        id = content_block.id,
+        partial_json = {},
+        state = "generating",
+      })
+    end
   elseif event_state == "content_block_delta" then
     local ok, jsn = pcall(vim.json.decode, data_stream)
     if not ok then return end
@@ -233,6 +242,16 @@ function M:parse_response(ctx, data_stream, event_state, opts)
     if jsn.delta.type == "input_json_delta" then
       if not content_block.input_json then content_block.input_json = "" end
       content_block.input_json = content_block.input_json .. jsn.delta.partial_json
+      if opts.on_partial_tool_use then
+        local streaming_json_parser = StreamingJsonParser:new()
+        local partial_json = streaming_json_parser:parse(content_block.input_json)
+        opts.on_partial_tool_use({
+          name = content_block.name,
+          id = content_block.id,
+          partial_json = partial_json or {},
+          state = "generating",
+        })
+      end
       return
     elseif jsn.delta.type == "thinking_delta" then
       content_block.thinking = content_block.thinking .. jsn.delta.thinking
@@ -345,7 +364,7 @@ function M:parse_curl_args(prompt_opts)
     end
   end
 
-  if prompt_opts.tools and Config.behaviour.enable_claude_text_editor_tool_mode then
+  if prompt_opts.tools and #prompt_opts.tools > 0 and Config.behaviour.enable_claude_text_editor_tool_mode then
     if provider_conf.model:match("claude%-3%-7%-sonnet") then
       table.insert(tools, {
         type = "text_editor_20250124",

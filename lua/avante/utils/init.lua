@@ -304,6 +304,32 @@ function M.is_valid_buf(bufnr)
   return #vim.bo[bufnr].buftype == 0 and vim.bo[bufnr].modifiable
 end
 
+--- Check if a NUI container is valid:
+--- 1. Container must exist
+--- 2. Container must have a valid buffer number
+--- 3. Container must have a valid window ID (optional, based on check_winid parameter)
+--- Always returns a boolean value
+---@param container NuiSplit | nil
+---@param check_winid boolean? Whether to check window validity, defaults to false
+---@return boolean
+function M.is_valid_container(container, check_winid)
+  -- Default check_winid to false if not specified
+  if check_winid == nil then check_winid = false end
+
+  -- First check if container exists
+  if container == nil then return false end
+
+  -- Check buffer validity
+  if container.bufnr == nil or not api.nvim_buf_is_valid(container.bufnr) then return false end
+
+  -- Check window validity if requested
+  if check_winid then
+    if container.winid == nil or not api.nvim_win_is_valid(container.winid) then return false end
+  end
+
+  return true
+end
+
 ---@param name string?
 ---@return table
 function M.get_hl(name)
@@ -447,7 +473,7 @@ function M.unlock_buf(bufnr)
 end
 
 function M.lock_buf(bufnr)
-  vim.cmd("noautocmd stopinsert")
+  if bufnr == api.nvim_get_current_buf() then vim.cmd("noautocmd stopinsert") end
   vim.bo[bufnr].readonly = true
   vim.bo[bufnr].modified = false
   vim.bo[bufnr].modifiable = false

@@ -119,14 +119,17 @@ function M.rename_file(opts, on_log, on_complete)
   end
   if Path:new(new_abs_path):exists() then return false, "File already exists: " .. new_abs_path end
   if not on_complete then return false, "on_complete not provided" end
-  Helpers.confirm("Are you sure you want to rename the file: " .. abs_path .. " to: " .. new_abs_path, function(ok)
-    if not ok then
-      on_complete(false, "User canceled")
-      return
+  Helpers.confirm(
+    "Are you sure you want to rename the file: " .. abs_path .. " to: " .. new_abs_path,
+    function(ok, reason)
+      if not ok then
+        on_complete(false, "User declined, reason: " .. (reason or "unknown"))
+        return
+      end
+      os.rename(abs_path, new_abs_path)
+      on_complete(true, nil)
     end
-    os.rename(abs_path, new_abs_path)
-    on_complete(true, nil)
-  end)
+  )
 end
 
 ---@type AvanteLLMToolFunc<{ rel_path: string, new_rel_path: string }>
@@ -152,9 +155,9 @@ function M.delete_file(opts, on_log, on_complete)
   if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
   if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
   if not on_complete then return false, "on_complete not provided" end
-  Helpers.confirm("Are you sure you want to delete the file: " .. abs_path, function(ok)
+  Helpers.confirm("Are you sure you want to delete the file: " .. abs_path, function(ok, reason)
     if not ok then
-      on_complete(false, "User canceled")
+      on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
     end
     if on_log then on_log("Deleting file: " .. abs_path) end
@@ -169,9 +172,9 @@ function M.create_dir(opts, on_log, on_complete)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if Path:new(abs_path):exists() then return false, "Directory already exists: " .. abs_path end
   if not on_complete then return false, "on_complete not provided" end
-  Helpers.confirm("Are you sure you want to create the directory: " .. abs_path, function(ok)
+  Helpers.confirm("Are you sure you want to create the directory: " .. abs_path, function(ok, reason)
     if not ok then
-      on_complete(false, "User canceled")
+      on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
     end
     if on_log then on_log("Creating directory: " .. abs_path) end
@@ -194,9 +197,9 @@ function M.rename_dir(opts, on_log, on_complete)
   if not on_complete then return false, "on_complete not provided" end
   Helpers.confirm(
     "Are you sure you want to rename directory " .. abs_path .. " to " .. new_abs_path .. "?",
-    function(ok)
+    function(ok, reason)
       if not ok then
-        on_complete(false, "User canceled")
+        on_complete(false, "User declined, reason: " .. (reason or "unknown"))
         return
       end
       if on_log then on_log("Renaming directory: " .. abs_path .. " to " .. new_abs_path) end
@@ -213,9 +216,9 @@ function M.delete_dir(opts, on_log, on_complete)
   if not Path:new(abs_path):exists() then return false, "Directory not found: " .. abs_path end
   if not Path:new(abs_path):is_dir() then return false, "Path is not a directory: " .. abs_path end
   if not on_complete then return false, "on_complete not provided" end
-  Helpers.confirm("Are you sure you want to delete the directory: " .. abs_path, function(ok)
+  Helpers.confirm("Are you sure you want to delete the directory: " .. abs_path, function(ok, reason)
     if not ok then
-      on_complete(false, "User canceled")
+      on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
     end
     if on_log then on_log("Deleting directory: " .. abs_path) end
@@ -233,9 +236,9 @@ function M.web_search(opts, on_log)
   if on_log then on_log("query: " .. opts.query) end
   local search_engine = Config.web_search_engine.providers[provider_type]
   if search_engine == nil then return nil, "No search engine found: " .. provider_type end
-  if search_engine.api_key_name == "" then return nil, "No API key provided" end
-  local api_key = Utils.environment.parse(search_engine.api_key_name)
-  if api_key == nil or api_key == "" then
+  if provider_type ~= "searxng" and search_engine.api_key_name == "" then return nil, "No API key provided" end
+  local api_key = provider_type ~= "searxng" and Utils.environment.parse(search_engine.api_key_name) or nil
+  if provider_type ~= "searxng" and api_key == nil or api_key == "" then
     return nil, "Environment variable " .. search_engine.api_key_name .. " is not set"
   end
   if provider_type == "tavily" then
@@ -353,6 +356,26 @@ function M.web_search(opts, on_log)
     if resp.status ~= 200 then return nil, "Error: " .. resp.body end
     local jsn = vim.json.decode(resp.body)
     return search_engine.format_response_body(jsn)
+  elseif provider_type == "searxng" then
+    local searxng_api_url = Utils.environment.parse(search_engine.api_url_name)
+    if searxng_api_url == nil or searxng_api_url == "" then
+      return nil, "Environment variable " .. search_engine.api_url_name .. " is not set"
+    end
+    local query_params = vim.tbl_deep_extend("force", {
+      q = opts.query,
+    }, search_engine.extra_request_body)
+    local query_string = ""
+    for key, value in pairs(query_params) do
+      query_string = query_string .. key .. "=" .. vim.uri_encode(value) .. "&"
+    end
+    local resp = curl.get(searxng_api_url .. "?" .. query_string, {
+      headers = {
+        ["Content-Type"] = "application/json",
+      },
+    })
+    if resp.status ~= 200 then return nil, "Error: " .. resp.body end
+    local jsn = vim.json.decode(resp.body)
+    return search_engine.format_response_body(jsn)
   end
   return nil, "Error: No search engine found"
 end
@@ -443,10 +466,7 @@ function M.git_commit(opts, on_log, on_complete)
   for line in opts.message:gmatch("[^\r\n]+") do
     commit_msg_lines[#commit_msg_lines + 1] = line:gsub('"', '\\"')
   end
-
   commit_msg_lines[#commit_msg_lines + 1] = ""
-  commit_msg_lines[#commit_msg_lines + 1] = "🤖 Generated with [avante.nvim](https://github.com/yetone/avante.nvim)"
-  commit_msg_lines[#commit_msg_lines + 1] = "Co-Authored-By: avante.nvim <noreply-avante@yetone.ai>"
   if git_user ~= "" and git_email ~= "" then
     commit_msg_lines[#commit_msg_lines + 1] = string.format("Signed-off-by: %s <%s>", git_user, git_email)
   end
@@ -457,9 +477,9 @@ function M.git_commit(opts, on_log, on_complete)
   if not on_complete then return false, "on_complete not provided" end
 
   -- Confirm with user
-  Helpers.confirm("Are you sure you want to commit with message:\n" .. full_commit_msg, function(ok)
+  Helpers.confirm("Are you sure you want to commit with message:\n" .. full_commit_msg, function(ok, reason)
     if not ok then
-      on_complete(false, "User canceled")
+      on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
     end
     -- Stage changes if scope is provided
@@ -525,9 +545,9 @@ function M.python(opts, on_log, on_complete)
       .. abs_path
       .. "`?\n"
       .. opts.code,
-    function(ok)
+    function(ok, reason)
       if not ok then
-        on_complete(nil, "User canceled")
+        on_complete(nil, "User declined, reason: " .. (reason or "unknown"))
         return
       end
       if vim.fn.executable("docker") == 0 then
@@ -1093,7 +1113,7 @@ M._tools = {
 
 ---@param tools AvanteLLMTool[]
 ---@param tool_use AvanteLLMToolUse
----@param on_log? fun(tool_name: string, log: string): nil
+---@param on_log? fun(tool_id: string, tool_name: string, log: string, state: AvanteLLMToolUseState): nil
 ---@param on_complete? fun(result: string | nil, error: string | nil): nil
 ---@param session_ctx? table
 ---@return string | nil result
@@ -1106,97 +1126,52 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
     Utils.debug("Tool execution cancelled before starting: " .. tool_use.name)
     if on_complete then
       on_complete(nil, Helpers.CANCEL_TOKEN)
-      return
+      -- No return value needed here as on_complete handles async completion
     end
-    return nil, Helpers.CANCEL_TOKEN
+    return nil, Helpers.CANCEL_TOKEN -- Return for sync case or if on_complete wasn't provided
   end
 
   -- Find the tool definition from the provided list
   ---@type AvanteLLMTool?
   local tool = vim.iter(tools):find(function(t) return t.name == tool_use.name end) ---@param t AvanteLLMTool
-  if tool == nil then return nil, "This tool is not provided: " .. tool_use.name end
+  if tool == nil then
+    local err_msg = "This tool is not provided: " .. tool_use.name
+    -- Handle error before handle_result is defined
+    if on_log then on_log(tool_use.id, tool_use.name, "Error: " .. err_msg, "failed") end
+    if on_complete then
+      on_complete(nil, err_msg)
+    end
+    return nil, err_msg
+  end
 
   -- Assign the function to be called
   local func = tool.func or M[tool.name]
-  if not func then return nil, "Tool function not found for: " .. tool_use.name end
+  if not func then
+    local err_msg = "Tool function not found for: " .. tool_use.name
+    -- Handle error before handle_result is defined
+    if on_log then on_log(tool_use.id, tool_use.name, "Error: " .. err_msg, "failed") end
+    if on_complete then
+      on_complete(nil, err_msg)
+    end
+    return nil, err_msg
+  end
 
   -- Decode input arguments provided by the LLM
   local ok, input_json = pcall(vim.json.decode, tool_use.input_json)
   if not ok or type(input_json) ~= "table" then
-    local err_msg = "Error decoding tool arguments for '" .. tool_use.name .. "': Invalid JSON provided."
-    -- Use handle_result if on_complete is defined, otherwise return directly
+    local err_msg = "Error decoding tool arguments for '"
+      .. tool_use.name
+      .. "': Invalid JSON provided. Input: "
+      .. tool_use.input_json
+    -- Handle error before handle_result is defined
+    if on_log then on_log(tool_use.id, tool_use.name, "Error: " .. err_msg, "failed") end
     if on_complete then
-      return handle_result(nil, err_msg)
-    else
-      return nil, err_msg
+      on_complete(nil, err_msg)
     end
+    return nil, err_msg
   end
 
-  ---@param result string | nil | boolean
-  ---@param err string | nil
-  local function handle_result(result, err)
-    -- Stop the cancellation timer if it exists
-    if cancel_timer and not cancel_timer:is_closing() then
-      cancel_timer:stop()
-      cancel_timer:close()
-    end
-
-    -- Check for cancellation one more time before processing result
-    if Helpers.is_cancelled then
-      if on_log then on_log(tool_use.name, "cancelled during result handling") end
-      return nil, Helpers.CANCEL_TOKEN
-    end
-
-    if on_log then on_log(tool_use.name, "tool finished") end
-    -- Utils.debug("result", result)
-    -- Utils.debug("error", error)
-    if err ~= nil then
-      if on_log then on_log(tool_use.name, "Error: " .. err) end
-    end
-    local result_str ---@type string?
-    if type(result) == "string" then
-      result_str = result
-    elseif result ~= nil then
-      result_str = vim.json.encode(result)
-    end
-    return result_str, err
-  end
-
-  -- *** Centralized Argument Validation ***
-  -- Now 'tool' is guaranteed to be non-nil if we reached this point
-  if tool.param and tool.param.fields then
-    for _, field in ipairs(tool.param.fields) do
-      if not field.optional then -- Check only required fields
-        local arg_value = input_json[field.name]
-        if arg_value == nil then
-          local err_msg = "Error: Missing required parameter '"
-            .. field.name
-            .. "' for tool '"
-            .. tool_use.name
-            .. "'."
-          return handle_result(nil, err_msg) -- Use handle_result to manage state/cancellation
-        end
-        -- Basic type check (can be expanded if needed)
-        if field.type ~= "any" and type(arg_value) ~= field.type and field.type ~= "object" then -- Allow any type for 'object' for now
-          local err_msg = "Error: Invalid type for required parameter '"
-            .. field.name
-            .. "' for tool '"
-            .. tool_use.name
-            .. "'. Expected "
-            .. field.type
-            .. ", got "
-            .. type(arg_value)
-            .. "."
-          return handle_result(nil, err_msg) -- Use handle_result
-        end
-      end
-    end
-  end
-  -- *** End Validation ***
-
-  if not func then return nil, "Tool not found: " .. tool_use.name end
-  if on_log then on_log(tool_use.name, "running tool") end
-  -- Set up a timer to periodically check for cancellation
+  -- Set up a timer to periodically check for cancellation (from vanilla/main)
   local cancel_timer
   if on_complete then
     cancel_timer = vim.loop.new_timer()
@@ -1211,6 +1186,7 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
               cancel_timer:stop()
               cancel_timer:close()
             end
+            -- Directly call on_complete for cancellation
             on_complete(nil, Helpers.CANCEL_TOKEN)
           end
         end)
@@ -1229,46 +1205,111 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
 
     -- Check for cancellation one more time before processing result
     if Helpers.is_cancelled then
-      if on_log then on_log(tool_use.name, "cancelled during result handling") end
+      -- Use the log format from vanilla/main
+      if on_log then on_log(tool_use.id, tool_use.name, "cancelled during result handling", "failed") end
       return nil, Helpers.CANCEL_TOKEN
     end
 
-    if on_log then on_log(tool_use.name, "tool finished") end
-    -- Utils.debug("result", result)
-    -- Utils.debug("error", error)
     if err ~= nil then
-      if on_log then on_log(tool_use.name, "Error: " .. err) end
+      if on_log then on_log(tool_use.id, tool_use.name, "Error: " .. err, "failed") end
+    else
+      if on_log then on_log(tool_use.id, tool_use.name, "tool finished", "succeeded") end
     end
+
     local result_str ---@type string?
     if type(result) == "string" then
       result_str = result
     elseif result ~= nil then
+      -- Ensure boolean true becomes "true" string etc.
       result_str = vim.json.encode(result)
     end
     return result_str, err
   end
 
+  -- *** Centralized Argument Validation (from HEAD, adapted logging/return) ***
+  if tool.param and tool.param.fields then
+    for _, field in ipairs(tool.param.fields) do
+      -- Check only required fields that aren't explicitly 'any' or 'object' for type checking
+      if not field.optional then
+        local arg_value = input_json[field.name]
+        local validation_err_msg ---@type string?
+
+        if arg_value == nil then
+          validation_err_msg = "Error: Missing required parameter '"
+            .. field.name
+            .. "' for tool '"
+            .. tool_use.name
+            .. "'."
+        -- Basic type check (skip for 'any' or 'object')
+        elseif field.type ~= "any" and field.type ~= "object" and type(arg_value) ~= field.type then
+          -- Special case: allow integer for number type
+          if not (field.type == "number" and type(arg_value) == "integer") then
+             validation_err_msg = "Error: Invalid type for required parameter '"
+              .. field.name
+              .. "' for tool '"
+              .. tool_use.name
+              .. "'. Expected "
+              .. field.type
+              .. ", got "
+              .. type(arg_value)
+              .. "."
+          end
+        end
+
+        if validation_err_msg then
+          -- Use handle_result now that it's defined to manage timer and logging
+          local final_result, final_err = handle_result(nil, validation_err_msg)
+          if on_complete then
+            -- If async, we must explicitly call on_complete
+            on_complete(final_result, final_err)
+            -- Return nil, err to signal async completion handled
+            return nil, final_err
+          else
+            -- If sync, return the result from handle_result
+            return final_result, final_err
+          end
+        end
+      end
+    end
+  end
+  -- *** End Validation ***
+
+  -- Log before running the actual function (using vanilla/main format)
+  if on_log then on_log(tool_use.id, tool_use.name, "running tool", "running") end
+
+  -- Execute the tool function
   local result, err = func(input_json, function(log)
-    -- Check for cancellation during logging
+    -- Check for cancellation during logging callbacks
     if Helpers.is_cancelled then return end
-    if on_log then on_log(tool_use.name, log) end
-  end, function(result, err)
+    if on_log then on_log(tool_use.id, tool_use.name, log, "running") end
+  end, function(async_result, async_err) -- Renamed args to avoid collision
+    -- Async completion callback
     -- Check for cancellation before completing
     if Helpers.is_cancelled then
       if on_complete then on_complete(nil, Helpers.CANCEL_TOKEN) end
-      return
+      return -- Don't proceed if cancelled
     end
 
-    result, err = handle_result(result, err)
+    -- Use handle_result to process the outcome
+    local final_result, final_err = handle_result(async_result, async_err)
     if on_complete == nil then
-      Utils.error("asynchronous tool " .. tool_use.name .. " result not handled")
+      Utils.error("asynchronous tool " .. tool_use.name .. " result not handled (on_complete missing)")
       return
     end
-    on_complete(result, err)
+    -- Call the original on_complete provided to process_tool_use
+    on_complete(final_result, final_err)
   end, session_ctx)
 
-  -- Result and error being nil means that the tool was executed asynchronously
-  if result == nil and err == nil and on_complete then return end
+  -- Handle synchronous result (func returned values directly)
+  -- If result and err are nil AND on_complete exists, it means the tool ran asynchronously
+  -- and the async callback above already handled completion via on_complete.
+  if result == nil and err == nil and on_complete then
+     -- Intentionally return nothing here, async path handled it.
+     -- The caller expects no return values in this case.
+     return
+  end
+
+  -- Otherwise (sync tool, or async tool without on_complete), process the direct return values.
   return handle_result(result, err)
 end
 

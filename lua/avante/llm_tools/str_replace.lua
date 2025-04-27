@@ -3,6 +3,7 @@ local Utils = require("avante.utils")
 local Base = require("avante.llm_tools.base")
 local Helpers = require("avante.llm_tools.helpers")
 local Diff = require("avante.diff")
+local Config = require("avante.config")
 
 ---@class AvanteLLMTool
 local M = setmetatable({}, Base)
@@ -125,17 +126,14 @@ function M.func(opts, on_log, on_complete, session_ctx)
     vim.list_extend(patched_new_lines, vim.list_slice(old_lines, current_start_a, #old_lines))
   end
   vim.api.nvim_buf_set_lines(bufnr, start_line - 1, end_line, false, patched_new_lines)
-  local current_winid = vim.api.nvim_get_current_win()
-  vim.api.nvim_set_current_win(sidebar.code.winid)
   Diff.add_visited_buffer(bufnr)
   Diff.process(bufnr)
   if #patch > 0 then
     vim.api.nvim_win_set_cursor(sidebar.code.winid, { math.max(patch[1][1] + start_line - 1, 1), 0 })
   end
-  vim.cmd("normal! zz")
-  vim.api.nvim_set_current_win(current_winid)
+  vim.api.nvim_win_call(sidebar.code.winid, function() vim.cmd("normal! zz") end)
   local augroup = vim.api.nvim_create_augroup("avante_str_replace_editor", { clear = true })
-  vim.api.nvim_set_current_win(sidebar.code.winid)
+  if Config.behaviour.auto_focus_on_diff_view then vim.api.nvim_set_current_win(sidebar.code.winid) end
   local confirm
   vim.api.nvim_create_autocmd({ "TextChangedI", "TextChanged" }, {
     group = augroup,
@@ -146,29 +144,29 @@ function M.func(opts, on_log, on_complete, session_ctx)
       if current_lines_content:find(patch_end_line_content) then return end
       pcall(vim.api.nvim_del_augroup_by_id, augroup)
       if confirm then confirm:close() end
-      if vim.api.nvim_win_is_valid(current_winid) then vim.api.nvim_set_current_win(current_winid) end
       if lines_content == current_lines_content then
         on_complete(false, "User canceled")
         return
       end
+      if session_ctx then Helpers.mark_as_not_viewed(opts.path, session_ctx) end
       on_complete(true, nil)
     end,
   })
   confirm = Helpers.confirm("Are you sure you want to apply this modification?", function(ok, reason)
     pcall(vim.api.nvim_del_augroup_by_id, augroup)
-    vim.api.nvim_set_current_win(sidebar.code.winid)
-    vim.cmd("noautocmd stopinsert")
-    vim.cmd("noautocmd undo")
+    vim.api.nvim_win_call(sidebar.code.winid, function()
+      vim.cmd("noautocmd stopinsert")
+      vim.cmd("noautocmd undo")
+    end)
     if not ok then
-      vim.api.nvim_set_current_win(current_winid)
       on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
     end
     vim.api.nvim_buf_set_lines(bufnr, start_line - 1, end_line, false, new_lines)
-    vim.cmd("noautocmd write")
-    vim.api.nvim_set_current_win(current_winid)
+    vim.api.nvim_buf_call(bufnr, function() vim.cmd("noautocmd write") end)
+    if session_ctx then Helpers.mark_as_not_viewed(opts.path, session_ctx) end
     on_complete(true, nil)
-  end, { focus = false }, session_ctx)
+  end, { focus = not Config.behaviour.auto_focus_on_diff_view }, session_ctx)
 end
 
 return M

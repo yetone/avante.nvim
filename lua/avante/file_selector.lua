@@ -2,6 +2,7 @@ local Utils = require("avante.utils")
 local Path = require("plenary.path")
 local scan = require("plenary.scandir")
 local Config = require("avante.config")
+local Selector = require("avante.ui.selector")
 
 local PROMPT_TITLE = "(Avante) Add a file"
 
@@ -168,7 +169,7 @@ function FileSelector:off(event, callback)
   end
 end
 
-function FileSelector:open() self:show_select_ui() end
+function FileSelector:open() self:show_selector_ui() end
 
 function FileSelector:get_filepaths()
   if type(Config.file_selector.provider_opts.get_filepaths) == "function" then
@@ -203,162 +204,57 @@ function FileSelector:get_filepaths()
     :totable()
 end
 
----@type FileSelectorHandler
-function FileSelector:fzf_ui(handler)
-  local success, fzf_lua = pcall(require, "fzf-lua")
-  if not success then
-    Utils.error("fzf-lua is not installed. Please install fzf-lua to use it as a file selector.")
-    return
-  end
-
-  local filepaths = self:get_filepaths()
-
-  local function close_action() handler(nil) end
-  fzf_lua.fzf_exec(
-    filepaths,
-    vim.tbl_deep_extend("force", {
-      prompt = string.format("%s> ", PROMPT_TITLE),
-      fzf_opts = {},
-      git_icons = false,
-      actions = {
-        ["default"] = function(selected)
-          if not selected or #selected == 0 then return close_action() end
-          ---@type string[]
-          local selections = {}
-          for _, entry in ipairs(selected) do
-            local file = fzf_lua.path.entry_to_file(entry)
-            if file and file.path then table.insert(selections, file.path) end
-          end
-
-          handler(selections)
-        end,
-        ["esc"] = close_action,
-        ["ctrl-c"] = close_action,
-      },
-    }, Config.file_selector.provider_opts)
-  )
-end
-
-function FileSelector:mini_pick_ui(handler)
-  -- luacheck: globals MiniPick
-  ---@diagnostic disable-next-line: undefined-field
-  if not _G.MiniPick then
-    Utils.error("mini.pick is not set up. Please install and set up mini.pick to use it as a file selector.")
-    return
-  end
-  local function choose(item) handler(type(item) == "string" and { item } or item) end
-  local function choose_marked(items_marked) handler(items_marked) end
-  local source = { choose = choose, choose_marked = choose_marked }
-  ---@diagnostic disable-next-line: undefined-global
-  local result = MiniPick.builtin.files(nil, { source = source })
-  if result == nil then handler(nil) end
-end
-
-function FileSelector:snacks_picker_ui(handler)
-  ---@diagnostic disable-next-line: undefined-field
-  if not _G.Snacks then
-    Utils.error("Snacks is not set up. Please install and set up Snacks to use it as a file selector.")
-    return
-  end
-  ---@diagnostic disable-next-line: undefined-global
-  Snacks.picker.files({
-    exclude = self.selected_filepaths,
-    confirm = function(picker)
-      picker:close()
-      local items = picker:selected({ fallback = true })
-      local files = vim.tbl_map(function(item) return item.file end, items)
-      handler(files)
-    end,
-  })
-end
-
-function FileSelector:telescope_ui(handler)
-  local success, _ = pcall(require, "telescope")
-  if not success then
-    Utils.error("telescope is not installed. Please install telescope to use it as a file selector.")
-    return
-  end
-
-  local pickers = require("telescope.pickers")
-  local finders = require("telescope.finders")
-  local conf = require("telescope.config").values
-  local actions = require("telescope.actions")
-  local action_state = require("telescope.actions.state")
-  local action_utils = require("telescope.actions.utils")
-
-  local files = self:get_filepaths()
-
-  pickers
-    .new(
-      {},
-      vim.tbl_extend("force", {
-        file_ignore_patterns = self.selected_filepaths,
-        prompt_title = string.format("%s> ", PROMPT_TITLE),
-        finder = finders.new_table(files),
-        sorter = conf.file_sorter(),
-        attach_mappings = function(prompt_bufnr, map)
-          map("i", "<esc>", require("telescope.actions").close)
-          actions.select_default:replace(function()
-            local picker = action_state.get_current_picker(prompt_bufnr)
-
-            if #picker:get_multi_selection() ~= 0 then
-              local selections = {}
-
-              action_utils.map_selections(prompt_bufnr, function(selection) table.insert(selections, selection[1]) end)
-
-              handler(selections)
-            else
-              local selections = action_state.get_selected_entry()
-
-              handler(selections)
-            end
-
-            actions.close(prompt_bufnr)
-          end)
-          return true
-        end,
-      }, Config.file_selector.provider_opts)
-    )
-    :find()
-end
-
-function FileSelector:native_ui(handler)
-  local filepaths = self:get_filepaths()
-
-  vim.ui.select(filepaths, {
-    prompt = string.format("%s:", PROMPT_TITLE),
-    format_item = function(item) return item end,
-  }, function(item)
-    if item then
-      handler({ item })
-    else
-      handler(nil)
-    end
-  end)
-end
-
 ---@return nil
-function FileSelector:show_select_ui()
+function FileSelector:show_selector_ui()
   local function handler(selected_paths) self:handle_path_selection(selected_paths) end
 
   vim.schedule(function()
-    if Config.file_selector.provider == "native" then
-      self:native_ui(handler)
-    elseif Config.file_selector.provider == "fzf" then
-      self:fzf_ui(handler)
-    elseif Config.file_selector.provider == "mini.pick" then
-      self:mini_pick_ui(handler)
-    elseif Config.file_selector.provider == "snacks" then
-      self:snacks_picker_ui(handler)
-    elseif Config.file_selector.provider == "telescope" then
-      self:telescope_ui(handler)
-    elseif type(Config.file_selector.provider) == "function" then
-      local title = string.format("%s:", PROMPT_TITLE) ---@type string
-      local filepaths = self:get_filepaths() ---@type string[]
-      local params = { title = title, filepaths = filepaths, handler = handler } ---@type avante.file_selector.IParams
-      Config.file_selector.provider(params)
+    if Config.file_selector.provider ~= nil then
+      Utils.warn("config.file_selector is deprecated, please use config.selector instead!")
+      if type(Config.file_selector.provider) == "function" then
+        local title = string.format("%s:", PROMPT_TITLE) ---@type string
+        local filepaths = self:get_filepaths() ---@type string[]
+        local params = { title = title, filepaths = filepaths, handler = handler } ---@type avante.file_selector.IParams
+        Config.file_selector.provider(params)
+      else
+        ---@type avante.SelectorProvider
+        local provider = "native"
+        if Config.file_selector.provider == "native" then
+          provider = "native"
+        elseif Config.file_selector.provider == "fzf" then
+          provider = "fzf_lua"
+        elseif Config.file_selector.provider == "mini.pick" then
+          provider = "mini_pick"
+        elseif Config.file_selector.provider == "snacks" then
+          provider = "snacks"
+        elseif Config.file_selector.provider == "telescope" then
+          provider = "telescope"
+        elseif type(Config.file_selector.provider) == "function" then
+          provider = Config.file_selector.provider
+        end
+        ---@cast provider avante.SelectorProvider
+        local selector = Selector:new({
+          provider = provider,
+          title = PROMPT_TITLE,
+          items = vim.tbl_map(function(filepath) return { id = filepath, title = filepath } end, self:get_filepaths()),
+          default_item_id = self.selected_filepaths[1],
+          selected_item_ids = self.selected_filepaths,
+          provider_opts = Config.file_selector.provider_opts,
+          on_select = function(item_ids) self:handle_path_selection(item_ids) end,
+        })
+        selector:open()
+      end
     else
-      Utils.error("Unknown file selector provider: " .. Config.file_selector.provider)
+      local selector = Selector:new({
+        provider = Config.selector.provider,
+        title = PROMPT_TITLE,
+        items = vim.tbl_map(function(filepath) return { id = filepath, title = filepath } end, self:get_filepaths()),
+        default_item_id = self.selected_filepaths[1],
+        selected_item_ids = self.selected_filepaths,
+        provider_opts = Config.selector.provider_opts,
+        on_select = function(item_ids) self:handle_path_selection(item_ids) end,
+      })
+      selector:open()
     end
   end)
 

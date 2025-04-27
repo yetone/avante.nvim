@@ -20,3 +20,4 @@ Tools Usage Guide:
   - Do not use the `python` tool to read or modify files! If you use the `python` tool to read or modify files, you will be fired!!!!!
   - Do not use the `bash` tool to read or modify files! If you use the `bash` tool to read or modify files, you will be fired!!!!!
   - If you are provided with the `write_file` tool, there's no need to output your change suggestions, just directly use the `write_file` tool to complete the changes.
+  - Before each tool call, explain the reason why you're using the tool

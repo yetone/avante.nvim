@@ -161,6 +161,32 @@ function M.already_in_context(path)
   return false
 end
 
+---@param path string
+---@param session_ctx table
+---@return boolean
+function M.already_viewed(path, session_ctx)
+  local view_history = session_ctx.view_history or {}
+  local uniform_path = Utils.uniform_path(path)
+  if view_history[uniform_path] then return true end
+  return false
+end
+
+---@param path string
+---@param session_ctx table
+function M.mark_as_viewed(path, session_ctx)
+  local view_history = session_ctx.view_history or {}
+  local uniform_path = Utils.uniform_path(path)
+  view_history[uniform_path] = true
+  session_ctx.view_history = view_history
+end
+
+function M.mark_as_not_viewed(path, session_ctx)
+  local view_history = session_ctx.view_history or {}
+  local uniform_path = Utils.uniform_path(path)
+  view_history[uniform_path] = nil
+  session_ctx.view_history = view_history
+end
+
 ---@param abs_path string
 ---@return integer bufnr
 ---@return string | nil error

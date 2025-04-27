@@ -1,5 +1,7 @@
 local Utils = require("avante.utils")
 local Path = require("avante.path")
+local Config = require("avante.config")
+local Selector = require("avante.ui.selector")
 
 ---@class avante.HistorySelector
 local M = {}
@@ -8,8 +10,10 @@ local M = {}
 ---@return table?
 local function to_selector_item(history)
   local timestamp = #history.entries > 0 and history.entries[#history.entries].timestamp or history.timestamp
+  local name = history.title .. " - " .. timestamp .. " (" .. #history.entries .. ")"
+  name = name:gsub("\n", "\\n")
   return {
-    name = history.title .. " - " .. timestamp .. " (" .. #history.entries .. ")",
+    name = name,
     filename = history.filename,
   }
 end
@@ -30,56 +34,33 @@ function M.open(bufnr, cb)
     return
   end
 
-  local has_telescope, _ = pcall(require, "telescope")
-  if has_telescope then
-    local pickers = require("telescope.pickers")
-    local finders = require("telescope.finders")
-    local previewers = require("telescope.previewers")
-    local actions = require("telescope.actions")
-    local action_state = require("telescope.actions.state")
-    local conf = require("telescope.config").values
-    pickers
-      .new({}, {
-        prompt_title = "Select Avante History",
-        finder = finders.new_table(vim.iter(selector_items):map(function(item) return item.name end):totable()),
-        sorter = conf.generic_sorter({}),
-        previewer = previewers.new_buffer_previewer({
-          title = "Preview",
-          define_preview = function(self, entry)
-            if not entry then return end
-            local item = vim.iter(selector_items):find(function(item) return item.name == entry.value end)
-            if not item then return end
-            local history = Path.history.load(vim.api.nvim_get_current_buf(), item.filename)
-            local Sidebar = require("avante.sidebar")
-            local content = Sidebar.render_history_content(history)
-            vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, vim.split(content or "", "\n"))
-            vim.api.nvim_set_option_value("filetype", "markdown", { buf = self.state.bufnr })
-          end,
-        }),
-        attach_mappings = function(prompt_bufnr, map)
-          map("i", "<CR>", function()
-            local selection = action_state.get_selected_entry()
-            if selection then
-              actions.close(prompt_bufnr)
-              local item = vim.iter(selector_items):find(function(item) return item.name == selection.value end)
-              if not item then return end
-              cb(item.filename)
-            end
-          end)
-          return true
-        end,
-      })
-      :find()
-    return
-  end
-
-  vim.ui.select(selector_items, {
-    prompt = "Select Avante History:",
-    format_item = function(item) return item.name:gsub("\n", "\\n") end,
-  }, function(choice)
-    if not choice then return end
-    cb(choice.filename)
-  end)
+  local selector = Selector:new({
+    provider = Config.selector.provider,
+    title = "Select Avante History",
+    items = vim
+      .iter(selector_items)
+      :map(
+        function(item)
+          return {
+            id = item.filename,
+            title = item.name,
+          }
+        end
+      )
+      :totable(),
+    on_select = function(item_ids)
+      if not item_ids then return end
+      if #item_ids == 0 then return end
+      cb(item_ids[1])
+    end,
+    get_preview_content = function(item_id)
+      local history = Path.history.load(vim.api.nvim_get_current_buf(), item_id)
+      local Sidebar = require("avante.sidebar")
+      local content = Sidebar.render_history_content(history)
+      return content, "markdown"
+    end,
+  })
+  selector:open()
 end
 
 return M

@@ -141,7 +141,7 @@ function Selection:submit_input(input)
     for _, line in ipairs(response_lines_) do
       if line:match("^<code>") then
         in_code_block = true
-        line = line:gsub("^<code>", "")
+        line = line:gsub("^<code>", ""):gsub("</code>.*$", "")
         if line ~= "" then table.insert(response_lines, line) end
       elseif line:match("</code>") then
         in_code_block = false
@@ -311,10 +311,10 @@ function Selection:setup_autocmds()
     end,
   })
 
-  api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
+  api.nvim_create_autocmd({ "CursorMoved" }, {
     group = self.augroup,
     callback = function(ev)
-      if not Utils.is_sidebar_buffer(ev.buf) then
+      if vim.bo[ev.buf].buftype ~= "terminal" and not Utils.is_sidebar_buffer(ev.buf) then
         if Utils.in_visual_mode() then
           self:show_shortcuts_hints_popup()
         else

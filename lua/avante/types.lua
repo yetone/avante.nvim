@@ -75,6 +75,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field on_start AvanteLLMStartCallback
 ---@field on_chunk AvanteLLMChunkCallback
 ---@field on_stop AvanteLLMStopCallback
+---@field on_partial_tool_use? fun(tool_use: AvantePartialLLMToolUse): nil
 ---
 ---@alias AvanteLLMMessageContentItem string | { type: "text", text: string } | { type: "image", source: { type: "base64", media_type: string, data: string } } | { type: "tool_use", name: string, id: string, input: any } | { type: "tool_result", tool_use_id: string, content: string, is_error?: boolean } | { type: "thinking", thinking: string, signature: string } | { type: "redacted_thinking", data: string }
 ---
@@ -205,6 +206,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field model? string
 ---@field local? boolean
 ---@field proxy? string
+---@field keep_alive? string
 ---@field timeout? integer
 ---@field allow_insecure? boolean
 ---@field api_key_name? string
@@ -217,6 +219,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field __inherited_from? string
 ---@field temperature? number
 ---@field max_tokens? number
+---@field max_completion_tokens? number
 ---@field reasoning_effort? string
 ---@field display_name? string
 ---
@@ -232,6 +235,12 @@ vim.g.avante_login = vim.g.avante_login
 ---
 ---@class AvanteLLMRedactedThinkingBlock
 ---@field data string
+---
+---@class AvantePartialLLMToolUse
+---@field name string
+---@field id string
+---@field partial_json table
+---@field state "generating" | "generated"
 ---
 ---@class AvanteLLMToolUse
 ---@field name string
@@ -313,6 +322,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field selected_code AvanteSelectedCode | nil
 ---@field project_context string | nil
 ---@field selected_files AvanteSelectedFile[] | nil
+---@field selected_filepaths string[] | nil
 ---@field diagnostics string | nil
 ---@field history_messages AvanteLLMMessage[] | nil
 ---@field memory string | nil
@@ -334,12 +344,15 @@ vim.g.avante_login = vim.g.avante_login
 ---
 ---@alias AvanteLLMMemorySummarizeCallback fun(dropped_history_messages: AvanteLLMMessage[]): nil
 ---
+---@alias AvanteLLMToolUseState "generating" | "generated" | "running" | "succeeded" | "failed"
+---
 ---@class AvanteLLMStreamOptions: AvanteGeneratePromptsOptions
 ---@field on_start AvanteLLMStartCallback
 ---@field on_chunk AvanteLLMChunkCallback
 ---@field on_stop AvanteLLMStopCallback
 ---@field on_memory_summarize? AvanteLLMMemorySummarizeCallback
----@field on_tool_log? function(tool_name: string, log: string): nil
+---@field on_tool_log? fun(tool_id: string, tool_name: string, log: string, state: AvanteLLMToolUseState): nil
+---@field on_partial_tool_use? fun(tool_use: AvantePartialLLMToolUse): nil
 ---
 ---@alias AvanteLLMToolFunc<T> fun(
 ---  input: T,
