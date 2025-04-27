@@ -487,7 +487,7 @@ describe("process_tool_use", function()
     }
     local result, err = LlmTools.process_tool_use(tools, tool_use)
     assert.is_nil(result)
-    assert.truthy(err:find("Failed to decode tool input json"))
+    assert.truthy(err:find("Error decoding tool arguments for"))
   end)
 
   it("should handle cancellation", function()
