@@ -34,7 +34,7 @@ function M:transform_tool(tool)
   local MAX_DESC_LENGTH = 500 -- Adjust as needed
   if #enhanced_description > MAX_DESC_LENGTH then
     enhanced_description = enhanced_description:sub(1, MAX_DESC_LENGTH) .. "..."
-    Utils.debug("Gemini: Truncated description for tool:", tool.name)
+    Utils.debug("transform_tool: Truncated description for tool:", tool.name)
   end
 
   -- If the tool definition has no parameters, omit the 'parameters' field entirely
@@ -144,7 +144,7 @@ function M:transform_tool(tool)
     then
       parameters_schema.properties.path.description = parameters_schema.properties.path.description
         .. " (**MANDATORY**: You MUST provide the file path, usually mentioned in the user request or previous context.)"
-      Utils.debug("Gemini: Enhanced path description for view tool.")
+      Utils.debug("transform_tool: Enhanced path description for view tool.")
     end
     -- *** End View Enhancement ***
 
@@ -350,7 +350,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
       end
       if part.functionCall then
         local func_call = part.functionCall
-        Utils.debug("Gemini: Detected function call:", func_call)
+        Utils.debug("parse_response: Detected function call:", func_call)
         -- Gemini provides 'args' as a JSON object. Encode to string for consistency.
         local input_json_str = vim.fn.json_encode(func_call.args or {})
         -- Generate a unique-ish ID for llm.lua processing
@@ -368,7 +368,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
   -- Check finish reason to determine if the stream should stop
   if candidate.finishReason then
     local reason = candidate.finishReason
-    Utils.debug("Gemini: Finish Reason:", reason)
+    Utils.debug("parse_response: Finish Reason:", reason)
     if reason == "STOP" then
       -- Normal completion, but check if it was actually a tool call stop
       if event_state.has_tool_call then
@@ -428,21 +428,54 @@ function M:parse_curl_args(prompt_opts)
 
   -- Simplified tool handling: Only use standard Avante tools for now
   local final_tools_for_gemini = {}
+  local access_mcp_resource_tool = nil
 
   -- 1. Add standard Avante tools directly
   if prompt_opts.tools then
-    Utils.debug("Gemini: Processing standard tools:", vim.inspect(prompt_opts.tools))
     for _, tool in ipairs(prompt_opts.tools) do
-      local transformed = self:transform_tool(tool)
-      if transformed then
-        Utils.debug("Gemini: Transformed standard tool:", vim.inspect(transformed))
-        table.insert(final_tools_for_gemini, transformed)
+      if tool.name ~= "access_mcp_resource" then
+        local transformed = self:transform_tool(tool)
+        if transformed then
+          table.insert(final_tools_for_gemini, transformed)
+        else
+          Utils.warn("Gemini: Failed to transform standard tool: " .. tool.name)
+        end
       else
-        Utils.warn("Gemini: Failed to transform standard tool: " .. tool.name)
+        access_mcp_resource_tool = self:transform_tool(tool)
       end
     end
   else
     Utils.debug("Gemini: No standard tools provided in prompt_opts.")
+  end
+  local mcp_ok, mcphub = pcall(require, "mcphub")
+  if mcp_ok and mcphub and access_mcp_resource_tool then
+    local hub = mcphub.get_hub_instance()
+    if hub and hub:is_ready() then
+      local mcp_resources = hub:get_resources() or {}
+      Utils.debug("Gemini: Found MCP Resources from Hub:", #mcp_resources)
+      -- include resources documentation in the description of the "access_mcp_resource" tool
+      local resource_docs = {}
+      for _, resource in ipairs(mcp_resources) do
+        if resource.server_name and resource.name and resource.uri then
+          local resource_doc = string.format(
+            "MCP Resource (from %s server): name: %s\nuri: %s\ndescription: %s\nmimeType: %s\n",
+            resource.server_name,
+            resource.name,
+            resource.uri,
+            resource.description or "No description",
+            resource.mimeType or "unknown"
+          )
+          table.insert(resource_docs, resource_doc)
+        end
+      end
+      -- Add the resource documentation to the description
+      local resource_docs_str = table.concat(resource_docs, "\n")
+      access_mcp_resource_tool.description = access_mcp_resource_tool.description
+        .. "\n\nAvailable MCP Resources:\n"
+        .. resource_docs_str
+      -- Add the access_mcp_resource tool to the list of tools
+      table.insert(final_tools_for_gemini, access_mcp_resource_tool)
+    end
   end
 
   --[[ -- Temporarily disable MCP Hub integration and redundancy filtering
@@ -561,32 +594,6 @@ function M:parse_curl_args(prompt_opts)
           -- mcp_tools_added_map[transformed.name] = true -- Mark this MCP tool as added
         end
       end
-      if access_mcp_resource_tool then
-        local mcp_resources = hub:get_resources() or {}
-        Utils.debug("Gemini: Found MCP Resources from Hub:", #mcp_resources)
-        -- include resources documentation in the description of the "access_mcp_resource" tool
-        local resource_docs = {}
-        for _, resource in ipairs(mcp_resources) do
-          if resource.server_name and resource.name and resource.uri then
-            local resource_doc = string.format(
-              "MCP Resource (from %s server): name: %s\nuri: %s\ndescription: %s\nmimeType: %s\n",
-              resource.server_name,
-              resource.name,
-              resource.uri,
-              resource.description or "No description",
-              resource.mimeType or "unknown"
-            )
-            table.insert(resource_docs, resource_doc)
-          end
-        end
-        -- Add the resource documentation to the description
-        local resource_docs_str = table.concat(resource_docs, "\n")
-        access_mcp_resource_tool.description = access_mcp_resource_tool.description
-          .. "\n\nAvailable MCP Resources:\n" .. resource_docs_str
-        -- Add the access_mcp_resource tool to the list of tools
-        table.insert(all_tools_for_gemini, access_mcp_resource_tool)
-        mcp_tools_added_map[access_mcp_resource_tool.name] = true -- Mark this MCP tool as added
-      end
 
 
     else
@@ -624,7 +631,6 @@ function M:parse_curl_args(prompt_opts)
   -- Add the final list of tools (only standard ones for now) to the request body if any exist
   if #final_tools_for_gemini > 0 then
     request_body.tools = { { functionDeclarations = final_tools_for_gemini } }
-    Utils.debug("Gemini: Sending final (standard only) tool definitions:", request_body.tools)
   else
     Utils.debug("Gemini: No tools to send.")
     request_body.tools = nil -- Ensure tools field is not sent if empty
