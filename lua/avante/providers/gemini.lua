@@ -125,13 +125,11 @@ function M:transform_tool(tool)
       if parameters_schema.properties.query and parameters_schema.properties.query.description then
         parameters_schema.properties.query.description = parameters_schema.properties.query.description
           .. " (Provide a concise search query based on the user's request.)"
-        -- Utils.debug("Gemini: Enhanced 'query' parameter description for tool: " .. tool.name)
       end
       -- Example: Enhance any 'path' parameter description
       if parameters_schema.properties.path and parameters_schema.properties.path.description then
         parameters_schema.properties.path.description = parameters_schema.properties.path.description
           .. " (Provide the relative file path within the project.)"
-        -- Utils.debug("Gemini: Enhanced 'path' parameter description for tool: " .. tool.name)
       end
       -- Add more general enhancements as needed...
     end
@@ -307,7 +305,7 @@ end
 ---@param event_state table Persistent state for the current request (e.g., collected content, tool calls)
 ---@param opts AvanteHandlerOptions Callbacks (on_chunk, on_stop)
 ---@diagnostic disable-next-line: unused-local
-function M:parse_response(ctx, data_stream, event_state, opts)  -- type: ignore[unused-local]
+function M:parse_response(ctx, data_stream, event_state, opts)
   local ok, decoded = pcall(vim.json.decode, data_stream)
   if not ok or not decoded then
     Utils.debug("Gemini: Failed to decode JSON chunk:", data_stream)
@@ -354,7 +352,6 @@ function M:parse_response(ctx, data_stream, event_state, opts)  -- type: ignore[
       end
       if part.functionCall then
         local func_call = part.functionCall
-        -- Utils.debug("Gemini: Detected function call raw args:", func_call.args) -- <<< ADD THIS DEBUG LINE
         Utils.debug("Gemini: Detected function call:", func_call)
         -- Gemini provides 'args' as a JSON object. Encode to string for consistency.
         local input_json_str = vim.fn.json_encode(func_call.args or {})
