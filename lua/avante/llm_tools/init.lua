@@ -1003,7 +1003,40 @@ M._tools = {
       },
     },
   },
-  require("avante.llm_tools.bash"),
+  -- require("avante.llm_tools.bash"), -- Replaced with inline definition below
+  {
+    name = "bash",
+    description = "Execute a bash command in the project's root directory.", -- Added static description
+    param = {
+      type = "table",
+      fields = {
+        {
+          name = "command",
+          description = "Bash command to execute",
+          type = "string",
+        },
+      },
+    },
+    returns = {
+      {
+        name = "stdout",
+        description = "Standard output of the command",
+        type = "string",
+      },
+      {
+        name = "stderr",
+        description = "Standard error of the command",
+        type = "string",
+        optional = true,
+      },
+      {
+        name = "exit_code",
+        description = "Exit code of the command",
+        type = "integer",
+      },
+    },
+    func = require("avante.llm_tools.bash").func, -- Keep the original function logic
+  },
   {
     name = "web_search",
     description = "Search the web",
