@@ -66,6 +66,8 @@ If you like this project, please consider supporting me on Patreon, as it helps 
 
 For building binary if you wish to build from source, then `cargo` is required. Otherwise `curl` and `tar` will be used to get prebuilt binary from GitHub.
 
+If you have `nix` then you can use `nix run .#plugin` to build all relevant extensions
+
 <details open>
 
   <summary><a href="https://github.com/folke/lazy.nvim">lazy.nvim</a> (recommended)</summary>
