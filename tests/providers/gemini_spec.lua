@@ -9,9 +9,7 @@ describe("GeminiProvider", function()
     package.loaded["mcphub"] = {
       get_hub_instance = function()
         return {
-          is_ready = function()
-            return true
-          end,
+          is_ready = function() return true end,
           get_resources = function()
             return {
               {
@@ -26,25 +24,24 @@ describe("GeminiProvider", function()
           get_tools = function()
             return {
               {
-                description =
-                "Start or stop an MCP server. You can only start a server from one of the disabled servers.",
+                description = "Start or stop an MCP server. You can only start a server from one of the disabled servers.",
                 inputSchema = {
                   properties = {
                     action = {
                       description = "Action to perform. One of 'start' or 'stop'",
                       enum = { "start", "stop" },
-                      type = "string"
+                      type = "string",
                     },
                     server_name = {
                       description = "Name of the MCP server to toggle",
-                      type = "string"
-                    }
+                      type = "string",
+                    },
                   },
                   required = { "server_name", "action" },
-                  type = "object"
+                  type = "object",
                 },
                 name = "toggle_mcp_server",
-                server_name = "mcphub"
+                server_name = "mcphub",
               },
             }
           end,
@@ -61,7 +58,7 @@ describe("GeminiProvider", function()
           type = "table",
           fields = {
             { name = "query", type = "string", description = "A search query" },
-            { name = "path",  type = "string", description = "A file path" },
+            { name = "path", type = "string", description = "A file path" },
           },
           required = { "query", "path" },
         },
@@ -90,12 +87,16 @@ describe("GeminiProvider", function()
       -- check properties
       assert.is_table(transformed_tool.parameters.properties.query)
       assert.equals("string", transformed_tool.parameters.properties.query.type)
-      assert.equals("(Type: string) A search query (Provide a concise search query based on the user's request.)",
-        transformed_tool.parameters.properties.query.description)
+      assert.equals(
+        "(Type: string) A search query (Provide a concise search query based on the user's request.)",
+        transformed_tool.parameters.properties.query.description
+      )
       assert.is_table(transformed_tool.parameters.properties.path)
       assert.equals("string", transformed_tool.parameters.properties.path.type)
-      assert.equals("(Type: string) A file path (Provide the relative file path within the project.)",
-        transformed_tool.parameters.properties.path.description)
+      assert.equals(
+        "(Type: string) A file path (Provide the relative file path within the project.)",
+        transformed_tool.parameters.properties.path.description
+      )
       -- check required
       assert.is_table(transformed_tool.parameters.required)
       assert.equals("query", transformed_tool.parameters.required[1])
@@ -106,16 +107,14 @@ describe("GeminiProvider", function()
   describe("parse_messages", function()
     local gemini_provider
 
-    before_each(function()
-      gemini_provider = GeminiProvider
-    end)
+    before_each(function() gemini_provider = GeminiProvider end)
 
     it("should parse messages correctly", function()
       ---@type AvantePromptOptions
       local opts = {
         system_prompt = "This is a system prompt.",
         messages = {
-          { role = "user",      content = "Hello, how are you?" },
+          { role = "user", content = "Hello, how are you?" },
           { role = "assistant", content = "I'm fine, thank you!" },
         },
       }
@@ -147,7 +146,7 @@ describe("GeminiProvider", function()
       local prompt_opts = {
         system_prompt = "This is a system prompt.",
         messages = {
-          { role = "user",      content = "Hello, how are you?" },
+          { role = "user", content = "Hello, how are you?" },
           { role = "assistant", content = "I'm fine, thank you!" },
         },
         tools = {
@@ -157,8 +156,16 @@ describe("GeminiProvider", function()
             param = {
               type = "table",
               fields = {
-                { name = "server_name", type = "string", description = "(Type: string) Name of the server to call the resource on. Must be from one of the available servers." },
-                { name = "uri",         type = "string", description = "(Type: string) URI of the resource to access." },
+                {
+                  name = "server_name",
+                  type = "string",
+                  description = "(Type: string) Name of the server to call the resource on. Must be from one of the available servers.",
+                },
+                {
+                  name = "uri",
+                  type = "string",
+                  description = "(Type: string) URI of the resource to access.",
+                },
               },
               required = { "server_name", "uri" },
             },
@@ -177,7 +184,7 @@ describe("GeminiProvider", function()
               type = "table",
               fields = {
                 { name = "query", type = "string", description = "A search query" },
-                { name = "path",  type = "string", description = "A file path" },
+                { name = "path", type = "string", description = "A file path" },
               },
               required = { "query", "path" },
             },
@@ -211,16 +218,23 @@ describe("GeminiProvider", function()
       assert.equals("mcphub_toggle_mcp_server", result.body.tools[1].functionDeclarations[2].name)
       assert.equals(
         "MCP Tool (from mcphub server): Start or stop an MCP server. You can only start a server from one of the disabled servers.",
-        result.body.tools[1].functionDeclarations[2].description)
+        result.body.tools[1].functionDeclarations[2].description
+      )
       assert.is_table(result.body.tools[1].functionDeclarations[2].parameters)
       assert.equals("object", result.body.tools[1].functionDeclarations[2].parameters.type)
       assert.is_table(result.body.tools[1].functionDeclarations[2].parameters.properties)
       assert.is_table(result.body.tools[1].functionDeclarations[2].parameters.properties.action)
       assert.equals("string", result.body.tools[1].functionDeclarations[2].parameters.properties.action.type)
-      assert.equals("(Type: string) Action to perform. One of 'start' or 'stop'", result.body.tools[1].functionDeclarations[2].parameters.properties.action.description)
+      assert.equals(
+        "(Type: string) Action to perform. One of 'start' or 'stop'",
+        result.body.tools[1].functionDeclarations[2].parameters.properties.action.description
+      )
       assert.is_table(result.body.tools[1].functionDeclarations[2].parameters.properties.server_name)
       assert.equals("string", result.body.tools[1].functionDeclarations[2].parameters.properties.server_name.type)
-      assert.equals("(Type: string) Name of the MCP server to toggle", result.body.tools[1].functionDeclarations[2].parameters.properties.server_name.description)
+      assert.equals(
+        "(Type: string) Name of the MCP server to toggle",
+        result.body.tools[1].functionDeclarations[2].parameters.properties.server_name.description
+      )
       assert.equals("access_mcp_resource", result.body.tools[1].functionDeclarations[3].name)
     end)
   end)

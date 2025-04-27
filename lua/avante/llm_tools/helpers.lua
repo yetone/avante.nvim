@@ -97,7 +97,7 @@ function M.is_ignored(abs_path)
   local rel_path = Utils.make_relative_path(abs_path, project_root)
 
   -- Check negation patterns first
-  for lua_pattern, original_pattern in pairs(gitignore_negate_patterns) do
+  for lua_pattern, _ in pairs(gitignore_negate_patterns) do
     if rel_path:match(lua_pattern) then
       -- If a negation pattern matches, it's definitely NOT ignored
       return false

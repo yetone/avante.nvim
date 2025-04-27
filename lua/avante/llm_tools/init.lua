@@ -1138,9 +1138,7 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
     local err_msg = "This tool is not provided: " .. tool_use.name
     -- Handle error before handle_result is defined
     if on_log then on_log(tool_use.id, tool_use.name, "Error: " .. err_msg, "failed") end
-    if on_complete then
-      on_complete(nil, err_msg)
-    end
+    if on_complete then on_complete(nil, err_msg) end
     return nil, err_msg
   end
 
@@ -1154,9 +1152,7 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
       local err_msg = "Tool function not found for: " .. tool_use.name
       -- Handle error before handle_result is defined
       if on_log then on_log(tool_use.id, tool_use.name, "Error: " .. err_msg, "failed") end
-      if on_complete then
-        on_complete(nil, err_msg)
-      end
+      if on_complete then on_complete(nil, err_msg) end
       return nil, err_msg
     end
   end
@@ -1170,9 +1166,7 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
       .. tool_use.input_json
     -- Handle error before handle_result is defined
     if on_log then on_log(tool_use.id, tool_use.name, "Error: " .. err_msg, "failed") end
-    if on_complete then
-      on_complete(nil, err_msg)
-    end
+    if on_complete then on_complete(nil, err_msg) end
     return nil, err_msg
   end
 
@@ -1249,7 +1243,7 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
         elseif field.type ~= "any" and field.type ~= "object" and type(arg_value) ~= field.type then
           -- Special case: allow integer for number type
           if not (field.type == "number" and type(arg_value) == "integer") then
-             validation_err_msg = "Error: Invalid type for required parameter '"
+            validation_err_msg = "Error: Invalid type for required parameter '"
               .. field.name
               .. "' for tool '"
               .. tool_use.name
@@ -1309,9 +1303,9 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
   -- If result and err are nil AND on_complete exists, it means the tool ran asynchronously
   -- and the async callback above already handled completion via on_complete.
   if result == nil and err == nil and on_complete then
-     -- Intentionally return nothing here, async path handled it.
-     -- The caller expects no return values in this case.
-     return
+    -- Intentionally return nothing here, async path handled it.
+    -- The caller expects no return values in this case.
+    return
   end
 
   -- Otherwise (sync tool, or async tool without on_complete), process the direct return values.

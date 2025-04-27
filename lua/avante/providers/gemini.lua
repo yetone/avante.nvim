@@ -203,31 +203,29 @@ function M:parse_messages(opts)
     if role == "system" then -- Should have been handled above, but catch just in case
       -- Ensure correct structure if found here unexpectedly
       if not system_instruction then system_instruction = { parts = { { text = message.content } } } end
-      goto continue -- Skip adding system prompts to 'contents'
-    end
+    else
+      local parts = {}
+      local content_items = message.content
 
-    local parts = {}
-    local content_items = message.content
-
-    if type(content_items) == "string" then
-      table.insert(parts, { text = content_items })
-    elseif type(content_items) == "table" then
-      for _, item in ipairs(content_items) do
-        if type(item) == "string" then
-          table.insert(parts, { text = item })
-        elseif item.type == "text" then
-          table.insert(parts, { text = item.text })
-        elseif item.type == "image" then
-          table.insert(parts, { inline_data = { mime_type = "image/png", data = item.source.data } })
-        -- tool_use and tool_result are handled separately below via tool_histories
-        elseif item.type == "thinking" then
-          -- Gemini doesn't have a direct equivalent, maybe include as text?
-          table.insert(parts, { text = "<thinking>" .. item.thinking .. "</thinking>" })
+      if type(content_items) == "string" then
+        table.insert(parts, { text = content_items })
+      elseif type(content_items) == "table" then
+        for _, item in ipairs(content_items) do
+          if type(item) == "string" then
+            table.insert(parts, { text = item })
+          elseif item.type == "text" then
+            table.insert(parts, { text = item.text })
+          elseif item.type == "image" then
+            table.insert(parts, { inline_data = { mime_type = "image/png", data = item.source.data } })
+          -- tool_use and tool_result are handled separately below via tool_histories
+          elseif item.type == "thinking" then
+            -- Gemini doesn't have a direct equivalent, maybe include as text?
+            table.insert(parts, { text = "<thinking>" .. item.thinking .. "</thinking>" })
+          end
         end
       end
+      if #parts > 0 then add_content(role, parts) end
     end
-    if #parts > 0 then add_content(role, parts) end
-    ::continue::
   end
 
   -- Append image paths if provided (usually attached to the last user message)
