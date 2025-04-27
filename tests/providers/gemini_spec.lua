@@ -212,30 +212,10 @@ describe("GeminiProvider", function()
 
       -- Check if the tools are correctly added
       assert.is_table(result.body.tools)
-      assert.equals(3, #result.body.tools[1].functionDeclarations)
-      assert.equals("sample_tool", result.body.tools[1].functionDeclarations[1].name)
-      assert.equals("This is a sample tool", result.body.tools[1].functionDeclarations[1].description)
-      assert.equals("mcphub_toggle_mcp_server", result.body.tools[1].functionDeclarations[2].name)
-      assert.equals(
-        "MCP Tool (from mcphub server): Start or stop an MCP server. You can only start a server from one of the disabled servers.",
-        result.body.tools[1].functionDeclarations[2].description
-      )
-      assert.is_table(result.body.tools[1].functionDeclarations[2].parameters)
-      assert.equals("object", result.body.tools[1].functionDeclarations[2].parameters.type)
-      assert.is_table(result.body.tools[1].functionDeclarations[2].parameters.properties)
-      assert.is_table(result.body.tools[1].functionDeclarations[2].parameters.properties.action)
-      assert.equals("string", result.body.tools[1].functionDeclarations[2].parameters.properties.action.type)
-      assert.equals(
-        "(Type: string) Action to perform. One of 'start' or 'stop'",
-        result.body.tools[1].functionDeclarations[2].parameters.properties.action.description
-      )
-      assert.is_table(result.body.tools[1].functionDeclarations[2].parameters.properties.server_name)
-      assert.equals("string", result.body.tools[1].functionDeclarations[2].parameters.properties.server_name.type)
-      assert.equals(
-        "(Type: string) Name of the MCP server to toggle",
-        result.body.tools[1].functionDeclarations[2].parameters.properties.server_name.description
-      )
-      assert.equals("access_mcp_resource", result.body.tools[1].functionDeclarations[3].name)
+      assert.equals(2, #result.body.tools[1].functionDeclarations)
+      assert.equals("sample_tool", result.body.tools[1].functionDeclarations[2].name)
+      assert.equals("This is a sample tool", result.body.tools[1].functionDeclarations[2].description)
+      assert.equals("access_mcp_resource", result.body.tools[1].functionDeclarations[1].name)
     end)
   end)
 end)

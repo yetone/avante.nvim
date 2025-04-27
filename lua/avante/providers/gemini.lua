@@ -433,15 +433,12 @@ function M:parse_curl_args(prompt_opts)
   if prompt_opts.tools then
     Utils.debug("Gemini: Processing standard tools:", vim.inspect(prompt_opts.tools))
     for _, tool in ipairs(prompt_opts.tools) do
-      -- Skip the old generic MCP tool names if they appear
-      if tool.name ~= "mcp" and tool.name ~= "use_mcp_tool" and tool.name ~= "access_mcp_resource" then
-        local transformed = self:transform_tool(tool)
-        if transformed then
-          Utils.debug("Gemini: Transformed standard tool:", vim.inspect(transformed))
-          table.insert(final_tools_for_gemini, transformed)
-        else
-          Utils.warn("Gemini: Failed to transform standard tool: " .. tool.name)
-        end
+      local transformed = self:transform_tool(tool)
+      if transformed then
+        Utils.debug("Gemini: Transformed standard tool:", vim.inspect(transformed))
+        table.insert(final_tools_for_gemini, transformed)
+      else
+        Utils.warn("Gemini: Failed to transform standard tool: " .. tool.name)
       end
     end
   else
