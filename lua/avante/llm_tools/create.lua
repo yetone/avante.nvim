@@ -1,3 +1,4 @@
+local Config = require("avante.config")
 local Path = require("plenary.path")
 local Utils = require("avante.utils")
 local Base = require("avante.llm_tools.base")
@@ -8,7 +9,9 @@ local M = setmetatable({}, Base)
 
 M.name = "create"
 
-M.description = [[
+M.get_description = function()
+  if Config.provider:match("gemini") then
+    return [[
 Creates a new file in the current project scope with specified content.
 - Use this tool to generate new files, such as code files, configuration files, or documents.
 - Specify the 'rel_path' parameter for the relative path to the new file within the project.
@@ -19,6 +22,9 @@ Example:
 To create a new file named 'hello.txt' with the content 'Hello, world!', use:
 { "name": "create", "parameters": { "rel_path": "hello.txt", "file_text": "Hello, world!" } }
 ]]
+  end
+  return "The create tool allows you to create a new file with specified content."
+end
 
 function M.enabled() return require("avante.config").behaviour.enable_claude_text_editor_tool_mode end
 

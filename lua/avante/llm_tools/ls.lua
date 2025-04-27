@@ -1,3 +1,4 @@
+local Config = require("avante.config")
 local Utils = require("avante.utils")
 local Helpers = require("avante.llm_tools.helpers")
 local Base = require("avante.llm_tools.base")
@@ -7,8 +8,12 @@ local M = setmetatable({}, Base)
 
 M.name = "ls"
 
-M.description =
-  "Lists files and directories within the project scope. Can target specific subdirectories using 'rel_path' and control recursion depth with 'max_depth'. Use initially to see the project root, then use 'rel_path' to explore specific subdirectories found in the initial listing."
+M.get_description = function()
+  if Config.provider:match("gemini") then
+    return "Lists files and directories within the project scope. Can target specific subdirectories using 'rel_path' and control recursion depth with 'max_depth'. Use initially to see the project root, then use 'rel_path' to explore specific subdirectories found in the initial listing."
+  end
+  return "List files and directories in a given path in current project scope"
+end
 
 ---@type AvanteLLMToolParam
 M.param = {
@@ -56,7 +61,7 @@ function M.func(opts, on_log)
     if on_log then on_log("using default path") end
   end
 
-  local abs_path = Helpers.get_abs_path(rel_path) -- Use the potentially defaulted rel_path
+  local abs_path = Helpers.get_abs_path(rel_path)
   -- Check if get_abs_path failed
   if not abs_path then return "", "Failed to resolve or access the specified path: " .. rel_path end
 

@@ -1,3 +1,4 @@
+local Config = require("avante.config")
 local Path = require("plenary.path")
 local Utils = require("avante.utils")
 local Base = require("avante.llm_tools.base")
@@ -8,7 +9,9 @@ local M = setmetatable({}, Base)
 
 M.name = "view"
 
-M.description = [[
+M.get_descripton = function()
+  if Config.provider:match("gemini") then
+    return [[
 Use this tool to view the content of a file within the current project.
 - Use it to examine code, configuration files, or any text-based file.
 - Specify the 'path' parameter as the relative path to the file within the project.
@@ -20,6 +23,9 @@ Example:
 To view the file 'init.lua' in the current directory, use:
 { "name": "view", "parameters": { "path": "init.lua" } }
 ]]
+  end
+  return "The view tool allows you to examine the contents of a file or list the contents of a directory. It can read the entire file or a specific range of lines. If the file content is already in the context, do not use this tool."
+end
 
 M.enabled = function(opts)
   if opts.user_input:match("@read_global_file") then return false end
@@ -115,11 +121,11 @@ function M.func(opts, on_log, on_complete, session_ctx)
     if #files == 0 then return false, "Directory is empty: " .. abs_path end
     local result = {}
     for _, file in ipairs(files) do
-      if not Path:new(file):is_file() then goto continue end
-      local lines = Utils.read_file_from_buf_or_disk(file)
-      local content = lines and table.concat(lines, "\n") or ""
-      table.insert(result, { path = file, content = content })
-      ::continue::
+      if Path:new(file):is_file() then
+        local lines = Utils.read_file_from_buf_or_disk(file)
+        local content = lines and table.concat(lines, "\n") or ""
+        table.insert(result, { path = file, content = content })
+      end
     end
     on_complete(vim.json.encode(result), nil)
     return
