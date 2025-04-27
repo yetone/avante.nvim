@@ -1084,7 +1084,8 @@ function M.get_filetype(filepath)
   local buf = vim.api.nvim_create_buf(false, true)
   local filetype = vim.filetype.match({ filename = filepath, buf = buf }) or ""
   vim.api.nvim_buf_delete(buf, { force = true })
-
+  -- Parse the first filetype from a multifiltype file
+  filetype = filetype:gsub("%..*$", "")
   return filetype
 end
 
