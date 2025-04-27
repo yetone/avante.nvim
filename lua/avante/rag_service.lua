@@ -299,11 +299,10 @@ end
 
 ---@param base_uri string
 ---@param query string
----@return AvanteRagServiceRetrieveResponse | nil resp
----@return string | nil error
-function M.retrieve(base_uri, query)
+---@param on_complete fun(resp: AvanteRagServiceRetrieveResponse | nil, error: string | nil): nil
+function M.retrieve(base_uri, query, on_complete)
   base_uri = M.to_container_uri(base_uri)
-  local resp = curl.post(M.get_rag_service_url() .. "/api/v1/retrieve", {
+  curl.post(M.get_rag_service_url() .. "/api/v1/retrieve", {
     headers = {
       ["Content-Type"] = "application/json",
     },
@@ -313,20 +312,23 @@ function M.retrieve(base_uri, query)
       top_k = 10,
     }),
     timeout = 100000,
+    callback = function(resp)
+      if resp.status ~= 200 then
+        Utils.error("failed to retrieve: " .. resp.body)
+        on_complete(nil, resp.body)
+        return
+      end
+      local jsn = vim.json.decode(resp.body)
+      jsn.sources = vim
+        .iter(jsn.sources)
+        :map(function(source)
+          local uri = M.to_local_uri(source.uri)
+          return vim.tbl_deep_extend("force", source, { uri = uri })
+        end)
+        :totable()
+      on_complete(jsn, nil)
+    end,
   })
-  if resp.status ~= 200 then
-    Utils.error("failed to retrieve: " .. resp.body)
-    return nil, "failed to retrieve: " .. resp.body
-  end
-  local jsn = vim.json.decode(resp.body)
-  jsn.sources = vim
-    .iter(jsn.sources)
-    :map(function(source)
-      local uri = M.to_local_uri(source.uri)
-      return vim.tbl_deep_extend("force", source, { uri = uri })
-    end)
-    :totable()
-  return jsn, nil
 end
 
 ---@class AvanteRagServiceIndexingStatusSummary
