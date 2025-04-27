@@ -6,6 +6,7 @@ BASE_DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
 CHROMA_PERSIST_DIR = BASE_DATA_DIR / "chroma_db"
 LOG_DIR = BASE_DATA_DIR / "logs"
 DB_FILE = BASE_DATA_DIR / "sqlite" / "indexing_history.db"
+HOST_MOUNT = Path(os.environ.get("HOST_DIR", "/host"))
 
 # Configure directories
 BASE_DATA_DIR.mkdir(parents=True, exist_ok=True)

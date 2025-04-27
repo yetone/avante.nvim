@@ -25,6 +25,7 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException
 from libs.configs import (
     BASE_DATA_DIR,
     CHROMA_PERSIST_DIR,
+    HOST_MOUNT,
 )
 from libs.db import init_db
 from libs.logger import logger
@@ -644,11 +645,23 @@ def get_gitcrypt_files(directory: Path) -> list[str]:
     return git_crypt_patterns
 
 
+def get_global_gitignore_patterns() -> list[str]:
+    """Get global gitignore patterns."""
+    global_gitignore_paths = [HOST_MOUNT / ".gitignore", HOST_MOUNT / ".config/git/ignore"]
+    patterns = []
+    for global_gitignore_path in global_gitignore_paths:
+        if global_gitignore_path.exists():
+            with global_gitignore_path.open("r", encoding="utf-8") as file:
+                patterns.extend(file.readlines())
+    return patterns
+
+
 def get_pathspec(directory: Path) -> pathspec.PathSpec | None:
     """Get pathspec for the directory."""
     # Collect patterns from both sources
     patterns = get_gitignore_files(directory)
     patterns.extend(get_gitcrypt_files(directory))
+    patterns.extend(get_global_gitignore_patterns())
 
     # Return None if no patterns were found
     if len(patterns) <= 1:  # Only .git/ is in the list
