@@ -421,10 +421,29 @@ function M:parse_curl_args(prompt_opts)
   -- Add system instruction if present
   if system_instruction then request_body.system_instruction = system_instruction end
 
-  -- Dynamically generate tool definitions including specific MCP tools/resources
-  local all_tools_for_gemini = {}
+  -- Simplified tool handling: Only use standard Avante tools for now
+  local final_tools_for_gemini = {}
 
-  -- 1. Add standard Avante tools (excluding the generic MCP ones if they were passed)
+  -- 1. Add standard Avante tools directly
+  if prompt_opts.tools then
+    Utils.debug("Gemini: Processing standard tools:", vim.inspect(prompt_opts.tools))
+    for _, tool in ipairs(prompt_opts.tools) do
+      -- Skip the old generic MCP tool names if they appear
+      if tool.name ~= "mcp" and tool.name ~= "use_mcp_tool" and tool.name ~= "access_mcp_resource" then
+        local transformed = self:transform_tool(tool)
+        if transformed then
+          Utils.debug("Gemini: Transformed standard tool:", vim.inspect(transformed))
+          table.insert(final_tools_for_gemini, transformed)
+        else
+          Utils.warn("Gemini: Failed to transform standard tool: " .. tool.name)
+        end
+      end
+    end
+  else
+    Utils.debug("Gemini: No standard tools provided in prompt_opts.")
+  end
+
+  --[[ -- Temporarily disable MCP Hub integration and redundancy filtering
   -- Define standard Avante tools that might be redundant with MCP tools
   local redundant_avante_tools = {
     ls = { "filesystem_list_directory", "neovim_list_directory" },
@@ -443,17 +462,18 @@ function M:parse_curl_args(prompt_opts)
     -- Add other potential redundancies here
   }
   local mcp_tools_added_map = {} -- Keep track of which MCP tools were added
+  local all_tools_for_gemini = {} -- Combined list before filtering
 
-  -- 1. Add standard Avante tools, filtering out the old generic 'mcp' tool explicitly
+  -- 1. Add standard Avante tools (copy from above, put into all_tools_for_gemini)
   if prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
-      -- Skip the old generic MCP tool and the specific MCP actions if they somehow slip through
       if tool.name ~= "mcp" and tool.name ~= "use_mcp_tool" and tool.name ~= "access_mcp_resource" then
         local transformed = self:transform_tool(tool)
         if transformed then table.insert(all_tools_for_gemini, transformed) end
       end
     end
   end
+
 
   -- 2. Add dynamically generated MCP tools and resource templates
   local mcp_ok, mcphub = pcall(require, "mcphub")
@@ -503,13 +523,14 @@ function M:parse_curl_args(prompt_opts)
   end
 
   -- 3. Filter out redundant standard Avante tools if corresponding MCP tools were added
-  local final_tools_for_gemini = {}
   local removed_standard_tools = {}
   for _, tool_def in ipairs(all_tools_for_gemini) do
     local is_redundant = false
     -- Check if this is a standard tool that has an MCP equivalent added
     if redundant_avante_tools[tool_def.name] then
       for _, mcp_equivalent_name in ipairs(redundant_avante_tools[tool_def.name]) do
+        -- PROBLEM: mcp_equivalent_name (e.g., "neovim_read_file") will likely NOT match
+        -- the dynamically generated key in mcp_tools_added_map (e.g., "nvim_lsp_neovim_read_file")
         if mcp_tools_added_map[mcp_equivalent_name] then
           is_redundant = true
           table.insert(removed_standard_tools, tool_def.name)
@@ -524,11 +545,15 @@ function M:parse_curl_args(prompt_opts)
   if #removed_standard_tools > 0 then
     Utils.debug("Gemini: Removed redundant standard tools:", removed_standard_tools)
   end
+  --]]
 
-  -- Add the combined list of tools to the request body if any exist
+  -- Add the final list of tools (only standard ones for now) to the request body if any exist
   if #final_tools_for_gemini > 0 then
     request_body.tools = { { functionDeclarations = final_tools_for_gemini } }
-    Utils.debug("Gemini: Sending final tool definitions:", request_body.tools)
+    Utils.debug("Gemini: Sending final (standard only) tool definitions:", request_body.tools)
+  else
+    Utils.debug("Gemini: No tools to send.")
+    request_body.tools = nil -- Ensure tools field is not sent if empty
   end
 
   -- Add contents (the main conversation history)
