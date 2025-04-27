@@ -584,8 +584,7 @@ function M.override(opts)
 
   M._options = vim.tbl_deep_extend("force", M._options, opts or {})
 
-  -- Ensure vendors is a table before iterating
-  if type(M._options.vendors) == "table" and next(M._options.vendors) ~= nil then
+  if next(M._options.vendors) ~= nil then
     for k, v in pairs(M._options.vendors) do
       M._options.vendors[k] = type(v) == "function" and v() or v
       if not vim.tbl_contains(M.provider_names, k) then M.provider_names = vim.list_extend(M.provider_names, { k }) end

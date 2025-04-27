@@ -1131,7 +1131,6 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
     return nil, Helpers.CANCEL_TOKEN -- Return for sync case or if on_complete wasn't provided
   end
 
-
   -- Find the tool definition from the provided list
   ---@type AvanteLLMTool?
   local tool = vim.iter(tools):find(function(t) return t.name == tool_use.name end) ---@param t AvanteLLMTool
@@ -1162,6 +1161,7 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
     end
   end
 
+  -- Decode input arguments provided by the LLM
   local ok, input_json = pcall(vim.json.decode, tool_use.input_json)
   if not ok or type(input_json) ~= "table" then
     local err_msg = "Error decoding tool arguments for '"
@@ -1220,6 +1220,7 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
     else
       if on_log then on_log(tool_use.id, tool_use.name, "tool finished", "succeeded") end
     end
+
     local result_str ---@type string?
     if type(result) == "string" then
       result_str = result
@@ -1229,6 +1230,7 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
     end
     return result_str, err
   end
+
   -- *** Centralized Argument Validation (from HEAD, adapted logging/return) ***
   if tool.param and tool.param.fields then
     for _, field in ipairs(tool.param.fields) do
