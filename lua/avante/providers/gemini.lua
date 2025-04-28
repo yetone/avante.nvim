@@ -32,7 +32,7 @@ function M:transform_tool(tool)
 
   -- Truncate description if it's too long
   local MAX_DESC_LENGTH = 500 -- Adjust as needed
-  if #enhanced_description > MAX_DESC_LENGTH then
+  if enhanced_description and #enhanced_description > MAX_DESC_LENGTH then
     enhanced_description = enhanced_description:sub(1, MAX_DESC_LENGTH) .. "..."
     Utils.debug("transform_tool: Truncated description for tool:", tool.name)
   end

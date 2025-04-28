@@ -26,7 +26,7 @@ function M.get_abs_path(rel_path)
   Utils.debug("get_abs_path: project_root:", project_root) -- Debug log
   if not project_root then
     Utils.error("get_abs_path: Project root not found.")
-    return nil
+    return ""
   end
 
   local ok, abs_path_obj = pcall(function() return Path:new(project_root):joinpath(rel_path):absolute() end)
@@ -35,7 +35,7 @@ function M.get_abs_path(rel_path)
     Utils.warn(
       "get_abs_path: Failed to calculate absolute path for '" .. rel_path .. "'. Error: " .. tostring(abs_path_obj)
     ) -- abs_path_obj contains error on failure
-    return nil
+    return ""
   end
 
   local p = tostring(abs_path_obj)
@@ -142,9 +142,7 @@ function M.has_permission_to_access(abs_path)
   Utils.debug("has_permission_to_access: Path is not root, proceeding with checks.") -- Debug log
   if abs_path:sub(1, #project_root) ~= project_root then return false end
 
-  local ignore_patterns, negate_patterns =
-    Utils.parse_gitignore(project_root and Path:new(project_root):joinpath(".gitignore"):absolute() or nil)
-  local ignored = M.is_ignored(abs_path, ignore_patterns, negate_patterns)
+  local ignored = M.is_ignored(abs_path)
   Utils.debug("has_permission_to_access: Is ignored result:", ignored) -- Debug log
   Utils.debug("has_permission_to_access: Final return value:", not ignored) -- Debug log
   return not ignored

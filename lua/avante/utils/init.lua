@@ -1249,7 +1249,6 @@ function M.llm_tool_param_fields_to_json_schema(fields)
       local description = field.get_description and field.get_description() or field.description or ""
       local type_info = "(Type: " .. field.type .. ")"
       local default_info = ""
-      if field.default ~= nil then default_info = " (Default: " .. vim.inspect(field.default) .. ")" end
       local enhanced_description = type_info .. " " .. description .. default_info -- <<< ENHANCE DESCRIPTION
       properties[field.name] = {
         type = field.type,
