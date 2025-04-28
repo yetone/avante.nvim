@@ -9,7 +9,7 @@ local M = setmetatable({}, Base)
 
 M.name = "view"
 
-M.get_descripton = function()
+M.get_description = function()
   if Config.provider:match("gemini") then
     return [[
 Use this tool to view the content of a file within the current project.
