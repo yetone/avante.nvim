@@ -2126,7 +2126,7 @@ local function render_chat_record_prefix(timestamp, provider, model, request, se
       .. "\n\n- Selected code: "
       .. "\n\n```"
       .. (selected_code.file_type or "")
-      .. (selected_code.path and ":" .. selected_code.path or "")
+      .. (selected_code.path and " " .. selected_code.path or "")
       .. "\n"
       .. selected_code.content
       .. "\n```"
