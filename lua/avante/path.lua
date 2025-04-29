@@ -16,9 +16,9 @@ local function generate_project_dirname_in_storage(bufnr)
     buf = bufnr,
   })
   -- Replace path separators with double underscores
-  local path_with_separators = fn.substitute(project_root, "/", "__", "g")
+  local path_with_separators = string.gsub(project_root, "/", "__")
   -- Replace other non-alphanumeric characters with single underscores
-  local dirname = fn.substitute(path_with_separators, "[^A-Za-z0-9._]", "_", "g")
+  local dirname = string.gsub(path_with_separators, "[^A-Za-z0-9._]", "_")
   return tostring(Path:new("projects"):joinpath(dirname))
 end
 
@@ -34,6 +34,7 @@ function History.get_history_dir(bufnr)
   return history_dir
 end
 
+---@return avante.ChatHistory[]
 function History.list(bufnr)
   local history_dir = History.get_history_dir(bufnr)
   local files = vim.fn.glob(tostring(history_dir:joinpath("*.json")), true, true)
@@ -53,8 +54,10 @@ function History.list(bufnr)
   table.sort(res, function(a, b)
     if a.filename == latest_filename then return true end
     if b.filename == latest_filename then return false end
-    local timestamp_a = #a.entries > 0 and a.entries[#a.entries].timestamp or a.timestamp
-    local timestamp_b = #b.entries > 0 and b.entries[#b.entries].timestamp or b.timestamp
+    local a_messages = Utils.get_history_messages(a)
+    local b_messages = Utils.get_history_messages(b)
+    local timestamp_a = #a_messages > 0 and a_messages[#a_messages].timestamp or a.timestamp
+    local timestamp_b = #b_messages > 0 and b_messages[#b_messages].timestamp or b.timestamp
     return timestamp_a > timestamp_b
   end)
   return res
@@ -117,8 +120,8 @@ function History.new(bufnr)
   ---@type avante.ChatHistory
   local history = {
     title = "untitled",
-    timestamp = tostring(os.date("%Y-%m-%d %H:%M:%S")),
-    entries = {},
+    timestamp = Utils.get_timestamp(),
+    messages = {},
     filename = filepath_to_filename(filepath),
   }
   return history
@@ -169,11 +172,10 @@ function Prompt.get_builtin_prompts_filepath(mode) return string.format("%s.avan
 local _templates_lib = nil
 
 Prompt.custom_modes = {
-  planning = true,
+  agentic = true,
+  legacy = true,
   editing = true,
   suggesting = true,
-  ["cursor-planning"] = true,
-  ["cursor-applying"] = true,
 }
 
 Prompt.custom_prompts_contents = {}

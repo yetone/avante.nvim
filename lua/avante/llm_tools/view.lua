@@ -76,17 +76,6 @@ M.returns = {
 function M.func(opts, on_log, on_complete, session_ctx)
   if not on_complete then return false, "on_complete not provided" end
   if on_log then on_log("path: " .. opts.path) end
-  if Helpers.already_in_context(opts.path) then
-    on_complete(nil, "Ooooops! This file is already in the context! Why you are trying to read it again?")
-    return
-  end
-  if session_ctx then
-    if Helpers.already_viewed(opts.path, session_ctx) then
-      on_complete(nil, "Ooooops! You have already viewed this file! Why you are trying to read it again?")
-      return
-    end
-    Helpers.mark_as_viewed(opts.path, session_ctx)
-  end
   local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "Path not found: " .. abs_path end

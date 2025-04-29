@@ -2,7 +2,7 @@ local Utils = require("avante.utils")
 local Config = require("avante.config")
 local Clipboard = require("avante.clipboard")
 local Providers = require("avante.providers")
-local StreamingJsonParser = require("avante.utils.streaming_json_parser")
+local HistoryMessage = require("avante.history_message")
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -164,116 +164,153 @@ function M:parse_messages(opts)
     table.insert(final_messages, message)
   end)
 
-  if opts.tool_histories then
-    for _, tool_history in ipairs(opts.tool_histories) do
-      table.insert(final_messages, {
-        role = self.role_map["assistant"],
-        tool_calls = {
-          {
-            id = tool_history.tool_use.id,
-            type = "function",
-            ["function"] = {
-              name = tool_history.tool_use.name,
-              arguments = tool_history.tool_use.input_json,
-            },
-          },
-        },
-      })
-      local result_content = tool_history.tool_result.content or ""
-      table.insert(final_messages, {
-        role = "tool",
-        tool_call_id = tool_history.tool_result.tool_use_id,
-        content = tool_history.tool_result.is_error and "Error: " .. result_content or result_content,
-      })
+  return final_messages
+end
+
+function M:finish_pending_messages(ctx, opts)
+  if ctx.content ~= nil and ctx.content ~= "" then self:add_text_message(ctx, "", "generated", opts) end
+  if ctx.tool_use_list then
+    for _, tool_use in ipairs(ctx.tool_use_list) do
+      if tool_use.state == "generating" then self:add_tool_use_message(tool_use, "generated", opts) end
     end
   end
+end
 
-  return final_messages
+function M:add_text_message(ctx, text, state, opts)
+  if ctx.content == nil then ctx.content = "" end
+  ctx.content = ctx.content .. text
+  local msg = HistoryMessage:new({
+    role = "assistant",
+    content = ctx.content,
+  }, {
+    state = state,
+    uuid = ctx.content_uuid,
+  })
+  ctx.content_uuid = msg.uuid
+  if opts.on_messages_add then opts.on_messages_add({ msg }) end
+end
+
+function M:add_thinking_message(ctx, text, state, opts)
+  if ctx.reasonging_content == nil then ctx.reasonging_content = "" end
+  ctx.reasonging_content = ctx.reasonging_content .. text
+  local msg = HistoryMessage:new({
+    role = "assistant",
+    content = {
+      {
+        type = "thinking",
+        thinking = ctx.reasonging_content,
+        signature = "",
+      },
+    },
+  }, {
+    state = state,
+    uuid = ctx.reasonging_content_uuid,
+  })
+  ctx.reasonging_content_uuid = msg.uuid
+  if opts.on_messages_add then opts.on_messages_add({ msg }) end
+end
+
+function M:add_tool_use_message(tool_use, state, opts)
+  local jsn = nil
+  if state == "generated" then jsn = vim.json.decode(tool_use.input_json) end
+  local msg = HistoryMessage:new({
+    role = "assistant",
+    content = {
+      {
+        type = "tool_use",
+        name = tool_use.name,
+        id = tool_use.id,
+        input = jsn or {},
+      },
+    },
+  }, {
+    state = state,
+    uuid = tool_use.uuid,
+  })
+  tool_use.uuid = msg.uuid
+  tool_use.state = state
+  if opts.on_messages_add then opts.on_messages_add({ msg }) end
 end
 
 function M:parse_response(ctx, data_stream, _, opts)
   if data_stream:match('"%[DONE%]":') then
+    self:finish_pending_messages(ctx, opts)
     opts.on_stop({ reason = "complete" })
     return
   end
-  if data_stream:match('"delta":') then
-    ---@type AvanteOpenAIChatResponse
-    local jsn = vim.json.decode(data_stream)
-    if jsn.choices and jsn.choices[1] then
-      local choice = jsn.choices[1]
-      if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" then
-        if choice.delta.content and choice.delta.content ~= vim.NIL then opts.on_chunk(choice.delta.content) end
-        opts.on_stop({ reason = "complete" })
-      elseif choice.finish_reason == "tool_calls" then
-        opts.on_stop({
-          reason = "tool_use",
-          usage = jsn.usage,
-          tool_use_list = ctx.tool_use_list,
-        })
-      elseif choice.delta.reasoning_content and choice.delta.reasoning_content ~= vim.NIL then
-        if ctx.returned_think_start_tag == nil or not ctx.returned_think_start_tag then
-          ctx.returned_think_start_tag = true
-          opts.on_chunk("<think>\n")
+  if not data_stream:match('"delta":') then return end
+  ---@type AvanteOpenAIChatResponse
+  local jsn = vim.json.decode(data_stream)
+  if not jsn.choices or not jsn.choices[1] then return end
+  local choice = jsn.choices[1]
+  if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" then
+    if choice.delta.content and choice.delta.content ~= vim.NIL then
+      self:add_text_message(ctx, choice.delta.content, "generated", opts)
+      opts.on_chunk(choice.delta.content)
+    end
+    self:finish_pending_messages(ctx, opts)
+    opts.on_stop({ reason = "complete" })
+  elseif choice.finish_reason == "tool_calls" then
+    self:finish_pending_messages(ctx, opts)
+    opts.on_stop({
+      reason = "tool_use",
+      -- tool_use_list = ctx.tool_use_list,
+      usage = jsn.usage,
+    })
+  elseif choice.delta.reasoning_content and choice.delta.reasoning_content ~= vim.NIL then
+    if ctx.returned_think_start_tag == nil or not ctx.returned_think_start_tag then
+      ctx.returned_think_start_tag = true
+      if opts.on_chunk then opts.on_chunk("<think>\n") end
+    end
+    ctx.last_think_content = choice.delta.reasoning_content
+    self:add_thinking_message(ctx, choice.delta.reasoning_content, "generating", opts)
+    if opts.on_chunk then opts.on_chunk(choice.delta.reasoning_content) end
+  elseif choice.delta.reasoning and choice.delta.reasoning ~= vim.NIL then
+    if ctx.returned_think_start_tag == nil or not ctx.returned_think_start_tag then
+      ctx.returned_think_start_tag = true
+      if opts.on_chunk then opts.on_chunk("<think>\n") end
+    end
+    ctx.last_think_content = choice.delta.reasoning
+    self:add_thinking_message(ctx, choice.delta.reasoning, "generating", opts)
+    if opts.on_chunk then opts.on_chunk(choice.delta.reasoning) end
+  elseif choice.delta.tool_calls and choice.delta.tool_calls ~= vim.NIL then
+    for _, tool_call in ipairs(choice.delta.tool_calls) do
+      if not ctx.tool_use_list then ctx.tool_use_list = {} end
+      if not ctx.tool_use_list[tool_call.index + 1] then
+        if tool_call.index > 0 and ctx.tool_use_list[tool_call.index] then
+          local prev_tool_use = ctx.tool_use_list[tool_call.index]
+          self:add_tool_use_message(prev_tool_use, "generated", opts)
         end
-        ctx.last_think_content = choice.delta.reasoning_content
-        opts.on_chunk(choice.delta.reasoning_content)
-      elseif choice.delta.reasoning and choice.delta.reasoning ~= vim.NIL then
-        if ctx.returned_think_start_tag == nil or not ctx.returned_think_start_tag then
-          ctx.returned_think_start_tag = true
-          opts.on_chunk("<think>\n")
-        end
-        ctx.last_think_content = choice.delta.reasoning
-        opts.on_chunk(choice.delta.reasoning)
-      elseif choice.delta.tool_calls and choice.delta.tool_calls ~= vim.NIL then
-        for _, tool_call in ipairs(choice.delta.tool_calls) do
-          if not ctx.tool_use_list then ctx.tool_use_list = {} end
-          if not ctx.tool_use_list[tool_call.index + 1] then
-            local tool_use = {
-              name = tool_call["function"].name,
-              id = tool_call.id,
-              input_json = "",
-            }
-            ctx.tool_use_list[tool_call.index + 1] = tool_use
-            if opts.on_partial_tool_use then
-              opts.on_partial_tool_use({
-                name = tool_call["function"].name,
-                id = tool_call.id,
-                partial_json = {},
-                state = "generating",
-              })
-            end
-          else
-            local tool_use = ctx.tool_use_list[tool_call.index + 1]
-            tool_use.input_json = tool_use.input_json .. tool_call["function"].arguments
-            if opts.on_partial_tool_use then
-              local parser = StreamingJsonParser:new()
-              local partial_json = parser:parse(tool_use.input_json)
-              opts.on_partial_tool_use({
-                name = tool_call["function"].name,
-                id = tool_call.id,
-                partial_json = partial_json or {},
-                state = "generating",
-              })
-            end
-          end
-        end
-      elseif choice.delta.content then
-        if
-          ctx.returned_think_start_tag ~= nil and (ctx.returned_think_end_tag == nil or not ctx.returned_think_end_tag)
-        then
-          ctx.returned_think_end_tag = true
-          if
-            ctx.last_think_content
-            and ctx.last_think_content ~= vim.NIL
-            and ctx.last_think_content:sub(-1) ~= "\n"
-          then
-            opts.on_chunk("\n</think>\n")
-          else
-            opts.on_chunk("</think>\n")
-          end
-        end
-        if choice.delta.content ~= vim.NIL then opts.on_chunk(choice.delta.content) end
+        local tool_use = {
+          name = tool_call["function"].name,
+          id = tool_call.id,
+          input_json = "",
+        }
+        ctx.tool_use_list[tool_call.index + 1] = tool_use
+        self:add_tool_use_message(tool_use, "generating", opts)
+      else
+        local tool_use = ctx.tool_use_list[tool_call.index + 1]
+        tool_use.input_json = tool_use.input_json .. tool_call["function"].arguments
+        self:add_tool_use_message(tool_use, "generating", opts)
       end
+    end
+  elseif choice.delta.content then
+    if
+      ctx.returned_think_start_tag ~= nil and (ctx.returned_think_end_tag == nil or not ctx.returned_think_end_tag)
+    then
+      ctx.returned_think_end_tag = true
+      if opts.on_chunk then
+        if ctx.last_think_content and ctx.last_think_content ~= vim.NIL and ctx.last_think_content:sub(-1) ~= "\n" then
+          opts.on_chunk("\n</think>\n")
+        else
+          opts.on_chunk("</think>\n")
+        end
+      end
+      self:add_thinking_message(ctx, "", "generated", opts)
+    end
+    if choice.delta.content ~= vim.NIL then
+      if opts.on_chunk then opts.on_chunk(choice.delta.content) end
+      self:add_text_message(ctx, choice.delta.content, "generating", opts)
     end
   end
 end

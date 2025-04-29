@@ -1,6 +1,0 @@
-{% extends "base.avanterules" %}
-{% block extra_prompt %}
-Always reply to the user in the same language they are using.
-
-Don't just provide code suggestions, use the `str_replace` tool to help users fulfill their needs.
-{% endblock %}

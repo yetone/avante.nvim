@@ -9,8 +9,9 @@ local M = {}
 ---@param history avante.ChatHistory
 ---@return table?
 local function to_selector_item(history)
-  local timestamp = #history.entries > 0 and history.entries[#history.entries].timestamp or history.timestamp
-  local name = history.title .. " - " .. timestamp .. " (" .. #history.entries .. ")"
+  local messages = Utils.get_history_messages(history)
+  local timestamp = #messages > 0 and messages[#messages].timestamp or history.timestamp
+  local name = history.title .. " - " .. timestamp .. " (" .. #messages .. ")"
   name = name:gsub("\n", "\\n")
   return {
     name = name,

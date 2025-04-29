@@ -71,7 +71,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
   if not on_complete then return false, "on_complete not provided" end
   local prompt = opts.prompt
   local tools = get_available_tools()
-  local start_time = os.date("%Y-%m-%d %H:%M:%S")
+  local start_time = Utils.get_timestamp()
 
   if on_log then on_log("prompt: " .. prompt) end
 
@@ -84,6 +84,8 @@ When you're done, provide a clear and concise summary of what you found.]]):gsub
   messages = messages or {}
   table.insert(messages, { role = "user", content = prompt })
 
+  local tool_use_messages = {}
+
   local total_tokens = 0
   local final_response = ""
   Llm._stream({
@@ -92,6 +94,15 @@ When you're done, provide a clear and concise summary of what you found.]]):gsub
     provider = Providers[Config.provider],
     on_tool_log = function(tool_id, tool_name, log, state)
       if on_log then on_log(string.format("[%s] %s", tool_name, log)) end
+    end,
+    on_messages_add = function(msgs)
+      msgs = vim.is_list(msgs) and msgs or { msgs }
+      for _, msg in ipairs(msgs) do
+        local content = msg.message.content
+        if type(content) == "table" and #content > 0 and content[1].type == "tool_use" then
+          tool_use_messages[msg.uuid] = true
+        end
+      end
     end,
     session_ctx = session_ctx,
     prompt_opts = {
@@ -111,9 +122,9 @@ When you're done, provide a clear and concise summary of what you found.]]):gsub
         on_complete(err, nil)
         return
       end
-      local end_time = os.date("%Y-%m-%d %H:%M:%S")
-      local elapsed_time = Utils.datetime_diff(tostring(start_time), tostring(end_time))
-      local tool_use_count = stop_opts.tool_histories and #stop_opts.tool_histories or 0
+      local end_time = Utils.get_timestamp()
+      local elapsed_time = Utils.datetime_diff(start_time, end_time)
+      local tool_use_count = vim.tbl_count(tool_use_messages)
       local summary = "Done ("
         .. (tool_use_count <= 1 and "1 tool use" or tool_use_count .. " tool uses")
         .. " · "

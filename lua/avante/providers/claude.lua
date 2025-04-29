@@ -2,7 +2,7 @@ local Utils = require("avante.utils")
 local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
 local Config = require("avante.config")
-local StreamingJsonParser = require("avante.utils.streaming_json_parser")
+local HistoryMessage = require("avante.history_message")
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -139,63 +139,6 @@ function M:parse_messages(opts)
     messages[#messages].content = message_content
   end
 
-  if opts.tool_histories then
-    for _, tool_history in ipairs(opts.tool_histories) do
-      if tool_history.tool_use then
-        local msg = {
-          role = "assistant",
-          content = {},
-        }
-        if tool_history.tool_use.thinking_blocks then
-          for _, thinking_block in ipairs(tool_history.tool_use.thinking_blocks) do
-            msg.content[#msg.content + 1] = {
-              type = "thinking",
-              thinking = thinking_block.thinking,
-              signature = thinking_block.signature,
-            }
-          end
-        end
-        if tool_history.tool_use.redacted_thinking_blocks then
-          for _, redacted_thinking_block in ipairs(tool_history.tool_use.redacted_thinking_blocks) do
-            msg.content[#msg.content + 1] = {
-              type = "redacted_thinking",
-              data = redacted_thinking_block.data,
-            }
-          end
-        end
-        if tool_history.tool_use.response_contents then
-          for _, response_content in ipairs(tool_history.tool_use.response_contents) do
-            msg.content[#msg.content + 1] = {
-              type = "text",
-              text = response_content,
-            }
-          end
-        end
-        msg.content[#msg.content + 1] = {
-          type = "tool_use",
-          id = tool_history.tool_use.id,
-          name = tool_history.tool_use.name,
-          input = vim.json.decode(tool_history.tool_use.input_json),
-        }
-        messages[#messages + 1] = msg
-      end
-
-      if tool_history.tool_result then
-        messages[#messages + 1] = {
-          role = "user",
-          content = {
-            {
-              type = "tool_result",
-              tool_use_id = tool_history.tool_result.tool_use_id,
-              content = tool_history.tool_result.content,
-              is_error = tool_history.tool_result.is_error,
-            },
-          },
-        }
-      end
-    end
-  end
-
   return messages
 end
 
@@ -226,14 +169,51 @@ function M:parse_response(ctx, data_stream, event_state, opts)
     local content_block = jsn.content_block
     content_block.stoppped = false
     ctx.content_blocks[jsn.index + 1] = content_block
-    if content_block.type == "thinking" then opts.on_chunk("<think>\n") end
-    if content_block.type == "tool_use" and opts.on_partial_tool_use then
-      opts.on_partial_tool_use({
-        name = content_block.name,
-        id = content_block.id,
-        partial_json = {},
+    if content_block.type == "text" then
+      local msg = HistoryMessage:new({
+        role = "assistant",
+        content = content_block.text,
+      }, {
         state = "generating",
       })
+      content_block.uuid = msg.uuid
+      if opts.on_messages_add then opts.on_messages_add({ msg }) end
+    end
+    if content_block.type == "thinking" then
+      if opts.on_chunk then opts.on_chunk("<think>\n") end
+      if opts.on_messages_add then
+        local msg = HistoryMessage:new({
+          role = "assistant",
+          content = {
+            {
+              type = "thinking",
+              thinking = content_block.thinking,
+              signature = content_block.signature,
+            },
+          },
+        }, {
+          state = "generating",
+        })
+        content_block.uuid = msg.uuid
+        opts.on_messages_add({ msg })
+      end
+    end
+    if content_block.type == "tool_use" and opts.on_messages_add then
+      local msg = HistoryMessage:new({
+        role = "assistant",
+        content = {
+          {
+            type = "tool_use",
+            name = content_block.name,
+            id = content_block.id,
+            input = {},
+          },
+        },
+      }, {
+        state = "generating",
+      })
+      content_block.uuid = msg.uuid
+      opts.on_messages_add({ msg })
     end
   elseif event_state == "content_block_delta" then
     local ok, jsn = pcall(vim.json.decode, data_stream)
@@ -242,23 +222,35 @@ function M:parse_response(ctx, data_stream, event_state, opts)
     if jsn.delta.type == "input_json_delta" then
       if not content_block.input_json then content_block.input_json = "" end
       content_block.input_json = content_block.input_json .. jsn.delta.partial_json
-      if opts.on_partial_tool_use then
-        local streaming_json_parser = StreamingJsonParser:new()
-        local partial_json = streaming_json_parser:parse(content_block.input_json)
-        opts.on_partial_tool_use({
-          name = content_block.name,
-          id = content_block.id,
-          partial_json = partial_json or {},
-          state = "generating",
-        })
-      end
       return
     elseif jsn.delta.type == "thinking_delta" then
       content_block.thinking = content_block.thinking .. jsn.delta.thinking
-      opts.on_chunk(jsn.delta.thinking)
+      if opts.on_chunk then opts.on_chunk(jsn.delta.thinking) end
+      local msg = HistoryMessage:new({
+        role = "assistant",
+        content = {
+          {
+            type = "thinking",
+            thinking = content_block.thinking,
+            signature = content_block.signature,
+          },
+        },
+      }, {
+        state = "generating",
+        uuid = content_block.uuid,
+      })
+      if opts.on_messages_add then opts.on_messages_add({ msg }) end
     elseif jsn.delta.type == "text_delta" then
       content_block.text = content_block.text .. jsn.delta.text
-      opts.on_chunk(jsn.delta.text)
+      if opts.on_chunk then opts.on_chunk(jsn.delta.text) end
+      local msg = HistoryMessage:new({
+        role = "assistant",
+        content = content_block.text,
+      }, {
+        state = "generating",
+        uuid = content_block.uuid,
+      })
+      if opts.on_messages_add then opts.on_messages_add({ msg }) end
     elseif jsn.delta.type == "signature_delta" then
       if ctx.content_blocks[jsn.index + 1].signature == nil then ctx.content_blocks[jsn.index + 1].signature = "" end
       ctx.content_blocks[jsn.index + 1].signature = ctx.content_blocks[jsn.index + 1].signature .. jsn.delta.signature
@@ -268,12 +260,56 @@ function M:parse_response(ctx, data_stream, event_state, opts)
     if not ok then return end
     local content_block = ctx.content_blocks[jsn.index + 1]
     content_block.stoppped = true
+    if content_block.type == "text" then
+      local msg = HistoryMessage:new({
+        role = "assistant",
+        content = content_block.text,
+      }, {
+        state = "generated",
+        uuid = content_block.uuid,
+      })
+      if opts.on_messages_add then opts.on_messages_add({ msg }) end
+    end
+    if content_block.type == "tool_use" then
+      local complete_json = vim.json.decode(content_block.input_json)
+      local msg = HistoryMessage:new({
+        role = "assistant",
+        content = {
+          {
+            type = "tool_use",
+            name = content_block.name,
+            id = content_block.id,
+            input = complete_json or {},
+          },
+        },
+      }, {
+        state = "generated",
+        uuid = content_block.uuid,
+      })
+      if opts.on_messages_add then opts.on_messages_add({ msg }) end
+    end
     if content_block.type == "thinking" then
-      if content_block.thinking and content_block.thinking ~= vim.NIL and content_block.thinking:sub(-1) ~= "\n" then
-        opts.on_chunk("\n</think>\n\n")
-      else
-        opts.on_chunk("</think>\n\n")
+      if opts.on_chunk then
+        if content_block.thinking and content_block.thinking ~= vim.NIL and content_block.thinking:sub(-1) ~= "\n" then
+          opts.on_chunk("\n</think>\n\n")
+        else
+          opts.on_chunk("</think>\n\n")
+        end
       end
+      local msg = HistoryMessage:new({
+        role = "assistant",
+        content = {
+          {
+            type = "thinking",
+            thinking = content_block.thinking,
+            signature = content_block.signature,
+          },
+        },
+      }, {
+        state = "generated",
+        uuid = content_block.uuid,
+      })
+      if opts.on_messages_add then opts.on_messages_add({ msg }) end
     end
   elseif event_state == "message_delta" then
     local ok, jsn = pcall(vim.json.decode, data_stream)
@@ -281,49 +317,20 @@ function M:parse_response(ctx, data_stream, event_state, opts)
     if jsn.delta.stop_reason == "end_turn" then
       opts.on_stop({ reason = "complete", usage = jsn.usage })
     elseif jsn.delta.stop_reason == "tool_use" then
-      ---@type AvanteLLMToolUse[]
-      local tool_use_list = vim
-        .iter(ctx.content_blocks)
-        :filter(function(content_block) return content_block.stoppped and content_block.type == "tool_use" end)
-        :map(function(content_block)
-          local response_contents = vim
-            .iter(ctx.content_blocks)
-            :filter(function(content_block_) return content_block_.stoppped and content_block_.type == "text" end)
-            :map(function(content_block_) return content_block_.text end)
-            :totable()
-          local thinking_blocks = vim
-            .iter(ctx.content_blocks)
-            :filter(function(content_block_) return content_block_.stoppped and content_block_.type == "thinking" end)
-            :map(function(content_block_)
-              ---@type AvanteLLMThinkingBlock
-              return { thinking = content_block_.thinking, signature = content_block_.signature }
-            end)
-            :totable()
-          local redacted_thinking_blocks = vim
-            .iter(ctx.content_blocks)
-            :filter(
-              function(content_block_) return content_block_.stoppped and content_block_.type == "redacted_thinking" end
-            )
-            :map(function(content_block_)
-              ---@type AvanteLLMRedactedThinkingBlock
-              return { data = content_block_.data }
-            end)
-            :totable()
-          ---@type AvanteLLMToolUse
-          return {
-            name = content_block.name,
+      local tool_use_list = {}
+      for _, content_block in ipairs(ctx.content_blocks) do
+        if content_block.type == "tool_use" then
+          table.insert(tool_use_list, {
             id = content_block.id,
+            name = content_block.name,
             input_json = content_block.input_json,
-            response_contents = response_contents,
-            thinking_blocks = thinking_blocks,
-            redacted_thinking_blocks = redacted_thinking_blocks,
-          }
-        end)
-        :totable()
+          })
+        end
+      end
       opts.on_stop({
         reason = "tool_use",
+        -- tool_use_list = tool_use_list,
         usage = jsn.usage,
-        tool_use_list = tool_use_list,
       })
     end
     return
@@ -351,7 +358,7 @@ function M:parse_curl_args(prompt_opts)
   local tools = {}
   if not disable_tools and prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
-      if Config.behaviour.enable_claude_text_editor_tool_mode then
+      if Config.mode == "agentic" then
         if tool.name == "create_file" then goto continue end
         if tool.name == "view" then goto continue end
         if tool.name == "str_replace" then goto continue end
@@ -364,7 +371,7 @@ function M:parse_curl_args(prompt_opts)
     end
   end
 
-  if prompt_opts.tools and #prompt_opts.tools > 0 and Config.behaviour.enable_claude_text_editor_tool_mode then
+  if prompt_opts.tools and #prompt_opts.tools > 0 and Config.mode == "agentic" then
     if provider_conf.model:match("claude%-3%-7%-sonnet") then
       table.insert(tools, {
         type = "text_editor_20250124",

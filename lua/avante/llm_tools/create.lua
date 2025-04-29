@@ -10,7 +10,7 @@ M.name = "create"
 
 M.description = "The create tool allows you to create a new file with specified content."
 
-function M.enabled() return require("avante.config").behaviour.enable_claude_text_editor_tool_mode end
+function M.enabled() return require("avante.config").mode == "agentic" end
 
 ---@type AvanteLLMToolParam
 M.param = {
