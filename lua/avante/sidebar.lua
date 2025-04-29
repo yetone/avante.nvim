@@ -1976,7 +1976,7 @@ function Sidebar:initialize()
   if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then return self end
 
   -- check if the filetype of self.code.bufnr is disabled
-  local buf_ft = api.nvim_get_option_value("filetype", {buf = self.code.bufnr})
+  local buf_ft = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
   if vim.list_contains(Config.selector.exclude_auto_select, buf_ft) then return self end
 
   local buf_path = api.nvim_buf_get_name(self.code.bufnr)
