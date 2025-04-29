@@ -249,6 +249,43 @@ function M.add_buffer_files()
   sidebar.file_selector:add_buffer_files()
 end
 
+function M.add_selected_file(filepath)
+  local rel_path = Utils.uniform_path(filepath)
+
+  local sidebar = require("avante").get()
+  if not sidebar then
+    require("avante.api").ask()
+    sidebar = require("avante").get()
+  end
+  if not sidebar:is_open() then sidebar:open({}) end
+  sidebar.file_selector:add_selected_file(rel_path)
+end
+
+function M.remove_selected_file(filepath)
+  local files = {}
+
+  ---@diagnostic disable-next-line: undefined-field
+  local stat = vim.loop.fs_stat(filepath)
+  if stat and stat.type == "directory" then
+    files = Utils.scan_directory({ directory = filepath, add_dirs = true })
+  else
+    files = { filepath }
+  end
+
+  local sidebar = require("avante").get()
+  if not sidebar then
+    require("avante.api").ask()
+    sidebar = require("avante").get()
+  end
+  if not sidebar:is_open() then sidebar:open({}) end
+
+  for _, file in ipairs(files) do
+    local rel_path = Utils.uniform_path(file)
+    vim.notify(rel_path)
+    sidebar.file_selector:remove_selected_file(rel_path)
+  end
+end
+
 function M.stop() require("avante.llm").cancel_inflight_request() end
 
 return setmetatable(M, {
