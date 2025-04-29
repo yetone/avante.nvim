@@ -4,6 +4,10 @@ local Utils = require("avante.utils")
 local Highlights = require("avante.highlights")
 local Config = require("avante.config")
 
+local PRIORITY = (vim.hl or vim.highlight).priorities.user
+local NAMESPACE = vim.api.nvim_create_namespace("avante-diff")
+local KEYBINDING_NAMESPACE = vim.api.nvim_create_namespace("avante-diff-keybinding")
+
 ---@class AvanteLLMTool
 local M = setmetatable({}, Base)
 
@@ -81,7 +85,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
   local is_replacing = false
   local current_search = {}
   local current_replace = {}
-  local diff_blocks = {}
+  local rough_diff_blocks = {}
 
   for _, line in ipairs(diff_lines) do
     if line:match("^%s*<<<<<<< SEARCH") then
@@ -95,7 +99,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
     elseif line:match("^%s*>>>>>>> REPLACE") and is_replacing then
       is_replacing = false
       table.insert(
-        diff_blocks,
+        rough_diff_blocks,
         { search = table.concat(current_search, "\n"), replace = table.concat(current_replace, "\n") }
       )
     elseif is_searching then
@@ -105,22 +109,22 @@ function M.func(opts, on_log, on_complete, session_ctx)
     end
   end
 
-  if #diff_blocks == 0 then return false, "No diff blocks found" end
+  if #rough_diff_blocks == 0 then return false, "No diff blocks found" end
 
   local bufnr, err = Helpers.get_bufnr(abs_path)
   if err then return false, err end
-  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local original_lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local sidebar = require("avante").get()
   if not sidebar then return false, "Avante sidebar not found" end
 
-  for _, diff_block in ipairs(diff_blocks) do
-    local old_lines = vim.split(diff_block.search, "\n")
-    local new_lines = vim.split(diff_block.replace, "\n")
+  local function parse_rough_diff_block(rough_diff_block, current_lines)
+    local old_lines = vim.split(rough_diff_block.search, "\n")
+    local new_lines = vim.split(rough_diff_block.replace, "\n")
     local start_line, end_line
-    for i = 1, #lines - #old_lines + 1 do
+    for i = 1, #current_lines - #old_lines + 1 do
       local match = true
       for j = 1, #old_lines do
-        if Utils.remove_indentation(lines[i + j - 1]) ~= Utils.remove_indentation(old_lines[j]) then
+        if Utils.remove_indentation(current_lines[i + j - 1]) ~= Utils.remove_indentation(old_lines[j]) then
           match = false
           break
         end
@@ -132,67 +136,339 @@ function M.func(opts, on_log, on_complete, session_ctx)
       end
     end
     if start_line == nil or end_line == nil then
-      on_complete(false, "Failed to find the old string:\n" .. diff_block.search)
-      return
+      return "Failed to find the old string:\n" .. rough_diff_block.search
     end
-    local old_str = diff_block.search
-    local new_str = diff_block.replace
-    local original_indentation = Utils.get_indentation(lines[start_line])
+    local old_str = rough_diff_block.search
+    local new_str = rough_diff_block.replace
+    local original_indentation = Utils.get_indentation(current_lines[start_line])
     if original_indentation ~= Utils.get_indentation(old_lines[1]) then
       old_lines = vim.tbl_map(function(line) return original_indentation .. line end, old_lines)
       new_lines = vim.tbl_map(function(line) return original_indentation .. line end, new_lines)
       old_str = table.concat(old_lines, "\n")
       new_str = table.concat(new_lines, "\n")
     end
-    diff_block.search = old_str
-    diff_block.replace = new_str
-    diff_block.start_line = start_line
-    diff_block.end_line = end_line
+    rough_diff_block.old_lines = old_lines
+    rough_diff_block.new_lines = new_lines
+    rough_diff_block.search = old_str
+    rough_diff_block.replace = new_str
+    rough_diff_block.start_line = start_line
+    rough_diff_block.end_line = end_line
+    return nil
   end
+
+  local function rough_diff_blocks_to_diff_blocks(rough_diff_blocks_)
+    local res = {}
+    local base_line_ = 0
+    for _, rough_diff_block in ipairs(rough_diff_blocks_) do
+      ---@diagnostic disable-next-line: assign-type-mismatch, missing-fields
+      local patch = vim.diff(rough_diff_block.search, rough_diff_block.replace, { ---@type integer[][]
+        algorithm = "histogram",
+        result_type = "indices",
+        ctxlen = vim.o.scrolloff,
+      })
+      for _, hunk in ipairs(patch) do
+        local start_a, count_a, start_b, count_b = unpack(hunk)
+        local diff_block = {}
+        if count_a > 0 then
+          diff_block.old_lines = vim.list_slice(rough_diff_block.old_lines, start_a, start_a + count_a - 1)
+        else
+          diff_block.old_lines = {}
+        end
+        if count_b > 0 then
+          diff_block.new_lines = vim.list_slice(rough_diff_block.new_lines, start_b, start_b + count_b - 1)
+        else
+          diff_block.new_lines = {}
+        end
+        if count_a > 0 then
+          diff_block.start_line = base_line_ + rough_diff_block.start_line + start_a - 1
+        else
+          diff_block.start_line = base_line_ + rough_diff_block.start_line + start_a
+        end
+        diff_block.end_line = base_line_ + rough_diff_block.start_line + start_a + math.max(count_a, 1) - 2
+        diff_block.search = table.concat(diff_block.old_lines, "\n")
+        diff_block.replace = table.concat(diff_block.new_lines, "\n")
+        table.insert(res, diff_block)
+      end
+
+      local distance = 0
+      for _, hunk in ipairs(patch) do
+        local _, count_a, _, count_b = unpack(hunk)
+        distance = distance + count_b - count_a
+      end
+
+      local old_distance = #rough_diff_block.new_lines - #rough_diff_block.old_lines
+
+      base_line_ = base_line_ + distance - old_distance
+    end
+    return res
+  end
+
+  for _, rough_diff_block in ipairs(rough_diff_blocks) do
+    local error = parse_rough_diff_block(rough_diff_block, original_lines)
+    if error then
+      on_complete(false, error)
+      return
+    end
+  end
+
+  local diff_blocks = rough_diff_blocks_to_diff_blocks(rough_diff_blocks)
 
   table.sort(diff_blocks, function(a, b) return a.start_line < b.start_line end)
 
   local base_line = 0
-  local max_col = vim.o.columns
-  local ns_id = vim.api.nvim_create_namespace("avante_diff")
-
   for _, diff_block in ipairs(diff_blocks) do
-    local start_line = diff_block.start_line + base_line
-    local end_line = diff_block.end_line + base_line
-    local old_lines = vim.split(diff_block.search, "\n")
-    local new_lines = vim.split(diff_block.replace, "\n")
-    base_line = base_line + #new_lines - #old_lines
-    vim.api.nvim_buf_set_lines(bufnr, start_line - 1, end_line, false, new_lines)
-    local deleted_virt_lines = vim
-      .iter(old_lines)
-      :map(function(line)
-        --- append spaces to the end of the line
-        local line_ = line .. string.rep(" ", max_col - #line)
-        return { { line_, Highlights.TO_BE_DELETED_WITHOUT_STRIKETHROUGH } }
-      end)
-      :totable()
-    local extmark_line = math.max(0, start_line - 2)
-    -- Utils.debug("extmark_line", extmark_line)
-    -- Utils.debug("start_line", start_line)
-    vim.api.nvim_buf_set_extmark(bufnr, ns_id, extmark_line, 0, {
-      virt_lines = deleted_virt_lines,
-      hl_eol = true,
-      hl_mode = "combine",
-    })
-    local end_row = start_line + #new_lines - 1
-    -- Utils.debug("end_row", end_row)
-    vim.api.nvim_buf_set_extmark(bufnr, ns_id, start_line - 1, 0, {
-      hl_group = Highlights.INCOMING,
-      hl_eol = true,
-      hl_mode = "combine",
-      end_row = end_row,
+    diff_block.new_start_line = diff_block.start_line + base_line
+    diff_block.new_end_line = diff_block.new_start_line + #diff_block.new_lines - 1
+    base_line = base_line + #diff_block.new_lines - #diff_block.old_lines
+  end
+
+  local function remove_diff_block(removed_idx, use_new_lines)
+    local new_diff_blocks = {}
+    local distance = 0
+    for idx, diff_block in ipairs(diff_blocks) do
+      if idx == removed_idx then
+        if not use_new_lines then distance = #diff_block.old_lines - #diff_block.new_lines end
+        goto continue
+      end
+      if idx > removed_idx then
+        diff_block.new_start_line = diff_block.new_start_line + distance
+        diff_block.new_end_line = diff_block.new_end_line + distance
+      end
+      table.insert(new_diff_blocks, diff_block)
+      ::continue::
+    end
+
+    diff_blocks = new_diff_blocks
+  end
+
+  local function get_current_diff_block()
+    local winid = Utils.get_winid(bufnr)
+    local cursor_line = Utils.get_cursor_pos(winid)
+    for idx, diff_block in ipairs(diff_blocks) do
+      if cursor_line >= diff_block.new_start_line and cursor_line <= diff_block.new_end_line then
+        return diff_block, idx
+      end
+    end
+    return nil, nil
+  end
+
+  local function get_prev_diff_block()
+    local winid = Utils.get_winid(bufnr)
+    local cursor_line = Utils.get_cursor_pos(winid)
+    local distance = nil
+    local idx = nil
+    for i, diff_block in ipairs(diff_blocks) do
+      if cursor_line >= diff_block.new_start_line and cursor_line <= diff_block.new_end_line then
+        local new_i = i - 1
+        if new_i < 1 then return diff_blocks[#diff_blocks] end
+        return diff_blocks[new_i]
+      end
+      if diff_block.new_start_line < cursor_line then
+        local distance_ = cursor_line - diff_block.new_start_line
+        if distance == nil or distance_ < distance then
+          distance = distance_
+          idx = i
+        end
+      end
+    end
+    if idx ~= nil then return diff_blocks[idx] end
+    if #diff_blocks > 0 then return diff_blocks[#diff_blocks] end
+    return nil
+  end
+
+  local function get_next_diff_block()
+    local winid = Utils.get_winid(bufnr)
+    local cursor_line = Utils.get_cursor_pos(winid)
+    local distance = nil
+    local idx = nil
+    for i, diff_block in ipairs(diff_blocks) do
+      if cursor_line >= diff_block.new_start_line and cursor_line <= diff_block.new_end_line then
+        local new_i = i + 1
+        if new_i > #diff_blocks then return diff_blocks[1] end
+        return diff_blocks[new_i]
+      end
+      if diff_block.new_start_line > cursor_line then
+        local distance_ = diff_block.new_start_line - cursor_line
+        if distance == nil or distance_ < distance then
+          distance = distance_
+          idx = i
+        end
+      end
+    end
+    if idx ~= nil then return diff_blocks[idx] end
+    if #diff_blocks > 0 then return diff_blocks[1] end
+    return nil
+  end
+
+  local show_keybinding_hint_extmark_id = nil
+  local function register_cursor_move_events()
+    local function show_keybinding_hint(lnum)
+      if show_keybinding_hint_extmark_id then
+        vim.api.nvim_buf_del_extmark(bufnr, KEYBINDING_NAMESPACE, show_keybinding_hint_extmark_id)
+      end
+
+      local hint = string.format(
+        "[<%s>: OURS, <%s>: THEIRS, <%s>: PREV, <%s>: NEXT]",
+        Config.mappings.diff.ours,
+        Config.mappings.diff.theirs,
+        Config.mappings.diff.prev,
+        Config.mappings.diff.next
+      )
+
+      show_keybinding_hint_extmark_id = vim.api.nvim_buf_set_extmark(bufnr, KEYBINDING_NAMESPACE, lnum - 1, -1, {
+        hl_group = "AvanteInlineHint",
+        virt_text = { { hint, "AvanteInlineHint" } },
+        virt_text_pos = "right_align",
+        priority = PRIORITY,
+      })
+    end
+
+    vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI", "WinLeave" }, {
+      buffer = bufnr,
+      callback = function(event)
+        local diff_block = get_current_diff_block()
+        if (event.event == "CursorMoved" or event.event == "CursorMovedI") and diff_block then
+          show_keybinding_hint(diff_block.new_start_line)
+        else
+          vim.api.nvim_buf_clear_namespace(bufnr, KEYBINDING_NAMESPACE, 0, -1)
+        end
+      end,
     })
   end
 
+  local function register_keybinding_events()
+    vim.keymap.set({ "n", "v" }, Config.mappings.diff.ours, function()
+      if vim.api.nvim_get_current_buf() ~= bufnr then return end
+      local diff_block, idx = get_current_diff_block()
+      if not diff_block then return end
+      pcall(vim.api.nvim_buf_del_extmark, bufnr, NAMESPACE, diff_block.delete_extmark_id)
+      pcall(vim.api.nvim_buf_del_extmark, bufnr, NAMESPACE, diff_block.incoming_extmark_id)
+      vim.api.nvim_buf_set_lines(
+        bufnr,
+        diff_block.new_start_line - 1,
+        diff_block.new_end_line,
+        false,
+        diff_block.old_lines
+      )
+      diff_block.incoming_extmark_id = nil
+      diff_block.delete_extmark_id = nil
+      remove_diff_block(idx, false)
+      local next_diff_block = get_next_diff_block()
+      if next_diff_block then
+        local winnr = Utils.get_winid(bufnr)
+        vim.api.nvim_win_set_cursor(winnr, { next_diff_block.new_start_line, 0 })
+        vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
+      end
+    end)
+
+    vim.keymap.set({ "n", "v" }, Config.mappings.diff.theirs, function()
+      if vim.api.nvim_get_current_buf() ~= bufnr then return end
+      local diff_block, idx = get_current_diff_block()
+      if not diff_block then return end
+      pcall(vim.api.nvim_buf_del_extmark, bufnr, NAMESPACE, diff_block.incoming_extmark_id)
+      pcall(vim.api.nvim_buf_del_extmark, bufnr, NAMESPACE, diff_block.delete_extmark_id)
+      diff_block.incoming_extmark_id = nil
+      diff_block.delete_extmark_id = nil
+      remove_diff_block(idx, true)
+      local next_diff_block = get_next_diff_block()
+      if next_diff_block then
+        local winnr = Utils.get_winid(bufnr)
+        vim.api.nvim_win_set_cursor(winnr, { next_diff_block.new_start_line, 0 })
+        vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
+      end
+    end)
+
+    vim.keymap.set({ "n", "v" }, Config.mappings.diff.next, function()
+      if vim.api.nvim_get_current_buf() ~= bufnr then return end
+      local diff_block = get_next_diff_block()
+      if not diff_block then return end
+      local winnr = Utils.get_winid(bufnr)
+      vim.api.nvim_win_set_cursor(winnr, { diff_block.new_start_line, 0 })
+      vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
+    end)
+
+    vim.keymap.set({ "n", "v" }, Config.mappings.diff.prev, function()
+      if vim.api.nvim_get_current_buf() ~= bufnr then return end
+      local diff_block = get_prev_diff_block()
+      if not diff_block then return end
+      local winnr = Utils.get_winid(bufnr)
+      vim.api.nvim_win_set_cursor(winnr, { diff_block.new_start_line, 0 })
+      vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
+    end)
+  end
+
+  local function unregister_keybinding_events()
+    pcall(vim.api.nvim_buf_del_keymap, bufnr, "n", Config.mappings.diff.ours)
+    pcall(vim.api.nvim_buf_del_keymap, bufnr, "n", Config.mappings.diff.theirs)
+    pcall(vim.api.nvim_buf_del_keymap, bufnr, "n", Config.mappings.diff.next)
+    pcall(vim.api.nvim_buf_del_keymap, bufnr, "n", Config.mappings.diff.prev)
+    pcall(vim.api.nvim_buf_del_keymap, bufnr, "v", Config.mappings.diff.ours)
+    pcall(vim.api.nvim_buf_del_keymap, bufnr, "v", Config.mappings.diff.theirs)
+    pcall(vim.api.nvim_buf_del_keymap, bufnr, "v", Config.mappings.diff.next)
+    pcall(vim.api.nvim_buf_del_keymap, bufnr, "v", Config.mappings.diff.prev)
+  end
+
+  local augroup = vim.api.nvim_create_augroup("avante_replace_in_file", { clear = true })
+  local function clear()
+    if bufnr and not vim.api.nvim_buf_is_valid(bufnr) then return end
+    vim.api.nvim_buf_clear_namespace(bufnr, NAMESPACE, 0, -1)
+    vim.api.nvim_buf_clear_namespace(bufnr, KEYBINDING_NAMESPACE, 0, -1)
+    unregister_keybinding_events()
+    pcall(vim.api.nvim_del_augroup_by_id, augroup)
+  end
+
+  local function insert_diff_blocks_new_lines()
+    local base_line_ = 0
+    for _, diff_block in ipairs(diff_blocks) do
+      local start_line = diff_block.start_line + base_line_
+      local end_line = diff_block.end_line + base_line_
+      base_line_ = base_line_ + #diff_block.new_lines - #diff_block.old_lines
+      vim.api.nvim_buf_set_lines(bufnr, start_line - 1, end_line, false, diff_block.new_lines)
+    end
+  end
+
+  local function highlight_diff_blocks()
+    vim.api.nvim_buf_clear_namespace(bufnr, NAMESPACE, 0, -1)
+    local base_line_ = 0
+    local max_col = vim.o.columns
+    for _, diff_block in ipairs(diff_blocks) do
+      local start_line = diff_block.start_line + base_line_
+      base_line_ = base_line_ + #diff_block.new_lines - #diff_block.old_lines
+      local deleted_virt_lines = vim
+        .iter(diff_block.old_lines)
+        :map(function(line)
+          --- append spaces to the end of the line
+          local line_ = line .. string.rep(" ", max_col - #line)
+          return { { line_, Highlights.TO_BE_DELETED_WITHOUT_STRIKETHROUGH } }
+        end)
+        :totable()
+      local extmark_line = math.max(0, start_line - 2)
+      local delete_extmark_id = vim.api.nvim_buf_set_extmark(bufnr, NAMESPACE, extmark_line, 0, {
+        virt_lines = deleted_virt_lines,
+        hl_eol = true,
+        hl_mode = "combine",
+      })
+      local end_row = start_line + #diff_block.new_lines - 1
+      local incoming_extmark_id = vim.api.nvim_buf_set_extmark(bufnr, NAMESPACE, start_line - 1, 0, {
+        hl_group = Highlights.INCOMING,
+        hl_eol = true,
+        hl_mode = "combine",
+        end_row = end_row,
+      })
+      diff_block.delete_extmark_id = delete_extmark_id
+      diff_block.incoming_extmark_id = incoming_extmark_id
+    end
+  end
+
+  insert_diff_blocks_new_lines()
+  highlight_diff_blocks()
+  register_cursor_move_events()
+  register_keybinding_events()
+
   Helpers.confirm("Are you sure you want to apply this modification?", function(ok, reason)
-    vim.api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1)
+    clear()
     if not ok then
-      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, original_lines)
       on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
     end

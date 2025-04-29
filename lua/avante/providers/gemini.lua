@@ -145,7 +145,7 @@ function M:parse_response(ctx, data_stream, _, opts)
         if not ctx.function_call_id then ctx.function_call_id = 0 end
         ctx.function_call_id = ctx.function_call_id + 1
         local tool_use = {
-          id = ctx.function_call_id,
+          id = ctx.session_id .. "-" .. tostring(ctx.function_call_id),
           name = part.functionCall.name,
           input_json = vim.json.encode(part.functionCall.args),
         }

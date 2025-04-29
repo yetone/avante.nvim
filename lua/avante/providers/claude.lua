@@ -222,23 +222,6 @@ function M:parse_response(ctx, data_stream, event_state, opts)
     if jsn.delta.type == "input_json_delta" then
       if not content_block.input_json then content_block.input_json = "" end
       content_block.input_json = content_block.input_json .. jsn.delta.partial_json
-      if opts.on_messages_add then
-        local msg = HistoryMessage:new({
-          role = "assistant",
-          content = {
-            {
-              type = "tool_use",
-              name = content_block.name,
-              id = content_block.id,
-              input = {},
-            },
-          },
-        }, {
-          state = "generating",
-          uuid = content_block.uuid,
-        })
-        opts.on_messages_add({ msg })
-      end
       return
     elseif jsn.delta.type == "thinking_delta" then
       content_block.thinking = content_block.thinking .. jsn.delta.thinking
@@ -375,7 +358,7 @@ function M:parse_curl_args(prompt_opts)
   local tools = {}
   if not disable_tools and prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
-      if Config.behaviour.enable_claude_text_editor_tool_mode then
+      if Config.mode == "agentic" then
         if tool.name == "create_file" then goto continue end
         if tool.name == "view" then goto continue end
         if tool.name == "str_replace" then goto continue end
@@ -388,7 +371,7 @@ function M:parse_curl_args(prompt_opts)
     end
   end
 
-  if prompt_opts.tools and #prompt_opts.tools > 0 and Config.behaviour.enable_claude_text_editor_tool_mode then
+  if prompt_opts.tools and #prompt_opts.tools > 0 and Config.mode == "agentic" then
     if provider_conf.model:match("claude%-3%-7%-sonnet") then
       table.insert(tools, {
         type = "text_editor_20250124",

@@ -172,11 +172,10 @@ function Prompt.get_builtin_prompts_filepath(mode) return string.format("%s.avan
 local _templates_lib = nil
 
 Prompt.custom_modes = {
-  planning = true,
+  agentic = true,
+  legacy = true,
   editing = true,
   suggesting = true,
-  ["cursor-planning"] = true,
-  ["cursor-applying"] = true,
 }
 
 Prompt.custom_prompts_contents = {}

@@ -215,14 +215,6 @@ function M.setup()
     E.setup({ provider = auto_suggestions_provider })
   end
 
-  if Config.behaviour.enable_cursor_planning_mode then
-    local cursor_applying_provider_name = Config.cursor_applying_provider or Config.provider
-    local cursor_applying_provider = M[cursor_applying_provider_name]
-    if cursor_applying_provider and cursor_applying_provider ~= provider then
-      E.setup({ provider = cursor_applying_provider })
-    end
-  end
-
   if Config.memory_summary_provider then
     local memory_summary_provider = M[Config.memory_summary_provider]
     if memory_summary_provider and memory_summary_provider ~= provider then

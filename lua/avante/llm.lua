@@ -136,7 +136,7 @@ end
 ---@return AvantePromptOptions
 function M.generate_prompts(opts)
   local provider = opts.provider or Providers[Config.provider]
-  local mode = opts.mode or "planning"
+  local mode = opts.mode or Config.mode
   ---@type AvanteProviderFunctor | AvanteBedrockProviderFunctor
   local _, request_body = Providers.parse_config(provider)
   local max_tokens = request_body.max_tokens or 4096
@@ -336,22 +336,6 @@ function M.generate_prompts(opts)
     messages = vim.list_extend(messages, { { role = "user", content = opts.instructions } })
   end
 
-  if opts.mode == "cursor-applying" then
-    local user_prompt = [[
-Merge all changes from the <update> snippet into the <code> below.
-- Preserve the code's structure, order, comments, and indentation exactly.
-- Output only the updated code, enclosed within <updated-code> and </updated-code> tags.
-- Do not include any additional text, explanations, placeholders, ellipses, or code fences.
-
-]]
-    user_prompt = user_prompt .. string.format("<code>\n%s\n</code>\n", opts.original_code)
-    for _, snippet in ipairs(opts.update_snippets) do
-      user_prompt = user_prompt .. string.format("<update>\n%s\n</update>\n", snippet)
-    end
-    user_prompt = user_prompt .. "Provide the complete updated code."
-    table.insert(messages, { role = "user", content = user_prompt })
-  end
-
   opts.session_ctx = opts.session_ctx or {}
   opts.session_ctx.system_prompt = system_prompt
   opts.session_ctx.messages = messages
@@ -407,7 +391,9 @@ function M.curl(opts)
   ---@type string
   local current_event_state = nil
   local resp_ctx = {}
+  resp_ctx.session_id = Utils.uuid()
 
+  local response_body = ""
   ---@param line string
   local function parse_stream_data(line)
     local event = line:match("^event:%s*(.+)$")
@@ -416,7 +402,16 @@ function M.curl(opts)
       return
     end
     local data_match = line:match("^data:%s*(.+)$")
-    if data_match then provider:parse_response(resp_ctx, data_match, current_event_state, handler_opts) end
+    if data_match then
+      provider:parse_response(resp_ctx, data_match, current_event_state, handler_opts)
+    else
+      response_body = response_body .. line
+      local ok, jsn = pcall(vim.json.decode, response_body)
+      if ok then
+        response_body = ""
+        if jsn.error then handler_opts.on_stop({ reason = "error", error = jsn.error }) end
+      end
+    end
   end
 
   local function parse_response_without_stream(data)
@@ -445,7 +440,7 @@ function M.curl(opts)
     if Config.debug then return end
     vim.schedule(function()
       fn.delete(curl_body_file)
-      fn.delete(resp_body_file)
+      pcall(fn.delete, resp_body_file)
       fn.delete(headers_file)
     end)
   end
@@ -470,11 +465,13 @@ function M.curl(opts)
         return
       end
       if not data then return end
-      if type(data) == "string" then
-        local file = io.open(resp_body_file, "a")
-        if file then
-          file:write(data .. "\n")
-          file:close()
+      if Config.debug then
+        if type(data) == "string" then
+          local file = io.open(resp_body_file, "a")
+          if file then
+            file:write(data .. "\n")
+            file:close()
+          end
         end
       end
       vim.schedule(function()
@@ -747,8 +744,8 @@ function M._stream(opts)
         return handle_next_tool_use(sorted_tool_use_list, 1, {})
       end
       if stop_opts.reason == "rate_limit" then
-        local msg_content = "Rate limit reached. Retrying in " .. stop_opts.retry_after .. " seconds ..."
-        if opts.on_chunk then opts.on_chunk("\n*[" .. msg_content .. "]*\n") end
+        local msg_content = "*[Rate limit reached. Retrying in " .. stop_opts.retry_after .. " seconds ...]*"
+        if opts.on_chunk then opts.on_chunk("\n" .. msg_content .. "\n") end
         local message
         if opts.on_messages_add then
           message = HistoryMessage:new({
@@ -768,8 +765,8 @@ function M._stream(opts)
               0,
               vim.schedule_wrap(function()
                 if retry_after > 0 then retry_after = retry_after - 1 end
-                local msg_content_ = "Rate limit reached. Retrying in " .. retry_after .. " seconds ..."
-                if opts.on_chunk then opts.on_chunk([[\033[1A\033[K]] .. "\n*[" .. msg_content_ .. "]*\n") end
+                local msg_content_ = "*[Rate limit reached. Retrying in " .. retry_after .. " seconds ...]*"
+                if opts.on_chunk then opts.on_chunk([[\033[1A\033[K]] .. "\n" .. msg_content_ .. "\n") end
                 if opts.on_messages_add and message then
                   message.message.content = "\n\n" .. msg_content_
                   opts.on_messages_add({ message })
@@ -916,11 +913,10 @@ function M.stream(opts)
   end
 
   local valid_dual_boost_modes = {
-    planning = true,
-    ["cursor-planning"] = true,
+    legacy = true,
   }
 
-  opts.mode = opts.mode or "planning"
+  opts.mode = opts.mode or Config.mode
 
   if Config.dual_boost.enabled and valid_dual_boost_modes[opts.mode] then
     M._dual_boost_stream(

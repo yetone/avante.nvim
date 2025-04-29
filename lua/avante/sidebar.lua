@@ -75,14 +75,7 @@ function Sidebar:new(id)
     chat_history = nil,
     current_state = nil,
     state_timer = nil,
-    state_spinner_chars = {
-      "✶",
-      "✸",
-      "✹",
-      "✺",
-      "✹",
-      "✷",
-    },
+    state_spinner_chars = { "·", "✢", "✳", "∗", "✻", "✽" },
     state_spinner_idx = 1,
     state_ns_id = api.nvim_create_namespace("avante_generate_state"),
     state_extmark_id = nil,
@@ -869,14 +862,8 @@ local function parse_codeblocks(buf, current_filepath, current_filetype)
       start_line, _ = node:start()
     elseif node:type() == "fenced_code_block_delimiter" and start_line ~= nil and node:start() >= start_line then
       local end_line, _ = node:start()
-      if Config.behaviour.enable_cursor_planning_mode then
-        local filepath = obtain_filepath_from_codeblock(lines, start_line)
-        if not filepath and lang == current_filetype then filepath = current_filepath end
-        valid = filepath ~= nil
-      else
-        valid = lines[start_line - 1]:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)")
-          ~= nil
-      end
+      valid = lines[start_line - 1]:match("^%s*(%d*)[%.%)%s]*[Aa]?n?d?%s*[Rr]eplace%s+[Ll]ines:?%s*(%d+)%-(%d+)")
+        ~= nil
       if valid then table.insert(codeblocks, { start_line = start_line, end_line = end_line + 1, lang = lang }) end
     end
   end
@@ -967,16 +954,10 @@ end
 ---@param current_cursor boolean
 function Sidebar:apply(current_cursor)
   local buf_path = api.nvim_buf_get_name(self.code.bufnr)
-  local current_filepath = Utils.file.is_in_cwd(buf_path) and Utils.relative_path(buf_path) or buf_path
-  local current_filetype = Utils.get_filetype(current_filepath)
 
   local response, response_start_line = self:get_content_between_separators()
-  local all_snippets_map = Config.behaviour.enable_cursor_planning_mode
-      and extract_cursor_planning_code_snippets_map(response, current_filepath, current_filetype)
-    or extract_code_snippets_map(response)
-  if not Config.behaviour.enable_cursor_planning_mode then
-    all_snippets_map = ensure_snippets_no_overlap(all_snippets_map)
-  end
+  local all_snippets_map = extract_code_snippets_map(response)
+  all_snippets_map = ensure_snippets_no_overlap(all_snippets_map)
   local selected_snippets_map = {}
   if current_cursor then
     if self.result_container and self.result_container.winid then
@@ -995,342 +976,6 @@ function Sidebar:apply(current_cursor)
     end
   else
     selected_snippets_map = all_snippets_map
-  end
-
-  if Config.behaviour.enable_cursor_planning_mode then
-    for filepath, snippets in pairs(selected_snippets_map) do
-      local original_code_lines = Utils.read_file_from_buf_or_disk(filepath)
-      if not original_code_lines then
-        Utils.error("Failed to read file: " .. filepath)
-        return
-      end
-      local formated_snippets = vim.iter(snippets):map(function(snippet) return snippet.content end):totable()
-      local original_code = table.concat(original_code_lines, "\n")
-      local resp_content = ""
-      local filetype = Utils.get_filetype(filepath)
-      local cursor_applying_provider_name = Config.cursor_applying_provider or Config.provider
-      Utils.debug(string.format("Use %s for cursor applying", cursor_applying_provider_name))
-      local cursor_applying_provider = Provider[cursor_applying_provider_name]
-      if not cursor_applying_provider then
-        Utils.error("Failed to find cursor_applying_provider provider: " .. cursor_applying_provider_name, {
-          once = true,
-          title = "Avante",
-        })
-      end
-      if self.code.winid ~= nil and api.nvim_win_is_valid(self.code.winid) then
-        api.nvim_set_current_win(self.code.winid)
-      end
-      local bufnr = Utils.get_or_create_buffer_with_filepath(filepath)
-      local path_ = PPath:new(filepath)
-      path_:parent():mkdir({ parents = true, exists_ok = true })
-
-      local ns_id = api.nvim_create_namespace("avante_live_diff")
-
-      local function clear_highlights() api.nvim_buf_clear_namespace(bufnr, ns_id, 0, -1) end
-
-      -- Create loading indicator float window
-      local loading_buf = nil
-      local loading_win = nil
-      local spinner_frames = { "⣾", "⣽", "⣻", "⢿", "⡿", "⣟", "⣯", "⣷" }
-      local spinner_idx = 1
-      local loading_timer = nil
-
-      local function update_loading_indicator()
-        if not loading_win or not loading_buf or not api.nvim_win_is_valid(loading_win) then return end
-        spinner_idx = (spinner_idx % #spinner_frames) + 1
-        local text = spinner_frames[spinner_idx] .. " Applying changes..."
-        api.nvim_buf_set_lines(loading_buf, 0, -1, false, { text })
-      end
-
-      local function create_loading_window()
-        local winid = self.input_container.winid
-        local win_height = api.nvim_win_get_height(winid)
-        local win_width = api.nvim_win_get_width(winid)
-
-        -- Calculate position for center of window
-        local width = 30
-        local height = 1
-        local row = win_height - height - 1
-        local col = win_width - width
-
-        local opts = {
-          relative = "win",
-          win = winid,
-          width = width,
-          height = height,
-          row = row,
-          col = col,
-          anchor = "NW",
-          style = "minimal",
-          border = "none",
-          focusable = false,
-          zindex = 101,
-        }
-
-        loading_buf = api.nvim_create_buf(false, true)
-        loading_win = api.nvim_open_win(loading_buf, false, opts)
-
-        -- Start timer to update spinner
-        loading_timer = vim.loop.new_timer()
-        if loading_timer then loading_timer:start(0, 100, vim.schedule_wrap(update_loading_indicator)) end
-      end
-
-      local function close_loading_window()
-        if loading_timer then
-          loading_timer:stop()
-          loading_timer:close()
-          loading_timer = nil
-        end
-        if loading_win and api.nvim_win_is_valid(loading_win) then
-          api.nvim_win_close(loading_win, true)
-          loading_win = nil
-        end
-
-        if loading_buf then
-          api.nvim_buf_delete(loading_buf, { force = true })
-          loading_buf = nil
-        end
-      end
-
-      clear_highlights()
-      create_loading_window()
-
-      local last_processed_line = 0
-      local last_orig_diff_end_line = 1
-      local last_resp_diff_end_line = 1
-      local cleaned = false
-      local prev_patch = {}
-
-      local function get_stable_patch(patch)
-        local new_patch = {}
-        for _, hunk in ipairs(patch) do
-          local start_a, count_a, start_b, count_b = unpack(hunk)
-          start_a = start_a + last_orig_diff_end_line - 1
-          start_b = start_b + last_resp_diff_end_line - 1
-          local has = vim.iter(prev_patch):find(function(hunk_)
-            local start_a_, count_a_, start_b_, count_b_ = unpack(hunk_)
-            return start_a == start_a_ and start_b == start_b_ and count_a == count_a_ and count_b == count_b_
-          end)
-          if has ~= nil then table.insert(new_patch, hunk) end
-        end
-        return new_patch
-      end
-
-      local extmark_id_map = {}
-      local virt_lines_map = {}
-
-      Llm.stream({
-        ask = true,
-        provider = cursor_applying_provider,
-        code_lang = filetype,
-        mode = "cursor-applying",
-        original_code = original_code,
-        update_snippets = formated_snippets,
-        on_start = function(_) end,
-        on_chunk = function(chunk)
-          if not chunk then return end
-
-          resp_content = resp_content .. chunk
-
-          if not cleaned then
-            resp_content = resp_content:gsub("<updated%-code>\n*", ""):gsub("</updated%-code>\n*", "")
-            resp_content = resp_content:gsub(".*```%w+\n", ""):gsub("\n```\n.*", "")
-          end
-
-          local resp_lines = vim.split(resp_content, "\n")
-
-          local complete_lines_count = #resp_lines - 1
-          if complete_lines_count > 2 then cleaned = true end
-
-          if complete_lines_count <= last_processed_line then return end
-
-          local original_lines_to_process =
-            vim.list_slice(original_code_lines, last_orig_diff_end_line, complete_lines_count)
-          local resp_lines_to_process = vim.list_slice(resp_lines, last_resp_diff_end_line, complete_lines_count)
-
-          local resp_lines_content = table.concat(resp_lines_to_process, "\n")
-          local original_lines_content = table.concat(original_lines_to_process, "\n")
-
-          ---@diagnostic disable-next-line: assign-type-mismatch, missing-fields
-          local patch = vim.diff(original_lines_content, resp_lines_content, { ---@type integer[][]
-            algorithm = "histogram",
-            result_type = "indices",
-            ctxlen = vim.o.scrolloff,
-          })
-
-          local stable_patch = get_stable_patch(patch)
-
-          for _, hunk in ipairs(stable_patch) do
-            local start_a, count_a, start_b, count_b = unpack(hunk)
-
-            start_a = last_orig_diff_end_line + start_a - 1
-
-            if count_a > 0 then
-              api.nvim_buf_set_extmark(bufnr, ns_id, start_a - 1, 0, {
-                hl_group = Highlights.TO_BE_DELETED_WITHOUT_STRIKETHROUGH,
-                hl_eol = true,
-                hl_mode = "combine",
-                end_row = start_a + count_a - 1,
-              })
-            end
-
-            if count_b == 0 then goto continue end
-
-            local new_lines = vim.list_slice(resp_lines_to_process, start_b, start_b + count_b - 1)
-            local max_col = vim.o.columns
-            local virt_lines = vim
-              .iter(new_lines)
-              :map(function(line)
-                --- append spaces to the end of the line
-                local line_ = line .. string.rep(" ", max_col - #line)
-                return { { line_, Highlights.INCOMING } }
-              end)
-              :totable()
-            local extmark_line
-            if count_a > 0 then
-              extmark_line = math.max(0, start_a + count_a - 2)
-            else
-              extmark_line = math.max(0, start_a + count_a - 1)
-            end
-            local old_extmark_id = extmark_id_map[extmark_line]
-            if old_extmark_id ~= nil then
-              local old_virt_lines = virt_lines_map[old_extmark_id] or {}
-              virt_lines = vim.list_extend(old_virt_lines, virt_lines)
-              api.nvim_buf_del_extmark(bufnr, ns_id, old_extmark_id)
-            end
-            local extmark_id = api.nvim_buf_set_extmark(bufnr, ns_id, extmark_line, 0, {
-              virt_lines = virt_lines,
-              hl_eol = true,
-              hl_mode = "combine",
-            })
-            extmark_id_map[extmark_line] = extmark_id
-            virt_lines_map[extmark_id] = virt_lines
-            ::continue::
-          end
-
-          prev_patch = vim
-            .iter(patch)
-            :map(function(hunk)
-              local start_a, count_a, start_b, count_b = unpack(hunk)
-              return { last_orig_diff_end_line + start_a - 1, count_a, last_resp_diff_end_line + start_b - 1, count_b }
-            end)
-            :totable()
-
-          if #stable_patch > 0 then
-            local start_a, count_a, start_b, count_b = unpack(stable_patch[#stable_patch])
-            last_orig_diff_end_line = last_orig_diff_end_line + start_a + math.max(count_a, 1) - 1
-            last_resp_diff_end_line = last_resp_diff_end_line + start_b + math.max(count_b, 1) - 1
-          end
-
-          if #patch == 0 then
-            last_orig_diff_end_line = complete_lines_count + 1
-            last_resp_diff_end_line = complete_lines_count + 1
-          end
-
-          last_processed_line = complete_lines_count
-
-          local winid = Utils.get_winid(bufnr)
-
-          if winid == nil then return end
-
-          --- goto window winid
-          api.nvim_set_current_win(winid)
-          --- goto the last line
-          pcall(function() api.nvim_win_set_cursor(winid, { complete_lines_count, 0 }) end)
-          vim.cmd("normal! zz")
-        end,
-        on_stop = function(stop_opts)
-          clear_highlights()
-          close_loading_window()
-
-          if stop_opts.error ~= nil then
-            Utils.error(string.format("applying failed: %s", vim.inspect(stop_opts.error)))
-            return
-          end
-
-          resp_content = resp_content:gsub("<updated%-code>\n*", ""):gsub("</updated%-code>\n*", "")
-
-          resp_content = resp_content:gsub(".*```%w+\n", ""):gsub("\n```\n.*", ""):gsub("\n```$", "")
-
-          local resp_lines = vim.split(resp_content, "\n")
-
-          if #resp_lines > 0 and resp_lines[#resp_lines] == "" then
-            resp_lines = vim.list_slice(resp_lines, 0, #resp_lines - 1)
-            resp_content = table.concat(resp_lines, "\n")
-          end
-
-          if require("avante.config").debug then
-            local resp_content_file = fn.tempname() .. ".txt"
-            fn.writefile(vim.split(resp_content, "\n"), resp_content_file)
-            Utils.debug("cursor applying response content written to: " .. resp_content_file)
-          end
-
-          if resp_content == original_code then return end
-
-          ---@diagnostic disable-next-line: assign-type-mismatch, missing-fields
-          local patch = vim.diff(original_code, resp_content, { ---@type integer[][]
-            algorithm = "histogram",
-            result_type = "indices",
-            ctxlen = vim.o.scrolloff,
-          })
-
-          local new_lines = {}
-          local prev_start_a = 1
-          for _, hunk in ipairs(patch) do
-            local start_a, count_a, start_b, count_b = unpack(hunk)
-            if count_a > 0 then
-              vim.list_extend(new_lines, vim.list_slice(original_code_lines, prev_start_a, start_a - 1))
-            else
-              vim.list_extend(new_lines, vim.list_slice(original_code_lines, prev_start_a, start_a))
-            end
-            prev_start_a = start_a + count_a
-            if count_a == 0 then prev_start_a = prev_start_a + 1 end
-            table.insert(new_lines, "<<<<<<< HEAD")
-            if count_a > 0 then
-              vim.list_extend(new_lines, vim.list_slice(original_code_lines, start_a, start_a + count_a - 1))
-            end
-            table.insert(new_lines, "=======")
-            if count_b > 0 then
-              vim.list_extend(new_lines, vim.list_slice(resp_lines, start_b, start_b + count_b - 1))
-            end
-            table.insert(new_lines, ">>>>>>> Snippet")
-          end
-
-          local remaining_lines = vim.list_slice(original_code_lines, prev_start_a, #original_code_lines)
-          new_lines = vim.list_extend(new_lines, remaining_lines)
-
-          api.nvim_buf_set_lines(bufnr, 0, -1, false, new_lines)
-
-          local function process(winid)
-            api.nvim_set_current_win(winid)
-            vim.cmd("noautocmd stopinsert")
-            Diff.add_visited_buffer(bufnr)
-            Diff.process(bufnr)
-            api.nvim_win_set_cursor(winid, { 1, 0 })
-            vim.defer_fn(function()
-              Diff.find_next(Config.windows.ask.focus_on_apply)
-              vim.cmd("normal! zz")
-            end, 100)
-          end
-
-          local winid = Utils.get_winid(bufnr)
-          if winid then
-            process(winid)
-          else
-            api.nvim_create_autocmd("BufWinEnter", {
-              group = self.augroup,
-              buffer = bufnr,
-              once = true,
-              callback = function()
-                local winid_ = Utils.get_winid(bufnr)
-                if winid_ then process(winid_) end
-              end,
-            })
-          end
-        end,
-      })
-    end
-    return
   end
 
   vim.defer_fn(function()
@@ -2191,7 +1836,7 @@ function Sidebar:render_state()
     hl_eol = true,
     hl_mode = "combine",
   })
-  self.state_timer = vim.defer_fn(function() self:render_state() end, 70)
+  self.state_timer = vim.defer_fn(function() self:render_state() end, 160)
 end
 
 function Sidebar:new_chat(args, cb)
@@ -2232,6 +1877,19 @@ function Sidebar:add_history_messages(messages)
       if title then self.chat_history.title = title end
       Path.history.save(self.code.bufnr, self.chat_history)
     end)
+  end
+  local last_message = messages[#messages]
+  if last_message then
+    local content = last_message.message.content
+    if type(content) == "table" and content[1].type == "tool_use" then
+      self.current_state = "tool calling"
+    elseif type(content) == "table" and content[1].type == "thinking" then
+      self.current_state = "thinking"
+    elseif type(content) == "table" and content[1].type == "redacted_thinking" then
+      self.current_state = "thinking"
+    else
+      self.current_state = "generating"
+    end
   end
   self:update_content("")
 end
@@ -2403,11 +2061,6 @@ function Sidebar:create_input_container(opts)
       returns = {},
     })
 
-    local mode = "planning"
-    if Config.behaviour.enable_cursor_planning_mode then mode = "cursor-planning" end
-
-    if Config.behaviour.enable_claude_text_editor_tool_mode then mode = "claude-text-editor-tool" end
-
     local selected_filepaths = self.file_selector.selected_filepaths or {}
 
     ---@type AvanteGeneratePromptsOptions
@@ -2421,7 +2074,6 @@ function Sidebar:create_input_container(opts)
       code_lang = filetype,
       selected_code = selected_code,
       -- instructions = request,
-      mode = mode,
       tools = tools,
     }
 
@@ -2579,7 +2231,6 @@ function Sidebar:create_input_container(opts)
       end)
 
       if stop_opts.error ~= nil then
-        on_state_change("failed")
         local msg_content = stop_opts.error
         if type(msg_content) ~= "string" then msg_content = vim.inspect(msg_content) end
         self:add_history_messages({
@@ -2590,6 +2241,7 @@ function Sidebar:create_input_container(opts)
             just_for_display = true,
           }),
         })
+        on_state_change("failed")
         return
       end
 
