@@ -522,7 +522,7 @@ M._defaults = {
     ---@alias avante.SelectorProvider "native" | "fzf_lua" | "mini_pick" | "snacks" | "telescope" | fun(selector: avante.ui.Selector): nil
     provider = "native",
     provider_opts = {},
-    exclude_auto_select = {},
+    exclude_auto_select = {}, -- List of items to exclude from auto selection
   },
   suggestion = {
     debounce = 600,
