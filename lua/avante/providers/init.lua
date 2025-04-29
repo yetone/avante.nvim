@@ -55,7 +55,7 @@ function E.setup(opts)
     return
   end
 
-  if vim.env[var] ~= nil then
+  if type(var) ~= "table" and vim.env[var] ~= nil then
     vim.g.avante_login = true
     return
   end
