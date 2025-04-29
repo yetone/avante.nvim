@@ -305,6 +305,8 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
 {
   ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | string
   provider = "claude", -- The provider used in Aider mode or in the planning phase of Cursor Planning Mode
+  ---@alias Mode "agentic" | "legacy"
+  mode = "agentic", -- The default mode for interaction. "agentic" uses tools to automatically generate code, "legacy" uses the old planning method to generate code.
   -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
   -- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
   -- Of course, you can reduce the request frequency by increasing `suggestion.debounce`.
@@ -340,8 +342,6 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     support_paste_from_clipboard = false,
     minimize_diff = true, -- Whether to remove unchanged lines when applying a code block
     enable_token_counting = true, -- Whether to enable token counting. Default to true.
-    enable_cursor_planning_mode = false, -- Whether to enable Cursor Planning Mode. Default to false.
-    enable_claude_text_editor_tool_mode = false, -- Whether to enable Claude Text Editor Tool Mode.
   },
   mappings = {
     --- @class AvanteConflictMappings
@@ -734,12 +734,6 @@ Avante provides a set of default providers, but users can also create their own 
 
 For more information, see [Custom Providers](https://github.com/yetone/avante.nvim/wiki/Custom-providers)
 
-## Cursor planning mode
-
-Because avante.nvim has always used Aider’s method for planning applying, but its prompts are very picky with models and require ones like claude-3.5-sonnet or gpt-4o to work properly.
-
-Therefore, I have adopted Cursor’s method to implement planning applying. For details on the implementation, please refer to [cursor-planning-mode.md](./cursor-planning-mode.md)
-
 ## RAG Service
 
 Avante provides a RAG service, which is a tool for obtaining the required context for the AI to generate the codes. By default, it is not enabled. You can enable it this way:
@@ -889,21 +883,6 @@ Avante allows you to define custom tools that can be used by the AI during code 
 ## MCP
 
 Now you can integrate MCP functionality for Avante through `mcphub.nvim`. For detailed documentation, please refer to [mcphub.nvim](https://github.com/ravitemer/mcphub.nvim#avante-integration)
-
-## Claude Text Editor Tool Mode
-
-Avante leverages [Claude Text Editor Tool](https://docs.anthropic.com/en/docs/build-with-claude/tool-use/text-editor-tool) to provide a more elegant code editing experience. You can now enable this feature by setting `enable_claude_text_editor_tool_mode` to `true` in the `behaviour` configuration:
-
-```lua
-{
-  behaviour = {
-    enable_claude_text_editor_tool_mode = true,
-  },
-}
-```
-
-> [!NOTE]
-> To enable **Claude Text Editor Tool Mode**, you must use the `claude-3-5-sonnet-*` or `claude-3-7-sonnet-*` model with the `claude` provider! This feature is not supported by any other models!
 
 ## Custom prompts
 
