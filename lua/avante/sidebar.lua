@@ -3223,9 +3223,7 @@ function Sidebar:create_selected_files_container()
       local icon, hl = Utils.file.get_file_icon(filepath)
       local formatted_line = string.format("%s %s", icon, filepath)
       table.insert(lines_to_set, formatted_line)
-      if hl and hl ~= "" then
-        table.insert(highlights_to_apply, { line_nr = i, icon = icon, hl = hl })
-      end
+      if hl and hl ~= "" then table.insert(highlights_to_apply, { line_nr = i, icon = icon, hl = hl }) end
     end
 
     local selected_files_buf = api.nvim_win_get_buf(self.selected_files_container.winid)
