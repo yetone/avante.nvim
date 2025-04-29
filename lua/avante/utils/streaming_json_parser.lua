@@ -77,10 +77,24 @@ function StreamingJSONParser:parse(chunk)
     -- Handle strings specially (they can contain JSON control characters)
     if self.state.inString then
       if self.state.escaping then
-        self.state.stringBuffer = self.state.stringBuffer .. char
+        local escapeMap = {
+          ['"'] = '"',
+          ["\\"] = "\\",
+          ["/"] = "/",
+          ["b"] = "\b",
+          ["f"] = "\f",
+          ["n"] = "\n",
+          ["r"] = "\r",
+          ["t"] = "\t",
+        }
+        local escapedChar = escapeMap[char]
+        if escapedChar then
+          self.state.stringBuffer = self.state.stringBuffer .. escapedChar
+        else
+          self.state.stringBuffer = self.state.stringBuffer .. char
+        end
         self.state.escaping = false
       elseif char == "\\" then
-        self.state.stringBuffer = self.state.stringBuffer .. char
         self.state.escaping = true
       elseif char == '"' then
         -- End of string

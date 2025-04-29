@@ -598,6 +598,7 @@ end
 
 ---@type AvanteLLMTool[]
 M._tools = {
+  require("avante.llm_tools.replace_in_file"),
   require("avante.llm_tools.dispatch_agent"),
   require("avante.llm_tools.glob"),
   {
@@ -1104,7 +1105,7 @@ M._tools = {
 ---@return string | nil result
 ---@return string | nil error
 function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
-  Utils.debug("use tool", tool_use.name, tool_use.input_json)
+  -- Utils.debug("use tool", tool_use.name, tool_use.input_json)
 
   -- Check if execution is already cancelled
   if Helpers.is_cancelled then
@@ -1125,8 +1126,7 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
     if tool == nil then return nil, "This tool is not provided: " .. tool_use.name end
     func = tool.func or M[tool.name]
   end
-  local ok, input_json = pcall(vim.json.decode, tool_use.input_json)
-  if not ok then return nil, "Failed to decode tool input json: " .. vim.inspect(input_json) end
+  local input_json = tool_use.input
   if not func then return nil, "Tool not found: " .. tool_use.name end
   if on_log then on_log(tool_use.id, tool_use.name, "running tool", "running") end
 

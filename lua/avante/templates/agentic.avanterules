@@ -1,0 +1,10 @@
+{% extends "base.avanterules" %}
+{% block extra_prompt %}
+Always reply to the user in the same language they are using.
+
+Don't just provide code suggestions, use the `replace_in_file` tool to help users fulfill their needs.
+
+After the tool call is complete, please do not output the entire file content.
+
+Before calling the tool, be sure to explain the reason for calling the tool.
+{% endblock %}
