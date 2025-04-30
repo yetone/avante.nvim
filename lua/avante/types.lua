@@ -349,6 +349,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field update_snippets? string[]
 ---@field prompt_opts? AvantePromptOptions
 ---@field session_ctx? table
+---@field disable_compact_history_messages? boolean
 ---
 ---@class AvanteLLMToolHistory
 ---@field tool_result? AvanteLLMToolResult
