@@ -36,7 +36,6 @@ function M.parse(key_name, override)
     Utils.debug("running command:", cmd)
     local exit_codes = { 0 }
     local ok, job_or_err = pcall(vim.system, cmd, { text = true }, function(result)
-      Utils.debug("command result:", result)
       local code = result.code
       local stderr = result.stderr or ""
       local stdout = result.stdout and vim.split(result.stdout, "\n") or {}
