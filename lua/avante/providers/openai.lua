@@ -136,7 +136,9 @@ function M:parse_messages(opts)
 
   if Config.behaviour.support_paste_from_clipboard and opts.image_paths and #opts.image_paths > 0 then
     local message_content = messages[#messages].content
-    if type(message_content) ~= "table" then message_content = { type = "text", text = message_content } end
+    if type(message_content) ~= "table" or message_content[1] == nil then
+      message_content = { { type = "text", text = message_content } }
+    end
     for _, image_path in ipairs(opts.image_paths) do
       table.insert(message_content, {
         type = "image_url",
