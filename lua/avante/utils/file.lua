@@ -51,24 +51,24 @@ end
 function M.get_file_icon(filepath)
   local filetype = Filetype.detect(filepath, {}) or "unknown"
   ---@type string
-  local icon
+  local icon, hl
   ---@diagnostic disable-next-line: undefined-field
   if _G.MiniIcons ~= nil then
     ---@diagnostic disable-next-line: undefined-global
-    icon, _, _ = MiniIcons.get("filetype", filetype) -- luacheck: ignore
+    icon, hl, _ = MiniIcons.get("filetype", filetype) -- luacheck: ignore
   else
     local ok, devicons = pcall(require, "nvim-web-devicons")
     if ok then
-      icon = devicons.get_icon(filepath, filetype, { default = false })
+      icon, hl = devicons.get_icon(filepath, filetype, { default = false })
       if not icon then
-        icon = devicons.get_icon(filepath, nil, { default = true })
+        icon, hl = devicons.get_icon(filepath, nil, { default = true })
         icon = icon or " "
       end
     else
       icon = ""
     end
   end
-  return icon
+  return icon, hl
 end
 
 return M
