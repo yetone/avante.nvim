@@ -1835,7 +1835,8 @@ function Sidebar:render_state()
     { { string.rep(" ", padding) }, { virt_line, hl } },
   }
 
-  self.state_extmark_id = api.nvim_buf_set_extmark(self.result_container.bufnr, self.state_ns_id, #lines - 2, 0, {
+  local line_num = math.max(0, #lines - 2)
+  self.state_extmark_id = api.nvim_buf_set_extmark(self.result_container.bufnr, self.state_ns_id, line_num, 0, {
     virt_lines = centered_virt_lines,
     hl_eol = true,
     hl_mode = "combine",
