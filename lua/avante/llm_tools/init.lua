@@ -280,7 +280,7 @@ function M.web_search(opts, on_log)
     local jsn = vim.json.decode(resp.body)
     return search_engine.format_response_body(jsn)
   elseif provider_type == "google" then
-    local engine_id = Utils.environment.parse(search_engine.engine_id_name)
+    local engine_id = Utils.environment.parse(search_engine.engine_id_name, nil, true)
     if engine_id == nil or engine_id == "" then
       return nil, "Environment variable " .. search_engine.engine_id_name .. " is not set"
     end
