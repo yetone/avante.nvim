@@ -284,6 +284,8 @@ function Selection:create_editing_input(request, line1, line2)
     cancel_callback = function() self:close_editing_input() end,
     win_opts = {
       border = Config.windows.edit.border,
+      height = Config.windows.edit.height,
+      width = Config.windows.edit.width,
       title = { { "Avante edit selected block", "FloatTitle" } },
     },
     start_insert = Config.windows.edit.start_insert,
