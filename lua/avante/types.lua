@@ -361,7 +361,7 @@ vim.g.avante_login = vim.g.avante_login
 ---
 ---@class AvanteLLMStreamOptions: AvanteGeneratePromptsOptions
 ---@field on_start AvanteLLMStartCallback
----@field on_chunk AvanteLLMChunkCallback
+---@field on_chunk? AvanteLLMChunkCallback
 ---@field on_stop AvanteLLMStopCallback
 ---@field on_memory_summarize? AvanteLLMMemorySummarizeCallback
 ---@field on_tool_log? fun(tool_id: string, tool_name: string, log: string, state: AvanteLLMToolUseState): nil

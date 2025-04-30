@@ -120,7 +120,12 @@ function M:parse_messages(opts)
       if #content > 0 then table.insert(messages, { role = self.role_map[msg.role], content = content }) end
       if not provider_conf.disable_tools then
         if #tool_calls > 0 then
-          table.insert(messages, { role = self.role_map["assistant"], tool_calls = tool_calls })
+          local last_message = messages[#messages]
+          if last_message and last_message.role == self.role_map["assistant"] and last_message.tool_calls then
+            last_message.tool_calls = vim.list_extend(last_message.tool_calls, tool_calls)
+          else
+            table.insert(messages, { role = self.role_map["assistant"], tool_calls = tool_calls })
+          end
         end
         if #tool_results > 0 then
           for _, tool_result in ipairs(tool_results) do
@@ -155,7 +160,7 @@ function M:parse_messages(opts)
 
   vim.iter(messages):each(function(message)
     local role = message.role
-    if role == prev_role then
+    if role == prev_role and role ~= "tool" then
       if role == self.role_map["assistant"] then
         table.insert(final_messages, { role = self.role_map["user"], content = "Ok" })
       else

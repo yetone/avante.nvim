@@ -2311,11 +2311,14 @@ function Sidebar:create_input_container()
 
       ---@param dropped_history_messages avante.HistoryMessage[]
       local function on_memory_summarize(dropped_history_messages)
-        Llm.summarize_memory(self.code.bufnr, self.chat_history, dropped_history_messages, function(memory)
-          if memory then stream_options.memory = memory.content end
+        local history_memory = self.chat_history.memory
+        Llm.summarize_memory(history_memory and history_memory.content, dropped_history_messages, function(memory)
+          if memory then
+            self.chat_history.memory = memory
+            Path.history.save(self.code.bufnr, self.chat_history)
+            stream_options.memory = memory.content
+          end
           stream_options.history_messages = self:get_history_messages_for_api()
-          -- Utils.debug("dropping history messages", dropped_history_messages)
-          -- Utils.debug("history messages", stream_options.history_messages)
           Llm.stream(stream_options)
         end)
       end
