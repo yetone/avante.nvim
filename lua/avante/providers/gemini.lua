@@ -137,20 +137,22 @@ function M:parse_response(ctx, data_stream, _, opts)
     local candidate = json.candidates[1]
     ---@type AvanteLLMToolUse[]
     local tool_use_list = {}
-    for _, part in ipairs(candidate.content.parts) do
-      if part.text then
-        if opts.on_chunk then opts.on_chunk(part.text) end
-        OpenAI:add_text_message(ctx, part.text, "generating", opts)
-      elseif part.functionCall then
-        if not ctx.function_call_id then ctx.function_call_id = 0 end
-        ctx.function_call_id = ctx.function_call_id + 1
-        local tool_use = {
-          id = ctx.session_id .. "-" .. tostring(ctx.function_call_id),
-          name = part.functionCall.name,
-          input_json = vim.json.encode(part.functionCall.args),
-        }
-        table.insert(tool_use_list, tool_use)
-        OpenAI:add_tool_use_message(tool_use, "generated", opts)
+    if candidate.content.parts ~= nil then
+      for _, part in ipairs(candidate.content.parts) do
+        if part.text then
+          if opts.on_chunk then opts.on_chunk(part.text) end
+          OpenAI:add_text_message(ctx, part.text, "generating", opts)
+        elseif part.functionCall then
+          if not ctx.function_call_id then ctx.function_call_id = 0 end
+          ctx.function_call_id = ctx.function_call_id + 1
+          local tool_use = {
+            id = ctx.session_id .. "-" .. tostring(ctx.function_call_id),
+            name = part.functionCall.name,
+            input_json = vim.json.encode(part.functionCall.args),
+          }
+          table.insert(tool_use_list, tool_use)
+          OpenAI:add_tool_use_message(tool_use, "generated", opts)
+        end
       end
     end
     if candidate.finishReason and candidate.finishReason == "STOP" then
