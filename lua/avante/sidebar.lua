@@ -23,6 +23,7 @@ local CODEBLOCK_KEYBINDING_NAMESPACE = api.nvim_create_namespace("AVANTE_CODEBLO
 local USER_REQUEST_BLOCK_KEYBINDING_NAMESPACE = api.nvim_create_namespace("AVANTE_USER_REQUEST_BLOCK_KEYBINDING")
 local SELECTED_FILES_HINT_NAMESPACE = api.nvim_create_namespace("AVANTE_SELECTED_FILES_HINT")
 local PRIORITY = (vim.hl or vim.highlight).priorities.user
+local SELECTED_FILES_ICON_NAMESPACE = api.nvim_create_namespace("AVANTE_SELECTED_FILES_ICON")
 
 local RESP_SEPARATOR = "-------"
 
@@ -2730,19 +2731,45 @@ function Sidebar:create_selected_files_container()
     local selected_filepaths_ = self.file_selector:get_selected_filepaths()
 
     if #selected_filepaths_ == 0 then
-      self.selected_files_container:unmount()
+      if self.selected_files_container and api.nvim_win_is_valid(self.selected_files_container.winid) then
+        self.selected_files_container:unmount()
+      end
       return
     end
 
-    local selected_filepaths_with_icon = {}
-    for _, filepath in ipairs(selected_filepaths_) do
-      local icon = Utils.file.get_file_icon(filepath)
-      table.insert(selected_filepaths_with_icon, string.format("%s %s", icon, filepath))
+    if not self.selected_files_container or not api.nvim_win_is_valid(self.selected_files_container.winid) then
+      self:create_selected_files_container()
+      if not self.selected_files_container or not api.nvim_win_is_valid(self.selected_files_container.winid) then
+        Utils.warn("Failed to create or find selected files container window.")
+        return
+      end
+    end
+
+    local lines_to_set = {}
+    local highlights_to_apply = {}
+
+    for i, filepath in ipairs(selected_filepaths_) do
+      local icon, hl = Utils.file.get_file_icon(filepath)
+      local formatted_line = string.format("%s %s", icon, filepath)
+      table.insert(lines_to_set, formatted_line)
+      if hl and hl ~= "" then table.insert(highlights_to_apply, { line_nr = i, icon = icon, hl = hl }) end
     end
 
     local selected_files_buf = api.nvim_win_get_buf(self.selected_files_container.winid)
     Utils.unlock_buf(selected_files_buf)
-    api.nvim_buf_set_lines(selected_files_buf, 0, -1, true, selected_filepaths_with_icon)
+    api.nvim_buf_clear_namespace(selected_files_buf, SELECTED_FILES_ICON_NAMESPACE, 0, -1)
+    api.nvim_buf_set_lines(selected_files_buf, 0, -1, true, lines_to_set)
+
+    for _, highlight_info in ipairs(highlights_to_apply) do
+      local line_idx = highlight_info.line_nr - 1
+      local icon_bytes = #highlight_info.icon
+      pcall(api.nvim_buf_set_extmark, selected_files_buf, SELECTED_FILES_ICON_NAMESPACE, line_idx, 0, {
+        end_col = icon_bytes,
+        hl_group = highlight_info.hl,
+        priority = PRIORITY,
+      })
+    end
+
     Utils.lock_buf(selected_files_buf)
     local win_height = self:get_selected_files_container_height()
     api.nvim_win_set_height(self.selected_files_container.winid, win_height)
