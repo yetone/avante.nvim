@@ -22,8 +22,11 @@ local VIEW_BUFFER_UPDATED_PATTERN = "AvanteViewBufferUpdated"
 local CODEBLOCK_KEYBINDING_NAMESPACE = api.nvim_create_namespace("AVANTE_CODEBLOCK_KEYBINDING")
 local USER_REQUEST_BLOCK_KEYBINDING_NAMESPACE = api.nvim_create_namespace("AVANTE_USER_REQUEST_BLOCK_KEYBINDING")
 local SELECTED_FILES_HINT_NAMESPACE = api.nvim_create_namespace("AVANTE_SELECTED_FILES_HINT")
-local PRIORITY = (vim.hl or vim.highlight).priorities.user
 local SELECTED_FILES_ICON_NAMESPACE = api.nvim_create_namespace("AVANTE_SELECTED_FILES_ICON")
+local INPUT_HINT_NAMESPACE = api.nvim_create_namespace("AVANTE_INPUT_HINT")
+local STATE_NAMESPACE = api.nvim_create_namespace("AVANTE_STATE")
+
+local PRIORITY = (vim.hl or vim.highlight).priorities.user
 
 local RESP_SEPARATOR = "-------"
 
@@ -52,9 +55,10 @@ Sidebar.__index = Sidebar
 ---@field state_timer table | nil
 ---@field state_spinner_chars string[]
 ---@field state_spinner_idx integer
----@field state_ns_id integer
 ---@field state_extmark_id integer | nil
 ---@field scroll boolean
+---@field input_hint_window integer | nil
+---@field ask_opts AskOptions
 
 ---@param id integer the tabpage id retrieved from api.nvim_get_current_tabpage()
 function Sidebar:new(id)
@@ -78,9 +82,10 @@ function Sidebar:new(id)
     state_timer = nil,
     state_spinner_chars = { "·", "✢", "✳", "∗", "✻", "✽" },
     state_spinner_idx = 1,
-    state_ns_id = api.nvim_create_namespace("avante_generate_state"),
     state_extmark_id = nil,
     scroll = true,
+    input_hint_window = nil,
+    ask_opts = {},
   }, Sidebar)
 end
 
@@ -499,31 +504,6 @@ local function generate_display_content(replacement)
   return replacement.content
 end
 
----@return string | nil filepath
----@return boolean skip_next_line
-local function obtain_filepath_from_codeblock(lines, line_number)
-  local line = lines[line_number]
-  local filepath = line:match("^%s*```%w+:(.+)$")
-  if not filepath then
-    local next_line = lines[line_number + 1]
-    if next_line then
-      local filepath2 = next_line:match("[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]:%s*(.+)%s*")
-      if filepath2 then return filepath2, true end
-      local filepath3 = next_line:match("[Ff][Ii][Ll][Ee]:%s*(.+)%s*")
-      if filepath3 then return filepath3, true end
-    end
-    for i = line_number - 1, line_number - 2, -1 do
-      if i < 1 then break end
-      local line_ = lines[i]
-      local filepath4 = line_:match("[Ff][Ii][Ll][Ee][Pp][Aa][Tt][Hh]:%s*`?(.-)`?%s*$")
-      if filepath4 then return filepath4, false end
-      local filepath5 = line_:match("[Ff][Ii][Ll][Ee]:%s*`?(.-)`?%s*$")
-      if filepath5 then return filepath5, false end
-    end
-  end
-  return filepath, false
-end
-
 ---@class AvanteCodeSnippet
 ---@field range integer[]
 ---@field content string
@@ -562,66 +542,6 @@ local function tree_sitter_markdown_parse_code_blocks(source)
     table.insert(nodes, node)
   end
   return nodes
-end
-
----@param response_content string
----@return table<string, AvanteCodeSnippet[]>
-local function extract_cursor_planning_code_snippets_map(response_content, current_filepath, current_filetype)
-  local snippets = {}
-  local lines = vim.split(response_content, "\n")
-  local cumulated_content = ""
-
-  -- use tree-sitter-markdown to parse all code blocks in response_content
-  local lang = "unknown"
-  local start_line
-  for _, node in ipairs(tree_sitter_markdown_parse_code_blocks(response_content)) do
-    if node:type() == "language" then
-      lang = vim.treesitter.get_node_text(node, response_content)
-      lang = vim.split(lang, ":")[1]
-    elseif node:type() == "block_continuation" then
-      start_line, _ = node:start()
-    elseif node:type() == "fenced_code_block_delimiter" and start_line ~= nil and node:start() >= start_line then
-      local end_line, _ = node:start()
-      local filepath, skip_next_line = obtain_filepath_from_codeblock(lines, start_line)
-      if filepath == nil or filepath == "" then
-        if lang == current_filetype then
-          filepath = current_filepath
-        else
-          Utils.warn(
-            string.format(
-              "Failed to parse filepath from code block, and current_filetype `%s` is not the same as the filetype `%s` of the current code block, so ignore this code block",
-              current_filetype,
-              lang
-            )
-          )
-          lang = "unknown"
-          goto continue
-        end
-      end
-      if skip_next_line then start_line = start_line + 1 end
-      local this_content = table.concat(vim.list_slice(lines, start_line + 1, end_line), "\n")
-      cumulated_content = cumulated_content .. "\n" .. this_content
-      table.insert(snippets, {
-        range = { 0, 0 },
-        content = cumulated_content,
-        lang = lang,
-        filepath = filepath,
-        start_line_in_response_buf = start_line,
-        end_line_in_response_buf = end_line + 1,
-      })
-    end
-    ::continue::
-  end
-
-  local snippets_map = {}
-  for _, snippet in ipairs(snippets) do
-    if snippet.filepath == "" then goto continue end
-    snippets_map[snippet.filepath] = snippets_map[snippet.filepath] or {}
-    table.insert(snippets_map[snippet.filepath], snippet)
-    ::continue::
-  end
-
-  return snippets_map
 end
 
 ---@param response_content string
@@ -852,7 +772,7 @@ end
 
 ---@param buf integer
 ---@return AvanteCodeblock[]
-local function parse_codeblocks(buf, current_filepath, current_filetype)
+local function parse_codeblocks(buf)
   local codeblocks = {}
   local lines = Utils.get_buf_lines(0, -1, buf)
   local lang, start_line, valid
@@ -954,8 +874,6 @@ end
 
 ---@param current_cursor boolean
 function Sidebar:apply(current_cursor)
-  local buf_path = api.nvim_buf_get_name(self.code.bufnr)
-
   local response, response_start_line = self:get_content_between_separators()
   local all_snippets_map = extract_code_snippets_map(response)
   all_snippets_map = ensure_snippets_no_overlap(all_snippets_map)
@@ -1387,15 +1305,11 @@ function Sidebar:on_mount(opts)
   })
 
   if self.code.bufnr and api.nvim_buf_is_valid(self.code.bufnr) then
-    local buf_path = api.nvim_buf_get_name(self.code.bufnr)
-    local current_filepath = Utils.file.is_in_cwd(buf_path) and Utils.relative_path(buf_path) or buf_path
-    local current_filetype = Utils.get_filetype(current_filepath)
-
     api.nvim_create_autocmd({ "BufEnter", "BufWritePost" }, {
       group = self.augroup,
       buffer = self.result_container.bufnr,
       callback = function(ev)
-        codeblocks = parse_codeblocks(ev.buf, current_filepath, current_filetype)
+        codeblocks = parse_codeblocks(ev.buf)
         self:bind_sidebar_keys(codeblocks)
       end,
     })
@@ -1405,7 +1319,7 @@ function Sidebar:on_mount(opts)
       pattern = VIEW_BUFFER_UPDATED_PATTERN,
       callback = function()
         if not Utils.is_valid_container(self.result_container) then return end
-        codeblocks = parse_codeblocks(self.result_container.bufnr, current_filepath, current_filetype)
+        codeblocks = parse_codeblocks(self.result_container.bufnr)
         self:bind_sidebar_keys(codeblocks)
       end,
     })
@@ -1800,7 +1714,7 @@ end
 
 function Sidebar:clear_state()
   if self.state_extmark_id then
-    pcall(api.nvim_buf_del_extmark, self.result_container.bufnr, self.state_ns_id, self.state_extmark_id)
+    pcall(api.nvim_buf_del_extmark, self.result_container.bufnr, STATE_NAMESPACE, self.state_extmark_id)
   end
   self.state_extmark_id = nil
   self.state_spinner_idx = 1
@@ -1812,7 +1726,7 @@ function Sidebar:render_state()
   if not self.current_state then return end
   local lines = vim.api.nvim_buf_get_lines(self.result_container.bufnr, 0, -1, false)
   if self.state_extmark_id then
-    api.nvim_buf_del_extmark(self.result_container.bufnr, self.state_ns_id, self.state_extmark_id)
+    api.nvim_buf_del_extmark(self.result_container.bufnr, STATE_NAMESPACE, self.state_extmark_id)
   end
   local spinner_char = self.state_spinner_chars[self.state_spinner_idx]
   self.state_spinner_idx = (self.state_spinner_idx % #self.state_spinner_chars) + 1
@@ -1837,7 +1751,7 @@ function Sidebar:render_state()
   }
 
   local line_num = math.max(0, #lines - 2)
-  self.state_extmark_id = api.nvim_buf_set_extmark(self.result_container.bufnr, self.state_ns_id, line_num, 0, {
+  self.state_extmark_id = api.nvim_buf_set_extmark(self.result_container.bufnr, STATE_NAMESPACE, line_num, 0, {
     virt_lines = centered_virt_lines,
     hl_eol = true,
     hl_mode = "combine",
@@ -1969,7 +1883,103 @@ function Sidebar:create_selected_code_container()
   end
 end
 
-local hint_window = nil
+function Sidebar:close_input_hint()
+  if self.input_hint_window and api.nvim_win_is_valid(self.input_hint_window) then
+    local buf = api.nvim_win_get_buf(self.input_hint_window)
+    if INPUT_HINT_NAMESPACE then api.nvim_buf_clear_namespace(buf, INPUT_HINT_NAMESPACE, 0, -1) end
+    api.nvim_win_close(self.input_hint_window, true)
+    api.nvim_buf_delete(buf, { force = true })
+    self.input_hint_window = nil
+  end
+end
+
+function Sidebar:get_input_float_window_row()
+  local win_height = api.nvim_win_get_height(self.input_container.winid)
+  local winline = Utils.winline(self.input_container.winid)
+  if winline >= win_height - 1 then return 0 end
+  return winline
+end
+
+-- Create a floating window as a hint
+function Sidebar:show_input_hint()
+  self:close_input_hint() -- Close the existing hint window
+
+  local hint_text = (fn.mode() ~= "i" and Config.mappings.submit.normal or Config.mappings.submit.insert) .. ": submit"
+
+  local function show()
+    local buf = api.nvim_create_buf(false, true)
+    api.nvim_buf_set_lines(buf, 0, -1, false, { hint_text })
+    api.nvim_buf_set_extmark(buf, INPUT_HINT_NAMESPACE, 0, 0, { hl_group = "AvantePopupHint", end_col = #hint_text })
+
+    -- Get the current window size
+    local win_width = api.nvim_win_get_width(self.input_container.winid)
+    local width = #hint_text
+
+    -- Set the floating window options
+    local win_opts = {
+      relative = "win",
+      win = self.input_container.winid,
+      width = width,
+      height = 1,
+      row = self:get_input_float_window_row(),
+      col = math.max(win_width - width, 0), -- Display in the bottom right corner
+      style = "minimal",
+      border = "none",
+      focusable = false,
+      zindex = 100,
+    }
+
+    -- Create the floating window
+    self.input_hint_window = api.nvim_open_win(buf, false, win_opts)
+  end
+
+  if Config.behaviour.enable_token_counting then
+    local input_value = table.concat(api.nvim_buf_get_lines(self.input_container.bufnr, 0, -1, false), "\n")
+    self:get_generate_prompts_options(input_value, function(generate_prompts_options)
+      local tokens = Llm.calculate_tokens(generate_prompts_options) + Utils.tokens.calculate_tokens(input_value)
+      hint_text = "Tokens: " .. tostring(tokens) .. "; " .. hint_text
+      show()
+    end)
+  else
+    show()
+  end
+end
+
+function Sidebar:close_selected_files_hint()
+  if self.selected_files_container and api.nvim_win_is_valid(self.selected_files_container.winid) then
+    pcall(api.nvim_buf_clear_namespace, self.selected_files_container.bufnr, SELECTED_FILES_HINT_NAMESPACE, 0, -1)
+  end
+end
+
+function Sidebar:show_selected_files_hint()
+  self:close_selected_files_hint()
+
+  local cursor_pos = api.nvim_win_get_cursor(self.selected_files_container.winid)
+  local line_number = cursor_pos[1]
+  local col_number = cursor_pos[2]
+
+  local selected_filepaths_ = self.file_selector:get_selected_filepaths()
+  local hint
+  if #selected_filepaths_ == 0 then
+    hint = string.format(" [%s: add] ", Config.mappings.sidebar.add_file)
+  else
+    hint =
+      string.format(" [%s: delete, %s: add] ", Config.mappings.sidebar.remove_file, Config.mappings.sidebar.add_file)
+  end
+
+  api.nvim_buf_set_extmark(
+    self.selected_files_container.bufnr,
+    SELECTED_FILES_HINT_NAMESPACE,
+    line_number - 1,
+    col_number,
+    {
+      virt_text = { { hint, "AvanteInlineHint" } },
+      virt_text_pos = "right_align",
+      hl_group = "AvanteInlineHint",
+      priority = PRIORITY,
+    }
+  )
+end
 
 function Sidebar:reload_chat_history()
   if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then return end
@@ -1992,108 +2002,107 @@ function Sidebar:get_history_messages_for_api()
   return vim.iter(history_messages):filter(function(message) return not message.just_for_display end):totable()
 end
 
----@param opts AskOptions
-function Sidebar:create_input_container(opts)
+---@param request string
+---@param cb fun(opts: AvanteGeneratePromptsOptions): nil
+function Sidebar:get_generate_prompts_options(request, cb)
+  local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
+  local file_ext = nil
+
+  -- Get file extension safely
+  local buf_name = api.nvim_buf_get_name(self.code.bufnr)
+  if buf_name and buf_name ~= "" then file_ext = vim.fn.fnamemodify(buf_name, ":e") end
+
+  ---@type AvanteSelectedCode | nil
+  local selected_code = nil
+  if self.code.selection ~= nil then
+    selected_code = {
+      path = self.code.selection.filepath,
+      file_type = self.code.selection.filetype,
+      content = self.code.selection.content,
+    }
+  end
+
+  local mentions = Utils.extract_mentions(request)
+  request = mentions.new_content
+
+  local project_context = mentions.enable_project_context and file_ext and RepoMap.get_repo_map(file_ext) or nil
+
+  local diagnostics = nil
+  if mentions.enable_diagnostics then
+    if self.code ~= nil and self.code.bufnr ~= nil and self.code.selection ~= nil then
+      diagnostics = Utils.get_current_selection_diagnostics(self.code.bufnr, self.code.selection)
+    else
+      diagnostics = Utils.get_diagnostics(self.code.bufnr)
+    end
+  end
+
+  local history_messages = self:get_history_messages_for_api()
+
+  local tools = vim.deepcopy(LLMTools.get_tools(request, history_messages))
+  table.insert(tools, {
+    name = "add_file_to_context",
+    description = "Add a file to the context",
+    ---@type AvanteLLMToolFunc<{ rel_path: string }>
+    func = function(input)
+      self.file_selector:add_selected_file(input.rel_path)
+      return "Added file to context", nil
+    end,
+    param = {
+      type = "table",
+      fields = { { name = "rel_path", description = "Relative path to the file", type = "string" } },
+    },
+    returns = {},
+  })
+
+  table.insert(tools, {
+    name = "remove_file_from_context",
+    description = "Remove a file from the context",
+    ---@type AvanteLLMToolFunc<{ rel_path: string }>
+    func = function(input)
+      self.file_selector:remove_selected_file(input.rel_path)
+      return "Removed file from context", nil
+    end,
+    param = {
+      type = "table",
+      fields = { { name = "rel_path", description = "Relative path to the file", type = "string" } },
+    },
+    returns = {},
+  })
+
+  local selected_filepaths = self.file_selector.selected_filepaths or {}
+
+  ---@type AvanteGeneratePromptsOptions
+  local prompts_opts = {
+    ask = self.ask_opts.ask or true,
+    project_context = vim.json.encode(project_context),
+    selected_filepaths = selected_filepaths,
+    recently_viewed_files = Utils.get_recent_filepaths(),
+    diagnostics = vim.json.encode(diagnostics),
+    history_messages = history_messages,
+    code_lang = filetype,
+    selected_code = selected_code,
+    -- instructions = request,
+    tools = tools,
+  }
+
+  if self.chat_history.system_prompt then
+    prompts_opts.prompt_opts = {
+      system_prompt = self.chat_history.system_prompt,
+      messages = history_messages,
+    }
+  end
+
+  if self.chat_history.memory then prompts_opts.memory = self.chat_history.memory.content end
+
+  cb(prompts_opts)
+end
+
+function Sidebar:create_input_container()
   if self.input_container then self.input_container:unmount() end
 
   if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then return end
 
   if self.chat_history == nil then self:reload_chat_history() end
-
-  ---@param request string
-  ---@param cb fun(opts: AvanteGeneratePromptsOptions): nil
-  local function get_generate_prompts_options(request, cb)
-    local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
-    local file_ext = nil
-
-    -- Get file extension safely
-    local buf_name = api.nvim_buf_get_name(self.code.bufnr)
-    if buf_name and buf_name ~= "" then file_ext = vim.fn.fnamemodify(buf_name, ":e") end
-
-    ---@type AvanteSelectedCode | nil
-    local selected_code = nil
-    if self.code.selection ~= nil then
-      selected_code = {
-        path = self.code.selection.filepath,
-        file_type = self.code.selection.filetype,
-        content = self.code.selection.content,
-      }
-    end
-
-    local mentions = Utils.extract_mentions(request)
-    request = mentions.new_content
-
-    local project_context = mentions.enable_project_context and file_ext and RepoMap.get_repo_map(file_ext) or nil
-
-    local diagnostics = nil
-    if mentions.enable_diagnostics then
-      if self.code ~= nil and self.code.bufnr ~= nil and self.code.selection ~= nil then
-        diagnostics = Utils.get_current_selection_diagnostics(self.code.bufnr, self.code.selection)
-      else
-        diagnostics = Utils.get_diagnostics(self.code.bufnr)
-      end
-    end
-
-    local history_messages = self:get_history_messages_for_api()
-
-    local tools = vim.deepcopy(LLMTools.get_tools(request, history_messages))
-    table.insert(tools, {
-      name = "add_file_to_context",
-      description = "Add a file to the context",
-      ---@type AvanteLLMToolFunc<{ rel_path: string }>
-      func = function(input)
-        self.file_selector:add_selected_file(input.rel_path)
-        return "Added file to context", nil
-      end,
-      param = {
-        type = "table",
-        fields = { { name = "rel_path", description = "Relative path to the file", type = "string" } },
-      },
-      returns = {},
-    })
-
-    table.insert(tools, {
-      name = "remove_file_from_context",
-      description = "Remove a file from the context",
-      ---@type AvanteLLMToolFunc<{ rel_path: string }>
-      func = function(input)
-        self.file_selector:remove_selected_file(input.rel_path)
-        return "Removed file from context", nil
-      end,
-      param = {
-        type = "table",
-        fields = { { name = "rel_path", description = "Relative path to the file", type = "string" } },
-      },
-      returns = {},
-    })
-
-    local selected_filepaths = self.file_selector.selected_filepaths or {}
-
-    ---@type AvanteGeneratePromptsOptions
-    local prompts_opts = {
-      ask = opts.ask or true,
-      project_context = vim.json.encode(project_context),
-      selected_filepaths = selected_filepaths,
-      recently_viewed_files = Utils.get_recent_filepaths(),
-      diagnostics = vim.json.encode(diagnostics),
-      history_messages = history_messages,
-      code_lang = filetype,
-      selected_code = selected_code,
-      -- instructions = request,
-      tools = tools,
-    }
-
-    if self.chat_history.system_prompt then
-      prompts_opts.prompt_opts = {
-        system_prompt = self.chat_history.system_prompt,
-        messages = history_messages,
-      }
-    end
-
-    if self.chat_history.memory then prompts_opts.memory = self.chat_history.memory.content end
-
-    cb(prompts_opts)
-  end
 
   ---@param request string
   local function handle_submit(request)
@@ -2287,7 +2296,7 @@ function Sidebar:create_input_container(opts)
       })
     end
 
-    get_generate_prompts_options(request, function(generate_prompts_options)
+    self:get_generate_prompts_options(request, function(generate_prompts_options)
       ---@type AvanteLLMStreamOptions
       ---@diagnostic disable-next-line: assign-type-mismatch
       local stream_options = vim.tbl_deep_extend("force", generate_prompts_options, {
@@ -2407,77 +2416,11 @@ function Sidebar:create_input_container(opts)
     callback = function() end,
   })
 
-  local hint_ns_id = api.nvim_create_namespace("avante_hint")
-
-  -- Close the floating window
-  local function close_hint()
-    if hint_window and api.nvim_win_is_valid(hint_window) then
-      local buf = api.nvim_win_get_buf(hint_window)
-      if hint_ns_id then api.nvim_buf_clear_namespace(buf, hint_ns_id, 0, -1) end
-      api.nvim_win_close(hint_window, true)
-      api.nvim_buf_delete(buf, { force = true })
-      hint_window = nil
-    end
-  end
-
-  local function get_float_window_row()
-    local win_height = api.nvim_win_get_height(self.input_container.winid)
-    local winline = Utils.winline(self.input_container.winid)
-    if winline >= win_height - 1 then return 0 end
-    return winline
-  end
-
-  -- Create a floating window as a hint
-  local function show_hint()
-    close_hint() -- Close the existing hint window
-
-    local hint_text = (fn.mode() ~= "i" and Config.mappings.submit.normal or Config.mappings.submit.insert)
-      .. ": submit"
-
-    local function show()
-      local buf = api.nvim_create_buf(false, true)
-      api.nvim_buf_set_lines(buf, 0, -1, false, { hint_text })
-      api.nvim_buf_set_extmark(buf, hint_ns_id, 0, 0, { hl_group = "AvantePopupHint", end_col = #hint_text })
-
-      -- Get the current window size
-      local win_width = api.nvim_win_get_width(self.input_container.winid)
-      local width = #hint_text
-
-      -- Set the floating window options
-      local win_opts = {
-        relative = "win",
-        win = self.input_container.winid,
-        width = width,
-        height = 1,
-        row = get_float_window_row(),
-        col = math.max(win_width - width, 0), -- Display in the bottom right corner
-        style = "minimal",
-        border = "none",
-        focusable = false,
-        zindex = 100,
-      }
-
-      -- Create the floating window
-      hint_window = api.nvim_open_win(buf, false, win_opts)
-    end
-
-    if Config.behaviour.enable_token_counting then
-      local input_value = table.concat(api.nvim_buf_get_lines(self.input_container.bufnr, 0, -1, false), "\n")
-      get_generate_prompts_options(input_value, function(generate_prompts_options)
-        local tokens = Llm.calculate_tokens(generate_prompts_options) + Utils.tokens.calculate_tokens(input_value)
-        hint_text = "Tokens: " .. tostring(tokens) .. "; " .. hint_text
-        show()
-      end)
-    else
-      show()
-    end
-  end
-
   api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "VimResized" }, {
     group = self.augroup,
     buffer = self.input_container.bufnr,
     callback = function()
-      show_hint()
+      self:show_input_hint()
       place_sign_at_first_line(self.input_container.bufnr)
     end,
   })
@@ -2485,14 +2428,14 @@ function Sidebar:create_input_container(opts)
   api.nvim_create_autocmd("QuitPre", {
     group = self.augroup,
     buffer = self.input_container.bufnr,
-    callback = function() close_hint() end,
+    callback = function() self:close_input_hint() end,
   })
 
   api.nvim_create_autocmd("WinClosed", {
     group = self.augroup,
     callback = function(args)
       local closed_winid = tonumber(args.match)
-      if closed_winid == self.input_container.winid then close_hint() end
+      if closed_winid == self.input_container.winid then self:close_input_hint() end
     end,
   })
 
@@ -2516,7 +2459,7 @@ function Sidebar:create_input_container(opts)
     pattern = "*:i",
     callback = function()
       local cur_buf = api.nvim_get_current_buf()
-      if self.input_container and cur_buf == self.input_container.bufnr then show_hint() end
+      if self.input_container and cur_buf == self.input_container.bufnr then self:show_input_hint() end
     end,
   })
 
@@ -2526,7 +2469,7 @@ function Sidebar:create_input_container(opts)
     pattern = "i:*",
     callback = function()
       local cur_buf = api.nvim_get_current_buf()
-      if self.input_container and cur_buf == self.input_container.bufnr then show_hint() end
+      if self.input_container and cur_buf == self.input_container.bufnr then self:show_input_hint() end
     end,
   })
 
@@ -2535,9 +2478,9 @@ function Sidebar:create_input_container(opts)
     callback = function()
       local cur_win = api.nvim_get_current_win()
       if self.input_container and cur_win == self.input_container.winid then
-        show_hint()
+        self:show_input_hint()
       else
-        close_hint()
+        self:close_input_hint()
       end
     end,
   })
@@ -2549,6 +2492,9 @@ function Sidebar:create_input_container(opts)
       if ev.data and ev.data.request then handle_submit(ev.data.request) end
     end,
   })
+
+  -- Clear hint when leaving the window
+  self.input_container:on(event.BufLeave, function() self:close_input_hint() end, {})
 
   self:refresh_winids()
 end
@@ -2616,6 +2562,8 @@ end
 
 ---@param opts AskOptions
 function Sidebar:render(opts)
+  self.ask_opts = opts
+
   local function get_position()
     return (opts and opts.win and opts.win.position) and opts.win.position or calculate_config_window_position()
   end
@@ -2651,7 +2599,7 @@ function Sidebar:render(opts)
 
   self.result_container:map("n", Config.mappings.sidebar.close, function() self:shutdown() end)
 
-  self:create_input_container(opts)
+  self:create_input_container()
 
   self:create_selected_files_container()
 
@@ -2787,37 +2735,6 @@ function Sidebar:create_selected_files_container()
 
   local function remove_file(line_number) self.file_selector:remove_selected_filepaths_with_index(line_number) end
 
-  -- Function to show hint
-  local function show_hint()
-    local cursor_pos = api.nvim_win_get_cursor(self.selected_files_container.winid)
-    local line_number = cursor_pos[1]
-    local col_number = cursor_pos[2]
-
-    local selected_filepaths_ = self.file_selector:get_selected_filepaths()
-    local hint
-    if #selected_filepaths_ == 0 then
-      hint = string.format(" [%s: add] ", Config.mappings.sidebar.add_file)
-    else
-      hint =
-        string.format(" [%s: delete, %s: add] ", Config.mappings.sidebar.remove_file, Config.mappings.sidebar.add_file)
-    end
-
-    api.nvim_buf_clear_namespace(self.selected_files_container.bufnr, SELECTED_FILES_HINT_NAMESPACE, 0, -1)
-
-    api.nvim_buf_set_extmark(
-      self.selected_files_container.bufnr,
-      SELECTED_FILES_HINT_NAMESPACE,
-      line_number - 1,
-      col_number,
-      {
-        virt_text = { { hint, "AvanteInlineHint" } },
-        virt_text_pos = "right_align",
-        hl_group = "AvanteInlineHint",
-        priority = PRIORITY,
-      }
-    )
-  end
-
   -- Set up keybinding to remove files
   self.selected_files_container:map("n", Config.mappings.sidebar.remove_file, function()
     local line_number = api.nvim_win_get_cursor(self.selected_files_container.winid)[1]
@@ -2832,14 +2749,10 @@ function Sidebar:create_selected_files_container()
   )
 
   -- Set up autocmd to show hint on cursor move
-  self.selected_files_container:on({ event.CursorMoved }, show_hint, {})
+  self.selected_files_container:on({ event.CursorMoved }, function() self:show_selected_files_hint() end, {})
 
   -- Clear hint when leaving the window
-  self.selected_files_container:on(
-    event.BufLeave,
-    function() api.nvim_buf_clear_namespace(self.selected_files_container.bufnr, SELECTED_FILES_HINT_NAMESPACE, 0, -1) end,
-    {}
-  )
+  self.selected_files_container:on(event.BufLeave, function() self:close_selected_files_hint() end, {})
 
   render()
 end
