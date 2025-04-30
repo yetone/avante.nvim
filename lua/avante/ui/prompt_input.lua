@@ -170,6 +170,9 @@ function PromptInput:submit(input)
 end
 
 function PromptInput:show_shortcuts_hints()
+  if not Config.hints.submit_hint then
+    return
+  end
   self:close_shortcuts_hints()
 
   if not self.winid or not api.nvim_win_is_valid(self.winid) then return end

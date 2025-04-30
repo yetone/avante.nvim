@@ -2430,6 +2430,9 @@ function Sidebar:create_input_container(opts)
   -- Create a floating window as a hint
   local function show_hint()
     close_hint() -- Close the existing hint window
+    if not Config.hints.submit_hint then
+      return
+    end
 
     local hint_text = (fn.mode() ~= "i" and Config.mappings.submit.normal or Config.mappings.submit.insert)
       .. ": submit"

@@ -504,8 +504,11 @@ M._defaults = {
     override_timeoutlen = 500,
   },
   --- @class AvanteHintsConfig
+  --- @field enabled boolean Whether to enable hints (default true).
+  --- @field submit_hint boolean Whether to show submit hint popup in prompt input (default true).
   hints = {
     enabled = true,
+    submit_hint = true,
   },
   --- @class AvanteRepoMapConfig
   repo_map = {
