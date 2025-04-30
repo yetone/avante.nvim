@@ -290,28 +290,34 @@ function M.generate_prompts(opts)
 
   local final_history_messages = {}
   if opts.history_messages then
-    if Config.history.max_tokens > 0 then remaining_tokens = math.min(Config.history.max_tokens, remaining_tokens) end
-    -- Traverse the history in reverse, keeping only the latest history until the remaining tokens are exhausted and the first message role is "user"
-    local history_messages = {}
-    for i = #opts.history_messages, 1, -1 do
-      local message = opts.history_messages[i]
-      local tokens = Utils.tokens.calculate_tokens(message.message.content)
-      remaining_tokens = remaining_tokens - tokens
-      if remaining_tokens > 0 then
-        table.insert(history_messages, 1, message)
-      else
-        break
+    if opts.disable_compact_history_messages then
+      final_history_messages = vim.list_extend(final_history_messages, opts.history_messages)
+    else
+      if Config.history.max_tokens > 0 then
+        remaining_tokens = math.min(Config.history.max_tokens, remaining_tokens)
       end
+      -- Traverse the history in reverse, keeping only the latest history until the remaining tokens are exhausted and the first message role is "user"
+      local history_messages = {}
+      for i = #opts.history_messages, 1, -1 do
+        local message = opts.history_messages[i]
+        local tokens = Utils.tokens.calculate_tokens(message.message.content)
+        remaining_tokens = remaining_tokens - tokens
+        if remaining_tokens > 0 then
+          table.insert(history_messages, 1, message)
+        else
+          break
+        end
+      end
+
+      if #history_messages == 0 then
+        history_messages = vim.list_slice(opts.history_messages, #opts.history_messages - 1, #opts.history_messages)
+      end
+
+      dropped_history_messages = vim.list_slice(opts.history_messages, 1, #opts.history_messages - #history_messages)
+
+      -- prepend the history messages to the messages table
+      vim.iter(history_messages):each(function(msg) table.insert(final_history_messages, msg) end)
     end
-
-    if #history_messages == 0 then
-      history_messages = vim.list_slice(opts.history_messages, #opts.history_messages - 1, #opts.history_messages)
-    end
-
-    dropped_history_messages = vim.list_slice(opts.history_messages, 1, #opts.history_messages - #history_messages)
-
-    -- prepend the history messages to the messages table
-    vim.iter(history_messages):each(function(msg) table.insert(final_history_messages, msg) end)
   end
 
   -- Utils.debug("opts.history_messages", opts.history_messages)
