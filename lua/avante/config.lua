@@ -19,6 +19,8 @@ local M = {}
 ---@class avante.Config
 M._defaults = {
   debug = false,
+  ---@alias avante.Mode "agentic" | "legacy"
+  mode = "agentic",
   ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | string
   provider = "claude",
   -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
@@ -380,8 +382,6 @@ M._defaults = {
     support_paste_from_clipboard = false,
     minimize_diff = true,
     enable_token_counting = true,
-    enable_cursor_planning_mode = false,
-    enable_claude_text_editor_tool_mode = false,
     use_cwd_as_project_root = false,
     auto_focus_on_diff_view = false,
   },
@@ -522,6 +522,7 @@ M._defaults = {
     ---@alias avante.SelectorProvider "native" | "fzf_lua" | "mini_pick" | "snacks" | "telescope" | fun(selector: avante.ui.Selector): nil
     provider = "native",
     provider_opts = {},
+    exclude_auto_select = {}, -- List of items to exclude from auto selection
   },
   suggestion = {
     debounce = 600,

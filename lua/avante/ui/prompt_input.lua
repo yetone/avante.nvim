@@ -204,7 +204,7 @@ function PromptInput:show_shortcuts_hints()
     win = self.winid,
     width = width,
     height = 1,
-    row = math.min(buf_height, win_height),
+    row = win_height,
     col = math.max(win_width - width, 0),
     style = "minimal",
     border = "none",

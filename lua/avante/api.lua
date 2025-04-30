@@ -226,16 +226,16 @@ end
 function M.select_model() require("avante.model_selector").open() end
 
 function M.select_history()
-  require("avante.history_selector").open(vim.api.nvim_get_current_buf(), function(filename)
-    local Path = require("avante.path")
-    Path.history.save_latest_filename(vim.api.nvim_get_current_buf(), filename)
-    local sidebar = require("avante").get()
-    if not sidebar then
-      require("avante.api").ask()
-      sidebar = require("avante").get()
-    end
-    sidebar:update_content_with_history()
-    if not sidebar:is_open() then sidebar:open({}) end
+  local buf = vim.api.nvim_get_current_buf()
+  require("avante.history_selector").open(buf, function(filename)
+    vim.api.nvim_buf_call(buf, function()
+      if not require("avante").is_sidebar_open() then require("avante").open_sidebar({}) end
+      local Path = require("avante.path")
+      Path.history.save_latest_filename(buf, filename)
+      local sidebar = require("avante").get()
+      sidebar:update_content_with_history()
+      vim.schedule(function() sidebar:focus_input() end)
+    end)
   end)
 end
 
