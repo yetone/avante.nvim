@@ -2,6 +2,7 @@ local Providers = require("avante.providers")
 local Config = require("avante.config")
 local Utils = require("avante.utils")
 local Base = require("avante.llm_tools.base")
+local HistoryMessage = require("avante.history_message")
 
 ---@class AvanteLLMTool
 local M = setmetatable({}, Base)
@@ -80,29 +81,47 @@ Your task is to help the user with their request: "${prompt}"
 Be thorough and use the tools available to you to find the most relevant information.
 When you're done, provide a clear and concise summary of what you found.]]):gsub("${prompt}", prompt)
 
-  local messages = session_ctx and session_ctx.messages or {}
-  messages = messages or {}
-  table.insert(messages, { role = "user", content = prompt })
+  local messages = {}
+  table.insert(messages, { role = "user", content = "go!" })
 
   local tool_use_messages = {}
 
   local total_tokens = 0
   local final_response = ""
-  Llm._stream({
+
+  local memory_content = nil
+  local history_messages = {}
+
+  local stream_options = {
     ask = true,
+    memory = memory_content,
     code_lang = "unknown",
     provider = Providers[Config.provider],
-    on_tool_log = function(tool_id, tool_name, log, state)
-      if on_log then on_log(string.format("[%s] %s", tool_name, log)) end
-    end,
+    get_history_messages = function() return history_messages end,
+    on_tool_log = session_ctx.on_tool_log,
     on_messages_add = function(msgs)
-      msgs = vim.is_list(msgs) and msgs or { msgs }
+      msgs = vim.islist(msgs) and msgs or { msgs }
       for _, msg in ipairs(msgs) do
         local content = msg.message.content
         if type(content) == "table" and #content > 0 and content[1].type == "tool_use" then
           tool_use_messages[msg.uuid] = true
         end
       end
+      for _, msg in ipairs(msgs) do
+        local idx = nil
+        for i, m in ipairs(history_messages) do
+          if m.uuid == msg.uuid then
+            idx = i
+            break
+          end
+        end
+        if idx ~= nil then
+          history_messages[idx] = msg
+        else
+          table.insert(history_messages, msg)
+        end
+      end
+      if session_ctx.on_messages_add then session_ctx.on_messages_add(msgs) end
     end,
     session_ctx = session_ctx,
     prompt_opts = {
@@ -110,7 +129,7 @@ When you're done, provide a clear and concise summary of what you found.]]):gsub
       tools = tools,
       messages = messages,
     },
-    on_start = function(_) end,
+    on_start = session_ctx.on_start,
     on_chunk = function(chunk)
       if not chunk then return end
       final_response = final_response .. chunk
@@ -125,18 +144,46 @@ When you're done, provide a clear and concise summary of what you found.]]):gsub
       local end_time = Utils.get_timestamp()
       local elapsed_time = Utils.datetime_diff(start_time, end_time)
       local tool_use_count = vim.tbl_count(tool_use_messages)
-      local summary = "Done ("
+      local summary = "dispatch_agent Done ("
         .. (tool_use_count <= 1 and "1 tool use" or tool_use_count .. " tool uses")
         .. " · "
         .. math.ceil(total_tokens)
         .. " tokens · "
         .. elapsed_time
         .. "s)"
-      Utils.debug("summary", summary)
+      if session_ctx.on_messages_add then
+        local message = HistoryMessage:new({
+          role = "assistant",
+          content = "\n\n" .. summary,
+        }, {
+          just_for_display = true,
+        })
+        session_ctx.on_messages_add({ message })
+      end
       local response = string.format("Final response:\n%s\n\nSummary:\n%s", summary, final_response)
       on_complete(response, nil)
     end,
-  })
+  }
+
+  local function on_memory_summarize(dropped_history_messages)
+    Llm.summarize_memory(memory_content, dropped_history_messages or {}, function(memory)
+      if memory then stream_options.memory = memory.content end
+      local new_history_messages = {}
+      for _, msg in ipairs(history_messages) do
+        if vim.iter(dropped_history_messages):find(function(dropped_msg) return dropped_msg.uuid == msg.uuid end) then
+          goto continue
+        end
+        table.insert(new_history_messages, msg)
+        ::continue::
+      end
+      history_messages = new_history_messages
+      Llm._stream(stream_options)
+    end)
+  end
+
+  stream_options.on_memory_summarize = on_memory_summarize
+
+  Llm._stream(stream_options)
 end
 
 return M
