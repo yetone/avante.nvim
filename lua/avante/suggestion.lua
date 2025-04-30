@@ -72,7 +72,7 @@ function Suggestion:suggest()
 
   local full_response = ""
 
-  local provider = Providers[Config.auto_suggestions_provider]
+  local provider = Providers[Config.auto_suggestions_provider or Config.provider]
 
   ---@type AvanteLLMMessage[]
   local history_messages = {
