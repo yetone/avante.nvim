@@ -1513,9 +1513,8 @@ end
 ---@param messages avante.HistoryMessage[]
 ---@return avante.ui.Line[]
 function M.message_to_lines(message, messages)
-  local Line = require("avante.ui.line")
   local content = message.message.content
-  if type(content) == "string" then return { Line:new({ { content } }) } end
+  if type(content) == "string" then return M.text_to_lines(content) end
   if vim.islist(content) then
     local lines = {}
     for _, item in ipairs(content) do
