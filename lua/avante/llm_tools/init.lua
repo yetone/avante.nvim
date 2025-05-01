@@ -1148,6 +1148,7 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
               cancel_timer:stop()
               cancel_timer:close()
             end
+            Helpers.is_cancelled = false
             on_complete(nil, Helpers.CANCEL_TOKEN)
           end
         end)
@@ -1191,6 +1192,7 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
   end, function(result, err)
     -- Check for cancellation before completing
     if Helpers.is_cancelled then
+      Helpers.is_cancelled = false
       if on_complete then on_complete(nil, Helpers.CANCEL_TOKEN) end
       return
     end
