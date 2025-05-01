@@ -81,7 +81,7 @@ function M.summarize_memory(prev_memory, history_messages, cb)
       if type(content) == "table" and content[1].type == "tool_use" then return false end
       return true
     end)
-    :map(function(msg) return msg.message.role .. ": " .. Utils.message_to_text(msg) end)
+    :map(function(msg) return msg.message.role .. ": " .. Utils.message_to_text(msg, history_messages) end)
     :totable()
   local conversation_text = table.concat(conversation_items, "\n")
   local user_prompt = "Here is the conversation so far:\n"
