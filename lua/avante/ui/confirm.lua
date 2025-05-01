@@ -346,8 +346,20 @@ end
 function M:unbind_window_focus_keymaps() pcall(vim.keymap.del, { "n", "i" }, "<C-w>f") end
 
 function M:cancel()
-  self.callback("no", "cancel")
-  return self:close()
+  self:unbind_window_focus_keymaps()
+  if self._group then
+    vim.api.nvim_del_augroup_by_id(self._group)
+    self._group = nil
+  end
+  if self._popup then
+    pcall(function()
+      self._popup:unmount()
+      self._popup = nil
+      self.callback("no", "cancel")
+    end)
+    return true
+  end
+  return false
 end
 
 function M:close()

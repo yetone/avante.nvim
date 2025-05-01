@@ -900,6 +900,11 @@ end
 ---@param opts AvanteLLMStreamOptions
 function M.stream(opts)
   local is_completed = false
+
+  if opts.on_chunk == nil then
+    opts.on_chunk = function(_) end
+  end
+
   if opts.on_tool_log ~= nil then
     local original_on_tool_log = opts.on_tool_log
     opts.on_tool_log = vim.schedule_wrap(function(...)
@@ -907,21 +912,31 @@ function M.stream(opts)
       return original_on_tool_log(...)
     end)
   end
-  if opts.on_chunk ~= nil then
-    local original_on_chunk = opts.on_chunk
-    opts.on_chunk = vim.schedule_wrap(function(chunk)
-      if is_completed then return end
-      if original_on_chunk then return original_on_chunk(chunk) end
-    end)
-  end
+
+  local original_on_chunk = opts.on_chunk
+  opts.on_chunk = vim.schedule_wrap(function(chunk)
+    if is_completed then return end
+    -- Ensure original_on_chunk is called only if it exists and chunk is valid
+    if original_on_chunk and chunk then pcall(original_on_chunk, chunk) end
+  end)
+
   if opts.on_stop ~= nil then
     local original_on_stop = opts.on_stop
     opts.on_stop = vim.schedule_wrap(function(stop_opts)
       if is_completed then return end
       if stop_opts.reason == "complete" or stop_opts.reason == "error" or stop_opts.reason == "cancelled" then
         is_completed = true
+        -- Ensure cleanup is done before callback
+        vim.schedule(function()
+          if LLMToolHelpers.confirm_popup then
+            LLMToolHelpers.confirm_popup:close()
+            LLMToolHelpers.confirm_popup = nil
+          end
+          pcall(original_on_stop, stop_opts)
+        end)
+      else
+        pcall(original_on_stop, stop_opts)
       end
-      return original_on_stop(stop_opts)
     end)
   end
 
