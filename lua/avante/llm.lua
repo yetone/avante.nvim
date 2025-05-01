@@ -699,7 +699,16 @@ function M._stream(opts)
           -- Special handling for cancellation signal from tools
           if error == LLMToolHelpers.CANCEL_TOKEN then
             Utils.debug("Tool execution was cancelled by user")
-            opts.on_chunk("\n*[Request cancelled by user during tool execution.]*\n")
+            if opts.on_chunk then opts.on_chunk("\n*[Request cancelled by user during tool execution.]*\n") end
+            if opts.on_messages_add then
+              local message = HistoryMessage:new({
+                role = "assistant",
+                content = "\n*[Request cancelled by user during tool execution.]*\n",
+              }, {
+                just_for_display = true,
+              })
+              opts.on_messages_add({ message })
+            end
             return opts.on_stop({ reason = "cancelled" })
           end
 
@@ -725,8 +734,10 @@ function M._stream(opts)
         if opts.on_chunk then opts.on_chunk("\n*[Request cancelled by user.]*\n") end
         if opts.on_messages_add then
           local message = HistoryMessage:new({
-            role = "user",
-            content = "[Request cancelled by user.]",
+            role = "assistant",
+            content = "\n*[Request cancelled by user.]*\n",
+          }, {
+            just_for_display = true,
           })
           opts.on_messages_add({ message })
         end
