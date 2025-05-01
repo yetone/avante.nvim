@@ -630,7 +630,7 @@ M._tools = {
     },
   },
   {
-    name = "python",
+    name = "run_python",
     description = "Run python code in current project scope. Can't use it to read files or modify files.",
     param = {
       type = "table",
@@ -1096,6 +1096,9 @@ M._tools = {
     end,
   },
 }
+
+--- compatibility alias for old calls & tests
+M.run_python = M.python
 
 ---@param tools AvanteLLMTool[]
 ---@param tool_use AvanteLLMToolUse
