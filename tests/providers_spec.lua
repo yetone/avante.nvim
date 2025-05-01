@@ -28,13 +28,11 @@ describe("Providers", function()
     it("should cache API key values", function()
       local provider = {
         api_key_name = "TEST_API_KEY",
-        reevaluate_api_key_after = nil -- No expiry
+        reevaluate_api_key_after = nil, -- No expiry
       }
 
       stub(Utils_mock.environment, "parse", function(key)
-        if key == "TEST_API_KEY" then
-          return "test-api-key-value"
-        end
+        if key == "TEST_API_KEY" then return "test-api-key-value" end
       end)
 
       -- First call should get from environment
@@ -53,16 +51,14 @@ describe("Providers", function()
     it("should handle API key caching and expiry lifecycle", function()
       local provider = {
         api_key_name = "TEST_API_KEY",
-        reevaluate_api_key_after = 1 -- 1 second expiry
+        reevaluate_api_key_after = 1, -- 1 second expiry
       }
 
       local current_time = 1000
       stub(os, "time", function() return current_time end)
 
       stub(Utils_mock.environment, "parse", function(key)
-        if key == "TEST_API_KEY" then
-          return "test-api-key-value"
-        end
+        if key == "TEST_API_KEY" then return "test-api-key-value" end
       end)
 
       -- Initial fetch should get from environment and cache
@@ -96,4 +92,3 @@ describe("Providers", function()
     end)
   end)
 end)
-

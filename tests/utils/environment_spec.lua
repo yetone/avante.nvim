@@ -100,10 +100,7 @@ describe("environment", function()
     end)
 
     it("should handle nil input", function()
-      assert.has_error(function()
-        environment.parse(nil)
-      end, "Requires key_name")
+      assert.has_error(function() environment.parse(nil) end, "Requires key_name")
     end)
   end)
 end)
-
