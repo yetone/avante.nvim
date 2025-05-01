@@ -16,6 +16,7 @@ local RepoMap = require("avante.repo_map")
 local FileSelector = require("avante.file_selector")
 local LLMTools = require("avante.llm_tools")
 local HistoryMessage = require("avante.history_message")
+local Line = require("avante.ui.line")
 
 local RESULT_BUF_NAME = "AVANTE_RESULT"
 local VIEW_BUFFER_UPDATED_PATTERN = "AvanteViewBufferUpdated"
@@ -25,6 +26,7 @@ local SELECTED_FILES_HINT_NAMESPACE = api.nvim_create_namespace("AVANTE_SELECTED
 local SELECTED_FILES_ICON_NAMESPACE = api.nvim_create_namespace("AVANTE_SELECTED_FILES_ICON")
 local INPUT_HINT_NAMESPACE = api.nvim_create_namespace("AVANTE_INPUT_HINT")
 local STATE_NAMESPACE = api.nvim_create_namespace("AVANTE_STATE")
+local RESULT_BUF_HL_NAMESPACE = api.nvim_create_namespace("AVANTE_RESULT_BUF_HL")
 
 local PRIORITY = (vim.hl or vim.highlight).priorities.user
 
@@ -59,6 +61,7 @@ Sidebar.__index = Sidebar
 ---@field scroll boolean
 ---@field input_hint_window integer | nil
 ---@field ask_opts AskOptions
+---@field old_result_lines avante.ui.Line[]
 
 ---@param id integer the tabpage id retrieved from api.nvim_get_current_tabpage()
 function Sidebar:new(id)
@@ -86,6 +89,7 @@ function Sidebar:new(id)
     scroll = true,
     input_hint_window = nil,
     ask_opts = {},
+    old_result_lines = {},
   }, Sidebar)
 end
 
@@ -121,6 +125,7 @@ function Sidebar:reset()
   self.selected_files_container = nil
   self.input_container = nil
   self.scroll = true
+  self.old_result_lines = {}
 end
 
 ---@class SidebarOpenOptions: AskOptions
@@ -1510,18 +1515,24 @@ end
 function Sidebar:update_content(content, opts)
   if not self.result_container or not self.result_container.bufnr then return end
   opts = vim.tbl_deep_extend("force", { focus = false, scroll = self.scroll, callback = nil }, opts or {})
-  local history_content = self.render_history_content(self.chat_history)
-  local contents = { history_content, content }
-  contents = vim.iter(contents):filter(function(item) return item ~= nil and item ~= "" end):totable()
-  content = table.concat(contents, "\n\n")
+  local history_lines = self.get_history_lines(self.chat_history)
+  if content ~= nil and content ~= "" then
+    table.insert(history_lines, Line:new({ { "" } }))
+    table.insert(history_lines, Line:new({ { content } }))
+  end
   vim.defer_fn(function()
     self:clear_state()
     local f = function()
       if not Utils.is_valid_container(self.result_container) then return end
-      local lines = vim.split(content, "\n")
       Utils.unlock_buf(self.result_container.bufnr)
-      Utils.update_buffer_content(self.result_container.bufnr, lines)
+      Utils.update_buffer_lines(
+        RESULT_BUF_HL_NAMESPACE,
+        self.result_container.bufnr,
+        self.old_result_lines,
+        history_lines
+      )
       Utils.lock_buf(self.result_container.bufnr)
+      self.old_result_lines = history_lines
       api.nvim_set_option_value("filetype", "Avante", { buf = self.result_container.bufnr })
       vim.schedule(function() vim.cmd("redraw") end)
       if opts.focus and not self:is_focused_on_result() then
@@ -1593,11 +1604,96 @@ function Sidebar:get_layout()
 end
 
 ---@param message avante.HistoryMessage
+---@param messages avante.HistoryMessage[]
+---@param ctx table
+---@return avante.ui.Line[]
+local function get_message_lines(message, messages, ctx)
+  if message.visible == false then return {} end
+  local lines = Utils.message_to_lines(message, messages)
+  if message.is_user_submission then
+    ctx.selected_filepaths = message.selected_filepaths
+    local text = table.concat(vim.tbl_map(function(line) return tostring(line) end, lines), "\n")
+    local prefix = render_chat_record_prefix(
+      message.timestamp,
+      message.provider,
+      message.model,
+      text,
+      message.selected_filepaths,
+      message.selected_code
+    )
+    local res = {}
+    for _, line_ in ipairs(vim.split(prefix, "\n")) do
+      table.insert(res, Line:new({ { line_ } }))
+    end
+    return res
+  end
+  if message.message.role == "user" then
+    local res = {}
+    for _, line_ in ipairs(lines) do
+      local sections = { { "> " } }
+      sections = vim.list_extend(sections, line_.sections)
+      table.insert(res, Line:new(sections))
+    end
+    return res
+  end
+  if message.message.role == "assistant" then
+    local content = message.message.content
+    if type(content) == "table" and content[1].type == "tool_use" then return lines end
+    local text = table.concat(vim.tbl_map(function(line) return tostring(line) end, lines), "\n")
+    local transformed = transform_result_content(text, ctx.prev_filepath)
+    ctx.prev_filepath = transformed.current_filepath
+    local displayed_content = generate_display_content(transformed)
+    local res = {}
+    for _, line_ in ipairs(vim.split(displayed_content, "\n")) do
+      table.insert(res, Line:new({ { line_ } }))
+    end
+    return res
+  end
+  return lines
+end
+
+---@param history avante.ChatHistory
+---@return avante.ui.Line[]
+function Sidebar.get_history_lines(history)
+  local history_messages = Utils.get_history_messages(history)
+  local ctx = {}
+  ---@type avante.ui.Line[][]
+  local group = {}
+  for _, message in ipairs(history_messages) do
+    local lines = get_message_lines(message, history_messages, ctx)
+    if #lines == 0 then goto continue end
+    if message.is_user_submission then table.insert(group, {}) end
+    local last_item = group[#group]
+    if last_item == nil then
+      table.insert(group, {})
+      last_item = group[#group]
+    end
+    if message.message.role == "assistant" and not message.just_for_display and tostring(lines[1]) ~= "" then
+      table.insert(lines, 1, Line:new({ { "" } }))
+      table.insert(lines, 1, Line:new({ { "" } }))
+    end
+    last_item = vim.list_extend(last_item, lines)
+    group[#group] = last_item
+    ::continue::
+  end
+  local res = {}
+  for idx, item in ipairs(group) do
+    if idx ~= 1 and idx ~= #group then
+      res = vim.list_extend(res, { Line:new({ { "" } }), Line:new({ { RESP_SEPARATOR } }), Line:new({ { "" } }) })
+    end
+    res = vim.list_extend(res, item)
+  end
+  table.insert(res, Line:new({ { "" } }))
+  return res
+end
+
+---@param message avante.HistoryMessage
+---@param messages avante.HistoryMessage[]
 ---@param ctx table
 ---@return string | nil
-local function render_message(message, ctx)
+local function render_message(message, messages, ctx)
   if message.visible == false then return nil end
-  local text = Utils.message_to_text(message)
+  local text = Utils.message_to_text(message, messages)
   if text == "" then return nil end
   if message.is_user_submission then
     ctx.selected_filepaths = message.selected_filepaths
@@ -1633,7 +1729,7 @@ function Sidebar.render_history_content(history)
   local ctx = {}
   local group = {}
   for _, message in ipairs(history_messages) do
-    local text = render_message(message, ctx)
+    local text = render_message(message, history_messages, ctx)
     if text == nil then goto continue end
     if message.is_user_submission then table.insert(group, {}) end
     local last_item = group[#group]
@@ -1695,6 +1791,7 @@ function Sidebar:get_content_between_separators()
 end
 
 function Sidebar:clear_history(args, cb)
+  self.current_state = nil
   local chat_history = Path.history.load(self.code.bufnr)
   if next(chat_history) ~= nil then
     chat_history.messages = {}
@@ -1763,6 +1860,7 @@ function Sidebar:new_chat(args, cb)
   local history = Path.history.new(self.code.bufnr)
   Path.history.save(self.code.bufnr, history)
   self:reload_chat_history()
+  self.current_state = nil
   self:update_content("New chat", { focus = false, scroll = false, callback = function() self:focus_input() end })
   if cb then cb(args) end
 end
@@ -2144,10 +2242,10 @@ function Sidebar:create_input_container()
       end
     end
 
-    local model = Config.has_provider(Config.provider) and Config.get_provider_config(Config.provider).model
-      or "default"
-
-    local timestamp = Utils.get_timestamp()
+    -- local model = Config.has_provider(Config.provider) and Config.get_provider_config(Config.provider).model
+    --   or "default"
+    --
+    -- local timestamp = Utils.get_timestamp()
 
     local selected_filepaths = self.file_selector:get_selected_filepaths()
 
@@ -2161,14 +2259,14 @@ function Sidebar:create_input_container()
       }
     end
 
-    local content_prefix =
-      render_chat_record_prefix(timestamp, Config.provider, model, request, selected_filepaths, selected_code)
+    -- local content_prefix =
+    --   render_chat_record_prefix(timestamp, Config.provider, model, request, selected_filepaths, selected_code)
 
     --- HACK: we need to set focus to true and scroll to false to
     --- prevent the cursor from jumping to the bottom of the
     --- buffer at the beginning
     self:update_content("", { focus = true, scroll = false })
-    self:update_content(content_prefix)
+    -- self:update_content(content_prefix)
 
     ---stop scroll when user presses j/k keys
     local function on_j()
