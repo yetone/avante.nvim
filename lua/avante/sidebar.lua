@@ -1518,7 +1518,10 @@ function Sidebar:update_content(content, opts)
   local history_lines = self.get_history_lines(self.chat_history)
   if content ~= nil and content ~= "" then
     table.insert(history_lines, Line:new({ { "" } }))
-    table.insert(history_lines, Line:new({ { content } }))
+    local content_lines = vim.split(content, "\n")
+    for _, line in ipairs(content_lines) do
+      table.insert(history_lines, Line:new({ { line } }))
+    end
   end
   vim.defer_fn(function()
     self:clear_state()
@@ -1678,7 +1681,7 @@ function Sidebar.get_history_lines(history)
   end
   local res = {}
   for idx, item in ipairs(group) do
-    if idx ~= 1 and idx ~= #group then
+    if idx ~= 1 then
       res = vim.list_extend(res, { Line:new({ { "" } }), Line:new({ { RESP_SEPARATOR } }), Line:new({ { "" } }) })
     end
     res = vim.list_extend(res, item)
@@ -2259,14 +2262,10 @@ function Sidebar:create_input_container()
       }
     end
 
-    -- local content_prefix =
-    --   render_chat_record_prefix(timestamp, Config.provider, model, request, selected_filepaths, selected_code)
-
     --- HACK: we need to set focus to true and scroll to false to
     --- prevent the cursor from jumping to the bottom of the
     --- buffer at the beginning
     self:update_content("", { focus = true, scroll = false })
-    -- self:update_content(content_prefix)
 
     ---stop scroll when user presses j/k keys
     local function on_j()

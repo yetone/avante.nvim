@@ -87,7 +87,7 @@ function M:parse_messages(opts)
   vim.iter(opts.messages):each(function(msg)
     if type(msg.content) == "string" then
       table.insert(messages, { role = self.role_map[msg.role], content = msg.content })
-    else
+    elseif type(msg.content) == "table" then
       local content = {}
       local tool_calls = {}
       local tool_results = {}
