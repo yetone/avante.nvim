@@ -901,9 +901,7 @@ end
 function M.stream(opts)
   local is_completed = false
 
-  if opts.on_chunk == nil then
-    opts.on_chunk = function(_) end
-  end
+  if opts.on_chunk == nil then opts.on_chunk = function(_) end end
 
   if opts.on_tool_log ~= nil then
     local original_on_tool_log = opts.on_tool_log
