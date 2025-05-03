@@ -250,14 +250,7 @@ function M:parse_response(ctx, data_stream, _, opts)
   local jsn = vim.json.decode(data_stream)
   if not jsn.choices or not jsn.choices[1] then return end
   local choice = jsn.choices[1]
-  if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" then
-    if choice.delta.content and choice.delta.content ~= vim.NIL then
-      self:add_text_message(ctx, choice.delta.content, "generated", opts)
-      if opts.on_chunk then opts.on_chunk(choice.delta.content) end
-    end
-    self:finish_pending_messages(ctx, opts)
-    opts.on_stop({ reason = "complete" })
-  elseif choice.delta.reasoning_content and choice.delta.reasoning_content ~= vim.NIL then
+  if choice.delta.reasoning_content and choice.delta.reasoning_content ~= vim.NIL then
     if ctx.returned_think_start_tag == nil or not ctx.returned_think_start_tag then
       ctx.returned_think_start_tag = true
       if opts.on_chunk then opts.on_chunk("<think>\n") end
@@ -274,7 +267,10 @@ function M:parse_response(ctx, data_stream, _, opts)
     self:add_thinking_message(ctx, choice.delta.reasoning, "generating", opts)
     if opts.on_chunk then opts.on_chunk(choice.delta.reasoning) end
   elseif choice.delta.tool_calls and choice.delta.tool_calls ~= vim.NIL then
-    for _, tool_call in ipairs(choice.delta.tool_calls) do
+    local choice_index = choice.index or 0
+    for idx, tool_call in ipairs(choice.delta.tool_calls) do
+      --- In Gemini's so-called OpenAI Compatible API, tool_call.index is nil, which is quite absurd! Therefore, a compatibility fix is needed here.
+      if tool_call.index == nil then tool_call.index = choice_index + idx - 1 end
       if not ctx.tool_use_list then ctx.tool_use_list = {} end
       if not ctx.tool_use_list[tool_call.index + 1] then
         if tool_call.index > 0 and ctx.tool_use_list[tool_call.index] then
@@ -312,6 +308,10 @@ function M:parse_response(ctx, data_stream, _, opts)
       if opts.on_chunk then opts.on_chunk(choice.delta.content) end
       self:add_text_message(ctx, choice.delta.content, "generating", opts)
     end
+  end
+  if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" then
+    self:finish_pending_messages(ctx, opts)
+    opts.on_stop({ reason = "complete" })
   end
   if choice.finish_reason == "tool_calls" then
     self:finish_pending_messages(ctx, opts)
