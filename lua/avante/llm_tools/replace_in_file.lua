@@ -336,6 +336,28 @@ function M.func(opts, on_log, on_complete, session_ctx)
     })
   end
 
+  local confirm
+  local has_rejected = false
+  local augroup = vim.api.nvim_create_augroup("avante_replace_in_file", { clear = true })
+
+  local function register_buf_write_events()
+    vim.api.nvim_create_autocmd({ "BufWritePost" }, {
+      buffer = bufnr,
+      group = augroup,
+      callback = function()
+        if #diff_blocks ~= 0 then return end
+        pcall(vim.api.nvim_del_augroup_by_id, augroup)
+        if confirm then confirm:close() end
+        if has_rejected then
+          on_complete(false, "User canceled")
+          return
+        end
+        if session_ctx then Helpers.mark_as_not_viewed(opts.path, session_ctx) end
+        on_complete(true, nil)
+      end,
+    })
+  end
+
   local function register_keybinding_events()
     vim.keymap.set({ "n", "v" }, Config.mappings.diff.ours, function()
       if vim.api.nvim_get_current_buf() ~= bufnr then return end
@@ -359,6 +381,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
         vim.api.nvim_win_set_cursor(winnr, { next_diff_block.new_start_line, 0 })
         vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
       end
+      has_rejected = true
     end)
 
     vim.keymap.set({ "n", "v" }, Config.mappings.diff.theirs, function()
@@ -408,7 +431,6 @@ function M.func(opts, on_log, on_complete, session_ctx)
     pcall(vim.api.nvim_buf_del_keymap, bufnr, "v", Config.mappings.diff.prev)
   end
 
-  local augroup = vim.api.nvim_create_augroup("avante_replace_in_file", { clear = true })
   local function clear()
     if bufnr and not vim.api.nvim_buf_is_valid(bufnr) then return end
     vim.api.nvim_buf_clear_namespace(bufnr, NAMESPACE, 0, -1)
@@ -464,8 +486,15 @@ function M.func(opts, on_log, on_complete, session_ctx)
   highlight_diff_blocks()
   register_cursor_move_events()
   register_keybinding_events()
+  register_buf_write_events()
 
-  Helpers.confirm("Are you sure you want to apply this modification?", function(ok, reason)
+  if diff_blocks[1] then
+    local winnr = Utils.get_winid(bufnr)
+    vim.api.nvim_win_set_cursor(winnr, { diff_blocks[1].new_start_line, 0 })
+    vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
+  end
+
+  confirm = Helpers.confirm("Are you sure you want to apply this modification?", function(ok, reason)
     clear()
     if not ok then
       vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, original_lines)
