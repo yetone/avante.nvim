@@ -182,7 +182,8 @@ function M.generate_prompts(opts)
           local latest_tool_id = viewed_files[path]
           if not latest_tool_id then goto continue end
           if latest_tool_id ~= item.tool_use_id then
-            item.content = string.format("The file %s has been updated. Please use the latest view tool result!", path)
+            item.content =
+              string.format("The file %s has been updated. Please use the latest `view` tool result!", path)
           else
             local lines, error = Utils.read_file_from_buf_or_disk(path)
             if error ~= nil then Utils.error("error reading file: " .. error) end
@@ -288,18 +289,20 @@ function M.generate_prompts(opts)
     dropped_history_messages = vim.list_extend(dropped_history_messages, opts.prompt_opts.dropped_history_messages)
   end
 
+  local cleaned_history_messages = opts.history_messages
+
   local final_history_messages = {}
-  if opts.history_messages then
+  if cleaned_history_messages then
     if opts.disable_compact_history_messages then
-      final_history_messages = vim.list_extend(final_history_messages, opts.history_messages)
+      final_history_messages = vim.list_extend(final_history_messages, cleaned_history_messages)
     else
       if Config.history.max_tokens > 0 then
         remaining_tokens = math.min(Config.history.max_tokens, remaining_tokens)
       end
       -- Traverse the history in reverse, keeping only the latest history until the remaining tokens are exhausted and the first message role is "user"
       local history_messages = {}
-      for i = #opts.history_messages, 1, -1 do
-        local message = opts.history_messages[i]
+      for i = #cleaned_history_messages, 1, -1 do
+        local message = cleaned_history_messages[i]
         local tokens = Utils.tokens.calculate_tokens(message.message.content)
         remaining_tokens = remaining_tokens - tokens
         if remaining_tokens > 0 then
@@ -310,10 +313,12 @@ function M.generate_prompts(opts)
       end
 
       if #history_messages == 0 then
-        history_messages = vim.list_slice(opts.history_messages, #opts.history_messages - 1, #opts.history_messages)
+        history_messages =
+          vim.list_slice(cleaned_history_messages, #cleaned_history_messages - 1, #cleaned_history_messages)
       end
 
-      dropped_history_messages = vim.list_slice(opts.history_messages, 1, #opts.history_messages - #history_messages)
+      dropped_history_messages =
+        vim.list_slice(cleaned_history_messages, 1, #cleaned_history_messages - #history_messages)
 
       -- prepend the history messages to the messages table
       vim.iter(history_messages):each(function(msg) table.insert(final_history_messages, msg) end)
