@@ -2311,22 +2311,23 @@ function Sidebar:create_input_container()
     ---@param state AvanteLLMToolUseState
     local function on_tool_log(tool_id, tool_name, log, state)
       if state == "generating" then on_state_change("tool calling") end
-      local tool_message = vim.iter(self.chat_history.messages):find(function(message)
-        if message.message.role ~= "assistant" then return false end
+      local tool_use_message = nil
+      for idx = #self.chat_history.messages, 1, -1 do
+        local message = self.chat_history.messages[idx]
         local content = message.message.content
-        if type(content) ~= "table" then return false end
-        if content[1].type ~= "tool_use" then return false end
-        if content[1].id ~= tool_id then return false end
-        return true
-      end)
-      if not tool_message then
-        Utils.debug("tool_message not found", tool_id, tool_name)
+        if type(content) == "table" and content[1].type == "tool_use" and content[1].id == tool_id then
+          tool_use_message = message
+          break
+        end
+      end
+      if not tool_use_message then
+        Utils.debug("tool_use message not found", tool_id, tool_name)
         return
       end
-      local tool_use_logs = tool_message.tool_use_logs or {}
+      local tool_use_logs = tool_use_message.tool_use_logs or {}
       local content = string.format("[%s]: %s", tool_name, log)
       table.insert(tool_use_logs, content)
-      tool_message.tool_use_logs = tool_use_logs
+      tool_use_message.tool_use_logs = tool_use_logs
       save_history()
       self:update_content("")
     end

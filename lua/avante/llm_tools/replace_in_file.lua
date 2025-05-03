@@ -38,6 +38,7 @@ One or more SEARCH/REPLACE blocks following this exact format:
   \`\`\`
   Critical rules:
   1. SEARCH content must match the associated file section to find EXACTLY:
+     * Do not refer to the `diff` argument of the previous `replace_in_file` function call for SEARCH content matching, as it may have been modified. Always match from the latest file content in <selected_files> or from the `view` function call result.
      * Match character-for-character including whitespace, indentation, line endings
      * Include all comments, docstrings, etc.
   2. SEARCH/REPLACE blocks will ONLY replace the first match occurrence.
