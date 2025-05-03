@@ -1414,6 +1414,66 @@ function M.uuid()
 end
 
 ---@param message avante.HistoryMessage
+---@return boolean
+function M.is_tool_use_message(message)
+  local content = message.message.content
+  if type(content) == "string" then return false end
+  if vim.islist(content) then
+    for _, item in ipairs(content) do
+      if item.type == "tool_use" then return true end
+    end
+  end
+  return false
+end
+
+---@param message avante.HistoryMessage
+---@return boolean
+function M.is_tool_result_message(message)
+  local content = message.message.content
+  if type(content) == "string" then return false end
+  if vim.islist(content) then
+    for _, item in ipairs(content) do
+      if item.type == "tool_result" then return true end
+    end
+  end
+  return false
+end
+
+---@param message avante.HistoryMessage
+---@param messages avante.HistoryMessage[]
+---@return avante.HistoryMessage | nil
+function M.get_tool_use_message(message, messages)
+  local content = message.message.content
+  if type(content) == "string" then return nil end
+  if vim.islist(content) then
+    local tool_id = nil
+    for _, item in ipairs(content) do
+      if item.type == "tool_result" then
+        tool_id = item.tool_use_id
+        break
+      end
+    end
+    if not tool_id then return nil end
+    local idx = nil
+    for idx_, message_ in ipairs(messages) do
+      if message_.uuid == message.uuid then
+        idx = idx_
+        break
+      end
+    end
+    if not idx then return nil end
+    for idx_ = idx - 1, 1, -1 do
+      local message_ = messages[idx_]
+      local content_ = message_.message.content
+      if type(content_) == "table" and content_[1].type == "tool_use" and content_[1].id == tool_id then
+        return message_
+      end
+    end
+  end
+  return nil
+end
+
+---@param message avante.HistoryMessage
 ---@param messages avante.HistoryMessage[]
 ---@return avante.HistoryMessage | nil
 function M.get_tool_result_message(message, messages)
@@ -1428,7 +1488,15 @@ function M.get_tool_result_message(message, messages)
       end
     end
     if not tool_id then return nil end
-    for _, message_ in ipairs(messages) do
+    local idx = nil
+    for idx_, message_ in ipairs(messages) do
+      if message_.uuid == message.uuid then
+        idx = idx_
+        break
+      end
+    end
+    if not idx then return nil end
+    for _, message_ in ipairs(vim.list_slice(messages, idx + 1, #messages)) do
       local content_ = message_.message.content
       if type(content_) == "table" and content_[1].type == "tool_result" and content_[1].tool_use_id == tool_id then
         return message_
@@ -1469,36 +1537,48 @@ function M.message_content_item_to_lines(item, message, messages)
       local lines = {}
       local state = "generating"
       local hl = "AvanteStateSpinnerToolCalling"
-      if message.state == "generated" then
-        local tool_result_message = M.get_tool_result_message(message, messages)
-        if tool_result_message then
-          local tool_result = tool_result_message.message.content[1]
-          if tool_result.is_error then
-            state = "failed"
-            hl = "AvanteStateSpinnerFailed"
-          else
-            state = "succeeded"
-            hl = "AvanteStateSpinnerSucceeded"
-          end
+      local tool_result_message = M.get_tool_result_message(message, messages)
+      if tool_result_message then
+        local tool_result = tool_result_message.message.content[1]
+        if tool_result.is_error then
+          state = "failed"
+          hl = "AvanteStateSpinnerFailed"
+        else
+          state = "succeeded"
+          hl = "AvanteStateSpinnerSucceeded"
         end
       end
       table.insert(
         lines,
         Line:new({ { "╭─" }, { " " }, { string.format(" %s ", item.name), hl }, { string.format(" %s", state) } })
       )
-      for idx, log in ipairs(message.tool_use_logs or {}) do
-        local log_ = M.trim(log, { prefix = string.format("[%s]: ", item.name) })
-        local lines_ = vim.split(log_, "\n")
-        if idx ~= #(message.tool_use_logs or {}) then
-          for _, line_ in ipairs(lines_) do
-            table.insert(lines, Line:new({ { "│" }, { string.format("   %s", line_) } }))
-          end
-        else
-          for idx_, line_ in ipairs(lines_) do
-            if idx_ ~= #lines_ then
+      if message.tool_use_logs then
+        for idx, log in ipairs(message.tool_use_logs) do
+          local log_ = M.trim(log, { prefix = string.format("[%s]: ", item.name) })
+          local lines_ = vim.split(log_, "\n")
+          if idx ~= #(message.tool_use_logs or {}) then
+            for _, line_ in ipairs(lines_) do
               table.insert(lines, Line:new({ { "│" }, { string.format("   %s", line_) } }))
+            end
+          else
+            for idx_, line_ in ipairs(lines_) do
+              if idx_ ~= #lines_ then
+                table.insert(lines, Line:new({ { "│" }, { string.format("   %s", line_) } }))
+              else
+                table.insert(lines, Line:new({ { "╰─" }, { string.format("  %s", line_) } }))
+              end
+            end
+          end
+        end
+      elseif tool_result_message then
+        local tool_result = tool_result_message.message.content[1]
+        if tool_result.content then
+          local result_lines = vim.split(tool_result.content, "\n")
+          for idx, line in ipairs(result_lines) do
+            if idx ~= #result_lines then
+              table.insert(lines, Line:new({ { "│" }, { string.format("   %s", line) } }))
             else
-              table.insert(lines, Line:new({ { "╰─" }, { string.format("  %s", line_) } }))
+              table.insert(lines, Line:new({ { "╰─" }, { string.format("  %s", line) } }))
             end
           end
         end
