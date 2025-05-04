@@ -55,7 +55,7 @@ function E.setup(opts)
     return
   end
 
-  if vim.env[var] ~= nil then
+  if type(var) ~= "table" and vim.env[var] ~= nil then
     vim.g.avante_login = true
     return
   end
@@ -207,19 +207,13 @@ function M.setup()
 
   ---@type AvanteProviderFunctor | AvanteBedrockProviderFunctor
   local provider = M[Config.provider]
-  local auto_suggestions_provider = M[Config.auto_suggestions_provider]
 
   E.setup({ provider = provider })
 
-  if auto_suggestions_provider and auto_suggestions_provider ~= provider then
-    E.setup({ provider = auto_suggestions_provider })
-  end
-
-  if Config.behaviour.enable_cursor_planning_mode then
-    local cursor_applying_provider_name = Config.cursor_applying_provider or Config.provider
-    local cursor_applying_provider = M[cursor_applying_provider_name]
-    if cursor_applying_provider and cursor_applying_provider ~= provider then
-      E.setup({ provider = cursor_applying_provider })
+  if Config.auto_suggestions_provider then
+    local auto_suggestions_provider = M[Config.auto_suggestions_provider]
+    if auto_suggestions_provider and auto_suggestions_provider ~= provider then
+      E.setup({ provider = auto_suggestions_provider })
     end
   end
 
@@ -275,6 +269,12 @@ function M.get_config(provider_name)
   provider_name = provider_name or Config.provider
   local cur = Config.get_provider_config(provider_name)
   return type(cur) == "function" and cur() or cur
+end
+
+function M.get_memory_summary_provider()
+  local provider_name = Config.memory_summary_provider
+  if provider_name == nil then provider_name = Config.provider end
+  return M[provider_name]
 end
 
 return M

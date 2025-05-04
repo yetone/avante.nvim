@@ -80,7 +80,7 @@ function M.show(selector)
 
             selector.on_select(selected_item_ids)
 
-            actions.close(prompt_bufnr)
+            pcall(actions.close, prompt_bufnr)
           end)
           return true
         end,

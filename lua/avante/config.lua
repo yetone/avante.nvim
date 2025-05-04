@@ -19,12 +19,14 @@ local M = {}
 ---@class avante.Config
 M._defaults = {
   debug = false,
+  ---@alias avante.Mode "agentic" | "legacy"
+  mode = "agentic",
   ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | string
   provider = "claude",
   -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
   -- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
   -- Of course, you can reduce the request frequency by increasing `suggestion.debounce`.
-  auto_suggestions_provider = "claude",
+  auto_suggestions_provider = nil,
   cursor_applying_provider = nil,
   memory_summary_provider = nil,
   ---@alias Tokenizer "tiktoken" | "hf"
@@ -380,8 +382,6 @@ M._defaults = {
     support_paste_from_clipboard = false,
     minimize_diff = true,
     enable_token_counting = true,
-    enable_cursor_planning_mode = false,
-    enable_claude_text_editor_tool_mode = false,
     use_cwd_as_project_root = false,
     auto_focus_on_diff_view = false,
   },

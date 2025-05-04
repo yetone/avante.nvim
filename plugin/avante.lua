@@ -132,17 +132,13 @@ cmd(
 cmd("Clear", function(opts)
   local arg = vim.trim(opts.args or "")
   arg = arg == "" and "history" or arg
-  if arg == "history" or arg == "memory" then
+  if arg == "history" then
     local sidebar = require("avante").get()
     if not sidebar then
       Utils.error("No sidebar found")
       return
     end
-    if arg == "history" then
-      sidebar:clear_history()
-    else
-      sidebar:reset_memory()
-    end
+    sidebar:clear_history()
   elseif arg == "cache" then
     local P = require("avante.path")
     local history_path = P.history_path:absolute()

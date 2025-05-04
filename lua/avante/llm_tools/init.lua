@@ -598,6 +598,7 @@ end
 
 ---@type AvanteLLMTool[]
 M._tools = {
+  require("avante.llm_tools.replace_in_file"),
   require("avante.llm_tools.dispatch_agent"),
   require("avante.llm_tools.glob"),
   {
@@ -629,7 +630,7 @@ M._tools = {
     },
   },
   {
-    name = "python",
+    name = "run_python",
     description = "Run python code in current project scope. Can't use it to read files or modify files.",
     param = {
       type = "table",
@@ -1096,6 +1097,9 @@ M._tools = {
   },
 }
 
+--- compatibility alias for old calls & tests
+M.run_python = M.python
+
 ---@param tools AvanteLLMTool[]
 ---@param tool_use AvanteLLMToolUse
 ---@param on_log? fun(tool_id: string, tool_name: string, log: string, state: AvanteLLMToolUseState): nil
@@ -1104,7 +1108,7 @@ M._tools = {
 ---@return string | nil result
 ---@return string | nil error
 function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
-  Utils.debug("use tool", tool_use.name, tool_use.input_json)
+  -- Utils.debug("use tool", tool_use.name, tool_use.input_json)
 
   -- Check if execution is already cancelled
   if Helpers.is_cancelled then
@@ -1125,8 +1129,7 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
     if tool == nil then return nil, "This tool is not provided: " .. tool_use.name end
     func = tool.func or M[tool.name]
   end
-  local ok, input_json = pcall(vim.json.decode, tool_use.input_json)
-  if not ok then return nil, "Failed to decode tool input json: " .. vim.inspect(input_json) end
+  local input_json = tool_use.input
   if not func then return nil, "Tool not found: " .. tool_use.name end
   if on_log then on_log(tool_use.id, tool_use.name, "running tool", "running") end
 
@@ -1145,6 +1148,7 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
               cancel_timer:stop()
               cancel_timer:close()
             end
+            Helpers.is_cancelled = false
             on_complete(nil, Helpers.CANCEL_TOKEN)
           end
         end)
@@ -1188,6 +1192,7 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
   end, function(result, err)
     -- Check for cancellation before completing
     if Helpers.is_cancelled then
+      Helpers.is_cancelled = false
       if on_complete then on_complete(nil, Helpers.CANCEL_TOKEN) end
       return
     end

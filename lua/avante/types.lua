@@ -75,15 +75,32 @@ vim.g.avante_login = vim.g.avante_login
 ---@field on_start AvanteLLMStartCallback
 ---@field on_chunk AvanteLLMChunkCallback
 ---@field on_stop AvanteLLMStopCallback
----@field on_partial_tool_use? fun(tool_use: AvantePartialLLMToolUse): nil
+---@field on_messages_add? fun(messages: avante.HistoryMessage[]): nil
+---@field on_state_change? fun(state: avante.GenerateState): nil
 ---
 ---@alias AvanteLLMMessageContentItem string | { type: "text", text: string } | { type: "image", source: { type: "base64", media_type: string, data: string } } | { type: "tool_use", name: string, id: string, input: any } | { type: "tool_result", tool_use_id: string, content: string, is_error?: boolean } | { type: "thinking", thinking: string, signature: string } | { type: "redacted_thinking", data: string }
----
+
 ---@alias AvanteLLMMessageContent AvanteLLMMessageContentItem[] | string
----
+
 ---@class AvanteLLMMessage
 ---@field role "user" | "assistant"
 ---@field content AvanteLLMMessageContent
+
+---@class avante.HistoryMessage
+---@field message AvanteLLMMessage
+---@field timestamp string
+---@field state avante.HistoryMessageState
+---@field uuid string | nil
+---@field displayed_content string | nil
+---@field visible boolean | nil
+---@field is_context boolean | nil
+---@field is_user_submission boolean | nil
+---@field provider string | nil
+---@field model string | nil
+---@field selected_code AvanteSelectedCode | nil
+---@field selected_filepaths string[] | nil
+---@field tool_use_logs string[] | nil
+---@field just_for_display boolean | nil
 ---
 ---@class AvanteLLMToolResult
 ---@field tool_name string
@@ -96,8 +113,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field messages AvanteLLMMessage[]
 ---@field image_paths? string[]
 ---@field tools? AvanteLLMTool[]
----@field tool_histories? AvanteLLMToolHistory[]
----@field dropped_history_messages? AvanteLLMMessage[]
+---@field dropped_history_messages? avante.HistoryMessage[]
 ---
 ---@class AvanteGeminiMessage
 ---@field role "user"
@@ -236,19 +252,18 @@ vim.g.avante_login = vim.g.avante_login
 ---@class AvanteLLMRedactedThinkingBlock
 ---@field data string
 ---
+---@alias avante.HistoryMessageState "generating" | "generated"
+---
 ---@class AvantePartialLLMToolUse
 ---@field name string
 ---@field id string
 ---@field partial_json table
----@field state "generating" | "generated"
+---@field state avante.HistoryMessageState
 ---
 ---@class AvanteLLMToolUse
 ---@field name string
 ---@field id string
----@field input_json string
----@field response_contents? string[]
----@field thinking_blocks? AvanteLLMThinkingBlock[]
----@field redacted_thinking_blocks? AvanteLLMRedactedThinkingBlock[]
+---@field input any
 ---
 ---@class AvanteLLMStartCallbackOptions
 ---@field usage? AvanteLLMUsage
@@ -257,10 +272,8 @@ vim.g.avante_login = vim.g.avante_login
 ---@field reason "complete" | "tool_use" | "error" | "rate_limit" | "cancelled"
 ---@field error? string | table
 ---@field usage? AvanteLLMUsage
----@field tool_use_list? AvanteLLMToolUse[]
 ---@field retry_after? integer
 ---@field headers? table<string, string>
----@field tool_histories? AvanteLLMToolHistory[]
 ---
 ---@alias AvanteStreamParser fun(self: AvanteProviderFunctor, ctx: any, line: string, handler_opts: AvanteHandlerOptions): nil
 ---@alias AvanteLLMStartCallback fun(opts: AvanteLLMStartCallbackOptions): nil
@@ -303,7 +316,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field parse_response AvanteResponseParser
 ---@field build_bedrock_payload AvanteBedrockPayloadBuilder
 ---
----@alias AvanteLlmMode "planning" | "editing" | "suggesting" | "cursor-planning" | "cursor-applying" | "claude-text-editor-tool"
+---@alias AvanteLlmMode avante.Mode | "editing" | "suggesting"
 ---
 ---@class AvanteSelectedCode
 ---@field path string
@@ -324,7 +337,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field selected_files AvanteSelectedFile[] | nil
 ---@field selected_filepaths string[] | nil
 ---@field diagnostics string | nil
----@field history_messages AvanteLLMMessage[] | nil
+---@field history_messages avante.HistoryMessage[] | nil
 ---@field memory string | nil
 ---
 ---@class AvanteGeneratePromptsOptions: AvanteTemplateOptions
@@ -332,27 +345,30 @@ vim.g.avante_login = vim.g.avante_login
 ---@field mode? AvanteLlmMode
 ---@field provider AvanteProviderFunctor | AvanteBedrockProviderFunctor | nil
 ---@field tools? AvanteLLMTool[]
----@field tool_histories? AvanteLLMToolHistory[]
 ---@field original_code? string
 ---@field update_snippets? string[]
 ---@field prompt_opts? AvantePromptOptions
 ---@field session_ctx? table
+---@field disable_compact_history_messages? boolean
 ---
 ---@class AvanteLLMToolHistory
 ---@field tool_result? AvanteLLMToolResult
 ---@field tool_use? AvanteLLMToolUse
 ---
----@alias AvanteLLMMemorySummarizeCallback fun(dropped_history_messages: AvanteLLMMessage[]): nil
+---@alias AvanteLLMMemorySummarizeCallback fun(dropped_history_messages: avante.HistoryMessage[]): nil
 ---
 ---@alias AvanteLLMToolUseState "generating" | "generated" | "running" | "succeeded" | "failed"
+---@alias avante.GenerateState "generating" | "tool calling" | "failed" | "succeeded" | "cancelled" | "searching" | "thinking"
 ---
 ---@class AvanteLLMStreamOptions: AvanteGeneratePromptsOptions
 ---@field on_start AvanteLLMStartCallback
----@field on_chunk AvanteLLMChunkCallback
+---@field on_chunk? AvanteLLMChunkCallback
 ---@field on_stop AvanteLLMStopCallback
 ---@field on_memory_summarize? AvanteLLMMemorySummarizeCallback
 ---@field on_tool_log? fun(tool_id: string, tool_name: string, log: string, state: AvanteLLMToolUseState): nil
----@field on_partial_tool_use? fun(tool_use: AvantePartialLLMToolUse): nil
+---@field get_history_messages? fun(): avante.HistoryMessage[]
+---@field on_messages_add? fun(messages: avante.HistoryMessage[]): nil
+---@field on_state_change? fun(state: avante.GenerateState): nil
 ---
 ---@alias AvanteLLMToolFunc<T> fun(
 ---  input: T,
@@ -400,15 +416,14 @@ vim.g.avante_login = vim.g.avante_login
 ---@field original_response string
 ---@field selected_file {filepath: string}?
 ---@field selected_code AvanteSelectedCode | nil
----@field reset_memory boolean?
 ---@field selected_filepaths string[] | nil
 ---@field visible boolean?
----@field tool_histories? AvanteLLMToolHistory[]
 ---
 ---@class avante.ChatHistory
 ---@field title string
 ---@field timestamp string
----@field entries avante.ChatHistoryEntry[]
+---@field messages avante.HistoryMessage[] | nil
+---@field entries avante.ChatHistoryEntry[] | nil
 ---@field memory avante.ChatMemory | nil
 ---@field filename string
 ---@field system_prompt string | nil
@@ -416,6 +431,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@class avante.ChatMemory
 ---@field content string
 ---@field last_summarized_timestamp string
+---@field last_message_uuid string | nil
 ---
 ---@class avante.CurlOpts
 ---@field provider AvanteProviderFunctor
@@ -427,7 +443,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field content string
 ---@field uri string
 ---
----@alias AvanteSlashCommandBuiltInName "clear" | "help" | "lines" | "reset" | "commit" | "new"
+---@alias AvanteSlashCommandBuiltInName "clear" | "help" | "lines" | "commit" | "new"
 ---@alias AvanteSlashCommandCallback fun(self: avante.Sidebar, args: string, cb?: fun(args: string): nil): nil
 ---@class AvanteSlashCommand
 ---@field name AvanteSlashCommandBuiltInName | string
