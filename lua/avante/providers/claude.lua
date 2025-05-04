@@ -377,9 +377,9 @@ function M:parse_curl_args(prompt_opts)
         type = "text_editor_20250124",
         name = "str_replace_editor",
       })
-    elseif provider_conf.model:match("claude%-3%-5%-instruct") then
+    elseif provider_conf.model:match("claude%-3%-5%-sonnet") then
       table.insert(tools, {
-        type = "text_editor_20241022",
+        type = "text_editor_20250124",
         name = "str_replace_editor",
       })
     end
