@@ -150,8 +150,53 @@ function M.generate_prompts(opts)
   local tool_id_to_tool_name = {}
   local tool_id_to_path = {}
   local viewed_files = {}
+  local history_messages = {}
   if opts.history_messages then
     for _, message in ipairs(opts.history_messages) do
+      table.insert(history_messages, message)
+      if Utils.is_tool_result_message(message) then
+        local tool_use_message = Utils.get_tool_use_message(message, opts.history_messages)
+        --- For models like gpt-4o, the input parameter of replace_in_file is treated as the latest file content, so here we need to insert a fake view tool call to ensure it uses the latest file content
+        if tool_use_message and tool_use_message.message.content[1].name == "replace_in_file" then
+          local path = tool_use_message.message.content[1].input.path
+          if path then
+            local lines = Utils.read_file_from_buf_or_disk(path)
+            local tool_use_id = Utils.uuid()
+            history_messages = vim.list_extend(history_messages, {
+              HistoryMessage:new({
+                role = "assistant",
+                content = string.format("Viewing file %s to get the latest content", path),
+              }),
+              HistoryMessage:new({
+                role = "assistant",
+                content = {
+                  {
+                    type = "tool_use",
+                    id = tool_use_id,
+                    name = "view",
+                    input = {
+                      path = path,
+                    },
+                  },
+                },
+              }),
+              HistoryMessage:new({
+                role = "user",
+                content = {
+                  {
+                    type = "tool_result",
+                    tool_use_id = tool_use_id,
+                    content = table.concat(lines or {}, "\n"),
+                    is_error = false,
+                  },
+                },
+              }),
+            })
+          end
+        end
+      end
+    end
+    for _, message in ipairs(history_messages) do
       local content = message.message.content
       if type(content) ~= "table" then goto continue end
       for _, item in ipairs(content) do
@@ -170,7 +215,7 @@ function M.generate_prompts(opts)
       end
       ::continue::
     end
-    for _, message in ipairs(opts.history_messages) do
+    for _, message in ipairs(history_messages) do
       local content = message.message.content
       if type(content) == "table" then
         for _, item in ipairs(content) do
@@ -289,7 +334,7 @@ function M.generate_prompts(opts)
     dropped_history_messages = vim.list_extend(dropped_history_messages, opts.prompt_opts.dropped_history_messages)
   end
 
-  local cleaned_history_messages = opts.history_messages
+  local cleaned_history_messages = history_messages
 
   local final_history_messages = {}
   if cleaned_history_messages then
@@ -300,33 +345,30 @@ function M.generate_prompts(opts)
         remaining_tokens = math.min(Config.history.max_tokens, remaining_tokens)
       end
       -- Traverse the history in reverse, keeping only the latest history until the remaining tokens are exhausted and the first message role is "user"
-      local history_messages = {}
+      local retained_history_messages = {}
       for i = #cleaned_history_messages, 1, -1 do
         local message = cleaned_history_messages[i]
         local tokens = Utils.tokens.calculate_tokens(message.message.content)
         remaining_tokens = remaining_tokens - tokens
         if remaining_tokens > 0 then
-          table.insert(history_messages, 1, message)
+          table.insert(retained_history_messages, 1, message)
         else
           break
         end
       end
 
-      if #history_messages == 0 then
-        history_messages =
+      if #retained_history_messages == 0 then
+        retained_history_messages =
           vim.list_slice(cleaned_history_messages, #cleaned_history_messages - 1, #cleaned_history_messages)
       end
 
       dropped_history_messages =
-        vim.list_slice(cleaned_history_messages, 1, #cleaned_history_messages - #history_messages)
+        vim.list_slice(cleaned_history_messages, 1, #cleaned_history_messages - #retained_history_messages)
 
       -- prepend the history messages to the messages table
-      vim.iter(history_messages):each(function(msg) table.insert(final_history_messages, msg) end)
+      vim.iter(retained_history_messages):each(function(msg) table.insert(final_history_messages, msg) end)
     end
   end
-
-  -- Utils.debug("opts.history_messages", opts.history_messages)
-  -- Utils.debug("final_history_messages", final_history_messages)
 
   ---@type AvanteLLMMessage[]
   local messages = vim.deepcopy(context_messages)
