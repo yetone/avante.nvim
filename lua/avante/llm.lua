@@ -166,6 +166,8 @@ function M.generate_prompts(opts)
               HistoryMessage:new({
                 role = "assistant",
                 content = string.format("Viewing file %s to get the latest content", path),
+              }, {
+                is_dummy = true,
               }),
               HistoryMessage:new({
                 role = "assistant",
@@ -179,6 +181,8 @@ function M.generate_prompts(opts)
                     },
                   },
                 },
+              }, {
+                is_dummy = true,
               }),
               HistoryMessage:new({
                 role = "user",
@@ -190,6 +194,8 @@ function M.generate_prompts(opts)
                     is_error = false,
                   },
                 },
+              }, {
+                is_dummy = true,
               }),
             })
           end
@@ -364,6 +370,11 @@ function M.generate_prompts(opts)
 
       dropped_history_messages =
         vim.list_slice(cleaned_history_messages, 1, #cleaned_history_messages - #retained_history_messages)
+
+      dropped_history_messages = vim
+        .iter(dropped_history_messages)
+        :filter(function(msg) return msg.is_dummy ~= true end)
+        :totable()
 
       -- prepend the history messages to the messages table
       vim.iter(retained_history_messages):each(function(msg) table.insert(final_history_messages, msg) end)

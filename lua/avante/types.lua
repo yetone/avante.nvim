@@ -101,6 +101,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field selected_filepaths string[] | nil
 ---@field tool_use_logs string[] | nil
 ---@field just_for_display boolean | nil
+---@field is_dummy boolean | nil
 ---
 ---@class AvanteLLMToolResult
 ---@field tool_name string
