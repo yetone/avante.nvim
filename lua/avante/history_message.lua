@@ -5,7 +5,7 @@ local M = {}
 M.__index = M
 
 ---@param message AvanteLLMMessage
----@param opts? {is_user_submission?: boolean, visible?: boolean, displayed_content?: string, state?: avante.HistoryMessageState, uuid?: string, selected_filepaths?: string[], selected_code?: AvanteSelectedCode, just_for_display?: boolean}
+---@param opts? {is_user_submission?: boolean, visible?: boolean, displayed_content?: string, state?: avante.HistoryMessageState, uuid?: string, selected_filepaths?: string[], selected_code?: AvanteSelectedCode, just_for_display?: boolean, is_dummy?: boolean}
 ---@return avante.HistoryMessage
 function M:new(message, opts)
   opts = opts or {}
@@ -22,6 +22,7 @@ function M:new(message, opts)
   if opts.selected_filepaths ~= nil then obj.selected_filepaths = opts.selected_filepaths end
   if opts.selected_code ~= nil then obj.selected_code = opts.selected_code end
   if opts.just_for_display ~= nil then obj.just_for_display = opts.just_for_display end
+  if opts.is_dummy ~= nil then obj.is_dummy = opts.is_dummy end
   return obj
 end
 
