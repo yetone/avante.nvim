@@ -114,7 +114,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field messages AvanteLLMMessage[]
 ---@field image_paths? string[]
 ---@field tools? AvanteLLMTool[]
----@field dropped_history_messages? avante.HistoryMessage[]
+---@field pending_compaction_history_messages? AvanteLLMMessage[]
 ---
 ---@class AvanteGeminiMessage
 ---@field role "user"
@@ -356,7 +356,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field tool_result? AvanteLLMToolResult
 ---@field tool_use? AvanteLLMToolUse
 ---
----@alias AvanteLLMMemorySummarizeCallback fun(dropped_history_messages: avante.HistoryMessage[]): nil
+---@alias AvanteLLMMemorySummarizeCallback fun(pending_compaction_history_messages: avante.HistoryMessage[]): nil
 ---
 ---@alias AvanteLLMToolUseState "generating" | "generated" | "running" | "succeeded" | "failed"
 ---@alias avante.GenerateState "generating" | "tool calling" | "failed" | "succeeded" | "cancelled" | "searching" | "thinking"

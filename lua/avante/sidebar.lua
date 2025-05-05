@@ -1892,10 +1892,19 @@ function Sidebar:add_history_messages(messages)
   end
   self.chat_history.messages = history_messages
   Path.history.save(self.code.bufnr, self.chat_history)
-  if self.chat_history.title == "untitled" and #messages > 0 then
+  if
+    self.chat_history.title == "untitled"
+    and #messages > 0
+    and messages[1].just_for_display ~= true
+    and messages[1].state == "generated"
+  then
+    self.chat_history.title = "generating..."
     Llm.summarize_chat_thread_title(messages[1].message.content, function(title)
-      self:reload_chat_history()
-      if title then self.chat_history.title = title end
+      if title then
+        self.chat_history.title = title
+      else
+        self.chat_history.title = "untitled"
+      end
       Path.history.save(self.code.bufnr, self.chat_history)
     end)
   end
@@ -2371,14 +2380,7 @@ function Sidebar:create_input_container()
         if Config.behaviour.auto_apply_diff_after_generation then self:apply(false) end
       end, 0)
 
-      if self.chat_history.title == "untitled" then
-        Llm.summarize_chat_thread_title(request, function(title)
-          if title then self.chat_history.title = title end
-          Path.history.save(self.code.bufnr, self.chat_history)
-        end)
-      else
-        Path.history.save(self.code.bufnr, self.chat_history)
-      end
+      Path.history.save(self.code.bufnr, self.chat_history)
     end
 
     if request and request ~= "" then
@@ -2407,18 +2409,22 @@ function Sidebar:create_input_container()
         session_ctx = {},
       })
 
-      ---@param dropped_history_messages avante.HistoryMessage[]
-      local function on_memory_summarize(dropped_history_messages)
+      ---@param pending_compaction_history_messages avante.HistoryMessage[]
+      local function on_memory_summarize(pending_compaction_history_messages)
         local history_memory = self.chat_history.memory
-        Llm.summarize_memory(history_memory and history_memory.content, dropped_history_messages, function(memory)
-          if memory then
-            self.chat_history.memory = memory
-            Path.history.save(self.code.bufnr, self.chat_history)
-            stream_options.memory = memory.content
+        Llm.summarize_memory(
+          history_memory and history_memory.content,
+          pending_compaction_history_messages,
+          function(memory)
+            if memory then
+              self.chat_history.memory = memory
+              Path.history.save(self.code.bufnr, self.chat_history)
+              stream_options.memory = memory.content
+            end
+            stream_options.history_messages = self:get_history_messages_for_api()
+            Llm.stream(stream_options)
           end
-          stream_options.history_messages = self:get_history_messages_for_api()
-          Llm.stream(stream_options)
-        end)
+        )
       end
 
       stream_options.on_memory_summarize = on_memory_summarize
