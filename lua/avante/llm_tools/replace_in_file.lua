@@ -302,6 +302,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
   end
 
   local show_keybinding_hint_extmark_id = nil
+  local augroup = vim.api.nvim_create_augroup("avante_replace_in_file", { clear = true })
   local function register_cursor_move_events()
     local function show_keybinding_hint(lnum)
       if show_keybinding_hint_extmark_id then
@@ -326,6 +327,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
 
     vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI", "WinLeave" }, {
       buffer = bufnr,
+      group = augroup,
       callback = function(event)
         local diff_block = get_current_diff_block()
         if (event.event == "CursorMoved" or event.event == "CursorMovedI") and diff_block then
@@ -339,7 +341,6 @@ function M.func(opts, on_log, on_complete, session_ctx)
 
   local confirm
   local has_rejected = false
-  local augroup = vim.api.nvim_create_augroup("avante_replace_in_file", { clear = true })
 
   local function register_buf_write_events()
     vim.api.nvim_create_autocmd({ "BufWritePost" }, {
