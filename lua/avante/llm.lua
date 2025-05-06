@@ -379,7 +379,15 @@ function M.generate_prompts(opts)
         :totable()
 
       -- prepend the history messages to the messages table
-      vim.iter(retained_history_messages):each(function(msg) table.insert(final_history_messages, msg) end)
+      vim.iter(retained_history_messages):each(function(msg)
+        if Utils.is_tool_use_message(msg) and not Utils.get_tool_result_message(msg, retained_history_messages) then
+          return
+        end
+        if Utils.is_tool_result_message(msg) and not Utils.get_tool_use_message(msg, retained_history_messages) then
+          return
+        end
+        table.insert(final_history_messages, msg)
+      end)
     end
   end
 
