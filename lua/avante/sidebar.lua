@@ -1849,7 +1849,15 @@ function Sidebar:render_state()
   if self.current_state == "succeeded" then hl = "AvanteStateSpinnerSucceeded" end
   if self.current_state == "searching" then hl = "AvanteStateSpinnerSearching" end
   if self.current_state == "thinking" then hl = "AvanteStateSpinnerThinking" end
-  if self.current_state ~= "generating" and self.current_state ~= "tool calling" then spinner_char = "" end
+  if self.current_state == "compacting" then hl = "AvanteStateSpinnerCompacting" end
+  if
+    self.current_state ~= "generating"
+    and self.current_state ~= "tool calling"
+    and self.current_state ~= "thinking"
+    and self.current_state ~= "compacting"
+  then
+    spinner_char = ""
+  end
   local virt_line
   if spinner_char == "" then
     virt_line = " " .. self.current_state .. " "
@@ -1870,6 +1878,27 @@ function Sidebar:render_state()
     hl_mode = "combine",
   })
   self.state_timer = vim.defer_fn(function() self:render_state() end, 160)
+end
+
+function Sidebar:compact_history_messages(args, cb)
+  local history_memory = self.chat_history.memory
+  local messages = Utils.get_history_messages(self.chat_history)
+  self.current_state = "compacting"
+  self:render_state()
+  self:update_content(
+    "compacting history messsages",
+    { focus = false, scroll = true, callback = function() self:focus_input() end }
+  )
+  Llm.summarize_memory(history_memory and history_memory.content, messages, function(memory)
+    if memory then
+      self.chat_history.memory = memory
+      Path.history.save(self.code.bufnr, self.chat_history)
+    end
+    self:update_content("compacted!", { focus = false, scroll = true, callback = function() self:focus_input() end })
+    self.current_state = "compacted"
+    self:clear_state()
+    if cb then cb(args) end
+  end)
 end
 
 function Sidebar:new_chat(args, cb)
@@ -2204,6 +2233,7 @@ function Sidebar:get_generate_prompts_options(request, cb)
     history_messages = history_messages,
     code_lang = filetype,
     selected_code = selected_code,
+    disable_compact_history_messages = true,
     -- instructions = request,
     tools = tools,
   }
