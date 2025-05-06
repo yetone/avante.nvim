@@ -156,49 +156,66 @@ function M.generate_prompts(opts)
       table.insert(history_messages, message)
       if Utils.is_tool_result_message(message) then
         local tool_use_message = Utils.get_tool_use_message(message, opts.history_messages)
-        --- For models like gpt-4o, the input parameter of replace_in_file is treated as the latest file content, so here we need to insert a fake view tool call to ensure it uses the latest file content
-        if tool_use_message and tool_use_message.message.content[1].name == "replace_in_file" then
-          local path = tool_use_message.message.content[1].input.path
-          if path then
-            local lines = Utils.read_file_from_buf_or_disk(path)
-            local tool_use_id = Utils.uuid()
-            history_messages = vim.list_extend(history_messages, {
-              HistoryMessage:new({
-                role = "assistant",
-                content = string.format("Viewing file %s to get the latest content", path),
-              }, {
-                is_dummy = true,
-              }),
-              HistoryMessage:new({
-                role = "assistant",
-                content = {
-                  {
-                    type = "tool_use",
-                    id = tool_use_id,
-                    name = "view",
-                    input = {
-                      path = path,
-                    },
-                  },
-                },
-              }, {
-                is_dummy = true,
-              }),
-              HistoryMessage:new({
-                role = "user",
-                content = {
-                  {
-                    type = "tool_result",
-                    tool_use_id = tool_use_id,
-                    content = table.concat(lines or {}, "\n"),
-                    is_error = false,
-                  },
-                },
-              }, {
-                is_dummy = true,
-              }),
-            })
+        local is_replace_func_call = false
+        local is_str_replace_editor_func_call = false
+        local path = nil
+        if tool_use_message then
+          if tool_use_message.message.content[1].name == "replace_in_file" then
+            is_replace_func_call = true
+            path = tool_use_message.message.content[1].input.path
           end
+          if tool_use_message.message.content[1].name == "str_replace_editor" then
+            if tool_use_message.message.content[1].input.command == "str_replace" then
+              is_replace_func_call = true
+              is_str_replace_editor_func_call = true
+              path = tool_use_message.message.content[1].input.path
+            end
+          end
+        end
+        --- For models like gpt-4o, the input parameter of replace_in_file is treated as the latest file content, so here we need to insert a fake view tool call to ensure it uses the latest file content
+        if is_replace_func_call and path then
+          local lines = Utils.read_file_from_buf_or_disk(path)
+          local tool_use_id = Utils.uuid()
+          local view_tool_name = "view"
+          local view_tool_input = { path = path }
+          if is_str_replace_editor_func_call then
+            view_tool_name = "str_replace_editor"
+            view_tool_input = { command = "view", path = path }
+          end
+          history_messages = vim.list_extend(history_messages, {
+            HistoryMessage:new({
+              role = "assistant",
+              content = string.format("Viewing file %s to get the latest content", path),
+            }, {
+              is_dummy = true,
+            }),
+            HistoryMessage:new({
+              role = "assistant",
+              content = {
+                {
+                  type = "tool_use",
+                  id = tool_use_id,
+                  name = view_tool_name,
+                  input = view_tool_input,
+                },
+              },
+            }, {
+              is_dummy = true,
+            }),
+            HistoryMessage:new({
+              role = "user",
+              content = {
+                {
+                  type = "tool_result",
+                  tool_use_id = tool_use_id,
+                  content = table.concat(lines or {}, "\n"),
+                  is_error = false,
+                },
+              },
+            }, {
+              is_dummy = true,
+            }),
+          })
         end
       end
     end
