@@ -335,7 +335,8 @@ function M:parse_response_without_stream(data, _, opts)
   if json.choices and json.choices[1] then
     local choice = json.choices[1]
     if choice.message and choice.message.content then
-      opts.on_chunk(choice.message.content)
+      if opts.on_chunk then opts.on_chunk(choice.message.content) end
+      self:add_text_message({}, choice.message.content, "generated", opts)
       vim.schedule(function() opts.on_stop({ reason = "complete" }) end)
     end
   end
