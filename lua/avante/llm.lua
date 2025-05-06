@@ -363,7 +363,15 @@ function M.generate_prompts(opts)
   local final_history_messages = {}
   if cleaned_history_messages then
     if opts.disable_compact_history_messages then
-      final_history_messages = vim.list_extend(final_history_messages, cleaned_history_messages)
+      vim.iter(cleaned_history_messages):each(function(msg)
+        if Utils.is_tool_use_message(msg) and not Utils.get_tool_result_message(msg, cleaned_history_messages) then
+          return
+        end
+        if Utils.is_tool_result_message(msg) and not Utils.get_tool_use_message(msg, cleaned_history_messages) then
+          return
+        end
+        table.insert(final_history_messages, msg)
+      end)
     else
       if Config.history.max_tokens > 0 then
         remaining_tokens = math.min(Config.history.max_tokens, remaining_tokens)
@@ -395,7 +403,6 @@ function M.generate_prompts(opts)
         :filter(function(msg) return msg.is_dummy ~= true end)
         :totable()
 
-      -- prepend the history messages to the messages table
       vim.iter(retained_history_messages):each(function(msg)
         if Utils.is_tool_use_message(msg) and not Utils.get_tool_result_message(msg, retained_history_messages) then
           return
