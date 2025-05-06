@@ -89,15 +89,15 @@ function M.func(opts, on_log, on_complete, session_ctx)
   local rough_diff_blocks = {}
 
   for _, line in ipairs(diff_lines) do
-    if line:match("^%s*<<<<<<< SEARCH") then
+    if line:match("^%s*<<<<<<<* SEARCH") then
       is_searching = true
       is_replacing = false
       current_search = {}
-    elseif line:match("^%s*=======") and is_searching then
+    elseif line:match("^%s*=======*") and is_searching then
       is_searching = false
       is_replacing = true
       current_replace = {}
-    elseif line:match("^%s*>>>>>>> REPLACE") and is_replacing then
+    elseif line:match("^%s*>>>>>>>* REPLACE") and is_replacing then
       is_replacing = false
       table.insert(
         rough_diff_blocks,
@@ -110,7 +110,10 @@ function M.func(opts, on_log, on_complete, session_ctx)
     end
   end
 
-  if #rough_diff_blocks == 0 then return false, "No diff blocks found" end
+  if #rough_diff_blocks == 0 then
+    Utils.debug("diff", opts.diff)
+    return false, "No diff blocks found"
+  end
 
   local bufnr, err = Helpers.get_bufnr(abs_path)
   if err then return false, err end
