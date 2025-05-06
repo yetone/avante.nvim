@@ -166,12 +166,16 @@ When you're done, provide a clear and concise summary of what you found.]]):gsub
     end,
   }
 
-  local function on_memory_summarize(dropped_history_messages)
-    Llm.summarize_memory(memory_content, dropped_history_messages or {}, function(memory)
+  local function on_memory_summarize(pending_compaction_history_messages)
+    Llm.summarize_memory(memory_content, pending_compaction_history_messages or {}, function(memory)
       if memory then stream_options.memory = memory.content end
       local new_history_messages = {}
       for _, msg in ipairs(history_messages) do
-        if vim.iter(dropped_history_messages):find(function(dropped_msg) return dropped_msg.uuid == msg.uuid end) then
+        if
+          vim
+            .iter(pending_compaction_history_messages)
+            :find(function(pending_compaction_msg) return pending_compaction_msg.uuid == msg.uuid end)
+        then
           goto continue
         end
         table.insert(new_history_messages, msg)
