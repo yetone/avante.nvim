@@ -694,6 +694,11 @@ local function insert_conflict_contents(bufnr, snippets)
   for _, snippet in ipairs(snippets) do
     local start_line, end_line = unpack(snippet.range)
 
+    local first_line_content = lines[start_line]
+    local old_first_line_indentation = ""
+
+    if first_line_content then old_first_line_indentation = Utils.get_indentation(first_line_content) end
+
     local result = {}
     table.insert(result, "<<<<<<< HEAD")
     for i = start_line, end_line do
@@ -702,6 +707,14 @@ local function insert_conflict_contents(bufnr, snippets)
     table.insert(result, "=======")
 
     local snippet_lines = vim.split(snippet.content, "\n")
+
+    if #snippet_lines > 0 then
+      local new_first_line_indentation = Utils.get_indentation(snippet_lines[1])
+      if #old_first_line_indentation > #new_first_line_indentation then
+        local line_indentation = old_first_line_indentation:sub(#new_first_line_indentation + 1)
+        snippet_lines = vim.iter(snippet_lines):map(function(line) return line_indentation .. line end):totable()
+      end
+    end
 
     vim.list_extend(result, snippet_lines)
 
