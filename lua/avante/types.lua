@@ -359,7 +359,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@alias AvanteLLMMemorySummarizeCallback fun(pending_compaction_history_messages: avante.HistoryMessage[]): nil
 ---
 ---@alias AvanteLLMToolUseState "generating" | "generated" | "running" | "succeeded" | "failed"
----@alias avante.GenerateState "generating" | "tool calling" | "failed" | "succeeded" | "cancelled" | "searching" | "thinking"
+---@alias avante.GenerateState "generating" | "tool calling" | "failed" | "succeeded" | "cancelled" | "searching" | "thinking" | "compacting" | "compacted"
 ---
 ---@class AvanteLLMStreamOptions: AvanteGeneratePromptsOptions
 ---@field on_start AvanteLLMStartCallback
