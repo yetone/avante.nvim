@@ -245,30 +245,37 @@ function M:parse_response(ctx, data_stream, _, opts)
     opts.on_stop({ reason = "complete" })
     return
   end
-  if not data_stream:match('"delta":') then return end
-  ---@type AvanteOpenAIChatResponse
+  if data_stream == "[DONE]" then return end
   local jsn = vim.json.decode(data_stream)
-  if not jsn.choices or not jsn.choices[1] then return end
+  ---@cast jsn AvanteOpenAIChatResponse
+  if not jsn.choices then return end
   local choice = jsn.choices[1]
-  if choice.delta.reasoning_content and choice.delta.reasoning_content ~= vim.NIL then
+  if not choice then return end
+  local delta = choice.delta
+  if not delta then
+    local provider_conf = Providers.parse_config(self)
+    if provider_conf.model:match("o1") then delta = choice.message end
+  end
+  if not delta then return end
+  if delta.reasoning_content and delta.reasoning_content ~= vim.NIL then
     if ctx.returned_think_start_tag == nil or not ctx.returned_think_start_tag then
       ctx.returned_think_start_tag = true
       if opts.on_chunk then opts.on_chunk("<think>\n") end
     end
-    ctx.last_think_content = choice.delta.reasoning_content
-    self:add_thinking_message(ctx, choice.delta.reasoning_content, "generating", opts)
-    if opts.on_chunk then opts.on_chunk(choice.delta.reasoning_content) end
-  elseif choice.delta.reasoning and choice.delta.reasoning ~= vim.NIL then
+    ctx.last_think_content = delta.reasoning_content
+    self:add_thinking_message(ctx, delta.reasoning_content, "generating", opts)
+    if opts.on_chunk then opts.on_chunk(delta.reasoning_content) end
+  elseif delta.reasoning and delta.reasoning ~= vim.NIL then
     if ctx.returned_think_start_tag == nil or not ctx.returned_think_start_tag then
       ctx.returned_think_start_tag = true
       if opts.on_chunk then opts.on_chunk("<think>\n") end
     end
-    ctx.last_think_content = choice.delta.reasoning
-    self:add_thinking_message(ctx, choice.delta.reasoning, "generating", opts)
-    if opts.on_chunk then opts.on_chunk(choice.delta.reasoning) end
-  elseif choice.delta.tool_calls and choice.delta.tool_calls ~= vim.NIL then
+    ctx.last_think_content = delta.reasoning
+    self:add_thinking_message(ctx, delta.reasoning, "generating", opts)
+    if opts.on_chunk then opts.on_chunk(delta.reasoning) end
+  elseif delta.tool_calls and delta.tool_calls ~= vim.NIL then
     local choice_index = choice.index or 0
-    for idx, tool_call in ipairs(choice.delta.tool_calls) do
+    for idx, tool_call in ipairs(delta.tool_calls) do
       --- In Gemini's so-called OpenAI Compatible API, tool_call.index is nil, which is quite absurd! Therefore, a compatibility fix is needed here.
       if tool_call.index == nil then tool_call.index = choice_index + idx - 1 end
       if not ctx.tool_use_list then ctx.tool_use_list = {} end
@@ -290,7 +297,7 @@ function M:parse_response(ctx, data_stream, _, opts)
         self:add_tool_use_message(tool_use, "generating", opts)
       end
     end
-  elseif choice.delta.content then
+  elseif delta.content then
     if
       ctx.returned_think_start_tag ~= nil and (ctx.returned_think_end_tag == nil or not ctx.returned_think_end_tag)
     then
@@ -304,9 +311,9 @@ function M:parse_response(ctx, data_stream, _, opts)
       end
       self:add_thinking_message(ctx, "", "generated", opts)
     end
-    if choice.delta.content ~= vim.NIL then
-      if opts.on_chunk then opts.on_chunk(choice.delta.content) end
-      self:add_text_message(ctx, choice.delta.content, "generating", opts)
+    if delta.content ~= vim.NIL then
+      if opts.on_chunk then opts.on_chunk(delta.content) end
+      self:add_text_message(ctx, delta.content, "generating", opts)
     end
   end
   if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" then

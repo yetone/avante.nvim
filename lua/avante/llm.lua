@@ -335,9 +335,10 @@ function M.generate_prompts(opts)
     remaining_tokens = remaining_tokens - Utils.tokens.calculate_tokens(message.content)
   end
 
-  local dropped_history_messages = {}
-  if opts.prompt_opts and opts.prompt_opts.dropped_history_messages then
-    dropped_history_messages = vim.list_extend(dropped_history_messages, opts.prompt_opts.dropped_history_messages)
+  local pending_compaction_history_messages = {}
+  if opts.prompt_opts and opts.prompt_opts.pending_compaction_history_messages then
+    pending_compaction_history_messages =
+      vim.list_extend(pending_compaction_history_messages, opts.prompt_opts.pending_compaction_history_messages)
   end
 
   local cleaned_history_messages = history_messages
@@ -350,6 +351,7 @@ function M.generate_prompts(opts)
       if Config.history.max_tokens > 0 then
         remaining_tokens = math.min(Config.history.max_tokens, remaining_tokens)
       end
+
       -- Traverse the history in reverse, keeping only the latest history until the remaining tokens are exhausted and the first message role is "user"
       local retained_history_messages = {}
       for i = #cleaned_history_messages, 1, -1 do
@@ -368,11 +370,11 @@ function M.generate_prompts(opts)
           vim.list_slice(cleaned_history_messages, #cleaned_history_messages - 1, #cleaned_history_messages)
       end
 
-      dropped_history_messages =
+      pending_compaction_history_messages =
         vim.list_slice(cleaned_history_messages, 1, #cleaned_history_messages - #retained_history_messages)
 
-      dropped_history_messages = vim
-        .iter(dropped_history_messages)
+      pending_compaction_history_messages = vim
+        .iter(pending_compaction_history_messages)
         :filter(function(msg) return msg.is_dummy ~= true end)
         :totable()
 
@@ -411,7 +413,7 @@ function M.generate_prompts(opts)
     messages = messages,
     image_paths = image_paths,
     tools = tools,
-    dropped_history_messages = dropped_history_messages,
+    pending_compaction_history_messages = pending_compaction_history_messages,
   }
 end
 
@@ -464,13 +466,18 @@ function M.curl(opts)
     end
     local data_match = line:match("^data:%s*(.+)$")
     if data_match then
+      response_body = ""
       provider:parse_response(resp_ctx, data_match, current_event_state, handler_opts)
     else
       response_body = response_body .. line
       local ok, jsn = pcall(vim.json.decode, response_body)
       if ok then
+        if jsn.error then
+          handler_opts.on_stop({ reason = "error", error = jsn.error })
+        else
+          provider:parse_response(resp_ctx, response_body, current_event_state, handler_opts)
+        end
         response_body = ""
-        if jsn.error then handler_opts.on_stop({ reason = "error", error = jsn.error }) end
       end
     end
   end
@@ -485,16 +492,13 @@ function M.curl(opts)
 
   local temp_file = fn.tempname()
   local curl_body_file = temp_file .. "-request-body.json"
-  local resp_body_file = temp_file .. "-response-body.json"
+  local resp_body_file = temp_file .. "-response-body.txt"
+  local headers_file = temp_file .. "-response-headers.txt"
   local json_content = vim.json.encode(spec.body)
   fn.writefile(vim.split(json_content, "\n"), curl_body_file)
 
   Utils.debug("curl request body file:", curl_body_file)
-
   Utils.debug("curl response body file:", resp_body_file)
-
-  local headers_file = temp_file .. "-headers.txt"
-
   Utils.debug("curl headers file:", headers_file)
 
   local function cleanup()
@@ -609,7 +613,6 @@ function M.curl(opts)
               end
             end
           end
-          Utils.debug("result", result)
           local retry_after = 10
           if headers_map["retry-after"] then retry_after = tonumber(headers_map["retry-after"]) or 10 end
           handler_opts.on_stop({ reason = "rate_limit", retry_after = retry_after })
@@ -698,11 +701,11 @@ function M._stream(opts)
   local prompt_opts = M.generate_prompts(opts)
 
   if
-    prompt_opts.dropped_history_messages
-    and #prompt_opts.dropped_history_messages > 0
+    prompt_opts.pending_compaction_history_messages
+    and #prompt_opts.pending_compaction_history_messages > 0
     and opts.on_memory_summarize
   then
-    opts.on_memory_summarize(prompt_opts.dropped_history_messages)
+    opts.on_memory_summarize(prompt_opts.pending_compaction_history_messages)
     return
   end
 
