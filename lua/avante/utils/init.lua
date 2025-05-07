@@ -728,12 +728,16 @@ function M.parse_gitignore(gitignore_path)
   return ignore_patterns, negate_patterns
 end
 
+-- @param file string
+-- @param ignore_patterns string[]
+-- @param negate_patterns string[]
+-- @return boolean
 function M.is_ignored(file, ignore_patterns, negate_patterns)
   for _, pattern in ipairs(negate_patterns) do
     if file:match(pattern) then return false end
   end
   for _, pattern in ipairs(ignore_patterns) do
-    if file:match(pattern) then return true end
+    if file:match(pattern .. "/") or file:match(pattern .. "$") then return true end
   end
   return false
 end
