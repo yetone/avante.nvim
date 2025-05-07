@@ -18,9 +18,7 @@ describe("has_permission_to_access", function()
     stub(Utils, "get_project_root", function() return test_dir end)
   end)
 
-  after_each(function()
-    os.execute("rm -rf " .. test_dir)
-  end)
+  after_each(function() os.execute("rm -rf " .. test_dir) end)
 
   it("Basic ignored and not ignored", function()
     local abs_path
