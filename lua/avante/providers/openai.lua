@@ -257,9 +257,7 @@ function M:parse_response(ctx, data_stream, _, opts)
     if provider_conf.model:match("o1") then delta = choice.message end
   end
   if not delta then return end
-  if delta.reasoning_content and delta.reasoning_content ~= vim.NIL
-    and choice.delta.reasoning_content ~= "" then
-
+  if delta.reasoning_content and delta.reasoning_content ~= vim.NIL and choice.delta.reasoning_content ~= "" then
     if ctx.returned_think_start_tag == nil or not ctx.returned_think_start_tag then
       ctx.returned_think_start_tag = true
       if opts.on_chunk then opts.on_chunk("<think>\n") end
