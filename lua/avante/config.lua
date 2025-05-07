@@ -435,6 +435,7 @@ M._defaults = {
     },
     -- NOTE: The following will be safely set by avante.nvim
     ask = "<leader>aa",
+    new_ask = "<leader>an",
     edit = "<leader>ae",
     refresh = "<leader>ar",
     focus = "<leader>af",
