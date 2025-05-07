@@ -59,6 +59,12 @@ function H.keymaps()
   vim.keymap.set({ "n", "v" }, "<Plug>(AvanteAsk)", function() require("avante.api").ask() end, { noremap = true })
   vim.keymap.set(
     { "n", "v" },
+    "<Plug>(AvanteAskNew)",
+    function() require("avante.api").ask({ new_chat = true }) end,
+    { noremap = true }
+  )
+  vim.keymap.set(
+    { "n", "v" },
     "<Plug>(AvanteChat)",
     function() require("avante.api").ask({ ask = false }) end,
     { noremap = true }
@@ -87,6 +93,12 @@ function H.keymaps()
       Config.mappings.ask,
       function() require("avante.api").ask() end,
       { desc = "avante: ask" }
+    )
+    Utils.safe_keymap_set(
+      { "n", "v" },
+      Config.mappings.new_ask,
+      function() require("avante.api").ask({ new_chat = true }) end,
+      { desc = "avante: create new ask" }
     )
     Utils.safe_keymap_set(
       "v",
