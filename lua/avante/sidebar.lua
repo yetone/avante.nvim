@@ -221,6 +221,7 @@ function Sidebar:close(opts)
   for _, comp in pairs(self) do
     if comp and type(comp) == "table" and comp.unmount then comp:unmount() end
   end
+  self.old_result_lines = {}
   if opts.goto_code_win and self.code and self.code.winid and api.nvim_win_is_valid(self.code.winid) then
     fn.win_gotoid(self.code.winid)
   end
