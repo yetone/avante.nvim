@@ -111,8 +111,9 @@ function M.ask(opts)
   end
 
   local has_question = opts.question ~= nil and opts.question ~= ""
+  local new_chat = opts.new_chat == true
 
-  if Utils.is_sidebar_buffer(0) and not has_question then
+  if Utils.is_sidebar_buffer(0) and not has_question and not new_chat then
     require("avante").close_sidebar()
     return false
   end
@@ -127,7 +128,7 @@ function M.ask(opts)
       sidebar:close({ goto_code_win = false })
     end
     require("avante").open_sidebar(opts)
-    if opts.new_chat then sidebar:new_chat() end
+    if new_chat then sidebar:new_chat() end
     if opts.without_selection then
       sidebar.code.selection = nil
       sidebar.file_selector:reset()
