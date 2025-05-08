@@ -2016,9 +2016,7 @@ function Sidebar:create_selected_code_container()
         winid = self.input_container.winid,
       },
       buf_options = buf_options,
-      win_options = {
-        winhighlight = base_win_options.winhighlight,
-      },
+      win_options = vim.tbl_deep_extend("force", base_win_options, {}),
       size = {
         height = selected_code_size + 3,
       },
