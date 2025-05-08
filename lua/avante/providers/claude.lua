@@ -317,19 +317,8 @@ function M:parse_response(ctx, data_stream, event_state, opts)
     if jsn.delta.stop_reason == "end_turn" then
       opts.on_stop({ reason = "complete", usage = jsn.usage })
     elseif jsn.delta.stop_reason == "tool_use" then
-      local tool_use_list = {}
-      for _, content_block in ipairs(ctx.content_blocks) do
-        if content_block.type == "tool_use" then
-          table.insert(tool_use_list, {
-            id = content_block.id,
-            name = content_block.name,
-            input_json = content_block.input_json,
-          })
-        end
-      end
       opts.on_stop({
         reason = "tool_use",
-        -- tool_use_list = tool_use_list,
         usage = jsn.usage,
       })
     end
