@@ -989,6 +989,7 @@ M._tools = {
       },
     },
   },
+  require("avante.llm_tools.get_diagnostics"),
   require("avante.llm_tools.bash"),
   {
     name = "web_search",

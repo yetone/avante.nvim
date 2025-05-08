@@ -125,7 +125,7 @@ function M.get_bufnr(abs_path)
   if not sidebar then return 0, "Avante sidebar not found" end
   local current_winid = vim.api.nvim_get_current_win()
   vim.api.nvim_set_current_win(sidebar.code.winid)
-  local bufnr = Utils.get_or_create_buffer_with_filepath(abs_path)
+  local bufnr = Utils.open_buffer(abs_path)
   vim.api.nvim_set_current_win(current_winid)
   return bufnr, nil
 end

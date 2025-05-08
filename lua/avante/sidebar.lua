@@ -920,7 +920,7 @@ function Sidebar:apply(current_cursor)
     api.nvim_set_current_win(self.code.winid)
     for filepath, snippets in pairs(selected_snippets_map) do
       if Config.behaviour.minimize_diff then snippets = self:minimize_snippets(filepath, snippets) end
-      local bufnr = Utils.get_or_create_buffer_with_filepath(filepath)
+      local bufnr = Utils.open_buffer(filepath)
       local path_ = PPath:new(Utils.is_win() and filepath:gsub("/", "\\") or filepath)
       path_:parent():mkdir({ parents = true, exists_ok = true })
       insert_conflict_contents(bufnr, snippets)
@@ -2181,9 +2181,9 @@ function Sidebar:get_generate_prompts_options(request, cb)
   local diagnostics = nil
   if mentions.enable_diagnostics then
     if self.code ~= nil and self.code.bufnr ~= nil and self.code.selection ~= nil then
-      diagnostics = Utils.get_current_selection_diagnostics(self.code.bufnr, self.code.selection)
+      diagnostics = Utils.lsp.get_current_selection_diagnostics(self.code.bufnr, self.code.selection)
     else
-      diagnostics = Utils.get_diagnostics(self.code.bufnr)
+      diagnostics = Utils.lsp.get_diagnostics(self.code.bufnr)
     end
   end
 

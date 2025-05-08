@@ -175,13 +175,15 @@ function M.generate_prompts(opts)
         --- For models like gpt-4o, the input parameter of replace_in_file is treated as the latest file content, so here we need to insert a fake view tool call to ensure it uses the latest file content
         if is_replace_func_call and path then
           local lines = Utils.read_file_from_buf_or_disk(path)
-          local tool_use_id = Utils.uuid()
+          local get_diagnostics_tool_use_id = Utils.uuid()
+          local view_tool_use_id = Utils.uuid()
           local view_tool_name = "view"
           local view_tool_input = { path = path }
           if is_str_replace_editor_func_call then
             view_tool_name = "str_replace_editor"
             view_tool_input = { command = "view", path = path }
           end
+          local diagnostics = Utils.lsp.get_diagnostics_from_filepath(path)
           history_messages = vim.list_extend(history_messages, {
             HistoryMessage:new({
               role = "assistant",
@@ -194,7 +196,7 @@ function M.generate_prompts(opts)
               content = {
                 {
                   type = "tool_use",
-                  id = tool_use_id,
+                  id = view_tool_use_id,
                   name = view_tool_name,
                   input = view_tool_input,
                 },
@@ -207,8 +209,43 @@ function M.generate_prompts(opts)
               content = {
                 {
                   type = "tool_result",
-                  tool_use_id = tool_use_id,
+                  tool_use_id = view_tool_use_id,
                   content = table.concat(lines or {}, "\n"),
+                  is_error = false,
+                },
+              },
+            }, {
+              is_dummy = true,
+            }),
+            HistoryMessage:new({
+              role = "assistant",
+              content = string.format(
+                "The file %s has been modified, let me check if there are any errors in the changes.",
+                path
+              ),
+            }, {
+              is_dummy = true,
+            }),
+            HistoryMessage:new({
+              role = "assistant",
+              content = {
+                {
+                  type = "tool_use",
+                  id = get_diagnostics_tool_use_id,
+                  name = "get_diagnostics",
+                  input = { path = path },
+                },
+              },
+            }, {
+              is_dummy = true,
+            }),
+            HistoryMessage:new({
+              role = "user",
+              content = {
+                {
+                  type = "tool_result",
+                  tool_use_id = get_diagnostics_tool_use_id,
+                  content = vim.json.encode(diagnostics),
                   is_error = false,
                 },
               },
