@@ -163,7 +163,7 @@ end
 ---@return AvanteDiagnostic[]
 function M.get_diagnostics_from_filepath(filepath)
   local Utils = require("avante.utils")
-  local bufnr = Utils.get_or_create_buffer_with_filepath(filepath)
+  local bufnr = Utils.open_buffer(filepath, false)
   return M.get_diagnostics(bufnr)
 end
 
