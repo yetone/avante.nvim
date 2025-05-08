@@ -135,7 +135,7 @@ L5:     pass
 
   local history_messages = vim.iter(llm_messages):map(function(msg) return HistoryMessage:new(msg) end):totable()
 
-  local diagnostics = Utils.get_diagnostics(bufnr)
+  local diagnostics = Utils.lsp.get_diagnostics(bufnr)
 
   Llm.stream({
     provider = provider,

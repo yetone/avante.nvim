@@ -117,4 +117,67 @@ function M.read_definitions(bufnr, symbol_name, show_line_numbers, on_complete)
   end)
 end
 
+local severity = {
+  [1] = "ERROR",
+  [2] = "WARNING",
+  [3] = "INFORMATION",
+  [4] = "HINT",
+}
+
+---@class AvanteDiagnostic
+---@field content string
+---@field start_line number
+---@field end_line number
+---@field severity string
+---@field source string
+
+---@param bufnr integer
+---@return AvanteDiagnostic[]
+function M.get_diagnostics(bufnr)
+  if bufnr == nil then bufnr = vim.api.nvim_get_current_buf() end
+  local diagnositcs = ---@type vim.Diagnostic[]
+    vim.diagnostic.get(bufnr, {
+      severity = {
+        vim.diagnostic.severity.ERROR,
+        vim.diagnostic.severity.WARN,
+        vim.diagnostic.severity.INFO,
+        vim.diagnostic.severity.HINT,
+      },
+    })
+  return vim
+    .iter(diagnositcs)
+    :map(function(diagnostic)
+      local d = {
+        content = diagnostic.message,
+        start_line = diagnostic.lnum + 1,
+        end_line = diagnostic.end_lnum and diagnostic.end_lnum + 1 or diagnostic.lnum + 1,
+        severity = severity[diagnostic.severity],
+        source = diagnostic.source,
+      }
+      return d
+    end)
+    :totable()
+end
+
+---@param filepath string
+---@return AvanteDiagnostic[]
+function M.get_diagnostics_from_filepath(filepath)
+  local Utils = require("avante.utils")
+  local bufnr = Utils.open_buffer(filepath, false)
+  return M.get_diagnostics(bufnr)
+end
+
+---@param bufnr integer
+---@param selection avante.SelectionResult
+function M.get_current_selection_diagnostics(bufnr, selection)
+  local diagnostics = M.get_diagnostics(bufnr)
+  local selection_diagnostics = {}
+  for _, diagnostic in ipairs(diagnostics) do
+    if selection.range.start.lnum <= diagnostic.start_line and selection.range.finish.lnum >= diagnostic.end_line then
+      table.insert(selection_diagnostics, diagnostic)
+    end
+  end
+  return selection_diagnostics
+end
+
 return M

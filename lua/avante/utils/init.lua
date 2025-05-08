@@ -933,41 +933,22 @@ function M.get_mentions()
   }
 end
 
----@param filepath string
----@return integer|nil bufnr
-local function get_opened_buffer_by_filepath(filepath)
-  local project_root = M.get_project_root()
-  local absolute_path = M.join_paths(project_root, filepath)
-  for _, buf in ipairs(api.nvim_list_bufs()) do
-    if M.join_paths(project_root, fn.bufname(buf)) == absolute_path then return buf end
-  end
-  return nil
-end
-
----@param filepath string
+---@param path string
+---@param set_current_buf? boolean
 ---@return integer bufnr
-function M.get_or_create_buffer_with_filepath(filepath)
-  -- Check if a buffer with this filepath already exists
-  local existing_buf = get_opened_buffer_by_filepath(filepath)
-  if existing_buf then
-    -- goto this buffer
-    api.nvim_set_current_buf(existing_buf)
-    return existing_buf
-  end
+function M.open_buffer(path, set_current_buf)
+  if set_current_buf == nil then set_current_buf = true end
 
-  -- Create a new buffer without setting its name
-  local buf = api.nvim_create_buf(true, false)
+  path = vim.fn.fnamemodify(path, ":p")
 
-  -- Set the buffer options
-  api.nvim_set_option_value("buftype", "", { buf = buf })
+  local bufnr = vim.fn.bufnr(path, true)
+  vim.fn.bufload(bufnr)
 
-  -- Set the current buffer to the new buffer
-  api.nvim_set_current_buf(buf)
+  if set_current_buf then vim.api.nvim_set_current_buf(bufnr) end
 
-  -- Use the edit command to load the file content and set the buffer name
-  vim.cmd("edit " .. fn.fnameescape(filepath))
+  vim.cmd("filetype detect")
 
-  return buf
+  return bufnr
 end
 
 ---@param old_lines avante.ui.Line[]
@@ -1058,61 +1039,6 @@ function M.update_buffer_lines(ns_id, bufnr, old_lines, new_lines)
       line:set_highlights(ns_id, bufnr, diff.start_line + i - 2)
     end
   end
-end
-
-local severity = {
-  [1] = "ERROR",
-  [2] = "WARNING",
-  [3] = "INFORMATION",
-  [4] = "HINT",
-}
-
----@class AvanteDiagnostic
----@field content string
----@field start_line number
----@field end_line number
----@field severity string
----@field source string
-
----@param bufnr integer
----@return AvanteDiagnostic[]
-function M.get_diagnostics(bufnr)
-  if bufnr == nil then bufnr = api.nvim_get_current_buf() end
-  local diagnositcs = ---@type vim.Diagnostic[]
-    vim.diagnostic.get(bufnr, {
-      severity = {
-        vim.diagnostic.severity.ERROR,
-        vim.diagnostic.severity.WARN,
-        vim.diagnostic.severity.INFO,
-        vim.diagnostic.severity.HINT,
-      },
-    })
-  return vim
-    .iter(diagnositcs)
-    :map(function(diagnostic)
-      local d = {
-        content = diagnostic.message,
-        start_line = diagnostic.lnum + 1,
-        end_line = diagnostic.end_lnum and diagnostic.end_lnum + 1 or diagnostic.lnum + 1,
-        severity = severity[diagnostic.severity],
-        source = diagnostic.source,
-      }
-      return d
-    end)
-    :totable()
-end
-
----@param bufnr integer
----@param selection avante.SelectionResult
-function M.get_current_selection_diagnostics(bufnr, selection)
-  local diagnostics = M.get_diagnostics(bufnr)
-  local selection_diagnostics = {}
-  for _, diagnostic in ipairs(diagnostics) do
-    if selection.range.start.lnum <= diagnostic.start_line and selection.range.finish.lnum >= diagnostic.end_line then
-      table.insert(selection_diagnostics, diagnostic)
-    end
-  end
-  return selection_diagnostics
 end
 
 function M.uniform_path(path)

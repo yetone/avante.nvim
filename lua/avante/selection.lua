@@ -190,7 +190,7 @@ function Selection:submit_input(input)
   input = mentions.new_content
   local project_context = mentions.enable_project_context and RepoMap.get_repo_map(file_ext) or nil
 
-  local diagnostics = Utils.get_current_selection_diagnostics(self.code_bufnr, self.selection)
+  local diagnostics = Utils.lsp.get_current_selection_diagnostics(self.code_bufnr, self.selection)
 
   ---@type AvanteSelectedCode | nil
   local selected_code = nil
