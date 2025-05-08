@@ -2181,9 +2181,9 @@ function Sidebar:get_generate_prompts_options(request, cb)
   local diagnostics = nil
   if mentions.enable_diagnostics then
     if self.code ~= nil and self.code.bufnr ~= nil and self.code.selection ~= nil then
-      diagnostics = Utils.get_current_selection_diagnostics(self.code.bufnr, self.code.selection)
+      diagnostics = Utils.lsp.get_current_selection_diagnostics(self.code.bufnr, self.code.selection)
     else
-      diagnostics = Utils.get_diagnostics(self.code.bufnr)
+      diagnostics = Utils.lsp.get_diagnostics(self.code.bufnr)
     end
   end
 
