@@ -2839,10 +2839,10 @@ function Sidebar:create_selected_files_container()
       return
     end
 
-    if not self.selected_files_container or not api.nvim_win_is_valid(self.selected_files_container.winid) then
+    if not Utils.is_valid_container(self.selected_files_container, true) then
       self:create_selected_files_container()
       self:refresh_winids()
-      if not self.selected_files_container or not api.nvim_win_is_valid(self.selected_files_container.winid) then
+      if not Utils.is_valid_container(self.selected_files_container, true) then
         Utils.warn("Failed to create or find selected files container window.")
         return
       end
