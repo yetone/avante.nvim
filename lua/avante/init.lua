@@ -494,7 +494,7 @@ function M.setup(opts)
 
     cmp.register_source("avante_mentions", require("cmp_avante.mentions"):new(Utils.get_chat_mentions))
 
-    cmp.register_source("avante_prompt_mentions", require("cmp_avante.mentions"):new(Utils.get_prompt_mentions))
+    cmp.register_source("avante_prompt_mentions", require("cmp_avante.mentions"):new(Utils.get_mentions))
 
     cmp.setup.filetype({ "AvanteInput" }, {
       enabled = true,

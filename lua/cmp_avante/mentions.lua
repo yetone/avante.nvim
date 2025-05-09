@@ -1,11 +1,11 @@
 local api = vim.api
 
 ---@class mentions_source : cmp.Source
----@field get_mentions fun(): {description: string, command: AvanteMentions, details: string, shorthelp?: string, callback?: AvanteMentionCallback}[]
+---@field get_mentions fun(): AvanteMention[]
 local MentionsSource = {}
 MentionsSource.__index = MentionsSource
 
----@param get_mentions fun(): {description: string, command: AvanteMentions, details: string, shorthelp?: string, callback?: AvanteMentionCallback}[]
+---@param get_mentions fun(): AvanteMention[]
 function MentionsSource:new(get_mentions)
   local instance = setmetatable({}, MentionsSource)
 

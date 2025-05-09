@@ -914,7 +914,7 @@ function M.extract_mentions(content)
 end
 
 ---@return AvanteMention[]
-function M.get_prompt_mentions()
+function M.get_mentions()
   return {
     {
       description = "codebase",
@@ -931,7 +931,7 @@ end
 
 ---@return AvanteMention[]
 function M.get_chat_mentions()
-  local mentions = M.get_prompt_mentions()
+  local mentions = M.get_mentions()
 
   table.insert(mentions, {
     description = "file",
