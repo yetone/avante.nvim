@@ -1,5 +1,4 @@
 local Utils = require("avante.utils")
-local Path = require("plenary.path")
 local scan = require("plenary.scandir")
 local Config = require("avante.config")
 local Selector = require("avante.ui.selector")
@@ -41,7 +40,7 @@ function FileSelector:handle_path_selection(selected_paths)
   local project_root = Utils.get_project_root()
 
   for _, selected_path in ipairs(selected_paths) do
-    local absolute_path = Path:new(project_root):joinpath(selected_path):absolute()
+    local absolute_path = Utils.join_paths(project_root, selected_path)
 
     local stat = vim.loop.fs_stat(absolute_path)
     if stat and stat.type == "directory" then
@@ -92,8 +91,7 @@ end
 function FileSelector:add_selected_file(filepath)
   if not filepath or filepath == "" then return end
 
-  local absolute_path = filepath:sub(1, 1) == "/" and filepath
-    or Path:new(Utils.get_project_root()):joinpath(filepath):absolute()
+  local absolute_path = filepath:sub(1, 1) == "/" and filepath or Utils.join_paths(Utils.get_project_root(), filepath)
   local stat = vim.loop.fs_stat(absolute_path)
 
   if stat and stat.type == "directory" then

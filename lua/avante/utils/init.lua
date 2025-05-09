@@ -580,9 +580,8 @@ function M.remove_indentation(code)
 end
 
 function M.relative_path(absolute)
-  local relative = fn.fnamemodify(absolute, ":.")
-  if string.sub(relative, 0, 1) == "/" then return fn.fnamemodify(absolute, ":t") end
-  return relative
+  local project_root = M.get_project_root()
+  return M.make_relative_path(absolute, project_root)
 end
 
 function M.get_doc()
@@ -888,7 +887,7 @@ function M.join_paths(...)
     result = result .. path
     ::continue::
   end
-  return result
+  return M.norm(result)
 end
 
 function M.path_exists(path) return vim.loop.fs_stat(path) ~= nil end
@@ -939,9 +938,9 @@ end
 function M.open_buffer(path, set_current_buf)
   if set_current_buf == nil then set_current_buf = true end
 
-  path = vim.fn.fnamemodify(path, ":p")
+  local abs_path = M.join_paths(M.get_project_root(), path)
 
-  local bufnr = vim.fn.bufnr(path, true)
+  local bufnr = vim.fn.bufnr(abs_path, true)
   vim.fn.bufload(bufnr)
 
   if set_current_buf then vim.api.nvim_set_current_buf(bufnr) end
@@ -1043,7 +1042,7 @@ end
 
 function M.uniform_path(path)
   if type(path) ~= "string" then path = tostring(path) end
-  if not M.file.is_in_cwd(path) then return path end
+  if not M.file.is_in_project(path) then return path end
   local project_root = M.get_project_root()
   local abs_path = M.is_absolute_path(path) and path or M.join_paths(project_root, path)
   local relative_path = M.make_relative_path(abs_path, project_root)
@@ -1070,8 +1069,9 @@ end
 ---@return string[]|nil lines
 ---@return string|nil error
 function M.read_file_from_buf_or_disk(filepath)
+  local abs_path = M.join_paths(M.get_project_root(), filepath)
   --- Lookup if the file is loaded in a buffer
-  local bufnr = vim.fn.bufnr(filepath)
+  local bufnr = vim.fn.bufnr(abs_path)
   if bufnr ~= -1 and vim.api.nvim_buf_is_loaded(bufnr) then
     -- If buffer exists and is loaded, get buffer content
     local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
@@ -1079,7 +1079,7 @@ function M.read_file_from_buf_or_disk(filepath)
   end
 
   -- Fallback: read file from disk
-  local file, open_err = io.open(filepath, "r")
+  local file, open_err = io.open(abs_path, "r")
   if file then
     local content = file:read("*all")
     file:close()

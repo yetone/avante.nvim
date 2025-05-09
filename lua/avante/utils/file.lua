@@ -39,13 +39,11 @@ function M.exists(filepath)
   return stat ~= nil
 end
 
-function M.is_in_cwd(filepath)
-  local cwd = vim.fn.getcwd()
-  -- Make both paths absolute for comparison
+function M.is_in_project(filepath)
+  local Root = require("avante.utils.root")
+  local project_root = Root.get()
   local abs_filepath = vim.fn.fnamemodify(filepath, ":p")
-  local abs_cwd = vim.fn.fnamemodify(cwd, ":p")
-  -- Check if filepath starts with cwd
-  return abs_filepath:sub(1, #abs_cwd) == abs_cwd
+  return abs_filepath:sub(1, #project_root) == project_root
 end
 
 function M.get_file_icon(filepath)
