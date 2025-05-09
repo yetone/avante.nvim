@@ -173,7 +173,7 @@ function M.generate_prompts(opts)
           end
         end
         --- For models like gpt-4o, the input parameter of replace_in_file is treated as the latest file content, so here we need to insert a fake view tool call to ensure it uses the latest file content
-        if is_replace_func_call and path then
+        if is_replace_func_call and path and not message.message.content[1].is_error then
           local lines = Utils.read_file_from_buf_or_disk(path)
           local get_diagnostics_tool_use_id = Utils.uuid()
           local view_tool_use_id = Utils.uuid()
