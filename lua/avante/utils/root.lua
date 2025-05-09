@@ -56,7 +56,29 @@ function M.detectors.pattern(buf, patterns)
   return pattern and { vim.fs.dirname(pattern) } or {}
 end
 
-function M.bufpath(buf) return M.realpath(vim.api.nvim_buf_get_name(assert(buf))) end
+function M.bufpath(buf)
+  if buf == nil or type(buf) ~= "number" then
+    -- TODO: Consider logging this unexpected buffer type or nil value if assert was bypassed.
+    vim.notify("avante: M.bufpath received invalid buffer: " .. tostring(buf), vim.log.levels.WARN)
+    return nil
+  end
+
+  local buf_name_str
+  local success, result = pcall(vim.api.nvim_buf_get_name, buf)
+
+  if not success then
+    -- TODO: Consider logging the actual error from pcall.
+    vim.notify(
+      "avante: nvim_buf_get_name failed for buffer " .. tostring(buf) .. ": " .. tostring(result),
+      vim.log.levels.WARN
+    )
+    return nil
+  end
+  buf_name_str = result
+
+  -- M.realpath will handle buf_name_str == "" (empty string for unnamed buffer) correctly, returning nil.
+  return M.realpath(buf_name_str)
+end
 
 function M.cwd() return M.realpath(vim.uv.cwd()) or "" end
 

@@ -1488,7 +1488,7 @@ function Sidebar:initialize()
 
   local buf_path = api.nvim_buf_get_name(self.code.bufnr)
   -- if the filepath is outside of the current working directory then we want the absolute path
-  local filepath = Utils.file.is_in_cwd(buf_path) and Utils.relative_path(buf_path) or buf_path
+  local filepath = Utils.file.is_in_project(buf_path) and Utils.relative_path(buf_path) or buf_path
   Utils.debug("Sidebar:initialize adding buffer to file selector", buf_path)
 
   self.file_selector:reset()
