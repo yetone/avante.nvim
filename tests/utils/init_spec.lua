@@ -115,7 +115,7 @@ describe("Utils", function()
 
   describe("get_mentions", function()
     it("should return valid mentions", function()
-      local mentions = Utils.get_mentions()
+      local mentions = Utils.get_prompt_mentions()
       assert.equals("codebase", mentions[1].command)
       assert.equals("diagnostics", mentions[2].command)
     end)
