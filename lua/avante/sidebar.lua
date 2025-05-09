@@ -2830,7 +2830,7 @@ function Sidebar:create_selected_files_container()
     local selected_filepaths_ = self.file_selector:get_selected_filepaths()
 
     if #selected_filepaths_ == 0 then
-      if self.selected_files_container and api.nvim_win_is_valid(self.selected_files_container.winid) then
+      if Utils.is_valid_container(self.selected_files_container) then
         self.selected_files_container:unmount()
         self:refresh_winids()
       end
