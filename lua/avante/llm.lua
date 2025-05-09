@@ -671,19 +671,11 @@ function M.curl(opts)
         else
           Utils.error("API request failed with status " .. result.status, { once = true, title = "Avante" })
         end
+        local retry_after = 10
+        if headers_map["retry-after"] then retry_after = tonumber(headers_map["retry-after"]) or 10 end
         if result.status == 429 then
           Utils.debug("result", result)
-          if result.body then
-            local ok, jsn = pcall(vim.json.decode, result.body)
-            if ok then
-              if jsn.error and jsn.error.message then
-                handler_opts.on_stop({ reason = "error", error = jsn.error.message })
-                return
-              end
-            end
-          end
-          local retry_after = 10
-          if headers_map["retry-after"] then retry_after = tonumber(headers_map["retry-after"]) or 10 end
+
           handler_opts.on_stop({ reason = "rate_limit", retry_after = retry_after })
           return
         end
