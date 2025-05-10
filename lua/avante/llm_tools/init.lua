@@ -502,16 +502,24 @@ function M.git_commit(opts, on_log, on_complete)
 end
 
 ---@type AvanteLLMToolFunc<{ query: string }>
-function M.rag_search(opts, on_log)
+function M.rag_search(opts, on_log, on_complete)
   if not Config.rag_service.enabled then return nil, "Rag service is not enabled" end
   if not opts.query then return nil, "No query provided" end
   if on_log then on_log("query: " .. opts.query) end
   local root = Utils.get_project_root()
   local uri = "file://" .. root
   if uri:sub(-1) ~= "/" then uri = uri .. "/" end
-  local resp, err = RagService.retrieve(uri, opts.query)
-  if err then return nil, err end
-  return vim.json.encode(resp), nil
+  RagService.retrieve(
+    uri,
+    opts.query,
+    vim.schedule_wrap(function(resp, err)
+      if err then
+        on_complete(nil, err)
+        return
+      end
+      on_complete(vim.json.encode(resp), nil)
+    end)
+  )
 end
 
 ---@type AvanteLLMToolFunc<{ code: string, rel_path: string, container_image?: string }>
