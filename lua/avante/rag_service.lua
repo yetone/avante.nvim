@@ -74,7 +74,9 @@ function M.launch_rag_service(cb)
       M.stop_rag_service()
     end
     local cmd_ = string.format(
-      "docker run --platform=linux/amd64 -d --network=host --name %s -v %s:/data -v %s:/host:ro -e ALLOW_RESET=TRUE -e DATA_DIR=/data -e RAG_PROVIDER=%s -e %s_API_KEY=%s -e %s_API_BASE=%s -e RAG_LLM_MODEL=%s -e RAG_EMBED_MODEL=%s %s %s",
+      "docker run --platform=linux/amd64 -d -p 0.0.0.0:%d:%d --name %s -v %s:/data -v %s:/host:ro -e ALLOW_RESET=TRUE -e DATA_DIR=/data -e RAG_PROVIDER=%s -e %s_API_KEY=%s -e %s_API_BASE=%s -e RAG_LLM_MODEL=%s -e RAG_EMBED_MODEL=%s %s %s",
+      M.get_rag_service_port(),
+      M.get_rag_service_port(),
       container_name,
       data_path,
       Config.rag_service.host_mount,
