@@ -28,9 +28,10 @@ function M.detectors.lsp(buf)
   local bufpath = M.bufpath(buf)
   if not bufpath then return {} end
   local roots = {} ---@type string[]
-  for _, client in pairs(Utils.lsp.get_clients({ bufnr = buf })) do
+  local lsp_clients = Utils.lsp.get_clients({ bufnr = buf })
+  for _, client in ipairs(lsp_clients) do
     local workspace = client.config.workspace_folders
-    for _, ws in pairs(workspace or {}) do
+    for _, ws in ipairs(workspace or {}) do
       roots[#roots + 1] = vim.uri_to_fname(ws.uri)
     end
     if client.root_dir then roots[#roots + 1] = client.root_dir end
@@ -135,8 +136,8 @@ M.cache = {}
 ---@param opts? {normalize?:boolean, buf?:number}
 ---@return string
 function M.get(opts)
+  local cwd = vim.uv.cwd()
   if Config.behaviour.use_cwd_as_project_root then
-    local cwd = vim.uv.cwd()
     if cwd and cwd ~= "" then return cwd end
   end
   opts = opts or {}
@@ -147,6 +148,7 @@ function M.get(opts)
     ret = roots[1] and roots[1].paths[1] or vim.uv.cwd()
     M.cache[buf] = ret
   end
+  if cwd ~= nil and #ret > #cwd then ret = cwd end
   if opts and opts.normalize then return ret end
   return Utils.is_win() and ret:gsub("/", "\\") or ret
 end
