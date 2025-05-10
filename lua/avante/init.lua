@@ -480,10 +480,7 @@ function M.setup(opts)
     add_resource_with_delay = function()
       vim.defer_fn(function() add_resource() end, 5000)
     end
-    vim.schedule(function()
-      Utils.info("Starting Rag Service ...")
-      RagService.launch_rag_service(add_resource_with_delay)
-    end)
+    vim.schedule(function() RagService.launch_rag_service(add_resource_with_delay) end)
   end
 
   if Config.rag_service.enabled then run_rag_service() end
