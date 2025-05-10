@@ -913,9 +913,6 @@ function M.extract_mentions(content)
   }
 end
 
----@alias AvanteMentions "codebase" | "diagnostics"
----@alias AvanteMentionCallback fun(args: string, cb?: fun(args: string): nil): nil
----@alias AvanteMention {description: string, command: AvanteMentions, details: string, shorthelp?: string, callback?: AvanteMentionCallback}
 ---@return AvanteMention[]
 function M.get_mentions()
   return {
@@ -930,6 +927,34 @@ function M.get_mentions()
       details = "diagnostics",
     },
   }
+end
+
+---@return AvanteMention[]
+function M.get_chat_mentions()
+  local mentions = M.get_mentions()
+
+  table.insert(mentions, {
+    description = "file",
+    command = "file",
+    details = "add files...",
+    callback = function(sidebar) sidebar.file_selector:open() end,
+  })
+
+  table.insert(mentions, {
+    description = "quickfix",
+    command = "quickfix",
+    details = "add files in quickfix list to chat context",
+    callback = function(sidebar) sidebar.file_selector:add_quickfix_files() end,
+  })
+
+  table.insert(mentions, {
+    description = "buffers",
+    command = "buffers",
+    details = "add open buffers to the chat context",
+    callback = function(sidebar) sidebar.file_selector:add_buffer_files() end,
+  })
+
+  return mentions
 end
 
 ---@param path string
