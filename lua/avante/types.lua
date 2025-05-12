@@ -452,3 +452,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field details string
 ---@field shorthelp? string
 ---@field callback? AvanteSlashCommandCallback
+
+---@alias AvanteMentions "codebase" | "diagnostics" | "file" | "quickfix" | "buffers"
+---@alias AvanteMentionCallback fun(args: string, cb?: fun(args: string): nil): nil
+---@alias AvanteMention {description: string, command: AvanteMentions, details: string, shorthelp?: string, callback?: AvanteMentionCallback}
