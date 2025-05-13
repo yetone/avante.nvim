@@ -1,6 +1,5 @@
 local Utils = require("avante.utils")
 local P = require("avante.providers")
-local Job = require("plenary.job")
 
 ---@class AvanteBedrockProviderFunctor
 local M = {}
@@ -101,7 +100,7 @@ end
 function M:parse_curl_args(prompt_opts)
   local provider_conf, request_body = P.parse_config(self)
 
-  local access_key_id, secret_access_key, session_token, region = "", "", "", ""
+  local access_key_id, secret_access_key, session_token, region
 
   -- try to parse credentials from api key
   local api_key = self.parse_api_key()
@@ -173,6 +172,82 @@ function M.on_error(result)
   Utils.error(error_msg, { once = true, title = "Avante" })
 end
 
+--- Run a command and capture its output
+---@param cmd string The command to run
+---@param args table The command arguments
+---@return string output The command output
+---@return number exit_code The command exit code
+local function run_command(cmd, args)
+  local stdout = vim.loop.new_pipe(false)
+  local stderr = vim.loop.new_pipe(false)
+  local output = ""
+  local error_output = ""
+  local exit_code = -1
+
+  local handle
+  handle = vim.loop.spawn(cmd, {
+    args = args,
+    stdio = { nil, stdout, stderr },
+  }, function(code)
+    -- Safely close all handles
+    if stdout then
+      stdout:read_stop()
+      stdout:close()
+    end
+    if stderr then
+      stderr:read_stop()
+      stderr:close()
+    end
+    if handle then handle:close() end
+    exit_code = code
+  end)
+
+  if not handle then
+    -- Clean up if spawn failed
+    if stdout then stdout:close() end
+    if stderr then stderr:close() end
+    return "", -1
+  end
+
+  if stdout then
+    stdout:read_start(function(err, data)
+      if err then
+        Utils.error("Error reading stdout: " .. err)
+        return
+      end
+      if data then output = output .. data end
+    end)
+  end
+
+  if stderr then
+    stderr:read_start(function(err, data)
+      if err then
+        Utils.error("Error reading stderr: " .. err)
+        return
+      end
+      if data then error_output = error_output .. data end
+    end)
+  end
+
+  -- Wait for the command to complete
+  vim.wait(10000, function() return exit_code ~= -1 end)
+
+  -- If we timed out, clean up
+  if exit_code == -1 then
+    if stdout then
+      stdout:read_stop()
+      stdout:close()
+    end
+    if stderr then
+      stderr:read_stop()
+      stderr:close()
+    end
+    if handle then handle:close() end
+  end
+
+  return output, exit_code
+end
+
 --- get_aws_credentials returns aws credentials using the aws cli
 ---@param region string
 ---@param profile string
@@ -198,22 +273,16 @@ function M:get_aws_credentials(region, profile)
 
   -- run aws configure export-credentials and capture the json output
   local start_time = vim.loop.hrtime()
-  Job:new({
-    command = "aws",
-    args = args,
-    on_exit = function(j, return_val)
-      if return_val == 0 then
-        local result = table.concat(j:result(), "\n")
-        local credentials = vim.json.decode(result)
+  local output, exit_code = run_command("aws", args)
 
-        awsCreds.access_key_id = credentials.AccessKeyId
-        awsCreds.secret_access_key = credentials.SecretAccessKey
-        awsCreds.session_token = credentials.SessionToken
-      else
-        print("Failed to run AWS command")
-      end
-    end,
-  }):sync()
+  if exit_code == 0 then
+    local credentials = vim.json.decode(output)
+    awsCreds.access_key_id = credentials.AccessKeyId
+    awsCreds.secret_access_key = credentials.SecretAccessKey
+    awsCreds.session_token = credentials.SessionToken
+  else
+    print("Failed to run AWS command")
+  end
 
   local end_time = vim.loop.hrtime()
   local duration_ms = (end_time - start_time) / 1000000
@@ -225,14 +294,8 @@ end
 --- check_aws_cli_installed returns true when the aws cli is installed
 --- @return boolean
 function M.check_aws_cli_installed()
-  local job = Job:new({
-    command = "aws",
-    args = { "--version" },
-  })
-
-  local _, _, exitCode = pcall(function() return job:sync() end)
-
-  return exitCode == 0
+  local _, exit_code = run_command("aws", { "--version" })
+  return exit_code == 0
 end
 
 --- check_curl_version_supports_aws_sig checks if the given curl version supports aws sigv4 correctly
@@ -258,16 +321,11 @@ end
 --- check_curl_supports_aws_sig returns true when the installed curl version supports aws sigv4
 --- @return boolean
 function M.check_curl_supports_aws_sig()
-  local job = Job:new({
-    command = "curl",
-    args = { "--version" },
-  })
+  local output, exit_code = run_command("curl", { "--version" })
+  if exit_code ~= 0 then return false end
 
-  job:sync()
-
-  -- curl 8.11.0 (aarch64-apple-darwin23.6.0) libcurl/8.11.0 OpenSSL/3.4.0 (SecureTransport) zlib/1.2.12 brotli/1.1.0 zstd/1.5.6 AppleIDN libssh2/1.11.1 nghttp2/1.64.0 librtmp/2.3
-  local version_string = job:result()[1]
-
+  -- Get first line of output which contains version info
+  local version_string = output:match("^[^\n]+")
   return M.check_curl_version_supports_aws_sig(version_string)
 end
 
