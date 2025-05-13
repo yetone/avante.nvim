@@ -74,6 +74,27 @@ M.returns = {
   },
 }
 
+--- Some models (e.g., gpt-4o) cannot correctly return diff content and often miss the SEARCH line, so this needs to be manually fixed in such cases.
+---@param diff string
+---@return string
+local function fix_diff(diff)
+  local has_search_line = diff:match("^%s*<<<<<<<* SEARCH") ~= nil
+  if has_search_line then return diff end
+
+  local fixed_diff_lines = {}
+  local lines = vim.split(diff, "\n")
+  local first_line = lines[1]
+  if first_line and first_line:match("^%s*```") then
+    table.insert(fixed_diff_lines, first_line)
+    table.insert(fixed_diff_lines, ">>>>>>> SEARCH")
+    fixed_diff_lines = vim.list_extend(fixed_diff_lines, lines, 2)
+  else
+    table.insert(fixed_diff_lines, ">>>>>>> SEARCH")
+    fixed_diff_lines = vim.list_extend(fixed_diff_lines, lines, 1)
+  end
+  return table.concat(fixed_diff_lines, "\n")
+end
+
 ---@type AvanteLLMToolFunc<{ path: string, diff: string }>
 function M.func(opts, on_log, on_complete, session_ctx)
   if not opts.path or not opts.diff then return false, "path and diff are required" end
@@ -81,7 +102,11 @@ function M.func(opts, on_log, on_complete, session_ctx)
   local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
 
-  local diff_lines = vim.split(opts.diff, "\n")
+  local diff = fix_diff(opts.diff)
+
+  if on_log and diff ~= opts.diff then on_log("diff fixed") end
+
+  local diff_lines = vim.split(diff, "\n")
   local is_searching = false
   local is_replacing = false
   local current_search = {}
@@ -111,7 +136,8 @@ function M.func(opts, on_log, on_complete, session_ctx)
   end
 
   if #rough_diff_blocks == 0 then
-    Utils.debug("diff", opts.diff)
+    Utils.debug("opts.diff", opts.diff)
+    Utils.debug("diff", diff)
     return false, "No diff blocks found"
   end
 
