@@ -86,10 +86,10 @@ local function fix_diff(diff)
   local first_line = lines[1]
   if first_line and first_line:match("^%s*```") then
     table.insert(fixed_diff_lines, first_line)
-    table.insert(fixed_diff_lines, ">>>>>>> SEARCH")
+    table.insert(fixed_diff_lines, "<<<<<<< SEARCH")
     fixed_diff_lines = vim.list_extend(fixed_diff_lines, lines, 2)
   else
-    table.insert(fixed_diff_lines, ">>>>>>> SEARCH")
+    table.insert(fixed_diff_lines, "<<<<<<< SEARCH")
     fixed_diff_lines = vim.list_extend(fixed_diff_lines, lines, 1)
   end
   return table.concat(fixed_diff_lines, "\n")
