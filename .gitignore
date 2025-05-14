@@ -33,6 +33,7 @@ temp/
 
 # Environment variable files (if you use .env file to store API keys)
 .env
+.envrc
 
 # If you use any build tools, you might need to ignore build output directories
 build/

@@ -272,6 +272,7 @@ local function set_cursor(position, side)
   if not position then return end
   local target = side == SIDES.OURS and position.current or position.incoming
   api.nvim_win_set_cursor(0, { target.range_start + 1, 0 })
+  vim.cmd("normal! zz")
 end
 
 local show_keybinding_hint_extmark_id = nil

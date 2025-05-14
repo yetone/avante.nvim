@@ -13,9 +13,8 @@ M.confirm_popup = nil
 ---@param rel_path string
 ---@return string
 function M.get_abs_path(rel_path)
-  if Path:new(rel_path):is_absolute() then return rel_path end
   local project_root = Utils.get_project_root()
-  local p = tostring(Path:new(project_root):joinpath(rel_path):absolute())
+  local p = Utils.join_paths(project_root, rel_path)
   if p:sub(-2) == "/." then p = p:sub(1, -3) end
   return p
 end
@@ -125,7 +124,7 @@ function M.get_bufnr(abs_path)
   if not sidebar then return 0, "Avante sidebar not found" end
   local current_winid = vim.api.nvim_get_current_win()
   vim.api.nvim_set_current_win(sidebar.code.winid)
-  local bufnr = Utils.get_or_create_buffer_with_filepath(abs_path)
+  local bufnr = Utils.open_buffer(abs_path)
   vim.api.nvim_set_current_win(current_winid)
   return bufnr, nil
 end

@@ -26,7 +26,7 @@ M._defaults = {
   -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
   -- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
   -- Of course, you can reduce the request frequency by increasing `suggestion.debounce`.
-  auto_suggestions_provider = "claude",
+  auto_suggestions_provider = nil,
   cursor_applying_provider = nil,
   memory_summary_provider = nil,
   ---@alias Tokenizer "tiktoken" | "hf"
@@ -227,7 +227,7 @@ M._defaults = {
   ---@type AvanteSupportedProvider
   copilot = {
     endpoint = "https://api.githubcopilot.com",
-    model = "gpt-4o-2024-08-06",
+    model = "gpt-4o-2024-11-20",
     proxy = nil, -- [protocol://]host[:port] Use this proxy
     allow_insecure = false, -- Allow insecure server connections
     timeout = 30000, -- Timeout in milliseconds
@@ -435,6 +435,7 @@ M._defaults = {
     },
     -- NOTE: The following will be safely set by avante.nvim
     ask = "<leader>aa",
+    new_ask = "<leader>an",
     edit = "<leader>ae",
     refresh = "<leader>ar",
     focus = "<leader>af",
@@ -612,13 +613,22 @@ function M.has_provider(provider_name) return vim.list_contains(M.provider_names
 ---@param provider_name avante.ProviderName
 function M.get_provider_config(provider_name)
   if not M.has_provider(provider_name) then error("No provider found: " .. provider_name, 2) end
-  if M._options[provider_name] ~= nil then
-    return vim.deepcopy(M._options[provider_name], true)
-  elseif M.vendors and M.vendors[provider_name] ~= nil then
-    return vim.deepcopy(M.vendors[provider_name], true)
-  else
-    error("Failed to find provider: " .. provider_name, 2)
+  local found = false
+  local config = {}
+
+  if M.vendors and M.vendors[provider_name] ~= nil then
+    found = true
+    config = vim.tbl_deep_extend("force", config, vim.deepcopy(M.vendors[provider_name], true))
   end
+
+  if M._options[provider_name] ~= nil then
+    found = true
+    config = vim.tbl_deep_extend("force", config, vim.deepcopy(M._options[provider_name], true))
+  end
+
+  if not found then error("Failed to find provider: " .. provider_name, 2) end
+
+  return config
 end
 
 M.BASE_PROVIDER_KEYS = {

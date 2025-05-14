@@ -101,6 +101,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field selected_filepaths string[] | nil
 ---@field tool_use_logs string[] | nil
 ---@field just_for_display boolean | nil
+---@field is_dummy boolean | nil
 ---
 ---@class AvanteLLMToolResult
 ---@field tool_name string
@@ -113,7 +114,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field messages AvanteLLMMessage[]
 ---@field image_paths? string[]
 ---@field tools? AvanteLLMTool[]
----@field dropped_history_messages? avante.HistoryMessage[]
+---@field pending_compaction_history_messages? AvanteLLMMessage[]
 ---
 ---@class AvanteGeminiMessage
 ---@field role "user"
@@ -349,19 +350,20 @@ vim.g.avante_login = vim.g.avante_login
 ---@field update_snippets? string[]
 ---@field prompt_opts? AvantePromptOptions
 ---@field session_ctx? table
+---@field disable_compact_history_messages? boolean
 ---
 ---@class AvanteLLMToolHistory
 ---@field tool_result? AvanteLLMToolResult
 ---@field tool_use? AvanteLLMToolUse
 ---
----@alias AvanteLLMMemorySummarizeCallback fun(dropped_history_messages: avante.HistoryMessage[]): nil
+---@alias AvanteLLMMemorySummarizeCallback fun(pending_compaction_history_messages: avante.HistoryMessage[]): nil
 ---
 ---@alias AvanteLLMToolUseState "generating" | "generated" | "running" | "succeeded" | "failed"
----@alias avante.GenerateState "generating" | "tool calling" | "failed" | "succeeded" | "cancelled" | "searching" | "thinking"
+---@alias avante.GenerateState "generating" | "tool calling" | "failed" | "succeeded" | "cancelled" | "searching" | "thinking" | "compacting" | "compacted"
 ---
 ---@class AvanteLLMStreamOptions: AvanteGeneratePromptsOptions
 ---@field on_start AvanteLLMStartCallback
----@field on_chunk AvanteLLMChunkCallback
+---@field on_chunk? AvanteLLMChunkCallback
 ---@field on_stop AvanteLLMStopCallback
 ---@field on_memory_summarize? AvanteLLMMemorySummarizeCallback
 ---@field on_tool_log? fun(tool_id: string, tool_name: string, log: string, state: AvanteLLMToolUseState): nil
@@ -450,3 +452,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field details string
 ---@field shorthelp? string
 ---@field callback? AvanteSlashCommandCallback
+
+---@alias AvanteMentions "codebase" | "diagnostics" | "file" | "quickfix" | "buffers"
+---@alias AvanteMentionCallback fun(args: string, cb?: fun(args: string): nil): nil
+---@alias AvanteMention {description: string, command: AvanteMentions, details: string, shorthelp?: string, callback?: AvanteMentionCallback}

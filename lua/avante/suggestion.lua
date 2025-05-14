@@ -3,6 +3,7 @@ local Llm = require("avante.llm")
 local Highlights = require("avante.highlights")
 local Config = require("avante.config")
 local Providers = require("avante.providers")
+local HistoryMessage = require("avante.history_message")
 local api = vim.api
 local fn = vim.fn
 
@@ -72,10 +73,10 @@ function Suggestion:suggest()
 
   local full_response = ""
 
-  local provider = Providers[Config.auto_suggestions_provider]
+  local provider = Providers[Config.auto_suggestions_provider or Config.provider]
 
   ---@type AvanteLLMMessage[]
-  local history_messages = {
+  local llm_messages = {
     {
       role = "user",
       content = [[
@@ -132,7 +133,9 @@ L5:     pass
     },
   }
 
-  local diagnostics = Utils.get_diagnostics(bufnr)
+  local history_messages = vim.iter(llm_messages):map(function(msg) return HistoryMessage:new(msg) end):totable()
+
+  local diagnostics = Utils.lsp.get_diagnostics(bufnr)
 
   Llm.stream({
     provider = provider,

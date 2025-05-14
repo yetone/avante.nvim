@@ -1,5 +1,6 @@
 local Utils = require("avante.utils")
 local P = require("avante.providers")
+local Config = require("avante.config")
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -44,13 +45,23 @@ function M:parse_curl_args(prompt_opts)
 
   if not provider_conf.model or provider_conf.model == "" then error("Ollama model must be specified in config") end
   if not provider_conf.endpoint then error("Ollama requires endpoint configuration") end
+  local headers = {
+    ["Content-Type"] = "application/json",
+    ["Accept"] = "application/json",
+  }
+
+  if P.env.require_api_key(provider_conf) then
+    local api_key = self.parse_api_key()
+    if api_key and api_key ~= "" then
+      headers["Authorization"] = "Bearer " .. api_key
+    else
+      Utils.info((Config.provider or "Provider") .. ": API key not set, continuing without authentication")
+    end
+  end
 
   return {
     url = Utils.url_join(provider_conf.endpoint, "/api/chat"),
-    headers = {
-      ["Content-Type"] = "application/json",
-      ["Accept"] = "application/json",
-    },
+    headers = headers,
     body = vim.tbl_deep_extend("force", {
       model = provider_conf.model,
       messages = self:parse_messages(prompt_opts),

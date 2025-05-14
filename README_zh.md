@@ -951,6 +951,43 @@ vim.keymap.set("n", "<leader>am", function() vim.api.nvim_exec_autocmds("User", 
 >
 > `*.avanterules` 是一个 jinja 模板文件，将使用 [minijinja](https://github.com/mitsuhiko/minijinja) 渲染。有关如何扩展当前模板的示例，请参见 [templates](https://github.com/yetone/avante.nvim/blob/main/lua/avante/templates)。
 
+## 集成
+
+Avante.nvim 可以通过其扩展模块与其他插件协同工作。下面是一个将 Avante 与 nvim-tree 集成的示例，允许你直接从 NvimTree UI 中选择或取消选择文件：
+
+```lua
+{
+    "yetone/avante.nvim",
+    event = "VeryLazy",
+    keys = {
+        {
+            "<leader>a+",
+            function()
+                local tree_ext = require("avante.extensions.nvim_tree")
+                tree_ext.add_file()
+            end,
+            desc = "Select file in NvimTree",
+            ft = "NvimTree",
+        },
+        {
+            "<leader>a-",
+            function()
+                local tree_ext = require("avante.extensions.nvim_tree")
+                tree_ext.remove_file()
+            end,
+            desc = "Deselect file in NvimTree",
+            ft = "NvimTree",
+        },
+    },
+    opts = {
+        --- 其他配置
+        selector = {
+            exclude_auto_select = { "NvimTree" },
+        },
+    },
+}
+```
+
 ## TODOs
 
 - [x] 与当前文件聊天

@@ -38,6 +38,7 @@ One or more SEARCH/REPLACE blocks following this exact format:
   \`\`\`
   Critical rules:
   1. SEARCH content must match the associated file section to find EXACTLY:
+     * Do not refer to the `diff` argument of the previous `replace_in_file` function call for SEARCH content matching, as it may have been modified. Always match from the latest file content in <selected_files> or from the `view` function call result.
      * Match character-for-character including whitespace, indentation, line endings
      * Include all comments, docstrings, etc.
   2. SEARCH/REPLACE blocks will ONLY replace the first match occurrence.
@@ -73,6 +74,27 @@ M.returns = {
   },
 }
 
+--- Some models (e.g., gpt-4o) cannot correctly return diff content and often miss the SEARCH line, so this needs to be manually fixed in such cases.
+---@param diff string
+---@return string
+local function fix_diff(diff)
+  local has_search_line = diff:match("^%s*<<<<<<<* SEARCH") ~= nil
+  if has_search_line then return diff end
+
+  local fixed_diff_lines = {}
+  local lines = vim.split(diff, "\n")
+  local first_line = lines[1]
+  if first_line and first_line:match("^%s*```") then
+    table.insert(fixed_diff_lines, first_line)
+    table.insert(fixed_diff_lines, "<<<<<<< SEARCH")
+    fixed_diff_lines = vim.list_extend(fixed_diff_lines, lines, 2)
+  else
+    table.insert(fixed_diff_lines, "<<<<<<< SEARCH")
+    fixed_diff_lines = vim.list_extend(fixed_diff_lines, lines, 1)
+  end
+  return table.concat(fixed_diff_lines, "\n")
+end
+
 ---@type AvanteLLMToolFunc<{ path: string, diff: string }>
 function M.func(opts, on_log, on_complete, session_ctx)
   if not opts.path or not opts.diff then return false, "path and diff are required" end
@@ -80,7 +102,11 @@ function M.func(opts, on_log, on_complete, session_ctx)
   local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
 
-  local diff_lines = vim.split(opts.diff, "\n")
+  local diff = fix_diff(opts.diff)
+
+  if on_log and diff ~= opts.diff then on_log("diff fixed") end
+
+  local diff_lines = vim.split(diff, "\n")
   local is_searching = false
   local is_replacing = false
   local current_search = {}
@@ -88,15 +114,15 @@ function M.func(opts, on_log, on_complete, session_ctx)
   local rough_diff_blocks = {}
 
   for _, line in ipairs(diff_lines) do
-    if line:match("^%s*<<<<<<< SEARCH") then
+    if line:match("^%s*<<<<<<<* SEARCH") then
       is_searching = true
       is_replacing = false
       current_search = {}
-    elseif line:match("^%s*=======") and is_searching then
+    elseif line:match("^%s*=======*") and is_searching then
       is_searching = false
       is_replacing = true
       current_replace = {}
-    elseif line:match("^%s*>>>>>>> REPLACE") and is_replacing then
+    elseif line:match("^%s*>>>>>>>* REPLACE") and is_replacing then
       is_replacing = false
       table.insert(
         rough_diff_blocks,
@@ -109,7 +135,11 @@ function M.func(opts, on_log, on_complete, session_ctx)
     end
   end
 
-  if #rough_diff_blocks == 0 then return false, "No diff blocks found" end
+  if #rough_diff_blocks == 0 then
+    Utils.debug("opts.diff", opts.diff)
+    Utils.debug("diff", diff)
+    return false, "No diff blocks found"
+  end
 
   local bufnr, err = Helpers.get_bufnr(abs_path)
   if err then return false, err end
@@ -301,6 +331,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
   end
 
   local show_keybinding_hint_extmark_id = nil
+  local augroup = vim.api.nvim_create_augroup("avante_replace_in_file", { clear = true })
   local function register_cursor_move_events()
     local function show_keybinding_hint(lnum)
       if show_keybinding_hint_extmark_id then
@@ -325,6 +356,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
 
     vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI", "WinLeave" }, {
       buffer = bufnr,
+      group = augroup,
       callback = function(event)
         local diff_block = get_current_diff_block()
         if (event.event == "CursorMoved" or event.event == "CursorMovedI") and diff_block then
@@ -332,6 +364,27 @@ function M.func(opts, on_log, on_complete, session_ctx)
         else
           vim.api.nvim_buf_clear_namespace(bufnr, KEYBINDING_NAMESPACE, 0, -1)
         end
+      end,
+    })
+  end
+
+  local confirm
+  local has_rejected = false
+
+  local function register_buf_write_events()
+    vim.api.nvim_create_autocmd({ "BufWritePost" }, {
+      buffer = bufnr,
+      group = augroup,
+      callback = function()
+        if #diff_blocks ~= 0 then return end
+        pcall(vim.api.nvim_del_augroup_by_id, augroup)
+        if confirm then confirm:close() end
+        if has_rejected then
+          on_complete(false, "User canceled")
+          return
+        end
+        if session_ctx then Helpers.mark_as_not_viewed(opts.path, session_ctx) end
+        on_complete(true, nil)
       end,
     })
   end
@@ -359,6 +412,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
         vim.api.nvim_win_set_cursor(winnr, { next_diff_block.new_start_line, 0 })
         vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
       end
+      has_rejected = true
     end)
 
     vim.keymap.set({ "n", "v" }, Config.mappings.diff.theirs, function()
@@ -408,7 +462,6 @@ function M.func(opts, on_log, on_complete, session_ctx)
     pcall(vim.api.nvim_buf_del_keymap, bufnr, "v", Config.mappings.diff.prev)
   end
 
-  local augroup = vim.api.nvim_create_augroup("avante_replace_in_file", { clear = true })
   local function clear()
     if bufnr and not vim.api.nvim_buf_is_valid(bufnr) then return end
     vim.api.nvim_buf_clear_namespace(bufnr, NAMESPACE, 0, -1)
@@ -464,8 +517,15 @@ function M.func(opts, on_log, on_complete, session_ctx)
   highlight_diff_blocks()
   register_cursor_move_events()
   register_keybinding_events()
+  register_buf_write_events()
 
-  Helpers.confirm("Are you sure you want to apply this modification?", function(ok, reason)
+  if diff_blocks[1] then
+    local winnr = Utils.get_winid(bufnr)
+    vim.api.nvim_win_set_cursor(winnr, { diff_blocks[1].new_start_line, 0 })
+    vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
+  end
+
+  confirm = Helpers.confirm("Are you sure you want to apply this modification?", function(ok, reason)
     clear()
     if not ok then
       vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, original_lines)

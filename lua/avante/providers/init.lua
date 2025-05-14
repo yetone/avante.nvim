@@ -183,12 +183,12 @@ M = setmetatable(M, {
       t[k] = Utils.deep_extend_with_metatable("keep", provider_config, module)
     end
 
-    t[k].parse_api_key = function() return E.parse_envvar(t[k]) end
+    if t[k].parse_api_key == nil then t[k].parse_api_key = function() return E.parse_envvar(t[k]) end end
 
     -- default to gpt-4o as tokenizer
     if t[k].tokenizer_id == nil then t[k].tokenizer_id = "gpt-4o" end
 
-    if t[k].is_env_set == nil then t[k].is_env_set = function() return E.parse_envvar(t[k]) ~= nil end end
+    if t[k].is_env_set == nil then t[k].is_env_set = function() return t[k].parse_api_key() ~= nil end end
 
     if t[k].setup == nil then
       local provider_conf = M.parse_config(t[k])
@@ -207,12 +207,14 @@ function M.setup()
 
   ---@type AvanteProviderFunctor | AvanteBedrockProviderFunctor
   local provider = M[Config.provider]
-  local auto_suggestions_provider = M[Config.auto_suggestions_provider]
 
   E.setup({ provider = provider })
 
-  if auto_suggestions_provider and auto_suggestions_provider ~= provider then
-    E.setup({ provider = auto_suggestions_provider })
+  if Config.auto_suggestions_provider then
+    local auto_suggestions_provider = M[Config.auto_suggestions_provider]
+    if auto_suggestions_provider and auto_suggestions_provider ~= provider then
+      E.setup({ provider = auto_suggestions_provider })
+    end
   end
 
   if Config.memory_summary_provider then
@@ -271,9 +273,6 @@ end
 
 function M.get_memory_summary_provider()
   local provider_name = Config.memory_summary_provider
-  if provider_name == nil then
-    if M.openai.is_env_set() then provider_name = "openai-gpt-4o-mini" end
-  end
   if provider_name == nil then provider_name = Config.provider end
   return M[provider_name]
 end

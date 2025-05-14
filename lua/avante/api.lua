@@ -111,8 +111,9 @@ function M.ask(opts)
   end
 
   local has_question = opts.question ~= nil and opts.question ~= ""
+  local new_chat = opts.new_chat == true
 
-  if Utils.is_sidebar_buffer(0) and not has_question then
+  if Utils.is_sidebar_buffer(0) and not has_question and not new_chat then
     require("avante").close_sidebar()
     return false
   end
@@ -127,7 +128,7 @@ function M.ask(opts)
       sidebar:close({ goto_code_win = false })
     end
     require("avante").open_sidebar(opts)
-    if opts.new_chat then sidebar:new_chat() end
+    if new_chat then sidebar:new_chat() end
     if opts.without_selection then
       sidebar.code.selection = nil
       sidebar.file_selector:reset()
@@ -247,6 +248,42 @@ function M.add_buffer_files()
   end
   if not sidebar:is_open() then sidebar:open({}) end
   sidebar.file_selector:add_buffer_files()
+end
+
+function M.add_selected_file(filepath)
+  local rel_path = Utils.uniform_path(filepath)
+
+  local sidebar = require("avante").get()
+  if not sidebar then
+    require("avante.api").ask()
+    sidebar = require("avante").get()
+  end
+  if not sidebar:is_open() then sidebar:open({}) end
+  sidebar.file_selector:add_selected_file(rel_path)
+end
+
+function M.remove_selected_file(filepath)
+  ---@diagnostic disable-next-line: undefined-field
+  local stat = vim.loop.fs_stat(filepath)
+  local files
+  if stat and stat.type == "directory" then
+    files = Utils.scan_directory({ directory = filepath, add_dirs = true })
+  else
+    files = { filepath }
+  end
+
+  local sidebar = require("avante").get()
+  if not sidebar then
+    require("avante.api").ask()
+    sidebar = require("avante").get()
+  end
+  if not sidebar:is_open() then sidebar:open({}) end
+
+  for _, file in ipairs(files) do
+    local rel_path = Utils.uniform_path(file)
+    vim.notify(rel_path)
+    sidebar.file_selector:remove_selected_file(rel_path)
+  end
 end
 
 function M.stop() require("avante.llm").cancel_inflight_request() end

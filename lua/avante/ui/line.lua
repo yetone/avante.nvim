@@ -54,4 +54,9 @@ function M:__tostring()
   return table.concat(content, "")
 end
 
+function M:__eq(other)
+  if not other or type(other) ~= "table" or not other.sections then return false end
+  return vim.deep_equal(self.sections, other.sections)
+end
+
 return M

@@ -59,6 +59,12 @@ function H.keymaps()
   vim.keymap.set({ "n", "v" }, "<Plug>(AvanteAsk)", function() require("avante.api").ask() end, { noremap = true })
   vim.keymap.set(
     { "n", "v" },
+    "<Plug>(AvanteAskNew)",
+    function() require("avante.api").ask({ new_chat = true }) end,
+    { noremap = true }
+  )
+  vim.keymap.set(
+    { "n", "v" },
     "<Plug>(AvanteChat)",
     function() require("avante.api").ask({ ask = false }) end,
     { noremap = true }
@@ -87,6 +93,12 @@ function H.keymaps()
       Config.mappings.ask,
       function() require("avante.api").ask() end,
       { desc = "avante: ask" }
+    )
+    Utils.safe_keymap_set(
+      { "n", "v" },
+      Config.mappings.new_ask,
+      function() require("avante.api").ask({ new_chat = true }) end,
+      { desc = "avante: create new ask" }
     )
     Utils.safe_keymap_set(
       "v",
@@ -477,35 +489,7 @@ function M.setup(opts)
   if has_cmp then
     cmp.register_source("avante_commands", require("cmp_avante.commands"):new())
 
-    cmp.register_source(
-      "avante_mentions",
-      require("cmp_avante.mentions"):new(function()
-        local mentions = Utils.get_mentions()
-
-        table.insert(mentions, {
-          description = "file",
-          command = "file",
-          details = "add files...",
-          callback = function(sidebar) sidebar.file_selector:open() end,
-        })
-
-        table.insert(mentions, {
-          description = "quickfix",
-          command = "quickfix",
-          details = "add files in quickfix list to chat context",
-          callback = function(sidebar) sidebar.file_selector:add_quickfix_files() end,
-        })
-
-        table.insert(mentions, {
-          description = "buffers",
-          command = "buffers",
-          details = "add open buffers to the chat context",
-          callback = function(sidebar) sidebar.file_selector:add_buffer_files() end,
-        })
-
-        return mentions
-      end)
-    )
+    cmp.register_source("avante_mentions", require("cmp_avante.mentions"):new(Utils.get_chat_mentions))
 
     cmp.register_source("avante_prompt_mentions", require("cmp_avante.mentions"):new(Utils.get_mentions))
 

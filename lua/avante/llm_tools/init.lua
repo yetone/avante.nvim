@@ -502,16 +502,24 @@ function M.git_commit(opts, on_log, on_complete)
 end
 
 ---@type AvanteLLMToolFunc<{ query: string }>
-function M.rag_search(opts, on_log)
+function M.rag_search(opts, on_log, on_complete)
   if not Config.rag_service.enabled then return nil, "Rag service is not enabled" end
   if not opts.query then return nil, "No query provided" end
   if on_log then on_log("query: " .. opts.query) end
   local root = Utils.get_project_root()
   local uri = "file://" .. root
   if uri:sub(-1) ~= "/" then uri = uri .. "/" end
-  local resp, err = RagService.retrieve(uri, opts.query)
-  if err then return nil, err end
-  return vim.json.encode(resp), nil
+  RagService.retrieve(
+    uri,
+    opts.query,
+    vim.schedule_wrap(function(resp, err)
+      if err then
+        on_complete(nil, err)
+        return
+      end
+      on_complete(vim.json.encode(resp), nil)
+    end)
+  )
 end
 
 ---@type AvanteLLMToolFunc<{ code: string, rel_path: string, container_image?: string }>
@@ -630,7 +638,7 @@ M._tools = {
     },
   },
   {
-    name = "python",
+    name = "run_python",
     description = "Run python code in current project scope. Can't use it to read files or modify files.",
     param = {
       type = "table",
@@ -989,6 +997,7 @@ M._tools = {
       },
     },
   },
+  require("avante.llm_tools.get_diagnostics"),
   require("avante.llm_tools.bash"),
   {
     name = "web_search",
@@ -1097,6 +1106,9 @@ M._tools = {
   },
 }
 
+--- compatibility alias for old calls & tests
+M.run_python = M.python
+
 ---@param tools AvanteLLMTool[]
 ---@param tool_use AvanteLLMToolUse
 ---@param on_log? fun(tool_id: string, tool_name: string, log: string, state: AvanteLLMToolUseState): nil
@@ -1145,6 +1157,7 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
               cancel_timer:stop()
               cancel_timer:close()
             end
+            Helpers.is_cancelled = false
             on_complete(nil, Helpers.CANCEL_TOKEN)
           end
         end)
@@ -1188,6 +1201,7 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
   end, function(result, err)
     -- Check for cancellation before completing
     if Helpers.is_cancelled then
+      Helpers.is_cancelled = false
       if on_complete then on_complete(nil, Helpers.CANCEL_TOKEN) end
       return
     end

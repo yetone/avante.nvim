@@ -106,5 +106,8 @@ lua-typecheck:
 
 .PHONY: build-image
 build-image:
-	docker build -t $(RAG_SERVICE_IMAGE) -f py/rag-service/Dockerfile py/rag-service
+	docker build --platform=linux/amd64 -t $(RAG_SERVICE_IMAGE) -f py/rag-service/Dockerfile py/rag-service
+
+.PHONY: push-image
+push-image: build-image
 	docker push $(RAG_SERVICE_IMAGE)

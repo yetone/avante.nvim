@@ -87,7 +87,7 @@ function M:parse_messages(opts)
   vim.iter(opts.messages):each(function(msg)
     if type(msg.content) == "string" then
       table.insert(messages, { role = self.role_map[msg.role], content = msg.content })
-    else
+    elseif type(msg.content) == "table" then
       local content = {}
       local tool_calls = {}
       local tool_results = {}
@@ -120,7 +120,12 @@ function M:parse_messages(opts)
       if #content > 0 then table.insert(messages, { role = self.role_map[msg.role], content = content }) end
       if not provider_conf.disable_tools then
         if #tool_calls > 0 then
-          table.insert(messages, { role = self.role_map["assistant"], tool_calls = tool_calls })
+          local last_message = messages[#messages]
+          if last_message and last_message.role == self.role_map["assistant"] and last_message.tool_calls then
+            last_message.tool_calls = vim.list_extend(last_message.tool_calls, tool_calls)
+          else
+            table.insert(messages, { role = self.role_map["assistant"], tool_calls = tool_calls })
+          end
         end
         if #tool_results > 0 then
           for _, tool_result in ipairs(tool_results) do
@@ -136,7 +141,9 @@ function M:parse_messages(opts)
 
   if Config.behaviour.support_paste_from_clipboard and opts.image_paths and #opts.image_paths > 0 then
     local message_content = messages[#messages].content
-    if type(message_content) ~= "table" then message_content = { type = "text", text = message_content } end
+    if type(message_content) ~= "table" or message_content[1] == nil then
+      message_content = { { type = "text", text = message_content } }
+    end
     for _, image_path in ipairs(opts.image_paths) do
       table.insert(message_content, {
         type = "image_url",
@@ -153,7 +160,7 @@ function M:parse_messages(opts)
 
   vim.iter(messages):each(function(message)
     local role = message.role
-    if role == prev_role then
+    if role == prev_role and role ~= "tool" then
       if role == self.role_map["assistant"] then
         table.insert(final_messages, { role = self.role_map["user"], content = "Ok" })
       else
@@ -238,43 +245,39 @@ function M:parse_response(ctx, data_stream, _, opts)
     opts.on_stop({ reason = "complete" })
     return
   end
-  if not data_stream:match('"delta":') then return end
-  ---@type AvanteOpenAIChatResponse
+  if data_stream == "[DONE]" then return end
   local jsn = vim.json.decode(data_stream)
-  if not jsn.choices or not jsn.choices[1] then return end
+  ---@cast jsn AvanteOpenAIChatResponse
+  if not jsn.choices then return end
   local choice = jsn.choices[1]
-  if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" then
-    if choice.delta.content and choice.delta.content ~= vim.NIL then
-      self:add_text_message(ctx, choice.delta.content, "generated", opts)
-      opts.on_chunk(choice.delta.content)
-    end
-    self:finish_pending_messages(ctx, opts)
-    opts.on_stop({ reason = "complete" })
-  elseif choice.finish_reason == "tool_calls" then
-    self:finish_pending_messages(ctx, opts)
-    opts.on_stop({
-      reason = "tool_use",
-      -- tool_use_list = ctx.tool_use_list,
-      usage = jsn.usage,
-    })
-  elseif choice.delta.reasoning_content and choice.delta.reasoning_content ~= vim.NIL then
+  if not choice then return end
+  local delta = choice.delta
+  if not delta then
+    local provider_conf = Providers.parse_config(self)
+    if provider_conf.model:match("o1") then delta = choice.message end
+  end
+  if not delta then return end
+  if delta.reasoning_content and delta.reasoning_content ~= vim.NIL and delta.reasoning_content ~= "" then
     if ctx.returned_think_start_tag == nil or not ctx.returned_think_start_tag then
       ctx.returned_think_start_tag = true
       if opts.on_chunk then opts.on_chunk("<think>\n") end
     end
-    ctx.last_think_content = choice.delta.reasoning_content
-    self:add_thinking_message(ctx, choice.delta.reasoning_content, "generating", opts)
-    if opts.on_chunk then opts.on_chunk(choice.delta.reasoning_content) end
-  elseif choice.delta.reasoning and choice.delta.reasoning ~= vim.NIL then
+    ctx.last_think_content = delta.reasoning_content
+    self:add_thinking_message(ctx, delta.reasoning_content, "generating", opts)
+    if opts.on_chunk then opts.on_chunk(delta.reasoning_content) end
+  elseif delta.reasoning and delta.reasoning ~= vim.NIL then
     if ctx.returned_think_start_tag == nil or not ctx.returned_think_start_tag then
       ctx.returned_think_start_tag = true
       if opts.on_chunk then opts.on_chunk("<think>\n") end
     end
-    ctx.last_think_content = choice.delta.reasoning
-    self:add_thinking_message(ctx, choice.delta.reasoning, "generating", opts)
-    if opts.on_chunk then opts.on_chunk(choice.delta.reasoning) end
-  elseif choice.delta.tool_calls and choice.delta.tool_calls ~= vim.NIL then
-    for _, tool_call in ipairs(choice.delta.tool_calls) do
+    ctx.last_think_content = delta.reasoning
+    self:add_thinking_message(ctx, delta.reasoning, "generating", opts)
+    if opts.on_chunk then opts.on_chunk(delta.reasoning) end
+  elseif delta.tool_calls and delta.tool_calls ~= vim.NIL then
+    local choice_index = choice.index or 0
+    for idx, tool_call in ipairs(delta.tool_calls) do
+      --- In Gemini's so-called OpenAI Compatible API, tool_call.index is nil, which is quite absurd! Therefore, a compatibility fix is needed here.
+      if tool_call.index == nil then tool_call.index = choice_index + idx - 1 end
       if not ctx.tool_use_list then ctx.tool_use_list = {} end
       if not ctx.tool_use_list[tool_call.index + 1] then
         if tool_call.index > 0 and ctx.tool_use_list[tool_call.index] then
@@ -284,7 +287,7 @@ function M:parse_response(ctx, data_stream, _, opts)
         local tool_use = {
           name = tool_call["function"].name,
           id = tool_call.id,
-          input_json = "",
+          input_json = type(tool_call["function"].arguments) == "string" and tool_call["function"].arguments or "",
         }
         ctx.tool_use_list[tool_call.index + 1] = tool_use
         self:add_tool_use_message(tool_use, "generating", opts)
@@ -294,7 +297,7 @@ function M:parse_response(ctx, data_stream, _, opts)
         self:add_tool_use_message(tool_use, "generating", opts)
       end
     end
-  elseif choice.delta.content then
+  elseif delta.content then
     if
       ctx.returned_think_start_tag ~= nil and (ctx.returned_think_end_tag == nil or not ctx.returned_think_end_tag)
     then
@@ -308,10 +311,21 @@ function M:parse_response(ctx, data_stream, _, opts)
       end
       self:add_thinking_message(ctx, "", "generated", opts)
     end
-    if choice.delta.content ~= vim.NIL then
-      if opts.on_chunk then opts.on_chunk(choice.delta.content) end
-      self:add_text_message(ctx, choice.delta.content, "generating", opts)
+    if delta.content ~= vim.NIL then
+      if opts.on_chunk then opts.on_chunk(delta.content) end
+      self:add_text_message(ctx, delta.content, "generating", opts)
     end
+  end
+  if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" then
+    self:finish_pending_messages(ctx, opts)
+    opts.on_stop({ reason = "complete" })
+  end
+  if choice.finish_reason == "tool_calls" then
+    self:finish_pending_messages(ctx, opts)
+    opts.on_stop({
+      reason = "tool_use",
+      usage = jsn.usage,
+    })
   end
 end
 
@@ -321,7 +335,8 @@ function M:parse_response_without_stream(data, _, opts)
   if json.choices and json.choices[1] then
     local choice = json.choices[1]
     if choice.message and choice.message.content then
-      opts.on_chunk(choice.message.content)
+      if opts.on_chunk then opts.on_chunk(choice.message.content) end
+      self:add_text_message({}, choice.message.content, "generated", opts)
       vim.schedule(function() opts.on_stop({ reason = "complete" }) end)
     end
   end

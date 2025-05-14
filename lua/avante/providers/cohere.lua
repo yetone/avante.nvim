@@ -64,10 +64,15 @@ function M:parse_stream_data(ctx, data, opts)
   local json = vim.json.decode(data)
   if json.type ~= nil then
     if json.type == "message-end" and json.delta.finish_reason == "COMPLETE" then
+      P.openai:finish_pending_messages(ctx, opts)
       opts.on_stop({ reason = "complete" })
       return
     end
-    if json.type == "content-delta" then opts.on_chunk(json.delta.message.content.text) end
+    if json.type == "content-delta" then
+      local content = json.delta.message.content.text
+      P.openai:add_text_message(ctx, content, "generating", opts)
+      if content and content ~= "" and opts.on_chunk then opts.on_chunk(content) end
+    end
   end
 end
 
