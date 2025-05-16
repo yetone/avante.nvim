@@ -576,12 +576,27 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 >
 > For Amazon Bedrock:
 >
+> You can specify the `BEDROCK_KEYS` environment variable to set credentials. When this variable is not specified, bedrock will use the default AWS credentials chain (see below).
+>
 > ```sh
 > export BEDROCK_KEYS=aws_access_key_id,aws_secret_access_key,aws_region[,aws_session_token]
->
 > ```
 >
 > Note: The aws_session_token is optional and only needed when using temporary AWS credentials
+>
+> Alternatively Bedrock tries to resolve AWS credentials using the [Default Credentials Provider Chain](https://docs.aws.amazon.com/cli/v1/userguide/cli-chap-authentication.html).
+> This means you can have credentials e.g. configured via the AWS CLI, stored in your ~/.aws/profile, use AWS SSO etc.
+> In this case `aws_region` and optionally `aws_profile` should be specified via the bedrock config, e.g.:
+>
+> ```lua
+> bedrock = {
+>   model = "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+>   aws_profile = "bedrock",
+>   aws_region = "us-east-1",
+>},
+> ```
+>
+> Note: Bedrock requires the [AWS CLI](https://aws.amazon.com/cli/) to be installed on your system.
 
 1. Open a code file in Neovim.
 2. Use the `:AvanteAsk` command to query the AI about the code.
