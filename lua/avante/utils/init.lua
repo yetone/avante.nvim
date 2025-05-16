@@ -8,6 +8,7 @@ local lsp = vim.lsp
 ---@field file avante.utils.file
 ---@field environment avante.utils.environment
 ---@field lsp avante.utils.lsp
+---@field logger avante.utils.promptLogger
 local M = {}
 
 setmetatable(M, {

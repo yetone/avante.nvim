@@ -387,6 +387,11 @@ M._defaults = {
     use_cwd_as_project_root = false,
     auto_focus_on_diff_view = false,
   },
+  prompt_logger = {
+    enabled = true,
+    log_dir = vim.fn.stdpath("cache") .. "/avante_logs",
+    fortune_message_on_success = true, -- make sure you have fortune installed
+  },
   history = {
     max_tokens = 4096,
     carried_entry_count = nil,

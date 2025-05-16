@@ -11,6 +11,7 @@ local Config = require("avante.config")
 local Diff = require("avante.diff")
 local Llm = require("avante.llm")
 local Utils = require("avante.utils")
+local PromptLogger = require("avante.utils.promptLogger")
 local Highlights = require("avante.highlights")
 local RepoMap = require("avante.repo_map")
 local FileSelector = require("avante.file_selector")
@@ -2261,6 +2262,10 @@ function Sidebar:create_input_container()
 
   ---@param request string
   local function handle_submit(request)
+    if Config.prompt_logger.enabled then
+      PromptLogger.log_prompt(request)
+    end
+
     if self.is_generating then
       self:add_history_messages({
         HistoryMessage:new({ role = "user", content = request }),
