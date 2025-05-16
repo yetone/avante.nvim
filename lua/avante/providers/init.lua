@@ -37,9 +37,7 @@ E.cache = {}
 ---@param entry CacheEntry
 ---@return boolean
 function E.is_expired(entry)
-  if not entry.expires_at then
-    return false
-  end
+  if not entry.expires_at then return false end
   return os.time() >= entry.expires_at
 end
 
@@ -49,9 +47,7 @@ function E.parse_envvar(Opts)
   local key = Opts.api_key_name
 
   -- Check cache first
-  if E.cache[key] and not E.is_expired(E.cache[key]) then
-    return E.cache[key].value
-  end
+  if E.cache[key] and not E.is_expired(E.cache[key]) then return E.cache[key].value end
 
   -- Force cache invalidation when re-evaluating expired keys
   local force_invalidate = E.cache[key] and E.is_expired(E.cache[key])
@@ -61,14 +57,12 @@ function E.parse_envvar(Opts)
 
     -- Calculate expiry if reevaluate_api_key_after is set
     local expires_at = nil
-    if Opts.reevaluate_api_key_after then
-      expires_at = os.time() + Opts.reevaluate_api_key_after
-    end
+    if Opts.reevaluate_api_key_after then expires_at = os.time() + Opts.reevaluate_api_key_after end
 
     -- Cache the value with expiry
     E.cache[key] = {
       value = value,
-      expires_at = expires_at
+      expires_at = expires_at,
     }
 
     return value

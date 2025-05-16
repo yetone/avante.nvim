@@ -48,9 +48,7 @@ function M.parse(key_name, override, force_cache_invalidate)
         M.cache[cache_key] = value
       else
         local error_msg = "failed to get key: (error code " .. code .. ")"
-        if stderr ~= "" then
-          error_msg = error_msg .. "\n" .. stderr
-        end
+        if stderr ~= "" then error_msg = error_msg .. "\n" .. stderr end
         Utils.error(error_msg, { once = true, title = "Avante" })
       end
     end
