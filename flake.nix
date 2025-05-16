@@ -76,13 +76,21 @@
       # Now copy to ./build with the old naming convention
       echo "Copying built libraries to ./build/ for compatibility..."
 
-      # Determine library extension
       ext=""
-      if [[ "${pkgs.system}" == *"-darwin"* ]]; then
-        ext="dylib"
-      elif [[ "${pkgs.system}" == *"-linux"* ]]; then
-        ext="so"
-      fi
+      case "${pkgs.system}" in
+        *-darwin*)
+          ext="dylib"
+          ;;
+        *-linux*)
+          ext="so"
+          ;;
+        *-mingw*|*-cygwin*) # Handle Windows systems
+          ext="dll"
+          ;;
+        *)
+          echo "Warning: Unknown system type ${pkgs.system}. Cannot determine library extension." >&2
+          ;;
+      esac
 
       # Create build directory
       mkdir -p ./build
