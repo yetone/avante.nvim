@@ -227,6 +227,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field timeout? integer
 ---@field allow_insecure? boolean
 ---@field api_key_name? string
+---@field reevaluate_api_key_after? number
 ---@field _shellenv? string
 ---@field disable_tools? boolean
 ---@field entra? boolean

@@ -582,6 +582,17 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 > ```
 >
 > Note: The aws_session_token is optional and only needed when using temporary AWS credentials
+>
+> If you use temporary credentials which you refresh using a credentials_process in your AWS profile, you can
+> configure your api key to reference a shell command as follows:
+> ```lua
+>    bedrock = {
+>      -- ...
+>      api_key_name = { "sh", "-c", "REGION=$(aws configure get region --profile bedrock) && aws configure export-credentials --profile bedrock | jq -r --arg region \"$REGION\" '[.AccessKeyId, .SecretAccessKey, $region, .SessionToken] | join(\",\")'"},
+>      reevaluate_api_key_after = 3500, -- reevaluate the API key once per hour to get fresh credentials
+>    }
+> ```
+
 
 1. Open a code file in Neovim.
 2. Use the `:AvanteAsk` command to query the AI about the code.
