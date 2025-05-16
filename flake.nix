@@ -77,7 +77,8 @@
       echo "Copying built libraries to ./build/ for compatibility..."
 
       ext=""
-      case "${pkgs.system}" in
+      system = "${pkgs.system}"
+      case "''${system}" in
         *-darwin*)
           ext="dylib"
           ;;
