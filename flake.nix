@@ -77,9 +77,11 @@
       echo "Copying built libraries to ./build/ for compatibility..."
 
       # Determine library extension
-      ext="so"
+      ext=""
       if [[ "${pkgs.system}" == *"-darwin"* ]]; then
         ext="dylib"
+      elif [[ "${pkgs.system}" == *"-linux"* ]]; then
+        ext="so"
       fi
 
       # Create build directory
