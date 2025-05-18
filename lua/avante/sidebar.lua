@@ -2894,6 +2894,15 @@ function Sidebar:create_selected_files_container()
     remove_file(line_number)
   end, { noremap = true, silent = true })
 
+  self.selected_files_container:map("x", Config.mappings.sidebar.remove_file, function()
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
+    local start_line = math.min(vim.fn.line("v"), vim.fn.line("."))
+    local end_line = math.max(vim.fn.line("v"), vim.fn.line("."))
+    for _ = start_line, end_line do
+      remove_file(start_line)
+    end
+  end, { noremap = true, silent = true })
+
   self.selected_files_container:map(
     "n",
     Config.mappings.sidebar.add_file,
