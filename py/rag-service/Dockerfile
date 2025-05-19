@@ -2,20 +2,18 @@ FROM python:3.11-slim-bookworm
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y curl git \
-    && rm -rf /var/lib/apt/lists/* \
-    && curl -LsSf https://astral.sh/uv/install.sh | sh
+RUN apt-get update && apt-get install -y --no-install-recommends curl git \
+  && rm -rf /var/lib/apt/lists/* \
+  && curl -LsSf https://astral.sh/uv/install.sh | sh
 
-ENV PATH="/root/.local/bin:$PATH"
+ENV PATH="/root/.local/bin:$PATH" \
+  PYTHONUNBUFFERED=1 \
+  PYTHONDONTWRITEBYTECODE=1
 
 COPY requirements.txt .
 
-RUN uv venv
-
-RUN uv pip install -r requirements.txt
-
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1
+# 直接安装到系统依赖中，不创建虚拟环境
+RUN uv pip install --system -r requirements.txt
 
 COPY . .
 

@@ -37,14 +37,24 @@ M._defaults = {
   tokenizer = "tiktoken",
   ---@type string | (fun(): string) | nil
   system_prompt = nil,
-  rag_service = {
-    enabled = false, -- Enables the rag service, requires OPENAI_API_KEY to be set
-    host_mount = os.getenv("HOME"), -- Host mount path for the rag service (docker will mount this path)
-    runner = "docker", -- The runner for the rag service, (can use docker, or nix)
-    provider = "openai", -- The provider to use for RAG service. eg: openai or ollama
-    llm_model = "", -- The LLM model to use for RAG service
-    embed_model = "", -- The embedding model to use for RAG service
-    endpoint = "https://api.openai.com/v1", -- The API endpoint for RAG service
+  rag_service = { -- RAG service configuration
+    enabled = false, -- Enables the RAG service
+    host_mount = os.getenv("HOME"), -- Host mount path for the RAG service (Docker will mount this path)
+    runner = "docker", -- The runner for the RAG service (can use docker or nix)
+    llm = { -- Configuration for the Language Model (LLM) used by the RAG service
+      provider = "openai", -- The LLM provider
+      endpoint = "https://api.openai.com/v1", -- The LLM API endpoint
+      api_key = "OPENAI_API_KEY", -- The environment variable name for the LLM API key
+      model = "gpt-4o-mini", -- The LLM model name
+      extra = nil, -- Extra configuration options for the LLM
+    },
+    embed = { -- Configuration for the Embedding model used by the RAG service
+      provider = "openai", -- The embedding provider
+      endpoint = "https://api.openai.com/v1", -- The embedding API endpoint
+      api_key = "OPENAI_API_KEY", -- The environment variable name for the embedding API key
+      model = "text-embedding-3-large", -- The embedding model name
+      extra = nil, -- Extra configuration options for the embedding model
+    },
     docker_extra_args = "", -- Extra arguments to pass to the docker command
   },
   web_search_engine = {
