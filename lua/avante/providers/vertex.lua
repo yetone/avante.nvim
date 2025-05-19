@@ -14,7 +14,7 @@ M.role_map = {
 M.is_disable_stream = Gemini.is_disable_stream
 M.parse_messages = Gemini.parse_messages
 M.parse_response = Gemini.parse_response
-M.transform_to_function_declaration = Gemini.transform_to_function_declaration -- Add this for tool support
+M.transform_to_function_declaration = Gemini.transform_to_function_declaration
 
 local function execute_command(command)
   local handle = io.popen(command)
@@ -38,7 +38,7 @@ function M:parse_curl_args(prompt_opts)
 
   local location = vim.fn.getenv("LOCATION")
   local project_id = vim.fn.getenv("PROJECT_ID")
-  local model_id = provider_conf.model or "default-model-id" -- Use model from provider_conf
+  local model_id = provider_conf.model or "default-model-id"
 
   if location == nil or location == vim.NIL then location = "default-location" end
   if project_id == nil or project_id == vim.NIL then project_id = "default-project-id" end
