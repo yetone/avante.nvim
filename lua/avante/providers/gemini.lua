@@ -139,9 +139,9 @@ end
 
 --- Prepares the main request body for Gemini-like APIs.
 ---@param provider_instance AvanteProviderFunctor The provider instance (self).
----@param prompt_opts AvanteLLMPromptOptions Prompt options including messages, tools, system_prompt.
+---@param prompt_opts AvantePromptOptions Prompt options including messages, tools, system_prompt.
 ---@param provider_conf table Provider configuration from config.lua (e.g., model, top-level temperature/max_tokens).
----@param request_body_arg table Request-specific overrides, typically from provider_conf.request_config_overrides.
+---@param request_body table Request-specific overrides, typically from provider_conf.request_config_overrides.
 ---@return table The fully constructed request body.
 function M.prepare_request_body(provider_instance, prompt_opts, provider_conf, request_body)
   request_body = vim.tbl_deep_extend("force", request_body, {
