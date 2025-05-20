@@ -225,17 +225,12 @@ function M:parse_response(ctx, data_stream, _, opts)
 
       if reason_str == "TOOL_CODE" then
         -- Model indicates a tool-related stop.
-        -- The tool_use_list passed here is from the current chunk.
-        -- llm.lua will use its master list of accumulated tools for the turn.
-        opts.on_stop(
-          vim.tbl_deep_extend("force", { reason = "tool_use", tool_use_list = tool_use_list }, stop_details)
-        )
+        -- The tool_use list is added to the table in llm.lua
+        opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
       elseif reason_str == "STOP" then
         if #tool_use_list > 0 then
           -- Natural stop, but tools were found in this final chunk.
-          opts.on_stop(
-            vim.tbl_deep_extend("force", { reason = "tool_use", tool_use_list = tool_use_list }, stop_details)
-          )
+          opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
         else
           -- Natural stop, no tools in this final chunk.
           -- llm.lua will check its accumulated tools if tool_choice was active.
