@@ -91,7 +91,7 @@ Here are the configuration examples for each supported Embedding provider:
 [See more configurations](https://github.com/run-llama/llama_index/blob/main/llama-index-integrations/embeddings/llama-index-embeddings-openai/llama_index/embeddings/openai/base.py#L214)
 
 ```lua
-embedding = { -- Configuration for the Embedding Model used by the RAG service
+embed = { -- Configuration for the Embedding Model used by the RAG service
   provider = "openai", -- The Embedding provider ("openai")
   endpoint = "https://api.openai.com/v1", -- The Embedding API endpoint
   api_key = "OPENAI_API_KEY", -- The environment variable name for the Embedding API key
@@ -107,7 +107,7 @@ embedding = { -- Configuration for the Embedding Model used by the RAG service
 [See more configurations](https://github.com/run-llama/llama_index/blob/main/llama-index-integrations/embeddings/llama-index-embeddings-dashscope/llama_index/embeddings/dashscope/base.py#L156)
 
 ```lua
-embedding = { -- Configuration for the Embedding Model used by the RAG service
+embed = { -- Configuration for the Embedding Model used by the RAG service
   provider = "dashscope", -- The Embedding provider ("dashscope")
   endpoint = "", -- The Embedding API endpoint (DashScope typically uses default or environment variables)
   api_key = "DASHSCOPE_API_KEY", -- The environment variable name for the Embedding API key
@@ -123,7 +123,7 @@ embedding = { -- Configuration for the Embedding Model used by the RAG service
 [See more configurations](https://github.com/run-llama/llama_index/blob/main/llama-index-integrations/embeddings/llama-index-embeddings-ollama/llama_index/embeddings/ollama/base.py#L12)
 
 ```lua
-embedding = { -- Configuration for the Embedding Model used by the RAG service
+embed = { -- Configuration for the Embedding Model used by the RAG service
   provider = "ollama", -- The Embedding provider ("ollama")
   endpoint = "http://localhost:11434", -- The Embedding API endpoint for Ollama
   api_key = "", -- Ollama typically does not require an API key
