@@ -1,10 +1,11 @@
 # src/providers/dashscope.py
 
 from typing import Any
-from llama_index.embeddings.dashscope import DashScopeEmbedding
-from llama_index.llms.dashscope import DashScope
+
 from llama_index.core.base.embeddings.base import BaseEmbedding
 from llama_index.core.llms.llm import LLM
+from llama_index.embeddings.dashscope import DashScopeEmbedding
+from llama_index.llms.dashscope import DashScope
 
 
 def initialize_embed_model(
@@ -23,6 +24,7 @@ def initialize_embed_model(
 
     Returns:
         The initialized embed_model.
+
     """
     # DashScope typically uses the API key and model name.
     # The endpoint might be set via environment variables or default.
@@ -54,6 +56,7 @@ def initialize_llm_model(
 
     Returns:
         The initialized llm_model.
+
     """
     # DashScope typically uses the API key and model name.
     # The endpoint might be set via environment variables or default.

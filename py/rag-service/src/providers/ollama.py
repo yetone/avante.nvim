@@ -1,10 +1,11 @@
 # src/providers/ollama.py
 
 from typing import Any
-from llama_index.embeddings.ollama import OllamaEmbedding
-from llama_index.llms.ollama import Ollama
+
 from llama_index.core.base.embeddings.base import BaseEmbedding
 from llama_index.core.llms.llm import LLM
+from llama_index.embeddings.ollama import OllamaEmbedding
+from llama_index.llms.ollama import Ollama
 
 
 def initialize_embed_model(
@@ -23,6 +24,7 @@ def initialize_embed_model(
 
     Returns:
         The initialized embed_model.
+
     """
     # Ollama typically uses the endpoint directly and may not require an API key
     # We include embed_api_key in the signature to match the factory interface
@@ -51,6 +53,7 @@ def initialize_llm_model(
 
     Returns:
         The initialized llm_model.
+
     """
     # Ollama typically uses the endpoint directly and may not require an API key
     # We include llm_api_key in the signature to match the factory interface

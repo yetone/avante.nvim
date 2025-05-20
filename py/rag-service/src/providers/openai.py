@@ -1,10 +1,11 @@
 # src/providers/openai.py
 
 from typing import Any
-from llama_index.embeddings.openai import OpenAIEmbedding
-from llama_index.llms.openai import OpenAI
+
 from llama_index.core.base.embeddings.base import BaseEmbedding
 from llama_index.core.llms.llm import LLM
+from llama_index.embeddings.openai import OpenAIEmbedding
+from llama_index.llms.openai import OpenAI
 
 
 def initialize_embed_model(
@@ -23,6 +24,7 @@ def initialize_embed_model(
 
     Returns:
         The initialized embed_model.
+
     """
     # Use the provided endpoint directly.
     # Note: OpenAIEmbedding automatically picks up OPENAI_API_KEY env var
@@ -52,6 +54,7 @@ def initialize_llm_model(
 
     Returns:
         The initialized llm_model.
+
     """
     # Use the provided endpoint directly.
     # Note: OpenAI automatically picks up OPENAI_API_KEY env var

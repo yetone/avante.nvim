@@ -1,8 +1,9 @@
 # src/providers/openrouter.py
 
 from typing import Any
-from llama_index.llms.openrouter import OpenRouter
+
 from llama_index.core.llms.llm import LLM
+from llama_index.llms.openrouter import OpenRouter
 
 
 def initialize_llm_model(
@@ -21,6 +22,7 @@ def initialize_llm_model(
 
     Returns:
         The initialized llm_model.
+
     """
     # Use the provided endpoint directly.
     # We are not using llm_api_key parameter here, relying on env var as original code did.

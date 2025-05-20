@@ -1,11 +1,12 @@
 import importlib
-from typing import cast, Callable
+from collections.abc import Callable
+from typing import cast
 
-from llama_index.core.base.embeddings.base import BaseEmbedding
-from llama_index.core.llms.llm import LLM
 from libs.logger import (
     logger,
 )  # Assuming libs.logger exists and provides a logger instance
+from llama_index.core.base.embeddings.base import BaseEmbedding
+from llama_index.core.llms.llm import LLM
 
 
 def initialize_embed_model(
@@ -32,6 +33,7 @@ def initialize_embed_model(
     Raises:
         ValueError: If the specified embed_provider is not supported or module/function not found.
         RuntimeError: If model initialization fails for the selected provider.
+
     """
     if not embed_provider.replace("_", "").isalnum():
         raise ValueError(f"Invalid EMBED_PROVIDER specified: '{embed_provider}'. Provider name must be alphanumeric or contain underscores.")
@@ -106,6 +108,7 @@ def initialize_llm_model(
     Raises:
         ValueError: If the specified llm_provider is not supported or module/function not found.
         RuntimeError: If model initialization fails for the selected provider.
+
     """
     if not llm_provider.replace("_", "").isalnum():
         raise ValueError(f"Invalid LLM_PROVIDER specified: '{llm_provider}'. Provider name must be alphanumeric or contain underscores.")
