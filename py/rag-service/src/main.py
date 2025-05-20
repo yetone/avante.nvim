@@ -351,7 +351,6 @@ vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
 storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
 try:
-    print(rag_embed_extra)
     embed_extra = json.loads(rag_embed_extra) if rag_embed_extra is not None else {}
 except json.JSONDecodeError:
     logger.error("Failed to decode RAG_EMBED_EXTRA, defaulting to empty dict.")

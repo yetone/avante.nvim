@@ -31,7 +31,6 @@ def initialize_embed_model(
     # We pass embed_api_key and embed_model to the constructor.
     # We include embed_endpoint in the signature to match the factory interface,
     # but it might not be directly used by the constructor depending on LlamaIndex's implementation.
-    print(embed_extra)
     embed_model_instance = DashScopeEmbedding(
         model_name=embed_model,
         api_key=embed_api_key,
