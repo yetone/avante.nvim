@@ -283,6 +283,7 @@ function M.generate_prompts(opts)
           if item.type ~= "tool_result" then goto continue end
           local tool_name = tool_id_to_tool_name[item.tool_use_id]
           if tool_name ~= "view" then goto continue end
+          if item.is_error then goto continue end
           local path = tool_id_to_path[item.tool_use_id]
           local latest_tool_id = viewed_files[path]
           if not latest_tool_id then goto continue end
