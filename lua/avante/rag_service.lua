@@ -43,8 +43,8 @@ function M.launch_rag_service(cb)
     and Config.rag_service.llm.api_key
     and Config.rag_service.llm.api_key ~= ""
   then
-    llm_api_key = os.getenv(Config.rag_service.llm.api_key)
-    if llm_api_key == nil then
+    llm_api_key = os.getenv(Config.rag_service.llm.api_key) or ""
+    if llm_api_key == nil or llm_api_key == "" then
       error(string.format("cannot launch avante rag service, %s is not set", Config.rag_service.llm.api_key))
       return
     end
@@ -58,8 +58,8 @@ function M.launch_rag_service(cb)
     and Config.rag_service.embed.api_key
     and Config.rag_service.embed.api_key ~= ""
   then
-    embed_api_key = os.getenv(Config.rag_service.embed.api_key)
-    if embed_api_key == nil then
+    embed_api_key = os.getenv(Config.rag_service.embed.api_key) or ""
+    if embed_api_key == nil or embed_api_key == "" then
       error(string.format("cannot launch avante rag service, %s is not set", Config.rag_service.embed.api_key))
       return
     end
