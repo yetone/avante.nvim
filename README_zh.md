@@ -761,7 +761,7 @@ Avante 提供了一个 RAG 服务，这是一个用于获取 AI 生成代码所�
   },
 ```
 
-RAG 服务当前可以单独这只llm模型和嵌入模型。在 `llm` 和 `embed` 配置块中，您可以设置以下字段：
+RAG 服务可以单独设置llm模型和嵌入模型。在 `llm` 和 `embed` 配置块中，您可以设置以下字段：
 
 - `provider`: 模型提供者（例如 "openai", "ollama", "dashscope"以及"openrouter"）
 - `endpoint`: API 端点
