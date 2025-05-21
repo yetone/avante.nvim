@@ -7,6 +7,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl git \
   && curl -LsSf https://astral.sh/uv/install.sh | sh
 
 ENV PATH="/root/.local/bin:$PATH" \
+  PYTHONPATH=/app/src \
   PYTHONUNBUFFERED=1 \
   PYTHONDONTWRITEBYTECODE=1
 
@@ -17,4 +18,4 @@ RUN uv pip install --system -r requirements.txt
 
 COPY . .
 
-CMD ["uv", "run", "fastapi", "run", "src/main.py", "--workers", "3", "--port", "20250"]
+CMD ["uvicorn", "src.main:app", "--workers", "3", "--host", "0.0.0.0", "--port", "20250"]
