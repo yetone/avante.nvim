@@ -593,7 +593,7 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 >   model = "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
 >   aws_profile = "bedrock",
 >   aws_region = "us-east-1",
->},
+> },
 > ```
 >
 > Note: Bedrock requires the [AWS CLI](https://aws.amazon.com/cli/) to be installed on your system.
@@ -769,21 +769,37 @@ For more information, see [Custom Providers](https://github.com/yetone/avante.nv
 Avante provides a RAG service, which is a tool for obtaining the required context for the AI to generate the codes. By default, it is not enabled. You can enable it this way:
 
 ```lua
-rag_service = {
-  enabled = false, -- Enables the RAG service
-  host_mount = os.getenv("HOME"), -- Host mount path for the rag service
-  provider = "openai", -- The provider to use for RAG service (e.g. openai or ollama)
-  llm_model = "", -- The LLM model to use for RAG service
-  embed_model = "", -- The embedding model to use for RAG service
-  endpoint = "https://api.openai.com/v1", -- The API endpoint for RAG service
-},
+  rag_service = { -- RAG Service configuration
+    enabled = false, -- Enables the RAG service
+    host_mount = os.getenv("HOME"), -- Host mount path for the rag service (Docker will mount this path)
+    runner = "docker", -- Runner for the RAG service (can use docker or nix)
+    llm = { -- Language Model (LLM) configuration for RAG service
+      provider = "openai", -- LLM provider
+      endpoint = "https://api.openai.com/v1", -- LLM API endpoint
+      api_key = "OPENAI_API_KEY", -- Environment variable name for the LLM API key
+      model = "gpt-4o-mini", -- LLM model name
+      extra = nil, -- Additional configuration options for LLM
+    },
+    embed = { -- Embedding model configuration for RAG service
+      provider = "openai", -- Embedding provider
+      endpoint = "https://api.openai.com/v1", -- Embedding API endpoint
+      api_key = "OPENAI_API_KEY", -- Environment variable name for the embedding API key
+      model = "text-embedding-3-large", -- Embedding model name
+      extra = nil, -- Additional configuration options for the embedding model
+    },
+    docker_extra_args = "", -- Extra arguments to pass to the docker command
+  },
 ```
 
-If your rag_service provider is `openai`, then you need to set the `OPENAI_API_KEY` environment variable!
+The RAG Service can currently configure the LLM and embedding models separately. In the `llm` and `embed` configuration blocks, you can set the following fields:
 
-If your rag_service provider is `ollama`, you need to set the endpoint to `http://localhost:11434` (note there is no `/v1` at the end) or any address of your own ollama server.
+- `provider`: Model provider (e.g., "openai", "ollama", "dashscope", and "openrouter")
+- `endpoint`: API endpoint
+- `api_key`: Environment variable name for the API key
+- `model`: Model name
+- `extra`: Additional configuration options
 
-If your rag_service provider is `ollama`, when `llm_model` is empty, it defaults to `llama3`, and when `embed_model` is empty, it defaults to `nomic-embed-text`. Please make sure these models are available in your ollama server.
+For detailed configuration of different model providers, you can check [here](./py/rag-service/README.md).
 
 Additionally, RAG Service also depends on Docker! (For macOS users, OrbStack is recommended as a Docker alternative).
 
