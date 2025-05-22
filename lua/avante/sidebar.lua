@@ -978,8 +978,10 @@ local base_win_options = {
     .. ",Normal:"
     .. Highlights.AVANTE_SIDEBAR_NORMAL,
   winbar = "",
-  statusline = " ",
+  statusline = "",
 }
+
+if vim.o.laststatus == 0 then base_win_options.statusline = " " end
 
 function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl)
   if not bufnr or not api.nvim_buf_is_valid(bufnr) then return end
