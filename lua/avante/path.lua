@@ -5,8 +5,8 @@ local Scan = require("plenary.scandir")
 local Config = require("avante.config")
 
 ---@class avante.Path
----@field history_path Path
----@field cache_path Path
+---@field history_path plenary.Path
+---@field cache_path plenary.Path
 local P = {}
 
 ---@param bufnr integer | nil
@@ -66,7 +66,7 @@ end
 -- Get a chat history file name given a buffer
 ---@param bufnr integer
 ---@param new boolean
----@return Path
+---@return plenary.Path
 function History.get_latest_filepath(bufnr, new)
   local history_dir = History.get_history_dir(bufnr)
   local filename = History.get_latest_filename(bufnr, new)
@@ -154,6 +154,35 @@ History.save = function(bufnr, history)
   History.save_latest_filename(bufnr, history.filename)
 end
 
+--- Deletes a specific chat history file.
+---@param bufnr integer
+---@param filename string
+function History.delete(bufnr, filename)
+  local history_filepath = History.get_filepath(bufnr, filename)
+  if history_filepath:exists() then
+    local was_latest = (filename == History.get_latest_filename(bufnr, false))
+    history_filepath:rm()
+
+    if was_latest then
+      local remaining_histories = History.list(bufnr) -- This list is sorted by recency
+      if #remaining_histories > 0 then
+        History.save_latest_filename(bufnr, remaining_histories[1].filename)
+      else
+        -- No histories left, clear the latest_filename from metadata
+        local metadata_filepath = History.get_metadata_filepath(bufnr)
+        if metadata_filepath:exists() then
+          local metadata_content = metadata_filepath:read()
+          local metadata = vim.json.decode(metadata_content)
+          metadata.latest_filename = nil -- Or "", depending on desired behavior for an empty latest
+          metadata_filepath:write(vim.json.encode(metadata), "w")
+        end
+      end
+    end
+  else
+    Utils.warn("History file not found: " .. tostring(history_filepath))
+  end
+end
+
 P.history = History
 
 -- Prompt path
@@ -188,8 +217,8 @@ function Prompt.get_templates_dir(project_root)
   -- get root directory of given bufnr
   local directory = Path:new(project_root)
   if Utils.get_os_name() == "windows" then directory = Path:new(directory:absolute():gsub("^%a:", "")[1]) end
-  ---@cast directory Path
-  ---@type Path
+  ---@cast directory plenary.Path
+  ---@type plenary.Path
   local cache_prompt_dir = P.cache_path:joinpath(directory)
   if not cache_prompt_dir:exists() then cache_prompt_dir:mkdir({ parents = true }) end
 
