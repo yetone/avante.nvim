@@ -45,14 +45,12 @@ def initialize_embed_model(
     try:
         provider_module = importlib.import_module(f".{embed_provider}", package="providers")
         logger.debug(f"Successfully imported provider module: providers.{embed_provider}")
-        initializer = cast(
-            "Callable[..., BaseEmbedding]",
-            getattr(provider_module, "initialize_embed_model", None),
-        )
-
-        if initializer is None:
+        attribute = getattr(provider_module, "initialize_embed_model", None)
+        if attribute is None:
             error_msg = f"Provider module '{embed_provider}' does not have an 'initialize_embed_model' function."
             raise ValueError(error_msg)  # noqa: TRY301
+
+        initializer = cast("Callable[..., BaseEmbedding]", attribute)
 
     except ImportError as err:
         error_msg = f"Unsupported EMBED_PROVIDER specified: '{embed_provider}'. Could not find provider module 'providers.{embed_provider}"
@@ -133,15 +131,12 @@ def initialize_llm_model(
             package="providers",
         )
         logger.debug(f"Successfully imported provider module: providers.{llm_provider}")
-
-        initializer = cast(
-            "Callable[..., LLM]",
-            getattr(provider_module, "initialize_llm_model", None),
-        )
-
-        if initializer is None:
+        attribute = getattr(provider_module, "initialize_llm_model", None)
+        if attribute is None:
             error_msg = f"Provider module '{llm_provider}' does not have an 'initialize_llm_model' function."
             raise ValueError(error_msg)  # noqa: TRY301
+
+        initializer = cast("Callable[..., LLM]", attribute)
 
     except ImportError as err:
         error_msg = f"Unsupported LLM_PROVIDER specified: '{llm_provider}'. Could not find provider module 'providers.{llm_provider}'."

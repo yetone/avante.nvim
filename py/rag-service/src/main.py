@@ -1,4 +1,4 @@
-"""RAG Service API for managing document indexing and retrieval."""
+"""RAG Service API for managing document indexing and retrieval."""  # noqa: INP001
 
 from __future__ import annotations
 
