@@ -219,7 +219,20 @@ end
 
 function M:add_tool_use_message(tool_use, state, opts)
   local jsn = nil
-  if state == "generated" then jsn = vim.json.decode(tool_use.input_json) end
+  if state == "generated" and tool_use.input_json and tool_use.input_json ~= "" then
+    -- Try to parse the JSON, use empty object if parsing fails
+    local ok
+    ok, jsn = pcall(vim.json.decode, tool_use.input_json)
+    if not ok then jsn = {} end
+  end
+
+  -- Ensure we have a properly formatted empty JSON object for nil or empty input
+  local input_value = jsn
+  if input_value == nil then
+    -- Create an explicit empty object (not an array)
+    input_value = vim.empty_dict()
+  end
+
   local msg = HistoryMessage:new({
     role = "assistant",
     content = {
@@ -227,7 +240,7 @@ function M:add_tool_use_message(tool_use, state, opts)
         type = "tool_use",
         name = tool_use.name,
         id = tool_use.id,
-        input = jsn or {},
+        input = input_value,
       },
     },
   }, {
