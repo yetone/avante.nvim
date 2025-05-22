@@ -9,18 +9,19 @@ from llama_index.llms.dashscope import DashScope
 
 
 def initialize_embed_model(
-    embed_endpoint: str,
+    embed_endpoint: str,  # noqa: ARG001
     embed_api_key: str,
     embed_model: str,
-    **embed_extra: Any,
+    **embed_extra: Any,  # noqa: ANN401
 ) -> BaseEmbedding:
     """
-    Initializes DashScope embedding model.
+    Create DashScope embedding model.
 
     Args:
         embed_endpoint: Not be used directly by the constructor.
         embed_api_key: The API key for the DashScope API.
         embed_model: The name of the embedding model.
+        embed_extra: Extra parameters of the embedding model.
 
     Returns:
         The initialized embed_model.
@@ -31,27 +32,27 @@ def initialize_embed_model(
     # We pass embed_api_key and embed_model to the constructor.
     # We include embed_endpoint in the signature to match the factory interface,
     # but it might not be directly used by the constructor depending on LlamaIndex's implementation.
-    embed_model_instance = DashScopeEmbedding(
+    return DashScopeEmbedding(
         model_name=embed_model,
         api_key=embed_api_key,
         **embed_extra,
     )
-    return embed_model_instance
 
 
 def initialize_llm_model(
-    llm_endpoint: str,
+    llm_endpoint: str,  # noqa: ARG001
     llm_api_key: str,
     llm_model: str,
-    **llm_extra: Any,
+    **llm_extra: Any,  # noqa: ANN401
 ) -> LLM:
     """
-    Initializes DashScope LLM model.
+    Create DashScope LLM model.
 
     Args:
         llm_endpoint: Not be used directly by the constructor.
         llm_api_key: The API key for the DashScope API.
         llm_model: The name of the LLM model.
+        llm_extra: Extra parameters of the LLM model.
 
     Returns:
         The initialized llm_model.
@@ -62,9 +63,8 @@ def initialize_llm_model(
     # We pass llm_api_key and llm_model to the constructor.
     # We include llm_endpoint in the signature to match the factory interface,
     # but it might not be directly used by the constructor depending on LlamaIndex's implementation.
-    llm_model_instance = DashScope(
+    return DashScope(
         model_name=llm_model,
         api_key=llm_api_key,
         **llm_extra,
     )
-    return llm_model_instance

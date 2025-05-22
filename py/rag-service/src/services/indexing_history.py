@@ -3,10 +3,11 @@ import os
 from datetime import datetime
 from typing import Any
 
+from llama_index.core.schema import Document
+
 from libs.db import get_db_connection
 from libs.logger import logger
 from libs.utils import get_node_uri
-from llama_index.core.schema import Document
 from models.indexing_history import IndexingHistory
 
 

@@ -12,15 +12,16 @@ def initialize_embed_model(
     embed_endpoint: str,
     embed_api_key: str,
     embed_model: str,
-    **embed_extra: Any,
+    **embed_extra: Any,  # noqa: ANN401
 ) -> BaseEmbedding:
     """
-    Initializes OpenAI embedding model.
+    Create OpenAI embedding model.
 
     Args:
         embed_model: The name of the embedding model.
         embed_endpoint: The API endpoint for the OpenAI API.
         embed_api_key: The API key for the OpenAI API.
+        embed_extra: Extra Paramaters for the OpenAI API.
 
     Returns:
         The initialized embed_model.
@@ -29,28 +30,28 @@ def initialize_embed_model(
     # Use the provided endpoint directly.
     # Note: OpenAIEmbedding automatically picks up OPENAI_API_KEY env var
     # We are not using embed_api_key parameter here, relying on env var as original code did.
-    embed_model_instance = OpenAIEmbedding(
+    return OpenAIEmbedding(
         model=embed_model,
         api_base=embed_endpoint,
         api_key=embed_api_key,
         **embed_extra,
     )
-    return embed_model_instance
 
 
 def initialize_llm_model(
     llm_endpoint: str,
     llm_api_key: str,
     llm_model: str,
-    **llm_extra: Any,
+    **llm_extra: Any,  # noqa: ANN401
 ) -> LLM:
     """
-    Initializes OpenAI LLM model.
+    Create OpenAI LLM model.
 
     Args:
         llm_model: The name of the LLM model.
         llm_endpoint: The API endpoint for the OpenAI API.
         llm_api_key: The API key for the OpenAI API.
+        llm_extra: Extra paramaters for the OpenAI API.
 
     Returns:
         The initialized llm_model.
@@ -59,10 +60,9 @@ def initialize_llm_model(
     # Use the provided endpoint directly.
     # Note: OpenAI automatically picks up OPENAI_API_KEY env var
     # We are not using llm_api_key parameter here, relying on env var as original code did.
-    llm_model_instance = OpenAI(
+    return OpenAI(
         model=llm_model,
         api_base=llm_endpoint,
         api_key=llm_api_key,
         **llm_extra,
     )
-    return llm_model_instance

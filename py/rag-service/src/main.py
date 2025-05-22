@@ -1,7 +1,8 @@
-"""RAG Service API for managing document indexing and retrieval."""  # noqa: INP001
+"""RAG Service API for managing document indexing and retrieval."""
 
 from __future__ import annotations
 
+# Standard library imports
 import asyncio
 import fcntl
 import json
@@ -18,51 +19,38 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urljoin, urlparse
 
+# Third-party imports
 import chromadb
 import httpx
 import pathspec
 from fastapi import BackgroundTasks, FastAPI, HTTPException
-from libs.configs import (
-    BASE_DATA_DIR,
-    CHROMA_PERSIST_DIR,
-)
-from libs.db import init_db
-from libs.logger import logger
-from libs.utils import (
-    get_node_uri,
-    inject_uri_to_node,
-    is_local_uri,
-    is_path_node,
-    is_remote_uri,
-    path_to_uri,
-    uri_to_path,
-)
-from llama_index.core import (
-    Settings,
-    SimpleDirectoryReader,
-    StorageContext,
-    VectorStoreIndex,
-    load_index_from_storage,
-)
+from llama_index.core import Settings, SimpleDirectoryReader, StorageContext, VectorStoreIndex, load_index_from_storage
 from llama_index.core.node_parser import CodeSplitter
 from llama_index.core.schema import Document
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from markdownify import markdownify as md
-from models.indexing_history import IndexingHistory  # noqa: TC002
-from models.resource import Resource
-from providers.factory import initialize_embed_model, initialize_llm_model
 from pydantic import BaseModel, Field
-from services.indexing_history import indexing_history_service
-from services.resource import resource_service
 from tree_sitter_language_pack import SupportedLanguage, get_parser
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
+
+# Local application imports
+from libs.configs import BASE_DATA_DIR, CHROMA_PERSIST_DIR
+from libs.db import init_db
+from libs.logger import logger
+from libs.utils import get_node_uri, inject_uri_to_node, is_local_uri, is_path_node, is_remote_uri, path_to_uri, uri_to_path
+from models.resource import Resource
+from providers.factory import initialize_embed_model, initialize_llm_model
+from services.indexing_history import indexing_history_service
+from services.resource import resource_service
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
     from llama_index.core.schema import NodeWithScore, QueryBundle
     from watchdog.observers.api import BaseObserver
+
+    from models.indexing_history import IndexingHistory
 
 # Lock file for leader election
 LOCK_FILE = BASE_DATA_DIR / "leader.lock"
@@ -108,8 +96,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: ARG001
                 if is_local_uri(resource.uri):
                     directory = uri_to_path(resource.uri)
                     if not directory.exists():
-                        logger.error("Directory not found: %s", directory)
-                        resource_service.update_resource_status(resource.uri, "error", f"Directory not found: {directory}")
+                        error_msg = f"Directory not found: {directory}"
+                        logger.error(error_msg)
+                        resource_service.update_resource_status(resource.uri, "error", error_msg)
                         continue
 
                     # Start file system watcher
@@ -124,8 +113,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:  # noqa: ARG001
 
                 elif is_remote_uri(resource.uri):
                     if not is_remote_resource_exists(resource.uri):
-                        logger.error("HTTPS resource not found: %s", resource.uri)
-                        resource_service.update_resource_status(resource.uri, "error", "remote resource not found")
+                        error_msg = "HTTPS resource not found"
+                        logger.error("%s: %s", error_msg, resource.uri)
+                        resource_service.update_resource_status(resource.uri, "error", error_msg)
                         continue
 
                     # Start indexing
@@ -373,8 +363,9 @@ try:
     )
     logger.info("Embedding model initialized successfully.")
 except (ValueError, RuntimeError) as e:
-    logger.error(f"Failed to initialize embedding model: {e}", exc_info=True)
-    raise RuntimeError(f"Failed to initialize embedding model: {e}") from e
+    error_msg = f"Failed to initialize embedding model: {e}"
+    logger.error(error_msg, exc_info=True)
+    raise RuntimeError(error_msg) from e
 
 try:
     llm_model = initialize_llm_model(
@@ -386,8 +377,9 @@ try:
     )
     logger.info("LLM model initialized successfully.")
 except (ValueError, RuntimeError) as e:
-    logger.error(f"Failed to initialize LLM model: {e}", exc_info=True)
-    raise RuntimeError(f"Failed to initialize LLM model: {e}") from e
+    error_msg = f"Failed to initialize LLM model: {e}"
+    logger.error(error_msg, exc_info=True)
+    raise RuntimeError(error_msg) from e
 
 
 Settings.embed_model = embed_model
@@ -424,7 +416,10 @@ class SourceDocument(BaseModel):
 class RetrieveRequest(BaseModel):
     """Request model for information retrieval."""
 
-    query: str = Field(..., description="The query text to search for in the indexed documents")
+    query: str = Field(
+        ...,
+        description="The query text to search for in the indexed documents",
+    )
     base_uri: str = Field(..., description="The base URI to search in")
     top_k: int | None = Field(5, description="Number of top results to return", ge=1, le=20)
 
