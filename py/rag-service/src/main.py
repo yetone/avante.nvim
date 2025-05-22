@@ -24,33 +24,32 @@ import chromadb
 import httpx
 import pathspec
 from fastapi import BackgroundTasks, FastAPI, HTTPException
-from llama_index.core import Settings, SimpleDirectoryReader, StorageContext, VectorStoreIndex, load_index_from_storage
-from llama_index.core.node_parser import CodeSplitter
-from llama_index.core.schema import Document
-from llama_index.vector_stores.chroma import ChromaVectorStore
-from markdownify import markdownify as md
-from pydantic import BaseModel, Field
-from tree_sitter_language_pack import SupportedLanguage, get_parser
-from watchdog.events import FileSystemEvent, FileSystemEventHandler
-from watchdog.observers import Observer
 
 # Local application imports
 from libs.configs import BASE_DATA_DIR, CHROMA_PERSIST_DIR
 from libs.db import init_db
 from libs.logger import logger
 from libs.utils import get_node_uri, inject_uri_to_node, is_local_uri, is_path_node, is_remote_uri, path_to_uri, uri_to_path
+from llama_index.core import Settings, SimpleDirectoryReader, StorageContext, VectorStoreIndex, load_index_from_storage
+from llama_index.core.node_parser import CodeSplitter
+from llama_index.core.schema import Document
+from llama_index.vector_stores.chroma import ChromaVectorStore
+from markdownify import markdownify as md
 from models.resource import Resource
 from providers.factory import initialize_embed_model, initialize_llm_model
+from pydantic import BaseModel, Field
 from services.indexing_history import indexing_history_service
 from services.resource import resource_service
+from tree_sitter_language_pack import SupportedLanguage, get_parser
+from watchdog.events import FileSystemEvent, FileSystemEventHandler
+from watchdog.observers import Observer
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
 
     from llama_index.core.schema import NodeWithScore, QueryBundle
-    from watchdog.observers.api import BaseObserver
-
     from models.indexing_history import IndexingHistory
+    from watchdog.observers.api import BaseObserver
 
 # Lock file for leader election
 LOCK_FILE = BASE_DATA_DIR / "leader.lock"
