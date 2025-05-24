@@ -2552,6 +2552,12 @@ function Sidebar:create_input_container()
 
   self.input_container:map("n", Config.mappings.submit.normal, on_submit)
   self.input_container:map("i", Config.mappings.submit.insert, on_submit)
+  self.input_container:map("n", Config.prompt_logger.next_prompt.normal, PromptLogger.on_log_retrieve(-1))
+  self.input_container:map("i", Config.prompt_logger.next_prompt.insert, PromptLogger.on_log_retrieve(-1))
+  self.input_container:map("n", Config.prompt_logger.prev_prompt.normal, PromptLogger.on_log_retrieve( 1))
+  self.input_container:map("i", Config.prompt_logger.prev_prompt.insert, PromptLogger.on_log_retrieve( 1))
+
+
 
   if Config.mappings.sidebar.close_from_input ~= nil then
     if Config.mappings.sidebar.close_from_input.normal ~= nil then
