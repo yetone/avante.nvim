@@ -364,7 +364,7 @@ function M:parse_curl_args(prompt_opts)
     if provider_conf.model:match("claude%-sonnet%-4") then
       table.insert(tools, {
         type = "text_editor_20250429",
-        name = "str_replace_editor",
+        name = "str_replace_based_edit_tool",
       })
     elseif provider_conf.model:match("claude%-3%-7%-sonnet") then
       table.insert(tools, {
