@@ -387,10 +387,18 @@ M._defaults = {
     use_cwd_as_project_root = false,
     auto_focus_on_diff_view = false,
   },
-  prompt_logger = {
-    enabled = true,
-    log_dir = vim.fn.stdpath("cache") .. "/avante_logs",
-    fortune_message_on_success = true, -- make sure you have fortune installed
+  prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
+    enabled = true, -- toggle logging entirely
+    log_dir = Utils.join_paths(vim.fn.stdpath("cache"), "avante_prompts"), -- directory where logs are saved
+    fortune_cookie_on_success = false, -- shows a random fortune after each logged prompt (requires `fortune` installed)
+    next_prompt = {
+      normal = "<C-n>", -- load the next (newer) prompt log in normal mode
+      insert = "<C-n>",
+    },
+    prev_prompt = {
+      normal = "<C-p>", -- load the previous (older) prompt log in normal mode
+      insert = "<C-p>",
+    },
   },
   history = {
     max_tokens = 4096,

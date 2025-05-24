@@ -358,6 +358,19 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     minimize_diff = true, -- Whether to remove unchanged lines when applying a code block
     enable_token_counting = true, -- Whether to enable token counting. Default to true.
   },
+  prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
+    enabled = true, -- toggle logging entirely
+    log_dir = vim.fn.stdpath("cache") .. "/avante_prompts", -- directory where logs are saved
+    fortune_cookie_on_success = false, -- shows a random fortune after each logged prompt (requires `fortune` installed)
+    next_prompt = {
+      normal = "<C-n>", -- load the next (newer) prompt log in normal mode
+      insert = "<C-n>",
+    },
+    prev_prompt = {
+      normal = "<C-p>", -- load the previous (older) prompt log in normal mode
+      insert = "<C-p>",
+    },
+  },
   mappings = {
     --- @class AvanteConflictMappings
     diff = {
