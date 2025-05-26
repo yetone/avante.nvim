@@ -291,8 +291,7 @@ function M.generate_prompts(opts)
             item.content =
               string.format("The file %s has been updated. Please use the latest `view` tool result!", path)
           else
-            local lines, error = Utils.read_file_from_buf_or_disk(path)
-            if error ~= nil then Utils.error("error reading file: " .. error) end
+            local lines = Utils.read_file_from_buf_or_disk(path)
             lines = lines or {}
             item.content = table.concat(lines, "\n")
           end
