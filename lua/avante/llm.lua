@@ -865,30 +865,69 @@ function M._stream(opts)
         end
         return opts.on_stop({ reason = "cancelled" })
       end
-      if stop_opts.reason == "tool_use" then
-        local tool_use_list = {} ---@type AvanteLLMToolUse[]
-        local tool_result_seen = {}
-        local history_messages = opts.get_history_messages and opts.get_history_messages() or {}
-        for idx = #history_messages, 1, -1 do
-          local message = history_messages[idx]
-          local content = message.message.content
-          if type(content) ~= "table" or #content == 0 then goto continue end
-          if content[1].type == "tool_use" then
-            if not tool_result_seen[content[1].id] then
-              table.insert(tool_use_list, 1, content[1])
+      local tool_use_list = {} ---@type AvanteLLMToolUse[]
+      local tool_result_seen = {}
+      local history_messages = opts.get_history_messages and opts.get_history_messages() or {}
+      for idx = #history_messages, 1, -1 do
+        local message = history_messages[idx]
+        local content = message.message.content
+        if type(content) ~= "table" or #content == 0 then goto continue end
+        local is_break = false
+        for _, item in ipairs(content) do
+          if item.type == "tool_use" then
+            if not tool_result_seen[item.id] then
+              table.insert(tool_use_list, 1, item)
             else
+              is_break = true
               break
             end
           end
-          if content[1].type == "tool_result" then tool_result_seen[content[1].tool_use_id] = true end
-          ::continue::
+          if item.type == "tool_result" then tool_result_seen[item.tool_use_id] = true end
         end
-        local sorted_tool_use_list = {} ---@type AvanteLLMToolUse[]
-        for _, tool_use in vim.spairs(tool_use_list) do
-          table.insert(sorted_tool_use_list, tool_use)
-        end
-        return handle_next_tool_use(sorted_tool_use_list, 1, {})
+        if is_break then break end
+        ::continue::
       end
+      local sorted_tool_use_list = {} ---@type AvanteLLMToolUse[]
+      for _, tool_use in vim.spairs(tool_use_list) do
+        table.insert(sorted_tool_use_list, tool_use)
+      end
+      if stop_opts.reason == "complete" and Config.mode == "agentic" then
+        if #sorted_tool_use_list == 0 then
+          local completed_attempt_completion_tool_use = nil
+          for idx = #history_messages, 1, -1 do
+            local message = history_messages[idx]
+            if message.is_user_submission then break end
+            if not Utils.is_tool_use_message(message) then goto continue end
+            if message.message.content[1].name ~= "attempt_completion" then break end
+            completed_attempt_completion_tool_use = message
+            if message then break end
+            ::continue::
+          end
+          if not completed_attempt_completion_tool_use and opts.on_messages_add then
+            local message = HistoryMessage:new({
+              role = "user",
+              content = "\ncontinue\n",
+            }, {
+              just_for_display = true,
+            })
+            opts.on_messages_add({ message })
+            local new_opts = vim.tbl_deep_extend("force", opts, {
+              history_messages = opts.get_history_messages(),
+            })
+            if provider.get_rate_limit_sleep_time then
+              local sleep_time = provider:get_rate_limit_sleep_time(resp_headers)
+              if sleep_time and sleep_time > 0 then
+                Utils.info("Rate limit reached. Sleeping for " .. sleep_time .. " seconds ...")
+                vim.defer_fn(function() M._stream(new_opts) end, sleep_time * 1000)
+                return
+              end
+            end
+            M._stream(new_opts)
+            return
+          end
+        end
+      end
+      if stop_opts.reason == "tool_use" then return handle_next_tool_use(sorted_tool_use_list, 1, {}) end
       if stop_opts.reason == "rate_limit" then
         local msg_content = "*[Rate limit reached. Retrying in " .. stop_opts.retry_after .. " seconds ...]*"
         if opts.on_chunk then opts.on_chunk("\n" .. msg_content .. "\n") end

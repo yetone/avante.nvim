@@ -1029,6 +1029,7 @@ M._tools = {
   },
   require("avante.llm_tools.get_diagnostics"),
   require("avante.llm_tools.bash"),
+  require("avante.llm_tools.attempt_completion"),
   {
     name = "web_search",
     description = "Search the web",

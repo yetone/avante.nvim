@@ -9,7 +9,10 @@ Memory is crucial, you must follow the instructions in <memory>!
 {% include "_tools-guidelines.avanterules" %}
 
 {% if system_info -%}
-Use the appropriate shell based on the user's system info:
+====
+
+SYSTEM INFORMATION
+
 {{system_info}}
 {%- endif %}
 
