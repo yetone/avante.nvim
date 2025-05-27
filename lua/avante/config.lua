@@ -571,6 +571,21 @@ function M.setup(opts)
       return acc
     end)
 
+  ---@diagnostic disable-next-line: undefined-field
+  if M._options.disable_tools ~= nil then
+    Utils.warn(
+      "`disable_tools` is provider-scoped, not globally scoped. Therefore, you cannot set `disable_tools` at the top level. It should be set under a provider, for example: `openai.disable_tools = true`",
+      { title = "Avante" }
+    )
+  end
+
+  if type(M._options.disabled_tools) == "boolean" then
+    Utils.warn(
+      '`disabled_tools` must be a list, not a boolean. Please change it to `disabled_tools = { "tool1", "tool2" }`. Note the difference between `disabled_tools` and `disable_tools`.',
+      { title = "Avante" }
+    )
+  end
+
   vim.validate({ provider = { M._options.provider, "string", false } })
 
   if next(M._options.vendors) ~= nil then
