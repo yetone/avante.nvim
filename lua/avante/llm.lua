@@ -400,15 +400,18 @@ function M.generate_prompts(opts)
   local final_history_messages = {}
   if cleaned_history_messages then
     if opts.disable_compact_history_messages then
-      vim.iter(cleaned_history_messages):each(function(msg)
-        if Utils.is_tool_use_message(msg) and not Utils.get_tool_result_message(msg, cleaned_history_messages) then
-          return
+      for i, msg in ipairs(cleaned_history_messages) do
+        if Utils.is_tool_use_message(msg) then
+          local next_msg = cleaned_history_messages[i + 1]
+          if not next_msg or not Utils.is_tool_result_message(next_msg) then goto continue end
+          if next_msg.message.content[1].tool_use_id ~= msg.message.content[1].id then goto continue end
         end
         if Utils.is_tool_result_message(msg) and not Utils.get_tool_use_message(msg, cleaned_history_messages) then
-          return
+          goto continue
         end
         table.insert(final_history_messages, msg)
-      end)
+        ::continue::
+      end
     else
       if Config.history.max_tokens > 0 then
         remaining_tokens = math.min(Config.history.max_tokens, remaining_tokens)
