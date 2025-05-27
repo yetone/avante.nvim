@@ -911,7 +911,7 @@ function M._stream(opts)
               role = "user",
               content = "\ncontinue\n",
             }, {
-              just_for_display = true,
+              visible = false,
             })
             opts.on_messages_add({ message })
             local new_opts = vim.tbl_deep_extend("force", opts, {
