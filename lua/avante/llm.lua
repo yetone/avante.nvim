@@ -911,7 +911,7 @@ function M._stream(opts)
           if not completed_attempt_completion_tool_use and opts.on_messages_add then
             local message = HistoryMessage:new({
               role = "user",
-              content = "\ncontinue\n",
+              content = "<user-reminder>You should use tool calls to answer the question, for example, use attempt_completion if the job is done.</user-reminder>",
             }, {
               visible = false,
             })
