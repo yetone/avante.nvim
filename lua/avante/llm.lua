@@ -174,7 +174,8 @@ function M.generate_prompts(opts)
         end
         --- For models like gpt-4o, the input parameter of replace_in_file is treated as the latest file content, so here we need to insert a fake view tool call to ensure it uses the latest file content
         if is_replace_func_call and path and not message.message.content[1].is_error then
-          local lines = Utils.read_file_from_buf_or_disk(path)
+          local view_result, view_error = require("avante.llm_tools.view").func({ path = path }, nil, nil, nil)
+          if view_error then view_result = "Error: " .. view_error end
           local get_diagnostics_tool_use_id = Utils.uuid()
           local view_tool_use_id = Utils.uuid()
           local view_tool_name = "view"
@@ -210,8 +211,8 @@ function M.generate_prompts(opts)
                 {
                   type = "tool_result",
                   tool_use_id = view_tool_use_id,
-                  content = table.concat(lines or {}, "\n"),
-                  is_error = false,
+                  content = view_result,
+                  is_error = view_error ~= nil,
                 },
               },
             }, {
@@ -291,9 +292,10 @@ function M.generate_prompts(opts)
             item.content =
               string.format("The file %s has been updated. Please use the latest `view` tool result!", path)
           else
-            local lines = Utils.read_file_from_buf_or_disk(path)
-            lines = lines or {}
-            item.content = table.concat(lines, "\n")
+            local view_result, view_error = require("avante.llm_tools.view").func({ path = path }, nil, nil, nil)
+            if view_error then view_result = "Error: " .. view_error end
+            item.content = view_result
+            item.is_error = view_error ~= nil
           end
           ::continue::
         end
