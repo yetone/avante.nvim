@@ -378,6 +378,8 @@ vim.g.avante_login = vim.g.avante_login
 ---  session_ctx?: table)
 ---  : (boolean | string | nil, string | nil)
 ---
+--- @alias AvanteLLMToolOnRender<T> fun(input: T, logs: string[]): avante.ui.Line[]
+---
 ---@class AvanteLLMTool
 ---@field name string
 ---@field description? string
@@ -386,6 +388,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field param AvanteLLMToolParam
 ---@field returns AvanteLLMToolReturn[]
 ---@field enabled? fun(opts: { user_input: string, history_messages: AvanteLLMMessage[] }): boolean
+---@field on_render? AvanteLLMToolOnRender
 
 ---@class AvanteLLMToolPublic : AvanteLLMTool
 ---@field func AvanteLLMToolFunc
