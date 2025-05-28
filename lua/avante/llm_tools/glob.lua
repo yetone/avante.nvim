@@ -41,13 +41,29 @@ M.returns = {
 }
 
 ---@type AvanteLLMToolFunc<{ rel_path: string, pattern: string }>
-function M.func(opts, on_log)
+function M.func(opts, on_log, on_complete, session_ctx)
   local abs_path = Helpers.get_abs_path(opts.rel_path)
   if not Helpers.has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
   if on_log then on_log("path: " .. abs_path) end
   if on_log then on_log("pattern: " .. opts.pattern) end
   local files = vim.fn.glob(abs_path .. "/" .. opts.pattern, true, true)
-  return vim.json.encode(files), nil
+  local truncated_files = {}
+  local is_truncated = false
+  local size = 0
+  for _, file in ipairs(files) do
+    size = size + #file
+    if size > 1024 * 10 then
+      is_truncated = true
+      break
+    end
+    table.insert(truncated_files, file)
+  end
+  local result = vim.json.encode({
+    matches = truncated_files,
+    is_truncated = is_truncated,
+  })
+  if not on_complete then return result, nil end
+  on_complete(result, nil)
 end
 
 return M

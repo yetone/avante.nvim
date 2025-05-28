@@ -372,7 +372,7 @@ describe("llm_tools", function()
       -- Test for lua files in the root
       local result, err = glob({ rel_path = ".", pattern = "*.lua" })
       assert.is_nil(err)
-      local files = vim.json.decode(result)
+      local files = vim.json.decode(result).matches
       assert.equals(2, #files)
       assert.truthy(vim.tbl_contains(files, test_dir .. "/file1.lua"))
       assert.truthy(vim.tbl_contains(files, test_dir .. "/file2.lua"))
@@ -382,7 +382,7 @@ describe("llm_tools", function()
       -- Test with recursive pattern
       local result2, err2 = glob({ rel_path = ".", pattern = "**/*.lua" })
       assert.is_nil(err2)
-      local files2 = vim.json.decode(result2)
+      local files2 = vim.json.decode(result2).matches
       assert.equals(3, #files2)
       assert.truthy(vim.tbl_contains(files2, test_dir .. "/file1.lua"))
       assert.truthy(vim.tbl_contains(files2, test_dir .. "/file2.lua"))
@@ -398,7 +398,7 @@ describe("llm_tools", function()
     it("should handle patterns without matches", function()
       local result, err = glob({ rel_path = ".", pattern = "*.nonexistent" })
       assert.is_nil(err)
-      local files = vim.json.decode(result)
+      local files = vim.json.decode(result).matches
       assert.equals(0, #files)
     end)
 
@@ -413,7 +413,7 @@ describe("llm_tools", function()
 
       local result, err = glob({ rel_path = ".", pattern = "**/*.lua" })
       assert.is_nil(err)
-      local files = vim.json.decode(result)
+      local files = vim.json.decode(result).matches
 
       -- Check that files from non-ignored directory are found
       local found_notignored = false

@@ -220,7 +220,7 @@ M._defaults = {
     endpoint = "https://api.openai.com/v1",
     model = "gpt-4o",
     timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
-    temperature = 0,
+    temperature = 0.75,
     max_completion_tokens = 16384, -- Increase this to include reasoning tokens (for reasoning models)
     reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
   },
@@ -231,7 +231,7 @@ M._defaults = {
     proxy = nil, -- [protocol://]host[:port] Use this proxy
     allow_insecure = false, -- Allow insecure server connections
     timeout = 30000, -- Timeout in milliseconds
-    temperature = 0,
+    temperature = 0.75,
     max_tokens = 20480,
   },
   ---@type AvanteAzureProvider
@@ -240,7 +240,7 @@ M._defaults = {
     deployment = "", -- Azure deployment name (e.g., "gpt-4o", "my-gpt-4o-deployment")
     api_version = "2024-12-01-preview",
     timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
-    temperature = 0,
+    temperature = 0.75,
     max_completion_tokens = 20480, -- Increase this to include reasoning tokens (for reasoning models)
     reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
   },
@@ -249,14 +249,14 @@ M._defaults = {
     endpoint = "https://api.anthropic.com",
     model = "claude-3-7-sonnet-20250219",
     timeout = 30000, -- Timeout in milliseconds
-    temperature = 0,
+    temperature = 0.75,
     max_tokens = 20480,
   },
   ---@type AvanteSupportedProvider
   bedrock = {
     model = "anthropic.claude-3-5-sonnet-20241022-v2:0",
     timeout = 30000, -- Timeout in milliseconds
-    temperature = 0,
+    temperature = 0.75,
     max_tokens = 20480,
     aws_region = "", -- AWS region to use for authentication and bedrock API
     aws_profile = "", -- AWS profile to use for authentication, if unspecified uses default credentials chain
@@ -266,7 +266,7 @@ M._defaults = {
     endpoint = "https://generativelanguage.googleapis.com/v1beta/models",
     model = "gemini-2.0-flash",
     timeout = 30000, -- Timeout in milliseconds
-    temperature = 0,
+    temperature = 0.75,
     max_tokens = 8192,
   },
   ---@type AvanteSupportedProvider
@@ -274,7 +274,7 @@ M._defaults = {
     endpoint = "https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/google/models",
     model = "gemini-1.5-flash-002",
     timeout = 30000, -- Timeout in milliseconds
-    temperature = 0,
+    temperature = 0.75,
     max_tokens = 20480,
   },
   ---@type AvanteSupportedProvider
@@ -282,7 +282,7 @@ M._defaults = {
     endpoint = "https://api.cohere.com/v2",
     model = "command-r-plus-08-2024",
     timeout = 30000, -- Timeout in milliseconds
-    temperature = 0,
+    temperature = 0.75,
     max_tokens = 20480,
   },
   ---@type AvanteSupportedProvider
@@ -290,7 +290,7 @@ M._defaults = {
     endpoint = "http://127.0.0.1:11434",
     timeout = 30000, -- Timeout in milliseconds
     options = {
-      temperature = 0,
+      temperature = 0.75,
       num_ctx = 20480,
       keep_alive = "5m",
     },
@@ -300,7 +300,7 @@ M._defaults = {
     endpoint = "https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/antrhopic/models",
     model = "claude-3-5-sonnet-v2@20241022",
     timeout = 30000, -- Timeout in milliseconds
-    temperature = 0,
+    temperature = 0.75,
     max_tokens = 20480,
   },
   ---To add support for custom provider, follow the format below
@@ -312,7 +312,7 @@ M._defaults = {
       __inherited_from = "claude",
       model = "claude-3-5-haiku-20241022",
       timeout = 30000, -- Timeout in milliseconds
-      temperature = 0,
+      temperature = 0.75,
       max_tokens = 8192,
     },
     ---@type AvanteSupportedProvider
@@ -320,7 +320,7 @@ M._defaults = {
       __inherited_from = "claude",
       model = "claude-3-opus-20240229",
       timeout = 30000, -- Timeout in milliseconds
-      temperature = 0,
+      temperature = 0.75,
       max_tokens = 20480,
     },
     ["openai-gpt-4o-mini"] = {
