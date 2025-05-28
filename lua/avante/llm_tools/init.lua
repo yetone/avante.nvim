@@ -56,6 +56,36 @@ function M.str_replace_editor(opts, on_log, on_complete, session_ctx)
   return false, "Unknown command: " .. opts.command
 end
 
+---@type AvanteLLMToolFunc<{ command: "view" | "str_replace" | "create" | "insert", path: string, old_str?: string, new_str?: string, file_text?: string, insert_line?: integer, new_str?: string, view_range?: integer[] }>
+function M.str_replace_based_edit_tool(opts, on_log, on_complete, session_ctx)
+  if on_log then on_log("command: " .. opts.command) end
+  if not on_complete then return false, "on_complete not provided" end
+  local abs_path = Helpers.get_abs_path(opts.path)
+  if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
+  if opts.command == "view" then
+    local view = require("avante.llm_tools.view")
+    local opts_ = { path = opts.path }
+    if opts.view_range then
+      local start_line, end_line = unpack(opts.view_range)
+      opts_.view_range = {
+        start_line = start_line,
+        end_line = end_line,
+      }
+    end
+    return view(opts_, on_log, on_complete, session_ctx)
+  end
+  if opts.command == "str_replace" then
+    return require("avante.llm_tools.str_replace").func(opts, on_log, on_complete, session_ctx)
+  end
+  if opts.command == "create" then
+    return require("avante.llm_tools.create").func(opts, on_log, on_complete, session_ctx)
+  end
+  if opts.command == "insert" then
+    return require("avante.llm_tools.insert").func(opts, on_log, on_complete, session_ctx)
+  end
+  return false, "Unknown command: " .. opts.command
+end
+
 ---@type AvanteLLMToolFunc<{ abs_path: string }>
 function M.read_global_file(opts, on_log)
   local abs_path = Helpers.get_abs_path(opts.abs_path)
@@ -999,6 +1029,7 @@ M._tools = {
   },
   require("avante.llm_tools.get_diagnostics"),
   require("avante.llm_tools.bash"),
+  require("avante.llm_tools.attempt_completion"),
   {
     name = "web_search",
     description = "Search the web",
@@ -1132,6 +1163,8 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
   local func
   if tool_use.name == "str_replace_editor" then
     func = M.str_replace_editor
+  elseif tool_use.name == "str_replace_based_edit_tool" then
+    func = M.str_replace_based_edit_tool
   else
     ---@type AvanteLLMTool?
     local tool = vim.iter(tools):find(function(tool) return tool.name == tool_use.name end) ---@param tool AvanteLLMTool
