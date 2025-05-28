@@ -65,7 +65,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
     just_for_display = true,
   })
   sidebar:add_history_messages({ message })
-  if opts.command then
+  if opts.command and opts.command ~= "" and opts.command ~= vim.NIL then
     require("avante.llm_tools.bash").func({ command = opts.command }, on_log, on_complete, session_ctx)
   else
     on_complete(true, nil)

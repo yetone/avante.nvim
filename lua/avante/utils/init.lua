@@ -1411,19 +1411,13 @@ function M.get_tool_use_message(message, messages)
       end
     end
     if not tool_id then return nil end
-    local idx = nil
-    for idx_, message_ in ipairs(messages) do
-      if message_.uuid == message.uuid then
-        idx = idx_
-        break
-      end
-    end
-    if not idx then return nil end
-    for idx_ = idx - 1, 1, -1 do
+    for idx_ = #messages, 1, -1 do
       local message_ = messages[idx_]
       local content_ = message_.message.content
-      if type(content_) == "table" and content_[1].type == "tool_use" and content_[1].id == tool_id then
-        return message_
+      if type(content_) == "table" then
+        for _, item in ipairs(content_) do
+          if item.type == "tool_use" and item.id == tool_id then return message_ end
+        end
       end
     end
   end
@@ -1445,18 +1439,13 @@ function M.get_tool_result_message(message, messages)
       end
     end
     if not tool_id then return nil end
-    local idx = nil
-    for idx_, message_ in ipairs(messages) do
-      if message_.uuid == message.uuid then
-        idx = idx_
-        break
-      end
-    end
-    if not idx then return nil end
-    for _, message_ in ipairs(vim.list_slice(messages, idx + 1, #messages)) do
+    for idx_ = #messages, 1, -1 do
+      local message_ = messages[idx_]
       local content_ = message_.message.content
-      if type(content_) == "table" and content_[1].type == "tool_result" and content_[1].tool_use_id == tool_id then
-        return message_
+      if type(content_) == "table" then
+        for _, item in ipairs(content_) do
+          if item.type == "tool_result" and item.tool_use_id == tool_id then return message_ end
+        end
       end
     end
   end
