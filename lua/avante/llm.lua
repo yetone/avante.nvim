@@ -805,6 +805,11 @@ function M._stream(opts)
             })
           end
           opts.on_messages_add(messages)
+          local the_last_tool_use = tool_use_list[#tool_use_list]
+          if the_last_tool_use and the_last_tool_use.name == "attempt_completion" then
+            opts.on_stop({ reason = "complete" })
+            return
+          end
           local new_opts = vim.tbl_deep_extend("force", opts, {
             history_messages = opts.get_history_messages(),
           })
@@ -908,7 +913,9 @@ function M._stream(opts)
             if message then break end
             ::continue::
           end
-          if not completed_attempt_completion_tool_use and opts.on_messages_add then
+          local user_reminder_count = opts.session_ctx.user_reminder_count or 0
+          if not completed_attempt_completion_tool_use and opts.on_messages_add and user_reminder_count < 3 then
+            opts.session_ctx.user_reminder_count = user_reminder_count + 1
             local message = HistoryMessage:new({
               role = "user",
               content = "<user-reminder>You should use tool calls to answer the question, for example, use attempt_completion if the job is done.</user-reminder>",

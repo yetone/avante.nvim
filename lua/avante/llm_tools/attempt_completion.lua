@@ -1,6 +1,6 @@
 local Base = require("avante.llm_tools.base")
 local Config = require("avante.config")
--- local HistoryMessage = require("avante.history_message")
+local HistoryMessage = require("avante.history_message")
 
 ---@alias AttemptCompletionInput {result: string, command?: string}
 
@@ -58,13 +58,13 @@ function M.func(opts, on_log, on_complete, session_ctx)
   local sidebar = require("avante").get()
   if not sidebar then return false, "Avante sidebar not found" end
   session_ctx.attempt_completion_is_called = true
-  -- local message = HistoryMessage:new({
-  --   role = "assistant",
-  --   content = opts.result,
-  -- }, {
-  --   just_for_display = true,
-  -- })
-  -- sidebar:add_history_messages({ message })
+  local message = HistoryMessage:new({
+    role = "assistant",
+    content = opts.result,
+  }, {
+    just_for_display = true,
+  })
+  sidebar:add_history_messages({ message })
   if opts.command then
     require("avante.llm_tools.bash").func({ command = opts.command }, on_log, on_complete, session_ctx)
   else
