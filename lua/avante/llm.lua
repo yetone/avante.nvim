@@ -401,59 +401,16 @@ function M.generate_prompts(opts)
 
   local final_history_messages = {}
   if cleaned_history_messages then
-    if opts.disable_compact_history_messages then
-      for i, msg in ipairs(cleaned_history_messages) do
-        if Utils.is_tool_use_message(msg) then
-          local next_msg = cleaned_history_messages[i + 1]
-          if not next_msg or not Utils.is_tool_result_message(next_msg) then goto continue end
-          if next_msg.message.content[1].tool_use_id ~= msg.message.content[1].id then goto continue end
-        end
-        if Utils.is_tool_result_message(msg) and not Utils.get_tool_use_message(msg, cleaned_history_messages) then
-          goto continue
-        end
-        table.insert(final_history_messages, msg)
-        ::continue::
+    for _, msg in ipairs(cleaned_history_messages) do
+      local tool_result_message
+      if Utils.is_tool_use_message(msg) then
+        tool_result_message = Utils.get_tool_result_message(msg, cleaned_history_messages)
+        if not tool_result_message then goto continue end
       end
-    else
-      if Config.history.max_tokens > 0 then
-        remaining_tokens = math.min(Config.history.max_tokens, remaining_tokens)
-      end
-
-      -- Traverse the history in reverse, keeping only the latest history until the remaining tokens are exhausted and the first message role is "user"
-      local retained_history_messages = {}
-      for i = #cleaned_history_messages, 1, -1 do
-        local message = cleaned_history_messages[i]
-        local tokens = Utils.tokens.calculate_tokens(message.message.content)
-        remaining_tokens = remaining_tokens - tokens
-        if remaining_tokens > 0 then
-          table.insert(retained_history_messages, 1, message)
-        else
-          break
-        end
-      end
-
-      if #retained_history_messages == 0 then
-        retained_history_messages =
-          vim.list_slice(cleaned_history_messages, #cleaned_history_messages - 1, #cleaned_history_messages)
-      end
-
-      pending_compaction_history_messages =
-        vim.list_slice(cleaned_history_messages, 1, #cleaned_history_messages - #retained_history_messages)
-
-      pending_compaction_history_messages = vim
-        .iter(pending_compaction_history_messages)
-        :filter(function(msg) return msg.is_dummy ~= true end)
-        :totable()
-
-      vim.iter(retained_history_messages):each(function(msg)
-        if Utils.is_tool_use_message(msg) and not Utils.get_tool_result_message(msg, retained_history_messages) then
-          return
-        end
-        if Utils.is_tool_result_message(msg) and not Utils.get_tool_use_message(msg, retained_history_messages) then
-          return
-        end
-        table.insert(final_history_messages, msg)
-      end)
+      if Utils.is_tool_result_message(msg) then goto continue end
+      table.insert(final_history_messages, msg)
+      if tool_result_message then table.insert(final_history_messages, tool_result_message) end
+      ::continue::
     end
   end
 
