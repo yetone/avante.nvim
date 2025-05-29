@@ -38,8 +38,10 @@ M._defaults = {
   -- For most providers that we support we will determine this automatically.
   -- If you wish to use a given implementation, then you can override it here.
   tokenizer = "tiktoken",
-  ---@type string | (fun(): string) | nil
+  ---@type string | fun(): string | nil
   system_prompt = nil,
+  ---@type string | fun(): string | nil
+  override_prompt_dir = nil,
   rules = {
     project_dir = nil, ---@type string | nil (could be relative dirpath)
     global_dir = nil, ---@type string | nil (absolute dirpath)
