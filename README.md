@@ -923,7 +923,9 @@ By default, `avante.nvim` provides three different modes to interact with: `plan
 - `suggesting`: Used with `require("avante").get_suggestion():suggest()` on Tab flow.
 - `cursor-planning`: Used with `require("avante").toggle()` on Tab flow, but only when cursor planning mode is enabled.
 
-Users can customize the system prompts via `Config.system_prompt`. We recommend calling this in a custom Autocmds depending on your need:
+Users can customize the system prompts via `Config.system_prompt` or `Config.override_prompt_dir`.
+
+`Config.system_prompt` allows you to set a global system prompt. We recommend calling this in a custom Autocmds depending on your need:
 
 ```lua
 vim.api.nvim_create_autocmd("User", {
@@ -934,7 +936,24 @@ vim.api.nvim_create_autocmd("User", {
 vim.keymap.set("n", "<leader>am", function() vim.api.nvim_exec_autocmds("User", { pattern = "ToggleMyPrompt" }) end, { desc = "avante: toggle my prompt" })
 ```
 
-If one wish to custom prompts for each mode, `avante.nvim` will check for project root based on the given buffer whether it contains
+`Config.override_prompt_dir` allows you to specify a directory containing your own custom prompt templates, which will override the built-in templates. This is useful if you want to maintain a set of custom prompts outside of your Neovim configuration. It can be a string representing the directory path, or a function that returns a string representing the directory path.
+
+```lua
+-- Example: Override with prompts from a specific directory
+require("avante").setup({
+  override_prompt_dir = vim.fn.expand("~/.config/nvim/avante_prompts"),
+})
+
+-- Example: Override with prompts from a function (dynamic directory)
+require("avante").setup({
+  override_prompt_dir = function()
+    -- Your logic to determine the prompt directory
+    return vim.fn.expand("~/.config/nvim/my_dynamic_prompts")
+  end,
+})
+```
+
+If you wish to custom prompts for each mode, `avante.nvim` will check for project root based on the given buffer whether it contains
 the following patterns: `*.{mode}.avanterules`.
 
 The rules for root hierarchy:

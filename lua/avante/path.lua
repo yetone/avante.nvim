@@ -7,6 +7,7 @@ local Config = require("avante.config")
 ---@class avante.Path
 ---@field history_path Path
 ---@field cache_path Path
+---@field data_path Path
 local P = {}
 
 ---@param bufnr integer | nil
@@ -193,6 +194,7 @@ function Prompt.get_templates_dir(project_root)
   local cache_prompt_dir = P.cache_path:joinpath(directory)
   if not cache_prompt_dir:exists() then cache_prompt_dir:mkdir({ parents = true }) end
 
+  -- Check for project-specific templates
   local scanner = Scan.scan_dir(directory:absolute(), { depth = 1, add_dirs = true })
   for _, entry in ipairs(scanner) do
     local file = Path:new(entry)
@@ -209,8 +211,41 @@ function Prompt.get_templates_dir(project_root)
     ::continue::
   end
 
-  Path:new(debug.getinfo(1).source:match("@?(.*/)"):gsub("/lua/avante/path.lua$", "") .. "templates")
-    :copy({ destination = cache_prompt_dir, recursive = true })
+  -- Check for user custom templates
+  local override_prompt_dir = Config.override_prompt_dir
+  if override_prompt_dir then
+    -- Handle the case where override_prompt_dir is a function
+    if type(override_prompt_dir) == "function" then
+      local ok, result = pcall(override_prompt_dir)
+      if ok and result then
+        override_prompt_dir = result
+      else
+        override_prompt_dir = nil
+      end
+    end
+
+    if override_prompt_dir then
+      local user_template_path = Path:new(override_prompt_dir)
+      if user_template_path:exists() then
+        local user_scanner = Scan.scan_dir(user_template_path:absolute(), { depth = 1, add_dirs = false })
+        for _, entry in ipairs(user_scanner) do
+          local file = Path:new(entry)
+          if file:is_file() then
+            local pieces = vim.split(entry, "/")
+            local piece = pieces[#pieces]
+            file:copy({ destination = cache_prompt_dir:joinpath(piece) })
+          end
+        end
+      end
+    end
+  end
+
+  -- Copy built-in templates to cache directory (only if not overridden by user templates)
+  Path:new(debug.getinfo(1).source:match("@?(.*/)"):gsub("/lua/avante/path.lua$", "") .. "templates"):copy({
+    destination = cache_prompt_dir,
+    recursive = true,
+    override = false,
+  })
 
   vim.iter(Prompt.custom_prompts_contents):filter(function(_, v) return v ~= nil end):each(function(k, v)
     local orig_file = cache_prompt_dir:joinpath(Prompt.get_builtin_prompts_filepath(k))
