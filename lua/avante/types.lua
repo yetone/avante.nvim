@@ -86,6 +86,12 @@ vim.g.avante_login = vim.g.avante_login
 ---@field role "user" | "assistant"
 ---@field content AvanteLLMMessageContent
 
+---@class avante.TODO
+---@field id string
+---@field content string
+---@field status "todo" | "doing" | "done" | "cancelled"
+---@field priority "low" | "medium" | "high"
+
 ---@class avante.HistoryMessage
 ---@field message AvanteLLMMessage
 ---@field timestamp string
@@ -342,6 +348,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field selected_filepaths string[] | nil
 ---@field diagnostics string | nil
 ---@field history_messages avante.HistoryMessage[] | nil
+---@field get_todos? fun(): avante.TODO[]
 ---@field memory string | nil
 ---
 ---@class AvanteGeneratePromptsOptions: AvanteTemplateOptions
@@ -404,8 +411,10 @@ vim.g.avante_login = vim.g.avante_login
 ---@field name string
 ---@field description? string
 ---@field get_description? fun(): string
----@field type 'string' | 'integer' | 'boolean' | 'object'
+---@field type 'string' | 'integer' | 'boolean' | 'object' | 'array'
 ---@field fields? AvanteLLMToolParamField[]
+---@field items? AvanteLLMToolParamField
+---@field choices? string[]
 ---@field optional? boolean
 
 ---@class AvanteLLMToolReturn
@@ -431,6 +440,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field timestamp string
 ---@field messages avante.HistoryMessage[] | nil
 ---@field entries avante.ChatHistoryEntry[] | nil
+---@field todos avante.TODO[] | nil
 ---@field memory avante.ChatMemory | nil
 ---@field filename string
 ---@field system_prompt string | nil
