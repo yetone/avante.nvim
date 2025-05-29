@@ -129,6 +129,62 @@ function M.summarize_memory(prev_memory, history_messages, cb)
   })
 end
 
+---@param user_input string
+---@param cb fun(error: string | nil): nil
+function M.generate_todos(user_input, cb)
+  local system_prompt =
+    [[You are an expert coding assistant. Please generate a todo list to complete the task based on the user input and pass the todo list to the add_todos tool.]]
+  local messages = {
+    { role = "user", content = user_input },
+  }
+  local history_messages = {}
+  local tools = {
+    require("avante.llm_tools.add_todos"),
+  }
+
+  local stream_options = {
+    ask = true,
+    disable_compact_history_messages = true,
+    code_lang = "unknown",
+    provider = Providers[Config.provider],
+    get_history_messages = function() return history_messages end,
+    on_messages_add = function(msgs)
+      msgs = vim.islist(msgs) and msgs or { msgs }
+      for _, msg in ipairs(msgs) do
+        local idx = nil
+        for i, m in ipairs(history_messages) do
+          if m.uuid == msg.uuid then
+            idx = i
+            break
+          end
+        end
+        if idx ~= nil then
+          history_messages[idx] = msg
+        else
+          table.insert(history_messages, msg)
+        end
+      end
+    end,
+    session_ctx = {},
+    prompt_opts = {
+      system_prompt = system_prompt,
+      tools = tools,
+      messages = messages,
+    },
+    on_start = function() end,
+    on_chunk = function() end,
+    on_stop = function(stop_opts)
+      if stop_opts.error ~= nil then
+        cb(string.format("generate_todos failed: %s", vim.inspect(stop_opts.error)))
+        return
+      end
+      cb()
+    end,
+  }
+
+  M._stream(stream_options)
+end
+
 ---@param opts AvanteGeneratePromptsOptions
 ---@return AvantePromptOptions
 function M.generate_prompts(opts)
@@ -201,6 +257,11 @@ function M.generate_prompts(opts)
     model_name = provider.model or "unknown",
     memory = opts.memory,
   }
+
+  if opts.get_todos then
+    local todos = opts.get_todos()
+    if todos and #todos > 0 then template_opts.todos = vim.json.encode(todos) end
+  end
 
   local system_prompt
   if opts.prompt_opts and opts.prompt_opts.system_prompt then

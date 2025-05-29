@@ -1293,11 +1293,20 @@ function M.llm_tool_param_fields_to_json_schema(fields)
         properties = properties_,
         required = required_,
       }
+    elseif field.type == "array" and field.items then
+      local properties_ = M.llm_tool_param_fields_to_json_schema({ field.items })
+      local _, obj = next(properties_)
+      properties[field.name] = {
+        type = field.type,
+        description = field.get_description and field.get_description() or field.description,
+        items = obj,
+      }
     else
       properties[field.name] = {
         type = field.type,
         description = field.get_description and field.get_description() or field.description,
       }
+      if field.choices then properties[field.name].enum = field.choices end
     end
     if not field.optional then table.insert(required, field.name) end
   end
