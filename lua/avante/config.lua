@@ -671,6 +671,7 @@ M.BASE_PROVIDER_KEYS = {
   "disable_tools",
   "entra",
   "hide_in_model_selector",
+  "use_ReAct_prompt",
 }
 
 return M

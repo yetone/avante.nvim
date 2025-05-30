@@ -53,21 +53,21 @@ describe("llm_tools", function()
 
   describe("ls", function()
     it("should list files in directory", function()
-      local result, err = ls({ rel_path = ".", max_depth = 1 })
+      local result, err = ls({ path = ".", max_depth = 1 })
       assert.is_nil(err)
       assert.falsy(result:find("avante.nvim"))
       assert.truthy(result:find("test.txt"))
       assert.falsy(result:find("test1.txt"))
     end)
     it("should list files in directory with depth", function()
-      local result, err = ls({ rel_path = ".", max_depth = 2 })
+      local result, err = ls({ path = ".", max_depth = 2 })
       assert.is_nil(err)
       assert.falsy(result:find("avante.nvim"))
       assert.truthy(result:find("test.txt"))
       assert.truthy(result:find("test1.txt"))
     end)
     it("should list files respecting gitignore", function()
-      local result, err = ls({ rel_path = ".", max_depth = 2 })
+      local result, err = ls({ path = ".", max_depth = 2 })
       assert.is_nil(err)
       assert.falsy(result:find("avante.nvim"))
       assert.truthy(result:find("test.txt"))
@@ -102,7 +102,7 @@ describe("llm_tools", function()
 
   describe("create_dir", function()
     it("should create new directory", function()
-      LlmTools.create_dir({ rel_path = "new_dir" }, nil, function(success, err)
+      LlmTools.create_dir({ path = "new_dir" }, nil, function(success, err)
         assert.is_nil(err)
         assert.is_true(success)
 
@@ -114,7 +114,7 @@ describe("llm_tools", function()
 
   describe("delete_file", function()
     it("should delete existing file", function()
-      LlmTools.delete_file({ rel_path = "test.txt" }, nil, function(success, err)
+      LlmTools.delete_file({ path = "test.txt" }, nil, function(success, err)
         assert.is_nil(err)
         assert.is_true(success)
 
@@ -147,28 +147,28 @@ describe("llm_tools", function()
       file:write("this is nothing")
       file:close()
 
-      local result, err = grep({ rel_path = ".", query = "Searchable", case_sensitive = false })
+      local result, err = grep({ path = ".", query = "Searchable", case_sensitive = false })
       assert.is_nil(err)
       assert.truthy(result:find("searchable.txt"))
       assert.falsy(result:find("nothing.txt"))
 
-      local result2, err2 = grep({ rel_path = ".", query = "searchable", case_sensitive = true })
+      local result2, err2 = grep({ path = ".", query = "searchable", case_sensitive = true })
       assert.is_nil(err2)
       assert.truthy(result2:find("searchable.txt"))
       assert.falsy(result2:find("nothing.txt"))
 
-      local result3, err3 = grep({ rel_path = ".", query = "Searchable", case_sensitive = true })
+      local result3, err3 = grep({ path = ".", query = "Searchable", case_sensitive = true })
       assert.is_nil(err3)
       assert.falsy(result3:find("searchable.txt"))
       assert.falsy(result3:find("nothing.txt"))
 
-      local result4, err4 = grep({ rel_path = ".", query = "searchable", case_sensitive = false })
+      local result4, err4 = grep({ path = ".", query = "searchable", case_sensitive = false })
       assert.is_nil(err4)
       assert.truthy(result4:find("searchable.txt"))
       assert.falsy(result4:find("nothing.txt"))
 
       local result5, err5 = grep({
-        rel_path = ".",
+        path = ".",
         query = "searchable",
         case_sensitive = false,
         exclude_pattern = "search*",
@@ -191,7 +191,7 @@ describe("llm_tools", function()
       file:write("content for ag test")
       file:close()
 
-      local result, err = grep({ rel_path = ".", query = "ag test" })
+      local result, err = grep({ path = ".", query = "ag test" })
       assert.is_nil(err)
       assert.is_string(result)
       assert.truthy(result:find("ag_test.txt"))
@@ -215,28 +215,28 @@ describe("llm_tools", function()
       file:write("this is nothing")
       file:close()
 
-      local result, err = grep({ rel_path = ".", query = "Searchable", case_sensitive = false })
+      local result, err = grep({ path = ".", query = "Searchable", case_sensitive = false })
       assert.is_nil(err)
       assert.truthy(result:find("searchable.txt"))
       assert.falsy(result:find("nothing.txt"))
 
-      local result2, err2 = grep({ rel_path = ".", query = "searchable", case_sensitive = true })
+      local result2, err2 = grep({ path = ".", query = "searchable", case_sensitive = true })
       assert.is_nil(err2)
       assert.truthy(result2:find("searchable.txt"))
       assert.falsy(result2:find("nothing.txt"))
 
-      local result3, err3 = grep({ rel_path = ".", query = "Searchable", case_sensitive = true })
+      local result3, err3 = grep({ path = ".", query = "Searchable", case_sensitive = true })
       assert.is_nil(err3)
       assert.falsy(result3:find("searchable.txt"))
       assert.falsy(result3:find("nothing.txt"))
 
-      local result4, err4 = grep({ rel_path = ".", query = "searchable", case_sensitive = false })
+      local result4, err4 = grep({ path = ".", query = "searchable", case_sensitive = false })
       assert.is_nil(err4)
       assert.truthy(result4:find("searchable.txt"))
       assert.falsy(result4:find("nothing.txt"))
 
       local result5, err5 = grep({
-        rel_path = ".",
+        path = ".",
         query = "searchable",
         case_sensitive = false,
         exclude_pattern = "search*",
@@ -250,18 +250,18 @@ describe("llm_tools", function()
       -- Mock exepath to return nothing
       vim.fn.exepath = function() return "" end
 
-      local result, err = grep({ rel_path = ".", query = "test" })
+      local result, err = grep({ path = ".", query = "test" })
       assert.equals("", result)
       assert.equals("No search command found", err)
     end)
 
     it("should respect path permissions", function()
-      local result, err = grep({ rel_path = "../outside_project", query = "test" })
+      local result, err = grep({ path = "../outside_project", query = "test" })
       assert.truthy(err:find("No permission to access path"))
     end)
 
     it("should handle non-existent paths", function()
-      local result, err = grep({ rel_path = "non_existent_dir", query = "test" })
+      local result, err = grep({ path = "non_existent_dir", query = "test" })
       assert.equals("", result)
       assert.truthy(err)
       assert.truthy(err:find("No such file or directory"))
@@ -270,14 +270,14 @@ describe("llm_tools", function()
 
   describe("bash", function()
     -- it("should execute command and return output", function()
-    --   bash({ rel_path = ".", command = "echo 'test'" }, nil, function(result, err)
+    --   bash({ path = ".", command = "echo 'test'" }, nil, function(result, err)
     --     assert.is_nil(err)
     --     assert.equals("test\n", result)
     --   end)
     -- end)
 
     it("should return error when running outside current directory", function()
-      bash({ rel_path = "../outside_project", command = "echo 'test'" }, nil, function(result, err)
+      bash({ path = "../outside_project", command = "echo 'test'" }, nil, function(result, err)
         assert.is_false(result)
         assert.truthy(err)
         assert.truthy(err:find("No permission to access path"))
@@ -289,7 +289,7 @@ describe("llm_tools", function()
     it("should execute Python code and return output", function()
       LlmTools.python(
         {
-          rel_path = ".",
+          path = ".",
           code = "print('Hello from Python')",
         },
         nil,
@@ -303,7 +303,7 @@ describe("llm_tools", function()
     it("should handle Python errors", function()
       LlmTools.python(
         {
-          rel_path = ".",
+          path = ".",
           code = "print(undefined_variable)",
         },
         nil,
@@ -318,7 +318,7 @@ describe("llm_tools", function()
     it("should respect path permissions", function()
       LlmTools.python(
         {
-          rel_path = "../outside_project",
+          path = "../outside_project",
           code = "print('test')",
         },
         nil,
@@ -332,7 +332,7 @@ describe("llm_tools", function()
     it("should handle non-existent paths", function()
       LlmTools.python(
         {
-          rel_path = "non_existent_dir",
+          path = "non_existent_dir",
           code = "print('test')",
         },
         nil,
@@ -347,7 +347,7 @@ describe("llm_tools", function()
       os.execute("docker image rm python:3.12-slim")
       LlmTools.python(
         {
-          rel_path = ".",
+          path = ".",
           code = "print('Hello from custom container')",
           container_image = "python:3.12-slim",
         },
@@ -370,7 +370,7 @@ describe("llm_tools", function()
       os.execute("touch " .. test_dir .. "/nested/file4.lua")
 
       -- Test for lua files in the root
-      local result, err = glob({ rel_path = ".", pattern = "*.lua" })
+      local result, err = glob({ path = ".", pattern = "*.lua" })
       assert.is_nil(err)
       local files = vim.json.decode(result).matches
       assert.equals(2, #files)
@@ -380,7 +380,7 @@ describe("llm_tools", function()
       assert.falsy(vim.tbl_contains(files, test_dir .. "/nested/file4.lua"))
 
       -- Test with recursive pattern
-      local result2, err2 = glob({ rel_path = ".", pattern = "**/*.lua" })
+      local result2, err2 = glob({ path = ".", pattern = "**/*.lua" })
       assert.is_nil(err2)
       local files2 = vim.json.decode(result2).matches
       assert.equals(3, #files2)
@@ -390,13 +390,13 @@ describe("llm_tools", function()
     end)
 
     it("should respect path permissions", function()
-      local result, err = glob({ rel_path = "../outside_project", pattern = "*.txt" })
+      local result, err = glob({ path = "../outside_project", pattern = "*.txt" })
       assert.equals("", result)
       assert.truthy(err:find("No permission to access path"))
     end)
 
     it("should handle patterns without matches", function()
-      local result, err = glob({ rel_path = ".", pattern = "*.nonexistent" })
+      local result, err = glob({ path = ".", pattern = "*.nonexistent" })
       assert.is_nil(err)
       local files = vim.json.decode(result).matches
       assert.equals(0, #files)
@@ -411,7 +411,7 @@ describe("llm_tools", function()
       os.execute("touch " .. test_dir .. "/test_dir1/notignored1.lua")
       os.execute("touch " .. test_dir .. "/test_dir1/notignored2.lua")
 
-      local result, err = glob({ rel_path = ".", pattern = "**/*.lua" })
+      local result, err = glob({ path = ".", pattern = "**/*.lua" })
       assert.is_nil(err)
       local files = vim.json.decode(result).matches
 

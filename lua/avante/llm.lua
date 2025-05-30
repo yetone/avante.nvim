@@ -25,7 +25,7 @@ local group = api.nvim_create_augroup("avante_llm", { clear = true })
 ---@param cb fun(title: string | nil): nil
 function M.summarize_chat_thread_title(content, cb)
   local system_prompt =
-    [[Summarize the content as a title for the chat thread. The title should be a concise and informative summary of the conversation, capturing the main points and key takeaways. It should be no longer than 100 words and should be written in a clear and engaging style. The title should be suitable for use as the title of a chat thread on a messaging platform or other communication medium.]]
+    [[Summarize the content as a title for the chat thread. The title should be a concise and informative summary of the conversation, capturing the main points and key takeaways. It should be no longer than 100 words and should be written in a clear and engaging style. The title should be suitable for use as the title of a chat thread on a messaging platform or other communication medium. /no_think]]
   local response_content = ""
   local provider = Providers.get_memory_summary_provider()
   M.curl({
@@ -761,7 +761,7 @@ function M._stream(opts)
               },
             })
           end
-          opts.on_messages_add(messages)
+          if opts.on_messages_add then opts.on_messages_add(messages) end
           local the_last_tool_use = tool_use_list[#tool_use_list]
           if the_last_tool_use and the_last_tool_use.name == "attempt_completion" then
             opts.on_stop({ reason = "complete" })
@@ -854,12 +854,8 @@ function M._stream(opts)
         if is_break then break end
         ::continue::
       end
-      local sorted_tool_use_list = {} ---@type AvanteLLMToolUse[]
-      for _, tool_use in vim.spairs(tool_use_list) do
-        table.insert(sorted_tool_use_list, tool_use)
-      end
       if stop_opts.reason == "complete" and Config.mode == "agentic" then
-        if #sorted_tool_use_list == 0 then
+        if #tool_use_list == 0 then
           local completed_attempt_completion_tool_use = nil
           for idx = #history_messages, 1, -1 do
             local message = history_messages[idx]
@@ -896,7 +892,7 @@ function M._stream(opts)
           end
         end
       end
-      if stop_opts.reason == "tool_use" then return handle_next_tool_use(sorted_tool_use_list, 1, {}) end
+      if stop_opts.reason == "tool_use" then return handle_next_tool_use(tool_use_list, 1, {}) end
       if stop_opts.reason == "rate_limit" then
         local msg_content = "*[Rate limit reached. Retrying in " .. stop_opts.retry_after .. " seconds ...]*"
         if opts.on_chunk then opts.on_chunk("\n" .. msg_content .. "\n") end

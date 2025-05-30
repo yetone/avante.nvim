@@ -16,6 +16,8 @@ M.name = "replace_in_file"
 M.description =
   "Request to replace sections of content in an existing file using SEARCH/REPLACE blocks that define exact changes to specific parts of the file. This tool should be used when you need to make targeted changes to specific parts of a file."
 
+-- function M.enabled() return Config.provider:match("ollama") == nil end
+
 ---@type AvanteLLMToolParam
 M.param = {
   type = "table",
@@ -56,6 +58,10 @@ One or more SEARCH/REPLACE blocks following this exact format:
       ]],
       type = "string",
     },
+  },
+  usage = {
+    path = "File path here",
+    diff = "Search and replace blocks here",
   },
 }
 
