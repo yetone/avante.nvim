@@ -576,7 +576,7 @@ end
 --- remove indentation from code: spaces or tabs
 function M.remove_indentation(code)
   if not code then return code end
-  return code:gsub("^%s*", "")
+  return code:gsub("^%s*", ""):gsub("%s*$", "")
 end
 
 function M.relative_path(absolute)
