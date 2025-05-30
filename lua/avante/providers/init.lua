@@ -7,7 +7,7 @@ local InputWindowConfig = {
   conceal_char = "*",
   filetype = "snacks_input",
 }
-local InputWindowState = { winid = nil, input_winid = nil, input_bufnr = nil }
+local InputWindowState = { winid = nil, input_winid = nil, input_bufnr = 1 }
 
 ---@class avante.Providers
 ---@field openai AvanteProviderFunctor
