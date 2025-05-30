@@ -6,7 +6,6 @@ local Utils = require("avante.utils")
 local InputWindowConfig = {
   conceal_char = "*",
   filetype = "snacks_input",
-  close_window = function() require("snacks.input") end,
 }
 local InputWindowState = { winid = nil, input_winid = nil, input_bufnr = nil }
 
