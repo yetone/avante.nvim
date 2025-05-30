@@ -78,7 +78,7 @@
   -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- 对于 Windows
   dependencies = {
     "nvim-treesitter/nvim-treesitter",
-    "stevearc/dressing.nvim",
+    "folke/snacks.nvim",
     "nvim-lua/plenary.nvim",
     "MunifTanjim/nui.nvim",
     --- 以下依赖项是可选的，
@@ -127,7 +127,7 @@
 
 " 依赖项
 Plug 'nvim-treesitter/nvim-treesitter'
-Plug 'stevearc/dressing.nvim'
+Plug 'folke/snacks.nvim'
 Plug 'nvim-lua/plenary.nvim'
 Plug 'MunifTanjim/nui.nvim'
 Plug 'MeanderingProgrammer/render-markdown.nvim'
@@ -159,7 +159,7 @@ add({
   monitor = 'main',
   depends = {
     'nvim-treesitter/nvim-treesitter',
-    'stevearc/dressing.nvim',
+    'folke/snacks.nvim',
     'nvim-lua/plenary.nvim',
     'MunifTanjim/nui.nvim',
     'echasnovski/mini.icons'
@@ -190,7 +190,7 @@ end)
 
   -- 必需插件
   use 'nvim-treesitter/nvim-treesitter'
-  use 'stevearc/dressing.nvim'
+  use 'folke/snacks.nvim'
   use 'nvim-lua/plenary.nvim'
   use 'MunifTanjim/nui.nvim'
   use 'MeanderingProgrammer/render-markdown.nvim'

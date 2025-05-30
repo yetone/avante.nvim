@@ -12,9 +12,9 @@ function M.check()
       path = "nvim-treesitter/nvim-treesitter",
       module = "nvim-treesitter",
     },
-    ["dressing.nvim"] = {
-      path = "stevearc/dressing.nvim",
-      module = "dressing",
+    ["snacks.nvim"] = {
+      path = "folke/snacks.nvim",
+      module = "snacks",
     },
     ["plenary.nvim"] = {
       path = "nvim-lua/plenary.nvim",

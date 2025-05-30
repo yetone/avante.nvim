@@ -93,7 +93,7 @@ For building binary if you wish to build from source, then `cargo` is required. 
   -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- for windows
   dependencies = {
     "nvim-treesitter/nvim-treesitter",
-    "stevearc/dressing.nvim",
+    "folke/snacks.nvim",
     "nvim-lua/plenary.nvim",
     "MunifTanjim/nui.nvim",
     --- The below dependencies are optional,
@@ -142,7 +142,7 @@ For building binary if you wish to build from source, then `cargo` is required. 
 
 " Deps
 Plug 'nvim-treesitter/nvim-treesitter'
-Plug 'stevearc/dressing.nvim'
+Plug 'folke/snacks.nvim'
 Plug 'nvim-lua/plenary.nvim'
 Plug 'MunifTanjim/nui.nvim'
 Plug 'MeanderingProgrammer/render-markdown.nvim'
@@ -174,7 +174,7 @@ add({
   monitor = 'main',
   depends = {
     'nvim-treesitter/nvim-treesitter',
-    'stevearc/dressing.nvim',
+    'folke/snacks.nvim',
     'nvim-lua/plenary.nvim',
     'MunifTanjim/nui.nvim',
     'echasnovski/mini.icons'
@@ -205,7 +205,7 @@ end)
 
   -- Required plugins
   use 'nvim-treesitter/nvim-treesitter'
-  use 'stevearc/dressing.nvim'
+  use 'folke/snacks.nvim'
   use 'nvim-lua/plenary.nvim'
   use 'MunifTanjim/nui.nvim'
   use 'MeanderingProgrammer/render-markdown.nvim'
@@ -593,7 +593,7 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 >   model = "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
 >   aws_profile = "bedrock",
 >   aws_region = "us-east-1",
->},
+> },
 > ```
 >
 > Note: Bedrock requires the [AWS CLI](https://aws.amazon.com/cli/) to be installed on your system.

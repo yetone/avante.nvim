@@ -3,12 +3,12 @@ local api, fn = vim.api, vim.fn
 local Config = require("avante.config")
 local Utils = require("avante.utils")
 
-local DressingConfig = {
+local InputWindowConfig = {
   conceal_char = "*",
-  filetype = "DressingInput",
-  close_window = function() require("dressing.input").close() end,
+  filetype = "snacks_input",
+  close_window = function() require("snacks.input") end,
 }
-local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
+local InputWindowState = { winid = nil, input_winid = nil, input_bufnr = nil }
 
 ---@class avante.Providers
 ---@field openai AvanteProviderFunctor
@@ -78,7 +78,7 @@ function E.setup(opts)
     end
   end
 
-  local function mount_dressing_buffer()
+  local function mount_input_buffer()
     vim.defer_fn(function()
       -- only mount if given buffer is not of buftype ministarter, dashboard, alpha, qf
       local exclude_filetypes = {
@@ -97,22 +97,22 @@ function E.setup(opts)
       }
 
       if not vim.tbl_contains(exclude_filetypes, vim.bo.filetype) and not opts.provider.is_env_set() then
-        DressingState.winid = api.nvim_get_current_win()
+        InputWindowState.winid = api.nvim_get_current_win()
         vim.ui.input({ default = "", prompt = "Enter " .. var .. ": " }, on_confirm)
         for _, winid in ipairs(api.nvim_list_wins()) do
           local bufnr = api.nvim_win_get_buf(winid)
-          if vim.bo[bufnr].filetype == DressingConfig.filetype then
-            DressingState.input_winid = winid
-            DressingState.input_bufnr = bufnr
+          if vim.bo[bufnr].filetype == InputWindowConfig.filetype then
+            InputWindowState.input_winid = winid
+            InputWindowState.input_bufnr = bufnr
             vim.wo[winid].conceallevel = 2
             vim.wo[winid].concealcursor = "nvi"
             break
           end
         end
 
-        local prompt_length = api.nvim_strwidth(fn.prompt_getprompt(DressingState.input_bufnr))
+        local prompt_length = api.nvim_strwidth(fn.prompt_getprompt(InputWindowState.input_bufnr))
         api.nvim_buf_call(
-          DressingState.input_bufnr,
+          InputWindowState.input_bufnr,
           function()
             vim.cmd(string.format(
               [[
@@ -128,11 +128,11 @@ function E.setup(opts)
     end, 200)
   end
 
-  if refresh then return mount_dressing_buffer() end
+  if refresh then return mount_input_buffer() end
 
   api.nvim_create_autocmd("User", {
     pattern = E.REQUEST_LOGIN_PATTERN,
-    callback = mount_dressing_buffer,
+    callback = mount_input_buffer,
   })
 end
 

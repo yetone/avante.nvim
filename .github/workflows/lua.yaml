@@ -58,8 +58,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        nvim_version: [ stable ]
-        luals_version: [ 3.13.6 ]
+        nvim_version: [stable]
+        luals_version: [3.13.6]
     steps:
       - name: Checkout Code
         uses: actions/checkout@v3
@@ -82,7 +82,7 @@ jobs:
           DEPS=(
             "folke/neodev.nvim"
             "nvim-treesitter/nvim-treesitter"
-            "stevearc/dressing.nvim"
+            "folke/snacks.nvim"
             "nvim-lua/plenary.nvim"
             "MunifTanjim/nui.nvim"
             "echasnovski/mini.nvim"

@@ -1,7 +1,7 @@
 name: 🐛 Bug Report
 description: Create a bug report to help us improve Avante
-title: 'bug: '
-labels: ['bug']
+title: "bug: "
+labels: ["bug"]
 body:
   - type: markdown
     id: issue-already-exists
@@ -36,7 +36,7 @@ body:
       required: false
     attributes:
       label: Expected behavior
-      description: 'A clear and concise description of what you would expect to happen.'
+      description: "A clear and concise description of what you would expect to happen."
   - type: textarea
     id: how-to-install
     validations:
@@ -61,7 +61,7 @@ body:
           -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- for windows
           dependencies = {
             "nvim-treesitter/nvim-treesitter",
-            "stevearc/dressing.nvim",
+            "folke/snacks.nvim",
             "nvim-lua/plenary.nvim",
             "MunifTanjim/nui.nvim",
           },
