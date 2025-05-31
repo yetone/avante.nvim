@@ -281,7 +281,6 @@ function M.remove_selected_file(filepath)
 
   for _, file in ipairs(files) do
     local rel_path = Utils.uniform_path(file)
-    vim.notify(rel_path)
     sidebar.file_selector:remove_selected_file(rel_path)
   end
 end
