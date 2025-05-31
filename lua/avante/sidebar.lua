@@ -2432,7 +2432,7 @@ function Sidebar:create_input_container()
         end
       end
       if not tool_use_message then
-        Utils.debug("tool_use message not found", tool_id, tool_name)
+        -- Utils.debug("tool_use message not found", tool_id, tool_name)
         return
       end
       local tool_use_logs = tool_use_message.tool_use_logs or {}

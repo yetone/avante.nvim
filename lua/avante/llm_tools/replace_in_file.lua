@@ -101,12 +101,14 @@ local function fix_diff(diff)
   return table.concat(fixed_diff_lines, "\n")
 end
 
----@type AvanteLLMToolFunc<{ path: string, diff: string }>
+---@type AvanteLLMToolFunc<{ path: string, diff: string, streaming?: boolean, tool_use_id?: string }>
 function M.func(opts, on_log, on_complete, session_ctx)
   if not opts.path or not opts.diff then return false, "path and diff are required" end
   if on_log then on_log("path: " .. opts.path) end
   local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
+
+  local is_streaming = opts.streaming or false
 
   local diff = fix_diff(opts.diff)
 
@@ -141,14 +143,31 @@ function M.func(opts, on_log, on_complete, session_ctx)
     end
   end
 
+  -- Handle streaming mode: if we're still in replace mode at the end, include the partial block
+  if is_streaming and is_replacing and #current_search > 0 then
+    if #current_search > #current_replace then current_search = vim.list_slice(current_search, 1, #current_replace) end
+    table.insert(
+      rough_diff_blocks,
+      { search = table.concat(current_search, "\n"), replace = table.concat(current_replace, "\n") }
+    )
+  end
+
   if #rough_diff_blocks == 0 then
-    Utils.debug("opts.diff", opts.diff)
-    Utils.debug("diff", diff)
+    -- Utils.debug("opts.diff", opts.diff)
+    -- Utils.debug("diff", diff)
     return false, "No diff blocks found"
   end
 
   local bufnr, err = Helpers.get_bufnr(abs_path)
   if err then return false, err end
+
+  session_ctx.undo_joined = session_ctx.undo_joined or {}
+  local undo_joined = session_ctx.undo_joined[opts.tool_use_id]
+  if not undo_joined then
+    pcall(vim.cmd.undojoin)
+    session_ctx.undo_joined[opts.tool_use_id] = true
+  end
+
   local original_lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local sidebar = require("avante").get()
   if not sidebar then return false, "Avante sidebar not found" end
@@ -519,17 +538,86 @@ function M.func(opts, on_log, on_complete, session_ctx)
     end
   end
 
-  insert_diff_blocks_new_lines()
-  highlight_diff_blocks()
-  register_cursor_move_events()
-  register_keybinding_events()
-  register_buf_write_events()
+  session_ctx.extmark_id_map = session_ctx.extmark_id_map or {}
+  local extmark_id_map = session_ctx.extmark_id_map[opts.tool_use_id]
+  if not extmark_id_map then
+    extmark_id_map = {}
+    session_ctx.extmark_id_map[opts.tool_use_id] = extmark_id_map
+  end
+  session_ctx.virt_lines_map = session_ctx.virt_lines_map or {}
+  local virt_lines_map = session_ctx.virt_lines_map[opts.tool_use_id]
+  if not virt_lines_map then
+    virt_lines_map = {}
+    session_ctx.virt_lines_map[opts.tool_use_id] = virt_lines_map
+  end
+
+  local function highlight_streaming_diff_blocks()
+    vim.api.nvim_buf_clear_namespace(bufnr, NAMESPACE, 0, -1)
+    local max_col = vim.o.columns
+    for _, diff_block in ipairs(diff_blocks) do
+      local start_line = diff_block.start_line
+      if #diff_block.old_lines > 0 then
+        vim.api.nvim_buf_set_extmark(bufnr, NAMESPACE, start_line - 1, 0, {
+          hl_group = Highlights.TO_BE_DELETED_WITHOUT_STRIKETHROUGH,
+          hl_eol = true,
+          hl_mode = "combine",
+          end_row = start_line + #diff_block.old_lines - 1,
+        })
+      end
+      if #diff_block.new_lines == 0 then goto continue end
+      local virt_lines = vim
+        .iter(diff_block.new_lines)
+        :map(function(line)
+          --- append spaces to the end of the line
+          local line_ = line .. string.rep(" ", max_col - #line)
+          return { { line_, Highlights.INCOMING } }
+        end)
+        :totable()
+      local extmark_line
+      if #diff_block.old_lines > 0 then
+        extmark_line = math.max(0, start_line - 2 + #diff_block.old_lines)
+      else
+        extmark_line = math.max(0, start_line - 1 + #diff_block.old_lines)
+      end
+      vim.api.nvim_buf_set_extmark(bufnr, NAMESPACE, extmark_line, 0, {
+        virt_lines = virt_lines,
+        hl_eol = true,
+        hl_mode = "combine",
+      })
+      ::continue::
+    end
+  end
+
+  if not is_streaming then
+    insert_diff_blocks_new_lines()
+    highlight_diff_blocks()
+    register_cursor_move_events()
+    register_keybinding_events()
+    register_buf_write_events()
+  else
+    highlight_streaming_diff_blocks()
+  end
 
   if diff_blocks[1] then
     local winnr = Utils.get_winid(bufnr)
-    vim.api.nvim_win_set_cursor(winnr, { diff_blocks[1].new_start_line, 0 })
-    vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
+    if is_streaming then
+      -- In streaming mode, focus on the last diff block
+      local last_diff_block = diff_blocks[#diff_blocks]
+      vim.api.nvim_win_set_cursor(winnr, { last_diff_block.start_line, 0 })
+      vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
+    else
+      -- In normal mode, focus on the first diff block
+      vim.api.nvim_win_set_cursor(winnr, { diff_blocks[1].new_start_line, 0 })
+      vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
+    end
   end
+
+  if is_streaming then
+    -- In streaming mode, don't show confirmation dialog, just apply changes
+    return
+  end
+
+  pcall(vim.cmd.undojoin)
 
   confirm = Helpers.confirm("Are you sure you want to apply this modification?", function(ok, reason)
     clear()
