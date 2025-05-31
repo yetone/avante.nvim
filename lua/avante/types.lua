@@ -289,6 +289,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field parse_api_key? fun(): string | nil
 ---
 ---@class AvanteProviderFunctor
+---@field _model_list_cache table
 ---@field support_prompt_caching boolean | nil
 ---@field role_map table<"user" | "assistant", string>
 ---@field parse_messages AvanteMessagesParser
