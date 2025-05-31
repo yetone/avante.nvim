@@ -1424,6 +1424,51 @@ function M.get_tool_use_message(message, messages)
   return nil
 end
 
+---@param tool_use AvanteLLMToolUse
+function M.is_replace_func_call_tool_use(tool_use)
+  local is_replace_func_call = false
+  local is_str_replace_editor_func_call = false
+  local is_str_replace_based_edit_tool_func_call = false
+  local path = nil
+  if tool_use.name == "write_to_file" then
+    is_replace_func_call = true
+    path = tool_use.input.path
+  end
+  if tool_use.name == "replace_in_file" then
+    is_replace_func_call = true
+    path = tool_use.input.path
+  end
+  if tool_use.name == "str_replace_editor" then
+    if tool_use.input.command == "str_replace" then
+      is_replace_func_call = true
+      is_str_replace_editor_func_call = true
+      path = tool_use.input.path
+    end
+  end
+  if tool_use.name == "str_replace_based_edit_tool" then
+    if tool_use.input.command == "str_replace" then
+      is_replace_func_call = true
+      is_str_replace_based_edit_tool_func_call = true
+      path = tool_use.input.path
+    end
+  end
+  return is_replace_func_call, is_str_replace_editor_func_call, is_str_replace_based_edit_tool_func_call, path
+end
+
+---@param tool_use_message avante.HistoryMessage | nil
+function M.is_replace_func_call_message(tool_use_message)
+  local is_replace_func_call = false
+  local is_str_replace_editor_func_call = false
+  local is_str_replace_based_edit_tool_func_call = false
+  local path = nil
+  if tool_use_message and M.is_tool_use_message(tool_use_message) then
+    local tool_use = tool_use_message.message.content[1]
+    ---@cast tool_use AvanteLLMToolUse
+    return M.is_replace_func_call_tool_use(tool_use)
+  end
+  return is_replace_func_call, is_str_replace_editor_func_call, is_str_replace_based_edit_tool_func_call, path
+end
+
 ---@param message avante.HistoryMessage
 ---@param messages avante.HistoryMessage[]
 ---@return avante.HistoryMessage | nil

@@ -236,6 +236,7 @@ function M:add_text_message(ctx, text, state, opts)
   local msgs = { msg }
   local stream_parser = XMLParser.createStreamParser()
   stream_parser:addData(ctx.content)
+  local has_tool_use = false
   local xml = stream_parser:getAllElements()
   if xml then
     local new_content_list = {}
@@ -262,8 +263,8 @@ function M:add_text_message(ctx, text, state, opts)
       end
       if not vim.tbl_contains(llm_tool_names, item._name) then goto continue end
       local ok, input = pcall(vim.json.decode, item._text)
+      if not ok then input = {} end
       if not ok and item.children and #item.children > 0 then
-        input = {}
         for _, item_ in ipairs(item.children) do
           local ok_, input_ = pcall(vim.json.decode, item_._text)
           if ok_ and input_ then
@@ -273,7 +274,7 @@ function M:add_text_message(ctx, text, state, opts)
           end
         end
       end
-      if input then
+      if next(input) ~= nil then
         local tool_use_id = Utils.uuid()
         local msg_ = HistoryMessage:new({
           role = "assistant",
@@ -296,12 +297,14 @@ function M:add_text_message(ctx, text, state, opts)
           name = item._name,
           input_json = input,
         }
+        has_tool_use = true
       end
       if #new_content_list > 0 then msg.message.content = table.concat(new_content_list, "\n") end
       ::continue::
     end
   end
   if opts.on_messages_add then opts.on_messages_add(msgs) end
+  if has_tool_use and state == "generating" then opts.on_stop({ reason = "tool_use", streaming_tool_use = true }) end
 end
 
 function M:add_thinking_message(ctx, text, state, opts)

@@ -256,16 +256,13 @@ vim.g.avante_login = vim.g.avante_login
 ---
 ---@alias avante.HistoryMessageState "generating" | "generated"
 ---
----@class AvantePartialLLMToolUse
----@field name string
----@field id string
----@field partial_json table
----@field state avante.HistoryMessageState
----
 ---@class AvanteLLMToolUse
 ---@field name string
 ---@field id string
 ---@field input any
+---
+---@class AvantePartialLLMToolUse : AvanteLLMToolUse
+---@field state avante.HistoryMessageState
 ---
 ---@class AvanteLLMStartCallbackOptions
 ---@field usage? AvanteLLMUsage
@@ -276,6 +273,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field usage? AvanteLLMUsage
 ---@field retry_after? integer
 ---@field headers? table<string, string>
+---@field streaming_tool_use? boolean
 ---
 ---@alias AvanteStreamParser fun(self: AvanteProviderFunctor, ctx: any, line: string, handler_opts: AvanteHandlerOptions): nil
 ---@alias AvanteLLMStartCallback fun(opts: AvanteLLMStartCallbackOptions): nil

@@ -25,38 +25,14 @@ end
 
 ---@type AvanteLLMToolFunc<{ command: "view" | "str_replace" | "create" | "insert" | "undo_edit", path: string, old_str?: string, new_str?: string, file_text?: string, insert_line?: integer, new_str?: string, view_range?: integer[] }>
 function M.str_replace_editor(opts, on_log, on_complete, session_ctx)
-  if on_log then on_log("command: " .. opts.command) end
-  if not on_complete then return false, "on_complete not provided" end
-  local abs_path = Helpers.get_abs_path(opts.path)
-  if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
-  if opts.command == "view" then
-    local view = require("avante.llm_tools.view")
-    local opts_ = { path = opts.path }
-    if opts.view_range then
-      local start_line, end_line = unpack(opts.view_range)
-      opts_.view_range = {
-        start_line = start_line,
-        end_line = end_line,
-      }
-    end
-    return view(opts_, on_log, on_complete, session_ctx)
-  end
-  if opts.command == "str_replace" then
-    return require("avante.llm_tools.str_replace").func(opts, on_log, on_complete, session_ctx)
-  end
-  if opts.command == "create" then
-    return require("avante.llm_tools.create").func(opts, on_log, on_complete, session_ctx)
-  end
-  if opts.command == "insert" then
-    return require("avante.llm_tools.insert").func(opts, on_log, on_complete, session_ctx)
-  end
   if opts.command == "undo_edit" then
     return require("avante.llm_tools.undo_edit").func(opts, on_log, on_complete, session_ctx)
   end
-  return false, "Unknown command: " .. opts.command
+  ---@cast opts any
+  return M.str_replace_based_edit_tool(opts, on_log, on_complete, session_ctx)
 end
 
----@type AvanteLLMToolFunc<{ command: "view" | "str_replace" | "create" | "insert", path: string, old_str?: string, new_str?: string, file_text?: string, insert_line?: integer, new_str?: string, view_range?: integer[] }>
+---@type AvanteLLMToolFunc<{ command: "view" | "str_replace" | "create" | "insert", path: string, old_str?: string, new_str?: string, file_text?: string, insert_line?: integer, new_str?: string, view_range?: integer[], streaming?: boolean }>
 function M.str_replace_based_edit_tool(opts, on_log, on_complete, session_ctx)
   if on_log then on_log("command: " .. opts.command) end
   if not on_complete then return false, "on_complete not provided" end
@@ -67,10 +43,8 @@ function M.str_replace_based_edit_tool(opts, on_log, on_complete, session_ctx)
     local opts_ = { path = opts.path }
     if opts.view_range then
       local start_line, end_line = unpack(opts.view_range)
-      opts_.view_range = {
-        start_line = start_line,
-        end_line = end_line,
-      }
+      opts_.start_line = start_line
+      opts_.end_line = end_line
     end
     return view(opts_, on_log, on_complete, session_ctx)
   end
