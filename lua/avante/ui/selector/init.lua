@@ -13,6 +13,8 @@ local Utils = require("avante.utils")
 ---@field provider_opts table | nil
 ---@field on_select fun(item_ids: string[] | nil)
 ---@field get_preview_content fun(item_id: string): (string, string) | nil
+---@field on_delete_item fun(item_id: string): nil | nil #Optional callback for item deletion
+---@field on_action_cancel fun(): nil | nil #Optional callback for when an action is cancelled
 
 ---@class avante.ui.Selector
 ---@field provider avante.SelectorProvider
@@ -23,6 +25,8 @@ local Utils = require("avante.utils")
 ---@field on_select fun(item_ids: string[] | nil)
 ---@field selected_item_ids string[] | nil
 ---@field get_preview_content fun(item_id: string): (string, string) | nil
+---@field on_delete_item fun(item_id: string): nil | nil #Optional callback for item deletion
+---@field on_action_cancel fun(): nil | nil #Optional callback for when an action is cancelled
 local Selector = {}
 Selector.__index = Selector
 
@@ -45,6 +49,8 @@ function Selector:new(opts)
   o.on_select = opts.on_select
   o.selected_item_ids = opts.selected_item_ids or {}
   o.get_preview_content = opts.get_preview_content
+  o.on_delete_item = opts.on_delete_item -- Initialize the new field
+  o.on_action_cancel = opts.on_action_cancel -- Initialize the new action cancel callback
   return o
 end
 
