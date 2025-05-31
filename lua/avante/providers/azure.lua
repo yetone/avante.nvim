@@ -14,8 +14,17 @@ local M = {}
 
 M.api_key_name = "AZURE_OPENAI_API_KEY"
 
+local excludedFields = {
+  parse_api_key = true,
+}
+
 -- Inherit from OpenAI class
-setmetatable(M, { __index = O })
+setmetatable(M, {
+  __index = function(_, key)
+    if excludedFields[key] then return nil end
+    return O[key]
+  end,
+})
 
 function M:parse_curl_args(prompt_opts)
   local provider_conf, request_body = P.parse_config(self)
