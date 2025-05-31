@@ -231,6 +231,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field disable_tools? boolean
 ---@field entra? boolean
 ---@field hide_in_model_selector? boolean
+---@field use_ReAct_prompt? boolean
 ---
 ---@class AvanteSupportedProvider: AvanteDefaultBaseProvider
 ---@field __inherited_from? string
@@ -396,6 +397,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@class AvanteLLMToolParam
 ---@field type 'table'
 ---@field fields AvanteLLMToolParamField[]
+---@field usage? table
 
 ---@class AvanteLLMToolParamField
 ---@field name string

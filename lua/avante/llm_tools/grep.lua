@@ -15,7 +15,7 @@ M.param = {
   type = "table",
   fields = {
     {
-      name = "rel_path",
+      name = "path",
       description = "Relative path to the project directory",
       type = "string",
     },
@@ -44,6 +44,13 @@ M.param = {
       optional = true,
     },
   },
+  usage = {
+    path = "Relative path to the project directory",
+    query = "Query to search for",
+    case_sensitive = "Whether to search case sensitively",
+    include_pattern = "Glob pattern to include files",
+    exclude_pattern = "Glob pattern to exclude files",
+  },
 }
 
 ---@type AvanteLLMToolReturn[]
@@ -61,9 +68,9 @@ M.returns = {
   },
 }
 
----@type AvanteLLMToolFunc<{ rel_path: string, query: string, case_sensitive?: boolean, include_pattern?: string, exclude_pattern?: string }>
+---@type AvanteLLMToolFunc<{ path: string, query: string, case_sensitive?: boolean, include_pattern?: string, exclude_pattern?: string }>
 function M.func(opts, on_log)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return "", "No such file or directory: " .. abs_path end
 

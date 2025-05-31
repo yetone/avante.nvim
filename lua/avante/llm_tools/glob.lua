@@ -18,10 +18,14 @@ M.param = {
       type = "string",
     },
     {
-      name = "rel_path",
+      name = "path",
       description = "Relative path to the project directory, as cwd",
       type = "string",
     },
+  },
+  usage = {
+    pattern = "Glob pattern",
+    path = "Relative path to the project directory, as cwd",
   },
 }
 
@@ -40,9 +44,9 @@ M.returns = {
   },
 }
 
----@type AvanteLLMToolFunc<{ rel_path: string, pattern: string }>
+---@type AvanteLLMToolFunc<{ path: string, pattern: string }>
 function M.func(opts, on_log, on_complete, session_ctx)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
   if on_log then on_log("path: " .. abs_path) end
   if on_log then on_log("pattern: " .. opts.pattern) end

@@ -183,7 +183,7 @@ M.param = {
   type = "table",
   fields = {
     {
-      name = "rel_path",
+      name = "path",
       description = "Relative path to the project directory, as cwd",
       type = "string",
     },
@@ -192,6 +192,10 @@ M.param = {
       description = "Command to run",
       type = "string",
     },
+  },
+  usage = {
+    path = "Relative path to the project directory, as cwd",
+    command = "Command to run",
   },
 }
 
@@ -210,9 +214,9 @@ M.returns = {
   },
 }
 
----@type AvanteLLMToolFunc<{ rel_path: string, command: string }>
+---@type AvanteLLMToolFunc<{ path: string, command: string }>
 function M.func(opts, on_log, on_complete, session_ctx)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "Path not found: " .. abs_path end
   if on_log then on_log("command: " .. opts.command) end

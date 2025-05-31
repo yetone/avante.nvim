@@ -576,7 +576,7 @@ end
 --- remove indentation from code: spaces or tabs
 function M.remove_indentation(code)
   if not code then return code end
-  return code:gsub("^%s*", ""):gsub("%s*$", "")
+  return code:gsub("%s*", "")
 end
 
 function M.relative_path(absolute)
@@ -1056,12 +1056,12 @@ function M.update_buffer_lines(ns_id, bufnr, old_lines, new_lines)
   if #diffs == 0 then return end
   for _, diff in ipairs(diffs) do
     local lines = diff.content
-    -- M.debug("lines", lines)
     local text_lines = vim.tbl_map(function(line) return tostring(line) end, lines)
     vim.api.nvim_buf_set_lines(bufnr, diff.start_line - 1, diff.end_line - 1, false, text_lines)
     for i, line in ipairs(lines) do
       line:set_highlights(ns_id, bufnr, diff.start_line + i - 2)
     end
+    vim.cmd("redraw")
   end
 end
 
@@ -1467,6 +1467,23 @@ function M.text_to_lines(text, hl)
   return lines
 end
 
+---@param thinking_text string
+---@param hl string | nil
+---@return avante.ui.Line[]
+function M.thinking_to_lines(thinking_text, hl)
+  local Line = require("avante.ui.line")
+  local text_lines = vim.split(thinking_text, "\n")
+  local lines = {}
+  table.insert(lines, Line:new({ { M.icon("🤔 ") .. "Thought content:" } }))
+  table.insert(lines, Line:new({ { "" } }))
+  for _, text_line in ipairs(text_lines) do
+    local piece = { "> " .. text_line }
+    if hl then table.insert(piece, hl) end
+    table.insert(lines, Line:new({ piece }))
+  end
+  return lines
+end
+
 ---@param item AvanteLLMMessageContentItem
 ---@param message avante.HistoryMessage
 ---@param messages avante.HistoryMessage[]
@@ -1475,6 +1492,9 @@ function M.message_content_item_to_lines(item, message, messages)
   local Line = require("avante.ui.line")
   if type(item) == "string" then return M.text_to_lines(item) end
   if type(item) == "table" then
+    if item.type == "thinking" or item.type == "redacted_thinking" then
+      return M.thinking_to_lines(item.thinking or item.data or "")
+    end
     if item.type == "text" then return M.text_to_lines(item.text) end
     if item.type == "image" then
       return { Line:new({ { "![image](" .. item.source.media_type .. ": " .. item.source.data .. ")" } }) }
@@ -1517,18 +1537,6 @@ function M.message_content_item_to_lines(item, message, messages)
               else
                 table.insert(lines, Line:new({ { "╰─" }, { string.format("  %s", line_) } }))
               end
-            end
-          end
-        end
-      elseif tool_result_message then
-        local tool_result = tool_result_message.message.content[1]
-        if tool_result.content then
-          local result_lines = vim.split(tool_result.content, "\n")
-          for idx, line in ipairs(result_lines) do
-            if idx ~= #result_lines then
-              table.insert(lines, Line:new({ { "│" }, { string.format("   %s", line) } }))
-            else
-              table.insert(lines, Line:new({ { "╰─" }, { string.format("  %s", line) } }))
             end
           end
         end

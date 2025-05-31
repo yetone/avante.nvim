@@ -7,10 +7,10 @@ local Helpers = require("avante.llm_tools.helpers")
 
 local M = {}
 
----@type AvanteLLMToolFunc<{ rel_path: string }>
+---@type AvanteLLMToolFunc<{ path: string }>
 function M.read_file_toplevel_symbols(opts, on_log)
   local RepoMap = require("avante.repo_map")
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
   if on_log then on_log("path: " .. abs_path) end
   if not Path:new(abs_path):exists() then return "", "File does not exists: " .. abs_path end
@@ -121,13 +121,13 @@ function M.write_global_file(opts, on_log, on_complete)
   end)
 end
 
----@type AvanteLLMToolFunc<{ rel_path: string, new_rel_path: string }>
+---@type AvanteLLMToolFunc<{ path: string, new_path: string }>
 function M.rename_file(opts, on_log, on_complete)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
   if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
-  local new_abs_path = Helpers.get_abs_path(opts.new_rel_path)
+  local new_abs_path = Helpers.get_abs_path(opts.new_path)
   if on_log then on_log(abs_path .. " -> " .. new_abs_path) end
   if not Helpers.has_permission_to_access(new_abs_path) then
     return false, "No permission to access path: " .. new_abs_path
@@ -147,13 +147,13 @@ function M.rename_file(opts, on_log, on_complete)
   )
 end
 
----@type AvanteLLMToolFunc<{ rel_path: string, new_rel_path: string }>
+---@type AvanteLLMToolFunc<{ path: string, new_path: string }>
 function M.copy_file(opts, on_log)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
   if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
-  local new_abs_path = Helpers.get_abs_path(opts.new_rel_path)
+  local new_abs_path = Helpers.get_abs_path(opts.new_path)
   if not Helpers.has_permission_to_access(new_abs_path) then
     return false, "No permission to access path: " .. new_abs_path
   end
@@ -163,9 +163,9 @@ function M.copy_file(opts, on_log)
   return true, nil
 end
 
----@type AvanteLLMToolFunc<{ rel_path: string }>
+---@type AvanteLLMToolFunc<{ path: string }>
 function M.delete_file(opts, on_log, on_complete)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
   if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
@@ -181,9 +181,9 @@ function M.delete_file(opts, on_log, on_complete)
   end)
 end
 
----@type AvanteLLMToolFunc<{ rel_path: string }>
+---@type AvanteLLMToolFunc<{ path: string }>
 function M.create_dir(opts, on_log, on_complete)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if Path:new(abs_path):exists() then return false, "Directory already exists: " .. abs_path end
   if not on_complete then return false, "on_complete not provided" end
@@ -198,13 +198,13 @@ function M.create_dir(opts, on_log, on_complete)
   end)
 end
 
----@type AvanteLLMToolFunc<{ rel_path: string, new_rel_path: string }>
+---@type AvanteLLMToolFunc<{ path: string, new_path: string }>
 function M.rename_dir(opts, on_log, on_complete)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "Directory not found: " .. abs_path end
   if not Path:new(abs_path):is_dir() then return false, "Path is not a directory: " .. abs_path end
-  local new_abs_path = Helpers.get_abs_path(opts.new_rel_path)
+  local new_abs_path = Helpers.get_abs_path(opts.new_path)
   if not Helpers.has_permission_to_access(new_abs_path) then
     return false, "No permission to access path: " .. new_abs_path
   end
@@ -224,9 +224,9 @@ function M.rename_dir(opts, on_log, on_complete)
   )
 end
 
----@type AvanteLLMToolFunc<{ rel_path: string }>
+---@type AvanteLLMToolFunc<{ path: string }>
 function M.delete_dir(opts, on_log, on_complete)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "Directory not found: " .. abs_path end
   if not Path:new(abs_path):is_dir() then return false, "Path is not a directory: " .. abs_path end
@@ -552,9 +552,9 @@ function M.rag_search(opts, on_log, on_complete)
   )
 end
 
----@type AvanteLLMToolFunc<{ code: string, rel_path: string, container_image?: string }>
+---@type AvanteLLMToolFunc<{ code: string, path: string, container_image?: string }>
 function M.python(opts, on_log, on_complete)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return nil, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return nil, "Path not found: " .. abs_path end
   if on_log then on_log("cwd: " .. abs_path) end
@@ -634,6 +634,18 @@ function M.get_tools(user_input, history_messages)
     :totable()
 end
 
+function M.get_tool_names()
+  local custom_tools = Config.custom_tools
+  if type(custom_tools) == "function" then custom_tools = custom_tools() end
+  ---@type AvanteLLMTool[]
+  local unfiltered_tools = vim.list_extend(vim.list_extend({}, M._tools), custom_tools)
+  local tool_names = {}
+  for _, tool in ipairs(unfiltered_tools) do
+    table.insert(tool_names, tool.name)
+  end
+  return tool_names
+end
+
 ---@type AvanteLLMTool[]
 M._tools = {
   require("avante.llm_tools.replace_in_file"),
@@ -651,6 +663,9 @@ M._tools = {
           description = "Query to search",
           type = "string",
         },
+      },
+      usage = {
+        query = "Query to search",
       },
     },
     returns = {
@@ -679,10 +694,14 @@ M._tools = {
           type = "string",
         },
         {
-          name = "rel_path",
+          name = "path",
           description = "Relative path to the project directory, as cwd",
           type = "string",
         },
+      },
+      usage = {
+        code = "Python code to run",
+        path = "Relative path to the project directory, as cwd",
       },
     },
     returns = {
@@ -710,6 +729,9 @@ M._tools = {
           description = "Scope for the git diff (e.g. specific files or directories)",
           type = "string",
         },
+      },
+      usage = {
+        scope = "Scope for the git diff (e.g. specific files or directories)",
       },
     },
     returns = {
@@ -744,6 +766,10 @@ M._tools = {
           optional = true,
         },
       },
+      usage = {
+        message = "Commit message to use",
+        scope = "Scope for staging files (e.g. specific files or directories)",
+      },
     },
     returns = {
       {
@@ -768,10 +794,13 @@ M._tools = {
       type = "table",
       fields = {
         {
-          name = "rel_path",
+          name = "path",
           description = "Relative path to the file in current project scope",
           type = "string",
         },
+      },
+      usage = {
+        path = "Relative path to the file in current project scope",
       },
     },
     returns = {
@@ -790,7 +819,7 @@ M._tools = {
   },
   require("avante.llm_tools.str_replace"),
   require("avante.llm_tools.view"),
-  require("avante.llm_tools.create"),
+  require("avante.llm_tools.write_to_file"),
   require("avante.llm_tools.insert"),
   require("avante.llm_tools.undo_edit"),
   {
@@ -819,6 +848,9 @@ M._tools = {
           description = "Absolute path to the file in global scope",
           type = "string",
         },
+      },
+      usage = {
+        abs_path = "Absolute path to the file in global scope",
       },
     },
     returns = {
@@ -867,6 +899,10 @@ M._tools = {
           type = "string",
         },
       },
+      usage = {
+        abs_path = "The path to the file in the current project scope",
+        content = "The content to write to the file",
+      },
     },
     returns = {
       {
@@ -889,15 +925,19 @@ M._tools = {
       type = "table",
       fields = {
         {
-          name = "rel_path",
+          name = "path",
           description = "Relative path to the file in current project scope",
           type = "string",
         },
         {
-          name = "new_rel_path",
+          name = "new_path",
           description = "New relative path for the file",
           type = "string",
         },
+      },
+      usage = {
+        path = "Relative path to the file in current project scope",
+        new_path = "New relative path for the file",
       },
     },
     returns = {
@@ -921,10 +961,13 @@ M._tools = {
       type = "table",
       fields = {
         {
-          name = "rel_path",
+          name = "path",
           description = "Relative path to the file in current project scope",
           type = "string",
         },
+      },
+      usage = {
+        path = "Relative path to the file in current project scope",
       },
     },
     returns = {
@@ -948,10 +991,13 @@ M._tools = {
       type = "table",
       fields = {
         {
-          name = "rel_path",
+          name = "path",
           description = "Relative path to the project directory",
           type = "string",
         },
+      },
+      usage = {
+        path = "Relative path to the project directory",
       },
     },
     returns = {
@@ -975,15 +1021,19 @@ M._tools = {
       type = "table",
       fields = {
         {
-          name = "rel_path",
+          name = "path",
           description = "Relative path to the project directory",
           type = "string",
         },
         {
-          name = "new_rel_path",
+          name = "new_path",
           description = "New relative path for the directory",
           type = "string",
         },
+      },
+      usage = {
+        path = "Relative path to the project directory",
+        new_path = "New relative path for the directory",
       },
     },
     returns = {
@@ -1007,10 +1057,13 @@ M._tools = {
       type = "table",
       fields = {
         {
-          name = "rel_path",
+          name = "path",
           description = "Relative path to the project directory",
           type = "string",
         },
+      },
+      usage = {
+        path = "Relative path to the project directory",
       },
     },
     returns = {
@@ -1042,6 +1095,9 @@ M._tools = {
           type = "string",
         },
       },
+      usage = {
+        query = "Query to search",
+      },
     },
     returns = {
       {
@@ -1068,6 +1124,9 @@ M._tools = {
           description = "Url to fetch markdown from",
           type = "string",
         },
+      },
+      usage = {
+        url = "Url to fetch markdown from",
       },
     },
     returns = {

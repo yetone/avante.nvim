@@ -39,23 +39,22 @@ M.param = {
       type = "string",
     },
     {
-      name = "view_range",
-      description = "The range of the file to view. This parameter only applies when viewing files, not directories.",
-      type = "object",
+      name = "start_line",
+      description = "The start line of the view range, 1-indexed",
+      type = "integer",
       optional = true,
-      fields = {
-        {
-          name = "start_line",
-          description = "The start line of the range, 1-indexed",
-          type = "integer",
-        },
-        {
-          name = "end_line",
-          description = "The end line of the range, 1-indexed, and -1 for the end line means read to the end of the file",
-          type = "integer",
-        },
-      },
     },
+    {
+      name = "end_line",
+      description = "The end line of the view range, 1-indexed, and -1 for the end line means read to the end of the file",
+      type = "integer",
+      optional = true,
+    },
+  },
+  usage = {
+    path = "The path to the file in the current project scope",
+    start_line = "The start line of the view range, 1-indexed",
+    end_line = "The end line of the view range, 1-indexed, and -1 for the end line means read to the end of the file",
   },
 }
 
@@ -74,7 +73,7 @@ M.returns = {
   },
 }
 
----@type AvanteLLMToolFunc<{ path: string, view_range?: { start_line: integer, end_line: integer } }>
+---@type AvanteLLMToolFunc<{ path: string, start_line?: integer, end_line?: integer }>
 function M.func(opts, on_log, on_complete, session_ctx)
   if on_log then on_log("path: " .. opts.path) end
   local abs_path = Helpers.get_abs_path(opts.path)
@@ -84,11 +83,9 @@ function M.func(opts, on_log, on_complete, session_ctx)
   local file = io.open(abs_path, "r")
   if not file then return false, "file not found: " .. abs_path end
   local lines = Utils.read_file_from_buf_or_disk(abs_path)
-  if opts.view_range then
-    local start_line = opts.view_range.start_line
-    local end_line = opts.view_range.end_line
-    if start_line and end_line and lines then lines = vim.list_slice(lines, start_line, end_line) end
-  end
+  local start_line = opts.start_line
+  local end_line = opts.end_line
+  if start_line and end_line and lines then lines = vim.list_slice(lines, start_line, end_line) end
   local truncated_lines = {}
   local is_truncated = false
   local size = 0

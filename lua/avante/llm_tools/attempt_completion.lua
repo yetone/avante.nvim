@@ -32,6 +32,10 @@ M.param = {
       optional = true,
     },
   },
+  usage = {
+    result = "The result of the task. Formulate this result in a way that is final and does not require further input from the user. Don't end your result with questions or offers for further assistance.",
+    command = "A CLI command to execute to show a live demo of the result to the user. For example, use `open index.html` to display a created html website, or `open localhost:3000` to display a locally running development server. But DO NOT use commands like `echo` or `cat` that merely print text. This command should be valid for the current operating system. Ensure the command is properly formatted and does not contain any harmful instructions.",
+  },
 }
 
 ---@type AvanteLLMToolReturn[]
