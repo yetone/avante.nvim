@@ -19,6 +19,9 @@ M.param = {
       type = "string",
     },
   },
+  usage = {
+    path = "The path to the file in the current project scope",
+  },
 }
 
 ---@type AvanteLLMToolReturn[]

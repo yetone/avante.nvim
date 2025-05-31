@@ -22,6 +22,9 @@ M.param = {
       type = "string",
     },
   },
+  usage = {
+    path = "The path to the file whose last edit should be undone",
+  },
 }
 
 ---@type AvanteLLMToolReturn[]

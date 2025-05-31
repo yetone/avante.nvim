@@ -56,6 +56,7 @@ Sidebar.__index = Sidebar
 ---@field current_state avante.GenerateState | nil
 ---@field state_timer table | nil
 ---@field state_spinner_chars string[]
+---@field thinking_spinner_chars string[]
 ---@field state_spinner_idx integer
 ---@field state_extmark_id integer | nil
 ---@field scroll boolean
@@ -84,12 +85,16 @@ function Sidebar:new(id)
     current_state = nil,
     state_timer = nil,
     state_spinner_chars = { "·", "✢", "✳", "∗", "✻", "✽" },
+    thinking_spinner_chars = { "🤯", "🙄" },
     state_spinner_idx = 1,
     state_extmark_id = nil,
     scroll = true,
     input_hint_window = nil,
     ask_opts = {},
     old_result_lines = {},
+    -- 缓存相关字段
+    _cached_history_lines = nil,
+    _history_cache_invalidated = true,
   }, Sidebar)
 end
 
@@ -1528,42 +1533,75 @@ end
 ---@param opts? {focus?: boolean, scroll?: boolean, backspace?: integer, callback?: fun(): nil} whether to focus the result view
 function Sidebar:update_content(content, opts)
   if not self.result_container or not self.result_container.bufnr then return end
+
+  -- 提前验证容器有效性，避免后续无效操作
+  if not Utils.is_valid_container(self.result_container) then return end
+
   opts = vim.tbl_deep_extend("force", { focus = false, scroll = self.scroll, callback = nil }, opts or {})
-  local history_lines = self.get_history_lines(self.chat_history)
-  if content ~= nil and content ~= "" then
-    table.insert(history_lines, Line:new({ { "" } }))
-    local content_lines = vim.split(content, "\n")
-    for _, line in ipairs(content_lines) do
-      table.insert(history_lines, Line:new({ { line } }))
-    end
+
+  -- 缓存历史行，避免重复计算
+  local history_lines
+  if not self._cached_history_lines or self._history_cache_invalidated then
+    history_lines = self.get_history_lines(self.chat_history)
+    self._cached_history_lines = history_lines
+    self._history_cache_invalidated = false
+  else
+    history_lines = vim.deepcopy(self._cached_history_lines)
   end
-  vim.defer_fn(function()
-    self:clear_state()
-    local f = function()
-      if not Utils.is_valid_container(self.result_container) then return end
-      Utils.unlock_buf(self.result_container.bufnr)
-      Utils.update_buffer_lines(
-        RESULT_BUF_HL_NAMESPACE,
-        self.result_container.bufnr,
-        self.old_result_lines,
-        history_lines
-      )
-      Utils.lock_buf(self.result_container.bufnr)
-      self.old_result_lines = history_lines
-      api.nvim_set_option_value("filetype", "Avante", { buf = self.result_container.bufnr })
-      vim.schedule(function() vim.cmd("redraw") end)
-      if opts.focus and not self:is_focused_on_result() then
-        --- set cursor to bottom of result view
-        xpcall(function() api.nvim_set_current_win(self.result_container.winid) end, function(err) return err end)
-      end
 
-      if opts.scroll then Utils.buf_scroll_to_end(self.result_container.bufnr) end
+  -- 批量处理内容行，减少表操作
+  if content ~= nil and content ~= "" then
+    local content_lines = vim.split(content, "\n")
+    local new_lines = { Line:new({ { "" } }) }
 
-      if opts.callback ~= nil then opts.callback() end
+    -- 预分配表大小，提升性能
+    for i = 1, #content_lines do
+      new_lines[i + 1] = Line:new({ { content_lines[i] } })
     end
-    f()
+
+    -- 一次性扩展，而不是逐个插入
+    vim.list_extend(history_lines, new_lines)
+  end
+
+  -- 使用 vim.schedule 而不是 vim.defer_fn(0)，性能更好
+  -- 再次检查容器有效性
+  if not Utils.is_valid_container(self.result_container) then return end
+
+  self:clear_state()
+
+  -- 批量更新操作
+  local bufnr = self.result_container.bufnr
+  Utils.unlock_buf(bufnr)
+
+  Utils.update_buffer_lines(RESULT_BUF_HL_NAMESPACE, bufnr, self.old_result_lines, history_lines)
+
+  -- 缓存结果行
+  self.old_result_lines = history_lines
+
+  -- 批量设置选项
+  api.nvim_set_option_value("filetype", "Avante", { buf = bufnr })
+  Utils.lock_buf(bufnr)
+
+  -- 处理焦点和滚动
+  if opts.focus and not self:is_focused_on_result() then
+    xpcall(function() api.nvim_set_current_win(self.result_container.winid) end, function(err)
+      Utils.debug("Failed to set current win:", err)
+      return err
+    end)
+  end
+
+  if opts.scroll then Utils.buf_scroll_to_end(bufnr) end
+
+  -- 延迟执行回调和状态渲染
+  if opts.callback then vim.schedule(opts.callback) end
+
+  -- 最后渲染状态
+  vim.schedule(function()
     self:render_state()
-  end, 0)
+    -- 延迟重绘，避免阻塞
+    vim.defer_fn(function() vim.cmd("redraw") end, 10)
+  end)
+
   return self
 end
 
@@ -1842,8 +1880,8 @@ function Sidebar:render_state()
   if self.state_extmark_id then
     api.nvim_buf_del_extmark(self.result_container.bufnr, STATE_NAMESPACE, self.state_extmark_id)
   end
-  local spinner_char = self.state_spinner_chars[self.state_spinner_idx]
-  self.state_spinner_idx = (self.state_spinner_idx % #self.state_spinner_chars) + 1
+  local spinner_chars = self.state_spinner_chars
+  if self.current_state == "thinking" then spinner_chars = self.thinking_spinner_chars end
   local hl = "AvanteStateSpinnerGenerating"
   if self.current_state == "tool calling" then hl = "AvanteStateSpinnerToolCalling" end
   if self.current_state == "failed" then hl = "AvanteStateSpinnerFailed" end
@@ -1851,6 +1889,8 @@ function Sidebar:render_state()
   if self.current_state == "searching" then hl = "AvanteStateSpinnerSearching" end
   if self.current_state == "thinking" then hl = "AvanteStateSpinnerThinking" end
   if self.current_state == "compacting" then hl = "AvanteStateSpinnerCompacting" end
+  local spinner_char = spinner_chars[self.state_spinner_idx]
+  self.state_spinner_idx = (self.state_spinner_idx % #spinner_chars) + 1
   if
     self.current_state ~= "generating"
     and self.current_state ~= "tool calling"
@@ -1911,6 +1951,10 @@ function Sidebar:new_chat(args, cb)
   if cb then cb(args) end
 end
 
+local _save_history = Utils.debounce(function(self) Path.history.save(self.code.bufnr, self.chat_history) end, 3000)
+
+local save_history = vim.schedule_wrap(_save_history)
+
 ---@param messages avante.HistoryMessage | avante.HistoryMessage[]
 function Sidebar:add_history_messages(messages)
   local history_messages = Utils.get_history_messages(self.chat_history)
@@ -1934,22 +1978,30 @@ function Sidebar:add_history_messages(messages)
     end
   end
   self.chat_history.messages = history_messages
-  Path.history.save(self.code.bufnr, self.chat_history)
+  -- 历史消息变更时，标记缓存失效
+  self._history_cache_invalidated = true
+  save_history(self)
   if
     self.chat_history.title == "untitled"
     and #messages > 0
     and messages[1].just_for_display ~= true
     and messages[1].state == "generated"
   then
-    self.chat_history.title = "generating..."
-    Llm.summarize_chat_thread_title(messages[1].message.content, function(title)
-      if title then
-        self.chat_history.title = title
-      else
-        self.chat_history.title = "untitled"
-      end
-      Path.history.save(self.code.bufnr, self.chat_history)
-    end)
+    -- self.chat_history.title = "generating..."
+    -- Llm.summarize_chat_thread_title(messages[1].message.content, function(title)
+    --   if title then
+    --     self.chat_history.title = title
+    --   else
+    --     self.chat_history.title = "untitled"
+    --   end
+    --   save_history(self)
+    -- end)
+    local first_msg_text = Utils.message_to_text(messages[1], messages)
+    local lines_ = vim.split(first_msg_text, "\n")
+    if #lines_ > 0 then
+      self.chat_history.title = lines_[1]
+      save_history(self)
+    end
   end
   local last_message = messages[#messages]
   if last_message then
@@ -1964,7 +2016,10 @@ function Sidebar:add_history_messages(messages)
       self.current_state = "generating"
     end
   end
-  self:update_content("")
+  xpcall(function() self:update_content("") end, function(err)
+    Utils.debug("Failed to update content:", err)
+    return nil
+  end)
 end
 
 ---@param messages AvanteLLMMessage | AvanteLLMMessage[]
@@ -2135,6 +2190,8 @@ end
 function Sidebar:reload_chat_history()
   if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then return end
   self.chat_history = Path.history.load(self.code.bufnr)
+  -- 重新加载历史时，标记缓存失效
+  self._history_cache_invalidated = true
 end
 
 ---@return avante.HistoryMessage[]
