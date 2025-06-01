@@ -534,6 +534,11 @@ M._defaults = {
   disabled_tools = {}, ---@type string[]
   ---@type AvanteLLMToolPublic[] | fun(): AvanteLLMToolPublic[]
   custom_tools = {},
+  ---@class AvanteToolPermissions
+  ---@field public auto_approve boolean | string[] -- true: auto-approve all tools, false: normal prompts, string[]: auto-approve specific tools by name
+  tool_permissions = {
+    auto_approve = false, -- Default: show permission prompts for all tools
+  },
   ---@type AvanteSlashCommand[]
   slash_commands = {},
 }

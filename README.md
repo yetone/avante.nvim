@@ -358,6 +358,12 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     minimize_diff = true, -- Whether to remove unchanged lines when applying a code block
     enable_token_counting = true, -- Whether to enable token counting. Default to true.
   },
+  tool_permissions = {
+    auto_approve = false, -- Default: show permission prompts for all tools
+    -- Examples:
+    -- auto_approve = true,                -- Auto-approve all tools (no prompts)
+    -- auto_approve = {"bash", "replace_in_file"}, -- Auto-approve specific tools only
+  },
   mappings = {
     --- @class AvanteConflictMappings
     diff = {
