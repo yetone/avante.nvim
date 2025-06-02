@@ -834,25 +834,30 @@ function M._stream(opts)
           table.insert(tool_results, tool_result)
           return handle_next_tool_use(partial_tool_use_list, tool_use_index + 1, tool_results)
         end
-        local is_replace_func_call = Utils.is_replace_func_call_tool_use(partial_tool_use)
-        if partial_tool_use.state == "generating" and not is_replace_func_call then return end
-        if is_replace_func_call then
-          if type(partial_tool_use.input) == "table" then partial_tool_use.input.tool_use_id = partial_tool_use.id end
-          if partial_tool_use.state == "generating" then
-            if type(partial_tool_use.input) == "table" then
-              partial_tool_use.input.streaming = true
-              LLMTools.process_tool_use(
-                prompt_opts.tools,
-                partial_tool_use,
-                function() end,
-                function() end,
-                opts.session_ctx
-              )
-            end
-            return
-          else
-            if streaming_tool_use then return end
+        local is_replace_tool_use = Utils.is_replace_func_call_tool_use(partial_tool_use)
+        local is_attempt_completion_tool_use = partial_tool_use.name == "attempt_completion"
+        if
+          partial_tool_use.state == "generating"
+          and not is_replace_tool_use
+          and not is_attempt_completion_tool_use
+        then
+          return
+        end
+        if type(partial_tool_use.input) == "table" then partial_tool_use.input.tool_use_id = partial_tool_use.id end
+        if partial_tool_use.state == "generating" then
+          if type(partial_tool_use.input) == "table" then
+            partial_tool_use.input.streaming = true
+            LLMTools.process_tool_use(
+              prompt_opts.tools,
+              partial_tool_use,
+              function() end,
+              function() end,
+              opts.session_ctx
+            )
           end
+          return
+        else
+          if streaming_tool_use then return end
         end
         -- Either on_complete handles the tool result asynchronously or we receive the result and error synchronously when either is not nil
         local result, error = LLMTools.process_tool_use(
