@@ -619,6 +619,7 @@ The following key bindings are available for use with `avante.nvim`:
 | <kbd>Leader</kbd><kbd>a</kbd><kbd>e</kbd> | edit selected blocks                         |
 | <kbd>Leader</kbd><kbd>a</kbd><kbd>S</kbd> | stop current AI request                      |
 | <kbd>Leader</kbd><kbd>a</kbd><kbd>h</kbd> | select between chat histories                |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>B</kbd> | add all buffer (files) as Selected Files     |
 | <kbd>c</kbd><kbd>o</kbd>                  | choose ours                                  |
 | <kbd>c</kbd><kbd>t</kbd>                  | choose theirs                                |
 | <kbd>c</kbd><kbd>a</kbd>                  | choose all theirs                            |
