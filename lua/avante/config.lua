@@ -536,7 +536,6 @@ M._defaults = {
   disabled_tools = {}, ---@type string[]
   ---@type AvanteLLMToolPublic[] | fun(): AvanteLLMToolPublic[]
   custom_tools = {},
-
   ---@type AvanteSlashCommand[]
   slash_commands = {},
 }

@@ -1089,4 +1089,3 @@ avante.nvim is licensed under the Apache 2.0 License. For more details, please r
     </picture>
   </a>
 </p>
-
