@@ -1,4 +1,5 @@
 local Utils = require("avante.utils")
+local Providers = require("avante.providers")
 local Config = require("avante.config")
 local Selector = require("avante.ui.selector")
 
@@ -7,14 +8,36 @@ local M = {}
 
 ---@param provider_name string
 ---@param cfg table
----@return table?
-local function create_model_entry(provider_name, cfg)
+---@return table
+local function create_model_entries(provider_name, cfg)
+  if cfg.models_list then
+    local models_list = type(cfg.models_list) == "function" and cfg:models_list() or cfg.models_list
+    if not models_list then return {} end
+    -- If models_list is defined, use it to create entries
+    local models = vim
+      .iter(models_list)
+      :map(
+        function(model)
+          return {
+            name = model.name or model.id,
+            display_name = model.display_name or model.name or model.id,
+            provider_name = provider_name,
+            model = model.id,
+          }
+        end
+      )
+      :totable()
+    return models
+  end
   return cfg.model
-    and {
-      name = cfg.display_name or (provider_name .. "/" .. cfg.model),
-      provider_name = provider_name,
-      model = cfg.model,
-    }
+      and {
+        {
+          name = cfg.display_name or (provider_name .. "/" .. cfg.model),
+          provider_name = provider_name,
+          model = cfg.model,
+        },
+      }
+    or {}
 end
 
 function M.open()
@@ -22,10 +45,14 @@ function M.open()
 
   -- Collect models from main providers and vendors
   for _, provider_name in ipairs(Config.provider_names) do
-    local cfg = Config.get_provider_config(provider_name)
+    local ok, cfg = pcall(function() return Providers[provider_name] end)
+    if not ok then
+      Utils.warn("Failed to load provider: " .. provider_name)
+      goto continue
+    end
     if cfg.hide_in_model_selector then goto continue end
-    local entry = create_model_entry(provider_name, cfg)
-    if entry then table.insert(models, entry) end
+    local entries = create_model_entries(provider_name, cfg)
+    models = vim.list_extend(models, entries)
     ::continue::
   end
 
