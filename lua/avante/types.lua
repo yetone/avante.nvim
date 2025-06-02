@@ -220,6 +220,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@class AvanteDefaultBaseProvider: table<string, any>
 ---@field endpoint? string
 ---@field extra_headers? table<string, any>
+---@field extra_request_body? table<string, any>
 ---@field model? string
 ---@field local? boolean
 ---@field proxy? string

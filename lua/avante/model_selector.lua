@@ -15,7 +15,7 @@ local models_list_cached_result = {}
 ---@param provider_cfg table
 ---@return table
 local function create_model_entries(provider_name, provider_cfg)
-  if provider_cfg.models_list then
+  if provider_cfg.models_list and provider_cfg.__inherited_from == nil then
     local models_list
     if type(provider_cfg.models_list) == "function" then
       if M.models_list_invoked[provider_cfg.models_list] then return {} end
@@ -24,7 +24,7 @@ local function create_model_entries(provider_name, provider_cfg)
       if cached_result then
         models_list = cached_result
       else
-        models_list = provider_cfg.models_list()
+        models_list = provider_cfg:models_list()
         models_list_cached_result[provider_cfg.models_list] = models_list
       end
     else
@@ -65,13 +65,9 @@ function M.open()
   M.models_list_returned = {}
   local models = {}
 
-  -- Collect models from main providers and vendors
-  for _, provider_name in ipairs(Config.provider_names) do
-    local ok, provider_cfg = pcall(function() return Providers[provider_name] end)
-    if not ok then
-      Utils.warn("Failed to load provider: " .. provider_name)
-      goto continue
-    end
+  -- Collect models from providers
+  for provider_name, _ in pairs(Config.providers) do
+    local provider_cfg = Providers[provider_name]
     if provider_cfg.hide_in_model_selector then goto continue end
     if not provider_cfg.is_env_set() then goto continue end
     local entries = create_model_entries(provider_name, provider_cfg)
@@ -106,11 +102,13 @@ function M.open()
 
     -- Update config with new model
     Config.override({
-      [choice.provider_name] = vim.tbl_deep_extend(
-        "force",
-        Config.get_provider_config(choice.provider_name),
-        { model = choice.model }
-      ),
+      providers = {
+        [choice.provider_name] = vim.tbl_deep_extend(
+          "force",
+          Config.get_provider_config(choice.provider_name),
+          { model = choice.model }
+        ),
+      },
     })
 
     Utils.info("Switched to model: " .. choice.name)

@@ -27,7 +27,6 @@
 
 local curl = require("plenary.curl")
 
-local Config = require("avante.config")
 local Path = require("plenary.path")
 local Utils = require("avante.utils")
 local Providers = require("avante.providers")
@@ -156,14 +155,16 @@ function H.refresh_token(async, force)
     return false
   end
 
+  local provider_conf = Providers.get_config("copilot")
+
   local curl_opts = {
     headers = {
       ["Authorization"] = "token " .. M.state.oauth_token,
       ["Accept"] = "application/json",
     },
-    timeout = Config.copilot.timeout,
-    proxy = Config.copilot.proxy,
-    insecure = Config.copilot.allow_insecure,
+    timeout = provider_conf.timeout,
+    proxy = provider_conf.proxy,
+    insecure = provider_conf.allow_insecure,
   }
 
   local function handle_response(response)
@@ -219,6 +220,7 @@ function M:models_list()
   -- refresh token synchronously, only if it has expired
   -- (this should rarely happen, as we refresh the token in the background)
   H.refresh_token(false, false)
+  local provider_conf = Providers.parse_config(self)
   local curl_opts = {
     headers = {
       ["Content-Type"] = "application/json",
@@ -226,9 +228,9 @@ function M:models_list()
       ["Copilot-Integration-Id"] = "vscode-chat",
       ["Editor-Version"] = ("Neovim/%s.%s.%s"):format(vim.version().major, vim.version().minor, vim.version().patch),
     },
-    timeout = Config.copilot.timeout,
-    proxy = Config.copilot.proxy,
-    insecure = Config.copilot.allow_insecure,
+    timeout = provider_conf.timeout,
+    proxy = provider_conf.proxy,
+    insecure = provider_conf.allow_insecure,
   }
 
   local function handle_response(response)

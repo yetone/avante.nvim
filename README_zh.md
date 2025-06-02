@@ -64,13 +64,17 @@
     -- 在此处添加任何选项
     -- 例如
     provider = "openai",
-    openai = {
-      endpoint = "https://api.openai.com/v1",
-      model = "gpt-4o", -- 您想要的模型（或使用 gpt-4o 等）
-      timeout = 30000, -- 超时时间（毫秒），增加此值以适应推理模型
-      temperature = 0,
-      max_tokens = 8192, -- 增加此值以包括推理模型的推理令牌
-      --reasoning_effort = "medium", -- low|medium|high，仅用于推理模型
+    providers = {
+      openai = {
+        endpoint = "https://api.openai.com/v1",
+        model = "gpt-4o", -- 您想要的模型（或使用 gpt-4o 等）
+        extra_request_body = {
+          timeout = 30000, -- 超时时间（毫秒），增加此值以适应推理模型
+          temperature = 0,
+          max_tokens = 8192, -- 增加此值以包括推理模型的推理令牌
+          --reasoning_effort = "medium", -- low|medium|high，仅用于推理模型
+        },
+      },
     },
   },
   -- 如果您想从源代码构建，请执行 `make BUILD_FROM_SOURCE=true`
@@ -309,12 +313,15 @@ _请参见 [config.lua#L9](./lua/avante/config.lua) 以获取完整配置_
   -- 目前将其指定为 `copilot` 提供者是危险的，因为：https://github.com/yetone/avante.nvim/issues/1048
   -- 当然，您可以通过增加 `suggestion.debounce` 来减少请求频率。
   auto_suggestions_provider = "claude",
-  cursor_applying_provider = nil, -- Cursor 规划模式应用阶段使用的提供者，默认为 nil，当为 nil 时使用 Config.provider 作为应用阶段的提供者
-  claude = {
-    endpoint = "https://api.anthropic.com",
-    model = "claude-3-5-sonnet-20241022",
-    temperature = 0,
-    max_tokens = 4096,
+  providers = {
+    claude = {
+      endpoint = "https://api.anthropic.com",
+      model = "claude-3-5-sonnet-20241022",
+      extra_request_body = {
+        temperature = 0,
+        max_tokens = 4096,
+      },
+    },
   },
   ---指定特殊的 dual_boost 模式
   ---1. enabled: 是否启用 dual_boost 模式。默认为 false。

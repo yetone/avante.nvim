@@ -1,9 +1,12 @@
----@class AvanteAzureProvider: AvanteDefaultBaseProvider
----@field deployment string
----@field api_version string
+---@class AvanteAzureExtraRequestBody
 ---@field temperature number
 ---@field max_completion_tokens number
 ---@field reasoning_effort? string
+
+---@class AvanteAzureProvider: AvanteDefaultBaseProvider
+---@field deployment string
+---@field api_version string
+---@field extra_request_body AvanteAzureExtraRequestBody
 
 local Utils = require("avante.utils")
 local P = require("avante.providers")

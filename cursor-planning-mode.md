@@ -28,8 +28,8 @@ Then enable it in avante.nvim:
         --- ... existing behaviours
         enable_cursor_planning_mode = true, -- enable cursor planning mode!
     },
-    vendors = {
-        --- ... existing vendors
+    providers = {
+        --- ... existing providers
         groq = { -- define groq provider
             __inherited_from = 'openai',
             api_key_name = 'GROQ_API_KEY',

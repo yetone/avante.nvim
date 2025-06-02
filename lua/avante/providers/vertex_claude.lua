@@ -48,7 +48,7 @@ function M:parse_curl_args(prompt_opts)
 
   request_body = vim.tbl_deep_extend("force", request_body, {
     anthropic_version = "vertex-2023-10-16",
-    temperature = 0,
+    temperature = 0.75,
     max_tokens = 4096,
     stream = true,
     messages = messages,
