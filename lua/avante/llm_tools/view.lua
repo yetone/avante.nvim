@@ -10,7 +10,7 @@ M.name = "view"
 
 M.description =
   [[The view tool allows you to examine the contents of a file or list the contents of a directory. It can read the entire file or a specific range of lines. If the file content is already in the context, do not use this tool.
-IMPORTANT NOTE: If the file content exceeds a certain size, the returned content will be truncated, and `is_truncated` will be set to true. If `is_truncated` is true, use the `view_range` parameter to specify the range to view.
+IMPORTANT NOTE: If the file content exceeds a certain size, the returned content will be truncated, and `is_truncated` will be set to true. If `is_truncated` is true, use the `start_line` parameter and `end_line` parameter to specify the range to view.
 ]]
 
 M.enabled = function(opts)
@@ -97,9 +97,11 @@ function M.func(opts, on_log, on_complete, session_ctx)
     end
     table.insert(truncated_lines, line)
   end
+  local total_line_count = lines and #lines or 0
   local content = truncated_lines and table.concat(truncated_lines, "\n") or ""
   local result = vim.json.encode({
     content = content,
+    total_line_count = total_line_count,
     is_truncated = is_truncated,
   })
   if not on_complete then return result, nil end
