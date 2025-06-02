@@ -3,6 +3,7 @@ local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
 local Config = require("avante.config")
 local HistoryMessage = require("avante.history_message")
+local JsonParser = require("avante.libs.jsonparser")
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -199,6 +200,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
       end
     end
     if content_block.type == "tool_use" and opts.on_messages_add then
+      local incomplete_json = JsonParser.parse(content_block.input_json)
       local msg = HistoryMessage:new({
         role = "assistant",
         content = {
@@ -206,7 +208,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
             type = "tool_use",
             name = content_block.name,
             id = content_block.id,
-            input = {},
+            input = incomplete_json or {},
           },
         },
       }, {
@@ -214,6 +216,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
       })
       content_block.uuid = msg.uuid
       opts.on_messages_add({ msg })
+      opts.on_stop({ reason = "tool_use", streaming_tool_use = true })
     end
   elseif event_state == "content_block_delta" then
     local ok, jsn = pcall(vim.json.decode, data_stream)
