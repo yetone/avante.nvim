@@ -6,12 +6,32 @@ local Selector = require("avante.ui.selector")
 ---@class avante.ModelSelector
 local M = {}
 
+M.models_list_invoked = {}
+M.models_list_returned = {}
+
+local models_list_cached_result = {}
+
 ---@param provider_name string
 ---@param cfg table
 ---@return table
 local function create_model_entries(provider_name, cfg)
   if cfg.models_list then
-    local models_list = type(cfg.models_list) == "function" and cfg:models_list() or cfg.models_list
+    local models_list
+    if type(cfg.models_list) == "function" then
+      if M.models_list_invoked[cfg.models_list] then return {} end
+      M.models_list_invoked[cfg.models_list] = true
+      local cached_result = models_list_cached_result[cfg.models_list]
+      if cached_result then
+        models_list = cached_result
+      else
+        models_list = cfg.models_list()
+        models_list_cached_result[cfg.models_list] = models_list
+      end
+    else
+      if M.models_list_returned[cfg.models_list] then return {} end
+      M.models_list_returned[cfg.models_list] = true
+      models_list = cfg.models_list
+    end
     if not models_list then return {} end
     -- If models_list is defined, use it to create entries
     local models = vim
@@ -41,6 +61,8 @@ local function create_model_entries(provider_name, cfg)
 end
 
 function M.open()
+  M.models_list_invoked = {}
+  M.models_list_returned = {}
   local models = {}
 
   -- Collect models from main providers and vendors
