@@ -844,7 +844,7 @@ function M._stream(opts)
               LLMTools.process_tool_use(
                 prompt_opts.tools,
                 partial_tool_use,
-                opts.on_tool_log,
+                function() end,
                 function() end,
                 opts.session_ctx
               )

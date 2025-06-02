@@ -28,7 +28,8 @@ M.param = {
       type = "string",
     },
     {
-      name = "diff",
+      --- IMPORTANT: Using "the_diff" instead of "diff" is to avoid LLM streaming generating function parameters in alphabetical order, which would result in generating "path" after "diff", making it impossible to achieve a streaming diff view.
+      name = "the_diff",
       description = [[
 One or more SEARCH/REPLACE blocks following this exact format:
   \`\`\`
@@ -61,7 +62,7 @@ One or more SEARCH/REPLACE blocks following this exact format:
   },
   usage = {
     path = "File path here",
-    diff = "Search and replace blocks here",
+    the_diff = "Search and replace blocks here",
   },
 }
 
@@ -101,9 +102,11 @@ local function fix_diff(diff)
   return table.concat(fixed_diff_lines, "\n")
 end
 
----@type AvanteLLMToolFunc<{ path: string, diff: string, streaming?: boolean, tool_use_id?: string }>
+--- IMPORTANT: Using "the_diff" instead of "diff" is to avoid LLM streaming generating function parameters in alphabetical order, which would result in generating "path" after "diff", making it impossible to achieve a streaming diff view.
+---@type AvanteLLMToolFunc<{ path: string, diff: string, the_diff?: string, streaming?: boolean, tool_use_id?: string }>
 function M.func(opts, on_log, on_complete, session_ctx)
-  if not opts.path or not opts.diff then return false, "path and diff are required" end
+  if opts.the_diff ~= nil then opts.diff = opts.the_diff end
+  if not opts.path or not opts.diff then return false, "path and diff are required " .. vim.inspect(opts) end
   if on_log then on_log("path: " .. opts.path) end
   local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end

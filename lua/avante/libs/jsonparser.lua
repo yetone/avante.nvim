@@ -574,13 +574,14 @@ end
 function StreamParser:finalize()
   -- 如果有未完成的字符串、数字或字面量，尝试解析
   if self.incomplete_string ~= "" or self.string_delimiter then
-    -- 未完成的字符串，直接使用当前内容（不进行转义处理以保持原始状态）
-    local content = self.incomplete_string
+    -- 未完成的字符串，进行转义处理以便用户使用
+    -- 虽然字符串不完整，但用户需要使用转义后的内容
+    local unescaped = unescapeJsonString(self.incomplete_string)
     local parent = self:peekStack()
     if parent and parent.type == "object" and not self.current_key then
-      self.current_key = content
+      self.current_key = unescaped
     else
-      self:addValue(content)
+      self:addValue(unescaped)
     end
     self.incomplete_string = ""
     self.string_delimiter = nil

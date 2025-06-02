@@ -28,14 +28,15 @@ M.param = {
       type = "string",
     },
     {
-      name = "content",
+      --- IMPORTANT: Using "the_content" instead of "content" is to avoid LLM streaming generating function parameters in alphabetical order, which would result in generating "path" after "content", making it impossible to achieve a stream diff view.
+      name = "the_content",
       description = "The content to write to the file. ALWAYS provide the COMPLETE intended content of the file, without any truncation or omissions. You MUST include ALL parts of the file, even if they haven't been modified.",
       type = "string",
     },
   },
   usage = {
     path = "File path here",
-    content = "File content here",
+    the_content = "File content here",
   },
 }
 
@@ -54,8 +55,10 @@ M.returns = {
   },
 }
 
----@type AvanteLLMToolFunc<{ path: string, content: string, streaming?: boolean, tool_use_id?: string }>
+--- IMPORTANT: Using "the_content" instead of "content" is to avoid LLM streaming generating function parameters in alphabetical order, which would result in generating "path" after "content", making it impossible to achieve a stream diff view.
+---@type AvanteLLMToolFunc<{ path: string, content: string, the_content?: string, streaming?: boolean, tool_use_id?: string }>
 function M.func(opts, on_log, on_complete, session_ctx)
+  if opts.the_content ~= nil then opts.content = opts.the_content end
   if not on_complete then return false, "on_complete not provided" end
   local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end

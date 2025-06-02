@@ -1135,6 +1135,10 @@ M._tools = {
           default = false,
         },
       },
+      usage = {
+        symbol_name = "The name of the symbol to retrieve the definition for, example: fibonacci",
+        show_line_numbers = "true or false",
+      },
     },
     returns = {
       {

@@ -4,6 +4,7 @@ local Clipboard = require("avante.clipboard")
 local Providers = require("avante.providers")
 local HistoryMessage = require("avante.history_message")
 local XMLParser = require("avante.libs.xmlparser")
+local JsonParser = require("avante.libs.jsonparser")
 local Prompts = require("avante.utils.prompts")
 local LlmTools = require("avante.llm_tools")
 
@@ -328,8 +329,7 @@ function M:add_thinking_message(ctx, text, state, opts)
 end
 
 function M:add_tool_use_message(tool_use, state, opts)
-  local jsn = nil
-  if state == "generated" then jsn = vim.json.decode(tool_use.input_json) end
+  local jsn = JsonParser.parse(tool_use.input_json)
   local msg = HistoryMessage:new({
     role = "assistant",
     content = {
@@ -347,6 +347,7 @@ function M:add_tool_use_message(tool_use, state, opts)
   tool_use.uuid = msg.uuid
   tool_use.state = state
   if opts.on_messages_add then opts.on_messages_add({ msg }) end
+  if state == "generating" then opts.on_stop({ reason = "tool_use", streaming_tool_use = true }) end
 end
 
 function M:parse_response(ctx, data_stream, _, opts)
