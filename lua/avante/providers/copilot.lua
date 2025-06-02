@@ -213,6 +213,55 @@ function M:is_disable_stream() return false end
 
 setmetatable(M, { __index = OpenAI })
 
+function M:models_list()
+  if M._model_list_cache then return M._model_list_cache end
+  local curl_opts = {
+    headers = {
+      ["Content-Type"] = "application/json",
+      ["Authorization"] = "Bearer " .. M.state.github_token.token,
+      ["Copilot-Integration-Id"] = "vscode-chat",
+      ["Editor-Version"] = ("Neovim/%s.%s.%s"):format(vim.version().major, vim.version().minor, vim.version().patch),
+    },
+    timeout = Config.copilot.timeout,
+    proxy = Config.copilot.proxy,
+    insecure = Config.copilot.allow_insecure,
+  }
+
+  local function handle_response(response)
+    if response.status == 200 then
+      local body = vim.json.decode(response.body)
+      -- ref: https://github.com/CopilotC-Nvim/CopilotChat.nvim/blob/16d897fd43d07e3b54478ccdb2f8a16e4df4f45a/lua/CopilotChat/config/providers.lua#L171-L187
+      local models = vim
+        .iter(body.data)
+        :filter(function(model) return model.capabilities.type == "chat" and not vim.endswith(model.id, "paygo") end)
+        :map(
+          function(model)
+            return {
+              id = model.id,
+              display_name = model.name,
+              name = "copilot/" .. model.name .. " (" .. model.id .. ")",
+              provider_name = "copilot",
+              tokenizer = model.capabilities.tokenizer,
+              max_input_tokens = model.capabilities.limits.max_prompt_tokens,
+              max_output_tokens = model.capabilities.limits.max_output_tokens,
+              policy = not model["policy"] or model["policy"]["state"] == "enabled",
+              version = model.version,
+            }
+          end
+        )
+        :totable()
+      M._model_list_cache = models
+      return models
+    else
+      error("Failed to get success response: " .. vim.inspect(response))
+      return {}
+    end
+  end
+
+  local response = curl.get((M.state.github_token.endpoints.api or "") .. "/models", curl_opts)
+  return handle_response(response)
+end
+
 function M:parse_curl_args(prompt_opts)
   -- refresh token synchronously, only if it has expired
   -- (this should rarely happen, as we refresh the token in the background)
@@ -229,7 +278,7 @@ function M:parse_curl_args(prompt_opts)
   end
 
   return {
-    url = H.chat_completion_url(provider_conf.endpoint),
+    url = H.chat_completion_url(M.state.github_token.endpoints.api or provider_conf.endpoint),
     timeout = provider_conf.timeout,
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,
