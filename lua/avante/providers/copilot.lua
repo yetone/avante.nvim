@@ -30,7 +30,7 @@ local curl = require("plenary.curl")
 local Config = require("avante.config")
 local Path = require("plenary.path")
 local Utils = require("avante.utils")
-local P = require("avante.providers")
+local Providers = require("avante.providers")
 local OpenAI = require("avante.providers").openai
 
 local H = {}
@@ -271,7 +271,7 @@ function M:parse_curl_args(prompt_opts)
   -- (this should rarely happen, as we refresh the token in the background)
   H.refresh_token(false, false)
 
-  local provider_conf, request_body = P.parse_config(self)
+  local provider_conf, request_body = Providers.parse_config(self)
   local disable_tools = provider_conf.disable_tools or false
 
   local tools = {}
@@ -346,6 +346,11 @@ function M.setup_file_watcher()
 end
 
 M._is_setup = false
+
+function M.is_env_set()
+  local ok = pcall(function() H.get_oauth_token() end)
+  return ok
+end
 
 function M.setup()
   local copilot_token_file = Path:new(copilot_path)
