@@ -573,10 +573,18 @@ end
 -- 强制完成解析（将未完成的内容标记为不完整但仍然返回）
 function StreamParser:finalize()
   -- 如果有未完成的字符串、数字或字面量，尝试解析
-  if self.incomplete_string ~= "" and self.string_delimiter then
-    -- 未完成的字符串，添加结束引号并解析
-    self.buffer = self.buffer .. self.string_delimiter
-    self:parseBuffer()
+  if self.incomplete_string ~= "" or self.string_delimiter then
+    -- 未完成的字符串，直接使用当前内容（不进行转义处理以保持原始状态）
+    local content = self.incomplete_string
+    local parent = self:peekStack()
+    if parent and parent.type == "object" and not self.current_key then
+      self.current_key = content
+    else
+      self:addValue(content)
+    end
+    self.incomplete_string = ""
+    self.string_delimiter = nil
+    self.escape_next = false
   end
 
   if self.incomplete_number ~= "" then
@@ -598,14 +606,39 @@ function StreamParser:finalize()
   end
 
   -- 将栈中的所有未完成对象标记为不完整并添加到结果
+  -- 从栈底开始处理，确保正确的嵌套结构
+  local stack_items = {}
   while #self.stack > 0 do
     local item = self:popStack()
+    table.insert(stack_items, 1, item) -- 插入到开头，保持原始顺序
+  end
+
+  -- 重新构建嵌套结构
+  local root_object = nil
+  for i, item in ipairs(stack_items) do
     if item and item.value then
       -- 标记为不完整
       if type(item.value) == "table" then item.value._incomplete = true end
-      table.insert(self.results, item.value)
+
+      if i == 1 then
+        -- 第一个（最外层）对象
+        root_object = item.value
+      else
+        -- 嵌套对象，需要添加到父对象中
+        local parent_item = stack_items[i - 1]
+        if parent_item and parent_item.value then
+          if parent_item.type == "object" and item.key then
+            parent_item.value[item.key] = item.value
+          elseif parent_item.type == "array" then
+            table.insert(parent_item.value, item.value)
+          end
+        end
+      end
     end
   end
+
+  -- 只添加根对象到结果
+  if root_object then table.insert(self.results, root_object) end
 
   self.current = nil
   self.current_key = nil
