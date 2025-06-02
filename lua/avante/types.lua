@@ -102,6 +102,8 @@ vim.g.avante_login = vim.g.avante_login
 ---@field tool_use_logs string[] | nil
 ---@field just_for_display boolean | nil
 ---@field is_dummy boolean | nil
+---@field is_compacted boolean | nil
+---@field is_deleted boolean | nil
 ---
 ---@class AvanteLLMToolResult
 ---@field tool_name string
@@ -351,7 +353,6 @@ vim.g.avante_login = vim.g.avante_login
 ---@field update_snippets? string[]
 ---@field prompt_opts? AvantePromptOptions
 ---@field session_ctx? table
----@field disable_compact_history_messages? boolean
 ---
 ---@class AvanteLLMToolHistory
 ---@field tool_result? AvanteLLMToolResult
@@ -368,7 +369,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field on_stop AvanteLLMStopCallback
 ---@field on_memory_summarize? AvanteLLMMemorySummarizeCallback
 ---@field on_tool_log? fun(tool_id: string, tool_name: string, log: string, state: AvanteLLMToolUseState): nil
----@field get_history_messages? fun(): avante.HistoryMessage[]
+---@field get_history_messages? fun(opts?: { all?: boolean }): avante.HistoryMessage[]
 ---@field on_messages_add? fun(messages: avante.HistoryMessage[]): nil
 ---@field on_state_change? fun(state: avante.GenerateState): nil
 ---
