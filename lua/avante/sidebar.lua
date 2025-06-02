@@ -2356,11 +2356,6 @@ function Sidebar:create_input_container()
       end
     end
 
-    -- local model = Config.has_provider(Config.provider) and Config.get_provider_config(Config.provider).model
-    --   or "default"
-    --
-    -- local timestamp = Utils.get_timestamp()
-
     local selected_filepaths = self.file_selector:get_selected_filepaths()
 
     ---@type AvanteSelectedCode | nil
