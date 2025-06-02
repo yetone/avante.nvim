@@ -79,13 +79,17 @@ For building binary if you wish to build from source, then `cargo` is required. 
     -- add any opts here
     -- for example
     provider = "openai",
-    openai = {
-      endpoint = "https://api.openai.com/v1",
-      model = "gpt-4o", -- your desired model (or use gpt-4o, etc.)
-      timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
-      temperature = 0,
-      max_completion_tokens = 8192, -- Increase this to include reasoning tokens (for reasoning models)
-      --reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
+    providers = {
+      openai = {
+        endpoint = "https://api.openai.com/v1",
+        model = "gpt-4o", -- your desired model (or use gpt-4o, etc.)
+        extra_request_body = {
+          timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
+          temperature = 0.75,
+          max_completion_tokens = 8192, -- Increase this to include reasoning tokens (for reasoning models)
+          --reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
+        },
+      },
     },
   },
   -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
@@ -326,12 +330,15 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
   -- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
   -- Of course, you can reduce the request frequency by increasing `suggestion.debounce`.
   auto_suggestions_provider = "claude",
-  cursor_applying_provider = nil, -- The provider used in the applying phase of Cursor Planning Mode, defaults to nil, when nil uses Config.provider as the provider for the applying phase
-  claude = {
-    endpoint = "https://api.anthropic.com",
-    model = "claude-3-5-sonnet-20241022",
-    temperature = 0,
-    max_tokens = 4096,
+  providers = {
+    claude = {
+      endpoint = "https://api.anthropic.com",
+      model = "claude-3-5-sonnet-20241022",
+      extra_request_body = {
+        temperature = 0,
+        max_tokens = 4096,
+      },
+    },
   },
   ---Specify the special dual_boost mode
   ---1. enabled: Whether to enable dual_boost mode. Default to false.
