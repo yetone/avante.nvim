@@ -357,12 +357,10 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     support_paste_from_clipboard = false,
     minimize_diff = true, -- Whether to remove unchanged lines when applying a code block
     enable_token_counting = true, -- Whether to enable token counting. Default to true.
-  },
-  tool_permissions = {
-    auto_approve = false, -- Default: show permission prompts for all tools
+    auto_approve_tool_permissions = false, -- Default: show permission prompts for all tools
     -- Examples:
-    -- auto_approve = true,                -- Auto-approve all tools (no prompts)
-    -- auto_approve = {"bash", "replace_in_file"}, -- Auto-approve specific tools only
+    -- auto_approve_tool_permissions = true,                -- Auto-approve all tools (no prompts)
+    -- auto_approve_tool_permissions = {"bash", "replace_in_file"}, -- Auto-approve specific tools only
   },
   mappings = {
     --- @class AvanteConflictMappings
@@ -1091,3 +1089,4 @@ avante.nvim is licensed under the Apache 2.0 License. For more details, please r
     </picture>
   </a>
 </p>
+

@@ -31,10 +31,10 @@ function M.confirm(message, callback, confirm_opts, session_ctx, tool_name)
     return
   end
 
-  -- Check tool_permissions config for auto-approval
+  -- Check behaviour.auto_approve_tool_permissions config for auto-approval
   if tool_name then
     local Config = require("avante.config")
-    local auto_approve = Config.tool_permissions.auto_approve
+    local auto_approve = Config.behaviour.auto_approve_tool_permissions
 
     -- If auto_approve is true, auto-approve all tools
     if auto_approve == true then
