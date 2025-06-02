@@ -215,6 +215,10 @@ setmetatable(M, { __index = OpenAI })
 
 function M:models_list()
   if M._model_list_cache then return M._model_list_cache end
+  if not M._is_setup then M.setup() end
+  -- refresh token synchronously, only if it has expired
+  -- (this should rarely happen, as we refresh the token in the background)
+  H.refresh_token(false, false)
   local curl_opts = {
     headers = {
       ["Content-Type"] = "application/json",
@@ -341,6 +345,8 @@ function M.setup_file_watcher()
   )
 end
 
+M._is_setup = false
+
 function M.setup()
   local copilot_token_file = Path:new(copilot_path)
 
@@ -369,6 +375,7 @@ function M.setup()
 
   require("avante.tokenizers").setup(M.tokenizer_id)
   vim.g.avante_login = true
+  M._is_setup = true
 end
 
 function M.cleanup()
