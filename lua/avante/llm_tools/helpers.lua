@@ -32,21 +32,19 @@ function M.confirm(message, callback, confirm_opts, session_ctx, tool_name)
   end
 
   -- Check behaviour.auto_approve_tool_permissions config for auto-approval
-  if tool_name then
-    local Config = require("avante.config")
-    local auto_approve = Config.behaviour.auto_approve_tool_permissions
+  local Config = require("avante.config")
+  local auto_approve = Config.behaviour.auto_approve_tool_permissions
 
-    -- If auto_approve is true, auto-approve all tools
-    if auto_approve == true then
-      callback(true)
-      return
-    end
+  -- If auto_approve is true, auto-approve all tools
+  if auto_approve == true then
+    callback(true)
+    return
+  end
 
-    -- If auto_approve is a table (array of tool names), check if this tool is in the list
-    if type(auto_approve) == "table" and vim.tbl_contains(auto_approve, tool_name) then
-      callback(true)
-      return
-    end
+  -- If auto_approve is a table (array of tool names), check if this tool is in the list
+  if type(auto_approve) == "table" and vim.tbl_contains(auto_approve, tool_name) then
+    callback(true)
+    return
   end
   local Confirm = require("avante.ui.confirm")
   local sidebar = require("avante").get()
