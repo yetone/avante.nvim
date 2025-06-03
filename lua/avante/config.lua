@@ -281,8 +281,9 @@ M._defaults = {
       timeout = 30000, -- Timeout in milliseconds
       use_ReAct_prompt = true,
       extra_request_body = {
-        temperature = 0.75,
-        max_tokens = 65536,
+        generationConfig = {
+          temperature = 0.75,
+        },
       },
     },
     ---@type AvanteSupportedProvider
