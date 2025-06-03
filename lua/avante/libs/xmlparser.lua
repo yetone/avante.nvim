@@ -90,6 +90,16 @@ local function decodeEntities(str)
   return str
 end
 
+-- 检查标签是否在行首
+local function isTagAtLineStart(xmlContent, tagStart)
+  -- 如果标签在整个内容的开始位置，认为是在行首
+  if tagStart == 1 then return true end
+
+  -- 检查标签前的字符，如果是换行符，则标签在行首
+  local charBeforeTag = xmlContent:sub(tagStart - 1, tagStart - 1)
+  return charBeforeTag == "\n"
+end
+
 -- 检查是否为有效的XML标签
 local function isValidXmlTag(tag, xmlContent, tagStart)
   -- 排除明显不是XML标签的内容，比如数学表达式 < 或 >
@@ -100,6 +110,8 @@ local function isValidXmlTag(tag, xmlContent, tagStart)
   if tag:match("^</[_%w]+>$") then return true end -- 结束标签
   if tag:match("^<[_%w]+[^>]*/>$") then return true end -- 自闭合标签
   if tag:match("^<[_%w]+[^>]*>$") then
+    if not isTagAtLineStart(xmlContent, tagStart) then return false end
+
     -- 对于开始标签，进行额外的上下文检查
     local tagName = tag:match("^<([_%w]+)")
 
