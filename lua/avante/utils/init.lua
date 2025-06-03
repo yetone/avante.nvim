@@ -788,7 +788,7 @@ function M.scan_directory(options)
       end
       cmd_supports_max_depth = false
     else
-      M.error("No search command found")
+      M.error("No search command found, please install fd or fdfind or rg")
       return {}
     end
   end

@@ -1,5 +1,4 @@
 local Utils = require("avante.utils")
-local scan = require("plenary.scandir")
 local Config = require("avante.config")
 local Selector = require("avante.ui.selector")
 
@@ -19,12 +18,7 @@ local function has_scheme(path) return path:find("^%w+://") ~= nil end
 
 function FileSelector:process_directory(absolute_path, project_root)
   if absolute_path:sub(-1) == Utils.path_sep then absolute_path = absolute_path:sub(1, -2) end
-  local files = scan.scan_dir(absolute_path, {
-    hidden = false,
-    depth = math.huge,
-    add_dirs = false,
-    respect_gitignore = true,
-  })
+  local files = Utils.scan_directory({ directory = absolute_path, add_dirs = false })
 
   for _, file in ipairs(files) do
     local rel_path = Utils.make_relative_path(file, project_root)
