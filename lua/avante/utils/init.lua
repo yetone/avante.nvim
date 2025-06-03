@@ -1425,6 +1425,16 @@ function M.get_tool_use_message(message, messages)
 end
 
 ---@param tool_use AvanteLLMToolUse
+function M.tool_use_to_xml(tool_use)
+  local xml = string.format("<%s>\n", tool_use.name)
+  for k, v in pairs(tool_use.input or {}) do
+    xml = xml .. string.format("<%s>%s</%s>\n", k, tostring(v), k)
+  end
+  xml = xml .. "</" .. tool_use.name .. ">"
+  return xml
+end
+
+---@param tool_use AvanteLLMToolUse
 function M.is_replace_func_call_tool_use(tool_use)
   local is_replace_func_call = false
   local is_str_replace_editor_func_call = false
