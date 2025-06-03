@@ -887,7 +887,7 @@ Avante 允许您定义自定义工具，AI 可以在代码生成和分析期间�
 
 ## MCP
 
-现在您可以通过 `mcphub.nvim` 为 Avante 集成 MCP 功能。有关详细文档，请参阅 [mcphub.nvim](https://github.com/ravitemer/mcphub.nvim#avante-integration)
+现在您可以通过 `mcphub.nvim` 为 Avante 集成 MCP 功能。有关详细文档，请参阅 [mcphub.nvim](https://ravitemer.github.io/mcphub.nvim/extensions/avante.html)
 
 ## Claude 文本编辑器工具模式
 
