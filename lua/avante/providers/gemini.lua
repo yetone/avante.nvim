@@ -181,17 +181,11 @@ end
 ---@param provider_instance AvanteProviderFunctor The provider instance (self).
 ---@param prompt_opts AvantePromptOptions Prompt options including messages, tools, system_prompt.
 ---@param provider_conf table Provider configuration from config.lua (e.g., model, top-level temperature/max_tokens).
----@param request_body table Request-specific overrides, typically from provider_conf.request_config_overrides.
+---@param request_body_ table Request-specific overrides, typically from provider_conf.request_config_overrides.
 ---@return table The fully constructed request body.
-function M.prepare_request_body(provider_instance, prompt_opts, provider_conf, request_body)
-  request_body = vim.tbl_deep_extend("force", request_body, {
-    generationConfig = {
-      temperature = request_body.temperature,
-      maxOutputTokens = request_body.max_tokens,
-    },
-  })
-  request_body.temperature = nil
-  request_body.max_tokens = nil
+function M.prepare_request_body(provider_instance, prompt_opts, provider_conf, request_body_)
+  local request_body = {}
+  request_body.generationConfig = request_body_.generationConfig or {}
 
   local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
 
