@@ -596,20 +596,10 @@ function M.curl(opts)
         end
       end
       vim.schedule(function()
-        if Config[Config.provider] == nil and provider.parse_stream_data ~= nil then
-          if provider.parse_response ~= nil then
-            Utils.warn(
-              "parse_stream_data and parse_response are mutually exclusive, and thus parse_response will be ignored. Make sure that you handle the incoming data correctly.",
-              { once = true }
-            )
-          end
+        if provider.parse_stream_data ~= nil then
           provider:parse_stream_data(resp_ctx, data, handler_opts)
         else
-          if provider.parse_stream_data ~= nil then
-            provider:parse_stream_data(resp_ctx, data, handler_opts)
-          else
-            parse_stream_data(data)
-          end
+          parse_stream_data(data)
         end
       end)
     end,
