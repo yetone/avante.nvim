@@ -26,11 +26,13 @@ Tool use is formatted using XML-style tags. The tool name is enclosed in opening
 
 For example:
 
-<view>
-<path>src/main.js</path>
-</view>
+<attempt_completion>
+<result>
+I have completed the task...
+</result>
+</attempt_completion>
 
-Always adhere to this format for the tool use to ensure proper parsing and execution.
+ALWAYS ADHERE TO this format for the tool use to ensure proper parsing and execution.
 
 # Tools
 
@@ -107,22 +109,22 @@ Parameters:
 <replace_in_file>
 <path>src/components/App.tsx</path>
 <diff>
-<<<<<<< SEARCH
+------- SEARCH
 import React from 'react';
 =======
 import React, { useState } from 'react';
->>>>>>> REPLACE
++++++++ REPLACE
 
-<<<<<<< SEARCH
+------- SEARCH
 function handleSubmit() {
   saveData();
   setLoading(false);
 }
 
 =======
->>>>>>> REPLACE
++++++++ REPLACE
 
-<<<<<<< SEARCH
+------- SEARCH
 return (
   <div>
 =======
@@ -133,7 +135,7 @@ function handleSubmit() {
 
 return (
   <div>
->>>>>>> REPLACE
++++++++ REPLACE
 </diff>
 </replace_in_file>
 

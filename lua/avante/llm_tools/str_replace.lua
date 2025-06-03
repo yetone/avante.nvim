@@ -57,8 +57,8 @@ M.returns = {
 ---@type AvanteLLMToolFunc<{ path: string, old_str: string, new_str: string, streaming?: boolean, tool_use_id?: string }>
 function M.func(opts, on_log, on_complete, session_ctx)
   local replace_in_file = require("avante.llm_tools.replace_in_file")
-  local diff = "<<<<<<< SEARCH\n" .. opts.old_str .. "\n=======\n" .. opts.new_str
-  if not opts.streaming then diff = diff .. "\n>>>>>>> REPLACE" end
+  local diff = "------- SEARCH\n" .. opts.old_str .. "\n=======\n" .. opts.new_str
+  if not opts.streaming then diff = diff .. "\n+++++++ REPLACE" end
   local new_opts = {
     path = opts.path,
     diff = diff,
