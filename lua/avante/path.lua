@@ -167,7 +167,7 @@ function Prompt.get_custom_prompts_filepath(mode) return string.format("custom.%
 function Prompt.get_builtin_prompts_filepath(mode) return string.format("%s.avanterules", mode) end
 
 ---@class AvanteTemplates
----@field initialize fun(directory: string): nil
+---@field initialize fun(cache_directory: string, project_directory: string): nil
 ---@field render fun(template: string, context: AvanteTemplateOptions): string
 local _templates_lib = nil
 
@@ -244,7 +244,9 @@ function Prompt.render_mode(mode, opts)
   return _templates_lib.render(filepath, opts)
 end
 
-function Prompt.initialize(directory) _templates_lib.initialize(directory) end
+function Prompt.initialize(cache_directory, project_directory)
+  _templates_lib.initialize(cache_directory, project_directory)
+end
 
 P.prompts = Prompt
 
