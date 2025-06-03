@@ -922,7 +922,7 @@ Avante allows you to define custom tools that can be used by the AI during code 
 
 ## MCP
 
-Now you can integrate MCP functionality for Avante through `mcphub.nvim`. For detailed documentation, please refer to [mcphub.nvim](https://github.com/ravitemer/mcphub.nvim#avante-integration)
+Now you can integrate MCP functionality for Avante through `mcphub.nvim`. For detailed documentation, please refer to [mcphub.nvim](https://ravitemer.github.io/mcphub.nvim/extensions/avante.html)
 
 ## Custom prompts
 
