@@ -335,7 +335,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
       endpoint = "https://api.anthropic.com",
       model = "claude-3-5-sonnet-20241022",
       extra_request_body = {
-        temperature = 0,
+        temperature = 0.75,
         max_tokens = 4096,
       },
     },
@@ -740,13 +740,13 @@ ollama is a first-class provider for avante.nvim. You can use it by setting `pro
 
 ```lua
 provider = "ollama",
-ollama = {
-  model = "qwq:32b",
+providers = {
+  ollama = {
+    endpoint = "http://localhost:11434",
+    model = "qwq:32b",
+  },
 }
 ```
-
-> [!NOTE]
-> If you use ollama, the code planning effect may not be ideal, so it is strongly recommended that you enable [cursor-planning-mode](https://github.com/yetone/avante.nvim/blob/main/cursor-planning-mode.md)
 
 ## AiHubMix
 
@@ -760,8 +760,10 @@ Then in your configuration, set `provider = "aihubmix"`, and set the `model` fie
 
 ```lua
 provider = "aihubmix",
-aihubmix = {
-  model = "gpt-4o-2024-11-20",
+providers = {
+  aihubmix = {
+    model = "gpt-4o-2024-11-20",
+  },
 }
 ```
 

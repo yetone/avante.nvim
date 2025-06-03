@@ -318,7 +318,7 @@ _请参见 [config.lua#L9](./lua/avante/config.lua) 以获取完整配置_
       endpoint = "https://api.anthropic.com",
       model = "claude-3-5-sonnet-20241022",
       extra_request_body = {
-        temperature = 0,
+        temperature = 0.75,
         max_tokens = 4096,
       },
     },
@@ -704,13 +704,12 @@ ollama 是 avante.nvim 的一流提供者。您可以通过在配置中设置 `p
 
 ```lua
 provider = "ollama",
-ollama = {
-  model = "qwq:32b",
+providers = {
+  ollama = {
+    model = "qwq:32b",
+  },
 }
 ```
-
-> [!NOTE]
-> 如果您使用 ollama，代码规划效果可能不理想，因此强烈建议您启用 [cursor-planning-mode](https://github.com/yetone/avante.nvim/blob/main/cursor-planning-mode.md)
 
 ## AiHubMix
 
@@ -724,8 +723,10 @@ export AIHUBMIX_API_KEY=your_api_key
 
 ```lua
 provider = "aihubmix",
-aihubmix = {
-  model = "gpt-4o-2024-11-20",
+providers = {
+  aihubmix = {
+    model = "gpt-4o-2024-11-20",
+  },
 }
 ```
 
