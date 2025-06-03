@@ -244,7 +244,9 @@ function Prompt.render_mode(mode, opts)
   return _templates_lib.render(filepath, opts)
 end
 
-function Prompt.initialize(directory) _templates_lib.initialize(directory) end
+function Prompt.initialize(cache_directory, project_directory)
+  _templates_lib.initialize(cache_directory, project_directory)
+end
 
 P.prompts = Prompt
 
