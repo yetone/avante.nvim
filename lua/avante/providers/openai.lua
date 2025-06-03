@@ -226,7 +226,15 @@ function M:add_text_message(ctx, text, state, opts)
   if llm_tool_names == nil then llm_tool_names = LlmTools.get_tool_names() end
   if ctx.content == nil then ctx.content = "" end
   ctx.content = ctx.content .. text
-  local content = ctx.content:gsub("<tool_code>", ""):gsub("</tool_code>", "")
+  local content = ctx.content
+    :gsub("<tool_code>", "")
+    :gsub("</tool_code>", "")
+    :gsub("<tool>", "")
+    :gsub("</tool>", "")
+    :gsub("<tool_use>", "")
+    :gsub("</tool_use>", "")
+    :gsub("<tool_call>", "")
+    :gsub("</tool_call>", "")
   ctx.content = content
   local msg = HistoryMessage:new({
     role = "assistant",
