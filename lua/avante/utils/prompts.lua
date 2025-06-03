@@ -136,6 +136,18 @@ return (
 >>>>>>> REPLACE
 </diff>
 </replace_in_file>
+
+## Example 4: Complete current task
+
+<attempt_completion>
+<result>
+I've successfully created the requested React component with the following features:
+- Responsive layout
+- Dark/light mode toggle
+- Form validation
+- API integration
+</result>
+</attempt_completion>
 ]]
   end
   return system_prompt
