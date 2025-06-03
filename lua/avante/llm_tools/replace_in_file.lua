@@ -33,11 +33,11 @@ M.param = {
       description = [[
 One or more SEARCH/REPLACE blocks following this exact format:
   \`\`\`
-  <<<<<<< SEARCH
+  ------- SEARCH
   [exact content to find]
   =======
   [new content to replace with]
-  >>>>>>> REPLACE
+  +++++++ REPLACE
   \`\`\`
   Critical rules:
   1. SEARCH content must match the associated file section to find EXACTLY:
@@ -85,7 +85,7 @@ M.returns = {
 ---@param diff string
 ---@return string
 local function fix_diff(diff)
-  local has_search_line = diff:match("^%s*<<<<<<<* SEARCH") ~= nil
+  local has_search_line = diff:match("^%s*-------* SEARCH") ~= nil
   if has_search_line then return diff end
 
   local fixed_diff_lines = {}
@@ -93,10 +93,10 @@ local function fix_diff(diff)
   local first_line = lines[1]
   if first_line and first_line:match("^%s*```") then
     table.insert(fixed_diff_lines, first_line)
-    table.insert(fixed_diff_lines, "<<<<<<< SEARCH")
+    table.insert(fixed_diff_lines, "------- SEARCH")
     fixed_diff_lines = vim.list_extend(fixed_diff_lines, lines, 2)
   else
-    table.insert(fixed_diff_lines, "<<<<<<< SEARCH")
+    table.insert(fixed_diff_lines, "------- SEARCH")
     fixed_diff_lines = vim.list_extend(fixed_diff_lines, lines, 1)
   end
   return table.concat(fixed_diff_lines, "\n")
@@ -125,7 +125,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
   local rough_diff_blocks = {}
 
   for _, line in ipairs(diff_lines) do
-    if line:match("^%s*<<<<<<<* SEARCH") then
+    if line:match("^%s*-------* SEARCH") then
       is_searching = true
       is_replacing = false
       current_search = {}
@@ -133,7 +133,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
       is_searching = false
       is_replacing = true
       current_replace = {}
-    elseif line:match("^%s*>>>>>>>* REPLACE") and is_replacing then
+    elseif line:match("^%s*+++++++* REPLACE") and is_replacing then
       is_replacing = false
       table.insert(
         rough_diff_blocks,

@@ -282,7 +282,7 @@ M._defaults = {
       use_ReAct_prompt = true,
       extra_request_body = {
         temperature = 0.75,
-        max_tokens = 8192,
+        max_tokens = 65536,
       },
     },
     ---@type AvanteSupportedProvider
