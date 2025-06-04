@@ -152,7 +152,7 @@ cmd("Clear", function(opts)
 end, {
   desc = "avante: clear history, memory or cache",
   nargs = "?",
-  complete = function(_, _, _) return { "history", "memory", "cache" } end,
+  complete = function(_, _, _) return { "history", "cache" } end,
 })
 cmd("ShowRepoMap", function() require("avante.repo_map").show() end, { desc = "avante: show repo map" })
 cmd("Models", function() require("avante.model_selector").open() end, { desc = "avante: show models" })
