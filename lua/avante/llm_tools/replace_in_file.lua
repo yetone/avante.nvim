@@ -695,7 +695,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
     vim.api.nvim_buf_call(bufnr, function() vim.cmd("noautocmd write") end)
     if session_ctx then Helpers.mark_as_not_viewed(opts.path, session_ctx) end
     on_complete(true, nil)
-  end, { focus = not Config.behaviour.auto_focus_on_diff_view }, session_ctx)
+  end, { focus = not Config.behaviour.auto_focus_on_diff_view }, session_ctx, M.name)
 end
 
 return M

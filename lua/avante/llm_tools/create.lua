@@ -75,7 +75,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
     vim.cmd("noautocmd write")
     vim.api.nvim_set_current_win(current_winid)
     on_complete(true, nil)
-  end, { focus = true }, session_ctx)
+  end, { focus = true }, session_ctx, M.name)
 end
 
 return M
