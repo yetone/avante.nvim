@@ -298,11 +298,11 @@ function P.setup()
   if not history_path:exists() then history_path:mkdir({ parents = true }) end
   P.history_path = history_path
 
-  local cache_path = Path:new(vim.fn.stdpath("cache") .. "/avante")
+  local cache_path = Path:new(Utils.join_paths(vim.fn.stdpath("cache"), "avante"))
   if not cache_path:exists() then cache_path:mkdir({ parents = true }) end
   P.cache_path = cache_path
 
-  local data_path = Path:new(vim.fn.stdpath("data") .. "/avante")
+  local data_path = Path:new(Utils.join_paths(vim.fn.stdpath("data"), "avante"))
   if not data_path:exists() then data_path:mkdir({ parents = true }) end
   P.data_path = data_path
 
