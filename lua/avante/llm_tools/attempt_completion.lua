@@ -58,6 +58,7 @@ M.returns = {
 function M.on_render(opts)
   local lines = {}
   table.insert(lines, Line:new({ { "✓  Task Completed", Highlights.AVANTE_TASK_COMPLETED } }))
+  table.insert(lines, Line:new({ { "" } }))
   local result = opts.result or ""
   local text_lines = vim.split(result, "\n")
   for _, text_line in ipairs(text_lines) do
