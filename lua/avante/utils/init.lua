@@ -1435,7 +1435,7 @@ function M.tool_use_to_xml(tool_use)
 end
 
 ---@param tool_use AvanteLLMToolUse
-function M.is_replace_func_call_tool_use(tool_use)
+function M.is_edit_func_call_tool_use(tool_use)
   local is_replace_func_call = false
   local is_str_replace_editor_func_call = false
   local is_str_replace_based_edit_tool_func_call = false
@@ -1466,7 +1466,7 @@ function M.is_replace_func_call_tool_use(tool_use)
 end
 
 ---@param tool_use_message avante.HistoryMessage | nil
-function M.is_replace_func_call_message(tool_use_message)
+function M.is_edit_func_call_message(tool_use_message)
   local is_replace_func_call = false
   local is_str_replace_editor_func_call = false
   local is_str_replace_based_edit_tool_func_call = false
@@ -1474,7 +1474,7 @@ function M.is_replace_func_call_message(tool_use_message)
   if tool_use_message and M.is_tool_use_message(tool_use_message) then
     local tool_use = tool_use_message.message.content[1]
     ---@cast tool_use AvanteLLMToolUse
-    return M.is_replace_func_call_tool_use(tool_use)
+    return M.is_edit_func_call_tool_use(tool_use)
   end
   return is_replace_func_call, is_str_replace_editor_func_call, is_str_replace_based_edit_tool_func_call, path
 end

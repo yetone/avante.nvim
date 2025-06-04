@@ -147,170 +147,6 @@ function M.generate_prompts(opts)
   local project_root = Utils.root.get()
   Path.prompts.initialize(Path.prompts.get_templates_dir(project_root), project_root)
 
-  local tool_id_to_tool_name = {}
-  local tool_id_to_path = {}
-  local viewed_files = {}
-  local last_modified_files = {}
-  local history_messages = {}
-  if opts.history_messages then
-    for idx, message in ipairs(opts.history_messages) do
-      if Utils.is_tool_result_message(message) then
-        local tool_use_message = Utils.get_tool_use_message(message, opts.history_messages)
-        local is_replace_func_call, _, _, path = Utils.is_replace_func_call_message(tool_use_message)
-
-        if is_replace_func_call and path and not message.message.content[1].is_error then
-          local uniformed_path = Utils.uniform_path(path)
-          last_modified_files[uniformed_path] = idx
-        end
-      end
-    end
-
-    for idx, message in ipairs(opts.history_messages) do
-      table.insert(history_messages, message)
-      if Utils.is_tool_result_message(message) then
-        local tool_use_message = Utils.get_tool_use_message(message, opts.history_messages)
-        local is_replace_func_call, is_str_replace_editor_func_call, is_str_replace_based_edit_tool_func_call, path =
-          Utils.is_replace_func_call_message(tool_use_message)
-        --- For models like gpt-4o, the input parameter of replace_in_file is treated as the latest file content, so here we need to insert a fake view tool call to ensure it uses the latest file content
-        if is_replace_func_call and path and not message.message.content[1].is_error then
-          local uniformed_path = Utils.uniform_path(path)
-          local view_result, view_error = require("avante.llm_tools.view").func({ path = path }, nil, nil, nil)
-          if view_error then view_result = "Error: " .. view_error end
-          local get_diagnostics_tool_use_id = Utils.uuid()
-          local view_tool_use_id = Utils.uuid()
-          local view_tool_name = "view"
-          local view_tool_input = { path = path }
-          if is_str_replace_editor_func_call then
-            view_tool_name = "str_replace_editor"
-            view_tool_input = { command = "view", path = path }
-          end
-          if is_str_replace_based_edit_tool_func_call then
-            view_tool_name = "str_replace_based_edit_tool"
-            view_tool_input = { command = "view", path = path }
-          end
-          history_messages = vim.list_extend(history_messages, {
-            HistoryMessage:new({
-              role = "assistant",
-              content = string.format("Viewing file %s to get the latest content", path),
-            }, {
-              is_dummy = true,
-            }),
-            HistoryMessage:new({
-              role = "assistant",
-              content = {
-                {
-                  type = "tool_use",
-                  id = view_tool_use_id,
-                  name = view_tool_name,
-                  input = view_tool_input,
-                },
-              },
-            }, {
-              is_dummy = true,
-            }),
-            HistoryMessage:new({
-              role = "user",
-              content = {
-                {
-                  type = "tool_result",
-                  tool_use_id = view_tool_use_id,
-                  content = view_result,
-                  is_error = view_error ~= nil,
-                },
-              },
-            }, {
-              is_dummy = true,
-            }),
-          })
-          if last_modified_files[uniformed_path] == idx then
-            local diagnostics = Utils.lsp.get_diagnostics_from_filepath(path)
-            history_messages = vim.list_extend(history_messages, {
-              HistoryMessage:new({
-                role = "assistant",
-                content = string.format(
-                  "The file %s has been modified, let me check if there are any errors in the changes.",
-                  path
-                ),
-              }, {
-                is_dummy = true,
-              }),
-              HistoryMessage:new({
-                role = "assistant",
-                content = {
-                  {
-                    type = "tool_use",
-                    id = get_diagnostics_tool_use_id,
-                    name = "get_diagnostics",
-                    input = { path = path },
-                  },
-                },
-              }, {
-                is_dummy = true,
-              }),
-              HistoryMessage:new({
-                role = "user",
-                content = {
-                  {
-                    type = "tool_result",
-                    tool_use_id = get_diagnostics_tool_use_id,
-                    content = vim.json.encode(diagnostics),
-                    is_error = false,
-                  },
-                },
-              }, {
-                is_dummy = true,
-              }),
-            })
-          end
-        end
-      end
-    end
-    for _, message in ipairs(history_messages) do
-      local content = message.message.content
-      if type(content) ~= "table" then goto continue end
-      for _, item in ipairs(content) do
-        if type(item) ~= "table" then goto continue1 end
-        if item.type ~= "tool_use" then goto continue1 end
-        local tool_name = item.name
-        if tool_name ~= "view" then goto continue1 end
-        local path = item.input.path
-        tool_id_to_tool_name[item.id] = tool_name
-        if path then
-          local uniform_path = Utils.uniform_path(path)
-          tool_id_to_path[item.id] = uniform_path
-          viewed_files[uniform_path] = item.id
-        end
-        ::continue1::
-      end
-      ::continue::
-    end
-    for _, message in ipairs(history_messages) do
-      local content = message.message.content
-      if type(content) == "table" then
-        for _, item in ipairs(content) do
-          if type(item) ~= "table" then goto continue end
-          if item.type ~= "tool_result" then goto continue end
-          local tool_name = tool_id_to_tool_name[item.tool_use_id]
-          if tool_name ~= "view" then goto continue end
-          if item.is_error then goto continue end
-          local path = tool_id_to_path[item.tool_use_id]
-          local latest_tool_id = viewed_files[path]
-          if not latest_tool_id then goto continue end
-          if latest_tool_id ~= item.tool_use_id then
-            item.content =
-              string.format("The file %s has been updated. Please use the latest `view` tool result!", path)
-          else
-            local view_result, view_error = require("avante.llm_tools.view").func({ path = path }, nil, nil, nil)
-            if view_error then view_result = "Error: " .. view_error end
-            item.content = view_result
-            item.is_error = view_error ~= nil
-          end
-          ::continue::
-        end
-      end
-    end
-  end
-
   local system_info = Utils.get_system_info()
 
   local selected_files = opts.selected_files or {}
@@ -326,6 +162,28 @@ function M.generate_prompts(opts)
         local content = table.concat(lines, "\n")
         table.insert(selected_files, { path = filepath, content = content, file_type = filetype })
       end
+    end
+  end
+
+  local viewed_files = {}
+
+  if opts.history_messages then
+    for _, message in ipairs(opts.history_messages) do
+      local content = message.message.content
+      if type(content) ~= "table" then goto continue end
+      for _, item in ipairs(content) do
+        if type(item) ~= "table" then goto continue1 end
+        if item.type ~= "tool_use" then goto continue1 end
+        local tool_name = item.name
+        if tool_name ~= "view" then goto continue1 end
+        local path = item.input.path
+        if path then
+          local uniform_path = Utils.uniform_path(path)
+          viewed_files[uniform_path] = item.id
+        end
+        ::continue1::
+      end
+      ::continue::
     end
   end
 
@@ -405,26 +263,9 @@ function M.generate_prompts(opts)
       vim.list_extend(pending_compaction_history_messages, opts.prompt_opts.pending_compaction_history_messages)
   end
 
-  local cleaned_history_messages = history_messages
-
-  local final_history_messages = {}
-  if cleaned_history_messages then
-    for _, msg in ipairs(cleaned_history_messages) do
-      local tool_result_message
-      if Utils.is_tool_use_message(msg) then
-        tool_result_message = Utils.get_tool_result_message(msg, cleaned_history_messages)
-        if not tool_result_message then goto continue end
-      end
-      if Utils.is_tool_result_message(msg) then goto continue end
-      table.insert(final_history_messages, msg)
-      if tool_result_message then table.insert(final_history_messages, tool_result_message) end
-      ::continue::
-    end
-  end
-
   ---@type AvanteLLMMessage[]
   local messages = vim.deepcopy(context_messages)
-  for _, msg in ipairs(final_history_messages) do
+  for _, msg in ipairs(opts.history_messages or {}) do
     local message = msg.message
     if msg.is_user_submission then
       message = vim.deepcopy(message)
@@ -824,13 +665,9 @@ function M._stream(opts)
           table.insert(tool_results, tool_result)
           return handle_next_tool_use(partial_tool_use_list, tool_use_index + 1, tool_results)
         end
-        local is_replace_tool_use = Utils.is_replace_func_call_tool_use(partial_tool_use)
+        local is_edit_tool_use = Utils.is_edit_func_call_tool_use(partial_tool_use)
         local is_attempt_completion_tool_use = partial_tool_use.name == "attempt_completion"
-        if
-          partial_tool_use.state == "generating"
-          and not is_replace_tool_use
-          and not is_attempt_completion_tool_use
-        then
+        if partial_tool_use.state == "generating" and not is_edit_tool_use and not is_attempt_completion_tool_use then
           return
         end
         if type(partial_tool_use.input) == "table" then partial_tool_use.input.tool_use_id = partial_tool_use.id end
@@ -874,7 +711,7 @@ function M._stream(opts)
       end
       local partial_tool_use_list = {} ---@type AvantePartialLLMToolUse[]
       local tool_result_seen = {}
-      local history_messages = opts.get_history_messages and opts.get_history_messages() or {}
+      local history_messages = opts.get_history_messages and opts.get_history_messages({ all = true }) or {}
       for idx = #history_messages, 1, -1 do
         local message = history_messages[idx]
         local content = message.message.content
