@@ -113,11 +113,22 @@ function M.func(opts, on_log, on_complete, session_ctx)
 
   local is_streaming = opts.streaming or false
 
+  if is_streaming then
+    local streaming_diff_lines_count = Utils.count_lines(opts.diff)
+    session_ctx.streaming_diff_lines_count_history = session_ctx.streaming_diff_lines_count_history or {}
+    local prev_streaming_diff_lines_count = session_ctx.streaming_diff_lines_count_history[opts.tool_use_id]
+    if streaming_diff_lines_count == prev_streaming_diff_lines_count then
+      return false, "Diff lines count hasn't changed"
+    end
+    session_ctx.streaming_diff_lines_count_history[opts.tool_use_id] = streaming_diff_lines_count
+  end
+
   local diff = fix_diff(opts.diff)
 
   if on_log and diff ~= opts.diff then on_log("diff fixed") end
 
   local diff_lines = vim.split(diff, "\n")
+
   local is_searching = false
   local is_replacing = false
   local current_old_lines = {}
