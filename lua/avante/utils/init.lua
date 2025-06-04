@@ -747,7 +747,7 @@ function M.scan_directory(options)
   local cmd_supports_max_depth = true
   local cmd = (function()
     if vim.fn.executable("rg") == 1 then
-      local cmd = { "rg", "--files", "--color", "never", "--no-require-git" }
+      local cmd = { "rg", "--files", "--color", "never", "--no-require-git", "--no-ignore-parent" }
       if options.max_depth ~= nil then vim.list_extend(cmd, { "--max-depth", options.max_depth }) end
       table.insert(cmd, options.directory)
       return cmd
