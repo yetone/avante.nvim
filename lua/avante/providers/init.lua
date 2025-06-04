@@ -178,7 +178,13 @@ M = setmetatable(M, {
     -- default to gpt-4o as tokenizer
     if t[k].tokenizer_id == nil then t[k].tokenizer_id = "gpt-4o" end
 
-    if t[k].is_env_set == nil then t[k].is_env_set = function() return t[k].parse_api_key() ~= nil end end
+    if t[k].is_env_set == nil then
+      t[k].is_env_set = function()
+        local ok, result = pcall(t[k].parse_api_key)
+        if not ok then return false end
+        return result ~= nil
+      end
+    end
 
     if t[k].setup == nil then
       local provider_conf = M.parse_config(t[k])
