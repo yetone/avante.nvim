@@ -243,8 +243,27 @@ function M:add_text_message(ctx, text, state, opts)
   })
   ctx.content_uuid = msg.uuid
   local msgs = { msg }
+  local xml_content = ctx.content
+  local xml_lines = vim.split(xml_content, "\n")
+  local cleaned_xml_lines = {}
+  local prev_tool_name = nil
+  for _, line in ipairs(xml_lines) do
+    if line:match("<tool_name>") then
+      local tool_name = line:match("<tool_name>(.*)</tool_name>")
+      if tool_name then prev_tool_name = tool_name end
+    elseif line:match("<parameters>") then
+      if prev_tool_name then table.insert(cleaned_xml_lines, "<" .. prev_tool_name .. ">") end
+      goto continue
+    elseif line:match("</parameters>") then
+      if prev_tool_name then table.insert(cleaned_xml_lines, "</" .. prev_tool_name .. ">") end
+      goto continue
+    end
+    table.insert(cleaned_xml_lines, line)
+    ::continue::
+  end
+  local cleaned_xml_content = table.concat(cleaned_xml_lines, "\n")
   local stream_parser = XMLParser.createStreamParser()
-  stream_parser:addData(ctx.content)
+  stream_parser:addData(cleaned_xml_content)
   local has_tool_use = false
   local xml = stream_parser:getAllElements()
   if xml then
