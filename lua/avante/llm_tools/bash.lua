@@ -246,7 +246,8 @@ function M.func(opts, on_log, on_complete, session_ctx)
       end, abs_path)
     end,
     { focus = true },
-    session_ctx
+    session_ctx,
+    M.name -- Pass the tool name for permission checking
   )
 end
 
