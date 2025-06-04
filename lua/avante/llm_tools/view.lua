@@ -91,7 +91,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
   local size = 0
   for _, line in ipairs(lines or {}) do
     size = size + #line
-    if size > 2048 * 10 then
+    if size > 2048 * 100 then
       is_truncated = true
       break
     end
