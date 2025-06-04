@@ -1646,4 +1646,20 @@ function M.message_to_text(message, messages)
   return ""
 end
 
+function M.count_lines(str)
+  if not str or str == "" then return 0 end
+
+  local count = 1
+  local len = #str
+  local newline_byte = string.byte("\n")
+
+  for i = 1, len do
+    if str:byte(i) == newline_byte then count = count + 1 end
+  end
+
+  if str:byte(len) == newline_byte then count = count - 1 end
+
+  return count
+end
+
 return M
