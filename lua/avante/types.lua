@@ -291,6 +291,7 @@ vim.g.avante_login = vim.g.avante_login
 ---
 ---@class AvanteProviderFunctor
 ---@field _model_list_cache table
+---@field headers function(table) -> table | table | nil
 ---@field support_prompt_caching boolean | nil
 ---@field role_map table<"user" | "assistant", string>
 ---@field parse_messages AvanteMessagesParser
