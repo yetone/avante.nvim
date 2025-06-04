@@ -14,7 +14,7 @@ local FileSelector = {}
 
 ---@alias FileSelectorHandler fun(self: FileSelector, on_select: fun(filepaths: string[] | nil)): nil
 
-local function has_scheme(path) return path:find("^%w+://") ~= nil end
+local function has_scheme(path) return path:find("^(?!term://)%w+://") ~= nil end
 
 function FileSelector:process_directory(absolute_path, project_root)
   if absolute_path:sub(-1) == Utils.path_sep then absolute_path = absolute_path:sub(1, -2) end
@@ -85,7 +85,8 @@ end
 function FileSelector:add_selected_file(filepath)
   if not filepath or filepath == "" then return end
 
-  local absolute_path = filepath:sub(1, 1) == "/" and filepath or Utils.join_paths(Utils.get_project_root(), filepath)
+  local absolute_path = (filepath:sub(1, 1) == "/" or filepath:sub(1, 7) == "term://") and filepath
+    or Utils.join_paths(Utils.get_project_root(), filepath)
   local stat = vim.loop.fs_stat(absolute_path)
 
   if stat and stat.type == "directory" then
