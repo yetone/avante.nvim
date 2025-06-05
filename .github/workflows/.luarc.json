@@ -14,6 +14,7 @@
       "$DEPS_PATH/lazy.nvim/lua",
       "$DEPS_PATH/nvim-treesitter/lua",
       "$DEPS_PATH/dressing.nvim/lua",
+      "$DEPS_PATH/snacks.nvim/lua",
       "$DEPS_PATH/plenary.nvim/lua",
       "$DEPS_PATH/nui.nvim/lua",
       "$DEPS_PATH/mini.pick/lua",

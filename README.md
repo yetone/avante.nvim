@@ -97,7 +97,6 @@ For building binary if you wish to build from source, then `cargo` is required. 
   -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- for windows
   dependencies = {
     "nvim-treesitter/nvim-treesitter",
-    "stevearc/dressing.nvim",
     "nvim-lua/plenary.nvim",
     "MunifTanjim/nui.nvim",
     --- The below dependencies are optional,
@@ -105,6 +104,8 @@ For building binary if you wish to build from source, then `cargo` is required. 
     "nvim-telescope/telescope.nvim", -- for file_selector provider telescope
     "hrsh7th/nvim-cmp", -- autocompletion for avante commands and mentions
     "ibhagwan/fzf-lua", -- for file_selector provider fzf
+    "stevearc/dressing.nvim", -- for input provider dressing
+    "folke/snacks.nvim", -- for input provider snacks
     "nvim-tree/nvim-web-devicons", -- or echasnovski/mini.icons
     "zbirenbaum/copilot.lua", -- for providers='copilot'
     {
@@ -146,7 +147,6 @@ For building binary if you wish to build from source, then `cargo` is required. 
 
 " Deps
 Plug 'nvim-treesitter/nvim-treesitter'
-Plug 'stevearc/dressing.nvim'
 Plug 'nvim-lua/plenary.nvim'
 Plug 'MunifTanjim/nui.nvim'
 Plug 'MeanderingProgrammer/render-markdown.nvim'
@@ -156,6 +156,8 @@ Plug 'hrsh7th/nvim-cmp'
 Plug 'nvim-tree/nvim-web-devicons' "or Plug 'echasnovski/mini.icons'
 Plug 'HakonHarnes/img-clip.nvim'
 Plug 'zbirenbaum/copilot.lua'
+Plug 'stevearc/dressing.nvim' " for enhanced input UI
+Plug 'folke/snacks.nvim' " for modern input UI
 
 " Yay, pass source=true if you want to build from source
 Plug 'yetone/avante.nvim', { 'branch': 'main', 'do': 'make' }
@@ -178,7 +180,6 @@ add({
   monitor = 'main',
   depends = {
     'nvim-treesitter/nvim-treesitter',
-    'stevearc/dressing.nvim',
     'nvim-lua/plenary.nvim',
     'MunifTanjim/nui.nvim',
     'echasnovski/mini.icons'
@@ -209,7 +210,6 @@ end)
 
   -- Required plugins
   use 'nvim-treesitter/nvim-treesitter'
-  use 'stevearc/dressing.nvim'
   use 'nvim-lua/plenary.nvim'
   use 'MunifTanjim/nui.nvim'
   use 'MeanderingProgrammer/render-markdown.nvim'
@@ -219,6 +219,8 @@ end)
   use 'nvim-tree/nvim-web-devicons' -- or use 'echasnovski/mini.icons'
   use 'HakonHarnes/img-clip.nvim'
   use 'zbirenbaum/copilot.lua'
+  use 'stevearc/dressing.nvim' -- for enhanced input UI
+  use 'folke/snacks.nvim' -- for modern input UI
 
   -- Avante.nvim with build process
   use {
@@ -285,8 +287,18 @@ require('copilot').setup ({
 require('render-markdown').setup ({
   -- use recommended settings from above
 })
-require('avante').setup ({
-  -- Your config here!
+require('avante').setup({
+  -- Example: Using snacks.nvim as input provider
+  input = {
+    provider = "snacks", -- "native" | "dressing" | "snacks"
+    provider_opts = {
+      -- Snacks input configuration
+      title = "Avante Input",
+      icon = " ",
+      placeholder = "Enter your API key...",
+    },
+  },
+  -- Your other config here!
 })
 ```
 
@@ -496,6 +508,95 @@ To create a customized selector provider, you can specify a customized function 
         end,
       }
 ```
+
+### Input Provider Configuration
+
+Avante.nvim supports multiple input providers for user input (like API key entry). You can configure which provider to use:
+
+<details>
+  <summary>Native Input Provider (Default)</summary>
+
+```lua
+{
+  input = {
+    provider = "native", -- Uses vim.ui.input
+    provider_opts = {},
+  }
+}
+```
+
+</details>
+
+<details>
+  <summary>Dressing.nvim Input Provider</summary>
+
+For enhanced input UI with better styling and features:
+
+```lua
+{
+  input = {
+    provider = "dressing",
+    provider_opts = {},
+  }
+}
+```
+
+You'll need to install dressing.nvim:
+```lua
+-- With lazy.nvim
+{ "stevearc/dressing.nvim" }
+```
+
+</details>
+
+<details>
+  <summary>Snacks.nvim Input Provider (Recommended)</summary>
+
+For modern, feature-rich input UI:
+
+```lua
+{
+  input = {
+    provider = "snacks",
+    provider_opts = {
+      -- Additional snacks.input options
+      title = "Avante Input",
+      icon = " ",
+    },
+  }
+}
+```
+
+You'll need to install snacks.nvim:
+```lua
+-- With lazy.nvim
+{ "folke/snacks.nvim" }
+```
+
+</details>
+
+<details>
+  <summary>Custom Input Provider</summary>
+
+To create a customized input provider, you can specify a function:
+
+```lua
+{
+  input = {
+    ---@param input avante.ui.Input
+    provider = function(input)
+      local title = input.title ---@type string
+      local default = input.default ---@type string
+      local conceal = input.conceal ---@type boolean
+      local on_submit = input.on_submit ---@type fun(result: string|nil): nil
+      
+      --- your customized input logic here
+    end,
+  }
+}
+```
+
+</details>
 
 Choose a selector other that native, the default as that currently has an issue
 For lazyvim users copy the full config for blink.cmp from the website or extend the options
