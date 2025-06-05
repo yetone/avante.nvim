@@ -114,6 +114,15 @@ function M.func(opts, on_log, on_complete, session_ctx)
   local is_streaming = opts.streaming or false
 
   if is_streaming then
+    session_ctx.prev_streaming_diff_timestamp_map = session_ctx.prev_streaming_diff_timestamp_map or {}
+    local prev_streaming_diff_timestamp = session_ctx.prev_streaming_diff_timestamp_map[opts.tool_use_id]
+    local current_timestamp = os.time()
+    if prev_streaming_diff_timestamp ~= nil then
+      if current_timestamp - prev_streaming_diff_timestamp < 2 then
+        return false, "Diff hasn't changed in the last 2 seconds"
+      end
+    end
+    session_ctx.prev_streaming_diff_timestamp_map[opts.tool_use_id] = current_timestamp
     local streaming_diff_lines_count = Utils.count_lines(opts.diff)
     session_ctx.streaming_diff_lines_count_history = session_ctx.streaming_diff_lines_count_history or {}
     local prev_streaming_diff_lines_count = session_ctx.streaming_diff_lines_count_history[opts.tool_use_id]
@@ -286,7 +295,9 @@ function M.func(opts, on_log, on_complete, session_ctx)
 
       base_line_ = base_line_ + distance - old_distance
 
-      rough_diff_blocks_to_diff_blocks_cache[cache_key] = { diff_blocks = diff_blocks_, base_line = base_line_ }
+      if not rough_diff_block.is_replacing then
+        rough_diff_blocks_to_diff_blocks_cache[cache_key] = { diff_blocks = diff_blocks_, base_line = base_line_ }
+      end
 
       res = vim.list_extend(res, diff_blocks_)
 
