@@ -103,13 +103,7 @@ function H.build_chat_body(prompt_opts, provider_conf)
   local messages_array = M:parse_messages(prompt_opts)
   -- Model sourcing: config specific, then general config, then default
   local model_name = provider_conf.chat_model or provider_conf.model or "claude-3-5-sonnet-20240620"
-  local avante_version = "0.1.0"
-  if Utils.get_plugin_version then
-      avante_version = Utils.get_plugin_version("avante.nvim") or avante_version
-  else
-      Utils.get_plugin_version = function() return "test-version" end -- Temp for test env
-      avante_version = Utils.get_plugin_version("avante.nvim") or avante_version
-  end
+  local avante_version = "0.1.0" -- Placeholder for Avante's version (TODO: Investigate a robust way to get plugin version if available)
 
   return {
     prompt_components = {
