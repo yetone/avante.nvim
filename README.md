@@ -589,7 +589,7 @@ To create a customized input provider, you can specify a function:
       local default = input.default ---@type string
       local conceal = input.conceal ---@type boolean
       local on_submit = input.on_submit ---@type fun(result: string|nil): nil
-      
+
       --- your customized input logic here
     end,
   }
