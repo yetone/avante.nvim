@@ -353,7 +353,7 @@ end
 function M:close()
   self:unbind_window_focus_keymaps()
   if self._group then
-    vim.api.nvim_del_augroup_by_id(self._group)
+    pcall(vim.api.nvim_del_augroup_by_id, self._group)
     self._group = nil
   end
   if self._popup then
