@@ -168,7 +168,16 @@ M = setmetatable(M, {
       provider_config = Utils.deep_extend_with_metatable("force", module, base_provider_config, provider_config)
     else
       local ok, module = pcall(require, "avante.providers." .. k)
-      if ok then provider_config = Utils.deep_extend_with_metatable("force", module, provider_config) end
+      if ok then
+        provider_config = Utils.deep_extend_with_metatable("force", module, provider_config)
+      elseif provider_config.parse_curl_args == nil then
+        error(
+          string.format(
+            'The configuration of your provider "%s" is incorrect, missing the `__inherited_from` attribute or a custom `parse_curl_args` function. Please fix your provider configuration. For more details, see: https://github.com/yetone/avante.nvim/wiki/Custom-providers',
+            k
+          )
+        )
+      end
     end
 
     t[k] = provider_config
