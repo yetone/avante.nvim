@@ -573,7 +573,11 @@ M._options = {}
 
 ---@param opts? avante.Config
 function M.setup(opts)
-  vim.validate({ opts = { opts, "table", true } })
+  if vim.fn.has("nvim-0.11") == 1 then
+    vim.validate("opts", opts, "table", true)
+  else
+    vim.validate({ opts = { opts, "table", true } })
+  end
 
   opts = opts or {}
 
@@ -719,7 +723,11 @@ function M.setup(opts)
     )
   end
 
-  vim.validate({ provider = { M._options.provider, "string", false } })
+  if vim.fn.has("nvim-0.11") == 1 then
+    vim.validate("provider", M._options.provider, "string", false)
+  else
+    vim.validate({ provider = { M._options.provider, "string", false } })
+  end
 
   for k, v in pairs(M._options.providers) do
     M._options.providers[k] = type(v) == "function" and v() or v
@@ -728,7 +736,11 @@ end
 
 ---@param opts table<string, any>
 function M.override(opts)
-  vim.validate({ opts = { opts, "table", true } })
+  if vim.fn.has("nvim-0.11") == 1 then
+    vim.validate("opts", opts, "table", true)
+  else
+    vim.validate({ opts = { opts, "table", true } })
+  end
 
   M._options = vim.tbl_deep_extend("force", M._options, opts or {})
 
