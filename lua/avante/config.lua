@@ -2,6 +2,7 @@
 ---we add a default var_accessor for this table to config values.
 
 ---@alias WebSearchEngineProviderResponseBodyFormatter fun(body: table): (string, string?)
+---@alias avante.InputProvider "native" | "dressing" | "snacks" | fun(input: avante.ui.Input): nil
 
 local Utils = require("avante.utils")
 
@@ -555,6 +556,10 @@ M._defaults = {
     provider = "native",
     provider_opts = {},
     exclude_auto_select = {}, -- List of items to exclude from auto selection
+  },
+  input = {
+    provider = "native",
+    provider_opts = {},
   },
   suggestion = {
     debounce = 600,

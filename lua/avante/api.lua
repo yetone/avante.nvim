@@ -20,6 +20,15 @@ function M.switch_selector_provider(target_provider)
   })
 end
 
+---@param target_provider avante.InputProvider
+function M.switch_input_provider(target_provider)
+  require("avante.config").override({
+    input = {
+      provider = target_provider,
+    },
+  })
+end
+
 ---@param target avante.ProviderName
 function M.switch_provider(target) require("avante.providers").refresh(target) end
 
