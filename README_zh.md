@@ -747,21 +747,37 @@ Avante 提供了一组默认提供者，但用户也可以创建自己的提供�
 Avante 提供了一个 RAG 服务，这是一个用于获取 AI 生成代码所需上下文的工具。默认情况下，它未启用。您可以通过以下方式启用它：
 
 ```lua
-rag_service = {
-  enabled = false, -- 启用 RAG 服务
-  host_mount = os.getenv("HOME"), -- RAG 服务的主机挂载路径
-  provider = "openai", -- 用于 RAG 服务的提供者（例如 openai 或 ollama）
-  llm_model = "", -- 用于 RAG 服务的 LLM 模型
-  embed_model = "", -- 用于 RAG 服务的嵌入模型
-  endpoint = "https://api.openai.com/v1", -- RAG 服务的 API 端点
-},
+  rag_service = { -- RAG 服务配置
+    enabled = false, -- 启用 RAG 服务
+    host_mount = os.getenv("HOME"), -- RAG 服务的主机挂载路径 (Docker 将挂载此路径)
+    runner = "docker", -- RAG 服务的运行器 (可以使用 docker 或 nix)
+    llm = { -- RAG 服务使用的语言模型 (LLM) 配置
+      provider = "openai", -- LLM 提供者
+      endpoint = "https://api.openai.com/v1", -- LLM API 端点
+      api_key = "OPENAI_API_KEY", -- LLM API 密钥的环境变量名称
+      model = "gpt-4o-mini", -- LLM 模型名称
+      extra = nil, -- LLM 的额外配置选项
+    },
+    embed = { -- RAG 服务使用的嵌入模型配置
+      provider = "openai", -- 嵌入提供者
+      endpoint = "https://api.openai.com/v1", -- 嵌入 API 端点
+      api_key = "OPENAI_API_KEY", -- 嵌入 API 密钥的环境变量名称
+      model = "text-embedding-3-large", -- 嵌入模型名称
+      extra = nil, -- 嵌入模型的额外配置选项
+    },
+    docker_extra_args = "", -- 传递给 docker 命令的额外参数
+  },
 ```
 
-如果您的 rag_service 提供者是 `openai`，那么您需要设置 `OPENAI_API_KEY` 环境变量！
+RAG 服务可以单独设置llm模型和嵌入模型。在 `llm` 和 `embed` 配置块中，您可以设置以下字段：
 
-如果您的 rag_service 提供者是 `ollama`，您需要将端点设置为 `http://localhost:11434`（注意末尾没有 `/v1`）或您自己的 ollama 服务器的任何地址。
+- `provider`: 模型提供者（例如 "openai", "ollama", "dashscope"以及"openrouter"）
+- `endpoint`: API 端点
+- `api_key`: API 密钥的环境变量名称
+- `model`: 模型名称
+- `extra`: 额外的配置选项
 
-如果您的 rag_service 提供者是 `ollama`，当 `llm_model` 为空时，默认为 `llama3`，当 `embed_model` 为空时，默认为 `nomic-embed-text`。请确保这些模型在您的 ollama 服务器中可用。
+有关不同模型提供商的详细配置，你可以在[这里](./py/rag-service/README.md)查看。
 
 此外，RAG 服务还依赖于 Docker！（对于 macOS 用户，推荐使用 OrbStack 作为 Docker 的替代品）。
 
