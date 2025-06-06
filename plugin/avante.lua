@@ -129,6 +129,15 @@ cmd(
     desc = "avante: switch selector provider",
   }
 )
+cmd("SwitchInputProvider", function(opts) require("avante.api").switch_input_provider(vim.trim(opts.args or "")) end, {
+  nargs = 1,
+  desc = "avante: switch input provider",
+  complete = function(_, line, _)
+    local prefix = line:match("AvanteSwitchInputProvider%s*(.*)$") or ""
+    local providers = { "native", "dressing", "snacks" }
+    return vim.tbl_filter(function(key) return key:find(prefix, 1, true) == 1 end, providers)
+  end,
+})
 cmd("Clear", function(opts)
   local arg = vim.trim(opts.args or "")
   arg = arg == "" and "history" or arg

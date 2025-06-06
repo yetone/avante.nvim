@@ -172,7 +172,11 @@ setmetatable(M, {
 ---@param rgb_24bit number 24-bit RGB value
 ---@return {r: integer, g: integer, b: integer} with keys 'r', 'g', 'b' in [0,255]
 function H.decode_24bit_rgb(rgb_24bit)
-  vim.validate({ rgb_24bit = { rgb_24bit, "number", true } })
+  if vim.fn.has("nvim-0.11") == 1 then
+    vim.validate("rgb_24bit", rgb_24bit, "number", true)
+  else
+    vim.validate({ rgb_24bit = { rgb_24bit, "number", true } })
+  end
   local r = band(rshift(rgb_24bit, 16), 255)
   local g = band(rshift(rgb_24bit, 8), 255)
   local b = band(rgb_24bit, 255)
