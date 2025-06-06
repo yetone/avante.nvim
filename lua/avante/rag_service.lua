@@ -33,6 +33,55 @@ end
 
 function M.get_rag_service_runner() return (Config.rag_service and Config.rag_service.runner) or "docker" end
 
+local function get_os_specific_port_check_cmd(port)
+  local sysname = vim.loop.os_uname().sysname
+  if sysname == "Linux" then
+    return string.format("ss -Hltnp 'sport = :%d'", port)
+  elseif sysname == "Darwin" then
+    -- -n: no host name resolution, -P: no port name resolution, -iTCP: filter TCP, -sTCP:LISTEN: filter state
+    return string.format("lsof -nP -iTCP:%d -sTCP:LISTEN", port)
+  else
+    Utils.warn("Unsupported OS for Nix port checking: " .. sysname .. ". Falling back to Linux 'ss' command.")
+    return string.format("ss -Hltnp 'sport = :%d'", port)
+  end
+end
+
+local function get_os_specific_kill_cmd(port)
+  local sysname = vim.loop.os_uname().sysname
+  local pid_cmd, kill_logic
+  if sysname == "Linux" then
+    -- Extract PID: ss -> get 7th field -> extract number after pid=
+    pid_cmd = string.format("ss -Hltnp 'sport = :%d' | awk '{print $7}' | sed 's/.*pid=\\([0-9]*\\).*/\\1/'", port)
+    kill_logic = function(pids)
+      if pids ~= "" then
+        local kill_cmd = string.format("kill -9 %s", vim.fn.join(vim.split(pids, "\n"), " "))
+        vim.fn.system(kill_cmd)
+        Utils.debug(string.format("Killed process(es) %s listening on port %d (Linux)", pids, port))
+      else
+        Utils.debug(string.format("No process found listening on port %d to kill (Linux).", port))
+      end
+    end
+  elseif sysname == "Darwin" then
+    -- -t: output just PIDs
+    pid_cmd = string.format("lsof -nP -iTCP:%d -sTCP:LISTEN -t", port)
+    kill_logic = function(pids)
+      if pids ~= "" then
+        -- lsof -t can return multiple PIDs separated by newlines
+        local kill_cmd = string.format("kill -9 %s", vim.fn.join(vim.split(pids, "\n"), " "))
+        vim.fn.system(kill_cmd)
+        Utils.debug(string.format("Killed process(es) %s listening on port %d (macOS)", pids, port))
+      else
+        Utils.debug(string.format("No process found listening on port %d to kill (macOS).", port))
+      end
+    end
+  else
+    Utils.warn("Unsupported OS for Nix kill logic: " .. sysname .. ". No process will be killed.")
+    pid_cmd = "echo ''" -- Return empty string
+    kill_logic = function(pids) Utils.debug("Kill command skipped due to unsupported OS.") end
+  end
+  return pid_cmd, kill_logic
+end
+
 ---@param cb fun()
 function M.launch_rag_service(cb)
   local openai_api_key = os.getenv("OPENAI_API_KEY")
@@ -102,26 +151,24 @@ function M.launch_rag_service(cb)
       end,
     })
   elseif M.get_rag_service_runner() == "nix" then
-    -- Check if service is already running
-    local check_cmd = string.format("pgrep -f '%s'", service_path)
+    local check_cmd = get_os_specific_port_check_cmd(port)
     local check_result = vim.fn.system(check_cmd)
     if check_result ~= "" then
-      Utils.debug(string.format("RAG service already running at %s", service_path))
+      Utils.debug(string.format("Port %d is already in use, assuming RAG service (via Nix) is running.", port))
       cb()
       return
     end
 
     local dirname =
       Utils.trim(string.sub(debug.getinfo(1).source, 2, #"/lua/avante/rag_service.lua" * -1), { suffix = "/" })
-    local rag_service_dir = dirname .. "/py/rag-service"
 
-    Utils.debug(string.format("launching %s with nix...", container_name))
+    Utils.debug(string.format("Launching %s with nix flake app...", container_name))
 
-    local cmd = string.format(
-      "cd %s && ALLOW_RESET=TRUE PORT=%d DATA_DIR=%s RAG_PROVIDER=%s %s_API_KEY=%s %s_API_BASE=%s RAG_LLM_MODEL=%s RAG_EMBED_MODEL=%s sh run.sh %s",
-      rag_service_dir,
+    -- Construct the environment variables string
+    local env_vars = string.format(
+      "ALLOW_RESET=TRUE PORT=%d DATA_DIR=%s RAG_PROVIDER=%s %s_API_KEY=%s %s_API_BASE=%s RAG_LLM_MODEL=%s RAG_EMBED_MODEL=%s SOURCE=%s",
       port,
-      service_path,
+      M.get_data_path(), -- Use the standard data path function
       Config.rag_service.provider,
       Config.rag_service.provider:upper(),
       openai_api_key,
@@ -129,8 +176,12 @@ function M.launch_rag_service(cb)
       Config.rag_service.endpoint,
       Config.rag_service.llm_model,
       Config.rag_service.embed_model,
-      service_path
+      dirname
     )
+
+    -- The nix run command will handle the setup and execution
+    -- Environment variables are passed before the command
+    local cmd = string.format("%s nix run %s#rag-service", env_vars, dirname)
 
     vim.fn.jobstart(cmd, {
       detach = true,
@@ -152,9 +203,11 @@ function M.stop_rag_service()
     local result = vim.fn.system(cmd)
     if result ~= "" then vim.fn.system(string.format("docker rm -fv %s", container_name)) end
   else
-    local cmd = string.format("pgrep -f '%s' | xargs -r kill -9", service_path)
-    vim.fn.system(cmd)
-    Utils.debug(string.format("Attempted to kill processes related to %s", service_path))
+    local port = M.get_rag_service_port()
+    local pid_cmd, kill_logic = get_os_specific_kill_cmd(port)
+    local pids = vim.fn.system(pid_cmd)
+    pids = Utils.trim(pids)
+    kill_logic(pids)
   end
 end
 
@@ -168,7 +221,8 @@ function M.get_rag_service_status()
       return "running"
     end
   elseif M.get_rag_service_runner() == "nix" then
-    local cmd = string.format("pgrep -f '%s'", service_path)
+    local port = M.get_rag_service_port()
+    local cmd = get_os_specific_port_check_cmd(port)
     local result = vim.fn.system(cmd)
     if result == "" then
       return "stopped"
