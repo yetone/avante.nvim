@@ -37,7 +37,6 @@ function M.show(selector)
     preview = selector.get_preview_content and "preview" or nil,
     layout = {
       preset = "default",
-      preview = selector.get_preview_content ~= nil,
     },
     confirm = function(picker)
       if completed then return end
