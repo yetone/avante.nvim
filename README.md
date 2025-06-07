@@ -965,15 +965,17 @@ Environment variables required for providers:
 Avante enables tools by default, but some LLM models do not support tools. You can disable tools by setting `disable_tools = true` for the provider. For example:
 
 ```lua
-{
+providers = {
   claude = {
     endpoint = "https://api.anthropic.com",
-    model = "claude-3-5-sonnet-20241022",
+    model = "claude-sonnet-4-20250514",
     timeout = 30000, -- Timeout in milliseconds
-    temperature = 0,
-    max_tokens = 4096,
     disable_tools = true, -- disable tools!
-  },
+    extra_request_body = {
+      temperature = 0,
+      max_tokens = 4096,
+    }
+  }
 }
 ```
 
