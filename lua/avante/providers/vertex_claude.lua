@@ -1,4 +1,5 @@
 local P = require("avante.providers")
+local Utils = require("avante.utils")
 local Vertex = require("avante.providers.vertex")
 
 ---@class AvanteProviderFunctor
@@ -64,10 +65,10 @@ function M:parse_curl_args(prompt_opts)
 
   return {
     url = url,
-    headers = {
+    headers = Utils.tbl_override({
       ["Authorization"] = "Bearer " .. Vertex.parse_api_key(),
       ["Content-Type"] = "application/json; charset=utf-8",
-    },
+    }, self.extra_headers),
     body = vim.tbl_deep_extend("force", {}, request_body),
   }
 end

@@ -213,7 +213,7 @@ function M:parse_curl_args(prompt_opts)
 
   return {
     url = Utils.url_join(provider_conf.endpoint, "/api/chat"),
-    headers = headers,
+    headers = Utils.tbl_override(headers, self.extra_headers),
     body = vim.tbl_deep_extend("force", {
       model = provider_conf.model,
       messages = self:parse_messages(prompt_opts),

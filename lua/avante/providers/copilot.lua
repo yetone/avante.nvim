@@ -222,12 +222,12 @@ function M:models_list()
   H.refresh_token(false, false)
   local provider_conf = Providers.parse_config(self)
   local curl_opts = {
-    headers = {
+    headers = Utils.tbl_override({
       ["Content-Type"] = "application/json",
       ["Authorization"] = "Bearer " .. M.state.github_token.token,
       ["Copilot-Integration-Id"] = "vscode-chat",
       ["Editor-Version"] = ("Neovim/%s.%s.%s"):format(vim.version().major, vim.version().minor, vim.version().patch),
-    },
+    }, self.extra_headers),
     timeout = provider_conf.timeout,
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,
@@ -288,12 +288,11 @@ function M:parse_curl_args(prompt_opts)
     timeout = provider_conf.timeout,
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,
-    headers = {
-      ["Content-Type"] = "application/json",
+    headers = Utils.tbl_override({
       ["Authorization"] = "Bearer " .. M.state.github_token.token,
       ["Copilot-Integration-Id"] = "vscode-chat",
       ["Editor-Version"] = ("Neovim/%s.%s.%s"):format(vim.version().major, vim.version().minor, vim.version().patch),
-    },
+    }, self.extra_headers),
     body = vim.tbl_deep_extend("force", {
       model = provider_conf.model,
       messages = self:parse_messages(prompt_opts),

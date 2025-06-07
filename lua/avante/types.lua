@@ -221,7 +221,6 @@ vim.g.avante_login = vim.g.avante_login
 ---
 ---@class AvanteDefaultBaseProvider: table<string, any>
 ---@field endpoint? string
----@field extra_headers? table<string, any>
 ---@field extra_request_body? table<string, any>
 ---@field model? string
 ---@field local? boolean
@@ -291,6 +290,7 @@ vim.g.avante_login = vim.g.avante_login
 ---
 ---@class AvanteProviderFunctor
 ---@field _model_list_cache table
+---@field extra_headers function(table) -> table | table | nil
 ---@field support_prompt_caching boolean | nil
 ---@field role_map table<"user" | "assistant", string>
 ---@field parse_messages AvanteMessagesParser

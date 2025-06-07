@@ -1662,4 +1662,10 @@ function M.count_lines(str)
   return count
 end
 
+function M.tbl_override(value, override)
+  override = override or {}
+  if type(override) == "function" then return override(value) or value end
+  return vim.tbl_extend("force", value, override)
+end
+
 return M
