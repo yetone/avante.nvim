@@ -1,4 +1,5 @@
 local P = require("avante.providers")
+local Utils = require("avante.utils")
 local Gemini = require("avante.providers.gemini")
 
 ---@class AvanteProviderFunctor
@@ -50,10 +51,10 @@ function M:parse_curl_args(prompt_opts)
 
   return {
     url = url,
-    headers = {
+    headers = Utils.tbl_override({
       ["Authorization"] = "Bearer " .. bearer_token,
       ["Content-Type"] = "application/json; charset=utf-8",
-    },
+    }, self.extra_headers),
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,
     body = Gemini.prepare_request_body(self, prompt_opts, provider_conf, request_body),
