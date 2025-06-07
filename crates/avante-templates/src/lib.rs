@@ -43,6 +43,7 @@ struct TemplateContext {
     system_info: Option<String>,
     model_name: Option<String>,
     memory: Option<String>,
+    todos: Option<String>,
 }
 
 // Given the file name registered after add, the context table in Lua, resulted in a formatted
@@ -70,6 +71,7 @@ fn render(state: &State, template: &str, context: TemplateContext) -> LuaResult<
                   system_info => context.system_info,
                   model_name => context.model_name,
                   memory => context.memory,
+                  todos => context.todos,
                 })
                 .map_err(LuaError::external)
                 .unwrap())
