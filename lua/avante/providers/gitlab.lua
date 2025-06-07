@@ -9,9 +9,84 @@ local M = {}
 
 H.gitlab_api_base_url = "https://gitlab.com/api/v4" -- Placeholder for GitLab API base URL
 
+function H.fetch_and_store_ai_gateway_credentials()
+  if not M.state or not M.state.user_gitlab_token then
+    Utils.warn("GitLab Duo: Cannot fetch AI Gateway credentials, user GITLAB_TOKEN is missing.")
+    return false
+  end
+
+  local provider_conf = Providers.get_config("gitlab")
+  local gitlab_instance_url = provider_conf.gitlab_instance_url or "https://gitlab.com"
+
+  local direct_access_url = Utils.url_join(gitlab_instance_url, "/api/v4/code_suggestions/direct_access")
+
+  Utils.info("GitLab Duo: Fetching AI Gateway credentials from " .. direct_access_url .. "...")
+
+  local curl_opts = {
+    headers = {
+      ["Authorization"] = "Bearer " .. M.state.user_gitlab_token,
+      ["X-Gitlab-Authentication-Type"] = "oidc",
+      ["Content-Type"] = "application/json", -- Typically POST requests might send content type even if body is empty
+    },
+    -- No body is specified for POST /code_suggestions/direct_access in docs, assuming empty or not needed.
+    timeout = provider_conf.timeout or 30000, -- Use configured timeout or a default
+    proxy = provider_conf.proxy,
+    insecure = provider_conf.allow_insecure,
+  }
+
+  local response = curl.post(direct_access_url, curl_opts)
+
+  if not response or response.status ~= 200 then
+    Utils.warn("GitLab Duo: Failed to fetch AI Gateway credentials. Status: " ..
+               (response and response.status or "unknown") ..
+               ". Body: " .. (response and response.body or "empty"))
+    M.state.ai_gateway_base_url = nil
+    M.state.ai_gateway_token = nil
+    M.state.ai_gateway_token_expires_at = nil
+    M.state.ai_gateway_headers = nil
+    vim.g.avante_login = false
+    return false
+  end
+
+  local ok, decoded_body = pcall(vim.json.decode, response.body)
+  if not ok or not decoded_body then
+    Utils.warn("GitLab Duo: Failed to parse JSON response from /direct_access: " .. (response.body or "empty"))
+    M.state.ai_gateway_base_url = nil
+    M.state.ai_gateway_token = nil
+    M.state.ai_gateway_token_expires_at = nil
+    M.state.ai_gateway_headers = nil
+    vim.g.avante_login = false
+    return false
+  end
+
+  if not (decoded_body.base_url and decoded_body.token and decoded_body.expires_at and decoded_body.headers) then
+    Utils.warn("GitLab Duo: /direct_access response is missing one or more required fields (base_url, token, expires_at, headers). Response: " .. vim.inspect(decoded_body))
+    M.state.ai_gateway_base_url = nil
+    M.state.ai_gateway_token = nil
+    M.state.ai_gateway_token_expires_at = nil
+    M.state.ai_gateway_headers = nil
+    vim.g.avante_login = false
+    return false
+  end
+
+  M.state.ai_gateway_base_url = decoded_body.base_url
+  M.state.ai_gateway_token = decoded_body.token
+  M.state.ai_gateway_token_expires_at = decoded_body.expires_at
+  M.state.ai_gateway_headers = decoded_body.headers
+
+  Utils.info("GitLab Duo: Successfully fetched and stored AI Gateway credentials. Token expires at: " .. os.date("%Y-%m-%d %H:%M:%S", decoded_body.expires_at))
+  vim.g.avante_login = true
+  return true
+end
+
 ---@private
 ---@class AvanteGitlabState
----@field access_token string?
+---@field access_token string? -- Stores the GITLAB_TOKEN (legacy, user-provided, for direct SaaS access)
+---@field user_gitlab_token string? -- Explicitly user-provided GitLab token (e.g. PAT for SaaS non-AI-gateway)
+---@field ai_gateway_base_url string? -- Base URL for the AI Gateway
+---@field ai_gateway_token string? -- Token for authenticating with the AI Gateway
+---@field ai_gateway_token_expires_at number? -- Timestamp (epoch seconds) when the AI gateway token expires
+---@field ai_gateway_headers table<string, string>? -- Additional headers for AI Gateway requests (e.g. for instance ID)
 M.state = nil
 
 M.api_key_name = "GITLAB_TOKEN"
@@ -124,13 +199,17 @@ function H.build_chat_body(prompt_opts, provider_conf)
 end
 
 function M:parse_curl_args(prompt_opts)
-  if not M.state or not M.state.access_token or M.state.access_token == "" then
-    Utils.warn("GITLAB_TOKEN is not set or is empty. Please set it in your environment.")
+  -- Ensure AI Gateway credentials are valid and up-to-date.
+  -- M.is_env_set() will attempt to fetch/refresh them if necessary.
+  if not self:is_env_set() then
+    Utils.warn("GitLab Duo: AI Gateway credentials not available or failed to fetch. Cannot make API request.")
     return nil
   end
 
+  -- Now M.state should contain valid ai_gateway_base_url, ai_gateway_token, and ai_gateway_headers.
+
   local provider_conf, request_body_extras = Providers.parse_config(self)
-  local effective_api_base_url = provider_conf.endpoint or H.gitlab_api_base_url
+
   local request_body
   local target_api_path
   local is_streaming_capability
@@ -147,6 +226,7 @@ function M:parse_curl_args(prompt_opts)
     is_streaming_capability = false
   end
 
+  -- Merge extra_request_body from config into the payload part if applicable.
   if request_body_extras and request_body.prompt_components and request_body.prompt_components[1] and request_body.prompt_components[1].payload then
       for k,v in pairs(request_body_extras) do
           if request_body.prompt_components[1].payload[k] == nil then
@@ -155,49 +235,99 @@ function M:parse_curl_args(prompt_opts)
       end
   end
 
+  -- Construct headers using AI Gateway specific token and additional headers
+  local request_headers = {
+    ["Content-Type"] = "application/json",
+    ["Authorization"] = "Bearer " .. M.state.ai_gateway_token,
+    ["X-Gitlab-Authentication-Type"] = "oidc", -- Per API docs for AI Gateway calls
+  }
+
+  -- Merge dynamic headers from /direct_access response
+  if M.state.ai_gateway_headers then
+    for k, v in pairs(M.state.ai_gateway_headers) do
+      request_headers[k] = v
+    end
+  end
+
   return {
-    url = Utils.url_join(effective_api_base_url, target_api_path),
-    timeout = provider_conf.timeout,
+    url = Utils.url_join(M.state.ai_gateway_base_url, target_api_path),
+    timeout = provider_conf.timeout, -- Inherits Avante's default if not set in provider_conf
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,
-    headers = {
-      ["Content-Type"] = "application/json",
-      ["Authorization"] = "Bearer " .. M.state.access_token,
-      ["X-Gitlab-Authentication-Type"] = "oidc",
-    },
+    headers = request_headers,
     body = request_body,
     is_streaming = is_streaming_capability,
   }
 end
 
 function M.is_env_set()
-  if not M.state then M.state = {} end
-  if M.state.access_token and M.state.access_token ~= "" then
+  if not M.state then
+    -- This case should ideally be handled by M.setup() being called first.
+    -- However, if called independently, ensure state is minimally initialized.
+    M.state = {}
+    Utils.warn("GitLab Duo: M.state was not initialized prior to M.is_env_set(). Running basic setup.")
+    -- Attempt to load user_gitlab_token if M.setup() was somehow bypassed
+    local user_token_initial = vim.env[M.api_key_name]
+    if user_token_initial and user_token_initial ~= "" then
+      M.state.user_gitlab_token = user_token_initial
+    else
+      M.state.user_gitlab_token = nil
+    end
+  end
+
+  -- Ensure user_gitlab_token is loaded if it wasn't during setup or above emergency init
+  if not M.state.user_gitlab_token then
+    local user_token_check = vim.env[M.api_key_name]
+    if user_token_check and user_token_check ~= "" then
+      M.state.user_gitlab_token = user_token_check
+      Utils.info("GitLab Duo: User GITLAB_TOKEN found by is_env_set.")
+    else
+      Utils.warn("GitLab Duo: User GITLAB_TOKEN not set. Cannot contact AI Gateway.")
+      vim.g.avante_login = false
+      return false
+    end
+  end
+
+  -- Check validity of AI Gateway credentials
+  local current_time = os.time()
+  local sixty_sec_buffer = 60
+  if M.state.ai_gateway_token and
+     M.state.ai_gateway_token_expires_at and
+     M.state.ai_gateway_token_expires_at > (current_time + sixty_sec_buffer) then
+    Utils.debug("GitLab Duo: Existing AI Gateway credentials are valid.")
     vim.g.avante_login = true
     return true
   end
-  local token_from_env = vim.env[M.api_key_name]
-  if token_from_env and token_from_env ~= "" then
-    M.state.access_token = token_from_env
-    vim.g.avante_login = true
-    return true
+
+  -- If credentials are not valid (missing or expired), try to fetch them.
+  if M.state.ai_gateway_token_expires_at then
+      Utils.info("GitLab Duo: AI Gateway credentials expired or nearing expiry (Expiry: " .. os.date("%c", M.state.ai_gateway_token_expires_at) .. ", Now: " .. os.date("%c", current_time) .. "). Refreshing...")
+  else
+      Utils.info("GitLab Duo: AI Gateway credentials not found. Fetching...")
   end
-  vim.g.avante_login = false
-  return false
+
+  -- H.fetch_and_store_ai_gateway_credentials() updates vim.g.avante_login internally
+  return H.fetch_and_store_ai_gateway_credentials()
 end
 
 function M.setup()
-  if not M.state then M.state = {} end
-  local token = vim.env[M.api_key_name]
-  if token and token ~= "" then
-    M.state.access_token = token
-    vim.g.avante_login = true
-    Utils.info("GitLab Duo provider: Using GITLAB_TOKEN from environment.")
-  else
-    M.state.access_token = nil
-    vim.g.avante_login = false
-    Utils.warn("GitLab Duo provider: GITLAB_TOKEN environment variable not found or is empty.")
+  if not M.state then
+    M.state = {}
   end
+
+  local user_token = vim.env[M.api_key_name] -- M.api_key_name is GITLAB_TOKEN
+
+  if user_token and user_token ~= "" then
+    M.state.user_gitlab_token = user_token
+    Utils.info("GitLab Duo provider: User GITLAB_TOKEN found.")
+  else
+    M.state.user_gitlab_token = nil
+    Utils.warn("GitLab Duo provider: User GITLAB_TOKEN environment variable not found or is empty. AI Gateway features will not be available.")
+  end
+
+  -- Set login status to false initially. M.is_env_set() will update it after checking/fetching AI Gateway creds.
+  vim.g.avante_login = false
+
   require("avante.tokenizers").setup(M.tokenizer_id)
   M._is_setup = true
 end
