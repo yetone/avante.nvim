@@ -638,7 +638,7 @@ function M.setup(opts)
       opts.providers[k] = v
       Utils.warn(
         string.format(
-          "[DEPRACATED] The configuration of `%s` should be placed in `providers.%s`. For detailed migration instructions, please visit: %s",
+          "[DEPRECATED] The configuration of `%s` should be placed in `providers.%s`. For detailed migration instructions, please visit: %s",
           k,
           k,
           migration_url
