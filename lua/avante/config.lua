@@ -290,7 +290,6 @@ M._defaults = {
       endpoint = "https://generativelanguage.googleapis.com/v1beta/models",
       model = "gemini-2.0-flash",
       timeout = 30000, -- Timeout in milliseconds
-      use_ReAct_prompt = true,
       extra_request_body = {
         generationConfig = {
           temperature = 0.75,
