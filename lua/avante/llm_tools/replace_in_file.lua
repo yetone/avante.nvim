@@ -113,9 +113,9 @@ function M.func(opts, on_log, on_complete, session_ctx)
 
   local is_streaming = opts.streaming or false
 
+  session_ctx.prev_streaming_diff_timestamp_map = session_ctx.prev_streaming_diff_timestamp_map or {}
   local current_timestamp = os.time()
   if is_streaming then
-    session_ctx.prev_streaming_diff_timestamp_map = session_ctx.prev_streaming_diff_timestamp_map or {}
     local prev_streaming_diff_timestamp = session_ctx.prev_streaming_diff_timestamp_map[opts.tool_use_id]
     if prev_streaming_diff_timestamp ~= nil then
       if current_timestamp - prev_streaming_diff_timestamp < 2 then
