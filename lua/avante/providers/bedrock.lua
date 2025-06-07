@@ -1,5 +1,5 @@
 local Utils = require("avante.utils")
-local P = require("avante.providers")
+local Providers = require("avante.providers")
 
 ---@class AvanteBedrockProviderFunctor
 local M = {}
@@ -42,7 +42,7 @@ function M.setup()
 end
 
 function M.load_model_handler()
-  local provider_conf, _ = P.parse_config(P["bedrock"])
+  local provider_conf, _ = Providers.parse_config(Providers["bedrock"])
   local bedrock_model = provider_conf.model
   if provider_conf.model:match("anthropic") then bedrock_model = "claude" end
 
@@ -99,7 +99,7 @@ end
 ---@param prompt_opts AvantePromptOptions
 ---@return table
 function M:parse_curl_args(prompt_opts)
-  local provider_conf, request_body = P.parse_config(self)
+  local provider_conf, request_body = Providers.parse_config(self)
 
   local access_key_id, secret_access_key, session_token, region
 

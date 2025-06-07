@@ -1133,6 +1133,17 @@ function M.icon(string_with_icon, utf8_fallback)
   end
 end
 
+function M.inherit(base, ...)
+  local children = { ... }
+  return setmetatable(base, {
+    __index = function(_, k)
+      for _, child in ipairs(children) do
+        if child[k] ~= nil then return child[k] end
+      end
+    end,
+  })
+end
+
 function M.deep_extend_with_metatable(behavior, ...)
   local tables = { ... }
   local base = tables[1]
