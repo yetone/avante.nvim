@@ -1,4 +1,4 @@
-local api, fn = vim.api, vim.fn
+local api = vim.api
 
 local Config = require("avante.config")
 local Utils = require("avante.utils")
@@ -136,28 +136,34 @@ M = setmetatable(M, {
   __index = function(t, k)
     if Config.providers[k] == nil then error("Failed to find provider: " .. k, 2) end
 
-    local provider_config = M.get_config(k)
+    t[k] = setmetatable({}, {
+      __index = function(_, k_)
+        local provider_config = M.get_config(k)
 
-    if provider_config.__inherited_from ~= nil then
-      local base_provider_config = M.get_config(provider_config.__inherited_from)
-      local ok, module = pcall(require, "avante.providers." .. provider_config.__inherited_from)
-      if not ok then error("Failed to load provider: " .. provider_config.__inherited_from, 2) end
-      provider_config = Utils.deep_extend_with_metatable("force", module, base_provider_config, provider_config)
-    else
-      local ok, module = pcall(require, "avante.providers." .. k)
-      if ok then
-        provider_config = Utils.deep_extend_with_metatable("force", module, provider_config)
-      elseif provider_config.parse_curl_args == nil then
-        error(
-          string.format(
-            'The configuration of your provider "%s" is incorrect, missing the `__inherited_from` attribute or a custom `parse_curl_args` function. Please fix your provider configuration. For more details, see: https://github.com/yetone/avante.nvim/wiki/Custom-providers',
-            k
-          )
-        )
-      end
-    end
+        if provider_config.__inherited_from ~= nil then
+          local base_provider_config = M.get_config(provider_config.__inherited_from)
+          local ok, module = pcall(require, "avante.providers." .. provider_config.__inherited_from)
+          if not ok then error("Failed to load provider: " .. provider_config.__inherited_from, 2) end
+          -- provider_config = Utils.deep_extend_with_metatable("force", module, base_provider_config, provider_config)
+          provider_config = Utils.inherit({}, provider_config, base_provider_config, module)
+        else
+          local ok, module = pcall(require, "avante.providers." .. k)
+          if ok then
+            -- provider_config = Utils.deep_extend_with_metatable("force", module, provider_config)
+            provider_config = Utils.inherit({}, provider_config, module)
+          elseif provider_config.parse_curl_args == nil then
+            error(
+              string.format(
+                'The configuration of your provider "%s" is incorrect, missing the `__inherited_from` attribute or a custom `parse_curl_args` function. Please fix your provider configuration. For more details, see: https://github.com/yetone/avante.nvim/wiki/Custom-providers',
+                k_
+              )
+            )
+          end
+        end
 
-    t[k] = provider_config
+        return provider_config[k_]
+      end,
+    })
 
     if t[k].parse_api_key == nil then t[k].parse_api_key = function() return E.parse_envvar(t[k]) end end
 
@@ -221,17 +227,10 @@ end
 ---@return AvanteDefaultBaseProvider provider_opts
 ---@return table<string, any> request_body
 function M.parse_config(opts)
-  ---@type AvanteDefaultBaseProvider
-  local provider_opts = {}
-
-  for key, value in pairs(opts) do
-    if key ~= "extra_request_body" then provider_opts[key] = value end
-  end
-
   ---@type table<string, any>
   local request_body = opts.extra_request_body or {}
 
-  return provider_opts, request_body
+  return Utils.inherit({}, opts), request_body
 end
 
 ---@param provider_name avante.ProviderName
