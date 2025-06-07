@@ -309,7 +309,7 @@ function M:parse_curl_args(prompt_opts)
     ),
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,
-    headers = Utils.tbl_override({ ["Content-Type"] = "application/json" }, self.headers),
+    headers = Utils.tbl_override({ ["Content-Type"] = "application/json" }, self.extra_headers),
     body = M.prepare_request_body(self, prompt_opts, provider_conf, request_body),
   }
 end
