@@ -425,6 +425,7 @@ M._defaults = {
     auto_focus_on_diff_view = false,
     ---@type boolean | string[] -- true: auto-approve all tools, false: normal prompts, string[]: auto-approve specific tools by name
     auto_approve_tool_permissions = false, -- Default: show permission prompts for all tools
+    auto_check_diagnostics = true,
   },
   history = {
     max_tokens = 4096,
