@@ -77,15 +77,19 @@ function M:parse_messages(opts)
     local content_items = message.content
     local message_content = {}
     if type(content_items) == "string" then
-      table.insert(message_content, {
-        type = "text",
-        text = message.content,
-        cache_control = top_two[idx] and { type = "ephemeral" } or nil,
-      })
+      if message.role == "assistant" then content_items = content_items:gsub("%s+$", "") end
+      if content_items ~= "" then
+        table.insert(message_content, {
+          type = "text",
+          text = content_items,
+          cache_control = top_two[idx] and { type = "ephemeral" } or nil,
+        })
+      end
     elseif type(content_items) == "table" then
       ---@cast content_items AvanteLLMMessageContentItem[]
       for _, item in ipairs(content_items) do
         if type(item) == "string" then
+          if message.role == "assistant" then item = item:gsub("%s+$", "") end
           table.insert(
             message_content,
             { type = "text", text = item, cache_control = top_two[idx] and { type = "ephemeral" } or nil }
