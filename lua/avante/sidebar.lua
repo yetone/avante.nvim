@@ -2291,7 +2291,7 @@ function Sidebar:get_history_messages_for_api(opts)
             is_dummy = true,
           }),
         })
-        if last_modified_files[uniformed_path] == idx then
+        if last_modified_files[uniformed_path] == idx and Config.behaviour.auto_check_diagnostics then
           local diagnostics = Utils.lsp.get_diagnostics_from_filepath(path)
           history_messages = vim.list_extend(history_messages, {
             HistoryMessage:new({
