@@ -17,7 +17,7 @@ M.parse_response = Gemini.parse_response
 M.transform_to_function_declaration = Gemini.transform_to_function_declaration
 
 local function execute_command(command)
-  local handle = io.popen(command)
+  local handle = io.popen(command .. " 2>/dev/null")
   if not handle then error("Failed to execute command: " .. command) end
   local result = handle:read("*a")
   handle:close()
