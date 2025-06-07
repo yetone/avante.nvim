@@ -111,6 +111,9 @@ function M.open()
       },
     })
 
+    local provider_cfg = Providers[choice.provider_name]
+    if provider_cfg then provider_cfg.model = choice.model end
+
     Utils.info("Switched to model: " .. choice.name)
   end
 
