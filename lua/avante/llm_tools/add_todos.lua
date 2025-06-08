@@ -1,5 +1,4 @@
 local Base = require("avante.llm_tools.base")
-local Helpers = require("avante.llm_tools.helpers")
 
 ---@class AvanteLLMTool
 local M = setmetatable({}, Base)

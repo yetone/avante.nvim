@@ -1907,9 +1907,10 @@ end
 
 ---@param todos avante.TODO[]
 function Sidebar:update_todos(todos)
+  if self.chat_history == nil then self:reload_chat_history() end
   if self.chat_history == nil then return end
   self.chat_history.todos = todos
-  save_history(self)
+  Path.history.save(self.code.bufnr, self.chat_history)
   self:create_todos_container()
 end
 
@@ -2032,8 +2033,7 @@ function Sidebar:create_selected_code_container()
         api.nvim_win_get_height(self.result_container.winid) - selected_code_size - 3
       )
     end
-    self:adjust_result_container_layout()
-    self:adjust_selected_files_container_layout()
+    self:adjust_layout()
   end
 end
 
@@ -3011,6 +3011,13 @@ function Sidebar:adjust_selected_files_container_layout()
   api.nvim_win_set_height(self.selected_files_container.winid, win_height)
 end
 
+function Sidebar:adjust_todos_container_layout()
+  if not Utils.is_valid_container(self.todos_container, true) then return end
+
+  local win_height = self:get_todos_container_height()
+  api.nvim_win_set_height(self.todos_container.winid, win_height)
+end
+
 function Sidebar:create_selected_files_container()
   if self.selected_files_container then self.selected_files_container:unmount() end
 
@@ -3100,7 +3107,7 @@ function Sidebar:create_selected_files_container()
       Highlights.SUBTITLE,
       Highlights.REVERSED_SUBTITLE
     )
-    self:adjust_result_container_layout()
+    self:adjust_layout()
   end
 
   self.file_selector:on("update", render)
@@ -3143,6 +3150,8 @@ function Sidebar:create_todos_container()
   if not history or not history.todos or #history.todos == 0 then
     if self.todos_container then self.todos_container:unmount() end
     self.todos_container = nil
+    self:adjust_layout()
+    self:refresh_winids()
     return
   end
   if not self.todos_container then
@@ -3169,11 +3178,16 @@ function Sidebar:create_todos_container()
     })
     self.todos_container:mount()
   end
+  local done_count = 0
+  local total_count = #history.todos
   local focused_idx = 1
   local todos_content_lines = {}
   for idx, todo in ipairs(history.todos) do
     local status_content = "[ ] " .. tostring(idx) .. "."
-    if todo.status == "done" then status_content = "[x]" end
+    if todo.status == "done" then
+      done_count = done_count + 1
+      status_content = "[x]"
+    end
     if todo.status == "doing" then status_content = "[-]" end
     local line = string.format("%s %s", status_content, todo.content)
     if todo.status == "cancelled" then line = "~~" .. line .. "~~" end
@@ -3188,11 +3202,18 @@ function Sidebar:create_todos_container()
   self:render_header(
     self.todos_container.winid,
     todos_buf,
-    Utils.icon(" ") .. "Todos",
+    Utils.icon(" ") .. "Todos" .. " (" .. done_count .. "/" .. total_count .. ")",
     Highlights.SUBTITLE,
     Highlights.REVERSED_SUBTITLE
   )
+  self:adjust_layout()
   self:refresh_winids()
+end
+
+function Sidebar:adjust_layout()
+  self:adjust_result_container_layout()
+  self:adjust_todos_container_layout()
+  self:adjust_selected_files_container_layout()
 end
 
 return Sidebar
