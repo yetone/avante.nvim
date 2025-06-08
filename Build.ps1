@@ -89,22 +89,37 @@ function Main {
         Write-Host "Building for $Version..."
         Build-FromSource $Version
     } else {
-        $latestTag = git tag --sort=-creatordate | Select-Object -First 1
-        $latestTagTime = [int](git log -1 $latestTag --format=%at 2>&1 | Where-Object { $_ -match '^\d+$' })
-
-        $currentBuildTime = if ($buildFiles = Get-ChildItem -Path "build/avante_html2md*" -ErrorAction SilentlyContinue) {
-            [long](($buildFiles | ForEach-Object { $_.LastWriteTime } |
-                Measure-Object -Maximum).Maximum.Subtract([datetime]'1970-01-01').TotalSeconds)
+        $latestTag = git describe --tags --abbrev=0 2>&1 | Where-Object { $_ -ne $null }
+        $builtTag = if (Test-Path "build/.tag") {
+            Get-Content "build/.tag"
         } else {
-            $latestTagTime
+            $null
         }
 
-        if ($latestTagTime -lt $currentBuildTime) {
-            Write-Host "Local build is up to date. No download needed."
-            return
+        function Save-Tag($tag) {
+            $tag | Set-Content "build/.tag"
         }
-        Write-Host "Downloading for $Version..."
-        Download-Prebuilt $Version
+
+        if ($latestTag -eq $builtTag -and $latestTag) {
+            Write-Host "Local build is up to date. No download needed."
+        } elseif ($latestTag -ne $builtTag -and $latestTag) {
+            if (Test-Command "gh" -and Test-GHAuth) {
+                gh release download $latestTag --repo "github.com/$REPO_OWNER/$REPO_NAME" --pattern "*$ARTIFACT_NAME_PATTERN*" --clobber --output - | tar -zxvf - -C $TARGET_DIR
+                Save-Tag $latestTag
+            } else {
+                $ARTIFACT_URL = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$latestTag" | Select-String -Pattern "browser_download_url" | ForEach-Object { $_.Matches.Groups[1].Value } | Where-Object { $_ -match $ARTIFACT_NAME_PATTERN }
+
+                Invoke-WebRequest -Uri $ARTIFACT_URL -OutFile "$TempFile"
+                Expand-Archive -Path "$TempFile" -DestinationPath "$TARGET_DIR" -Force
+                Remove-Item "$TempFile"
+                Save-Tag $latestTag
+            }
+        } else {
+            cargo build --release --features=$Version
+            Get-ChildItem -Path "target/release/avante_*.dll" | ForEach-Object {
+                Copy-Item $_.FullName "build/$($_.Name)"
+            }
+        }
     }
     Write-Host "Completed!"
 }
