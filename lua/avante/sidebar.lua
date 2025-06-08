@@ -3191,12 +3191,10 @@ function Sidebar:create_todos_container()
     if todo.status == "doing" then status_content = "[-]" end
     local line = string.format("%s %s", status_content, todo.content)
     if todo.status == "cancelled" then line = "~~" .. line .. "~~" end
-    if todo.status ~= "todo" then
-      focused_idx = idx + 1
-      if focused_idx > #todos_content_lines then focused_idx = #todos_content_lines end
-    end
+    if todo.status ~= "todo" then focused_idx = idx + 1 end
     table.insert(todos_content_lines, line)
   end
+  if focused_idx > #todos_content_lines then focused_idx = #todos_content_lines end
   local todos_buf = api.nvim_win_get_buf(self.todos_container.winid)
   Utils.unlock_buf(todos_buf)
   api.nvim_buf_set_lines(todos_buf, 0, -1, false, todos_content_lines)
