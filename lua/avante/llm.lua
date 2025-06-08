@@ -151,6 +151,7 @@ function M.generate_todos(user_input, cb)
     on_messages_add = function(msgs)
       msgs = vim.islist(msgs) and msgs or { msgs }
       for _, msg in ipairs(msgs) do
+        if not msg.uuid then msg.uuid = Utils.uuid() end
         local idx = nil
         for i, m in ipairs(history_messages) do
           if m.uuid == msg.uuid then
@@ -798,7 +799,14 @@ function M._stream(opts)
         if is_break then break end
         ::continue::
       end
-      if stop_opts.reason == "complete" and Config.mode == "agentic" then
+      local has_attempt_completion_tool = false
+      for _, tool in ipairs(prompt_opts.tools or {}) do
+        if tool.name == "attempt_completion" then
+          has_attempt_completion_tool = true
+          break
+        end
+      end
+      if stop_opts.reason == "complete" and Config.mode == "agentic" and has_attempt_completion_tool then
         if #partial_tool_use_list == 0 then
           local completed_attempt_completion_tool_use = nil
           for idx = #history_messages, 1, -1 do
@@ -837,6 +845,7 @@ function M._stream(opts)
         end
       end
       if stop_opts.reason == "tool_use" then
+        Utils.debug("history_messages", history_messages)
         return handle_next_tool_use(partial_tool_use_list, 1, {}, stop_opts.streaming_tool_use)
       end
       if stop_opts.reason == "rate_limit" then

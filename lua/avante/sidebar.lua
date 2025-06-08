@@ -1907,12 +1907,9 @@ end
 
 ---@param todos avante.TODO[]
 function Sidebar:update_todos(todos)
-  self:reload_chat_history()
-  local history = self.chat_history
-  if history then
-    history.todos = todos
-    Path.history.save(self.code.bufnr, history)
-  end
+  if self.chat_history == nil then return end
+  self.chat_history.todos = todos
+  save_history(self)
   self:create_todos_container()
 end
 
@@ -2676,7 +2673,7 @@ function Sidebar:create_input_container()
       stream_options.on_memory_summarize = on_memory_summarize
 
       on_state_change("generating")
-      if is_first_request then
+      if is_first_request and Config.mode == "agentic" then
         Llm.generate_todos(request, function(err)
           if err then
             on_state_change("failed")
