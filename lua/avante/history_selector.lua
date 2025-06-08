@@ -31,7 +31,7 @@ function M.open(bufnr, cb)
   end
 
   if #selector_items == 0 then
-    Utils.warn("No history items found.") -- Changed message
+    Utils.warn("No history items found.")
     return
   end
 
