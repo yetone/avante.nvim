@@ -133,7 +133,7 @@ end
 ---@return avante.ChatHistory
 function History.load(bufnr, filename)
   local history_filepath = filename and History.get_filepath(bufnr, filename)
-    or History.get_latest_filepath(bufnr, false)
+      or History.get_latest_filepath(bufnr, false)
   if history_filepath:exists() then
     local content = history_filepath:read()
     if content ~= nil then
@@ -152,6 +152,35 @@ History.save = function(bufnr, history)
   local history_filepath = History.get_filepath(bufnr, history.filename)
   history_filepath:write(vim.json.encode(history), "w")
   History.save_latest_filename(bufnr, history.filename)
+end
+
+--- Deletes a specific chat history file.
+---@param bufnr integer
+---@param filename string
+function History.delete(bufnr, filename)
+  local history_filepath = History.get_filepath(bufnr, filename)
+  if history_filepath:exists() then
+    local was_latest = (filename == History.get_latest_filename(bufnr, false))
+    history_filepath:rm()
+
+    if was_latest then
+      local remaining_histories = History.list(bufnr) -- This list is sorted by recency
+      if #remaining_histories > 0 then
+        History.save_latest_filename(bufnr, remaining_histories[1].filename)
+      else
+        -- No histories left, clear the latest_filename from metadata
+        local metadata_filepath = History.get_metadata_filepath(bufnr)
+        if metadata_filepath:exists() then
+          local metadata_content = metadata_filepath:read()
+          local metadata = vim.json.decode(metadata_content)
+          metadata.latest_filename = nil -- Or "", depending on desired behavior for an empty latest
+          metadata_filepath:write(vim.json.encode(metadata), "w")
+        end
+      end
+    end
+  else
+    Utils.warn("History file not found: " .. tostring(history_filepath))
+  end
 end
 
 P.history = History
@@ -210,7 +239,7 @@ function Prompt.get_templates_dir(project_root)
   end
 
   Path:new(debug.getinfo(1).source:match("@?(.*/)"):gsub("/lua/avante/path.lua$", "") .. "templates")
-    :copy({ destination = cache_prompt_dir, recursive = true })
+      :copy({ destination = cache_prompt_dir, recursive = true })
 
   vim.iter(Prompt.custom_prompts_contents):filter(function(_, v) return v ~= nil end):each(function(k, v)
     local orig_file = cache_prompt_dir:joinpath(Prompt.get_builtin_prompts_filepath(k))
