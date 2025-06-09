@@ -57,17 +57,13 @@ function M.confirm(message, callback, confirm_opts, session_ctx, tool_name)
   M.confirm_popup = Confirm:new(message, function(type, reason)
     if type == "yes" then
       callback(true)
-      return
-    end
-    if type == "all" then
+    elseif type == "all" then
       if session_ctx then session_ctx.always_yes = true end
       callback(true)
-      return
-    end
-    if type == "no" then
+    elseif type == "no" then
       callback(false, reason)
-      return
     end
+    M.confirm_popup = nil
   end, confirm_opts)
   M.confirm_popup:open()
   return M.confirm_popup
