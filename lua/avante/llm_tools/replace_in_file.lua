@@ -464,8 +464,8 @@ function M.func(opts, on_log, on_complete, session_ctx)
   end
 
   local function register_keybinding_events()
+    local keymap_opts = { buffer = bufnr }
     vim.keymap.set({ "n", "v" }, Config.mappings.diff.ours, function()
-      if vim.api.nvim_get_current_buf() ~= bufnr then return end
       local diff_block, idx = get_current_diff_block()
       if not diff_block then return end
       pcall(vim.api.nvim_buf_del_extmark, bufnr, NAMESPACE, diff_block.delete_extmark_id)
@@ -487,10 +487,9 @@ function M.func(opts, on_log, on_complete, session_ctx)
         vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
       end
       has_rejected = true
-    end)
+    end, keymap_opts)
 
     vim.keymap.set({ "n", "v" }, Config.mappings.diff.theirs, function()
-      if vim.api.nvim_get_current_buf() ~= bufnr then return end
       local diff_block, idx = get_current_diff_block()
       if not diff_block then return end
       pcall(vim.api.nvim_buf_del_extmark, bufnr, NAMESPACE, diff_block.incoming_extmark_id)
@@ -504,25 +503,23 @@ function M.func(opts, on_log, on_complete, session_ctx)
         vim.api.nvim_win_set_cursor(winnr, { next_diff_block.new_start_line, 0 })
         vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
       end
-    end)
+    end, keymap_opts)
 
     vim.keymap.set({ "n", "v" }, Config.mappings.diff.next, function()
-      if vim.api.nvim_get_current_buf() ~= bufnr then return end
       local diff_block = get_next_diff_block()
       if not diff_block then return end
       local winnr = Utils.get_winid(bufnr)
       vim.api.nvim_win_set_cursor(winnr, { diff_block.new_start_line, 0 })
       vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
-    end)
+    end, keymap_opts)
 
     vim.keymap.set({ "n", "v" }, Config.mappings.diff.prev, function()
-      if vim.api.nvim_get_current_buf() ~= bufnr then return end
       local diff_block = get_prev_diff_block()
       if not diff_block then return end
       local winnr = Utils.get_winid(bufnr)
       vim.api.nvim_win_set_cursor(winnr, { diff_block.new_start_line, 0 })
       vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
-    end)
+    end, keymap_opts)
   end
 
   local function unregister_keybinding_events()
