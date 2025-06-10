@@ -83,7 +83,7 @@ function FileSelector:reset()
 end
 
 function FileSelector:add_selected_file(filepath)
-  if not filepath or filepath == "" then return end
+  if not filepath or filepath == "" or has_scheme(filepath) then return end
 
   local absolute_path = (filepath:sub(1, 1) == "/" or filepath:sub(1, 7) == "term://") and filepath
     or Utils.join_paths(Utils.get_project_root(), filepath)
