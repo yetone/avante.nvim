@@ -1951,9 +1951,7 @@ function Sidebar:new_chat(args, cb)
   if cb then cb(args) end
 end
 
-local _save_history = Utils.debounce(function(self) Path.history.save(self.code.bufnr, self.chat_history) end, 3000)
-
-local save_history = vim.schedule_wrap(_save_history)
+function Sidebar:save_history() Path.history.save(self.code.bufnr, self.chat_history) end
 
 ---@param uuids string[]
 function Sidebar:delete_history_messages(uuids)
@@ -1988,7 +1986,7 @@ function Sidebar:add_history_messages(messages)
   end
   self.chat_history.messages = history_messages
   self._history_cache_invalidated = true
-  save_history(self)
+  self:save_history()
   if
     self.chat_history.title == "untitled"
     and #messages > 0
@@ -1999,7 +1997,7 @@ function Sidebar:add_history_messages(messages)
     local lines_ = vim.split(first_msg_text, "\n")
     if #lines_ > 0 then
       self.chat_history.title = lines_[1]
-      save_history(self)
+      self:save_history()
     end
   end
   local last_message = messages[#messages]
@@ -2624,7 +2622,7 @@ function Sidebar:create_input_container()
       local content = string.format("[%s]: %s", tool_name, log)
       table.insert(tool_use_logs, content)
       tool_use_message.tool_use_logs = tool_use_logs
-      save_history(self)
+      self:save_history()
       self:update_content("")
     end
 
