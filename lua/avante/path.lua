@@ -133,7 +133,7 @@ end
 ---@return avante.ChatHistory
 function History.load(bufnr, filename)
   local history_filepath = filename and History.get_filepath(bufnr, filename)
-      or History.get_latest_filepath(bufnr, false)
+    or History.get_latest_filepath(bufnr, false)
   if history_filepath:exists() then
     local content = history_filepath:read()
     if content ~= nil then
@@ -239,7 +239,7 @@ function Prompt.get_templates_dir(project_root)
   end
 
   Path:new(debug.getinfo(1).source:match("@?(.*/)"):gsub("/lua/avante/path.lua$", "") .. "templates")
-      :copy({ destination = cache_prompt_dir, recursive = true })
+    :copy({ destination = cache_prompt_dir, recursive = true })
 
   vim.iter(Prompt.custom_prompts_contents):filter(function(_, v) return v ~= nil end):each(function(k, v)
     local orig_file = cache_prompt_dir:joinpath(Prompt.get_builtin_prompts_filepath(k))
