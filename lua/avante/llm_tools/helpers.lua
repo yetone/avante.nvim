@@ -23,9 +23,26 @@ end
 ---@param callback fun(yes: boolean, reason?: string)
 ---@param confirm_opts? { focus?: boolean }
 ---@param session_ctx? table
+---@param tool_name? string -- Optional tool name to check against tool_permissions config
 ---@return avante.ui.Confirm | nil
-function M.confirm(message, callback, confirm_opts, session_ctx)
+function M.confirm(message, callback, confirm_opts, session_ctx, tool_name)
   if session_ctx and session_ctx.always_yes then
+    callback(true)
+    return
+  end
+
+  -- Check behaviour.auto_approve_tool_permissions config for auto-approval
+  local Config = require("avante.config")
+  local auto_approve = Config.behaviour.auto_approve_tool_permissions
+
+  -- If auto_approve is true, auto-approve all tools
+  if auto_approve == true then
+    callback(true)
+    return
+  end
+
+  -- If auto_approve is a table (array of tool names), check if this tool is in the list
+  if type(auto_approve) == "table" and vim.tbl_contains(auto_approve, tool_name) then
     callback(true)
     return
   end
@@ -40,17 +57,13 @@ function M.confirm(message, callback, confirm_opts, session_ctx)
   M.confirm_popup = Confirm:new(message, function(type, reason)
     if type == "yes" then
       callback(true)
-      return
-    end
-    if type == "all" then
+    elseif type == "all" then
       if session_ctx then session_ctx.always_yes = true end
       callback(true)
-      return
-    end
-    if type == "no" then
+    elseif type == "no" then
       callback(false, reason)
-      return
     end
+    M.confirm_popup = nil
   end, confirm_opts)
   M.confirm_popup:open()
   return M.confirm_popup

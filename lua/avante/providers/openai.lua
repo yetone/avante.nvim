@@ -3,6 +3,10 @@ local Config = require("avante.config")
 local Clipboard = require("avante.clipboard")
 local Providers = require("avante.providers")
 local HistoryMessage = require("avante.history_message")
+local XMLParser = require("avante.libs.xmlparser")
+local JsonParser = require("avante.libs.jsonparser")
+local Prompts = require("avante.utils.prompts")
+local LlmTools = require("avante.llm_tools")
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -76,10 +80,15 @@ function M:parse_messages(opts)
   local messages = {}
   local provider_conf, _ = Providers.parse_config(self)
 
+  local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
+  local system_prompt = opts.system_prompt
+
+  if use_ReAct_prompt then system_prompt = Prompts.get_ReAct_system_prompt(provider_conf, opts) end
+
   if self.is_reasoning_model(provider_conf.model) then
-    table.insert(messages, { role = "developer", content = opts.system_prompt })
+    table.insert(messages, { role = "developer", content = system_prompt })
   else
-    table.insert(messages, { role = "system", content = opts.system_prompt })
+    table.insert(messages, { role = "system", content = system_prompt })
   end
 
   local has_tool_use = false
@@ -103,22 +112,50 @@ function M:parse_messages(opts)
               url = "data:" .. item.source.media_type .. ";" .. item.source.type .. "," .. item.source.data,
             },
           })
-        elseif item.type == "tool_use" then
+        elseif item.type == "tool_use" and not use_ReAct_prompt then
           has_tool_use = true
           table.insert(tool_calls, {
             id = item.id,
             type = "function",
             ["function"] = { name = item.name, arguments = vim.json.encode(item.input) },
           })
-        elseif item.type == "tool_result" and has_tool_use then
+        elseif item.type == "tool_result" and has_tool_use and not use_ReAct_prompt then
           table.insert(
             tool_results,
             { tool_call_id = item.tool_use_id, content = item.is_error and "Error: " .. item.content or item.content }
           )
         end
       end
+      if not provider_conf.disable_tools and use_ReAct_prompt then
+        if msg.content[1].type == "tool_result" then
+          local tool_use = nil
+          for _, msg_ in ipairs(opts.messages) do
+            if type(msg_.content) == "table" and #msg_.content > 0 then
+              if msg_.content[1].type == "tool_use" and msg_.content[1].id == msg.content[1].tool_use_id then
+                tool_use = msg_
+                break
+              end
+            end
+          end
+          if tool_use then
+            msg.role = "user"
+            table.insert(content, {
+              type = "text",
+              text = "["
+                .. tool_use.content[1].name
+                .. " for '"
+                .. (tool_use.content[1].input.path or tool_use.content[1].input.rel_path or "")
+                .. "'] Result:",
+            })
+            table.insert(content, {
+              type = "text",
+              text = msg.content[1].content,
+            })
+          end
+        end
+      end
       if #content > 0 then table.insert(messages, { role = self.role_map[msg.role], content = content }) end
-      if not provider_conf.disable_tools then
+      if not provider_conf.disable_tools and not use_ReAct_prompt then
         if #tool_calls > 0 then
           local last_message = messages[#messages]
           if last_message and last_message.role == self.role_map["assistant"] and last_message.tool_calls then
@@ -183,9 +220,20 @@ function M:finish_pending_messages(ctx, opts)
   end
 end
 
+local llm_tool_names = nil
+
 function M:add_text_message(ctx, text, state, opts)
+  if llm_tool_names == nil then llm_tool_names = LlmTools.get_tool_names() end
   if ctx.content == nil then ctx.content = "" end
   ctx.content = ctx.content .. text
+  local content = ctx.content
+    :gsub("<tool_code>", "")
+    :gsub("</tool_code>", "")
+    :gsub("<tool_call>", "")
+    :gsub("</tool_call>", "")
+    :gsub("<tool_use>", "")
+    :gsub("</tool_use>", "")
+  ctx.content = content
   local msg = HistoryMessage:new({
     role = "assistant",
     content = ctx.content,
@@ -194,7 +242,98 @@ function M:add_text_message(ctx, text, state, opts)
     uuid = ctx.content_uuid,
   })
   ctx.content_uuid = msg.uuid
-  if opts.on_messages_add then opts.on_messages_add({ msg }) end
+  local msgs = { msg }
+  local xml_content = ctx.content
+  local xml_lines = vim.split(xml_content, "\n")
+  local cleaned_xml_lines = {}
+  local prev_tool_name = nil
+  for _, line in ipairs(xml_lines) do
+    if line:match("<tool_name>") then
+      local tool_name = line:match("<tool_name>(.*)</tool_name>")
+      if tool_name then prev_tool_name = tool_name end
+    elseif line:match("<parameters>") then
+      if prev_tool_name then table.insert(cleaned_xml_lines, "<" .. prev_tool_name .. ">") end
+      goto continue
+    elseif line:match("</parameters>") then
+      if prev_tool_name then table.insert(cleaned_xml_lines, "</" .. prev_tool_name .. ">") end
+      goto continue
+    end
+    table.insert(cleaned_xml_lines, line)
+    ::continue::
+  end
+  local cleaned_xml_content = table.concat(cleaned_xml_lines, "\n")
+  local stream_parser = XMLParser.createStreamParser()
+  stream_parser:addData(cleaned_xml_content)
+  local has_tool_use = false
+  local xml = stream_parser:getAllElements()
+  if xml then
+    local new_content_list = {}
+    local xml_md_openned = false
+    for idx, item in ipairs(xml) do
+      if item._name == "_text" then
+        local cleaned_lines = {}
+        local lines = vim.split(item._text, "\n")
+        for _, line in ipairs(lines) do
+          if line:match("^```xml") or line:match("^```tool_code") or line:match("^```tool_use") then
+            xml_md_openned = true
+          elseif line:match("^```$") then
+            if xml_md_openned then
+              xml_md_openned = false
+            else
+              table.insert(cleaned_lines, line)
+            end
+          else
+            table.insert(cleaned_lines, line)
+          end
+        end
+        table.insert(new_content_list, table.concat(cleaned_lines, "\n"))
+        goto continue
+      end
+      if not vim.tbl_contains(llm_tool_names, item._name) then goto continue end
+      local ok, input = pcall(vim.json.decode, item._text)
+      if not ok then input = {} end
+      if not ok and item.children and #item.children > 0 then
+        for _, item_ in ipairs(item.children) do
+          local ok_, input_ = pcall(vim.json.decode, item_._text)
+          if ok_ and input_ then
+            input[item_._name] = input_
+          else
+            input[item_._name] = item_._text
+          end
+        end
+      end
+      if next(input) ~= nil then
+        local msg_uuid = ctx.content_uuid .. "-" .. idx
+        local tool_use_id = msg_uuid
+        local msg_ = HistoryMessage:new({
+          role = "assistant",
+          content = {
+            {
+              type = "tool_use",
+              name = item._name,
+              id = tool_use_id,
+              input = input,
+            },
+          },
+        }, {
+          state = state,
+          uuid = msg_uuid,
+        })
+        msgs[#msgs + 1] = msg_
+        ctx.tool_use_list = ctx.tool_use_list or {}
+        ctx.tool_use_list[#ctx.tool_use_list + 1] = {
+          id = tool_use_id,
+          name = item._name,
+          input_json = input,
+        }
+        has_tool_use = true
+      end
+      if #new_content_list > 0 then msg.message.content = table.concat(new_content_list, "\n") end
+      ::continue::
+    end
+  end
+  if opts.on_messages_add then opts.on_messages_add(msgs) end
+  if has_tool_use and state == "generating" then opts.on_stop({ reason = "tool_use", streaming_tool_use = true }) end
 end
 
 function M:add_thinking_message(ctx, text, state, opts)
@@ -218,8 +357,7 @@ function M:add_thinking_message(ctx, text, state, opts)
 end
 
 function M:add_tool_use_message(tool_use, state, opts)
-  local jsn = nil
-  if state == "generated" then jsn = vim.json.decode(tool_use.input_json) end
+  local jsn = JsonParser.parse(tool_use.input_json)
   local msg = HistoryMessage:new({
     role = "assistant",
     content = {
@@ -237,12 +375,17 @@ function M:add_tool_use_message(tool_use, state, opts)
   tool_use.uuid = msg.uuid
   tool_use.state = state
   if opts.on_messages_add then opts.on_messages_add({ msg }) end
+  if state == "generating" then opts.on_stop({ reason = "tool_use", streaming_tool_use = true }) end
 end
 
 function M:parse_response(ctx, data_stream, _, opts)
   if data_stream:match('"%[DONE%]":') then
     self:finish_pending_messages(ctx, opts)
-    opts.on_stop({ reason = "complete" })
+    if ctx.tool_use_list and #ctx.tool_use_list > 0 then
+      opts.on_stop({ reason = "tool_use" })
+    else
+      opts.on_stop({ reason = "complete" })
+    end
     return
   end
   if data_stream == "[DONE]" then return end
@@ -316,9 +459,13 @@ function M:parse_response(ctx, data_stream, _, opts)
       self:add_text_message(ctx, delta.content, "generating", opts)
     end
   end
-  if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" then
+  if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" or choice.finish_reason == "length" then
     self:finish_pending_messages(ctx, opts)
-    opts.on_stop({ reason = "complete" })
+    if ctx.tool_use_list and #ctx.tool_use_list > 0 then
+      opts.on_stop({ reason = "tool_use", usage = jsn.usage })
+    else
+      opts.on_stop({ reason = "complete", usage = jsn.usage })
+    end
   end
   if choice.finish_reason == "tool_calls" then
     self:finish_pending_messages(ctx, opts)
@@ -350,12 +497,6 @@ function M:parse_curl_args(prompt_opts)
     ["Content-Type"] = "application/json",
   }
 
-  if provider_conf.extra_headers then
-    for key, value in pairs(provider_conf.extra_headers) do
-      headers[key] = value
-    end
-  end
-
   if Providers.env.require_api_key(provider_conf) then
     local api_key = self.parse_api_key()
     if api_key == nil then
@@ -372,8 +513,10 @@ function M:parse_curl_args(prompt_opts)
 
   self.set_allowed_params(provider_conf, request_body)
 
+  local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
+
   local tools = nil
-  if not disable_tools and prompt_opts.tools then
+  if not disable_tools and prompt_opts.tools and not use_ReAct_prompt then
     tools = {}
     for _, tool in ipairs(prompt_opts.tools) do
       table.insert(tools, self:transform_tool(tool))
@@ -387,7 +530,7 @@ function M:parse_curl_args(prompt_opts)
     url = Utils.url_join(provider_conf.endpoint, "/chat/completions"),
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,
-    headers = headers,
+    headers = Utils.tbl_override(headers, self.extra_headers),
     body = vim.tbl_deep_extend("force", {
       model = provider_conf.model,
       messages = self:parse_messages(prompt_opts),

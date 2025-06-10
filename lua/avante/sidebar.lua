@@ -56,6 +56,7 @@ Sidebar.__index = Sidebar
 ---@field current_state avante.GenerateState | nil
 ---@field state_timer table | nil
 ---@field state_spinner_chars string[]
+---@field thinking_spinner_chars string[]
 ---@field state_spinner_idx integer
 ---@field state_extmark_id integer | nil
 ---@field scroll boolean
@@ -84,12 +85,16 @@ function Sidebar:new(id)
     current_state = nil,
     state_timer = nil,
     state_spinner_chars = { "·", "✢", "✳", "∗", "✻", "✽" },
+    thinking_spinner_chars = { "🤯", "🙄" },
     state_spinner_idx = 1,
     state_extmark_id = nil,
     scroll = true,
     input_hint_window = nil,
     ask_opts = {},
     old_result_lines = {},
+    -- 缓存相关字段
+    _cached_history_lines = nil,
+    _history_cache_invalidated = true,
   }, Sidebar)
 end
 
@@ -1528,42 +1533,75 @@ end
 ---@param opts? {focus?: boolean, scroll?: boolean, backspace?: integer, callback?: fun(): nil} whether to focus the result view
 function Sidebar:update_content(content, opts)
   if not self.result_container or not self.result_container.bufnr then return end
+
+  -- 提前验证容器有效性，避免后续无效操作
+  if not Utils.is_valid_container(self.result_container) then return end
+
   opts = vim.tbl_deep_extend("force", { focus = false, scroll = self.scroll, callback = nil }, opts or {})
-  local history_lines = self.get_history_lines(self.chat_history)
-  if content ~= nil and content ~= "" then
-    table.insert(history_lines, Line:new({ { "" } }))
-    local content_lines = vim.split(content, "\n")
-    for _, line in ipairs(content_lines) do
-      table.insert(history_lines, Line:new({ { line } }))
-    end
+
+  -- 缓存历史行，避免重复计算
+  local history_lines
+  if not self._cached_history_lines or self._history_cache_invalidated then
+    history_lines = self.get_history_lines(self.chat_history)
+    self._cached_history_lines = history_lines
+    self._history_cache_invalidated = false
+  else
+    history_lines = vim.deepcopy(self._cached_history_lines)
   end
-  vim.defer_fn(function()
-    self:clear_state()
-    local f = function()
-      if not Utils.is_valid_container(self.result_container) then return end
-      Utils.unlock_buf(self.result_container.bufnr)
-      Utils.update_buffer_lines(
-        RESULT_BUF_HL_NAMESPACE,
-        self.result_container.bufnr,
-        self.old_result_lines,
-        history_lines
-      )
-      Utils.lock_buf(self.result_container.bufnr)
-      self.old_result_lines = history_lines
-      api.nvim_set_option_value("filetype", "Avante", { buf = self.result_container.bufnr })
-      vim.schedule(function() vim.cmd("redraw") end)
-      if opts.focus and not self:is_focused_on_result() then
-        --- set cursor to bottom of result view
-        xpcall(function() api.nvim_set_current_win(self.result_container.winid) end, function(err) return err end)
-      end
 
-      if opts.scroll then Utils.buf_scroll_to_end(self.result_container.bufnr) end
+  -- 批量处理内容行，减少表操作
+  if content ~= nil and content ~= "" then
+    local content_lines = vim.split(content, "\n")
+    local new_lines = { Line:new({ { "" } }) }
 
-      if opts.callback ~= nil then opts.callback() end
+    -- 预分配表大小，提升性能
+    for i = 1, #content_lines do
+      new_lines[i + 1] = Line:new({ { content_lines[i] } })
     end
-    f()
+
+    -- 一次性扩展，而不是逐个插入
+    vim.list_extend(history_lines, new_lines)
+  end
+
+  -- 使用 vim.schedule 而不是 vim.defer_fn(0)，性能更好
+  -- 再次检查容器有效性
+  if not Utils.is_valid_container(self.result_container) then return end
+
+  self:clear_state()
+
+  -- 批量更新操作
+  local bufnr = self.result_container.bufnr
+  Utils.unlock_buf(bufnr)
+
+  Utils.update_buffer_lines(RESULT_BUF_HL_NAMESPACE, bufnr, self.old_result_lines, history_lines)
+
+  -- 缓存结果行
+  self.old_result_lines = history_lines
+
+  -- 批量设置选项
+  api.nvim_set_option_value("filetype", "Avante", { buf = bufnr })
+  Utils.lock_buf(bufnr)
+
+  -- 处理焦点和滚动
+  if opts.focus and not self:is_focused_on_result() then
+    xpcall(function() api.nvim_set_current_win(self.result_container.winid) end, function(err)
+      Utils.debug("Failed to set current win:", err)
+      return err
+    end)
+  end
+
+  if opts.scroll then Utils.buf_scroll_to_end(bufnr) end
+
+  -- 延迟执行回调和状态渲染
+  if opts.callback then vim.schedule(opts.callback) end
+
+  -- 最后渲染状态
+  vim.schedule(function()
     self:render_state()
-  end, 0)
+    -- 延迟重绘，避免阻塞
+    vim.defer_fn(function() vim.cmd("redraw") end, 10)
+  end)
+
   return self
 end
 
@@ -1842,8 +1880,8 @@ function Sidebar:render_state()
   if self.state_extmark_id then
     api.nvim_buf_del_extmark(self.result_container.bufnr, STATE_NAMESPACE, self.state_extmark_id)
   end
-  local spinner_char = self.state_spinner_chars[self.state_spinner_idx]
-  self.state_spinner_idx = (self.state_spinner_idx % #self.state_spinner_chars) + 1
+  local spinner_chars = self.state_spinner_chars
+  if self.current_state == "thinking" then spinner_chars = self.thinking_spinner_chars end
   local hl = "AvanteStateSpinnerGenerating"
   if self.current_state == "tool calling" then hl = "AvanteStateSpinnerToolCalling" end
   if self.current_state == "failed" then hl = "AvanteStateSpinnerFailed" end
@@ -1851,6 +1889,8 @@ function Sidebar:render_state()
   if self.current_state == "searching" then hl = "AvanteStateSpinnerSearching" end
   if self.current_state == "thinking" then hl = "AvanteStateSpinnerThinking" end
   if self.current_state == "compacting" then hl = "AvanteStateSpinnerCompacting" end
+  local spinner_char = spinner_chars[self.state_spinner_idx]
+  self.state_spinner_idx = (self.state_spinner_idx % #spinner_chars) + 1
   if
     self.current_state ~= "generating"
     and self.current_state ~= "tool calling"
@@ -1911,6 +1951,17 @@ function Sidebar:new_chat(args, cb)
   if cb then cb(args) end
 end
 
+function Sidebar:save_history() Path.history.save(self.code.bufnr, self.chat_history) end
+
+---@param uuids string[]
+function Sidebar:delete_history_messages(uuids)
+  local history_messages = Utils.get_history_messages(self.chat_history)
+  for _, msg in ipairs(history_messages) do
+    if vim.list_contains(uuids, msg.uuid) then msg.is_deleted = true end
+  end
+  Path.history.save(self.code.bufnr, self.chat_history)
+end
+
 ---@param messages avante.HistoryMessage | avante.HistoryMessage[]
 function Sidebar:add_history_messages(messages)
   local history_messages = Utils.get_history_messages(self.chat_history)
@@ -1934,22 +1985,20 @@ function Sidebar:add_history_messages(messages)
     end
   end
   self.chat_history.messages = history_messages
-  Path.history.save(self.code.bufnr, self.chat_history)
+  self._history_cache_invalidated = true
+  self:save_history()
   if
     self.chat_history.title == "untitled"
     and #messages > 0
     and messages[1].just_for_display ~= true
     and messages[1].state == "generated"
   then
-    self.chat_history.title = "generating..."
-    Llm.summarize_chat_thread_title(messages[1].message.content, function(title)
-      if title then
-        self.chat_history.title = title
-      else
-        self.chat_history.title = "untitled"
-      end
-      Path.history.save(self.code.bufnr, self.chat_history)
-    end)
+    local first_msg_text = Utils.message_to_text(messages[1], messages)
+    local lines_ = vim.split(first_msg_text, "\n")
+    if #lines_ > 0 then
+      self.chat_history.title = lines_[1]
+      self:save_history()
+    end
   end
   local last_message = messages[#messages]
   if last_message then
@@ -1964,7 +2013,10 @@ function Sidebar:add_history_messages(messages)
       self.current_state = "generating"
     end
   end
-  self:update_content("")
+  xpcall(function() self:update_content("") end, function(err)
+    Utils.debug("Failed to update content:", err)
+    return nil
+  end)
 end
 
 ---@param messages AvanteLLMMessage | AvanteLLMMessage[]
@@ -2135,22 +2187,219 @@ end
 function Sidebar:reload_chat_history()
   if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then return end
   self.chat_history = Path.history.load(self.code.bufnr)
+  self._history_cache_invalidated = true
 end
 
+---@param opts? {all?: boolean}
 ---@return avante.HistoryMessage[]
-function Sidebar:get_history_messages_for_api()
-  local history_messages = Utils.get_history_messages(self.chat_history)
-  self.chat_history.messages = history_messages
+function Sidebar:get_history_messages_for_api(opts)
+  opts = opts or {}
+  local history_messages0 = Utils.get_history_messages(self.chat_history)
+  self.chat_history.messages = history_messages0
 
-  if self.chat_history.memory then
-    history_messages = {}
-    for i = #self.chat_history.messages, 1, -1 do
-      local message = self.chat_history.messages[i]
-      if message.uuid == self.chat_history.memory.last_message_uuid then break end
-      table.insert(history_messages, 1, message)
+  history_messages0 = vim
+    .iter(history_messages0)
+    :filter(function(message) return not message.just_for_display and not message.is_compacted end)
+    :totable()
+
+  if opts.all then return history_messages0 end
+
+  local tool_id_to_tool_name = {}
+  local tool_id_to_path = {}
+  local tool_id_to_start_line = {}
+  local tool_id_to_end_line = {}
+  local viewed_files = {}
+  local last_modified_files = {}
+  local history_messages = {}
+  local failed_edit_tool_ids = {}
+
+  for idx, message in ipairs(history_messages0) do
+    if Utils.is_tool_result_message(message) then
+      local tool_use_message = Utils.get_tool_use_message(message, history_messages0)
+      local is_edit_func_call, _, _, path = Utils.is_edit_func_call_message(tool_use_message)
+
+      if is_edit_func_call and message.message.content[1].is_error then
+        failed_edit_tool_ids[message.message.content[1].tool_use_id] = true
+      end
+
+      if is_edit_func_call and path and not message.message.content[1].is_error then
+        local uniformed_path = Utils.uniform_path(path)
+        last_modified_files[uniformed_path] = idx
+      end
     end
   end
-  return vim.iter(history_messages):filter(function(message) return not message.just_for_display end):totable()
+
+  for idx, message in ipairs(history_messages0) do
+    if Utils.is_tool_use_message(message) and failed_edit_tool_ids[message.message.content[1].id] then
+      goto continue
+    end
+    table.insert(history_messages, message)
+    if Utils.is_tool_result_message(message) then
+      local tool_use_message = Utils.get_tool_use_message(message, history_messages0)
+      local is_edit_func_call, is_str_replace_editor_func_call, is_str_replace_based_edit_tool_func_call, path =
+        Utils.is_edit_func_call_message(tool_use_message)
+      --- For models like gpt-4o, the input parameter of replace_in_file is treated as the latest file content, so here we need to insert a fake view tool call to ensure it uses the latest file content
+      if is_edit_func_call and path and not message.message.content[1].is_error then
+        local uniformed_path = Utils.uniform_path(path)
+        local view_result, view_error = require("avante.llm_tools.view").func({ path = path }, nil, nil, nil)
+        if view_error then view_result = "Error: " .. view_error end
+        local get_diagnostics_tool_use_id = Utils.uuid()
+        local view_tool_use_id = Utils.uuid()
+        local view_tool_name = "view"
+        local view_tool_input = { path = path }
+        if is_str_replace_editor_func_call then
+          view_tool_name = "str_replace_editor"
+          view_tool_input = { command = "view", path = path }
+        end
+        if is_str_replace_based_edit_tool_func_call then
+          view_tool_name = "str_replace_based_edit_tool"
+          view_tool_input = { command = "view", path = path }
+        end
+        history_messages = vim.list_extend(history_messages, {
+          HistoryMessage:new({
+            role = "assistant",
+            content = string.format("Viewing file %s to get the latest content", path),
+          }, {
+            is_dummy = true,
+          }),
+          HistoryMessage:new({
+            role = "assistant",
+            content = {
+              {
+                type = "tool_use",
+                id = view_tool_use_id,
+                name = view_tool_name,
+                input = view_tool_input,
+              },
+            },
+          }, {
+            is_dummy = true,
+          }),
+          HistoryMessage:new({
+            role = "user",
+            content = {
+              {
+                type = "tool_result",
+                tool_use_id = view_tool_use_id,
+                content = view_result,
+                is_error = view_error ~= nil,
+              },
+            },
+          }, {
+            is_dummy = true,
+          }),
+        })
+        if last_modified_files[uniformed_path] == idx and Config.behaviour.auto_check_diagnostics then
+          local diagnostics = Utils.lsp.get_diagnostics_from_filepath(path)
+          history_messages = vim.list_extend(history_messages, {
+            HistoryMessage:new({
+              role = "assistant",
+              content = string.format(
+                "The file %s has been modified, let me check if there are any errors in the changes.",
+                path
+              ),
+            }, {
+              is_dummy = true,
+            }),
+            HistoryMessage:new({
+              role = "assistant",
+              content = {
+                {
+                  type = "tool_use",
+                  id = get_diagnostics_tool_use_id,
+                  name = "get_diagnostics",
+                  input = { path = path },
+                },
+              },
+            }, {
+              is_dummy = true,
+            }),
+            HistoryMessage:new({
+              role = "user",
+              content = {
+                {
+                  type = "tool_result",
+                  tool_use_id = get_diagnostics_tool_use_id,
+                  content = vim.json.encode(diagnostics),
+                  is_error = false,
+                },
+              },
+            }, {
+              is_dummy = true,
+            }),
+          })
+        end
+      end
+    end
+    ::continue::
+  end
+  for _, message in ipairs(history_messages) do
+    local content = message.message.content
+    if type(content) ~= "table" then goto continue end
+    for _, item in ipairs(content) do
+      if type(item) ~= "table" then goto continue1 end
+      if item.type ~= "tool_use" then goto continue1 end
+      local tool_name = item.name
+      if tool_name ~= "view" then goto continue1 end
+      local path = item.input.path
+      tool_id_to_tool_name[item.id] = tool_name
+      if path then
+        local uniform_path = Utils.uniform_path(path)
+        tool_id_to_path[item.id] = uniform_path
+        tool_id_to_start_line[item.id] = item.input.start_line
+        tool_id_to_end_line[item.id] = item.input.end_line
+        viewed_files[uniform_path] = item.id
+      end
+      ::continue1::
+    end
+    ::continue::
+  end
+  for _, message in ipairs(history_messages) do
+    local content = message.message.content
+    if type(content) == "table" then
+      for _, item in ipairs(content) do
+        if type(item) ~= "table" then goto continue end
+        if item.type ~= "tool_result" then goto continue end
+        local tool_name = tool_id_to_tool_name[item.tool_use_id]
+        if tool_name ~= "view" then goto continue end
+        if item.is_error then goto continue end
+        local path = tool_id_to_path[item.tool_use_id]
+        local latest_tool_id = viewed_files[path]
+        if not latest_tool_id then goto continue end
+        if latest_tool_id ~= item.tool_use_id then
+          item.content = string.format("The file %s has been updated. Please use the latest `view` tool result!", path)
+        else
+          local start_line = tool_id_to_start_line[item.tool_use_id]
+          local end_line = tool_id_to_end_line[item.tool_use_id]
+          local view_result, view_error = require("avante.llm_tools.view").func(
+            { path = path, start_line = start_line, end_line = end_line },
+            nil,
+            nil,
+            nil
+          )
+          if view_error then view_result = "Error: " .. view_error end
+          item.content = view_result
+          item.is_error = view_error ~= nil
+        end
+        ::continue::
+      end
+    end
+  end
+
+  local final_history_messages = {}
+  for _, msg in ipairs(history_messages) do
+    local tool_result_message
+    if Utils.is_tool_use_message(msg) then
+      tool_result_message = Utils.get_tool_result_message(msg, history_messages)
+      if not tool_result_message then goto continue end
+    end
+    if Utils.is_tool_result_message(msg) then goto continue end
+    table.insert(final_history_messages, msg)
+    if tool_result_message then table.insert(final_history_messages, tool_result_message) end
+    ::continue::
+  end
+
+  return final_history_messages
 end
 
 ---@param request string
@@ -2235,8 +2484,6 @@ function Sidebar:get_generate_prompts_options(request, cb)
     history_messages = history_messages,
     code_lang = filetype,
     selected_code = selected_code,
-    disable_compact_history_messages = true,
-    -- instructions = request,
     tools = tools,
   }
 
@@ -2299,11 +2546,6 @@ function Sidebar:create_input_container()
       end
     end
 
-    -- local model = Config.has_provider(Config.provider) and Config.get_provider_config(Config.provider).model
-    --   or "default"
-    --
-    -- local timestamp = Utils.get_timestamp()
-
     local selected_filepaths = self.file_selector:get_selected_filepaths()
 
     ---@type AvanteSelectedCode | nil
@@ -2357,8 +2599,6 @@ function Sidebar:create_input_container()
       self:render_state()
     end
 
-    local save_history = Utils.debounce(function() Path.history.save(self.code.bufnr, self.chat_history) end, 3000)
-
     ---@param tool_id string
     ---@param tool_name string
     ---@param log string
@@ -2375,14 +2615,14 @@ function Sidebar:create_input_container()
         end
       end
       if not tool_use_message then
-        Utils.debug("tool_use message not found", tool_id, tool_name)
+        -- Utils.debug("tool_use message not found", tool_id, tool_name)
         return
       end
       local tool_use_logs = tool_use_message.tool_use_logs or {}
       local content = string.format("[%s]: %s", tool_name, log)
       table.insert(tool_use_logs, content)
       tool_use_message.tool_use_logs = tool_use_logs
-      save_history()
+      self:save_history()
       self:update_content("")
     end
 
@@ -2450,7 +2690,7 @@ function Sidebar:create_input_container()
         on_tool_log = on_tool_log,
         on_messages_add = on_messages_add,
         on_state_change = on_state_change,
-        get_history_messages = function() return self:get_history_messages_for_api() end,
+        get_history_messages = function(opts) return self:get_history_messages_for_api(opts) end,
         session_ctx = {},
       })
 

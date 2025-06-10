@@ -64,13 +64,17 @@
     -- 在此处添加任何选项
     -- 例如
     provider = "openai",
-    openai = {
-      endpoint = "https://api.openai.com/v1",
-      model = "gpt-4o", -- 您想要的模型（或使用 gpt-4o 等）
-      timeout = 30000, -- 超时时间（毫秒），增加此值以适应推理模型
-      temperature = 0,
-      max_tokens = 8192, -- 增加此值以包括推理模型的推理令牌
-      --reasoning_effort = "medium", -- low|medium|high，仅用于推理模型
+    providers = {
+      openai = {
+        endpoint = "https://api.openai.com/v1",
+        model = "gpt-4o", -- 您想要的模型（或使用 gpt-4o 等）
+        extra_request_body = {
+          timeout = 30000, -- 超时时间（毫秒），增加此值以适应推理模型
+          temperature = 0,
+          max_tokens = 8192, -- 增加此值以包括推理模型的推理令牌
+          --reasoning_effort = "medium", -- low|medium|high，仅用于推理模型
+        },
+      },
     },
   },
   -- 如果您想从源代码构建，请执行 `make BUILD_FROM_SOURCE=true`
@@ -78,7 +82,7 @@
   -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- 对于 Windows
   dependencies = {
     "nvim-treesitter/nvim-treesitter",
-    "stevearc/dressing.nvim",
+
     "nvim-lua/plenary.nvim",
     "MunifTanjim/nui.nvim",
     --- 以下依赖项是可选的，
@@ -127,7 +131,7 @@
 
 " 依赖项
 Plug 'nvim-treesitter/nvim-treesitter'
-Plug 'stevearc/dressing.nvim'
+
 Plug 'nvim-lua/plenary.nvim'
 Plug 'MunifTanjim/nui.nvim'
 Plug 'MeanderingProgrammer/render-markdown.nvim'
@@ -159,7 +163,7 @@ add({
   monitor = 'main',
   depends = {
     'nvim-treesitter/nvim-treesitter',
-    'stevearc/dressing.nvim',
+
     'nvim-lua/plenary.nvim',
     'MunifTanjim/nui.nvim',
     'echasnovski/mini.icons'
@@ -190,7 +194,7 @@ end)
 
   -- 必需插件
   use 'nvim-treesitter/nvim-treesitter'
-  use 'stevearc/dressing.nvim'
+
   use 'nvim-lua/plenary.nvim'
   use 'MunifTanjim/nui.nvim'
   use 'MeanderingProgrammer/render-markdown.nvim'
@@ -309,12 +313,15 @@ _请参见 [config.lua#L9](./lua/avante/config.lua) 以获取完整配置_
   -- 目前将其指定为 `copilot` 提供者是危险的，因为：https://github.com/yetone/avante.nvim/issues/1048
   -- 当然，您可以通过增加 `suggestion.debounce` 来减少请求频率。
   auto_suggestions_provider = "claude",
-  cursor_applying_provider = nil, -- Cursor 规划模式应用阶段使用的提供者，默认为 nil，当为 nil 时使用 Config.provider 作为应用阶段的提供者
-  claude = {
-    endpoint = "https://api.anthropic.com",
-    model = "claude-3-5-sonnet-20241022",
-    temperature = 0,
-    max_tokens = 4096,
+  providers = {
+    claude = {
+      endpoint = "https://api.anthropic.com",
+      model = "claude-3-5-sonnet-20241022",
+      extra_request_body = {
+        temperature = 0.75,
+        max_tokens = 4096,
+      },
+    },
   },
   ---指定特殊的 dual_boost 模式
   ---1. enabled: 是否启用 dual_boost 模式。默认为 false。
@@ -697,13 +704,12 @@ ollama 是 avante.nvim 的一流提供者。您可以通过在配置中设置 `p
 
 ```lua
 provider = "ollama",
-ollama = {
-  model = "qwq:32b",
+providers = {
+  ollama = {
+    model = "qwq:32b",
+  },
 }
 ```
-
-> [!NOTE]
-> 如果您使用 ollama，代码规划效果可能不理想，因此强烈建议您启用 [cursor-planning-mode](https://github.com/yetone/avante.nvim/blob/main/cursor-planning-mode.md)
 
 ## AiHubMix
 
@@ -717,8 +723,10 @@ export AIHUBMIX_API_KEY=your_api_key
 
 ```lua
 provider = "aihubmix",
-aihubmix = {
-  model = "gpt-4o-2024-11-20",
+providers = {
+  aihubmix = {
+    model = "gpt-4o-2024-11-20",
+  },
 }
 ```
 
@@ -739,21 +747,37 @@ Avante 提供了一组默认提供者，但用户也可以创建自己的提供�
 Avante 提供了一个 RAG 服务，这是一个用于获取 AI 生成代码所需上下文的工具。默认情况下，它未启用。您可以通过以下方式启用它：
 
 ```lua
-rag_service = {
-  enabled = false, -- 启用 RAG 服务
-  host_mount = os.getenv("HOME"), -- RAG 服务的主机挂载路径
-  provider = "openai", -- 用于 RAG 服务的提供者（例如 openai 或 ollama）
-  llm_model = "", -- 用于 RAG 服务的 LLM 模型
-  embed_model = "", -- 用于 RAG 服务的嵌入模型
-  endpoint = "https://api.openai.com/v1", -- RAG 服务的 API 端点
-},
+  rag_service = { -- RAG 服务配置
+    enabled = false, -- 启用 RAG 服务
+    host_mount = os.getenv("HOME"), -- RAG 服务的主机挂载路径 (Docker 将挂载此路径)
+    runner = "docker", -- RAG 服务的运行器 (可以使用 docker 或 nix)
+    llm = { -- RAG 服务使用的语言模型 (LLM) 配置
+      provider = "openai", -- LLM 提供者
+      endpoint = "https://api.openai.com/v1", -- LLM API 端点
+      api_key = "OPENAI_API_KEY", -- LLM API 密钥的环境变量名称
+      model = "gpt-4o-mini", -- LLM 模型名称
+      extra = nil, -- LLM 的额外配置选项
+    },
+    embed = { -- RAG 服务使用的嵌入模型配置
+      provider = "openai", -- 嵌入提供者
+      endpoint = "https://api.openai.com/v1", -- 嵌入 API 端点
+      api_key = "OPENAI_API_KEY", -- 嵌入 API 密钥的环境变量名称
+      model = "text-embedding-3-large", -- 嵌入模型名称
+      extra = nil, -- 嵌入模型的额外配置选项
+    },
+    docker_extra_args = "", -- 传递给 docker 命令的额外参数
+  },
 ```
 
-如果您的 rag_service 提供者是 `openai`，那么您需要设置 `OPENAI_API_KEY` 环境变量！
+RAG 服务可以单独设置llm模型和嵌入模型。在 `llm` 和 `embed` 配置块中，您可以设置以下字段：
 
-如果您的 rag_service 提供者是 `ollama`，您需要将端点设置为 `http://localhost:11434`（注意末尾没有 `/v1`）或您自己的 ollama 服务器的任何地址。
+- `provider`: 模型提供者（例如 "openai", "ollama", "dashscope"以及"openrouter"）
+- `endpoint`: API 端点
+- `api_key`: API 密钥的环境变量名称
+- `model`: 模型名称
+- `extra`: 额外的配置选项
 
-如果您的 rag_service 提供者是 `ollama`，当 `llm_model` 为空时，默认为 `llama3`，当 `embed_model` 为空时，默认为 `nomic-embed-text`。请确保这些模型在您的 ollama 服务器中可用。
+有关不同模型提供商的详细配置，你可以在[这里](./py/rag-service/README.md)查看。
 
 此外，RAG 服务还依赖于 Docker！（对于 macOS 用户，推荐使用 OrbStack 作为 Docker 的替代品）。
 
@@ -879,7 +903,7 @@ Avante 允许您定义自定义工具，AI 可以在代码生成和分析期间�
 
 ## MCP
 
-现在您可以通过 `mcphub.nvim` 为 Avante 集成 MCP 功能。有关详细文档，请参阅 [mcphub.nvim](https://github.com/ravitemer/mcphub.nvim#avante-integration)
+现在您可以通过 `mcphub.nvim` 为 Avante 集成 MCP 功能。有关详细文档，请参阅 [mcphub.nvim](https://ravitemer.github.io/mcphub.nvim/extensions/avante.html)
 
 ## Claude 文本编辑器工具模式
 

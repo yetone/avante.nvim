@@ -3,6 +3,7 @@ local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
 local Config = require("avante.config")
 local HistoryMessage = require("avante.history_message")
+local JsonParser = require("avante.libs.jsonparser")
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -76,15 +77,19 @@ function M:parse_messages(opts)
     local content_items = message.content
     local message_content = {}
     if type(content_items) == "string" then
-      table.insert(message_content, {
-        type = "text",
-        text = message.content,
-        cache_control = top_two[idx] and { type = "ephemeral" } or nil,
-      })
+      if message.role == "assistant" then content_items = content_items:gsub("%s+$", "") end
+      if content_items ~= "" then
+        table.insert(message_content, {
+          type = "text",
+          text = content_items,
+          cache_control = top_two[idx] and { type = "ephemeral" } or nil,
+        })
+      end
     elseif type(content_items) == "table" then
       ---@cast content_items AvanteLLMMessageContentItem[]
       for _, item in ipairs(content_items) do
         if type(item) == "string" then
+          if message.role == "assistant" then item = item:gsub("%s+$", "") end
           table.insert(
             message_content,
             { type = "text", text = item, cache_control = top_two[idx] and { type = "ephemeral" } or nil }
@@ -199,6 +204,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
       end
     end
     if content_block.type == "tool_use" and opts.on_messages_add then
+      local incomplete_json = JsonParser.parse(content_block.input_json)
       local msg = HistoryMessage:new({
         role = "assistant",
         content = {
@@ -206,7 +212,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
             type = "tool_use",
             name = content_block.name,
             id = content_block.id,
-            input = {},
+            input = incomplete_json or {},
           },
         },
       }, {
@@ -214,6 +220,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
       })
       content_block.uuid = msg.uuid
       opts.on_messages_add({ msg })
+      opts.on_stop({ reason = "tool_use", streaming_tool_use = true })
     end
   elseif event_state == "content_block_delta" then
     local ok, jsn = pcall(vim.json.decode, data_stream)
@@ -361,7 +368,12 @@ function M:parse_curl_args(prompt_opts)
   end
 
   if prompt_opts.tools and #prompt_opts.tools > 0 and Config.mode == "agentic" then
-    if provider_conf.model:match("claude%-3%-7%-sonnet") then
+    if provider_conf.model:match("claude%-sonnet%-4") then
+      table.insert(tools, {
+        type = "text_editor_20250429",
+        name = "str_replace_based_edit_tool",
+      })
+    elseif provider_conf.model:match("claude%-3%-7%-sonnet") then
       table.insert(tools, {
         type = "text_editor_20250124",
         name = "str_replace_editor",
@@ -384,7 +396,7 @@ function M:parse_curl_args(prompt_opts)
     url = Utils.url_join(provider_conf.endpoint, "/v1/messages"),
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,
-    headers = headers,
+    headers = Utils.tbl_override(headers, self.extra_headers),
     body = vim.tbl_deep_extend("force", {
       model = provider_conf.model,
       system = {

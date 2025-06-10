@@ -118,7 +118,7 @@ cmd("SwitchProvider", function(opts) require("avante.api").switch_provider(vim.t
   complete = function(_, line, _)
     local prefix = line:match("AvanteSwitchProvider%s*(.*)$") or ""
     ---@param key string
-    return vim.tbl_filter(function(key) return key:find(prefix, 1, true) == 1 end, Config.provider_names)
+    return vim.tbl_filter(function(key) return key:find(prefix, 1, true) == 1 end, vim.tbl_keys(Config.providers))
   end,
 })
 cmd(
@@ -129,6 +129,15 @@ cmd(
     desc = "avante: switch selector provider",
   }
 )
+cmd("SwitchInputProvider", function(opts) require("avante.api").switch_input_provider(vim.trim(opts.args or "")) end, {
+  nargs = 1,
+  desc = "avante: switch input provider",
+  complete = function(_, line, _)
+    local prefix = line:match("AvanteSwitchInputProvider%s*(.*)$") or ""
+    local providers = { "native", "dressing", "snacks" }
+    return vim.tbl_filter(function(key) return key:find(prefix, 1, true) == 1 end, providers)
+  end,
+})
 cmd("Clear", function(opts)
   local arg = vim.trim(opts.args or "")
   arg = arg == "" and "history" or arg
@@ -152,7 +161,7 @@ cmd("Clear", function(opts)
 end, {
   desc = "avante: clear history, memory or cache",
   nargs = "?",
-  complete = function(_, _, _) return { "history", "memory", "cache" } end,
+  complete = function(_, _, _) return { "history", "cache" } end,
 })
 cmd("ShowRepoMap", function() require("avante.repo_map").show() end, { desc = "avante: show repo map" })
 cmd("Models", function() require("avante.model_selector").open() end, { desc = "avante: show models" })

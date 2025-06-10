@@ -576,7 +576,7 @@ end
 --- remove indentation from code: spaces or tabs
 function M.remove_indentation(code)
   if not code then return code end
-  return code:gsub("^%s*", "")
+  return code:gsub("%s*", "")
 end
 
 function M.relative_path(absolute)
@@ -747,7 +747,7 @@ function M.scan_directory(options)
   local cmd_supports_max_depth = true
   local cmd = (function()
     if vim.fn.executable("rg") == 1 then
-      local cmd = { "rg", "--files", "--color", "never", "--no-require-git" }
+      local cmd = { "rg", "--files", "--color", "never", "--no-require-git", "--no-ignore-parent" }
       if options.max_depth ~= nil then vim.list_extend(cmd, { "--max-depth", options.max_depth }) end
       table.insert(cmd, options.directory)
       return cmd
@@ -788,7 +788,7 @@ function M.scan_directory(options)
       end
       cmd_supports_max_depth = false
     else
-      M.error("No search command found")
+      M.error("No search command found, please install fd or fdfind or rg")
       return {}
     end
   end
@@ -1056,12 +1056,12 @@ function M.update_buffer_lines(ns_id, bufnr, old_lines, new_lines)
   if #diffs == 0 then return end
   for _, diff in ipairs(diffs) do
     local lines = diff.content
-    -- M.debug("lines", lines)
     local text_lines = vim.tbl_map(function(line) return tostring(line) end, lines)
     vim.api.nvim_buf_set_lines(bufnr, diff.start_line - 1, diff.end_line - 1, false, text_lines)
     for i, line in ipairs(lines) do
       line:set_highlights(ns_id, bufnr, diff.start_line + i - 2)
     end
+    vim.cmd("redraw")
   end
 end
 
@@ -1094,7 +1094,7 @@ end
 ---@return string[]|nil lines
 ---@return string|nil error
 function M.read_file_from_buf_or_disk(filepath)
-  local abs_path = M.join_paths(M.get_project_root(), filepath)
+  local abs_path = filepath:sub(1, 7) == "term://" and filepath or M.join_paths(M.get_project_root(), filepath)
   --- Lookup if the file is loaded in a buffer
   local bufnr = vim.fn.bufnr(abs_path)
   if bufnr ~= -1 and vim.api.nvim_buf_is_loaded(bufnr) then
@@ -1411,23 +1411,72 @@ function M.get_tool_use_message(message, messages)
       end
     end
     if not tool_id then return nil end
-    local idx = nil
-    for idx_, message_ in ipairs(messages) do
-      if message_.uuid == message.uuid then
-        idx = idx_
-        break
-      end
-    end
-    if not idx then return nil end
-    for idx_ = idx - 1, 1, -1 do
+    for idx_ = #messages, 1, -1 do
       local message_ = messages[idx_]
       local content_ = message_.message.content
-      if type(content_) == "table" and content_[1].type == "tool_use" and content_[1].id == tool_id then
-        return message_
+      if type(content_) == "table" then
+        for _, item in ipairs(content_) do
+          if item.type == "tool_use" and item.id == tool_id then return message_ end
+        end
       end
     end
   end
   return nil
+end
+
+---@param tool_use AvanteLLMToolUse
+function M.tool_use_to_xml(tool_use)
+  local xml = string.format("<%s>\n", tool_use.name)
+  for k, v in pairs(tool_use.input or {}) do
+    xml = xml .. string.format("<%s>%s</%s>\n", k, tostring(v), k)
+  end
+  xml = xml .. "</" .. tool_use.name .. ">"
+  return xml
+end
+
+---@param tool_use AvanteLLMToolUse
+function M.is_edit_func_call_tool_use(tool_use)
+  local is_replace_func_call = false
+  local is_str_replace_editor_func_call = false
+  local is_str_replace_based_edit_tool_func_call = false
+  local path = nil
+  if tool_use.name == "write_to_file" then
+    is_replace_func_call = true
+    path = tool_use.input.path
+  end
+  if tool_use.name == "replace_in_file" then
+    is_replace_func_call = true
+    path = tool_use.input.path
+  end
+  if tool_use.name == "str_replace_editor" then
+    if tool_use.input.command == "str_replace" then
+      is_replace_func_call = true
+      is_str_replace_editor_func_call = true
+      path = tool_use.input.path
+    end
+  end
+  if tool_use.name == "str_replace_based_edit_tool" then
+    if tool_use.input.command == "str_replace" then
+      is_replace_func_call = true
+      is_str_replace_based_edit_tool_func_call = true
+      path = tool_use.input.path
+    end
+  end
+  return is_replace_func_call, is_str_replace_editor_func_call, is_str_replace_based_edit_tool_func_call, path
+end
+
+---@param tool_use_message avante.HistoryMessage | nil
+function M.is_edit_func_call_message(tool_use_message)
+  local is_replace_func_call = false
+  local is_str_replace_editor_func_call = false
+  local is_str_replace_based_edit_tool_func_call = false
+  local path = nil
+  if tool_use_message and M.is_tool_use_message(tool_use_message) then
+    local tool_use = tool_use_message.message.content[1]
+    ---@cast tool_use AvanteLLMToolUse
+    return M.is_edit_func_call_tool_use(tool_use)
+  end
+  return is_replace_func_call, is_str_replace_editor_func_call, is_str_replace_based_edit_tool_func_call, path
 end
 
 ---@param message avante.HistoryMessage
@@ -1445,18 +1494,13 @@ function M.get_tool_result_message(message, messages)
       end
     end
     if not tool_id then return nil end
-    local idx = nil
-    for idx_, message_ in ipairs(messages) do
-      if message_.uuid == message.uuid then
-        idx = idx_
-        break
-      end
-    end
-    if not idx then return nil end
-    for _, message_ in ipairs(vim.list_slice(messages, idx + 1, #messages)) do
+    for idx_ = #messages, 1, -1 do
+      local message_ = messages[idx_]
       local content_ = message_.message.content
-      if type(content_) == "table" and content_[1].type == "tool_result" and content_[1].tool_use_id == tool_id then
-        return message_
+      if type(content_) == "table" then
+        for _, item in ipairs(content_) do
+          if item.type == "tool_result" and item.tool_use_id == tool_id then return message_ end
+        end
       end
     end
   end
@@ -1478,6 +1522,23 @@ function M.text_to_lines(text, hl)
   return lines
 end
 
+---@param thinking_text string
+---@param hl string | nil
+---@return avante.ui.Line[]
+function M.thinking_to_lines(thinking_text, hl)
+  local Line = require("avante.ui.line")
+  local text_lines = vim.split(thinking_text, "\n")
+  local lines = {}
+  table.insert(lines, Line:new({ { M.icon("🤔 ") .. "Thought content:" } }))
+  table.insert(lines, Line:new({ { "" } }))
+  for _, text_line in ipairs(text_lines) do
+    local piece = { "> " .. text_line }
+    if hl then table.insert(piece, hl) end
+    table.insert(lines, Line:new({ piece }))
+  end
+  return lines
+end
+
 ---@param item AvanteLLMMessageContentItem
 ---@param message avante.HistoryMessage
 ---@param messages avante.HistoryMessage[]
@@ -1486,6 +1547,9 @@ function M.message_content_item_to_lines(item, message, messages)
   local Line = require("avante.ui.line")
   if type(item) == "string" then return M.text_to_lines(item) end
   if type(item) == "table" then
+    if item.type == "thinking" or item.type == "redacted_thinking" then
+      return M.thinking_to_lines(item.thinking or item.data or "")
+    end
     if item.type == "text" then return M.text_to_lines(item.text) end
     if item.type == "image" then
       return { Line:new({ { "![image](" .. item.source.media_type .. ": " .. item.source.data .. ")" } }) }
@@ -1494,6 +1558,10 @@ function M.message_content_item_to_lines(item, message, messages)
       local lines = {}
       local state = "generating"
       local hl = "AvanteStateSpinnerToolCalling"
+      local ok, llm_tool = pcall(require, "avante.llm_tools." .. item.name)
+      if ok then
+        if llm_tool.on_render then return llm_tool.on_render(item.input, message.tool_use_logs) end
+      end
       local tool_result_message = M.get_tool_result_message(message, messages)
       if tool_result_message then
         local tool_result = tool_result_message.message.content[1]
@@ -1524,18 +1592,6 @@ function M.message_content_item_to_lines(item, message, messages)
               else
                 table.insert(lines, Line:new({ { "╰─" }, { string.format("  %s", line_) } }))
               end
-            end
-          end
-        end
-      elseif tool_result_message then
-        local tool_result = tool_result_message.message.content[1]
-        if tool_result.content then
-          local result_lines = vim.split(tool_result.content, "\n")
-          for idx, line in ipairs(result_lines) do
-            if idx ~= #result_lines then
-              table.insert(lines, Line:new({ { "│" }, { string.format("   %s", line) } }))
-            else
-              table.insert(lines, Line:new({ { "╰─" }, { string.format("  %s", line) } }))
             end
           end
         end
@@ -1588,6 +1644,28 @@ function M.message_to_text(message, messages)
     return table.concat(pieces, "\n")
   end
   return ""
+end
+
+function M.count_lines(str)
+  if not str or str == "" then return 0 end
+
+  local count = 1
+  local len = #str
+  local newline_byte = string.byte("\n")
+
+  for i = 1, len do
+    if str:byte(i) == newline_byte then count = count + 1 end
+  end
+
+  if str:byte(len) == newline_byte then count = count - 1 end
+
+  return count
+end
+
+function M.tbl_override(value, override)
+  override = override or {}
+  if type(override) == "function" then return override(value) or value end
+  return vim.tbl_extend("force", value, override)
 end
 
 return M

@@ -1,4 +1,5 @@
 local P = require("avante.providers")
+local Utils = require("avante.utils")
 local Gemini = require("avante.providers.gemini")
 
 ---@class AvanteProviderFunctor
@@ -17,7 +18,7 @@ M.parse_response = Gemini.parse_response
 M.transform_to_function_declaration = Gemini.transform_to_function_declaration
 
 local function execute_command(command)
-  local handle = io.popen(command)
+  local handle = io.popen(command .. " 2>/dev/null")
   if not handle then error("Failed to execute command: " .. command) end
   local result = handle:read("*a")
   handle:close()
@@ -50,10 +51,10 @@ function M:parse_curl_args(prompt_opts)
 
   return {
     url = url,
-    headers = {
+    headers = Utils.tbl_override({
       ["Authorization"] = "Bearer " .. bearer_token,
       ["Content-Type"] = "application/json; charset=utf-8",
-    },
+    }, self.extra_headers),
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,
     body = Gemini.prepare_request_body(self, prompt_opts, provider_conf, request_body),

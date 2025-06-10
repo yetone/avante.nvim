@@ -7,10 +7,10 @@ local Helpers = require("avante.llm_tools.helpers")
 
 local M = {}
 
----@type AvanteLLMToolFunc<{ rel_path: string }>
+---@type AvanteLLMToolFunc<{ path: string }>
 function M.read_file_toplevel_symbols(opts, on_log)
   local RepoMap = require("avante.repo_map")
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
   if on_log then on_log("path: " .. abs_path) end
   if not Path:new(abs_path):exists() then return "", "File does not exists: " .. abs_path end
@@ -25,6 +25,15 @@ end
 
 ---@type AvanteLLMToolFunc<{ command: "view" | "str_replace" | "create" | "insert" | "undo_edit", path: string, old_str?: string, new_str?: string, file_text?: string, insert_line?: integer, new_str?: string, view_range?: integer[] }>
 function M.str_replace_editor(opts, on_log, on_complete, session_ctx)
+  if opts.command == "undo_edit" then
+    return require("avante.llm_tools.undo_edit").func(opts, on_log, on_complete, session_ctx)
+  end
+  ---@cast opts any
+  return M.str_replace_based_edit_tool(opts, on_log, on_complete, session_ctx)
+end
+
+---@type AvanteLLMToolFunc<{ command: "view" | "str_replace" | "create" | "insert", path: string, old_str?: string, new_str?: string, file_text?: string, insert_line?: integer, new_str?: string, view_range?: integer[], streaming?: boolean }>
+function M.str_replace_based_edit_tool(opts, on_log, on_complete, session_ctx)
   if on_log then on_log("command: " .. opts.command) end
   if not on_complete then return false, "on_complete not provided" end
   local abs_path = Helpers.get_abs_path(opts.path)
@@ -34,10 +43,8 @@ function M.str_replace_editor(opts, on_log, on_complete, session_ctx)
     local opts_ = { path = opts.path }
     if opts.view_range then
       local start_line, end_line = unpack(opts.view_range)
-      opts_.view_range = {
-        start_line = start_line,
-        end_line = end_line,
-      }
+      opts_.start_line = start_line
+      opts_.end_line = end_line
     end
     return view(opts_, on_log, on_complete, session_ctx)
   end
@@ -49,9 +56,6 @@ function M.str_replace_editor(opts, on_log, on_complete, session_ctx)
   end
   if opts.command == "insert" then
     return require("avante.llm_tools.insert").func(opts, on_log, on_complete, session_ctx)
-  end
-  if opts.command == "undo_edit" then
-    return require("avante.llm_tools.undo_edit").func(opts, on_log, on_complete, session_ctx)
   end
   return false, "Unknown command: " .. opts.command
 end
@@ -91,13 +95,13 @@ function M.write_global_file(opts, on_log, on_complete)
   end)
 end
 
----@type AvanteLLMToolFunc<{ rel_path: string, new_rel_path: string }>
+---@type AvanteLLMToolFunc<{ path: string, new_path: string }>
 function M.rename_file(opts, on_log, on_complete)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
   if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
-  local new_abs_path = Helpers.get_abs_path(opts.new_rel_path)
+  local new_abs_path = Helpers.get_abs_path(opts.new_path)
   if on_log then on_log(abs_path .. " -> " .. new_abs_path) end
   if not Helpers.has_permission_to_access(new_abs_path) then
     return false, "No permission to access path: " .. new_abs_path
@@ -117,13 +121,13 @@ function M.rename_file(opts, on_log, on_complete)
   )
 end
 
----@type AvanteLLMToolFunc<{ rel_path: string, new_rel_path: string }>
+---@type AvanteLLMToolFunc<{ path: string, new_path: string }>
 function M.copy_file(opts, on_log)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
   if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
-  local new_abs_path = Helpers.get_abs_path(opts.new_rel_path)
+  local new_abs_path = Helpers.get_abs_path(opts.new_path)
   if not Helpers.has_permission_to_access(new_abs_path) then
     return false, "No permission to access path: " .. new_abs_path
   end
@@ -133,9 +137,9 @@ function M.copy_file(opts, on_log)
   return true, nil
 end
 
----@type AvanteLLMToolFunc<{ rel_path: string }>
+---@type AvanteLLMToolFunc<{ path: string }>
 function M.delete_file(opts, on_log, on_complete)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
   if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
@@ -151,9 +155,9 @@ function M.delete_file(opts, on_log, on_complete)
   end)
 end
 
----@type AvanteLLMToolFunc<{ rel_path: string }>
+---@type AvanteLLMToolFunc<{ path: string }>
 function M.create_dir(opts, on_log, on_complete)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if Path:new(abs_path):exists() then return false, "Directory already exists: " .. abs_path end
   if not on_complete then return false, "on_complete not provided" end
@@ -168,13 +172,13 @@ function M.create_dir(opts, on_log, on_complete)
   end)
 end
 
----@type AvanteLLMToolFunc<{ rel_path: string, new_rel_path: string }>
+---@type AvanteLLMToolFunc<{ path: string, new_path: string }>
 function M.rename_dir(opts, on_log, on_complete)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "Directory not found: " .. abs_path end
   if not Path:new(abs_path):is_dir() then return false, "Path is not a directory: " .. abs_path end
-  local new_abs_path = Helpers.get_abs_path(opts.new_rel_path)
+  local new_abs_path = Helpers.get_abs_path(opts.new_path)
   if not Helpers.has_permission_to_access(new_abs_path) then
     return false, "No permission to access path: " .. new_abs_path
   end
@@ -194,9 +198,9 @@ function M.rename_dir(opts, on_log, on_complete)
   )
 end
 
----@type AvanteLLMToolFunc<{ rel_path: string }>
+---@type AvanteLLMToolFunc<{ path: string }>
 function M.delete_dir(opts, on_log, on_complete)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "Directory not found: " .. abs_path end
   if not Path:new(abs_path):is_dir() then return false, "Path is not a directory: " .. abs_path end
@@ -522,9 +526,9 @@ function M.rag_search(opts, on_log, on_complete)
   )
 end
 
----@type AvanteLLMToolFunc<{ code: string, rel_path: string, container_image?: string }>
+---@type AvanteLLMToolFunc<{ code: string, path: string, container_image?: string }>
 function M.python(opts, on_log, on_complete)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return nil, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return nil, "Path not found: " .. abs_path end
   if on_log then on_log("cwd: " .. abs_path) end
@@ -604,6 +608,18 @@ function M.get_tools(user_input, history_messages)
     :totable()
 end
 
+function M.get_tool_names()
+  local custom_tools = Config.custom_tools
+  if type(custom_tools) == "function" then custom_tools = custom_tools() end
+  ---@type AvanteLLMTool[]
+  local unfiltered_tools = vim.list_extend(vim.list_extend({}, M._tools), custom_tools)
+  local tool_names = {}
+  for _, tool in ipairs(unfiltered_tools) do
+    table.insert(tool_names, tool.name)
+  end
+  return tool_names
+end
+
 ---@type AvanteLLMTool[]
 M._tools = {
   require("avante.llm_tools.replace_in_file"),
@@ -621,6 +637,9 @@ M._tools = {
           description = "Query to search",
           type = "string",
         },
+      },
+      usage = {
+        query = "Query to search",
       },
     },
     returns = {
@@ -649,10 +668,14 @@ M._tools = {
           type = "string",
         },
         {
-          name = "rel_path",
+          name = "path",
           description = "Relative path to the project directory, as cwd",
           type = "string",
         },
+      },
+      usage = {
+        code = "Python code to run",
+        path = "Relative path to the project directory, as cwd",
       },
     },
     returns = {
@@ -680,6 +703,9 @@ M._tools = {
           description = "Scope for the git diff (e.g. specific files or directories)",
           type = "string",
         },
+      },
+      usage = {
+        scope = "Scope for the git diff (e.g. specific files or directories)",
       },
     },
     returns = {
@@ -714,6 +740,10 @@ M._tools = {
           optional = true,
         },
       },
+      usage = {
+        message = "Commit message to use",
+        scope = "Scope for staging files (e.g. specific files or directories)",
+      },
     },
     returns = {
       {
@@ -731,6 +761,7 @@ M._tools = {
   },
   require("avante.llm_tools.ls"),
   require("avante.llm_tools.grep"),
+  require("avante.llm_tools.delete_tool_use_messages"),
   {
     name = "read_file_toplevel_symbols",
     description = "Read the top-level symbols of a file in current project scope",
@@ -738,10 +769,13 @@ M._tools = {
       type = "table",
       fields = {
         {
-          name = "rel_path",
+          name = "path",
           description = "Relative path to the file in current project scope",
           type = "string",
         },
+      },
+      usage = {
+        path = "Relative path to the file in current project scope",
       },
     },
     returns = {
@@ -760,7 +794,7 @@ M._tools = {
   },
   require("avante.llm_tools.str_replace"),
   require("avante.llm_tools.view"),
-  require("avante.llm_tools.create"),
+  require("avante.llm_tools.write_to_file"),
   require("avante.llm_tools.insert"),
   require("avante.llm_tools.undo_edit"),
   {
@@ -789,6 +823,9 @@ M._tools = {
           description = "Absolute path to the file in global scope",
           type = "string",
         },
+      },
+      usage = {
+        abs_path = "Absolute path to the file in global scope",
       },
     },
     returns = {
@@ -837,6 +874,10 @@ M._tools = {
           type = "string",
         },
       },
+      usage = {
+        abs_path = "The path to the file in the current project scope",
+        content = "The content to write to the file",
+      },
     },
     returns = {
       {
@@ -859,15 +900,19 @@ M._tools = {
       type = "table",
       fields = {
         {
-          name = "rel_path",
+          name = "path",
           description = "Relative path to the file in current project scope",
           type = "string",
         },
         {
-          name = "new_rel_path",
+          name = "new_path",
           description = "New relative path for the file",
           type = "string",
         },
+      },
+      usage = {
+        path = "Relative path to the file in current project scope",
+        new_path = "New relative path for the file",
       },
     },
     returns = {
@@ -891,10 +936,13 @@ M._tools = {
       type = "table",
       fields = {
         {
-          name = "rel_path",
+          name = "path",
           description = "Relative path to the file in current project scope",
           type = "string",
         },
+      },
+      usage = {
+        path = "Relative path to the file in current project scope",
       },
     },
     returns = {
@@ -918,10 +966,13 @@ M._tools = {
       type = "table",
       fields = {
         {
-          name = "rel_path",
+          name = "path",
           description = "Relative path to the project directory",
           type = "string",
         },
+      },
+      usage = {
+        path = "Relative path to the project directory",
       },
     },
     returns = {
@@ -945,15 +996,19 @@ M._tools = {
       type = "table",
       fields = {
         {
-          name = "rel_path",
+          name = "path",
           description = "Relative path to the project directory",
           type = "string",
         },
         {
-          name = "new_rel_path",
+          name = "new_path",
           description = "New relative path for the directory",
           type = "string",
         },
+      },
+      usage = {
+        path = "Relative path to the project directory",
+        new_path = "New relative path for the directory",
       },
     },
     returns = {
@@ -977,10 +1032,13 @@ M._tools = {
       type = "table",
       fields = {
         {
-          name = "rel_path",
+          name = "path",
           description = "Relative path to the project directory",
           type = "string",
         },
+      },
+      usage = {
+        path = "Relative path to the project directory",
       },
     },
     returns = {
@@ -999,6 +1057,7 @@ M._tools = {
   },
   require("avante.llm_tools.get_diagnostics"),
   require("avante.llm_tools.bash"),
+  require("avante.llm_tools.attempt_completion"),
   {
     name = "web_search",
     description = "Search the web",
@@ -1010,6 +1069,9 @@ M._tools = {
           description = "Query to search",
           type = "string",
         },
+      },
+      usage = {
+        query = "Query to search",
       },
     },
     returns = {
@@ -1037,6 +1099,9 @@ M._tools = {
           description = "Url to fetch markdown from",
           type = "string",
         },
+      },
+      usage = {
+        url = "Url to fetch markdown from",
       },
     },
     returns = {
@@ -1070,6 +1135,10 @@ M._tools = {
           type = "boolean",
           default = false,
         },
+      },
+      usage = {
+        symbol_name = "The name of the symbol to retrieve the definition for, example: fibonacci",
+        show_line_numbers = "true or false",
       },
     },
     returns = {
@@ -1132,6 +1201,8 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
   local func
   if tool_use.name == "str_replace_editor" then
     func = M.str_replace_editor
+  elseif tool_use.name == "str_replace_based_edit_tool" then
+    func = M.str_replace_based_edit_tool
   else
     ---@type AvanteLLMTool?
     local tool = vim.iter(tools):find(function(tool) return tool.name == tool_use.name end) ---@param tool AvanteLLMTool
