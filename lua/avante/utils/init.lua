@@ -1103,6 +1103,9 @@ function M.read_file_from_buf_or_disk(filepath)
     return lines, nil
   end
 
+  local stat = vim.uv.fs_stat(abs_path)
+  if stat and stat.type == "directory" then return {}, "Cannot read a directory as file" .. filepath end
+
   -- Fallback: read file from disk
   local file, open_err = io.open(abs_path, "r")
   if file then
