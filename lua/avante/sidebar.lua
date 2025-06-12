@@ -1847,10 +1847,13 @@ end
 
 function Sidebar:clear_history(args, cb)
   self.current_state = nil
-  local chat_history = Path.history.load(self.code.bufnr)
-  if next(chat_history) ~= nil then
-    chat_history.messages = {}
-    Path.history.save(self.code.bufnr, chat_history)
+  if next(self.chat_history) ~= nil then
+    self.chat_history.messages = {}
+    self.chat_history.entries = {}
+    Path.history.save(self.code.bufnr, self.chat_history)
+    self._history_cache_invalidated = true
+    self:reload_chat_history()
+    self:update_content_with_history()
     self:update_content(
       "Chat history cleared",
       { focus = false, scroll = false, callback = function() self:focus_input() end }
