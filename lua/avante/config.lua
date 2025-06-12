@@ -509,6 +509,12 @@ M._defaults = {
     },
     select_model = "<leader>a?", -- Select model command
     select_history = "<leader>ah", -- Select history command
+    confirm = {
+      focus_window = "<C-w>f",
+      code = "c",
+      resp = "r",
+      input = "i",
+    },
   },
   windows = {
     ---@alias AvantePosition "right" | "left" | "top" | "bottom" | "smart"
