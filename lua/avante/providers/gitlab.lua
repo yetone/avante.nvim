@@ -36,10 +36,13 @@ function H.fetch_and_store_ai_gateway_credentials()
 
   local response = curl.post(direct_access_url, curl_opts)
 
-  if not response or response.status ~= 200 then
-    Utils.warn("GitLab Duo: Failed to fetch AI Gateway credentials. Status: " ..
-               (response and response.status or "unknown") ..
-               ". Body: " .. (response and response.body or "empty"))
+  if not response or response.status ~= 201 then
+    Utils.warn(
+      "GitLab Duo: Failed to fetch AI Gateway credentials. Status: "
+        .. (response and response.status or "unknown")
+        .. ". Body: "
+        .. (response and response.body or "empty")
+    )
     M.state.ai_gateway_base_url = nil
     M.state.ai_gateway_token = nil
     M.state.ai_gateway_token_expires_at = nil
@@ -60,7 +63,10 @@ function H.fetch_and_store_ai_gateway_credentials()
   end
 
   if not (decoded_body.base_url and decoded_body.token and decoded_body.expires_at and decoded_body.headers) then
-    Utils.warn("GitLab Duo: /direct_access response is missing one or more required fields (base_url, token, expires_at, headers). Response: " .. vim.inspect(decoded_body))
+    Utils.warn(
+      "GitLab Duo: /direct_access response is missing one or more required fields (base_url, token, expires_at, headers). Response: "
+        .. vim.inspect(decoded_body)
+    )
     M.state.ai_gateway_base_url = nil
     M.state.ai_gateway_token = nil
     M.state.ai_gateway_token_expires_at = nil
@@ -74,7 +80,23 @@ function H.fetch_and_store_ai_gateway_credentials()
   M.state.ai_gateway_token_expires_at = decoded_body.expires_at
   M.state.ai_gateway_headers = decoded_body.headers
 
-  Utils.info("GitLab Duo: Successfully fetched and stored AI Gateway credentials. Token expires at: " .. os.date("%Y-%m-%d %H:%M:%S", decoded_body.expires_at))
+  Utils.info(
+    "GitLab Duo: Successfully fetched and stored AI Gateway credentials. "
+      .. "Base URL: "
+      .. tostring(M.state.ai_gateway_base_url)
+      .. ", "
+      .. "Token: "
+      .. tostring(M.state.ai_gateway_token)
+      .. ", "
+      .. "Token expires at: "
+      .. os.date("%Y-%m-%d %H:%M:%S", M.state.ai_gateway_token_expires_at)
+      .. " ("
+      .. tostring(M.state.ai_gateway_token_expires_at)
+      .. "), "
+      .. "Headers: "
+      .. vim.inspect(M.state.ai_gateway_headers)
+  )
+
   vim.g.avante_login = true
   return true
 end
@@ -97,9 +119,7 @@ M.role_map = {
   system = "system",
 }
 
-function M:is_disable_stream(is_streaming_capability)
-  return not is_streaming_capability
-end
+function M:is_disable_stream(is_streaming_capability) return not is_streaming_capability end
 
 function M:parse_messages(opts)
   local messages = {}
@@ -124,16 +144,18 @@ function M:parse_messages(opts)
       table.insert(messages, { role = current_role, content = msg.content })
       last_role = current_role
     elseif type(msg.content) == "table" then
-        local combined_text = ""
-        for _, item in ipairs(msg.content) do
-            if type(item) == "string" then combined_text = combined_text .. item .. " "
-            elseif item.type == "text" and item.text then combined_text = combined_text .. item.text .. " "
-            end
+      local combined_text = ""
+      for _, item in ipairs(msg.content) do
+        if type(item) == "string" then
+          combined_text = combined_text .. item .. " "
+        elseif item.type == "text" and item.text then
+          combined_text = combined_text .. item.text .. " "
         end
-        if combined_text ~= "" then
-            table.insert(messages, { role = current_role, content = vim.trim(combined_text) })
-            last_role = current_role
-        end
+      end
+      if combined_text ~= "" then
+        table.insert(messages, { role = current_role, content = vim.trim(combined_text) })
+        last_role = current_role
+      end
     end
   end
   return messages
@@ -141,9 +163,7 @@ end
 
 function H.build_code_suggestion_body(prompt_opts, provider_conf)
   local file_name = "unknown_file.txt"
-  if prompt_opts.current_file_path then
-    file_name = Path:new(prompt_opts.current_file_path):basename()
-  end
+  if prompt_opts.current_file_path then file_name = Path:new(prompt_opts.current_file_path):basename() end
 
   local lang_identifier = provider_conf.language_identifier
   if not lang_identifier and prompt_opts.language_identifier then
@@ -227,12 +247,15 @@ function M:parse_curl_args(prompt_opts)
   end
 
   -- Merge extra_request_body from config into the payload part if applicable.
-  if request_body_extras and request_body.prompt_components and request_body.prompt_components[1] and request_body.prompt_components[1].payload then
-      for k,v in pairs(request_body_extras) do
-          if request_body.prompt_components[1].payload[k] == nil then
-              request_body.prompt_components[1].payload[k] = v
-          end
-      end
+  if
+    request_body_extras
+    and request_body.prompt_components
+    and request_body.prompt_components[1]
+    and request_body.prompt_components[1].payload
+  then
+    for k, v in pairs(request_body_extras) do
+      if request_body.prompt_components[1].payload[k] == nil then request_body.prompt_components[1].payload[k] = v end
+    end
   end
 
   -- Construct headers using AI Gateway specific token and additional headers
@@ -291,9 +314,11 @@ function M.is_env_set()
   -- Check validity of AI Gateway credentials
   local current_time = os.time()
   local sixty_sec_buffer = 60
-  if M.state.ai_gateway_token and
-     M.state.ai_gateway_token_expires_at and
-     M.state.ai_gateway_token_expires_at > (current_time + sixty_sec_buffer) then
+  if
+    M.state.ai_gateway_token
+    and M.state.ai_gateway_token_expires_at
+    and M.state.ai_gateway_token_expires_at > (current_time + sixty_sec_buffer)
+  then
     Utils.debug("GitLab Duo: Existing AI Gateway credentials are valid.")
     vim.g.avante_login = true
     return true
@@ -301,9 +326,15 @@ function M.is_env_set()
 
   -- If credentials are not valid (missing or expired), try to fetch them.
   if M.state.ai_gateway_token_expires_at then
-      Utils.info("GitLab Duo: AI Gateway credentials expired or nearing expiry (Expiry: " .. os.date("%c", M.state.ai_gateway_token_expires_at) .. ", Now: " .. os.date("%c", current_time) .. "). Refreshing...")
+    Utils.info(
+      "GitLab Duo: AI Gateway credentials expired or nearing expiry (Expiry: "
+        .. os.date("%c", M.state.ai_gateway_token_expires_at)
+        .. ", Now: "
+        .. os.date("%c", current_time)
+        .. "). Refreshing..."
+    )
   else
-      Utils.info("GitLab Duo: AI Gateway credentials not found. Fetching...")
+    Utils.info("GitLab Duo: AI Gateway credentials not found. Fetching...")
   end
 
   -- H.fetch_and_store_ai_gateway_credentials() updates vim.g.avante_login internally
@@ -311,9 +342,7 @@ function M.is_env_set()
 end
 
 function M.setup()
-  if not M.state then
-    M.state = {}
-  end
+  if not M.state then M.state = {} end
 
   local user_token = vim.env[M.api_key_name] -- M.api_key_name is GITLAB_TOKEN
 
@@ -322,7 +351,9 @@ function M.setup()
     Utils.info("GitLab Duo provider: User GITLAB_TOKEN found.")
   else
     M.state.user_gitlab_token = nil
-    Utils.warn("GitLab Duo provider: User GITLAB_TOKEN environment variable not found or is empty. AI Gateway features will not be available.")
+    Utils.warn(
+      "GitLab Duo provider: User GITLAB_TOKEN environment variable not found or is empty. AI Gateway features will not be available."
+    )
   end
 
   -- Set login status to false initially. M.is_env_set() will update it after checking/fetching AI Gateway creds.
@@ -340,14 +371,19 @@ end
 function M:parse_response_without_stream(data, _, opts)
   if not opts or not opts.on_chunk or not opts.on_stop then
     Utils.warn("GitLab Duo (Chat): parse_response_without_stream called without proper opts callbacks.")
-    if opts.on_stop then opts.on_stop({reason = "error", message = "Callback configuration error."}) end
+    if opts.on_stop then opts.on_stop({ reason = "error", message = "Callback configuration error." }) end
     return
   end
 
   local ok, decoded_data = pcall(vim.json.decode, data)
 
   if not ok then
-    Utils.warn("GitLab Duo (Chat): Failed to decode non-streamed JSON response: " .. data .. " | Error: " .. tostring(decoded_data))
+    Utils.warn(
+      "GitLab Duo (Chat): Failed to decode non-streamed JSON response: "
+        .. data
+        .. " | Error: "
+        .. tostring(decoded_data)
+    )
     opts.on_stop({ reason = "error", message = "Failed to parse API response." })
     return
   end
@@ -357,7 +393,10 @@ function M:parse_response_without_stream(data, _, opts)
     opts.on_chunk(decoded_data.response)
     opts.on_stop({ reason = "complete" })
   else
-    Utils.warn("GitLab Duo (Chat): Could not extract text from 'response' field or field is not a string. Decoded data: " .. vim.inspect(decoded_data))
+    Utils.warn(
+      "GitLab Duo (Chat): Could not extract text from 'response' field or field is not a string. Decoded data: "
+        .. vim.inspect(decoded_data)
+    )
     opts.on_stop({ reason = "error", message = "Could not extract text from API response (unexpected format)." })
   end
 end
@@ -404,7 +443,12 @@ function M:parse_response(ctx, data_stream, _, opts)
             Utils.warn("GitLab Duo (Stream): content_chunk JSON structure unexpected: " .. json_str)
           end
         else
-          Utils.warn("GitLab Duo (Stream): Failed to decode JSON from content_chunk: " .. json_str .. " | Error: " .. tostring(data))
+          Utils.warn(
+            "GitLab Duo (Stream): Failed to decode JSON from content_chunk: "
+              .. json_str
+              .. " | Error: "
+              .. tostring(data)
+          )
         end
       elseif current_event_type == "stream_end" then
         Utils.debug("GitLab Duo (Stream): Received stream_end. Data: " .. json_str) -- data should be 'null' or empty
@@ -413,7 +457,12 @@ function M:parse_response(ctx, data_stream, _, opts)
         current_event_type = nil
         return -- Explicitly exit after stopping
       else
-        Utils.warn("GitLab Duo (Stream): Received data for unknown or unset event type: " .. (current_event_type or "nil") .. " | Data: " .. json_str)
+        Utils.warn(
+          "GitLab Duo (Stream): Received data for unknown or unset event type: "
+            .. (current_event_type or "nil")
+            .. " | Data: "
+            .. json_str
+        )
       end
     else
       Utils.warn("GitLab Duo (Stream): Received unexpected line: " .. line)
