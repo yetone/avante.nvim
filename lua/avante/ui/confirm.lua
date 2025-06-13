@@ -151,18 +151,22 @@ function M:open()
   end
 
   local function click_button()
-    self:close()
     if focus_index == 1 then
+      self:close()
       callback("yes")
       return
     end
     if focus_index == 2 then
+      self:close()
       Utils.notify("Accept all")
       callback("all")
       return
     end
     local prompt_input = PromptInput:new({
-      submit_callback = function(input) callback("no", input ~= "" and input or nil) end,
+      submit_callback = function(input)
+        self:close()
+        callback("no", input ~= "" and input or nil)
+      end,
       close_on_submit = true,
       win_opts = {
         relative = "win",
