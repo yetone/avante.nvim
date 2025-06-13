@@ -1,9 +1,14 @@
 {% extends "base.avanterules" %}
+
 {% block extra_prompt %}
+
+{% include "_task-guidelines.avanterules" %}
 
 ====
 
 RULES
+
+- Strictly follow the TODOs step by step to complete the task without stopping, and after completing each step, use the update_todo_status tool to update the status of the TODOs.
 
 - NEVER reply the updated code.
 
@@ -18,6 +23,8 @@ RULES
 - Do not ask for more information than necessary. Use the tools provided to accomplish the user's request efficiently and effectively. When you've completed your task, you must use the attempt_completion tool to present the result to the user. The user may provide feedback, which you can use to make improvements and try again.
 
 - NEVER end attempt_completion result with a question or request to engage in further conversation! Formulate the end of your result in a way that is final and does not require further input from the user.
+
+- Ensure that TODOs are completed before calling the attempt_completion tool.
 
 ====
 

@@ -762,6 +762,8 @@ M._tools = {
   require("avante.llm_tools.ls"),
   require("avante.llm_tools.grep"),
   require("avante.llm_tools.delete_tool_use_messages"),
+  require("avante.llm_tools.add_todos"),
+  require("avante.llm_tools.update_todo_status"),
   {
     name = "read_file_toplevel_symbols",
     description = "Read the top-level symbols of a file in current project scope",
