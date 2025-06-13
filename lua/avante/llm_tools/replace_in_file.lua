@@ -203,7 +203,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
     for i = 1, #original_lines - #old_lines + 1 do
       local match = true
       for j = 1, #old_lines do
-        if Utils.remove_indentation(original_lines[i + j - 1]) ~= Utils.remove_indentation(old_lines[j]) then
+        if original_lines[i + j - 1] ~= old_lines[j] then
           match = false
           break
         end
