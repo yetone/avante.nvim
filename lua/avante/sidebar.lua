@@ -368,32 +368,21 @@ local function transform_result_content(result_content, prev_filepath)
       local prev_line = result_lines[i - 1]
       if prev_line and prev_line:match("^%s*```$") then search_end = i - 1 end
 
-      local start_line = 0
-      local end_line = 0
       local match_filetype = nil
       local filepath = current_filepath or prev_filepath or ""
 
       if filepath == "" then goto continue end
 
-      local file_content = Utils.read_file_from_buf_or_disk(filepath) or {}
+      local file_content_lines = Utils.read_file_from_buf_or_disk(filepath) or {}
       local file_type = Utils.get_filetype(filepath)
-      if start_line ~= 0 or end_line ~= 0 then break end
-      for j = 1, #file_content - (search_end - search_start) + 1 do
-        local match = true
-        for k = 0, search_end - search_start - 1 do
-          if
-            Utils.remove_indentation(file_content[j + k]) ~= Utils.remove_indentation(result_lines[search_start + k])
-          then
-            match = false
-            break
-          end
-        end
-        if match then
-          start_line = j
-          end_line = j + (search_end - search_start) - 1
-          match_filetype = file_type
-          break
-        end
+      local search_lines = vim.list_slice(result_lines, search_start, search_end - 1)
+      local start_line, end_line = Utils.fuzzy_match(file_content_lines, search_lines)
+
+      if start_line ~= nil and end_line ~= nil then
+        match_filetype = file_type
+      else
+        start_line = 0
+        end_line = 0
       end
 
       -- when the filetype isn't detected, fallback to matching based on filepath.
@@ -634,61 +623,6 @@ local function extract_code_snippets_map(response_content)
   return snippets_map
 end
 
----@param snippets_map table<string, AvanteCodeSnippet[]>
----@return table<string, AvanteCodeSnippet[]>
-local function ensure_snippets_no_overlap(snippets_map)
-  local new_snippets_map = {}
-
-  for filepath, snippets in pairs(snippets_map) do
-    table.sort(snippets, function(a, b) return a.range[1] < b.range[1] end)
-
-    local original_lines = {}
-    local file_exists = Utils.file.exists(filepath)
-    if file_exists then
-      local original_lines_ = Utils.read_file_from_buf_or_disk(filepath)
-      if original_lines_ then original_lines = original_lines_ end
-    end
-
-    local new_snippets = {}
-    local last_end_line = 0
-    for _, snippet in ipairs(snippets) do
-      if snippet.range[1] > last_end_line then
-        table.insert(new_snippets, snippet)
-        last_end_line = snippet.range[2]
-      elseif not file_exists and #snippets <= 1 then
-        -- if the file doesn't exist, and we only have 1 snippet, then we don't have to check for overlaps.
-        table.insert(new_snippets, snippet)
-        last_end_line = snippet.range[2]
-      else
-        local snippet_lines = vim.split(snippet.content, "\n")
-        -- Trim the overlapping part
-        local new_start_line = nil
-        for i = snippet.range[1], math.min(snippet.range[2], last_end_line) do
-          if
-            Utils.remove_indentation(original_lines[i])
-            == Utils.remove_indentation(snippet_lines[i - snippet.range[1] + 1])
-          then
-            new_start_line = i + 1
-          else
-            break
-          end
-        end
-        if new_start_line ~= nil then
-          snippet.content = table.concat(vim.list_slice(snippet_lines, new_start_line - snippet.range[1] + 1), "\n")
-          snippet.range[1] = new_start_line
-          table.insert(new_snippets, snippet)
-          last_end_line = snippet.range[2]
-        else
-          Utils.error("Failed to ensure snippets no overlap", { once = true, title = "Avante" })
-        end
-      end
-    end
-    new_snippets_map[filepath] = new_snippets
-  end
-
-  return new_snippets_map
-end
-
 local function insert_conflict_contents(bufnr, snippets)
   -- sort snippets by start_line
   table.sort(snippets, function(a, b) return a.range[1] < b.range[1] end)
@@ -900,7 +834,6 @@ end
 function Sidebar:apply(current_cursor)
   local response, response_start_line = self:get_content_between_separators()
   local all_snippets_map = extract_code_snippets_map(response)
-  all_snippets_map = ensure_snippets_no_overlap(all_snippets_map)
   local selected_snippets_map = {}
   if current_cursor then
     if self.result_container and self.result_container.winid then
