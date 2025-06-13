@@ -566,17 +566,69 @@ function M.is_type(type_name, v)
 end
 -- luacheck: pop
 
----@param code string
+---@param text string
 ---@return string
-function M.get_indentation(code)
-  if not code then return "" end
-  return code:match("^%s*") or ""
+function M.get_indentation(text)
+  if not text then return "" end
+  return text:match("^%s*") or ""
 end
 
---- remove indentation from code: spaces or tabs
-function M.remove_indentation(code)
-  if not code then return code end
-  return code:gsub("%s*", "")
+function M.trim_space(text)
+  if not text then return text end
+  return text:gsub("%s*", "")
+end
+
+---@param original_lines string[]
+---@param target_lines string[]
+---@param compare_fn fun(line_a: string, line_b: string): boolean
+---@return integer | nil start_line
+---@return integer | nil end_line
+function M.try_find_match(original_lines, target_lines, compare_fn)
+  local start_line, end_line
+  for i = 1, #original_lines - #target_lines + 1 do
+    local match = true
+    for j = 1, #target_lines do
+      if not compare_fn(original_lines[i + j - 1], target_lines[j]) then
+        match = false
+        break
+      end
+    end
+    if match then
+      start_line = i
+      end_line = i + #target_lines - 1
+      break
+    end
+  end
+  return start_line, end_line
+end
+
+---@param original_lines string[]
+---@param target_lines string[]
+---@return integer | nil start_line
+---@return integer | nil end_line
+function M.fuzzy_match(original_lines, target_lines)
+  local start_line, end_line
+  ---exact match
+  start_line, end_line = M.try_find_match(
+    original_lines,
+    target_lines,
+    function(line_a, line_b) return line_a == line_b end
+  )
+  if start_line ~= nil and end_line ~= nil then return start_line, end_line end
+  ---fuzzy match
+  start_line, end_line = M.try_find_match(
+    original_lines,
+    target_lines,
+    function(line_a, line_b) return M.trim(line_a, { suffix = " \t" }) == M.trim(line_b, { suffix = " \t" }) end
+  )
+  if start_line ~= nil and end_line ~= nil then return start_line, end_line end
+  ---trim_space match
+  start_line, end_line = M.try_find_match(
+    original_lines,
+    target_lines,
+    function(line_a, line_b) return M.trim_space(line_a) == M.trim_space(line_b) end
+  )
+  return start_line, end_line
 end
 
 function M.relative_path(absolute)

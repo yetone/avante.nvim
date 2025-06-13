@@ -65,16 +65,16 @@ describe("Utils", function()
     end)
   end)
 
-  describe("remove_indentation", function()
+  describe("trime_space", function()
     it("should remove indentation correctly", function()
-      assert.equals("test", Utils.remove_indentation("  test"))
-      assert.equals("test", Utils.remove_indentation("\ttest"))
-      assert.equals("test", Utils.remove_indentation("test"))
+      assert.equals("test", Utils.trim_space("  test"))
+      assert.equals("test", Utils.trim_space("\ttest"))
+      assert.equals("test", Utils.trim_space("test"))
     end)
 
     it("should handle empty or nil input", function()
-      assert.equals("", Utils.remove_indentation(""))
-      assert.equals(nil, Utils.remove_indentation(nil))
+      assert.equals("", Utils.trim_space(""))
+      assert.equals(nil, Utils.trim_space(nil))
     end)
   end)
 
@@ -206,6 +206,29 @@ describe("Utils", function()
       vim.wait(200, function() return false end)
 
       assert.equals(5, result)
+    end)
+  end)
+
+  describe("fuzzy_match", function()
+    it("should match exact lines", function()
+      local lines = { "test", "test2", "test3", "test4" }
+      local start_line, end_line = Utils.fuzzy_match(lines, { "test2", "test3" })
+      assert.equals(2, start_line)
+      assert.equals(3, end_line)
+    end)
+
+    it("should match lines with suffix", function()
+      local lines = { "test", "test2", "test3", "test4" }
+      local start_line, end_line = Utils.fuzzy_match(lines, { "test2 \t", "test3" })
+      assert.equals(2, start_line)
+      assert.equals(3, end_line)
+    end)
+
+    it("should match lines with space", function()
+      local lines = { "test", "test2", "test3", "test4" }
+      local start_line, end_line = Utils.fuzzy_match(lines, { "test2 ", "  test3" })
+      assert.equals(2, start_line)
+      assert.equals(3, end_line)
     end)
   end)
 end)
