@@ -1462,6 +1462,23 @@ function Sidebar:is_sidebar_winid(winid)
   return false
 end
 
+---@return boolean
+function Sidebar:should_auto_scroll()
+  if not self.result_container or not self.result_container.winid then return false end
+  if not api.nvim_win_is_valid(self.result_container.winid) then return false end
+
+  local win_height = api.nvim_win_get_height(self.result_container.winid)
+  local total_lines = api.nvim_buf_line_count(self.result_container.bufnr)
+
+  local topline = vim.fn.line("w0", self.result_container.winid)
+
+  local last_visible_line = topline + win_height - 1
+
+  local is_scrolled_to_bottom = last_visible_line >= total_lines - 1
+
+  return is_scrolled_to_bottom
+end
+
 ---@param content string concatenated content of the buffer
 ---@param opts? {focus?: boolean, scroll?: boolean, backspace?: integer, callback?: fun(): nil} whether to focus the result view
 function Sidebar:update_content(content, opts)
@@ -1470,7 +1487,13 @@ function Sidebar:update_content(content, opts)
   -- 提前验证容器有效性，避免后续无效操作
   if not Utils.is_valid_container(self.result_container) then return end
 
-  opts = vim.tbl_deep_extend("force", { focus = false, scroll = self.scroll, callback = nil }, opts or {})
+  local should_auto_scroll = self:should_auto_scroll()
+
+  opts = vim.tbl_deep_extend(
+    "force",
+    { focus = false, scroll = should_auto_scroll and self.scroll, callback = nil },
+    opts or {}
+  )
 
   -- 缓存历史行，避免重复计算
   local history_lines
