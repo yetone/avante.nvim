@@ -34,6 +34,7 @@ end
 
 ---@type AvanteLLMToolFunc<{ command: "view" | "str_replace" | "create" | "insert", path: string, old_str?: string, new_str?: string, file_text?: string, insert_line?: integer, new_str?: string, view_range?: integer[], streaming?: boolean }>
 function M.str_replace_based_edit_tool(opts, on_log, on_complete, session_ctx)
+  if not opts.command then return false, "command not provided" end
   if on_log then on_log("command: " .. opts.command) end
   if not on_complete then return false, "on_complete not provided" end
   local abs_path = Helpers.get_abs_path(opts.path)
