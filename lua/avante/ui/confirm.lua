@@ -33,6 +33,7 @@ function M:new(message, callback, opts)
 end
 
 function M:open()
+  if self._popup then return end
   self._prev_winid = vim.api.nvim_get_current_win()
   local message = self.message
   local callback = self.callback

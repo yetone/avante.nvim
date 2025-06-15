@@ -1293,11 +1293,20 @@ function M.llm_tool_param_fields_to_json_schema(fields)
         properties = properties_,
         required = required_,
       }
+    elseif field.type == "array" and field.items then
+      local properties_ = M.llm_tool_param_fields_to_json_schema({ field.items })
+      local _, obj = next(properties_)
+      properties[field.name] = {
+        type = field.type,
+        description = field.get_description and field.get_description() or field.description,
+        items = obj,
+      }
     else
       properties[field.name] = {
         type = field.type,
         description = field.get_description and field.get_description() or field.description,
       }
+      if field.choices then properties[field.name].enum = field.choices end
     end
     if not field.optional then table.insert(required, field.name) end
   end
@@ -1721,6 +1730,48 @@ function M.tbl_override(value, override)
   override = override or {}
   if type(override) == "function" then return override(value) or value end
   return vim.tbl_extend("force", value, override)
+end
+
+---@param history_messages avante.HistoryMessage[]
+---@return AvantePartialLLMToolUse[]
+function M.get_uncalled_tool_uses(history_messages)
+  local partial_tool_use_list = {} ---@type AvantePartialLLMToolUse[]
+  local tool_result_seen = {}
+  for idx = #history_messages, 1, -1 do
+    local message = history_messages[idx]
+    local content = message.message.content
+    if type(content) ~= "table" or #content == 0 then goto continue end
+    local is_break = false
+    for _, item in ipairs(content) do
+      if item.type == "tool_use" then
+        if not tool_result_seen[item.id] then
+          local partial_tool_use = {
+            name = item.name,
+            id = item.id,
+            input = item.input,
+            state = message.state,
+          }
+          table.insert(partial_tool_use_list, 1, partial_tool_use)
+        else
+          is_break = true
+          break
+        end
+      end
+      if item.type == "tool_result" then tool_result_seen[item.tool_use_id] = true end
+    end
+    if is_break then break end
+    ::continue::
+  end
+  return partial_tool_use_list
+end
+
+function M.call_once(func)
+  local called = false
+  return function(...)
+    if called then return end
+    called = true
+    return func(...)
+  end
 end
 
 return M
