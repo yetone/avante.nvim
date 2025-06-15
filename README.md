@@ -989,8 +989,8 @@ In case you want to ban some tools to avoid its usage (like Claude 3.7 overusing
 
 Tool list
 
-> rag_search, python, git_diff, git_commit, list_files, search_files, search_keyword, read_file_toplevel_symbols,
-> read_file, create_file, rename_file, delete_file, create_dir, rename_dir, delete_dir, bash, web_search, fetch
+> rag_search, python, git_diff, git_commit, glob, search_keyword, read_file_toplevel_symbols,
+> read_file, create_file, move_path, copy_path, delete_path, create_dir, bash, web_search, fetch
 
 ## Custom Tools
 

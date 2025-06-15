@@ -112,9 +112,9 @@ describe("llm_tools", function()
     end)
   end)
 
-  describe("delete_file", function()
+  describe("delete_path", function()
     it("should delete existing file", function()
-      LlmTools.delete_file({ path = "test.txt" }, nil, function(success, err)
+      LlmTools.delete_path({ path = "test.txt" }, nil, function(success, err)
         assert.is_nil(err)
         assert.is_true(success)
 

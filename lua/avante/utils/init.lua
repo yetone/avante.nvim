@@ -1624,7 +1624,7 @@ function M.message_content_item_to_lines(item, message, messages)
       local hl = "AvanteStateSpinnerToolCalling"
       local ok, llm_tool = pcall(require, "avante.llm_tools." .. item.name)
       if ok then
-        if llm_tool.on_render then return llm_tool.on_render(item.input, message.tool_use_logs) end
+        if llm_tool.on_render then return llm_tool.on_render(item.input, message.tool_use_logs, message.state) end
       end
       local tool_result_message = M.get_tool_result_message(message, messages)
       if tool_result_message then
