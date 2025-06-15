@@ -15,6 +15,8 @@ After each tool use, the user will respond with the result of that tool use, i.e
 IMPORTANT NOTE: This tool CANNOT be used until you've confirmed from the user that any previous tool uses were successful. Failure to do so will result in code corruption and system failure. Before using this tool, you must ask yourself in <thinking></thinking> tags if you've confirmed from the user that any previous tool uses were successful. If not, then DO NOT use this tool.
 ]]
 
+M.support_streaming = true
+
 M.enabled = function() return Config.mode == "agentic" end
 
 ---@type AvanteLLMToolParam
@@ -54,7 +56,7 @@ M.returns = {
   },
 }
 
----@type AvanteLLMToolOnRender<AttemptCompletionInput>
+---@type avante.LLMToolOnRender<AttemptCompletionInput>
 function M.on_render(opts)
   local lines = {}
   table.insert(lines, Line:new({ { "✓  Task Completed", Highlights.AVANTE_TASK_COMPLETED } }))
