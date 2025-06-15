@@ -46,8 +46,9 @@ Sidebar.__index = Sidebar
 ---@field id integer
 ---@field augroup integer
 ---@field code avante.CodeState
----@field winids table<"result_container" | "selected_code_container" | "selected_files_container" | "input_container", integer>
+---@field winids table<"result_container" | "todos_container" | "selected_code_container" | "selected_files_container" | "input_container", integer>
 ---@field result_container NuiSplit | nil
+---@field todos_container NuiSplit | nil
 ---@field selected_code_container NuiSplit | nil
 ---@field selected_files_container NuiSplit | nil
 ---@field input_container NuiSplit | nil
@@ -71,11 +72,13 @@ function Sidebar:new(id)
     code = { bufnr = 0, winid = 0, selection = nil, old_winhl = nil },
     winids = {
       result_container = 0,
+      todos_container = 0,
       selected_files_container = 0,
       selected_code_container = 0,
       input_container = 0,
     },
     result_container = nil,
+    todos_container = nil,
     selected_code_container = nil,
     selected_files_container = nil,
     input_container = nil,
@@ -126,6 +129,7 @@ function Sidebar:reset()
   self.winids =
     { result_container = 0, selected_files_container = 0, selected_code_container = 0, input_container = 0 }
   self.result_container = nil
+  self.todos_container = nil
   self.selected_code_container = nil
   self.selected_files_container = nil
   self.input_container = nil
@@ -1330,6 +1334,7 @@ function Sidebar:on_mount(opts)
     callback = function(args)
       local closed_winid = tonumber(args.match)
       if closed_winid == self.winids.selected_files_container then return end
+      if closed_winid == self.winids.todos_container then return end
       if not self:is_sidebar_winid(closed_winid) then return end
       self:close()
     end,
@@ -1354,6 +1359,7 @@ function Sidebar:refresh_winids()
   if self.winids.result_container then table.insert(winids, self.winids.result_container) end
   if self.winids.selected_files_container then table.insert(winids, self.winids.selected_files_container) end
   if self.winids.selected_code_container then table.insert(winids, self.winids.selected_code_container) end
+  if self.winids.todos_container then table.insert(winids, self.winids.todos_container) end
   if self.winids.input_container then table.insert(winids, self.winids.input_container) end
 
   local function switch_windows()
@@ -1885,6 +1891,7 @@ function Sidebar:new_chat(args, cb)
   self.current_state = nil
   self:update_content("New chat", { focus = false, scroll = false, callback = function() self:focus_input() end })
   if cb then cb(args) end
+  vim.schedule(function() self:create_todos_container() end)
 end
 
 function Sidebar:save_history() Path.history.save(self.code.bufnr, self.chat_history) end
@@ -1896,6 +1903,15 @@ function Sidebar:delete_history_messages(uuids)
     if vim.list_contains(uuids, msg.uuid) then msg.is_deleted = true end
   end
   Path.history.save(self.code.bufnr, self.chat_history)
+end
+
+---@param todos avante.TODO[]
+function Sidebar:update_todos(todos)
+  if self.chat_history == nil then self:reload_chat_history() end
+  if self.chat_history == nil then return end
+  self.chat_history.todos = todos
+  Path.history.save(self.code.bufnr, self.chat_history)
+  self:create_todos_container()
 end
 
 ---@param messages avante.HistoryMessage | avante.HistoryMessage[]
@@ -2017,8 +2033,7 @@ function Sidebar:create_selected_code_container()
         api.nvim_win_get_height(self.result_container.winid) - selected_code_size - 3
       )
     end
-    self:adjust_result_container_layout()
-    self:adjust_selected_files_container_layout()
+    self:adjust_layout()
   end
 end
 
@@ -2604,6 +2619,9 @@ function Sidebar:create_input_container()
       Path.history.save(self.code.bufnr, self.chat_history)
     end
 
+    local history_messages = Utils.get_history_messages(self.chat_history)
+    local is_first_request = #history_messages == 0
+
     if request and request ~= "" then
       self:add_history_messages({
         HistoryMessage:new({
@@ -2627,6 +2645,10 @@ function Sidebar:create_input_container()
         on_messages_add = on_messages_add,
         on_state_change = on_state_change,
         get_history_messages = function(opts) return self:get_history_messages_for_api(opts) end,
+        get_todos = function()
+          local history = Path.history.load(self.code.bufnr)
+          return history and history.todos or {}
+        end,
         session_ctx = {},
       })
 
@@ -2867,13 +2889,23 @@ function Sidebar:get_selected_files_size()
   return selected_files_size
 end
 
+function Sidebar:get_todos_container_height()
+  local history = Path.history.load(self.code.bufnr)
+  if not history or not history.todos or #history.todos == 0 then return 0 end
+  return 3
+end
+
 function Sidebar:get_result_container_height()
+  local todos_height = self:get_todos_container_height()
   local selected_code_size = self:get_selected_code_size()
   local selected_files_size = self:get_selected_files_size()
 
   if self:get_layout() == "horizontal" then return math.floor(Config.windows.height / 100 * vim.o.lines) end
 
-  return math.max(1, api.nvim_win_get_height(self.code.winid) - selected_files_size - selected_code_size - 3 - 8)
+  return math.max(
+    1,
+    api.nvim_win_get_height(self.code.winid) - selected_files_size - selected_code_size - todos_height - 3 - 8
+  )
 end
 
 function Sidebar:get_result_container_width()
@@ -2948,6 +2980,8 @@ function Sidebar:render(opts)
 
   self:create_selected_code_container()
 
+  self:create_todos_container()
+
   self:on_mount(opts)
 
   self:setup_colors()
@@ -2965,6 +2999,13 @@ function Sidebar:adjust_selected_files_container_layout()
 
   local win_height = self:get_selected_files_container_height()
   api.nvim_win_set_height(self.selected_files_container.winid, win_height)
+end
+
+function Sidebar:adjust_todos_container_layout()
+  if not Utils.is_valid_container(self.todos_container, true) then return end
+
+  local win_height = self:get_todos_container_height()
+  api.nvim_win_set_height(self.todos_container.winid, win_height)
 end
 
 function Sidebar:create_selected_files_container()
@@ -2995,7 +3036,6 @@ function Sidebar:create_selected_files_container()
     }),
     position = "top",
     size = {
-      width = "40%",
       height = 2,
     },
   })
@@ -3057,7 +3097,7 @@ function Sidebar:create_selected_files_container()
       Highlights.SUBTITLE,
       Highlights.REVERSED_SUBTITLE
     )
-    self:adjust_result_container_layout()
+    self:adjust_layout()
   end
 
   self.file_selector:on("update", render)
@@ -3093,6 +3133,78 @@ function Sidebar:create_selected_files_container()
   self.selected_files_container:on(event.BufLeave, function() self:close_selected_files_hint() end, {})
 
   render()
+end
+
+function Sidebar:create_todos_container()
+  local history = Path.history.load(self.code.bufnr)
+  if not history or not history.todos or #history.todos == 0 then
+    if self.todos_container then self.todos_container:unmount() end
+    self.todos_container = nil
+    self:adjust_layout()
+    self:refresh_winids()
+    return
+  end
+  if not self.todos_container then
+    self.todos_container = Split({
+      enter = false,
+      relative = {
+        type = "win",
+        winid = self.input_container.winid,
+      },
+      buf_options = vim.tbl_deep_extend("force", buf_options, {
+        modifiable = false,
+        swapfile = false,
+        buftype = "nofile",
+        bufhidden = "wipe",
+        filetype = "AvanteTodos",
+      }),
+      win_options = vim.tbl_deep_extend("force", base_win_options, {
+        fillchars = Config.windows.fillchars,
+      }),
+      position = "top",
+      size = {
+        height = 3,
+      },
+    })
+    self.todos_container:mount()
+  end
+  local done_count = 0
+  local total_count = #history.todos
+  local focused_idx = 1
+  local todos_content_lines = {}
+  for idx, todo in ipairs(history.todos) do
+    local status_content = "[ ]"
+    if todo.status == "done" then
+      done_count = done_count + 1
+      status_content = "[x]"
+    end
+    if todo.status == "doing" then status_content = "[-]" end
+    local line = string.format("%s %d. %s", status_content, idx, todo.content)
+    if todo.status == "cancelled" then line = "~~" .. line .. "~~" end
+    if todo.status ~= "todo" then focused_idx = idx + 1 end
+    table.insert(todos_content_lines, line)
+  end
+  if focused_idx > #todos_content_lines then focused_idx = #todos_content_lines end
+  local todos_buf = api.nvim_win_get_buf(self.todos_container.winid)
+  Utils.unlock_buf(todos_buf)
+  api.nvim_buf_set_lines(todos_buf, 0, -1, false, todos_content_lines)
+  api.nvim_win_set_cursor(self.todos_container.winid, { focused_idx, 0 })
+  Utils.lock_buf(todos_buf)
+  self:render_header(
+    self.todos_container.winid,
+    todos_buf,
+    Utils.icon(" ") .. "Todos" .. " (" .. done_count .. "/" .. total_count .. ")",
+    Highlights.SUBTITLE,
+    Highlights.REVERSED_SUBTITLE
+  )
+  self:adjust_layout()
+  self:refresh_winids()
+end
+
+function Sidebar:adjust_layout()
+  self:adjust_result_container_layout()
+  self:adjust_todos_container_layout()
+  self:adjust_selected_files_container_layout()
 end
 
 return Sidebar
