@@ -735,10 +735,10 @@ function M._stream(opts)
           return handle_next_tool_use(partial_tool_use_list, tool_use_index + 1, tool_results)
         end
         local is_edit_tool_use = Utils.is_edit_func_call_tool_use(partial_tool_use)
-        local is_attempt_completion_tool_use = partial_tool_use.name == "attempt_completion"
-        if partial_tool_use.state == "generating" and not is_edit_tool_use and not is_attempt_completion_tool_use then
-          return
-        end
+        local support_streaming = false
+        local llm_tool = vim.iter(prompt_opts.tools):find(function(tool) return tool.name == partial_tool_use.name end)
+        if llm_tool then support_streaming = llm_tool.support_streaming == true end
+        if partial_tool_use.state == "generating" and not is_edit_tool_use and not support_streaming then return end
         if type(partial_tool_use.input) == "table" then partial_tool_use.input.tool_use_id = partial_tool_use.id end
         if partial_tool_use.state == "generating" then
           if type(partial_tool_use.input) == "table" then

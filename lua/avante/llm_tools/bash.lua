@@ -219,6 +219,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
   local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "Path not found: " .. abs_path end
+  if not opts.command then return false, "Command is required" end
   if on_log then on_log("command: " .. opts.command) end
   ---change cwd to abs_path
   ---@param output string
