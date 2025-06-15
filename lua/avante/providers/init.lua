@@ -116,17 +116,7 @@ end
 E.REQUEST_LOGIN_PATTERN = "AvanteRequestLogin"
 
 ---@param provider AvanteDefaultBaseProvider
-function E.require_api_key(provider)
-  if provider["local"] ~= nil then
-    if provider["local"] then
-      vim.deprecate('"local" = true', "api_key_name = ''", "0.1.0", "avante.nvim")
-    else
-      vim.deprecate('"local" = false', "api_key_name", "0.1.0", "avante.nvim")
-    end
-    return not provider["local"]
-  end
-  return provider.api_key_name ~= nil and provider.api_key_name ~= ""
-end
+function E.require_api_key(provider) return provider.api_key_name ~= nil and provider.api_key_name ~= "" end
 
 M.env = E
 
@@ -166,6 +156,7 @@ M = setmetatable(M, {
 
     if t[k].is_env_set == nil then
       t[k].is_env_set = function()
+        if not E.require_api_key(t[k]) then return true end
         local ok, result = pcall(t[k].parse_api_key)
         if not ok then return false end
         return result ~= nil
