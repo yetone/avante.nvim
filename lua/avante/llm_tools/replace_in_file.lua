@@ -40,6 +40,22 @@ One or more SEARCH/REPLACE blocks following this exact format:
   [new content to replace with]
   +++++++ REPLACE
   \`\`\`
+
+Example:
+  \`\`\`
+  ------- SEARCH
+  func my_function(param1, param2) {
+    // This is a comment
+    console.log(param1);
+  }
+  =======
+  func my_function(param1, param2) {
+    // This is a modified comment
+    console.log(param2);
+  }
+  +++++++ REPLACE
+  \`\`\`
+
   Critical rules:
   1. SEARCH content must match the associated file section to find EXACTLY:
      * Do not refer to the `diff` argument of the previous `replace_in_file` function call for SEARCH content matching, as it may have been modified. Always match from the latest file content in <selected_files> or from the `view` function call result.
