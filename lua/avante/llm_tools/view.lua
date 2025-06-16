@@ -88,6 +88,7 @@ M.returns = {
 
 ---@type AvanteLLMToolFunc<{ path: string, start_line?: integer, end_line?: integer }>
 function M.func(opts, on_log, on_complete, session_ctx)
+  if not opts.path then return false, "path is required" end
   if on_log then on_log("path: " .. opts.path) end
   local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
