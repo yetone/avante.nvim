@@ -43,7 +43,7 @@ function Test-GHAuth {
     }
 }
 
-function Download-Prebuilt($feature) {
+function Download-Prebuilt($feature, $tag) {
 
     $SCRIPT_DIR = $PSScriptRoot
     # Set the target directory to clone the artifact
@@ -68,8 +68,8 @@ function Download-Prebuilt($feature) {
         gh release download --repo "$REPO_OWNER/$REPO_NAME" --pattern "*$ARTIFACT_NAME_PATTERN*" --output $TempFile --clobber
     } else {
       # Get the artifact download URL
-      $LATEST_RELEASE = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest"
-      $ARTIFACT_URL = $LATEST_RELEASE.assets | Where-Object { $_.name -like "*$ARTIFACT_NAME_PATTERN*" } | Select-Object -ExpandProperty browser_download_url
+      $RELEASE = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$tag"
+      $ARTIFACT_URL = $RELEASE.assets | Where-Object { $_.name -like "*$ARTIFACT_NAME_PATTERN*" } | Select-Object -ExpandProperty browser_download_url
 
       # Download and extract the artifact
       Invoke-WebRequest -Uri $ARTIFACT_URL -OutFile $TempFile
@@ -103,8 +103,8 @@ function Main {
         if ($latestTag -eq $builtTag -and $latestTag) {
             Write-Host "Local build is up to date. No download needed."
         } elseif ($latestTag -ne $builtTag -and $latestTag) {
-            Write-Host "Downloading prebuilt binaries for $Version..."
-            Download-Prebuilt $Version
+            Write-Host "Downloading prebuilt binaries $latestTag for $Version..."
+            Download-Prebuilt $Version $latestTag
             Save-Tag $latestTag
         } else {
             cargo build --release --features=$Version
