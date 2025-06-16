@@ -65,7 +65,8 @@ function Download-Prebuilt($feature, $tag) {
     $TempFile = Get-Item ([System.IO.Path]::GetTempFilename()) | Rename-Item -NewName { $_.Name + ".zip" } -PassThru
 
     if ((Test-Command "gh") -and (Test-GHAuth)) {
-        gh release download --repo "$REPO_OWNER/$REPO_NAME" --pattern "*$ARTIFACT_NAME_PATTERN*" --output $TempFile --clobber
+        write-host "Using GitHub CLI to download artifacts..."
+        gh release download $latestTag --repo "$REPO_OWNER/$REPO_NAME" --pattern "*$ARTIFACT_NAME_PATTERN*" --output $TempFile --clobber
     } else {
       # Get the artifact download URL
       $RELEASE = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$tag"
