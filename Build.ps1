@@ -9,6 +9,8 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
 $BuildDir = "build"
+$REPO_OWNER = "yetone"
+$REPO_NAME = "avante.nvim"
 
 function Build-FromSource($feature) {
     if (-not (Test-Path $BuildDir)) {
@@ -42,8 +44,6 @@ function Test-GHAuth {
 }
 
 function Download-Prebuilt($feature) {
-    $REPO_OWNER = "yetone"
-    $REPO_NAME = "avante.nvim"
 
     $SCRIPT_DIR = $PSScriptRoot
     # Set the target directory to clone the artifact
@@ -103,22 +103,15 @@ function Main {
         if ($latestTag -eq $builtTag -and $latestTag) {
             Write-Host "Local build is up to date. No download needed."
         } elseif ($latestTag -ne $builtTag -and $latestTag) {
-            if (Test-Command "gh" -and Test-GHAuth) {
-                gh release download $latestTag --repo "github.com/$REPO_OWNER/$REPO_NAME" --pattern "*$ARTIFACT_NAME_PATTERN*" --clobber --output - | tar -zxvf - -C $TARGET_DIR
-                Save-Tag $latestTag
-            } else {
-                $ARTIFACT_URL = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$latestTag" | Select-String -Pattern "browser_download_url" | ForEach-Object { $_.Matches.Groups[1].Value } | Where-Object { $_ -match $ARTIFACT_NAME_PATTERN }
-
-                Invoke-WebRequest -Uri $ARTIFACT_URL -OutFile "$TempFile"
-                Expand-Archive -Path "$TempFile" -DestinationPath "$TARGET_DIR" -Force
-                Remove-Item "$TempFile"
-                Save-Tag $latestTag
-            }
+            Write-Host "Downloading prebuilt binaries for $Version..."
+            Download-Prebuilt $Version
+            Save-Tag $latestTag
         } else {
             cargo build --release --features=$Version
             Get-ChildItem -Path "target/release/avante_*.dll" | ForEach-Object {
                 Copy-Item $_.FullName "build/$($_.Name)"
             }
+            Save-Tag $latestTag
         }
     }
     Write-Host "Completed!"
