@@ -906,7 +906,7 @@ function M.join_paths(...)
       goto continue
     end
 
-    result = M.path.join(result, path)
+    result = result == "" and path or M.path.join(result, path)
     ::continue::
   end
   return M.norm(result)

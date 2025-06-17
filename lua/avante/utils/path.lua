@@ -98,6 +98,8 @@ end
 function M.normalize(filepath)
   if filepath == "/" and not IS_WIN then return "/" end
 
+  if filepath == "" then return "." end
+
   filepath = filepath:gsub("%%(%x%x)", function(hex) return string.char(tonumber(hex, 16)) end)
   return table.concat(M.split(filepath), SEP)
 end
@@ -124,6 +126,8 @@ function M.relative(from, to, prefer_slash)
     i = i + 1
   end
 
+  if i == 2 and is_to_absolute then return M.normalize(to) end
+
   local sep = prefer_slash and "/" or SEP
   local p = "" ---@type string
   for _ = i, #from_pieces do
@@ -132,6 +136,8 @@ function M.relative(from, to, prefer_slash)
   for j = i, #to_pieces do
     p = p .. sep .. to_pieces[j] ---@type string
   end
+
+  if p == "" then return "." end
   return #p > 1 and string.sub(p, 2) or p
 end
 
@@ -144,18 +150,22 @@ function M.resolve(cwd, to) return M.is_absolute(to) and M.normalize(to) or M.no
 function M.split(filepath)
   local pieces = {} ---@type string[]
   local pattern = "([^/\\]+)" ---@type string
-  local has_prefix_sep = SEP == "/" and string.byte(filepath, 1, 1) == BYTE_PATHSEP ---@type boolean
+  local has_sep_prefix = SEP == "/" and string.byte(filepath, 1, 1) == BYTE_PATHSEP ---@type boolean
+  local has_sep_suffix = #filepath > 1 and string.byte(filepath, #filepath, #filepath) == BYTE_PATHSEP ---@type boolean
+
+  if has_sep_prefix then pieces[1] = "" end
 
   for piece in string.gmatch(filepath, pattern) do
-    if #piece > 0 and piece ~= "." then
-      if piece == ".." and (has_prefix_sep or #pieces > 0) then
-        table.remove(pieces, #pieces)
+    if piece ~= "" and piece ~= "." then
+      if piece == ".." and (has_sep_prefix or #pieces > 0) then
+        pieces[#pieces] = nil
       else
-        table.insert(pieces, piece)
+        pieces[#pieces + 1] = piece
       end
     end
   end
-  if has_prefix_sep then table.insert(pieces, 1, "") end
+
+  if has_sep_suffix then pieces[#pieces + 1] = "" end
 
   if IS_WIN and #filepath > 1 and string.byte(filepath, 2, 2) == BYTE_COLON then pieces[1] = pieces[1]:upper() end
   return pieces
