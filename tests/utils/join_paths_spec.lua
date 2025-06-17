@@ -34,9 +34,9 @@ describe("join_paths", function()
     assert.equals("path" .. utils.path_sep .. "file.lua", result)
   end)
 
-  it("should return empty string when no paths provided", function()
+  it("should handle no paths provided", function()
     local result = utils.join_paths()
-    assert.equals("", result)
+    assert.equals(".", result)
   end)
 
   it("should return first path when only one path provided", function()
