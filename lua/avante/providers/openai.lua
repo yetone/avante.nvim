@@ -379,6 +379,16 @@ function M:add_tool_use_message(tool_use, state, opts)
 end
 
 function M:parse_response(ctx, data_stream, _, opts)
+  local orig_on_stop = opts.on_stop
+  local stopped = false
+  ---@param stop_opts AvanteLLMStopCallbackOptions
+  opts.on_stop = function(stop_opts)
+    if stop_opts and not stop_opts.streaming_tool_use then
+      if stopped then return end
+      stopped = true
+    end
+    return orig_on_stop(stop_opts)
+  end
   if data_stream:match('"%[DONE%]":') then
     self:finish_pending_messages(ctx, opts)
     if ctx.tool_use_list and #ctx.tool_use_list > 0 then
@@ -388,7 +398,10 @@ function M:parse_response(ctx, data_stream, _, opts)
     end
     return
   end
-  if data_stream == "[DONE]" then return end
+  if data_stream == "[DONE]" then
+    opts.on_stop({ reason = "complete" })
+    return
+  end
   local jsn = vim.json.decode(data_stream)
   ---@cast jsn AvanteOpenAIChatResponse
   if not jsn.choices then return end
