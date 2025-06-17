@@ -74,7 +74,15 @@ function M.func(opts, on_log, on_complete, session_ctx)
   if not on_complete then return false, "on_complete not provided" end
   local sidebar = require("avante").get()
   if not sidebar then return false, "Avante sidebar not found" end
+
+  local is_streaming = opts.streaming or false
+  if is_streaming then
+    -- wait for stream completion as command may not be complete yet
+    return
+  end
+
   session_ctx.attempt_completion_is_called = true
+
   if opts.command and opts.command ~= vim.NIL and opts.command ~= "" and not vim.startswith(opts.command, "open ") then
     session_ctx.always_yes = false
     require("avante.llm_tools.bash").func({ command = opts.command }, on_log, on_complete, session_ctx)
