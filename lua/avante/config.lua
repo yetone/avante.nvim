@@ -21,8 +21,10 @@ local M = {}
 M._defaults = {
   debug = false,
   ---@alias avante.Mode "agentic" | "legacy"
+  ---@type avante.Mode
   mode = "agentic",
   ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | string
+  ---@type avante.ProviderName
   provider = "claude",
   -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
   -- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
@@ -30,6 +32,7 @@ M._defaults = {
   auto_suggestions_provider = nil,
   memory_summary_provider = nil,
   ---@alias Tokenizer "tiktoken" | "hf"
+  ---@type Tokenizer
   -- Used for counting tokens and encoding text.
   -- By default, we will use tiktoken.
   -- For most providers that we support we will determine this automatically.
@@ -518,6 +521,7 @@ M._defaults = {
   },
   windows = {
     ---@alias AvantePosition "right" | "left" | "top" | "bottom" | "smart"
+    ---@type AvantePosition
     position = "right",
     fillchars = "eob: ",
     wrap = true, -- similar to vim.o.wrap
@@ -541,6 +545,7 @@ M._defaults = {
       border = { " ", " ", " ", " ", " ", " ", " ", " " },
       start_insert = true, -- Start insert mode when opening the ask window
       ---@alias AvanteInitialDiff "ours" | "theirs"
+      ---@type AvanteInitialDiff
       focus_on_apply = "ours", -- which diff to focus after applying
     },
   },
@@ -569,6 +574,7 @@ M._defaults = {
   },
   selector = {
     ---@alias avante.SelectorProvider "native" | "fzf_lua" | "mini_pick" | "snacks" | "telescope" | fun(selector: avante.ui.Selector): nil
+    ---@type avante.SelectorProvider
     provider = "native",
     provider_opts = {},
     exclude_auto_select = {}, -- List of items to exclude from auto selection

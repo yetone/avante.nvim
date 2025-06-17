@@ -60,6 +60,8 @@
   "yetone/avante.nvim",
   event = "VeryLazy",
   version = false, -- 永远不要将此值设置为 "*"！永远不要！
+  ---@module 'avante'
+  ---@type avante.Config
   opts = {
     -- 在此处添加任何选项
     -- 例如

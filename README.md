@@ -75,6 +75,8 @@ For building binary if you wish to build from source, then `cargo` is required. 
   "yetone/avante.nvim",
   event = "VeryLazy",
   version = false, -- Never set this value to "*"! Never!
+  ---@module 'avante'
+  ---@type avante.Config
   opts = {
     -- add any opts here
     -- for example
@@ -335,8 +337,10 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
 ```lua
 {
   ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | string
+  ---@type Provider
   provider = "claude", -- The provider used in Aider mode or in the planning phase of Cursor Planning Mode
   ---@alias Mode "agentic" | "legacy"
+  ---@type Mode
   mode = "agentic", -- The default mode for interaction. "agentic" uses tools to automatically generate code, "legacy" uses the old planning method to generate code.
   -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
   -- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
@@ -488,6 +492,7 @@ or you can use [Kaiser-Yang/blink-cmp-avante](https://github.com/Kaiser-Yang/bli
 ```lua
       selector = {
         --- @alias avante.SelectorProvider "native" | "fzf_lua" | "mini_pick" | "snacks" | "telescope" | fun(selector: avante.ui.Selector): nil
+        --- @type avante.SelectorProvider
         provider = "fzf",
         -- Options override for custom providers
         provider_opts = {},
@@ -542,6 +547,7 @@ For enhanced input UI with better styling and features:
 ```
 
 You'll need to install dressing.nvim:
+
 ```lua
 -- With lazy.nvim
 { "stevearc/dressing.nvim" }
@@ -568,6 +574,7 @@ For modern, feature-rich input UI:
 ```
 
 You'll need to install snacks.nvim:
+
 ```lua
 -- With lazy.nvim
 { "folke/snacks.nvim" }
