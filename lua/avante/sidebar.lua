@@ -1613,6 +1613,7 @@ local function calculate_config_window_position()
     end
   end
 
+  ---@cast position -"smart", -string
   return position
 end
 
