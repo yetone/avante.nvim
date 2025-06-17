@@ -122,7 +122,10 @@ end
 --- IMPORTANT: Using "the_diff" instead of "diff" is to avoid LLM streaming generating function parameters in alphabetical order, which would result in generating "path" after "diff", making it impossible to achieve a streaming diff view.
 ---@type AvanteLLMToolFunc<{ path: string, diff: string, the_diff?: string, streaming?: boolean, tool_use_id?: string }>
 function M.func(opts, on_log, on_complete, session_ctx)
-  if opts.the_diff ~= nil then opts.diff = opts.the_diff end
+  if opts.the_diff ~= nil then
+    opts.diff = opts.the_diff
+    opts.the_diff = nil
+  end
   if not opts.path or not opts.diff then return false, "path and diff are required " .. vim.inspect(opts) end
   if on_log then on_log("path: " .. opts.path) end
   local abs_path = Helpers.get_abs_path(opts.path)
