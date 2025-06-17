@@ -1587,9 +1587,9 @@ end
 local function render_chat_record_prefix(timestamp, provider, model, request, selected_filepaths, selected_code)
   provider = provider or "unknown"
   model = model or "unknown"
-  local res = "- Datetime: " .. timestamp .. "\n\n" .. "- Model: " .. provider .. "/" .. model
+  local res = "- Datetime: " .. timestamp .. "\n" .. "- Model:    " .. provider .. "/" .. model
   if selected_filepaths ~= nil and #selected_filepaths > 0 then
-    res = res .. "\n\n- Selected files:"
+    res = res .. "\n- Selected files:"
     for _, path in ipairs(selected_filepaths) do
       res = res .. "\n  - " .. path
     end
