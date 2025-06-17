@@ -3098,6 +3098,7 @@ function Sidebar:create_selected_files_container()
       if hl and hl ~= "" then table.insert(highlights_to_apply, { line_nr = i, icon = icon, hl = hl }) end
     end
 
+    local selected_files_count = #lines_to_set ---@type integer
     local selected_files_buf = api.nvim_win_get_buf(self.selected_files_container.winid)
     Utils.unlock_buf(selected_files_buf)
     api.nvim_buf_clear_namespace(selected_files_buf, SELECTED_FILES_ICON_NAMESPACE, 0, -1)
@@ -3119,7 +3120,12 @@ function Sidebar:create_selected_files_container()
     self:render_header(
       self.selected_files_container.winid,
       selected_files_buf,
-      Utils.icon(" ") .. "Selected Files",
+      string.format(
+        "%s Selected Files (%d file%s)",
+        Utils.icon(" "),
+        selected_files_count,
+        selected_files_count > 1 and "s" or ""
+      ),
       Highlights.SUBTITLE,
       Highlights.REVERSED_SUBTITLE
     )
