@@ -214,7 +214,7 @@ M.returns = {
   },
 }
 
----@type AvanteLLMToolFunc<{ path: string, command: string }>
+---@type AvanteLLMToolFunc<{ path: string, command: string, streaming?: boolean }>
 function M.func(opts, on_log, on_complete, session_ctx)
   local is_streaming = opts.streaming or false
   if is_streaming then
