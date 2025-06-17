@@ -3121,7 +3121,7 @@ function Sidebar:create_selected_files_container()
       self.selected_files_container.winid,
       selected_files_buf,
       string.format(
-        "%sSelected Files (%d file%s)",
+        "%sSelected (%d file%s)",
         Utils.icon(" "),
         selected_files_count,
         selected_files_count > 1 and "s" or ""
