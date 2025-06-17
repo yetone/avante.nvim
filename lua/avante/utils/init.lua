@@ -921,6 +921,12 @@ function M.is_absolute_path(path)
   return path:match("^/") ~= nil
 end
 
+function M.to_absolute_path(path)
+  if not path or path == "" then return path end
+  if path:sub(1, 1) == "/" or path:sub(1, 7) == "term://" then return path end
+  return M.join_paths(M.get_project_root(), path)
+end
+
 function M.join_paths(...)
   local paths = { ... }
   local result = paths[1] or ""

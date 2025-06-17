@@ -3088,9 +3088,11 @@ function Sidebar:create_selected_files_container()
     local lines_to_set = {}
     local highlights_to_apply = {}
 
+    local project_path = Utils.root.get()
     for i, filepath in ipairs(selected_filepaths_) do
       local icon, hl = Utils.file.get_file_icon(filepath)
-      local formatted_line = string.format("%s %s", icon, filepath)
+      local renderpath = PPath:new(filepath):normalize(project_path)
+      local formatted_line = string.format("%s %s", icon, renderpath)
       table.insert(lines_to_set, formatted_line)
       if hl and hl ~= "" then table.insert(highlights_to_apply, { line_nr = i, icon = icon, hl = hl }) end
     end
