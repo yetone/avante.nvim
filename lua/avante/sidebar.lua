@@ -2195,11 +2195,20 @@ function Sidebar:get_history_messages_for_api(opts)
       local tool_use_message = Utils.get_tool_use_message(message, history_messages0)
       local is_edit_func_call, _, _, path = Utils.is_edit_func_call_message(tool_use_message)
 
-      if is_edit_func_call and message.message.content[1].is_error then
-        failed_edit_tool_ids[message.message.content[1].tool_use_id] = true
+      local tool_result = message.message.content[1]
+
+      -- Only track as failed if it's an error AND not user-declined
+      if is_edit_func_call and tool_result.is_error and not tool_result.is_user_declined then
+        failed_edit_tool_ids[tool_result.tool_use_id] = true
       end
 
-      if is_edit_func_call and path and not message.message.content[1].is_error then
+      -- Only track as successful modification if not an error AND not user-declined
+      if
+        is_edit_func_call
+        and path
+        and not message.message.content[1].is_error
+        and not message.message.content[1].is_user_declined
+      then
         local uniformed_path = Utils.uniform_path(path)
         last_modified_files[uniformed_path] = idx
       end
@@ -2260,6 +2269,7 @@ function Sidebar:get_history_messages_for_api(opts)
                 tool_use_id = view_tool_use_id,
                 content = view_result,
                 is_error = view_error ~= nil,
+                is_user_declined = false,
               },
             },
           }, {
@@ -2299,6 +2309,7 @@ function Sidebar:get_history_messages_for_api(opts)
                   tool_use_id = get_diagnostics_tool_use_id,
                   content = vim.json.encode(diagnostics),
                   is_error = false,
+                  is_user_declined = false,
                 },
               },
             }, {
