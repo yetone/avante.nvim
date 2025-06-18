@@ -655,6 +655,26 @@ For other users just add a custom provider
 
 ## Usage
 
+### @mentions
+
+avante.nvim supports the following @mentions to help you reference different parts of your codebase:
+
+| Mention        | Description                         |
+| -------------- | ----------------------------------- |
+| `@codebase`    | Include the entire codebase context |
+| `@diagnostics` | Include current diagnostic issues   |
+| `@file`        | Include the current file            |
+| `@quickfix`    | Include the quickfix list           |
+| `@buffers`     | Include all open buffers            |
+
+You can use these mentions in your conversations with avante.nvim to provide relevant context. For example:
+
+- `@file what are the issues in this code?` - analyzes the current file
+- `@codebase explain the project structure` - looks at the entire codebase
+- `@diagnostics how do I fix these errors?` - helps resolve diagnostic issues
+
+### Basic Functionality
+
 Given its early stage, `avante.nvim` currently supports the following basic functionalities:
 
 > [!IMPORTANT]
