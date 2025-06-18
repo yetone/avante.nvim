@@ -54,6 +54,7 @@ function M.confirm(message, callback, confirm_opts, session_ctx, tool_name)
     return
   end
   confirm_opts = vim.tbl_deep_extend("force", { container_winid = sidebar.input_container.winid }, confirm_opts or {})
+  if M.confirm_popup then M.confirm_popup:close() end
   M.confirm_popup = Confirm:new(message, function(type, reason)
     if type == "yes" then
       callback(true)
