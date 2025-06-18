@@ -1437,7 +1437,8 @@ function Sidebar:initialize()
 
   self.file_selector:reset()
 
-  if Utils.path.is_exist_filepath(filepath) then self.file_selector:add_selected_file(filepath) end
+  local stat = vim.uv.fs_stat(filepath)
+  if stat == nil or stat.type == "file" then self.file_selector:add_selected_file(filepath) end
 
   self:reload_chat_history()
 
