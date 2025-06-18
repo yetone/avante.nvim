@@ -1436,7 +1436,8 @@ function Sidebar:initialize()
   Utils.debug("Sidebar:initialize adding buffer to file selector", buf_path)
 
   self.file_selector:reset()
-  self.file_selector:add_selected_file(filepath)
+
+  if Utils.path.is_exist_filepath(filepath) then self.file_selector:add_selected_file(filepath) end
 
   self:reload_chat_history()
 
