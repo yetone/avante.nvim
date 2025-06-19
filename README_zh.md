@@ -58,6 +58,9 @@
 ```lua
 {
   "yetone/avante.nvim",
+  -- 如果您想从源代码构建，请执行 `make BUILD_FROM_SOURCE=true`
+  build = "make", -- ⚠️ 一定要加上这一行配置！！！！！
+  -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- 对于 Windows
   event = "VeryLazy",
   version = false, -- 永远不要将此值设置为 "*"！永远不要！
   ---@module 'avante'
@@ -65,23 +68,19 @@
   opts = {
     -- 在此处添加任何选项
     -- 例如
-    provider = "openai",
+    provider = "claude",
     providers = {
-      openai = {
-        endpoint = "https://api.openai.com/v1",
-        model = "gpt-4o", -- 您想要的模型（或使用 gpt-4o 等）
-        extra_request_body = {
-          timeout = 30000, -- 超时时间（毫秒），增加此值以适应推理模型
-          temperature = 0,
-          max_tokens = 8192, -- 增加此值以包括推理模型的推理令牌
-          --reasoning_effort = "medium", -- low|medium|high，仅用于推理模型
-        },
+      claude = {
+        endpoint = "https://api.anthropic.com",
+        model = "claude-sonnet-4-20250514",
+        timeout = 30000, -- Timeout in milliseconds
+          extra_request_body = {
+            temperature = 0.75,
+            max_tokens = 20480,
+          },
       },
     },
   },
-  -- 如果您想从源代码构建，请执行 `make BUILD_FROM_SOURCE=true`
-  build = "make",
-  -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- 对于 Windows
   dependencies = {
     "nvim-treesitter/nvim-treesitter",
 
