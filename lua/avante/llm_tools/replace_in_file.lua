@@ -263,12 +263,17 @@ function M.func(opts, on_log, on_complete, session_ctx)
       end
       local old_string = table.concat(old_lines, "\n")
       local new_string = table.concat(new_lines, "\n")
-      ---@diagnostic disable-next-line: assign-type-mismatch, missing-fields
-      local patch = vim.diff(old_string, new_string, { ---@type integer[][]
-        algorithm = "histogram",
-        result_type = "indices",
-        ctxlen = vim.o.scrolloff,
-      })
+      local patch
+      if Config.behaviour.minimize_diff then
+        ---@diagnostic disable-next-line: assign-type-mismatch, missing-fields
+        patch = vim.diff(old_string, new_string, { ---@type integer[][]
+          algorithm = "histogram",
+          result_type = "indices",
+          ctxlen = vim.o.scrolloff,
+        })
+      else
+        patch = { { 1, #old_lines, 1, #new_lines } }
+      end
       local diff_blocks_ = {}
       for _, hunk in ipairs(patch) do
         local start_a, count_a, start_b, count_b = unpack(hunk)
