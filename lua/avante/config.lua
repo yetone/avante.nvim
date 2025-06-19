@@ -270,7 +270,7 @@ M._defaults = {
     ---@type AvanteSupportedProvider
     claude = {
       endpoint = "https://api.anthropic.com",
-      model = "claude-3-7-sonnet-20250219",
+      model = "claude-sonnet-4-20250514",
       timeout = 30000, -- Timeout in milliseconds
       extra_request_body = {
         temperature = 0.75,
