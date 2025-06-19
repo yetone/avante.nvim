@@ -472,6 +472,9 @@ function M.func(opts, on_log, on_complete, session_ctx)
   local function register_keybinding_events()
     local keymap_opts = { buffer = bufnr }
     vim.keymap.set({ "n", "v" }, Config.mappings.diff.ours, function()
+      if show_keybinding_hint_extmark_id then
+        vim.api.nvim_buf_del_extmark(bufnr, KEYBINDING_NAMESPACE, show_keybinding_hint_extmark_id)
+      end
       local diff_block, idx = get_current_diff_block()
       if not diff_block then return end
       pcall(vim.api.nvim_buf_del_extmark, bufnr, NAMESPACE, diff_block.delete_extmark_id)
@@ -496,6 +499,9 @@ function M.func(opts, on_log, on_complete, session_ctx)
     end, keymap_opts)
 
     vim.keymap.set({ "n", "v" }, Config.mappings.diff.theirs, function()
+      if show_keybinding_hint_extmark_id then
+        vim.api.nvim_buf_del_extmark(bufnr, KEYBINDING_NAMESPACE, show_keybinding_hint_extmark_id)
+      end
       local diff_block, idx = get_current_diff_block()
       if not diff_block then return end
       pcall(vim.api.nvim_buf_del_extmark, bufnr, NAMESPACE, diff_block.incoming_extmark_id)
@@ -512,6 +518,9 @@ function M.func(opts, on_log, on_complete, session_ctx)
     end, keymap_opts)
 
     vim.keymap.set({ "n", "v" }, Config.mappings.diff.next, function()
+      if show_keybinding_hint_extmark_id then
+        vim.api.nvim_buf_del_extmark(bufnr, KEYBINDING_NAMESPACE, show_keybinding_hint_extmark_id)
+      end
       local diff_block = get_next_diff_block()
       if not diff_block then return end
       local winnr = Utils.get_winid(bufnr)
@@ -520,6 +529,9 @@ function M.func(opts, on_log, on_complete, session_ctx)
     end, keymap_opts)
 
     vim.keymap.set({ "n", "v" }, Config.mappings.diff.prev, function()
+      if show_keybinding_hint_extmark_id then
+        vim.api.nvim_buf_del_extmark(bufnr, KEYBINDING_NAMESPACE, show_keybinding_hint_extmark_id)
+      end
       local diff_block = get_prev_diff_block()
       if not diff_block then return end
       local winnr = Utils.get_winid(bufnr)
