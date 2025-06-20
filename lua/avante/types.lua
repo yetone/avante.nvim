@@ -78,7 +78,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field on_messages_add? fun(messages: avante.HistoryMessage[]): nil
 ---@field on_state_change? fun(state: avante.GenerateState): nil
 ---
----@alias AvanteLLMMessageContentItem string | { type: "text", text: string } | { type: "image", source: { type: "base64", media_type: string, data: string } } | { type: "tool_use", name: string, id: string, input: any } | { type: "tool_result", tool_use_id: string, content: string, is_error?: boolean } | { type: "thinking", thinking: string, signature: string } | { type: "redacted_thinking", data: string }
+---@alias AvanteLLMMessageContentItem string | { type: "text", text: string, cache_control: { type: string } | nil } | { type: "image", source: { type: "base64", media_type: string, data: string } } | { type: "tool_use", name: string, id: string, input: any } | { type: "tool_result", tool_use_id: string, content: string, is_error?: boolean } | { type: "thinking", thinking: string, signature: string } | { type: "redacted_thinking", data: string }
 
 ---@alias AvanteLLMMessageContent AvanteLLMMessageContentItem[] | string
 
@@ -129,20 +129,20 @@ vim.g.avante_login = vim.g.avante_login
 ---@field role "user"
 ---@field parts { text: string }[]
 ---
----@class AvanteClaudeBaseMessage
+---@class AvanteClaudeMessageContentBaseItem
 ---@field cache_control {type: "ephemeral"}?
 ---
----@class AvanteClaudeTextMessage: AvanteClaudeBaseMessage
+---@class AvanteClaudeMessageContentTextItem: AvanteClaudeMessageContentBaseItem
 ---@field type "text"
 ---@field text string
 ---
----@class AvanteClaudeImageMessage: AvanteClaudeBaseMessage
+---@class AvanteClaudeMessageCotnentImageItem: AvanteClaudeMessageContentBaseItem
 ---@field type "image"
 ---@field source {type: "base64", media_type: string, data: string}
 ---
 ---@class AvanteClaudeMessage
 ---@field role "user" | "assistant"
----@field content [AvanteClaudeTextMessage | AvanteClaudeImageMessage][]
+---@field content [AvanteClaudeMessageContentTextItem | AvanteClaudeMessageCotnentImageItem][]
 
 ---@class AvanteClaudeTool
 ---@field name string
