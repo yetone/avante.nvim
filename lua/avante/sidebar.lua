@@ -2181,6 +2181,16 @@ function Sidebar:get_history_messages_for_api(opts)
 
   if opts.all then return history_messages0 end
 
+  if self.chat_history and self.chat_history.memory then
+    local picked_messages = {}
+    for idx = #history_messages0, 1, -1 do
+      local message = history_messages0[idx]
+      if message.uuid == self.chat_history.memory.last_message_uuid then break end
+      table.insert(picked_messages, 1, message)
+    end
+    history_messages0 = picked_messages
+  end
+
   local tool_id_to_tool_name = {}
   local tool_id_to_path = {}
   local tool_id_to_start_line = {}

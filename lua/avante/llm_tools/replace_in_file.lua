@@ -735,6 +735,9 @@ function M.func(opts, on_log, on_complete, session_ctx)
       on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
     end
+    local parent_dir = vim.fn.fnamemodify(abs_path, ":h")
+    --- check if the parent dir is exists, if not, create it
+    if not vim.fn.isdirectory(parent_dir) then vim.fn.mkdir(parent_dir, "p") end
     vim.api.nvim_buf_call(bufnr, function() vim.cmd("noautocmd write") end)
     if session_ctx then Helpers.mark_as_not_viewed(opts.path, session_ctx) end
     on_complete(true, nil)
