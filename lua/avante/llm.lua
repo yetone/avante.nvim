@@ -682,6 +682,7 @@ function M._stream(opts)
                   tool_use_id = tool_result.tool_use_id,
                   content = tool_result.content,
                   is_error = tool_result.is_error,
+                  is_user_declined = tool_result.is_user_declined,
                 },
               },
             })
@@ -726,10 +727,12 @@ function M._stream(opts)
             return opts.on_stop({ reason = "cancelled" })
           end
 
+          local is_user_declined = error and error:match("^User declined")
           local tool_result = {
             tool_use_id = partial_tool_use.id,
             content = error ~= nil and error or result,
-            is_error = error ~= nil,
+            is_error = error ~= nil, -- Keep this as error to prevent processing as success
+            is_user_declined = is_user_declined ~= nil,
           }
           table.insert(tool_results, tool_result)
           return handle_next_tool_use(partial_tool_use_list, tool_use_index + 1, tool_results)
