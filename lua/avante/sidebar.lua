@@ -1018,7 +1018,7 @@ function Sidebar:render_selected_code()
   if not Utils.is_valid_container(self.selected_code_container) then return end
 
   local selected_code_lines_count = 0
-  local selected_code_max_lines_count = 12
+  local selected_code_max_lines_count = 5
 
   if self.code.selection ~= nil then
     local selected_code_lines = vim.split(self.code.selection.content, "\n")
@@ -2037,7 +2037,7 @@ function Sidebar:create_selected_code_container()
     self.selected_code_container = nil
   end
 
-  local selected_code_size = self:get_selected_code_size()
+  local height = self:get_selected_code_container_height()
 
   if self.code.selection ~= nil then
     self.selected_code_container = Split({
@@ -2049,17 +2049,11 @@ function Sidebar:create_selected_code_container()
       buf_options = buf_options,
       win_options = vim.tbl_deep_extend("force", base_win_options, {}),
       size = {
-        height = selected_code_size + 3,
+        height = height,
       },
       position = "top",
     })
     self.selected_code_container:mount()
-    if self:get_layout() == "horizontal" then
-      api.nvim_win_set_height(
-        self.result_container.winid,
-        api.nvim_win_get_height(self.result_container.winid) - selected_code_size - 3
-      )
-    end
     self:adjust_layout()
   end
 end
@@ -2735,11 +2729,11 @@ function Sidebar:create_input_container()
       height = Config.windows.input.height,
     } end
 
-    local selected_code_size = self:get_selected_code_size()
+    local selected_code_container_height = self:get_selected_code_container_height()
 
     return {
       width = "40%",
-      height = math.max(1, api.nvim_win_get_height(self.result_container.winid) - selected_code_size),
+      height = math.max(1, api.nvim_win_get_height(self.result_container.winid) - selected_code_container_height),
     }
   end
 
@@ -2911,30 +2905,18 @@ function Sidebar:get_input_value()
   return table.concat(lines, "\n")
 end
 
-function Sidebar:get_selected_code_size()
-  local selected_code_max_lines_count = 10
+function Sidebar:get_selected_code_container_height()
+  local selected_code_max_lines_count = 5
 
   local selected_code_size = 0
 
   if self.code.selection ~= nil then
     local selected_code_lines = vim.split(self.code.selection.content, "\n")
-    local selected_code_lines_count = #selected_code_lines
+    local selected_code_lines_count = #selected_code_lines + 1
     selected_code_size = math.min(selected_code_lines_count, selected_code_max_lines_count)
   end
 
   return selected_code_size
-end
-
-function Sidebar:get_selected_files_size()
-  if not self.file_selector then return 0 end
-
-  local selected_files_max_lines_count = 10
-
-  local selected_filepaths = self.file_selector:get_selected_filepaths()
-  local selected_files_size = #selected_filepaths
-  selected_files_size = math.min(selected_files_size, selected_files_max_lines_count)
-
-  return selected_files_size
 end
 
 function Sidebar:get_todos_container_height()
@@ -2944,15 +2926,19 @@ function Sidebar:get_todos_container_height()
 end
 
 function Sidebar:get_result_container_height()
-  local todos_height = self:get_todos_container_height()
-  local selected_code_size = self:get_selected_code_size()
-  local selected_files_size = self:get_selected_files_size()
+  local todos_container_height = self:get_todos_container_height()
+  local selected_code_container_height = self:get_selected_code_container_height()
+  local selected_files_container_height = self:get_selected_files_container_height()
 
   if self:get_layout() == "horizontal" then return math.floor(Config.windows.height / 100 * vim.o.lines) end
 
   return math.max(
     1,
-    api.nvim_win_get_height(self.code.winid) - selected_files_size - selected_code_size - todos_height - 3 - 8
+    api.nvim_win_get_height(self.code.winid)
+      - selected_files_container_height
+      - selected_code_container_height
+      - todos_container_height
+      - 6
   )
 end
 
@@ -3049,6 +3035,13 @@ function Sidebar:adjust_selected_files_container_layout()
 
   local win_height = self:get_selected_files_container_height()
   api.nvim_win_set_height(self.selected_files_container.winid, win_height)
+end
+
+function Sidebar:adjust_selected_code_container_layout()
+  if not Utils.is_valid_container(self.selected_code_container, true) then return end
+
+  local win_height = self:get_selected_code_container_height()
+  api.nvim_win_set_height(self.selected_code_container.winid, win_height)
 end
 
 function Sidebar:adjust_todos_container_layout()
@@ -3262,6 +3255,7 @@ end
 function Sidebar:adjust_layout()
   self:adjust_result_container_layout()
   self:adjust_todos_container_layout()
+  self:adjust_selected_code_container_layout()
   self:adjust_selected_files_container_layout()
 end
 
