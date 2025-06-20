@@ -589,13 +589,13 @@ function M.func(opts, on_log, on_complete, session_ctx)
           return { { line_, Highlights.TO_BE_DELETED_WITHOUT_STRIKETHROUGH } }
         end)
         :totable()
-      local extmark_line = math.max(0, start_line - 2)
-      local delete_extmark_id = vim.api.nvim_buf_set_extmark(bufnr, NAMESPACE, extmark_line, 0, {
+      -- local extmark_line = math.max(0, start_line - 2)
+      local end_row = start_line + #diff_block.new_lines - 1
+      local delete_extmark_id = vim.api.nvim_buf_set_extmark(bufnr, NAMESPACE, end_row - 1, 0, {
         virt_lines = deleted_virt_lines,
         hl_eol = true,
         hl_mode = "combine",
       })
-      local end_row = start_line + #diff_block.new_lines - 1
       local incoming_extmark_id = vim.api.nvim_buf_set_extmark(bufnr, NAMESPACE, start_line - 1, 0, {
         hl_group = Highlights.INCOMING,
         hl_eol = true,
