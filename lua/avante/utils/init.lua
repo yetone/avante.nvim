@@ -993,10 +993,14 @@ function M.open_buffer(path, set_current_buf)
 
   local abs_path = M.join_paths(M.get_project_root(), path)
 
-  local bufnr = vim.fn.bufnr(abs_path, true)
-  vim.fn.bufload(bufnr)
-
-  if set_current_buf then vim.api.nvim_set_current_buf(bufnr) end
+  local bufnr
+  if set_current_buf then
+    vim.cmd("edit " .. abs_path)
+    bufnr = vim.api.nvim_get_current_buf()
+  else
+    bufnr = vim.fn.bufnr(abs_path, true)
+    vim.fn.bufload(bufnr)
+  end
 
   vim.cmd("filetype detect")
 
