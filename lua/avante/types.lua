@@ -116,6 +116,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field tool_use_id string
 ---@field content string
 ---@field is_error? boolean
+---@field is_user_declined? boolean
 ---
 ---@class AvantePromptOptions: table<[string], string>
 ---@field system_prompt string
