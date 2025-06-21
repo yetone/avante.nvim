@@ -986,7 +986,7 @@ function M.get_chat_mentions()
 end
 
 local function safe_open_file(filename)
-  local ok, _ = pcall(vim.cmd, "noautocmd edit " .. filename)
+  local ok, _ = pcall(function() vim.cmd("noautocmd edit " .. filename) end)
   if ok then
     -- Manually trigger necessary events
     vim.cmd("doautocmd BufRead")
