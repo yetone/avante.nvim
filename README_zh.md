@@ -549,6 +549,24 @@ _请参见 [config.lua#L9](./lua/avante/config.lua) 以获取完整配置_
 > 为了在 neovim 会话之间保持一致性，建议在 shell 文件中设置环境变量。
 > 默认情况下，`Avante` 会在启动时提示您输入所选提供者的 API 密钥。
 >
+> **作用域 API 密钥（推荐用于隔离）**
+>
+> Avante 现在支持作用域 API 密钥，允许您专门为 Avante 隔离 API 密钥，而不影响其他应用程序。只需在任何 API 密钥前加上 `AVANTE_` 前缀：
+>
+> ```sh
+> # 作用域密钥（推荐）
+> export AVANTE_ANTHROPIC_API_KEY=your-claude-api-key
+> export AVANTE_OPENAI_API_KEY=your-openai-api-key
+> export AVANTE_AZURE_OPENAI_API_KEY=your-azure-api-key
+> export AVANTE_GEMINI_API_KEY=your-gemini-api-key
+> export AVANTE_CO_API_KEY=your-cohere-api-key
+> export AVANTE_AIHUBMIX_API_KEY=your-aihubmix-api-key
+> ```
+>
+> **全局 API 密钥（传统方式）**
+>
+> 如果您愿意，仍然可以使用传统的全局 API 密钥：
+>
 > 对于 Claude：
 >
 > ```sh
