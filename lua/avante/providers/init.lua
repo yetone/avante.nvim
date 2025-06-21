@@ -33,7 +33,7 @@ function E.parse_envvar(Opts)
       scoped_key_name = "AVANTE_" .. Opts.api_key_name
     end
   end
-  
+
   -- Try scoped key first if available
   if scoped_key_name then
     local scoped_value = Utils.environment.parse(scoped_key_name, Opts._shellenv)
@@ -42,7 +42,7 @@ function E.parse_envvar(Opts)
       return scoped_value
     end
   end
-  
+
   -- Fall back to the original global key
   local value = Utils.environment.parse(Opts.api_key_name, Opts._shellenv)
   if value ~= nil then
