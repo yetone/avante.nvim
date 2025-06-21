@@ -384,6 +384,19 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     -- auto_approve_tool_permissions = true,                -- Auto-approve all tools (no prompts)
     -- auto_approve_tool_permissions = {"bash", "replace_in_file"}, -- Auto-approve specific tools only
   },
+  prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
+    enabled = true, -- toggle logging entirely
+    log_dir = vim.fn.stdpath("cache") .. "/avante_prompts", -- directory where logs are saved
+    fortune_cookie_on_success = false, -- shows a random fortune after each logged prompt (requires `fortune` installed)
+    next_prompt = {
+      normal = "<C-n>", -- load the next (newer) prompt log in normal mode
+      insert = "<C-n>",
+    },
+    prev_prompt = {
+      normal = "<C-p>", -- load the previous (older) prompt log in normal mode
+      insert = "<C-p>",
+    },
+  },
   mappings = {
     --- @class AvanteConflictMappings
     diff = {
