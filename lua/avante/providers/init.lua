@@ -149,12 +149,12 @@ M = setmetatable(M, {
 
     t[k] = provider_config
 
-    if t[k].parse_api_key == nil then t[k].parse_api_key = function() return E.parse_envvar(t[k]) end end
+    if rawget(t[k], "parse_api_key") == nil then t[k].parse_api_key = function() return E.parse_envvar(t[k]) end end
 
     -- default to gpt-4o as tokenizer
     if t[k].tokenizer_id == nil then t[k].tokenizer_id = "gpt-4o" end
 
-    if t[k].is_env_set == nil then
+    if rawget(t[k], "is_env_set") == nil then
       t[k].is_env_set = function()
         if not E.require_api_key(t[k]) then return true end
         local ok, result = pcall(t[k].parse_api_key)
@@ -163,7 +163,7 @@ M = setmetatable(M, {
       end
     end
 
-    if t[k].setup == nil then
+    if rawget(t[k], "setup") == nil then
       local provider_conf = M.parse_config(t[k])
       t[k].setup = function()
         if E.require_api_key(provider_conf) then t[k].parse_api_key() end
