@@ -694,6 +694,24 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 > For most consistency between neovim session, it is recommended to set the environment variables in your shell file.
 > By default, `Avante` will prompt you at startup to input the API key for the provider you have selected.
 >
+> **Scoped API Keys (Recommended for Isolation)**
+>
+> Avante now supports scoped API keys, allowing you to isolate API keys specifically for Avante without affecting other applications. Simply prefix any API key with `AVANTE_`:
+>
+> ```sh
+> # Scoped keys (recommended)
+> export AVANTE_ANTHROPIC_API_KEY=your-claude-api-key
+> export AVANTE_OPENAI_API_KEY=your-openai-api-key
+> export AVANTE_AZURE_OPENAI_API_KEY=your-azure-api-key
+> export AVANTE_GEMINI_API_KEY=your-gemini-api-key
+> export AVANTE_CO_API_KEY=your-cohere-api-key
+> export AVANTE_AIHUBMIX_API_KEY=your-aihubmix-api-key
+> ```
+>
+> **Global API Keys (Legacy)**
+>
+> You can still use the traditional global API keys if you prefer:
+>
 > For Claude:
 >
 > ```sh
