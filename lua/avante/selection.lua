@@ -161,7 +161,7 @@ function Selection:submit_input(input)
         response_lines[i] = original_first_line_indentation .. line
       end
     end
-    api.nvim_buf_set_lines(self.code_bufnr, start_line - 1, finish_line, true, response_lines)
+    pcall(function() api.nvim_buf_set_lines(self.code_bufnr, start_line - 1, finish_line, true, response_lines) end)
     finish_line = start_line + #response_lines - 1
   end
 
