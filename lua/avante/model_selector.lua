@@ -75,6 +75,9 @@ function M.open()
     ::continue::
   end
 
+  -- Sort models by name for stable display
+  table.sort(models, function(a, b) return (a.name or "") < (b.name or "") end)
+
   if #models == 0 then
     Utils.warn("No models available in config")
     return
