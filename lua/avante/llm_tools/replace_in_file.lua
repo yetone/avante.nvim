@@ -133,6 +133,8 @@ function M.func(opts, on_log, on_complete, session_ctx)
 
   local is_streaming = opts.streaming or false
 
+  if is_streaming then return end
+
   session_ctx.prev_streaming_diff_timestamp_map = session_ctx.prev_streaming_diff_timestamp_map or {}
   local current_timestamp = os.time()
   if is_streaming then

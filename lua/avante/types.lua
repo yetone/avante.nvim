@@ -110,7 +110,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field is_dummy boolean | nil
 ---@field is_compacted boolean | nil
 ---@field is_deleted boolean | nil
----@field session_id string | nil
+---@field turn_id string | nil
 ---
 ---@class AvanteLLMToolResult
 ---@field tool_name string
@@ -278,7 +278,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field usage? AvanteLLMUsage
 ---
 ---@class AvanteLLMStopCallbackOptions
----@field reason "complete" | "tool_use" | "error" | "rate_limit" | "cancelled"
+---@field reason "complete" | "tool_use" | "error" | "rate_limit" | "cancelled" | "max_tokens"
 ---@field error? string | table
 ---@field usage? AvanteLLMUsage
 ---@field retry_after? integer

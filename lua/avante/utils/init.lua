@@ -993,10 +993,14 @@ function M.open_buffer(path, set_current_buf)
 
   local abs_path = M.join_paths(M.get_project_root(), path)
 
-  local bufnr = vim.fn.bufnr(abs_path, true)
-  vim.fn.bufload(bufnr)
-
-  if set_current_buf then vim.api.nvim_set_current_buf(bufnr) end
+  local bufnr
+  if set_current_buf then
+    vim.cmd("noautocmd edit " .. abs_path)
+    bufnr = vim.api.nvim_get_current_buf()
+  else
+    bufnr = vim.fn.bufnr(abs_path, true)
+    pcall(vim.fn.bufload, bufnr)
+  end
 
   vim.cmd("filetype detect")
 
@@ -1480,10 +1484,6 @@ function M.is_edit_func_call_tool_use(tool_use)
   local is_str_replace_editor_func_call = false
   local is_str_replace_based_edit_tool_func_call = false
   local path = nil
-  if tool_use.name == "write_to_file" then
-    is_replace_func_call = true
-    path = tool_use.input.path
-  end
   if tool_use.name == "replace_in_file" then
     is_replace_func_call = true
     path = tool_use.input.path
@@ -1711,10 +1711,17 @@ end
 ---@param history_messages avante.HistoryMessage[]
 ---@return AvantePartialLLMToolUse[]
 function M.get_uncalled_tool_uses(history_messages)
-  local partial_tool_use_list = {} ---@type AvantePartialLLMToolUse[]
+  local last_turn_id = nil
+  if #history_messages > 0 then last_turn_id = history_messages[#history_messages].turn_id end
+  local uncalled_tool_use_list = {} ---@type AvantePartialLLMToolUse[]
   local tool_result_seen = {}
   for idx = #history_messages, 1, -1 do
     local message = history_messages[idx]
+    if last_turn_id then
+      if message.turn_id ~= last_turn_id then break end
+    else
+      if not M.is_tool_use_message(message) and not M.is_tool_result_message(message) then break end
+    end
     local content = message.message.content
     if type(content) ~= "table" or #content == 0 then goto continue end
     local is_break = false
@@ -1727,7 +1734,7 @@ function M.get_uncalled_tool_uses(history_messages)
             input = item.input,
             state = message.state,
           }
-          table.insert(partial_tool_use_list, 1, partial_tool_use)
+          table.insert(uncalled_tool_use_list, 1, partial_tool_use)
         else
           is_break = true
           break
@@ -1738,7 +1745,7 @@ function M.get_uncalled_tool_uses(history_messages)
     if is_break then break end
     ::continue::
   end
-  return partial_tool_use_list
+  return uncalled_tool_use_list
 end
 
 function M.call_once(func)
