@@ -25,6 +25,25 @@ E.cache = {}
 ---@param Opts AvanteSupportedProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor
 ---@return string | nil
 function E.parse_envvar(Opts)
+  -- First try the scoped version (e.g., AVANTE_ANTHROPIC_API_KEY)
+  local scoped_key_name = nil
+  if Opts.api_key_name and type(Opts.api_key_name) == "string" and Opts.api_key_name ~= "" then
+    -- Only add AVANTE_ prefix if it's a regular environment variable (not a cmd: or already prefixed)
+    if not Opts.api_key_name:match("^cmd:") and not Opts.api_key_name:match("^AVANTE_") then
+      scoped_key_name = "AVANTE_" .. Opts.api_key_name
+    end
+  end
+
+  -- Try scoped key first if available
+  if scoped_key_name then
+    local scoped_value = Utils.environment.parse(scoped_key_name, Opts._shellenv)
+    if scoped_value ~= nil then
+      vim.g.avante_login = true
+      return scoped_value
+    end
+  end
+
+  -- Fall back to the original global key
   local value = Utils.environment.parse(Opts.api_key_name, Opts._shellenv)
   if value ~= nil then
     vim.g.avante_login = true
