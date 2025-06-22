@@ -133,6 +133,18 @@ function M:parse_messages(opts)
   return messages
 end
 
+---@param usage avante.AnthropicTokenUsage | nil
+---@return avante.LLMTokenUsage | nil
+function M.transform_anthropic_usage(usage)
+  if not usage then return nil end
+  ---@type avante.LLMTokenUsage
+  local res = {
+    prompt_tokens = usage.input_tokens + usage.cache_creation_input_tokens,
+    completion_tokens = usage.output_tokens + usage.cache_read_input_tokens,
+  }
+  return res
+end
+
 function M:parse_response(ctx, data_stream, event_state, opts)
   if event_state == nil then
     if data_stream:match('"message_start"') then
@@ -153,7 +165,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
   if event_state == "message_start" then
     local ok, jsn = pcall(vim.json.decode, data_stream)
     if not ok then return end
-    opts.on_start(jsn.message.usage)
+    ctx.usage = jsn.message.usage
   elseif event_state == "content_block_start" then
     local ok, jsn = pcall(vim.json.decode, data_stream)
     if not ok then return end
@@ -315,14 +327,15 @@ function M:parse_response(ctx, data_stream, event_state, opts)
   elseif event_state == "message_delta" then
     local ok, jsn = pcall(vim.json.decode, data_stream)
     if not ok then return end
+    if jsn.usage and ctx.usage then ctx.usage.output_tokens = ctx.usage.output_tokens + jsn.usage.output_tokens end
     if jsn.delta.stop_reason == "end_turn" then
-      opts.on_stop({ reason = "complete", usage = jsn.usage })
+      opts.on_stop({ reason = "complete", usage = self.transform_anthropic_usage(ctx.usage) })
     elseif jsn.delta.stop_reason == "max_tokens" then
-      opts.on_stop({ reason = "max_tokens", usage = jsn.usage })
+      opts.on_stop({ reason = "max_tokens", usage = self.transform_anthropic_usage(ctx.usage) })
     elseif jsn.delta.stop_reason == "tool_use" then
       opts.on_stop({
         reason = "tool_use",
-        usage = jsn.usage,
+        usage = self.transform_anthropic_usage(ctx.usage),
       })
     end
     return

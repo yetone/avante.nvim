@@ -77,6 +77,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field on_stop AvanteLLMStopCallback
 ---@field on_messages_add? fun(messages: avante.HistoryMessage[]): nil
 ---@field on_state_change? fun(state: avante.GenerateState): nil
+---@field update_tokens_usage? fun(usage: avante.LLMTokenUsage): nil
 ---
 ---@alias AvanteLLMMessageContentItem string | { type: "text", text: string, cache_control: { type: string } | nil } | { type: "image", source: { type: "base64", media_type: string, data: string } } | { type: "tool_use", name: string, id: string, input: any } | { type: "tool_result", tool_use_id: string, content: string, is_error?: boolean } | { type: "thinking", thinking: string, signature: string } | { type: "redacted_thinking", data: string }
 
@@ -242,20 +243,31 @@ vim.g.avante_login = vim.g.avante_login
 ---@field entra? boolean
 ---@field hide_in_model_selector? boolean
 ---@field use_ReAct_prompt? boolean
+---@field context_window? integer
 ---
 ---@class AvanteSupportedProvider: AvanteDefaultBaseProvider
 ---@field __inherited_from? string
----@field temperature? number
----@field max_tokens? number
----@field max_completion_tokens? number
----@field reasoning_effort? string
 ---@field display_name? string
 ---
----@class AvanteLLMUsage
+---@class avante.OpenAITokenUsage
+---@field total_tokens number
+---@field prompt_tokens number
+---@field completion_tokens number
+---@field prompt_tokens_details {cached_tokens: number}
+---
+---@class avante.AnthropicTokenUsage
 ---@field input_tokens number
 ---@field cache_creation_input_tokens number
 ---@field cache_read_input_tokens number
 ---@field output_tokens number
+---
+---@class avante.GeminiTokenUsage
+---@field promptTokenCount number
+---@field candidatesTokenCount number
+---
+---@class avante.LLMTokenUsage
+---@field prompt_tokens number
+---@field completion_tokens number
 ---
 ---@class AvanteLLMThinkingBlock
 ---@field thinking string
@@ -275,12 +287,12 @@ vim.g.avante_login = vim.g.avante_login
 ---@field state avante.HistoryMessageState
 ---
 ---@class AvanteLLMStartCallbackOptions
----@field usage? AvanteLLMUsage
+---@field usage? avante.LLMTokenUsage
 ---
 ---@class AvanteLLMStopCallbackOptions
----@field reason "complete" | "tool_use" | "error" | "rate_limit" | "cancelled" | "max_tokens"
+---@field reason "complete" | "tool_use" | "error" | "rate_limit" | "cancelled" | "max_tokens" | "usage"
 ---@field error? string | table
----@field usage? AvanteLLMUsage
+---@field usage? avante.LLMTokenUsage
 ---@field retry_after? integer
 ---@field headers? table<string, string>
 ---@field streaming_tool_use? boolean
@@ -323,6 +335,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field api_key_name string
 ---@field tokenizer_id string | "gpt-4o"
 ---@field model? string
+---@field context_window? integer
 ---@field parse_api_key fun(): string | nil
 ---@field parse_stream_data? AvanteStreamParser
 ---@field on_error? fun(result: table<string, any>): nil
@@ -366,6 +379,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field history_messages avante.HistoryMessage[] | nil
 ---@field get_todos? fun(): avante.TODO[]
 ---@field memory string | nil
+---@field get_tokens_usage? fun(): avante.LLMTokenUsage | nil
 ---
 ---@class AvanteGeneratePromptsOptions: AvanteTemplateOptions
 ---@field instructions? string
@@ -395,6 +409,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field get_history_messages? fun(opts?: { all?: boolean }): avante.HistoryMessage[]
 ---@field on_messages_add? fun(messages: avante.HistoryMessage[]): nil
 ---@field on_state_change? fun(state: avante.GenerateState): nil
+---@field update_tokens_usage? fun(usage: avante.LLMTokenUsage): nil
 ---
 ---@alias AvanteLLMToolFunc<T> fun(
 ---  input: T,
@@ -461,6 +476,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field memory avante.ChatMemory | nil
 ---@field filename string
 ---@field system_prompt string | nil
+---@field tokens_usage avante.LLMTokenUsage | nil
 ---
 ---@class avante.ChatMemory
 ---@field content string

@@ -69,18 +69,22 @@ function M.summarize_memory(prev_memory, history_messages, cb)
     cb(nil)
     return
   end
-  local latest_timestamp = history_messages[#history_messages].timestamp
-  local latest_message_uuid = history_messages[#history_messages].uuid
+  local latest_timestamp = nil
+  local latest_message_uuid = nil
+  for idx = #history_messages, 1, -1 do
+    local message = history_messages[idx]
+    if not message.is_dummy then
+      latest_timestamp = message.timestamp
+      latest_message_uuid = message.uuid
+      break
+    end
+  end
+  if not latest_timestamp or not latest_message_uuid then
+    cb(nil)
+    return
+  end
   local conversation_items = vim
     .iter(history_messages)
-    :filter(function(msg)
-      if msg.just_for_display then return false end
-      if msg.message.role ~= "assistant" and msg.message.role ~= "user" then return false end
-      local content = msg.message.content
-      if type(content) == "table" and content[1].type == "tool_result" then return false end
-      if type(content) == "table" and content[1].type == "tool_use" then return false end
-      return true
-    end)
     :map(function(msg) return msg.message.role .. ": " .. Utils.message_to_text(msg, history_messages) end)
     :totable()
   local conversation_text = table.concat(conversation_items, "\n")
@@ -200,9 +204,6 @@ end
 function M.generate_prompts(opts)
   local provider = opts.provider or Providers[Config.provider]
   local mode = opts.mode or Config.mode
-  ---@type AvanteProviderFunctor | AvanteBedrockProviderFunctor
-  local _, request_body = Providers.parse_config(provider)
-  local max_tokens = request_body.max_tokens or 4096
 
   -- Check if the instructions contains an image path
   local image_paths = {}
@@ -322,16 +323,25 @@ function M.generate_prompts(opts)
     end
   end
 
-  local remaining_tokens = max_tokens - Utils.tokens.calculate_tokens(system_prompt)
-
-  for _, message in ipairs(context_messages) do
-    remaining_tokens = remaining_tokens - Utils.tokens.calculate_tokens(message.content)
-  end
-
   local pending_compaction_history_messages = {}
   if opts.prompt_opts and opts.prompt_opts.pending_compaction_history_messages then
     pending_compaction_history_messages =
       vim.list_extend(pending_compaction_history_messages, opts.prompt_opts.pending_compaction_history_messages)
+  end
+
+  local context_window = provider.context_window
+
+  if context_window and context_window > 0 then
+    Utils.debug("Context window", context_window)
+    if opts.get_tokens_usage then
+      local tokens_usage = opts.get_tokens_usage()
+      if tokens_usage then
+        local target_tokens = context_window * 0.9
+        local tokens_count = tokens_usage.prompt_tokens + tokens_usage.completion_tokens
+        Utils.debug("Tokens count", tokens_count)
+        if tokens_count > target_tokens then pending_compaction_history_messages = opts.history_messages end
+      end
+    end
   end
 
   ---@type AvanteLLMMessage[]
@@ -674,9 +684,12 @@ function M._stream(opts)
   local handler_opts = {
     on_messages_add = opts.on_messages_add,
     on_state_change = opts.on_state_change,
+    update_tokens_usage = opts.update_tokens_usage,
     on_start = opts.on_start,
     on_chunk = opts.on_chunk,
     on_stop = function(stop_opts)
+      if stop_opts.usage and opts.update_tokens_usage then opts.update_tokens_usage(stop_opts.usage) end
+
       ---@param partial_tool_use_list AvantePartialLLMToolUse[]
       ---@param tool_use_index integer
       ---@param tool_results AvanteLLMToolResult[]
