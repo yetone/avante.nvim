@@ -248,7 +248,7 @@ function M:parse_response(ctx, data_stream, _, opts)
             input_json = vim.json.encode(part.functionCall.args),
           }
           table.insert(ctx.tool_use_list, tool_use)
-          OpenAI:add_tool_use_message(tool_use, "generated", opts)
+          OpenAI:add_tool_use_message(ctx, tool_use, "generated", opts)
         end
       end
     end

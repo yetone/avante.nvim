@@ -2176,6 +2176,11 @@ function Sidebar:get_history_messages_for_api(opts)
 
   if opts.all then return history_messages0 end
 
+  history_messages0 = vim
+    .iter(history_messages0)
+    :filter(function(message) return message.state ~= "generating" end)
+    :totable()
+
   if self.chat_history and self.chat_history.memory then
     local picked_messages = {}
     for idx = #history_messages0, 1, -1 do
@@ -2184,6 +2189,44 @@ function Sidebar:get_history_messages_for_api(opts)
       table.insert(picked_messages, 1, message)
     end
     history_messages0 = picked_messages
+  end
+
+  local picked_messages = {}
+  local max_tool_use_count = 15
+  local tool_use_count = 0
+  for idx = #history_messages0, 1, -1 do
+    local msg = history_messages0[idx]
+    if tool_use_count > max_tool_use_count then
+      if Utils.is_tool_result_message(msg) then
+        local tool_use_message = Utils.get_tool_use_message(msg, history_messages0)
+        if tool_use_message then
+          local msg_content = {}
+          table.insert(
+            msg_content,
+            string.format(
+              "Tool use %s(%s)",
+              tool_use_message.message.content[1].name,
+              vim.json.encode(tool_use_message.message.content[1].input)
+            )
+          )
+          table.insert(msg_content, string.format("Result: %s", msg.message.content[1].content))
+          table.insert(
+            picked_messages,
+            1,
+            HistoryMessage:new({ role = "user", content = msg_content }, { is_dummy = true })
+          )
+        end
+      elseif Utils.is_tool_use_message(history_messages0[idx]) then
+        tool_use_count = tool_use_count + 1
+        goto continue
+      else
+        table.insert(picked_messages, 1, msg)
+      end
+    else
+      if Utils.is_tool_use_message(history_messages0[idx]) then tool_use_count = tool_use_count + 1 end
+      table.insert(picked_messages, 1, msg)
+    end
+    ::continue::
   end
 
   local tool_id_to_tool_name = {}
