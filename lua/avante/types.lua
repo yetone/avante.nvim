@@ -110,6 +110,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field is_dummy boolean | nil
 ---@field is_compacted boolean | nil
 ---@field is_deleted boolean | nil
+---@field session_id string | nil
 ---
 ---@class AvanteLLMToolResult
 ---@field tool_name string

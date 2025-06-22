@@ -166,6 +166,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
         content = content_block.text,
       }, {
         state = "generating",
+        session_id = ctx.session_id,
       })
       content_block.uuid = msg.uuid
       if opts.on_messages_add then opts.on_messages_add({ msg }) end
@@ -184,6 +185,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
           },
         }, {
           state = "generating",
+          session_id = ctx.session_id,
         })
         content_block.uuid = msg.uuid
         opts.on_messages_add({ msg })
@@ -203,6 +205,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
         },
       }, {
         state = "generating",
+        session_id = ctx.session_id,
       })
       content_block.uuid = msg.uuid
       opts.on_messages_add({ msg })
@@ -231,6 +234,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
       }, {
         state = "generating",
         uuid = content_block.uuid,
+        session_id = ctx.session_id,
       })
       if opts.on_messages_add then opts.on_messages_add({ msg }) end
     elseif jsn.delta.type == "text_delta" then
@@ -242,6 +246,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
       }, {
         state = "generating",
         uuid = content_block.uuid,
+        session_id = ctx.session_id,
       })
       if opts.on_messages_add then opts.on_messages_add({ msg }) end
     elseif jsn.delta.type == "signature_delta" then
@@ -260,6 +265,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
       }, {
         state = "generated",
         uuid = content_block.uuid,
+        session_id = ctx.session_id,
       })
       if opts.on_messages_add then opts.on_messages_add({ msg }) end
     end
@@ -278,6 +284,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
       }, {
         state = "generated",
         uuid = content_block.uuid,
+        session_id = ctx.session_id,
       })
       if opts.on_messages_add then opts.on_messages_add({ msg }) end
     end
@@ -301,6 +308,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
       }, {
         state = "generated",
         uuid = content_block.uuid,
+        session_id = ctx.session_id,
       })
       if opts.on_messages_add then opts.on_messages_add({ msg }) end
     end
