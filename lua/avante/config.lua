@@ -272,9 +272,10 @@ M._defaults = {
       endpoint = "https://api.anthropic.com",
       model = "claude-sonnet-4-20250514",
       timeout = 30000, -- Timeout in milliseconds
+      context_window = 200000,
       extra_request_body = {
         temperature = 0.75,
-        max_tokens = 20480,
+        max_tokens = 64000,
       },
     },
     ---@type AvanteSupportedProvider

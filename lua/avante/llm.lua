@@ -416,13 +416,24 @@ function M.curl(opts)
   local prompt_opts = opts.prompt_opts
   local handler_opts = opts.handler_opts
 
+  local orig_on_stop = handler_opts.on_stop
+  local stopped = false
+  ---@param stop_opts AvanteLLMStopCallbackOptions
+  handler_opts.on_stop = function(stop_opts)
+    if stop_opts and not stop_opts.streaming_tool_use then
+      if stopped then return end
+      stopped = true
+    end
+    if orig_on_stop then return orig_on_stop(stop_opts) end
+  end
+
   ---@type AvanteCurlOutput
   local spec = provider:parse_curl_args(prompt_opts)
 
   ---@type string
   local current_event_state = nil
-  local resp_ctx = {}
-  resp_ctx.session_id = Utils.uuid()
+  local turn_ctx = {}
+  turn_ctx.turn_id = Utils.uuid()
 
   local response_body = ""
   ---@param line string
@@ -435,7 +446,7 @@ function M.curl(opts)
     local data_match = line:match("^data:%s*(.+)$")
     if data_match then
       response_body = ""
-      provider:parse_response(resp_ctx, data_match, current_event_state, handler_opts)
+      provider:parse_response(turn_ctx, data_match, current_event_state, handler_opts)
     else
       response_body = response_body .. line
       local ok, jsn = pcall(vim.json.decode, response_body)
@@ -443,7 +454,7 @@ function M.curl(opts)
         if jsn.error then
           handler_opts.on_stop({ reason = "error", error = jsn.error })
         else
-          provider:parse_response(resp_ctx, response_body, current_event_state, handler_opts)
+          provider:parse_response(turn_ctx, response_body, current_event_state, handler_opts)
         end
         response_body = ""
       end
@@ -509,7 +520,7 @@ function M.curl(opts)
       end
       vim.schedule(function()
         if provider.parse_stream_data ~= nil then
-          provider:parse_stream_data(resp_ctx, data, handler_opts)
+          provider:parse_stream_data(turn_ctx, data, handler_opts)
         else
           parse_stream_data(data)
         end
@@ -843,6 +854,7 @@ function M._stream(opts)
         end
       end
       if stop_opts.reason == "tool_use" then
+        opts.session_ctx.user_reminder_count = 0
         return handle_next_tool_use(uncalled_tool_uses, 1, {}, stop_opts.streaming_tool_use)
       end
       if stop_opts.reason == "rate_limit" then
