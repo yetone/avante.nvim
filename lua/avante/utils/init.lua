@@ -985,19 +985,6 @@ function M.get_chat_mentions()
   return mentions
 end
 
-local function safe_open_file(filename)
-  local ok, _ = pcall(function() vim.cmd("noautocmd edit " .. filename) end)
-  if ok then
-    -- Manually trigger necessary events
-    vim.cmd("doautocmd BufRead")
-  else
-    -- Fallback solution
-    vim.cmd("enew")
-    vim.api.nvim_buf_set_name(0, filename)
-    vim.bo.filetype = vim.fn.fnamemodify(filename, ":e")
-  end
-end
-
 ---@param path string
 ---@param set_current_buf? boolean
 ---@return integer bufnr
@@ -1006,14 +993,10 @@ function M.open_buffer(path, set_current_buf)
 
   local abs_path = M.join_paths(M.get_project_root(), path)
 
-  local bufnr
-  if set_current_buf then
-    safe_open_file(abs_path)
-    bufnr = vim.api.nvim_get_current_buf()
-  else
-    bufnr = vim.fn.bufnr(abs_path, true)
-    vim.fn.bufload(bufnr)
-  end
+  local bufnr = vim.fn.bufnr(abs_path, true)
+  vim.fn.bufload(bufnr)
+
+  if set_current_buf then vim.api.nvim_set_current_buf(bufnr) end
 
   vim.cmd("filetype detect")
 
