@@ -2386,7 +2386,7 @@ function Sidebar:get_history_messages_for_api(opts)
   end
 
   local picked_messages = {}
-  local max_tool_use_count = 10
+  local max_tool_use_count = 25
   local tool_use_count = 0
   for idx = #history_messages, 1, -1 do
     local msg = history_messages[idx]
@@ -2753,6 +2753,11 @@ function Sidebar:create_input_container()
           return history and history.todos or {}
         end,
         session_ctx = {},
+        update_tokens_usage = function(usage)
+          self.chat_history.tokens_usage = usage
+          self:save_history()
+        end,
+        get_tokens_usage = function() return self.chat_history.tokens_usage end,
       })
 
       ---@param pending_compaction_history_messages avante.HistoryMessage[]
