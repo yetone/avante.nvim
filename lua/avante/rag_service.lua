@@ -67,12 +67,12 @@ function M.launch_rag_service(cb)
 
   local embed_extra = "{}" -- Default to empty JSON object string
   if Config.rag_service and Config.rag_service.embed and Config.rag_service.embed.extra then
-    embed_extra = vim.json.encode(Config.rag_service.embed.extra):gsub('"', '\\"')
+    embed_extra = string.format("%q", vim.json.encode(Config.rag_service.embed.extra))
   end
 
   local llm_extra = "{}" -- Default to empty JSON object string
   if Config.rag_service and Config.rag_service.llm and Config.rag_service.llm.extra then
-    llm_extra = vim.json.encode(Config.rag_service.llm.extra):gsub('"', '\\"')
+    llm_extra = string.format("%q", vim.json.encode(Config.rag_service.llm.extra))
   end
 
   local port = M.get_rag_service_port()
