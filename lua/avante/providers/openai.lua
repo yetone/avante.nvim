@@ -379,6 +379,19 @@ function M:add_tool_use_message(ctx, tool_use, state, opts)
   -- if state == "generating" then opts.on_stop({ reason = "tool_use", streaming_tool_use = true }) end
 end
 
+---@param usage avante.OpenAITokenUsage | nil
+---@return avante.LLMTokenUsage | nil
+function M.transform_openai_usage(usage)
+  if not usage then return nil end
+  if usage == vim.NIL then return nil end
+  ---@type avante.LLMTokenUsage
+  local res = {
+    prompt_tokens = usage.prompt_tokens,
+    completion_tokens = usage.completion_tokens,
+  }
+  return res
+end
+
 function M:parse_response(ctx, data_stream, _, opts)
   if data_stream:match('"%[DONE%]":') or data_stream == "[DONE]" then
     self:finish_pending_messages(ctx, opts)
@@ -391,6 +404,12 @@ function M:parse_response(ctx, data_stream, _, opts)
     return
   end
   local jsn = vim.json.decode(data_stream)
+  if jsn.usage and jsn.usage ~= vim.NIL then
+    if opts.update_tokens_usage then
+      local usage = self.transform_openai_usage(jsn.usage)
+      if usage then opts.update_tokens_usage(usage) end
+    end
+  end
   ---@cast jsn AvanteOpenAIChatResponse
   if not jsn.choices then return end
   local choice = jsn.choices[1]
@@ -463,16 +482,16 @@ function M:parse_response(ctx, data_stream, _, opts)
   if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" or choice.finish_reason == "length" then
     self:finish_pending_messages(ctx, opts)
     if ctx.tool_use_list and #ctx.tool_use_list > 0 then
-      opts.on_stop({ reason = "tool_use", usage = jsn.usage })
+      opts.on_stop({ reason = "tool_use", usage = self.transform_openai_usage(jsn.usage) })
     else
-      opts.on_stop({ reason = "complete", usage = jsn.usage })
+      opts.on_stop({ reason = "complete", usage = self.transform_openai_usage(jsn.usage) })
     end
   end
   if choice.finish_reason == "tool_calls" then
     self:finish_pending_messages(ctx, opts)
     opts.on_stop({
       reason = "tool_use",
-      usage = jsn.usage,
+      usage = self.transform_openai_usage(jsn.usage),
     })
   end
 end
@@ -536,6 +555,9 @@ function M:parse_curl_args(prompt_opts)
       model = provider_conf.model,
       messages = self:parse_messages(prompt_opts),
       stream = true,
+      stream_options = {
+        include_usage = true,
+      },
       tools = tools,
     }, request_body),
   }

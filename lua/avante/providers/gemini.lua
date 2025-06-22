@@ -209,16 +209,33 @@ function M.prepare_request_body(provider_instance, prompt_opts, provider_conf, r
   return vim.tbl_deep_extend("force", {}, provider_instance:parse_messages(prompt_opts), request_body)
 end
 
+---@param usage avante.GeminiTokenUsage | nil
+---@return avante.LLMTokenUsage | nil
+function M.transform_gemini_usage(usage)
+  if not usage then return nil end
+  ---@type avante.LLMTokenUsage
+  local res = {
+    prompt_tokens = usage.promptTokenCount,
+    completion_tokens = usage.candidatesTokenCount,
+  }
+  return res
+end
+
 function M:parse_response(ctx, data_stream, _, opts)
-  local ok, json = pcall(vim.json.decode, data_stream)
+  local ok, jsn = pcall(vim.json.decode, data_stream)
   if not ok then
-    opts.on_stop({ reason = "error", error = "Failed to parse JSON response: " .. tostring(json) })
+    opts.on_stop({ reason = "error", error = "Failed to parse JSON response: " .. tostring(jsn) })
     return
   end
 
+  if opts.update_tokens_usage and jsn.usageMetadata and jsn.usageMetadata ~= nil then
+    local usage = M.transform_gemini_usage(jsn.usageMetadata)
+    if usage ~= nil then opts.update_tokens_usage(usage) end
+  end
+
   -- Handle prompt feedback first, as it might indicate an overall issue with the prompt
-  if json.promptFeedback and json.promptFeedback.blockReason then
-    local feedback = json.promptFeedback
+  if jsn.promptFeedback and jsn.promptFeedback.blockReason then
+    local feedback = jsn.promptFeedback
     OpenAI:finish_pending_messages(ctx, opts) -- Ensure any pending messages are cleared
     opts.on_stop({
       reason = "error",
@@ -228,8 +245,8 @@ function M:parse_response(ctx, data_stream, _, opts)
     return
   end
 
-  if json.candidates and #json.candidates > 0 then
-    local candidate = json.candidates[1]
+  if jsn.candidates and #jsn.candidates > 0 then
+    local candidate = jsn.candidates[1]
     ---@type AvanteLLMToolUse[]
     ctx.tool_use_list = ctx.tool_use_list or {}
 
@@ -258,6 +275,7 @@ function M:parse_response(ctx, data_stream, _, opts)
       OpenAI:finish_pending_messages(ctx, opts)
       local reason_str = candidate.finishReason
       local stop_details = { finish_reason = reason_str }
+      stop_details.usage = M.transform_gemini_usage(jsn.usageMetadata)
 
       if reason_str == "TOOL_CODE" then
         -- Model indicates a tool-related stop.
