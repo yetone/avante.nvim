@@ -290,8 +290,11 @@ function M:parse_curl_args(prompt_opts)
     insecure = provider_conf.allow_insecure,
     headers = Utils.tbl_override({
       ["Authorization"] = "Bearer " .. M.state.github_token.token,
+      ["User-Agent"] = "GitHubCopilotChat/0.26.7",
+      ["Editor-Version"] = "vscode/1.99.3",
+      ["Editor-Plugin-Version"] = "copilot-chat/0.26.7",
       ["Copilot-Integration-Id"] = "vscode-chat",
-      ["Editor-Version"] = ("Neovim/%s.%s.%s"):format(vim.version().major, vim.version().minor, vim.version().patch),
+      ["Openai-Intent"] = "conversation-edits",
     }, self.extra_headers),
     body = vim.tbl_deep_extend("force", {
       model = provider_conf.model,
