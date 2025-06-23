@@ -18,6 +18,7 @@ local FileSelector = require("avante.file_selector")
 local LLMTools = require("avante.llm_tools")
 local HistoryMessage = require("avante.history_message")
 local Line = require("avante.ui.line")
+local LRUCache = require("avante.utils.lru_cache")
 
 local RESULT_BUF_NAME = "AVANTE_RESULT"
 local VIEW_BUFFER_UPDATED_PATTERN = "AvanteViewBufferUpdated"
@@ -1629,7 +1630,7 @@ end
 ---@param messages avante.HistoryMessage[]
 ---@param ctx table
 ---@return avante.ui.Line[]
-local function get_message_lines(message, messages, ctx)
+local function _get_message_lines(message, messages, ctx)
   if message.visible == false then return {} end
   local lines = Utils.message_to_lines(message, messages)
   if message.is_user_submission then
@@ -1671,6 +1672,21 @@ local function get_message_lines(message, messages, ctx)
     end
     return res
   end
+  return lines
+end
+
+local _message_to_lines_lru_cache = LRUCache:new(100)
+
+---@param message avante.HistoryMessage
+---@param messages avante.HistoryMessage[]
+---@param ctx table
+---@return avante.ui.Line[]
+local function get_message_lines(message, messages, ctx)
+  if message.state == "generating" then return _get_message_lines(message, messages, ctx) end
+  local cached_lines = _message_to_lines_lru_cache:get(message.uuid)
+  if cached_lines then return cached_lines end
+  local lines = _get_message_lines(message, messages, ctx)
+  _message_to_lines_lru_cache:set(message.uuid, lines)
   return lines
 end
 
@@ -1922,7 +1938,12 @@ function Sidebar:new_chat(args, cb)
   vim.schedule(function() self:create_todos_container() end)
 end
 
-function Sidebar:save_history() Path.history.save(self.code.bufnr, self.chat_history) end
+local debounced_save_history = Utils.debounce(
+  function(self) Path.history.save(self.code.bufnr, self.chat_history) end,
+  1000
+)
+
+function Sidebar:save_history() debounced_save_history(self) end
 
 ---@param uuids string[]
 function Sidebar:delete_history_messages(uuids)

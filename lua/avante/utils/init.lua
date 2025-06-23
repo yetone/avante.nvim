@@ -2,6 +2,8 @@ local api = vim.api
 local fn = vim.fn
 local lsp = vim.lsp
 
+local LRUCache = require("avante.utils.lru_cache")
+
 ---@class avante.utils: LazyUtilCore
 ---@field tokens avante.utils.tokens
 ---@field root avante.utils.root
@@ -1012,7 +1014,7 @@ end
 ---@param new_lines avante.ui.Line[]
 ---@return { start_line: integer, end_line: integer, content: avante.ui.Line[] }[]
 local function get_lines_diff(old_lines, new_lines)
-  local remaining_lines = 30
+  local remaining_lines = 20
   local start_line = 0
   if #new_lines >= #old_lines then
     start_line = math.max(#old_lines - remaining_lines, 0)
@@ -1122,7 +1124,11 @@ function M.is_same_file(filepath_a, filepath_b) return M.uniform_path(filepath_a
 
 function M.trim_think_content(content) return content:gsub("^<think>.-</think>", "", 1) end
 
+local _filetype_lru_cache = LRUCache:new(60)
+
 function M.get_filetype(filepath)
+  local cached_filetype = _filetype_lru_cache:get(filepath)
+  if cached_filetype then return cached_filetype end
   -- Some files are sometimes not detected correctly when buffer is not included
   -- https://github.com/neovim/neovim/issues/27265
 
@@ -1131,6 +1137,7 @@ function M.get_filetype(filepath)
   vim.api.nvim_buf_delete(buf, { force = true })
   -- Parse the first filetype from a multifiltype file
   filetype = filetype:gsub("%..*$", "")
+  _filetype_lru_cache:set(filepath, filetype)
   return filetype
 end
 
