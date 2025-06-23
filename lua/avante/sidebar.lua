@@ -1490,6 +1490,11 @@ function Sidebar:should_auto_scroll()
   return is_scrolled_to_bottom
 end
 
+Sidebar.throttled_update_content = Utils.throttle(function(self, ...)
+  local args = { ... }
+  self:update_content(unpack(args))
+end, 50)
+
 ---@param content string concatenated content of the buffer
 ---@param opts? {focus?: boolean, scroll?: boolean, backspace?: integer, callback?: fun(): nil} whether to focus the result view
 function Sidebar:update_content(content, opts)
@@ -2014,7 +2019,7 @@ function Sidebar:add_history_messages(messages)
       self.current_state = "generating"
     end
   end
-  xpcall(function() self:update_content("") end, function(err)
+  xpcall(function() self:throttled_update_content("") end, function(err)
     Utils.debug("Failed to update content:", err)
     return nil
   end)

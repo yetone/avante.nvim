@@ -691,6 +691,25 @@ function M.debounce(func, delay)
   end
 end
 
+function M.throttle(func, delay)
+  local timer = nil
+  local args
+
+  return function(...)
+    args = { ... }
+
+    if timer then return end
+
+    timer = vim.loop.new_timer()
+    if not timer then return end
+    timer:start(delay, 0, function()
+      vim.schedule(function() func(unpack(args)) end)
+      timer:close()
+      timer = nil
+    end)
+  end
+end
+
 function M.winline(winid)
   local current_win = api.nvim_get_current_win()
   api.nvim_set_current_win(winid)
@@ -1014,7 +1033,7 @@ end
 ---@param new_lines avante.ui.Line[]
 ---@return { start_line: integer, end_line: integer, content: avante.ui.Line[] }[]
 local function get_lines_diff(old_lines, new_lines)
-  local remaining_lines = 20
+  local remaining_lines = 100
   local start_line = 0
   if #new_lines >= #old_lines then
     start_line = math.max(#old_lines - remaining_lines, 0)
