@@ -17,6 +17,8 @@ M.role_map = {
   assistant = "assistant",
 }
 
+function M.is_env_set() return false end
+
 function M:parse_messages(opts)
   local messages = {}
   local provider_conf, _ = Providers.parse_config(self)
