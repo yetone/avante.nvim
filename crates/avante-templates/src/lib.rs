@@ -33,7 +33,6 @@ struct SelectedFile {
 #[derive(Debug, Serialize, Deserialize)]
 struct TemplateContext {
     ask: bool,
-    code_lang: String,
     selected_files: Option<Vec<SelectedFile>>,
     selected_code: Option<SelectedCode>,
     recently_viewed_files: Option<Vec<String>>,
@@ -61,7 +60,6 @@ fn render(state: &State, template: &str, context: TemplateContext) -> LuaResult<
             Ok(jinja_template
                 .render(context! {
                   ask => context.ask,
-                  code_lang => context.code_lang,
                   selected_files => context.selected_files,
                   selected_code => context.selected_code,
                   recently_viewed_files => context.recently_viewed_files,

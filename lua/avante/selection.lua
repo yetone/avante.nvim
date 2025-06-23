@@ -183,8 +183,9 @@ function Selection:submit_input(input)
     Utils.debug("full response:", full_response)
   end
 
-  local filetype = api.nvim_get_option_value("filetype", { buf = self.code_bufnr })
-  local file_ext = api.nvim_buf_get_name(self.code_bufnr):match("^.+%.(.+)$")
+  local filepath = api.nvim_buf_get_name(self.code_bufnr)
+  local filetype = Utils.get_filetype(filepath)
+  local file_ext = filepath:match("^.+%.(.+)$")
 
   local mentions = Utils.extract_mentions(input)
   input = mentions.new_content
@@ -207,8 +208,7 @@ function Selection:submit_input(input)
     ask = true,
     project_context = vim.json.encode(project_context),
     diagnostics = vim.json.encode(diagnostics),
-    selected_files = { { content = code_content, file_type = filetype, path = "" } },
-    code_lang = filetype,
+    selected_filepaths = { filepath },
     selected_code = selected_code,
     instructions = input,
     mode = "editing",

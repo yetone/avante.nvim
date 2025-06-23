@@ -2537,7 +2537,6 @@ function Sidebar:get_generate_prompts_options(request, cb)
     recently_viewed_files = Utils.get_recent_filepaths(),
     diagnostics = vim.json.encode(diagnostics),
     history_messages = history_messages,
-    code_lang = filetype,
     selected_code = selected_code,
     tools = tools,
   }
