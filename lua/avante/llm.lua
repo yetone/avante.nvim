@@ -827,11 +827,7 @@ function M._stream(opts)
           )
         end
         local user_reminder_count = opts.session_ctx.user_reminder_count or 0
-        if
-          not completed_attempt_completion_tool_use
-          and opts.on_messages_add
-          and (user_reminder_count < 3 or #unfinished_todos > 0)
-        then
+        if not completed_attempt_completion_tool_use and opts.on_messages_add and user_reminder_count < 3 then
           opts.session_ctx.user_reminder_count = user_reminder_count + 1
           Utils.debug("user reminder count", user_reminder_count)
           local message
