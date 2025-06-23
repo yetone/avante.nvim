@@ -822,7 +822,7 @@ function M._stream(opts)
         if opts.get_todos then
           local todos = opts.get_todos()
           unfinished_todos = vim.tbl_filter(
-            function(todo) return todo.status ~= "done" or todo.status ~= "cancelled" end,
+            function(todo) return todo.status ~= "done" and todo.status ~= "cancelled" end,
             todos
           )
         end
