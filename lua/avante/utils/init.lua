@@ -1012,6 +1012,13 @@ end
 ---@param new_lines avante.ui.Line[]
 ---@return { start_line: integer, end_line: integer, content: avante.ui.Line[] }[]
 local function get_lines_diff(old_lines, new_lines)
+  local remaining_lines = 30
+  local start_line = 0
+  if #new_lines >= #old_lines then
+    start_line = math.max(#old_lines - remaining_lines, 0)
+    old_lines = vim.list_slice(old_lines, start_line + 1)
+    new_lines = vim.list_slice(new_lines, start_line + 1)
+  end
   local diffs = {}
   local prev_diff_idx = nil
   for i, line in ipairs(new_lines) do
@@ -1020,19 +1027,23 @@ local function get_lines_diff(old_lines, new_lines)
     else
       if prev_diff_idx ~= nil then
         local content = vim.list_slice(new_lines, prev_diff_idx, i - 1)
-        table.insert(diffs, { start_line = prev_diff_idx, end_line = i, content = content })
+        table.insert(diffs, { start_line = start_line + prev_diff_idx, end_line = start_line + i, content = content })
         prev_diff_idx = nil
       end
     end
   end
   if prev_diff_idx ~= nil then
-    table.insert(
-      diffs,
-      { start_line = prev_diff_idx, end_line = #new_lines + 1, content = vim.list_slice(new_lines, prev_diff_idx) }
-    )
+    table.insert(diffs, {
+      start_line = start_line + prev_diff_idx,
+      end_line = start_line + #new_lines + 1,
+      content = vim.list_slice(new_lines, prev_diff_idx),
+    })
   end
   if #new_lines < #old_lines then
-    table.insert(diffs, { start_line = #new_lines + 1, end_line = #old_lines + 1, content = {} })
+    table.insert(
+      diffs,
+      { start_line = start_line + #new_lines + 1, end_line = start_line + #old_lines + 1, content = {} }
+    )
   end
   table.sort(diffs, function(a, b) return a.start_line > b.start_line end)
   return diffs
