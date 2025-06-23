@@ -23,7 +23,7 @@ M._defaults = {
   ---@alias avante.Mode "agentic" | "legacy"
   ---@type avante.Mode
   mode = "agentic",
-  ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | string
+  ---@alias avante.ProviderName "claude" | "openai" | "azure" | "azuredatabricks" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | string
   ---@type avante.ProviderName
   provider = "claude",
   -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
@@ -267,6 +267,17 @@ M._defaults = {
         temperature = 0.75,
         max_completion_tokens = 20480, -- Increase this to include reasoning tokens (for reasoning models)
         reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
+      },
+    },
+    ---@type AvanteSupportedProvider
+    azuredatabricks = {
+      endpoint = "", -- REQUIRED: Set to your Databricks serving endpoint URL, e.g., "https://adb-2222222222222222.2.azuredatabricks.net/serving-endpoints"
+      model = "databricks-claude-sonnet-4", -- REQUIRED: Set to your model name available in Databricks
+      timeout = 30000, -- Timeout in milliseconds
+      context_window = 200000,
+      extra_request_body = {
+        temperature = 0.75,
+        max_tokens = 20480, -- Databricks uses max_tokens instead of max_completion_tokens
       },
     },
     ---@type AvanteSupportedProvider

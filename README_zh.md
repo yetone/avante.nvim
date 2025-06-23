@@ -558,6 +558,7 @@ _请参见 [config.lua#L9](./lua/avante/config.lua) 以获取完整配置_
 > export AVANTE_ANTHROPIC_API_KEY=your-claude-api-key
 > export AVANTE_OPENAI_API_KEY=your-openai-api-key
 > export AVANTE_AZURE_OPENAI_API_KEY=your-azure-api-key
+> export AVANTE_DATABRICKS_TOKEN=your-databricks-token
 > export AVANTE_GEMINI_API_KEY=your-gemini-api-key
 > export AVANTE_CO_API_KEY=your-cohere-api-key
 > export AVANTE_AIHUBMIX_API_KEY=your-aihubmix-api-key
@@ -748,6 +749,38 @@ providers = {
   },
 }
 ```
+
+## Azure Databricks
+
+Azure Databricks 是 avante.nvim 的内置提供者。它使用 Azure Databricks 服务端点提供的 OpenAI 兼容 API。使用 Azure Databricks：
+
+1. 设置您的 Azure Databricks 工作区并创建服务端点
+2. 在环境变量中设置您的 Databricks 令牌：
+
+```bash
+export DATABRICKS_TOKEN=your_databricks_token
+```
+
+3. 在您的设置中配置提供者：
+
+```lua
+provider = "azuredatabricks",
+providers = {
+  azuredatabricks = {
+    endpoint = "https://adb-2222222222222222.2.azuredatabricks.net/serving-endpoints",
+    model = "your-model-name",
+    timeout = 30000, -- 超时时间（毫秒）
+    extra_request_body = {
+      temperature = 0.7,
+      max_tokens = 4096,
+    },
+  },
+},
+```
+
+> [!IMPORTANT]
+>
+> 确保将端点 URL 替换为您实际的 Azure Databricks 工作区 URL 和服务端点路径。端点应指向您的 Databricks 服务端点 URL。
 
 ## 自定义提供者
 

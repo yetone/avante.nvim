@@ -723,6 +723,7 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 > export AVANTE_ANTHROPIC_API_KEY=your-claude-api-key
 > export AVANTE_OPENAI_API_KEY=your-openai-api-key
 > export AVANTE_AZURE_OPENAI_API_KEY=your-azure-api-key
+> export AVANTE_DATABRICKS_TOKEN=your-databricks-token
 > export AVANTE_GEMINI_API_KEY=your-gemini-api-key
 > export AVANTE_CO_API_KEY=your-cohere-api-key
 > export AVANTE_AIHUBMIX_API_KEY=your-aihubmix-api-key
@@ -936,6 +937,38 @@ providers = {
   },
 }
 ```
+
+## Azure Databricks
+
+Azure Databricks is a built-in provider for avante.nvim. It uses the OpenAI-compatible API provided by Azure Databricks serving endpoints. To use Azure Databricks:
+
+1. Set up your Azure Databricks workspace and create a serving endpoint
+2. Set your Databricks token in environment variables:
+
+```bash
+export DATABRICKS_TOKEN=your_databricks_token
+```
+
+3. Configure the provider in your setup:
+
+```lua
+provider = "azuredatabricks",
+providers = {
+  azuredatabricks = {
+    endpoint = "https://adb-2222222222222222.2.azuredatabricks.net/serving-endpoints",
+    model = "your-model-name",
+    timeout = 30000, -- Timeout in milliseconds
+    extra_request_body = {
+      temperature = 0.7,
+      max_tokens = 4096,
+    },
+  },
+},
+```
+
+> [!IMPORTANT]
+>
+> Make sure to replace the endpoint URL with your actual Azure Databricks workspace URL and serving endpoint path. The endpoint should point to your Databricks serving endpoints URL.
 
 ## Custom providers
 

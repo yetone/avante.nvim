@@ -8,6 +8,7 @@ local Utils = require("avante.utils")
 ---@field claude AvanteProviderFunctor
 ---@field copilot AvanteProviderFunctor
 ---@field azure AvanteProviderFunctor
+---@field azuredatabricks AvanteProviderFunctor
 ---@field gemini AvanteProviderFunctor
 ---@field cohere AvanteProviderFunctor
 ---@field bedrock AvanteBedrockProviderFunctor
