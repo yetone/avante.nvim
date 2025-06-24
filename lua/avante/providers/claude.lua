@@ -329,13 +329,13 @@ function M:parse_response(ctx, data_stream, event_state, opts)
     if not ok then return end
     if jsn.usage and ctx.usage then ctx.usage.output_tokens = ctx.usage.output_tokens + jsn.usage.output_tokens end
     if jsn.delta.stop_reason == "end_turn" then
-      opts.on_stop({ reason = "complete", usage = self.transform_anthropic_usage(ctx.usage) })
+      opts.on_stop({ reason = "complete", usage = M.transform_anthropic_usage(ctx.usage) })
     elseif jsn.delta.stop_reason == "max_tokens" then
-      opts.on_stop({ reason = "max_tokens", usage = self.transform_anthropic_usage(ctx.usage) })
+      opts.on_stop({ reason = "max_tokens", usage = M.transform_anthropic_usage(ctx.usage) })
     elseif jsn.delta.stop_reason == "tool_use" then
       opts.on_stop({
         reason = "tool_use",
-        usage = self.transform_anthropic_usage(ctx.usage),
+        usage = M.transform_anthropic_usage(ctx.usage),
       })
     end
     return
