@@ -2782,7 +2782,11 @@ function Sidebar:create_input_container()
           return history and history.todos or {}
         end,
         session_ctx = {},
+        ---@param usage avante.LLMTokenUsage
         update_tokens_usage = function(usage)
+          if not usage then return end
+          if usage.completion_tokens == nil then return end
+          if usage.prompt_tokens == nil then return end
           self.chat_history.tokens_usage = usage
           self:save_history()
         end,

@@ -335,7 +335,7 @@ function M.generate_prompts(opts)
     Utils.debug("Context window", context_window)
     if opts.get_tokens_usage then
       local tokens_usage = opts.get_tokens_usage()
-      if tokens_usage then
+      if tokens_usage and tokens_usage.prompt_tokens ~= nil and tokens_usage.completion_tokens ~= nil then
         local target_tokens = context_window * 0.9
         local tokens_count = tokens_usage.prompt_tokens + tokens_usage.completion_tokens
         Utils.debug("Tokens count", tokens_count)
