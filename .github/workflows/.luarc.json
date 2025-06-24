@@ -12,7 +12,6 @@
       "${3rd}/luv/library",
       "$DEPS_PATH/luvit-meta/library",
       "$DEPS_PATH/lazy.nvim/lua",
-      "$DEPS_PATH/nvim-treesitter/lua",
       "$DEPS_PATH/dressing.nvim/lua",
       "$DEPS_PATH/snacks.nvim/lua",
       "$DEPS_PATH/plenary.nvim/lua",
