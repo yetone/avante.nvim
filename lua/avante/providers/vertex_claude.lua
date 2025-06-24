@@ -15,6 +15,7 @@ M.parse_messages = P.claude.parse_messages
 M.parse_response = P.claude.parse_response
 M.parse_api_key = Vertex.parse_api_key
 M.on_error = Vertex.on_error
+M.transform_anthropic_usage = P.claude.transform_anthropic_usage
 
 Vertex.api_key_name = "cmd:gcloud auth print-access-token"
 
