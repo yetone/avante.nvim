@@ -1,6 +1,8 @@
 ---@class avante.utils.lsp
 local M = {}
 
+local LspMethod = vim.lsp.protocol.Methods
+
 ---@alias vim.lsp.Client.filter {id?: number, bufnr?: number, name?: string, method?: string, filter?:fun(client: vim.lsp.Client):boolean}
 
 ---@param opts? vim.lsp.Client.filter
@@ -73,8 +75,19 @@ function M.read_definitions(bufnr, symbol_name, show_line_numbers, on_complete)
     on_complete(nil, "No LSP client found")
     return
   end
+  local supports_workspace_symbol = false
+  for _, client in ipairs(clients) do
+    if client:supports_method(LspMethod.workspace_symbol) then
+      supports_workspace_symbol = true
+      break
+    end
+  end
+  if not supports_workspace_symbol then
+    on_complete(nil, "Cannot read definitions.")
+    return
+  end
   local params = { query = symbol_name }
-  vim.lsp.buf_request_all(bufnr, "workspace/symbol", params, function(results)
+  vim.lsp.buf_request_all(bufnr, LspMethod.workspace_symbol, params, function(results)
     if not results or #results == 0 then
       on_complete(nil, "No results")
       return
