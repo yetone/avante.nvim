@@ -77,6 +77,8 @@ function M.func(opts, on_log, on_complete, session_ctx)
       return { { line_, Highlights.INCOMING } }
     end)
     :totable()
+  local line_count = vim.api.nvim_buf_line_count(bufnr)
+  if opts.insert_line > line_count - 1 then opts.insert_line = line_count - 1 end
   vim.api.nvim_buf_set_extmark(bufnr, ns_id, opts.insert_line, 0, {
     virt_lines = virt_lines,
     hl_eol = true,
