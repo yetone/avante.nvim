@@ -45,7 +45,12 @@ local function get_full_definition(location)
   local filetype = vim.filetype.match({ filename = filepath, buf = buf }) or ""
 
   --- use tree-sitter to get the full definition
-  local parser = require("nvim-treesitter.parsers").get_parser(buf, filetype)
+  local lang = vim.treesitter.language.get_lang(filetype)
+  local parser = vim.treesitter.get_parser(buf, lang)
+  if not parser then
+    vim.api.nvim_buf_delete(buf, { force = true })
+    return {}
+  end
   local tree = parser:parse()[1]
   local root = tree:root()
   local node = root:named_descendant_for_range(
