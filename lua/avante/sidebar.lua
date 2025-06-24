@@ -1687,7 +1687,7 @@ local _message_to_lines_lru_cache = LRUCache:new(100)
 ---@param ctx table
 ---@return avante.ui.Line[]
 local function get_message_lines(message, messages, ctx)
-  if message.state == "generating" then return _get_message_lines(message, messages, ctx) end
+  if message.state == "generating" or message.is_calling then return _get_message_lines(message, messages, ctx) end
   local cached_lines = _message_to_lines_lru_cache:get(message.uuid)
   if cached_lines then return cached_lines end
   local lines = _get_message_lines(message, messages, ctx)
@@ -2000,7 +2000,7 @@ function Sidebar:add_history_messages(messages)
     and messages[1].state == "generated"
   then
     local first_msg_text = Utils.message_to_text(messages[1], messages)
-    local lines_ = vim.split(first_msg_text, "\n")
+    local lines_ = vim.iter(vim.split(first_msg_text, "\n")):filter(function(line) return line ~= "" end):totable()
     if #lines_ > 0 then
       self.chat_history.title = lines_[1]
       self:save_history()
@@ -2704,9 +2704,12 @@ function Sidebar:create_input_container()
       local tool_use_logs = tool_use_message.tool_use_logs or {}
       local content = string.format("[%s]: %s", tool_name, log)
       table.insert(tool_use_logs, content)
+      local orig_is_calling = tool_use_message.is_calling
       tool_use_message.tool_use_logs = tool_use_logs
-      self:save_history()
+      tool_use_message.is_calling = true
       self:update_content("")
+      tool_use_message.is_calling = orig_is_calling
+      self:save_history()
     end
 
     ---@type AvanteLLMStopCallback

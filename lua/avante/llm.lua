@@ -690,11 +690,17 @@ function M._stream(opts)
     on_stop = function(stop_opts)
       if stop_opts.usage and opts.update_tokens_usage then opts.update_tokens_usage(stop_opts.usage) end
 
-      ---@param partial_tool_use_list AvantePartialLLMToolUse[]
+      ---@param tool_uses AvantePartialLLMToolUse[]
       ---@param tool_use_index integer
       ---@param tool_results AvanteLLMToolResult[]
-      local function handle_next_tool_use(partial_tool_use_list, tool_use_index, tool_results, streaming_tool_use)
-        if tool_use_index > #partial_tool_use_list then
+      local function handle_next_tool_use(
+        tool_uses,
+        tool_use_messages,
+        tool_use_index,
+        tool_results,
+        streaming_tool_use
+      )
+        if tool_use_index > #tool_uses then
           ---@type avante.HistoryMessage[]
           local messages = {}
           for _, tool_result in ipairs(tool_results) do
@@ -712,7 +718,7 @@ function M._stream(opts)
             })
           end
           if opts.on_messages_add then opts.on_messages_add(messages) end
-          local the_last_tool_use = partial_tool_use_list[#partial_tool_use_list]
+          local the_last_tool_use = tool_uses[#tool_uses]
           if the_last_tool_use and the_last_tool_use.name == "attempt_completion" then
             opts.on_stop({ reason = "complete" })
             return
@@ -731,10 +737,13 @@ function M._stream(opts)
           M._stream(new_opts)
           return
         end
-        local partial_tool_use = partial_tool_use_list[tool_use_index]
+        local partial_tool_use = tool_uses[tool_use_index]
+        local partial_tool_use_message = tool_use_messages[tool_use_index]
         ---@param result string | nil
         ---@param error string | nil
         local function handle_tool_result(result, error)
+          partial_tool_use_message.is_calling = false
+          if opts.on_messages_add then opts.on_messages_add({ partial_tool_use_message }) end
           -- Special handling for cancellation signal from tools
           if error == LLMToolHelpers.CANCEL_TOKEN then
             Utils.debug("Tool execution was cancelled by user")
@@ -759,7 +768,7 @@ function M._stream(opts)
             is_user_declined = is_user_declined ~= nil,
           }
           table.insert(tool_results, tool_result)
-          return handle_next_tool_use(partial_tool_use_list, tool_use_index + 1, tool_results)
+          return handle_next_tool_use(tool_uses, tool_use_messages, tool_use_index + 1, tool_results)
         end
         local is_edit_tool_use = Utils.is_edit_func_call_tool_use(partial_tool_use)
         local support_streaming = false
@@ -782,6 +791,8 @@ function M._stream(opts)
         else
           if streaming_tool_use then return end
         end
+        partial_tool_use_message.is_calling = true
+        if opts.on_messages_add then opts.on_messages_add({ partial_tool_use_message }) end
         -- Either on_complete handles the tool result asynchronously or we receive the result and error synchronously when either is not nil
         local result, error = LLMTools.process_tool_use(
           prompt_opts.tools,
@@ -806,7 +817,7 @@ function M._stream(opts)
         return opts.on_stop({ reason = "cancelled" })
       end
       local history_messages = opts.get_history_messages and opts.get_history_messages({ all = true }) or {}
-      local uncalled_tool_uses = Utils.get_uncalled_tool_uses(history_messages)
+      local uncalled_tool_uses, uncalled_tool_uses_messages = Utils.get_uncalled_tool_uses(history_messages)
       if stop_opts.reason == "complete" and Config.mode == "agentic" then
         local completed_attempt_completion_tool_use = nil
         for idx = #history_messages, 1, -1 do
@@ -868,7 +879,13 @@ function M._stream(opts)
       end
       if stop_opts.reason == "tool_use" then
         opts.session_ctx.user_reminder_count = 0
-        return handle_next_tool_use(uncalled_tool_uses, 1, {}, stop_opts.streaming_tool_use)
+        return handle_next_tool_use(
+          uncalled_tool_uses,
+          uncalled_tool_uses_messages,
+          1,
+          {},
+          stop_opts.streaming_tool_use
+        )
       end
       if stop_opts.reason == "rate_limit" then
         local msg_content = "*[Rate limit reached. Retrying in " .. stop_opts.retry_after .. " seconds ...]*"
