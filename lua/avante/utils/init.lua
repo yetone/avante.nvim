@@ -1748,10 +1748,12 @@ end
 
 ---@param history_messages avante.HistoryMessage[]
 ---@return AvantePartialLLMToolUse[]
+---@return avante.HistoryMessage[]
 function M.get_uncalled_tool_uses(history_messages)
   local last_turn_id = nil
   if #history_messages > 0 then last_turn_id = history_messages[#history_messages].turn_id end
-  local uncalled_tool_use_list = {} ---@type AvantePartialLLMToolUse[]
+  local uncalled_tool_uses = {} ---@type AvantePartialLLMToolUse[]
+  local uncalled_tool_uses_messages = {} ---@type avante.HistoryMessage[]
   local tool_result_seen = {}
   for idx = #history_messages, 1, -1 do
     local message = history_messages[idx]
@@ -1772,7 +1774,8 @@ function M.get_uncalled_tool_uses(history_messages)
             input = item.input,
             state = message.state,
           }
-          table.insert(uncalled_tool_use_list, 1, partial_tool_use)
+          table.insert(uncalled_tool_uses, 1, partial_tool_use)
+          table.insert(uncalled_tool_uses_messages, 1, message)
         else
           is_break = true
           break
@@ -1783,7 +1786,7 @@ function M.get_uncalled_tool_uses(history_messages)
     if is_break then break end
     ::continue::
   end
-  return uncalled_tool_use_list
+  return uncalled_tool_uses, uncalled_tool_uses_messages
 end
 
 function M.call_once(func)
