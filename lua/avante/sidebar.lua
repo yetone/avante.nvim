@@ -5,7 +5,7 @@ local Split = require("nui.split")
 local event = require("nui.utils.autocmd").event
 
 local PPath = require("plenary.path")
-local Provider = require("avante.providers")
+local Providers = require("avante.providers")
 local Path = require("avante.path")
 local Config = require("avante.config")
 local Diff = require("avante.diff")
@@ -165,7 +165,7 @@ function Sidebar:open(opts)
   end
 
   if not vim.g.avante_login or vim.g.avante_login == false then
-    api.nvim_exec_autocmds("User", { pattern = Provider.env.REQUEST_LOGIN_PATTERN })
+    api.nvim_exec_autocmds("User", { pattern = Providers.env.REQUEST_LOGIN_PATTERN })
     vim.g.avante_login = true
   end
 
@@ -2202,6 +2202,8 @@ function Sidebar:get_history_messages_for_api(opts)
 
   if opts.all then return history_messages0 end
 
+  local use_ReAct_prompt = Providers[Config.provider].use_ReAct_prompt ~= nil
+
   history_messages0 = vim
     .iter(history_messages0)
     :filter(function(message) return message.state ~= "generating" end)
@@ -2411,61 +2413,63 @@ function Sidebar:get_history_messages_for_api(opts)
     end
   end
 
-  local picked_messages = {}
-  local max_tool_use_count = 25
-  local tool_use_count = 0
-  for idx = #history_messages, 1, -1 do
-    local msg = history_messages[idx]
-    if tool_use_count > max_tool_use_count then
-      if Utils.is_tool_result_message(msg) then
-        local tool_use_message = Utils.get_tool_use_message(msg, history_messages)
-        if tool_use_message then
-          table.insert(
-            picked_messages,
-            1,
-            HistoryMessage:new({
-              role = "user",
-              content = {
-                {
-                  type = "text",
-                  text = string.format(
-                    "Tool use [%s] is successful: %s",
-                    tool_use_message.message.content[1].name,
-                    tostring(not msg.message.content[1].is_error)
-                  ),
+  if not use_ReAct_prompt then
+    local picked_messages = {}
+    local max_tool_use_count = 25
+    local tool_use_count = 0
+    for idx = #history_messages, 1, -1 do
+      local msg = history_messages[idx]
+      if tool_use_count > max_tool_use_count then
+        if Utils.is_tool_result_message(msg) then
+          local tool_use_message = Utils.get_tool_use_message(msg, history_messages)
+          if tool_use_message then
+            table.insert(
+              picked_messages,
+              1,
+              HistoryMessage:new({
+                role = "user",
+                content = {
+                  {
+                    type = "text",
+                    text = string.format(
+                      "Tool use [%s] is successful: %s",
+                      tool_use_message.message.content[1].name,
+                      tostring(not msg.message.content[1].is_error)
+                    ),
+                  },
                 },
-              },
-            }, { is_dummy = true })
-          )
-          local msg_content = {}
-          table.insert(msg_content, {
-            type = "text",
-            text = string.format(
-              "Tool use %s(%s)",
-              tool_use_message.message.content[1].name,
-              vim.json.encode(tool_use_message.message.content[1].input)
-            ),
-          })
-          table.insert(
-            picked_messages,
-            1,
-            HistoryMessage:new({ role = "assistant", content = msg_content }, { is_dummy = true })
-          )
+              }, { is_dummy = true })
+            )
+            local msg_content = {}
+            table.insert(msg_content, {
+              type = "text",
+              text = string.format(
+                "Tool use %s(%s)",
+                tool_use_message.message.content[1].name,
+                vim.json.encode(tool_use_message.message.content[1].input)
+              ),
+            })
+            table.insert(
+              picked_messages,
+              1,
+              HistoryMessage:new({ role = "assistant", content = msg_content }, { is_dummy = true })
+            )
+          end
+        elseif Utils.is_tool_use_message(msg) then
+          tool_use_count = tool_use_count + 1
+          goto continue
+        else
+          table.insert(picked_messages, 1, msg)
         end
-      elseif Utils.is_tool_use_message(msg) then
-        tool_use_count = tool_use_count + 1
-        goto continue
       else
+        if Utils.is_tool_use_message(msg) then tool_use_count = tool_use_count + 1 end
         table.insert(picked_messages, 1, msg)
       end
-    else
-      if Utils.is_tool_use_message(msg) then tool_use_count = tool_use_count + 1 end
-      table.insert(picked_messages, 1, msg)
+      ::continue::
     end
-    ::continue::
-  end
 
-  history_messages = picked_messages
+    history_messages = picked_messages
+  end
 
   local final_history_messages = {}
   for _, msg in ipairs(history_messages) do
