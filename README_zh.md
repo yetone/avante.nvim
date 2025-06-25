@@ -82,8 +82,6 @@
     },
   },
   dependencies = {
-    "nvim-treesitter/nvim-treesitter",
-
     "nvim-lua/plenary.nvim",
     "MunifTanjim/nui.nvim",
     --- 以下依赖项是可选的，
@@ -131,8 +129,6 @@
 ```vim
 
 " 依赖项
-Plug 'nvim-treesitter/nvim-treesitter'
-
 Plug 'nvim-lua/plenary.nvim'
 Plug 'MunifTanjim/nui.nvim'
 Plug 'MeanderingProgrammer/render-markdown.nvim'
@@ -163,8 +159,6 @@ add({
   source = 'yetone/avante.nvim',
   monitor = 'main',
   depends = {
-    'nvim-treesitter/nvim-treesitter',
-
     'nvim-lua/plenary.nvim',
     'MunifTanjim/nui.nvim',
     'echasnovski/mini.icons'
@@ -194,8 +188,6 @@ end)
 ```vim
 
   -- 必需插件
-  use 'nvim-treesitter/nvim-treesitter'
-
   use 'nvim-lua/plenary.nvim'
   use 'MunifTanjim/nui.nvim'
   use 'MeanderingProgrammer/render-markdown.nvim'
