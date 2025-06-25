@@ -4,6 +4,7 @@ local Clipboard = require("avante.clipboard")
 local Providers = require("avante.providers")
 local HistoryMessage = require("avante.history_message")
 local XMLParser = require("avante.libs.xmlparser")
+local ReActParser = require("avante.libs.ReAct_parser")
 local JsonParser = require("avante.libs.jsonparser")
 local Prompts = require("avante.utils.prompts")
 local LlmTools = require("avante.llm_tools")
@@ -226,13 +227,8 @@ function M:add_text_message(ctx, text, state, opts)
   if llm_tool_names == nil then llm_tool_names = LlmTools.get_tool_names() end
   if ctx.content == nil then ctx.content = "" end
   ctx.content = ctx.content .. text
-  local content = ctx.content
-    :gsub("<tool_code>", "")
-    :gsub("</tool_code>", "")
-    :gsub("<tool_call>", "")
-    :gsub("</tool_call>", "")
-    :gsub("<tool_use>", "")
-    :gsub("</tool_use>", "")
+  local content =
+    ctx.content:gsub("<tool_code>", ""):gsub("</tool_code>", ""):gsub("<tool_call>", ""):gsub("</tool_call>", "")
   ctx.content = content
   local msg = HistoryMessage:new({
     role = "assistant",
@@ -262,16 +258,15 @@ function M:add_text_message(ctx, text, state, opts)
     ::continue::
   end
   local cleaned_xml_content = table.concat(cleaned_xml_lines, "\n")
-  local stream_parser = XMLParser.createStreamParser()
-  stream_parser:addData(cleaned_xml_content)
-  local xml = stream_parser:getAllElements()
+  local xml = ReActParser.parse(cleaned_xml_content)
+  local has_tool_use = false
   if xml then
     local new_content_list = {}
     local xml_md_openned = false
     for idx, item in ipairs(xml) do
-      if item._name == "_text" then
+      if item.type == "text" then
         local cleaned_lines = {}
-        local lines = vim.split(item._text, "\n")
+        local lines = vim.split(item.text, "\n")
         for _, line in ipairs(lines) do
           if line:match("^```xml") or line:match("^```tool_code") or line:match("^```tool_use") then
             xml_md_openned = true
@@ -288,20 +283,18 @@ function M:add_text_message(ctx, text, state, opts)
         table.insert(new_content_list, table.concat(cleaned_lines, "\n"))
         goto continue
       end
-      if not vim.tbl_contains(llm_tool_names, item._name) then goto continue end
-      local ok, input = pcall(vim.json.decode, item._text)
-      if not ok then input = {} end
-      if not ok and item.children and #item.children > 0 then
-        for _, item_ in ipairs(item.children) do
-          local ok_, input_ = pcall(vim.json.decode, item_._text)
-          if ok_ and input_ then
-            input[item_._name] = input_
-          else
-            input[item_._name] = item_._text
-          end
+      if not vim.tbl_contains(llm_tool_names, item.tool_name) then goto continue end
+      local input = {}
+      for k, v in pairs(item.tool_input or {}) do
+        local ok, jsn = pcall(vim.json.decode, v)
+        if ok and jsn then
+          input[k] = jsn
+        else
+          input[k] = v
         end
       end
       if next(input) ~= nil then
+        has_tool_use = true
         local msg_uuid = ctx.content_uuid .. "-" .. idx
         local tool_use_id = msg_uuid
         local msg_ = HistoryMessage:new({
@@ -309,7 +302,7 @@ function M:add_text_message(ctx, text, state, opts)
           content = {
             {
               type = "tool_use",
-              name = item._name,
+              name = item.tool_name,
               id = tool_use_id,
               input = input,
             },
@@ -321,18 +314,27 @@ function M:add_text_message(ctx, text, state, opts)
         })
         msgs[#msgs + 1] = msg_
         ctx.tool_use_list = ctx.tool_use_list or {}
-        ctx.tool_use_list[#ctx.tool_use_list + 1] = {
-          id = tool_use_id,
-          name = item._name,
-          input_json = input,
-        }
+        local exists = false
+        for _, tool_use in ipairs(ctx.tool_use_list) do
+          if tool_use.id == tool_use_id then
+            tool_use.input_json = input
+            exists = true
+          end
+        end
+        if not exists then
+          ctx.tool_use_list[#ctx.tool_use_list + 1] = {
+            id = tool_use_id,
+            name = item.tool_name,
+            input_json = input,
+          }
+        end
       end
-      if #new_content_list > 0 then msg.message.content = table.concat(new_content_list, "\n") end
+      if #new_content_list > 0 then msg.displayed_content = table.concat(new_content_list, "\n") end
       ::continue::
     end
   end
   if opts.on_messages_add then opts.on_messages_add(msgs) end
-  -- if has_tool_use and state == "generating" then opts.on_stop({ reason = "tool_use", streaming_tool_use = true }) end
+  if has_tool_use and state == "generating" then opts.on_stop({ reason = "tool_use", streaming_tool_use = true }) end
 end
 
 function M:add_thinking_message(ctx, text, state, opts)
@@ -376,7 +378,7 @@ function M:add_tool_use_message(ctx, tool_use, state, opts)
   tool_use.uuid = msg.uuid
   tool_use.state = state
   if opts.on_messages_add then opts.on_messages_add({ msg }) end
-  -- if state == "generating" then opts.on_stop({ reason = "tool_use", streaming_tool_use = true }) end
+  if state == "generating" then opts.on_stop({ reason = "tool_use", streaming_tool_use = true }) end
 end
 
 ---@param usage avante.OpenAITokenUsage | nil
