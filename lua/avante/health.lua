@@ -8,10 +8,6 @@ function M.check()
 
   -- Required dependencies with their module names
   local required_plugins = {
-    ["nvim-treesitter"] = {
-      path = "nvim-treesitter/nvim-treesitter",
-      module = "nvim-treesitter",
-    },
     ["plenary.nvim"] = {
       path = "nvim-lua/plenary.nvim",
       module = "plenary",
@@ -72,31 +68,16 @@ end
 function M.check_treesitter()
   H.start("TreeSitter Dependencies")
 
-  -- Check if TreeSitter is available
-  local has_ts, _ = pcall(require, "nvim-treesitter.configs")
-  if not has_ts then
-    H.error("TreeSitter not available. Make sure nvim-treesitter is properly installed")
-    return
-  end
-
-  H.ok("TreeSitter core functionality is available")
-
-  -- Check for essential parsers
-  local has_parsers, parsers = pcall(require, "nvim-treesitter.parsers")
-  if not has_parsers then
-    H.error("TreeSitter parsers module not available")
-    return
-  end
-
   -- List of important parsers for avante.nvim
   local essential_parsers = {
     "markdown",
   }
 
-  local missing_parsers = {}
+  local missing_parsers = {} ---@type string[]
 
-  for _, parser in ipairs(essential_parsers) do
-    if parsers.has_parser and not parsers.has_parser(parser) then table.insert(missing_parsers, parser) end
+  for _, parser_name in ipairs(essential_parsers) do
+    local loaded_parser = vim.treesitter.language.add(parser_name)
+    if not loaded_parser then missing_parsers[#missing_parsers + 1] = parser_name end
   end
 
   if #missing_parsers == 0 then
