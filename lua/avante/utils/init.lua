@@ -1688,6 +1688,7 @@ end
 ---@param messages avante.HistoryMessage[]
 ---@return avante.ui.Line[]
 function M.message_to_lines(message, messages)
+  if message.displayed_content then return M.text_to_lines(message.displayed_content) end
   local content = message.message.content
   if type(content) == "string" then return M.text_to_lines(content) end
   if vim.islist(content) then

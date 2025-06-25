@@ -17,6 +17,9 @@ function StreamParser.new()
     state = "ready", -- 解析状态: ready, parsing, incomplete, error
     incomplete_tag = nil, -- 未完成的标签信息
     last_error = nil, -- 最后的错误信息
+    inside_tool_use = false, -- 是否在 tool_use 标签内
+    tool_use_depth = 0, -- tool_use 标签嵌套深度
+    tool_use_stack = {}, -- tool_use 标签栈
   }
   setmetatable(parser, StreamParser)
   return parser
@@ -33,6 +36,9 @@ function StreamParser:reset()
   self.state = "ready"
   self.incomplete_tag = nil
   self.last_error = nil
+  self.inside_tool_use = false
+  self.tool_use_depth = 0
+  self.tool_use_stack = {}
 end
 
 -- 获取解析器状态信息
@@ -45,6 +51,9 @@ function StreamParser:getStatus()
     incomplete_tag = self.incomplete_tag,
     last_error = self.last_error,
     has_incomplete = self.state == "incomplete" or self.incomplete_tag ~= nil,
+    inside_tool_use = self.inside_tool_use,
+    tool_use_depth = self.tool_use_depth,
+    tool_use_stack_size = #self.tool_use_stack,
   }
 end
 
@@ -90,16 +99,6 @@ local function decodeEntities(str)
   return str
 end
 
--- 检查标签是否在行首
-local function isTagAtLineStart(xmlContent, tagStart)
-  -- 如果标签在整个内容的开始位置，认为是在行首
-  if tagStart == 1 then return true end
-
-  -- 检查标签前的字符，如果是换行符，则标签在行首
-  local charBeforeTag = xmlContent:sub(tagStart - 1, tagStart - 1)
-  return charBeforeTag == "\n"
-end
-
 -- 检查是否为有效的XML标签
 local function isValidXmlTag(tag, xmlContent, tagStart)
   -- 排除明显不是XML标签的内容，比如数学表达式 < 或 >
@@ -110,8 +109,6 @@ local function isValidXmlTag(tag, xmlContent, tagStart)
   if tag:match("^</[_%w]+>$") then return true end -- 结束标签
   if tag:match("^<[_%w]+[^>]*/>$") then return true end -- 自闭合标签
   if tag:match("^<[_%w]+[^>]*>$") then
-    if not isTagAtLineStart(xmlContent, tagStart) then return false end
-
     -- 对于开始标签，进行额外的上下文检查
     local tagName = tag:match("^<([_%w]+)")
 
@@ -163,7 +160,75 @@ function StreamParser:parseBuffer()
   while self.position <= #self.buffer do
     local remaining = self.buffer:sub(self.position)
 
-    -- 查找下一个标签
+    -- 首先检查是否有 tool_use 标签
+    local tool_use_start = remaining:find("<tool_use>")
+    local tool_use_end = remaining:find("</tool_use>")
+
+    -- 如果当前不在 tool_use 内，且找到了 tool_use 开始标签
+    if not self.inside_tool_use and tool_use_start then
+      -- 处理 tool_use 标签前的文本作为普通文本
+      if tool_use_start > 1 then
+        local precedingText = remaining:sub(1, tool_use_start - 1)
+        if precedingText ~= "" then
+          local textElement = {
+            _name = "_text",
+            _text = precedingText,
+          }
+          table.insert(self.results, textElement)
+        end
+      end
+
+      -- 进入 tool_use 模式
+      self.inside_tool_use = true
+      self.tool_use_depth = 1
+      table.insert(self.tool_use_stack, { start_pos = self.position + tool_use_start - 1 })
+      self.position = self.position + tool_use_start + 10 -- 跳过 "<tool_use>"
+      goto continue
+    end
+
+    -- 如果在 tool_use 内，检查是否遇到结束标签
+    if self.inside_tool_use and tool_use_end then
+      self.tool_use_depth = self.tool_use_depth - 1
+      if self.tool_use_depth == 0 then
+        -- 退出 tool_use 模式
+        self.inside_tool_use = false
+        table.remove(self.tool_use_stack)
+        self.position = self.position + tool_use_end + 11 -- 跳过 "</tool_use>"
+        goto continue
+      end
+    end
+
+    -- 如果不在 tool_use 内，将所有内容作为普通文本处理
+    if not self.inside_tool_use then
+      -- 查找下一个可能的 tool_use 标签
+      local next_tool_use = remaining:find("<tool_use>")
+      if next_tool_use then
+        -- 处理到下一个 tool_use 标签之前的文本
+        local text = remaining:sub(1, next_tool_use - 1)
+        if text ~= "" then
+          local textElement = {
+            _name = "_text",
+            _text = text,
+          }
+          table.insert(self.results, textElement)
+        end
+        self.position = self.position + next_tool_use - 1
+      else
+        -- 没有更多 tool_use 标签，处理剩余的所有文本
+        if remaining ~= "" then
+          local textElement = {
+            _name = "_text",
+            _text = remaining,
+          }
+          table.insert(self.results, textElement)
+        end
+        self.position = #self.buffer + 1
+        break
+      end
+      goto continue
+    end
+
+    -- 查找下一个标签（只有在 tool_use 内才进行 XML 解析）
     local tagStart, tagEnd = remaining:find("</?[%w_]+>")
 
     if not tagStart then
