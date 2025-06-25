@@ -276,8 +276,10 @@ function M:parse_curl_args(prompt_opts)
   local provider_conf, request_body = Providers.parse_config(self)
   local disable_tools = provider_conf.disable_tools or false
 
+  local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
+
   local tools = {}
-  if not disable_tools and prompt_opts.tools then
+  if not use_ReAct_prompt and not disable_tools and prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
       table.insert(tools, OpenAI:transform_tool(tool))
     end
