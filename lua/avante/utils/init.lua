@@ -679,7 +679,7 @@ function M.debounce(func, delay)
   return function(...)
     local args = { ... }
 
-    if timer_id then fn.timer_stop(timer_id) end
+    if timer_id then pcall(function() fn.timer_stop(timer_id) end) end
 
     timer_id = fn.timer_start(delay, function()
       func(unpack(args))
@@ -1014,18 +1014,10 @@ function M.open_buffer(path, set_current_buf)
 
   local abs_path = M.join_paths(M.get_project_root(), path)
 
-  local bufnr ---@type integer
-  if set_current_buf then
-    bufnr = vim.fn.bufnr(abs_path)
-    if bufnr ~= -1 and vim.api.nvim_buf_is_loaded(bufnr) and vim.bo[bufnr].modified then
-      vim.api.nvim_buf_call(bufnr, function() vim.cmd("noautocmd write") end)
-    end
-    vim.cmd("noautocmd edit " .. abs_path)
-    bufnr = vim.api.nvim_get_current_buf()
-  else
-    bufnr = vim.fn.bufnr(abs_path, true)
-    pcall(vim.fn.bufload, bufnr)
-  end
+  local bufnr = vim.fn.bufnr(abs_path, true)
+  pcall(vim.fn.bufload, bufnr)
+
+  if set_current_buf then vim.cmd("buffer " .. bufnr) end
 
   vim.cmd("filetype detect")
 
@@ -1511,11 +1503,11 @@ end
 
 ---@param tool_use AvanteLLMToolUse
 function M.tool_use_to_xml(tool_use)
-  local xml = string.format("<%s>\n", tool_use.name)
+  local xml = string.format("<tool_use>\n<%s>\n", tool_use.name)
   for k, v in pairs(tool_use.input or {}) do
     xml = xml .. string.format("<%s>%s</%s>\n", k, tostring(v), k)
   end
-  xml = xml .. "</" .. tool_use.name .. ">"
+  xml = xml .. "</" .. tool_use.name .. ">\n</tool_use>"
   return xml
 end
 
