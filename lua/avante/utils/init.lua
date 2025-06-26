@@ -674,19 +674,26 @@ function M.trim_all_line_numbers(content)
 end
 
 function M.debounce(func, delay)
-  local timer_id = nil
+  local timer = nil
 
   return function(...)
     local args = { ... }
 
-    if timer_id then pcall(function() fn.timer_stop(timer_id) end) end
+    if timer then
+      timer:stop()
+      timer:close()
+    end
 
-    timer_id = fn.timer_start(delay, function()
-      func(unpack(args))
-      timer_id = nil
+    timer = vim.loop.new_timer()
+    if not timer then return end
+
+    timer:start(delay, 0, function()
+      vim.schedule(function() func(unpack(args)) end)
+      timer:close()
+      timer = nil
     end)
 
-    return timer_id
+    return timer
   end
 end
 
