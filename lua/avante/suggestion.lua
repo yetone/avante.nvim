@@ -24,7 +24,7 @@ local SUGGESTION_NS = api.nvim_create_namespace("avante_suggestion")
 ---@field augroup integer
 ---@field ignore_patterns table
 ---@field negate_patterns table
----@field _timer? integer
+---@field _timer? uv.uv_timer_t | uv_timer_t
 ---@field _contexts table
 ---@field is_on_throttle boolean
 local Suggestion = {}
@@ -348,7 +348,10 @@ end
 
 function Suggestion:stop_timer()
   if self._timer then
-    pcall(function() fn.timer_stop(self._timer) end)
+    pcall(function()
+      self._timer:stop()
+      self._timer:close()
+    end)
     self._timer = nil
   end
 end
