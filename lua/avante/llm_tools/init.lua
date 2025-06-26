@@ -153,11 +153,11 @@ function M.copy_path(opts, on_log, on_complete)
             end
           end
           vim.fn.mkdir(new_entry_path, "p")
-          Path:new(new_entry_path):write(Path:new(abs_path):joinpath(entry):read())
+          Path:new(new_entry_path):write(Path:new(abs_path):joinpath(entry):read(), "w")
           ::continue::
         end
       else
-        Path:new(new_abs_path):write(Path:new(abs_path):read())
+        Path:new(new_abs_path):write(Path:new(abs_path):read(), "w")
       end
       on_complete(true, nil)
     end
