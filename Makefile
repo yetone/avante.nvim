@@ -13,7 +13,7 @@ endif
 
 LUA_VERSIONS := luajit lua51
 
-BUILD_DIR := build
+BUILD_DIR := lua
 BUILD_FROM_SOURCE ?= false
 TARGET_LIBRARY ?= all
 
@@ -68,7 +68,7 @@ $(BUILD_DIR):
 	@mkdir -p $(BUILD_DIR)
 
 clean:
-	@rm -rf $(BUILD_DIR)
+	@rm -rf $(BUILD_DIR)/*.$(EXT)
 
 luacheck:
 	@luacheck `find -name "*.lua"` --codes
