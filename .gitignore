@@ -1,3 +1,4 @@
+*.so
 # Lua compiled files
 *.lua~
 *.luac
