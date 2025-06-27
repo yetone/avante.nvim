@@ -49,6 +49,8 @@ end
 
 function M.is_openrouter(url) return url:match("^https://openrouter%.ai/") end
 
+function M.is_mistral(url) return url:match("^https://api%.mistral%.ai/") end
+
 ---@param opts AvantePromptOptions
 function M.get_user_message(opts)
   vim.deprecate("get_user_message", "parse_messages", "0.1.0", "avante.nvim")
@@ -557,9 +559,9 @@ function M:parse_curl_args(prompt_opts)
       model = provider_conf.model,
       messages = self:parse_messages(prompt_opts),
       stream = true,
-      stream_options = {
+      stream_options = not M.is_mistral(provider_conf.endpoint) and {
         include_usage = true,
-      },
+      } or nil,
       tools = tools,
     }, request_body),
   }
