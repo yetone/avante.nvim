@@ -708,15 +708,16 @@ function M.func(opts, on_log, on_complete, session_ctx)
   end
 
   if diff_blocks[1] then
+    local line_count = vim.api.nvim_buf_line_count(bufnr)
     local winnr = Utils.get_winid(bufnr)
     if is_streaming then
       -- In streaming mode, focus on the last diff block
       local last_diff_block = diff_blocks[#diff_blocks]
-      vim.api.nvim_win_set_cursor(winnr, { last_diff_block.start_line, 0 })
+      vim.api.nvim_win_set_cursor(winnr, { math.min(last_diff_block.start_line, line_count), 0 })
       vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
     else
       -- In normal mode, focus on the first diff block
-      vim.api.nvim_win_set_cursor(winnr, { diff_blocks[1].new_start_line, 0 })
+      vim.api.nvim_win_set_cursor(winnr, { math.min(diff_blocks[1].new_start_line, line_count), 0 })
       vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
     end
   end
