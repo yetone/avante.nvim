@@ -3302,7 +3302,7 @@ function Sidebar:create_todos_container()
     self:refresh_winids()
     return
   end
-  if not self.todos_container then
+  if not Utils.is_valid_container(self.todos_container, true) then
     self.todos_container = Split({
       enter = false,
       relative = {
