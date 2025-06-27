@@ -511,6 +511,8 @@ M._defaults = {
       repomap = "<leader>aR",
     },
     sidebar = {
+      next_prompt = "]p",
+      prev_prompt = "[p",
       apply_all = "A",
       apply_cursor = "a",
       retry_user_request = "r",
