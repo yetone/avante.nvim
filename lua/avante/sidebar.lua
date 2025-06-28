@@ -688,9 +688,10 @@ end
 ---@field end_line number 1-indexed
 ---@field content string
 
+---@param position? integer
 ---@return AvanteRespUserRequestBlock | nil
-function Sidebar:get_current_user_request_block()
-  local current_resp_content, current_resp_start_line = self:get_content_between_separators()
+function Sidebar:get_current_user_request_block(position)
+  local current_resp_content, current_resp_start_line = self:get_content_between_separators(position)
   if current_resp_content == nil then return nil end
   if current_resp_content == "" then return nil end
   local lines = vim.split(current_resp_content, "\n")
@@ -704,13 +705,8 @@ function Sidebar:get_current_user_request_block()
       if start_line == nil then start_line = i end
       table.insert(content_lines, m)
       end_line = i
-    elseif line ~= "" then
-      if start_line ~= nil then
-        end_line = i - 2
-        break
-      end
-    else
-      if start_line ~= nil then table.insert(content_lines, line) end
+    elseif start_line ~= nil then
+      break
     end
   end
   if start_line == nil then return nil end
@@ -1123,7 +1119,48 @@ function Sidebar:bind_sidebar_keys(codeblocks)
     if target_block then
       api.nvim_win_set_cursor(self.result_container.winid, { target_block.start_line, 0 })
       vim.cmd("normal! zz")
+    else
+      Utils.error("No codeblock found")
     end
+  end
+
+  ---@param direction "next" | "prev"
+  local function jump_to_prompt(direction)
+    local current_request_block = self:get_current_user_request_block()
+    local current_line = Utils.get_cursor_pos(self.result_container.winid)
+    if not current_request_block then
+      Utils.error("No prompt found")
+      return
+    end
+    if
+      (current_request_block.start_line > current_line and direction == "next")
+      or (current_request_block.end_line < current_line and direction == "prev")
+    then
+      api.nvim_win_set_cursor(self.result_container.winid, { current_request_block.start_line, 0 })
+      return
+    end
+    local start_search_line = current_line
+    local result_lines = Utils.get_buf_lines(0, -1, self.result_container.bufnr)
+    local end_search_line = direction == "next" and #result_lines or 1
+    local step = direction == "next" and 1 or -1
+    local query_pos ---@type integer|nil
+    for i = start_search_line, end_search_line, step do
+      local result_line = result_lines[i]
+      if result_line == RESP_SEPARATOR then
+        query_pos = direction == "next" and i + 1 or i - 1
+        break
+      end
+    end
+    if not query_pos then
+      Utils.error("No other prompt found " .. (direction == "next" and "below" or "above"))
+      return
+    end
+    current_request_block = self:get_current_user_request_block(query_pos)
+    if not current_request_block then
+      Utils.error("No prompt found")
+      return
+    end
+    api.nvim_win_set_cursor(self.result_container.winid, { current_request_block.start_line, 0 })
   end
 
   vim.keymap.set(
@@ -1142,6 +1179,18 @@ function Sidebar:bind_sidebar_keys(codeblocks)
     "n",
     Config.mappings.jump.prev,
     function() jump_to_codeblock("prev") end,
+    { buffer = self.result_container.bufnr, noremap = true, silent = true }
+  )
+  vim.keymap.set(
+    "n",
+    Config.mappings.sidebar.next_prompt,
+    function() jump_to_prompt("next") end,
+    { buffer = self.result_container.bufnr, noremap = true, silent = true }
+  )
+  vim.keymap.set(
+    "n",
+    Config.mappings.sidebar.prev_prompt,
+    function() jump_to_prompt("prev") end,
     { buffer = self.result_container.bufnr, noremap = true, silent = true }
   )
 end
@@ -1798,10 +1847,11 @@ function Sidebar:update_content_with_history()
   self:update_content("")
 end
 
+---@param position? integer
 ---@return string, integer
-function Sidebar:get_content_between_separators()
+function Sidebar:get_content_between_separators(position)
   local separator = RESP_SEPARATOR
-  local cursor_line, _ = Utils.get_cursor_pos()
+  local cursor_line = position or Utils.get_cursor_pos()
   local lines = Utils.get_buf_lines(0, -1, self.result_container.bufnr)
   local start_line, end_line
 
