@@ -22,6 +22,7 @@ M.is_disable_stream = Claude.is_disable_stream
 M.parse_messages = Claude.parse_messages
 M.parse_response = Claude.parse_response
 M.transform_tool = Claude.transform_tool
+M.transform_anthropic_usage = Claude.transform_anthropic_usage
 
 ---@param provider AvanteProviderFunctor
 ---@param prompt_opts AvantePromptOptions
