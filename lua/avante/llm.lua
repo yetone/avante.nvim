@@ -477,7 +477,7 @@ function M.curl(opts)
 
   local completed = false
 
-  local active_job
+  local active_job ---@type Job|nil
 
   local temp_file = fn.tempname()
   local curl_body_file = temp_file .. "-request-body.json"
@@ -501,7 +501,7 @@ function M.curl(opts)
 
   local headers_reported = false
 
-  active_job = curl.post(spec.url, {
+  local started_job, new_active_job = pcall(curl.post, spec.url, {
     headers = spec.headers,
     proxy = spec.proxy,
     insecure = spec.insecure,
@@ -617,6 +617,14 @@ function M.curl(opts)
       end
     end,
   })
+
+  if not started_job then
+    local error_msg = vim.inspect(new_active_job)
+    Utils.error("Failed to make LLM request: " .. error_msg)
+    handler_opts.on_stop({ reason = "error", error = error_msg })
+    return
+  end
+  active_job = new_active_job
 
   api.nvim_create_autocmd("User", {
     group = group,
