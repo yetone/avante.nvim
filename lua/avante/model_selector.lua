@@ -53,6 +53,7 @@ local function create_model_entries(provider_name, provider_cfg)
       and {
         {
           name = provider_cfg.display_name or (provider_name .. "/" .. provider_cfg.model),
+          display_name = provider_cfg.display_name or (provider_name .. "/" .. provider_cfg.model),
           provider_name = provider_name,
           model = provider_cfg.model,
         },
@@ -127,6 +128,11 @@ function M.open()
     provider = Config.selector.provider,
     provider_opts = Config.selector.provider_opts,
     on_select = on_select,
+    get_preview_content = function(item_id)
+      local model = vim.iter(models):find(function(item) return item.name == item_id end)
+      if not model then return "", "markdown" end
+      return model.name, "markdown"
+    end,
   })
 
   selector:open()

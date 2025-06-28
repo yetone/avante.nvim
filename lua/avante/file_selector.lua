@@ -221,6 +221,11 @@ function FileSelector:show_selector_ui()
           selected_item_ids = self.selected_filepaths,
           provider_opts = Config.file_selector.provider_opts,
           on_select = function(item_ids) self:handle_path_selection(item_ids) end,
+          get_preview_content = function(item_id)
+            local content = Utils.read_file_from_buf_or_disk(item_id)
+            local filetype = Utils.get_filetype(item_id)
+            return table.concat(content or {}, "\n"), filetype
+          end,
         })
         selector:open()
       end
@@ -233,6 +238,11 @@ function FileSelector:show_selector_ui()
         selected_item_ids = self.selected_filepaths,
         provider_opts = Config.selector.provider_opts,
         on_select = function(item_ids) self:handle_path_selection(item_ids) end,
+        get_preview_content = function(item_id)
+          local content = Utils.read_file_from_buf_or_disk(item_id)
+          local filetype = Utils.get_filetype(item_id)
+          return table.concat(content or {}, "\n"), filetype
+        end,
       })
       selector:open()
     end
