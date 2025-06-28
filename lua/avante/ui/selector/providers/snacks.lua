@@ -26,7 +26,9 @@ function M.show(selector)
       })
     end
   end
+
   local completed = false
+
   ---@diagnostic disable-next-line: undefined-global
   Snacks.picker.pick(vim.tbl_deep_extend("force", {
     source = "select",
