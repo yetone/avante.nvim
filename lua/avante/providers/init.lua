@@ -176,6 +176,7 @@ M = setmetatable(M, {
     if rawget(t[k], "is_env_set") == nil then
       t[k].is_env_set = function()
         if not E.require_api_key(t[k]) then return true end
+        if type(t[k].api_key_name) == "string" and t[k].api_key_name:match("^cmd:") then return true end
         local ok, result = pcall(t[k].parse_api_key)
         if not ok then return false end
         return result ~= nil
@@ -185,7 +186,11 @@ M = setmetatable(M, {
     if rawget(t[k], "setup") == nil then
       local provider_conf = M.parse_config(t[k])
       t[k].setup = function()
-        if E.require_api_key(provider_conf) then t[k].parse_api_key() end
+        if E.require_api_key(provider_conf) then
+          if not (type(provider_conf.api_key_name) == "string" and provider_conf.api_key_name:match("^cmd:")) then
+            t[k].parse_api_key()
+          end
+        end
         require("avante.tokenizers").setup(t[k].tokenizer_id)
       end
     end
