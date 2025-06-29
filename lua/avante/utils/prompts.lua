@@ -45,6 +45,9 @@ I have completed the task...
 
 ALWAYS ADHERE TO this format for the tool use to ensure proper parsing and execution.
 
+## OUTPUT FORMAT
+Please remember you are not allowed to use any format related to function calling or fc or tool_code.
+
 # Tools
 
 ]]
