@@ -3,6 +3,11 @@ local Config = require("avante.config")
 local Clipboard = require("avante.clipboard")
 local Providers = require("avante.providers")
 local HistoryMessage = require("avante.history_message")
+local XMLParser = require("avante.libs.xmlparser")
+local ReActParser = require("avante.libs.ReAct_parser")
+local JsonParser = require("avante.libs.jsonparser")
+local Prompts = require("avante.utils.prompts")
+local LlmTools = require("avante.llm_tools")
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -44,6 +49,8 @@ end
 
 function M.is_openrouter(url) return url:match("^https://openrouter%.ai/") end
 
+function M.is_mistral(url) return url:match("^https://api%.mistral%.ai/") end
+
 ---@param opts AvantePromptOptions
 function M.get_user_message(opts)
   vim.deprecate("get_user_message", "parse_messages", "0.1.0", "avante.nvim")
@@ -76,10 +83,15 @@ function M:parse_messages(opts)
   local messages = {}
   local provider_conf, _ = Providers.parse_config(self)
 
+  local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
+  local system_prompt = opts.system_prompt
+
+  if use_ReAct_prompt then system_prompt = Prompts.get_ReAct_system_prompt(provider_conf, opts) end
+
   if self.is_reasoning_model(provider_conf.model) then
-    table.insert(messages, { role = "developer", content = opts.system_prompt })
+    table.insert(messages, { role = "developer", content = system_prompt })
   else
-    table.insert(messages, { role = "system", content = opts.system_prompt })
+    table.insert(messages, { role = "system", content = system_prompt })
   end
 
   local has_tool_use = false
@@ -103,22 +115,50 @@ function M:parse_messages(opts)
               url = "data:" .. item.source.media_type .. ";" .. item.source.type .. "," .. item.source.data,
             },
           })
-        elseif item.type == "tool_use" then
+        elseif item.type == "tool_use" and not use_ReAct_prompt then
           has_tool_use = true
           table.insert(tool_calls, {
             id = item.id,
             type = "function",
             ["function"] = { name = item.name, arguments = vim.json.encode(item.input) },
           })
-        elseif item.type == "tool_result" and has_tool_use then
+        elseif item.type == "tool_result" and has_tool_use and not use_ReAct_prompt then
           table.insert(
             tool_results,
             { tool_call_id = item.tool_use_id, content = item.is_error and "Error: " .. item.content or item.content }
           )
         end
       end
+      if not provider_conf.disable_tools and use_ReAct_prompt then
+        if msg.content[1].type == "tool_result" then
+          local tool_use = nil
+          for _, msg_ in ipairs(opts.messages) do
+            if type(msg_.content) == "table" and #msg_.content > 0 then
+              if msg_.content[1].type == "tool_use" and msg_.content[1].id == msg.content[1].tool_use_id then
+                tool_use = msg_
+                break
+              end
+            end
+          end
+          if tool_use then
+            msg.role = "user"
+            table.insert(content, {
+              type = "text",
+              text = "["
+                .. tool_use.content[1].name
+                .. " for '"
+                .. (tool_use.content[1].input.path or tool_use.content[1].input.rel_path or "")
+                .. "'] Result:",
+            })
+            table.insert(content, {
+              type = "text",
+              text = msg.content[1].content,
+            })
+          end
+        end
+      end
       if #content > 0 then table.insert(messages, { role = self.role_map[msg.role], content = content }) end
-      if not provider_conf.disable_tools then
+      if not provider_conf.disable_tools and not use_ReAct_prompt then
         if #tool_calls > 0 then
           local last_message = messages[#messages]
           if last_message and last_message.role == self.role_map["assistant"] and last_message.tool_calls then
@@ -178,14 +218,20 @@ function M:finish_pending_messages(ctx, opts)
   if ctx.content ~= nil and ctx.content ~= "" then self:add_text_message(ctx, "", "generated", opts) end
   if ctx.tool_use_list then
     for _, tool_use in ipairs(ctx.tool_use_list) do
-      if tool_use.state == "generating" then self:add_tool_use_message(tool_use, "generated", opts) end
+      if tool_use.state == "generating" then self:add_tool_use_message(ctx, tool_use, "generated", opts) end
     end
   end
 end
 
+local llm_tool_names = nil
+
 function M:add_text_message(ctx, text, state, opts)
+  if llm_tool_names == nil then llm_tool_names = LlmTools.get_tool_names() end
   if ctx.content == nil then ctx.content = "" end
   ctx.content = ctx.content .. text
+  local content =
+    ctx.content:gsub("<tool_code>", ""):gsub("</tool_code>", ""):gsub("<tool_call>", ""):gsub("</tool_call>", "")
+  ctx.content = content
   local msg = HistoryMessage:new({
     role = "assistant",
     content = ctx.content,
@@ -194,7 +240,103 @@ function M:add_text_message(ctx, text, state, opts)
     uuid = ctx.content_uuid,
   })
   ctx.content_uuid = msg.uuid
-  if opts.on_messages_add then opts.on_messages_add({ msg }) end
+  local msgs = { msg }
+  local xml_content = ctx.content
+  local xml_lines = vim.split(xml_content, "\n")
+  local cleaned_xml_lines = {}
+  local prev_tool_name = nil
+  for _, line in ipairs(xml_lines) do
+    if line:match("<tool_name>") then
+      local tool_name = line:match("<tool_name>(.*)</tool_name>")
+      if tool_name then prev_tool_name = tool_name end
+    elseif line:match("<parameters>") then
+      if prev_tool_name then table.insert(cleaned_xml_lines, "<" .. prev_tool_name .. ">") end
+      goto continue
+    elseif line:match("</parameters>") then
+      if prev_tool_name then table.insert(cleaned_xml_lines, "</" .. prev_tool_name .. ">") end
+      goto continue
+    end
+    table.insert(cleaned_xml_lines, line)
+    ::continue::
+  end
+  local cleaned_xml_content = table.concat(cleaned_xml_lines, "\n")
+  local xml = ReActParser.parse(cleaned_xml_content)
+  local has_tool_use = false
+  if xml then
+    local new_content_list = {}
+    local xml_md_openned = false
+    for idx, item in ipairs(xml) do
+      if item.type == "text" then
+        local cleaned_lines = {}
+        local lines = vim.split(item.text, "\n")
+        for _, line in ipairs(lines) do
+          if line:match("^```xml") or line:match("^```tool_code") or line:match("^```tool_use") then
+            xml_md_openned = true
+          elseif line:match("^```$") then
+            if xml_md_openned then
+              xml_md_openned = false
+            else
+              table.insert(cleaned_lines, line)
+            end
+          else
+            table.insert(cleaned_lines, line)
+          end
+        end
+        table.insert(new_content_list, table.concat(cleaned_lines, "\n"))
+        goto continue
+      end
+      if not vim.tbl_contains(llm_tool_names, item.tool_name) then goto continue end
+      local input = {}
+      for k, v in pairs(item.tool_input or {}) do
+        local ok, jsn = pcall(vim.json.decode, v)
+        if ok and jsn then
+          input[k] = jsn
+        else
+          input[k] = v
+        end
+      end
+      if next(input) ~= nil then
+        has_tool_use = true
+        local msg_uuid = ctx.content_uuid .. "-" .. idx
+        local tool_use_id = msg_uuid
+        local msg_ = HistoryMessage:new({
+          role = "assistant",
+          content = {
+            {
+              type = "tool_use",
+              name = item.tool_name,
+              id = tool_use_id,
+              input = input,
+            },
+          },
+        }, {
+          state = state,
+          uuid = msg_uuid,
+          turn_id = ctx.turn_id,
+        })
+        msgs[#msgs + 1] = msg_
+        ctx.tool_use_list = ctx.tool_use_list or {}
+        local exists = false
+        for _, tool_use in ipairs(ctx.tool_use_list) do
+          if tool_use.id == tool_use_id then
+            tool_use.input_json = input
+            exists = true
+          end
+        end
+        if not exists then
+          ctx.tool_use_list[#ctx.tool_use_list + 1] = {
+            id = tool_use_id,
+            name = item.tool_name,
+            input_json = input,
+          }
+        end
+      end
+      if #new_content_list > 0 then msg.displayed_content = table.concat(new_content_list, "\n") end
+      ::continue::
+    end
+  end
+  if opts.on_messages_add then opts.on_messages_add(msgs) end
+  if has_tool_use and state == "generating" then opts.on_stop({ reason = "tool_use", streaming_tool_use = true }) end
 end
 
 function M:add_thinking_message(ctx, text, state, opts)
@@ -212,14 +354,14 @@ function M:add_thinking_message(ctx, text, state, opts)
   }, {
     state = state,
     uuid = ctx.reasonging_content_uuid,
+    turn_id = ctx.turn_id,
   })
   ctx.reasonging_content_uuid = msg.uuid
   if opts.on_messages_add then opts.on_messages_add({ msg }) end
 end
 
-function M:add_tool_use_message(tool_use, state, opts)
-  local jsn = nil
-  if state == "generated" then jsn = vim.json.decode(tool_use.input_json) end
+function M:add_tool_use_message(ctx, tool_use, state, opts)
+  local jsn = JsonParser.parse(tool_use.input_json)
   local msg = HistoryMessage:new({
     role = "assistant",
     content = {
@@ -233,20 +375,45 @@ function M:add_tool_use_message(tool_use, state, opts)
   }, {
     state = state,
     uuid = tool_use.uuid,
+    turn_id = ctx.turn_id,
   })
   tool_use.uuid = msg.uuid
   tool_use.state = state
   if opts.on_messages_add then opts.on_messages_add({ msg }) end
+  if state == "generating" then opts.on_stop({ reason = "tool_use", streaming_tool_use = true }) end
+end
+
+---@param usage avante.OpenAITokenUsage | nil
+---@return avante.LLMTokenUsage | nil
+function M.transform_openai_usage(usage)
+  if not usage then return nil end
+  if usage == vim.NIL then return nil end
+  ---@type avante.LLMTokenUsage
+  local res = {
+    prompt_tokens = usage.prompt_tokens,
+    completion_tokens = usage.completion_tokens,
+  }
+  return res
 end
 
 function M:parse_response(ctx, data_stream, _, opts)
-  if data_stream:match('"%[DONE%]":') then
+  if data_stream:match('"%[DONE%]":') or data_stream == "[DONE]" then
     self:finish_pending_messages(ctx, opts)
-    opts.on_stop({ reason = "complete" })
+    if ctx.tool_use_list and #ctx.tool_use_list > 0 then
+      ctx.tool_use_list = {}
+      opts.on_stop({ reason = "tool_use" })
+    else
+      opts.on_stop({ reason = "complete" })
+    end
     return
   end
-  if data_stream == "[DONE]" then return end
   local jsn = vim.json.decode(data_stream)
+  if jsn.usage and jsn.usage ~= vim.NIL then
+    if opts.update_tokens_usage then
+      local usage = self.transform_openai_usage(jsn.usage)
+      if usage then opts.update_tokens_usage(usage) end
+    end
+  end
   ---@cast jsn AvanteOpenAIChatResponse
   if not jsn.choices then return end
   local choice = jsn.choices[1]
@@ -282,7 +449,7 @@ function M:parse_response(ctx, data_stream, _, opts)
       if not ctx.tool_use_list[tool_call.index + 1] then
         if tool_call.index > 0 and ctx.tool_use_list[tool_call.index] then
           local prev_tool_use = ctx.tool_use_list[tool_call.index]
-          self:add_tool_use_message(prev_tool_use, "generated", opts)
+          self:add_tool_use_message(ctx, prev_tool_use, "generated", opts)
         end
         local tool_use = {
           name = tool_call["function"].name,
@@ -290,11 +457,11 @@ function M:parse_response(ctx, data_stream, _, opts)
           input_json = type(tool_call["function"].arguments) == "string" and tool_call["function"].arguments or "",
         }
         ctx.tool_use_list[tool_call.index + 1] = tool_use
-        self:add_tool_use_message(tool_use, "generating", opts)
+        self:add_tool_use_message(ctx, tool_use, "generating", opts)
       else
         local tool_use = ctx.tool_use_list[tool_call.index + 1]
         tool_use.input_json = tool_use.input_json .. tool_call["function"].arguments
-        self:add_tool_use_message(tool_use, "generating", opts)
+        -- self:add_tool_use_message(ctx, tool_use, "generating", opts)
       end
     end
   elseif delta.content then
@@ -316,15 +483,19 @@ function M:parse_response(ctx, data_stream, _, opts)
       self:add_text_message(ctx, delta.content, "generating", opts)
     end
   end
-  if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" then
+  if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" or choice.finish_reason == "length" then
     self:finish_pending_messages(ctx, opts)
-    opts.on_stop({ reason = "complete" })
+    if ctx.tool_use_list and #ctx.tool_use_list > 0 then
+      opts.on_stop({ reason = "tool_use", usage = self.transform_openai_usage(jsn.usage) })
+    else
+      opts.on_stop({ reason = "complete", usage = self.transform_openai_usage(jsn.usage) })
+    end
   end
   if choice.finish_reason == "tool_calls" then
     self:finish_pending_messages(ctx, opts)
     opts.on_stop({
       reason = "tool_use",
-      usage = jsn.usage,
+      usage = self.transform_openai_usage(jsn.usage),
     })
   end
 end
@@ -350,12 +521,6 @@ function M:parse_curl_args(prompt_opts)
     ["Content-Type"] = "application/json",
   }
 
-  if provider_conf.extra_headers then
-    for key, value in pairs(provider_conf.extra_headers) do
-      headers[key] = value
-    end
-  end
-
   if Providers.env.require_api_key(provider_conf) then
     local api_key = self.parse_api_key()
     if api_key == nil then
@@ -372,8 +537,10 @@ function M:parse_curl_args(prompt_opts)
 
   self.set_allowed_params(provider_conf, request_body)
 
+  local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
+
   local tools = nil
-  if not disable_tools and prompt_opts.tools then
+  if not disable_tools and prompt_opts.tools and not use_ReAct_prompt then
     tools = {}
     for _, tool in ipairs(prompt_opts.tools) do
       table.insert(tools, self:transform_tool(tool))
@@ -387,11 +554,14 @@ function M:parse_curl_args(prompt_opts)
     url = Utils.url_join(provider_conf.endpoint, "/chat/completions"),
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,
-    headers = headers,
+    headers = Utils.tbl_override(headers, self.extra_headers),
     body = vim.tbl_deep_extend("force", {
       model = provider_conf.model,
       messages = self:parse_messages(prompt_opts),
       stream = true,
+      stream_options = not M.is_mistral(provider_conf.endpoint) and {
+        include_usage = true,
+      } or nil,
       tools = tools,
     }, request_body),
   }

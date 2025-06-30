@@ -5,18 +5,20 @@ local Split = require("nui.split")
 local event = require("nui.utils.autocmd").event
 
 local PPath = require("plenary.path")
-local Provider = require("avante.providers")
+local Providers = require("avante.providers")
 local Path = require("avante.path")
 local Config = require("avante.config")
 local Diff = require("avante.diff")
 local Llm = require("avante.llm")
 local Utils = require("avante.utils")
+local PromptLogger = require("avante.utils.promptLogger")
 local Highlights = require("avante.highlights")
 local RepoMap = require("avante.repo_map")
 local FileSelector = require("avante.file_selector")
 local LLMTools = require("avante.llm_tools")
 local HistoryMessage = require("avante.history_message")
 local Line = require("avante.ui.line")
+local LRUCache = require("avante.utils.lru_cache")
 
 local RESULT_BUF_NAME = "AVANTE_RESULT"
 local VIEW_BUFFER_UPDATED_PATTERN = "AvanteViewBufferUpdated"
@@ -46,8 +48,9 @@ Sidebar.__index = Sidebar
 ---@field id integer
 ---@field augroup integer
 ---@field code avante.CodeState
----@field winids table<"result_container" | "selected_code_container" | "selected_files_container" | "input_container", integer>
+---@field winids table<"result_container" | "todos_container" | "selected_code_container" | "selected_files_container" | "input_container", integer>
 ---@field result_container NuiSplit | nil
+---@field todos_container NuiSplit | nil
 ---@field selected_code_container NuiSplit | nil
 ---@field selected_files_container NuiSplit | nil
 ---@field input_container NuiSplit | nil
@@ -56,6 +59,7 @@ Sidebar.__index = Sidebar
 ---@field current_state avante.GenerateState | nil
 ---@field state_timer table | nil
 ---@field state_spinner_chars string[]
+---@field thinking_spinner_chars string[]
 ---@field state_spinner_idx integer
 ---@field state_extmark_id integer | nil
 ---@field scroll boolean
@@ -70,11 +74,13 @@ function Sidebar:new(id)
     code = { bufnr = 0, winid = 0, selection = nil, old_winhl = nil },
     winids = {
       result_container = 0,
+      todos_container = 0,
       selected_files_container = 0,
       selected_code_container = 0,
       input_container = 0,
     },
     result_container = nil,
+    todos_container = nil,
     selected_code_container = nil,
     selected_files_container = nil,
     input_container = nil,
@@ -84,12 +90,16 @@ function Sidebar:new(id)
     current_state = nil,
     state_timer = nil,
     state_spinner_chars = { "·", "✢", "✳", "∗", "✻", "✽" },
+    thinking_spinner_chars = { "🤯", "🙄" },
     state_spinner_idx = 1,
     state_extmark_id = nil,
     scroll = true,
     input_hint_window = nil,
     ask_opts = {},
     old_result_lines = {},
+    -- 缓存相关字段
+    _cached_history_lines = nil,
+    _history_cache_invalidated = true,
   }, Sidebar)
 end
 
@@ -121,6 +131,7 @@ function Sidebar:reset()
   self.winids =
     { result_container = 0, selected_files_container = 0, selected_code_container = 0, input_container = 0 }
   self.result_container = nil
+  self.todos_container = nil
   self.selected_code_container = nil
   self.selected_files_container = nil
   self.input_container = nil
@@ -154,7 +165,7 @@ function Sidebar:open(opts)
   end
 
   if not vim.g.avante_login or vim.g.avante_login == false then
-    api.nvim_exec_autocmds("User", { pattern = Provider.env.REQUEST_LOGIN_PATTERN })
+    api.nvim_exec_autocmds("User", { pattern = Providers.env.REQUEST_LOGIN_PATTERN })
     vim.g.avante_login = true
   end
 
@@ -178,6 +189,7 @@ function Sidebar:setup_colors()
         ::continue::
       end
       self:set_code_winhl()
+      self:adjust_layout()
     end,
   })
 end
@@ -363,32 +375,21 @@ local function transform_result_content(result_content, prev_filepath)
       local prev_line = result_lines[i - 1]
       if prev_line and prev_line:match("^%s*```$") then search_end = i - 1 end
 
-      local start_line = 0
-      local end_line = 0
       local match_filetype = nil
       local filepath = current_filepath or prev_filepath or ""
 
       if filepath == "" then goto continue end
 
-      local file_content = Utils.read_file_from_buf_or_disk(filepath) or {}
+      local file_content_lines = Utils.read_file_from_buf_or_disk(filepath) or {}
       local file_type = Utils.get_filetype(filepath)
-      if start_line ~= 0 or end_line ~= 0 then break end
-      for j = 1, #file_content - (search_end - search_start) + 1 do
-        local match = true
-        for k = 0, search_end - search_start - 1 do
-          if
-            Utils.remove_indentation(file_content[j + k]) ~= Utils.remove_indentation(result_lines[search_start + k])
-          then
-            match = false
-            break
-          end
-        end
-        if match then
-          start_line = j
-          end_line = j + (search_end - search_start) - 1
-          match_filetype = file_type
-          break
-        end
+      local search_lines = vim.list_slice(result_lines, search_start, search_end - 1)
+      local start_line, end_line = Utils.fuzzy_match(file_content_lines, search_lines)
+
+      if start_line ~= nil and end_line ~= nil then
+        match_filetype = file_type
+      else
+        start_line = 0
+        end_line = 0
       end
 
       -- when the filetype isn't detected, fallback to matching based on filepath.
@@ -629,61 +630,6 @@ local function extract_code_snippets_map(response_content)
   return snippets_map
 end
 
----@param snippets_map table<string, AvanteCodeSnippet[]>
----@return table<string, AvanteCodeSnippet[]>
-local function ensure_snippets_no_overlap(snippets_map)
-  local new_snippets_map = {}
-
-  for filepath, snippets in pairs(snippets_map) do
-    table.sort(snippets, function(a, b) return a.range[1] < b.range[1] end)
-
-    local original_lines = {}
-    local file_exists = Utils.file.exists(filepath)
-    if file_exists then
-      local original_lines_ = Utils.read_file_from_buf_or_disk(filepath)
-      if original_lines_ then original_lines = original_lines_ end
-    end
-
-    local new_snippets = {}
-    local last_end_line = 0
-    for _, snippet in ipairs(snippets) do
-      if snippet.range[1] > last_end_line then
-        table.insert(new_snippets, snippet)
-        last_end_line = snippet.range[2]
-      elseif not file_exists and #snippets <= 1 then
-        -- if the file doesn't exist, and we only have 1 snippet, then we don't have to check for overlaps.
-        table.insert(new_snippets, snippet)
-        last_end_line = snippet.range[2]
-      else
-        local snippet_lines = vim.split(snippet.content, "\n")
-        -- Trim the overlapping part
-        local new_start_line = nil
-        for i = snippet.range[1], math.min(snippet.range[2], last_end_line) do
-          if
-            Utils.remove_indentation(original_lines[i])
-            == Utils.remove_indentation(snippet_lines[i - snippet.range[1] + 1])
-          then
-            new_start_line = i + 1
-          else
-            break
-          end
-        end
-        if new_start_line ~= nil then
-          snippet.content = table.concat(vim.list_slice(snippet_lines, new_start_line - snippet.range[1] + 1), "\n")
-          snippet.range[1] = new_start_line
-          table.insert(new_snippets, snippet)
-          last_end_line = snippet.range[2]
-        else
-          Utils.error("Failed to ensure snippets no overlap", { once = true, title = "Avante" })
-        end
-      end
-    end
-    new_snippets_map[filepath] = new_snippets
-  end
-
-  return new_snippets_map
-end
-
 local function insert_conflict_contents(bufnr, snippets)
   -- sort snippets by start_line
   table.sort(snippets, function(a, b) return a.range[1] < b.range[1] end)
@@ -742,9 +688,10 @@ end
 ---@field end_line number 1-indexed
 ---@field content string
 
+---@param position? integer
 ---@return AvanteRespUserRequestBlock | nil
-function Sidebar:get_current_user_request_block()
-  local current_resp_content, current_resp_start_line = self:get_content_between_separators()
+function Sidebar:get_current_user_request_block(position)
+  local current_resp_content, current_resp_start_line = self:get_content_between_separators(position)
   if current_resp_content == nil then return nil end
   if current_resp_content == "" then return nil end
   local lines = vim.split(current_resp_content, "\n")
@@ -758,13 +705,8 @@ function Sidebar:get_current_user_request_block()
       if start_line == nil then start_line = i end
       table.insert(content_lines, m)
       end_line = i
-    elseif line ~= "" then
-      if start_line ~= nil then
-        end_line = i - 2
-        break
-      end
-    else
-      if start_line ~= nil then table.insert(content_lines, line) end
+    elseif start_line ~= nil then
+      break
     end
   end
   if start_line == nil then return nil end
@@ -895,7 +837,6 @@ end
 function Sidebar:apply(current_cursor)
   local response, response_start_line = self:get_content_between_separators()
   local all_snippets_map = extract_code_snippets_map(response)
-  all_snippets_map = ensure_snippets_no_overlap(all_snippets_map)
   local selected_snippets_map = {}
   if current_cursor then
     if self.result_container and self.result_container.winid then
@@ -1075,7 +1016,7 @@ function Sidebar:render_selected_code()
   if not Utils.is_valid_container(self.selected_code_container) then return end
 
   local selected_code_lines_count = 0
-  local selected_code_max_lines_count = 12
+  local selected_code_max_lines_count = 5
 
   if self.code.selection ~= nil then
     local selected_code_lines = vim.split(self.code.selection.content, "\n")
@@ -1178,7 +1119,48 @@ function Sidebar:bind_sidebar_keys(codeblocks)
     if target_block then
       api.nvim_win_set_cursor(self.result_container.winid, { target_block.start_line, 0 })
       vim.cmd("normal! zz")
+    else
+      Utils.error("No codeblock found")
     end
+  end
+
+  ---@param direction "next" | "prev"
+  local function jump_to_prompt(direction)
+    local current_request_block = self:get_current_user_request_block()
+    local current_line = Utils.get_cursor_pos(self.result_container.winid)
+    if not current_request_block then
+      Utils.error("No prompt found")
+      return
+    end
+    if
+      (current_request_block.start_line > current_line and direction == "next")
+      or (current_request_block.end_line < current_line and direction == "prev")
+    then
+      api.nvim_win_set_cursor(self.result_container.winid, { current_request_block.start_line, 0 })
+      return
+    end
+    local start_search_line = current_line
+    local result_lines = Utils.get_buf_lines(0, -1, self.result_container.bufnr)
+    local end_search_line = direction == "next" and #result_lines or 1
+    local step = direction == "next" and 1 or -1
+    local query_pos ---@type integer|nil
+    for i = start_search_line, end_search_line, step do
+      local result_line = result_lines[i]
+      if result_line == RESP_SEPARATOR then
+        query_pos = direction == "next" and i + 1 or i - 1
+        break
+      end
+    end
+    if not query_pos then
+      Utils.error("No other prompt found " .. (direction == "next" and "below" or "above"))
+      return
+    end
+    current_request_block = self:get_current_user_request_block(query_pos)
+    if not current_request_block then
+      Utils.error("No prompt found")
+      return
+    end
+    api.nvim_win_set_cursor(self.result_container.winid, { current_request_block.start_line, 0 })
   end
 
   vim.keymap.set(
@@ -1197,6 +1179,18 @@ function Sidebar:bind_sidebar_keys(codeblocks)
     "n",
     Config.mappings.jump.prev,
     function() jump_to_codeblock("prev") end,
+    { buffer = self.result_container.bufnr, noremap = true, silent = true }
+  )
+  vim.keymap.set(
+    "n",
+    Config.mappings.sidebar.next_prompt,
+    function() jump_to_prompt("next") end,
+    { buffer = self.result_container.bufnr, noremap = true, silent = true }
+  )
+  vim.keymap.set(
+    "n",
+    Config.mappings.sidebar.prev_prompt,
+    function() jump_to_prompt("prev") end,
     { buffer = self.result_container.bufnr, noremap = true, silent = true }
   )
 end
@@ -1392,6 +1386,7 @@ function Sidebar:on_mount(opts)
     callback = function(args)
       local closed_winid = tonumber(args.match)
       if closed_winid == self.winids.selected_files_container then return end
+      if closed_winid == self.winids.todos_container then return end
       if not self:is_sidebar_winid(closed_winid) then return end
       self:close()
     end,
@@ -1416,6 +1411,7 @@ function Sidebar:refresh_winids()
   if self.winids.result_container then table.insert(winids, self.winids.result_container) end
   if self.winids.selected_files_container then table.insert(winids, self.winids.selected_files_container) end
   if self.winids.selected_code_container then table.insert(winids, self.winids.selected_code_container) end
+  if self.winids.todos_container then table.insert(winids, self.winids.todos_container) end
   if self.winids.input_container then table.insert(winids, self.winids.input_container) end
 
   local function switch_windows()
@@ -1492,7 +1488,9 @@ function Sidebar:initialize()
   Utils.debug("Sidebar:initialize adding buffer to file selector", buf_path)
 
   self.file_selector:reset()
-  self.file_selector:add_selected_file(filepath)
+
+  local stat = vim.uv.fs_stat(filepath)
+  if stat == nil or stat.type == "file" then self.file_selector:add_selected_file(filepath) end
 
   self:reload_chat_history()
 
@@ -1524,46 +1522,107 @@ function Sidebar:is_sidebar_winid(winid)
   return false
 end
 
+---@return boolean
+function Sidebar:should_auto_scroll()
+  if not self.result_container or not self.result_container.winid then return false end
+  if not api.nvim_win_is_valid(self.result_container.winid) then return false end
+
+  local win_height = api.nvim_win_get_height(self.result_container.winid)
+  local total_lines = api.nvim_buf_line_count(self.result_container.bufnr)
+
+  local topline = vim.fn.line("w0", self.result_container.winid)
+
+  local last_visible_line = topline + win_height - 1
+
+  local is_scrolled_to_bottom = last_visible_line >= total_lines - 1
+
+  return is_scrolled_to_bottom
+end
+
+Sidebar.throttled_update_content = Utils.throttle(function(self, ...)
+  local args = { ... }
+  self:update_content(unpack(args))
+end, 50)
+
 ---@param content string concatenated content of the buffer
 ---@param opts? {focus?: boolean, scroll?: boolean, backspace?: integer, callback?: fun(): nil} whether to focus the result view
 function Sidebar:update_content(content, opts)
   if not self.result_container or not self.result_container.bufnr then return end
-  opts = vim.tbl_deep_extend("force", { focus = false, scroll = self.scroll, callback = nil }, opts or {})
-  local history_lines = self.get_history_lines(self.chat_history)
-  if content ~= nil and content ~= "" then
-    table.insert(history_lines, Line:new({ { "" } }))
-    local content_lines = vim.split(content, "\n")
-    for _, line in ipairs(content_lines) do
-      table.insert(history_lines, Line:new({ { line } }))
-    end
+
+  -- 提前验证容器有效性，避免后续无效操作
+  if not Utils.is_valid_container(self.result_container) then return end
+
+  local should_auto_scroll = self:should_auto_scroll()
+
+  opts = vim.tbl_deep_extend(
+    "force",
+    { focus = false, scroll = should_auto_scroll and self.scroll, callback = nil },
+    opts or {}
+  )
+
+  -- 缓存历史行，避免重复计算
+  local history_lines
+  if not self._cached_history_lines or self._history_cache_invalidated then
+    history_lines = self.get_history_lines(self.chat_history)
+    self._cached_history_lines = history_lines
+    self._history_cache_invalidated = false
+  else
+    history_lines = vim.deepcopy(self._cached_history_lines)
   end
-  vim.defer_fn(function()
-    self:clear_state()
-    local f = function()
-      if not Utils.is_valid_container(self.result_container) then return end
-      Utils.unlock_buf(self.result_container.bufnr)
-      Utils.update_buffer_lines(
-        RESULT_BUF_HL_NAMESPACE,
-        self.result_container.bufnr,
-        self.old_result_lines,
-        history_lines
-      )
-      Utils.lock_buf(self.result_container.bufnr)
-      self.old_result_lines = history_lines
-      api.nvim_set_option_value("filetype", "Avante", { buf = self.result_container.bufnr })
-      vim.schedule(function() vim.cmd("redraw") end)
-      if opts.focus and not self:is_focused_on_result() then
-        --- set cursor to bottom of result view
-        xpcall(function() api.nvim_set_current_win(self.result_container.winid) end, function(err) return err end)
-      end
 
-      if opts.scroll then Utils.buf_scroll_to_end(self.result_container.bufnr) end
+  -- 批量处理内容行，减少表操作
+  if content ~= nil and content ~= "" then
+    local content_lines = vim.split(content, "\n")
+    local new_lines = { Line:new({ { "" } }) }
 
-      if opts.callback ~= nil then opts.callback() end
+    -- 预分配表大小，提升性能
+    for i = 1, #content_lines do
+      new_lines[i + 1] = Line:new({ { content_lines[i] } })
     end
-    f()
+
+    -- 一次性扩展，而不是逐个插入
+    vim.list_extend(history_lines, new_lines)
+  end
+
+  -- 使用 vim.schedule 而不是 vim.defer_fn(0)，性能更好
+  -- 再次检查容器有效性
+  if not Utils.is_valid_container(self.result_container) then return end
+
+  self:clear_state()
+
+  -- 批量更新操作
+  local bufnr = self.result_container.bufnr
+  Utils.unlock_buf(bufnr)
+
+  Utils.update_buffer_lines(RESULT_BUF_HL_NAMESPACE, bufnr, self.old_result_lines, history_lines)
+
+  -- 缓存结果行
+  self.old_result_lines = history_lines
+
+  -- 批量设置选项
+  api.nvim_set_option_value("filetype", "Avante", { buf = bufnr })
+  Utils.lock_buf(bufnr)
+
+  -- 处理焦点和滚动
+  if opts.focus and not self:is_focused_on_result() then
+    xpcall(function() api.nvim_set_current_win(self.result_container.winid) end, function(err)
+      Utils.debug("Failed to set current win:", err)
+      return err
+    end)
+  end
+
+  if opts.scroll then Utils.buf_scroll_to_end(bufnr) end
+
+  -- 延迟执行回调和状态渲染
+  if opts.callback then vim.schedule(opts.callback) end
+
+  -- 最后渲染状态
+  vim.schedule(function()
     self:render_state()
-  end, 0)
+    -- 延迟重绘，避免阻塞
+    vim.defer_fn(function() vim.cmd("redraw") end, 10)
+  end)
+
   return self
 end
 
@@ -1577,9 +1636,9 @@ end
 local function render_chat_record_prefix(timestamp, provider, model, request, selected_filepaths, selected_code)
   provider = provider or "unknown"
   model = model or "unknown"
-  local res = "- Datetime: " .. timestamp .. "\n\n" .. "- Model: " .. provider .. "/" .. model
+  local res = "- Datetime: " .. timestamp .. "\n" .. "- Model:    " .. provider .. "/" .. model
   if selected_filepaths ~= nil and #selected_filepaths > 0 then
-    res = res .. "\n\n- Selected files:"
+    res = res .. "\n- Selected files:"
     for _, path in ipairs(selected_filepaths) do
       res = res .. "\n  - " .. path
     end
@@ -1613,6 +1672,7 @@ local function calculate_config_window_position()
     end
   end
 
+  ---@cast position -"smart", -string
   return position
 end
 
@@ -1624,7 +1684,7 @@ end
 ---@param messages avante.HistoryMessage[]
 ---@param ctx table
 ---@return avante.ui.Line[]
-local function get_message_lines(message, messages, ctx)
+local function _get_message_lines(message, messages, ctx)
   if message.visible == false then return {} end
   local lines = Utils.message_to_lines(message, messages)
   if message.is_user_submission then
@@ -1666,6 +1726,21 @@ local function get_message_lines(message, messages, ctx)
     end
     return res
   end
+  return lines
+end
+
+local _message_to_lines_lru_cache = LRUCache:new(100)
+
+---@param message avante.HistoryMessage
+---@param messages avante.HistoryMessage[]
+---@param ctx table
+---@return avante.ui.Line[]
+local function get_message_lines(message, messages, ctx)
+  if message.state == "generating" or message.is_calling then return _get_message_lines(message, messages, ctx) end
+  local cached_lines = _message_to_lines_lru_cache:get(message.uuid)
+  if cached_lines then return cached_lines end
+  local lines = _get_message_lines(message, messages, ctx)
+  _message_to_lines_lru_cache:set(message.uuid, lines)
   return lines
 end
 
@@ -1772,10 +1847,11 @@ function Sidebar:update_content_with_history()
   self:update_content("")
 end
 
+---@param position? integer
 ---@return string, integer
-function Sidebar:get_content_between_separators()
+function Sidebar:get_content_between_separators(position)
   local separator = RESP_SEPARATOR
-  local cursor_line, _ = Utils.get_cursor_pos()
+  local cursor_line = position or Utils.get_cursor_pos()
   local lines = Utils.get_buf_lines(0, -1, self.result_container.bufnr)
   local start_line, end_line
 
@@ -1809,10 +1885,13 @@ end
 
 function Sidebar:clear_history(args, cb)
   self.current_state = nil
-  local chat_history = Path.history.load(self.code.bufnr)
-  if next(chat_history) ~= nil then
-    chat_history.messages = {}
-    Path.history.save(self.code.bufnr, chat_history)
+  if next(self.chat_history) ~= nil then
+    self.chat_history.messages = {}
+    self.chat_history.entries = {}
+    Path.history.save(self.code.bufnr, self.chat_history)
+    self._history_cache_invalidated = true
+    self:reload_chat_history()
+    self:update_content_with_history()
     self:update_content(
       "Chat history cleared",
       { focus = false, scroll = false, callback = function() self:focus_input() end }
@@ -1842,8 +1921,8 @@ function Sidebar:render_state()
   if self.state_extmark_id then
     api.nvim_buf_del_extmark(self.result_container.bufnr, STATE_NAMESPACE, self.state_extmark_id)
   end
-  local spinner_char = self.state_spinner_chars[self.state_spinner_idx]
-  self.state_spinner_idx = (self.state_spinner_idx % #self.state_spinner_chars) + 1
+  local spinner_chars = self.state_spinner_chars
+  if self.current_state == "thinking" then spinner_chars = self.thinking_spinner_chars end
   local hl = "AvanteStateSpinnerGenerating"
   if self.current_state == "tool calling" then hl = "AvanteStateSpinnerToolCalling" end
   if self.current_state == "failed" then hl = "AvanteStateSpinnerFailed" end
@@ -1851,6 +1930,8 @@ function Sidebar:render_state()
   if self.current_state == "searching" then hl = "AvanteStateSpinnerSearching" end
   if self.current_state == "thinking" then hl = "AvanteStateSpinnerThinking" end
   if self.current_state == "compacting" then hl = "AvanteStateSpinnerCompacting" end
+  local spinner_char = spinner_chars[self.state_spinner_idx]
+  self.state_spinner_idx = (self.state_spinner_idx % #spinner_chars) + 1
   if
     self.current_state ~= "generating"
     and self.current_state ~= "tool calling"
@@ -1909,6 +1990,32 @@ function Sidebar:new_chat(args, cb)
   self.current_state = nil
   self:update_content("New chat", { focus = false, scroll = false, callback = function() self:focus_input() end })
   if cb then cb(args) end
+  vim.schedule(function() self:create_todos_container() end)
+end
+
+local debounced_save_history = Utils.debounce(
+  function(self) Path.history.save(self.code.bufnr, self.chat_history) end,
+  1000
+)
+
+function Sidebar:save_history() debounced_save_history(self) end
+
+---@param uuids string[]
+function Sidebar:delete_history_messages(uuids)
+  local history_messages = Utils.get_history_messages(self.chat_history)
+  for _, msg in ipairs(history_messages) do
+    if vim.list_contains(uuids, msg.uuid) then msg.is_deleted = true end
+  end
+  Path.history.save(self.code.bufnr, self.chat_history)
+end
+
+---@param todos avante.TODO[]
+function Sidebar:update_todos(todos)
+  if self.chat_history == nil then self:reload_chat_history() end
+  if self.chat_history == nil then return end
+  self.chat_history.todos = todos
+  Path.history.save(self.code.bufnr, self.chat_history)
+  self:create_todos_container()
 end
 
 ---@param messages avante.HistoryMessage | avante.HistoryMessage[]
@@ -1934,22 +2041,20 @@ function Sidebar:add_history_messages(messages)
     end
   end
   self.chat_history.messages = history_messages
-  Path.history.save(self.code.bufnr, self.chat_history)
+  self._history_cache_invalidated = true
+  self:save_history()
   if
     self.chat_history.title == "untitled"
     and #messages > 0
     and messages[1].just_for_display ~= true
     and messages[1].state == "generated"
   then
-    self.chat_history.title = "generating..."
-    Llm.summarize_chat_thread_title(messages[1].message.content, function(title)
-      if title then
-        self.chat_history.title = title
-      else
-        self.chat_history.title = "untitled"
-      end
-      Path.history.save(self.code.bufnr, self.chat_history)
-    end)
+    local first_msg_text = Utils.message_to_text(messages[1], messages)
+    local lines_ = vim.iter(vim.split(first_msg_text, "\n")):filter(function(line) return line ~= "" end):totable()
+    if #lines_ > 0 then
+      self.chat_history.title = lines_[1]
+      self:save_history()
+    end
   end
   local last_message = messages[#messages]
   if last_message then
@@ -1964,7 +2069,10 @@ function Sidebar:add_history_messages(messages)
       self.current_state = "generating"
     end
   end
-  self:update_content("")
+  xpcall(function() self:throttled_update_content("") end, function(err)
+    Utils.debug("Failed to update content:", err)
+    return nil
+  end)
 end
 
 ---@param messages AvanteLLMMessage | AvanteLLMMessage[]
@@ -1972,7 +2080,6 @@ end
 function Sidebar:add_chat_history(messages, options)
   options = options or {}
   messages = vim.islist(messages) and messages or { messages }
-  self:reload_chat_history()
   local is_first_user = true
   local history_messages = {}
   for _, message in ipairs(messages) do
@@ -2006,7 +2113,7 @@ function Sidebar:create_selected_code_container()
     self.selected_code_container = nil
   end
 
-  local selected_code_size = self:get_selected_code_size()
+  local height = self:get_selected_code_container_height()
 
   if self.code.selection ~= nil then
     self.selected_code_container = Split({
@@ -2018,19 +2125,12 @@ function Sidebar:create_selected_code_container()
       buf_options = buf_options,
       win_options = vim.tbl_deep_extend("force", base_win_options, {}),
       size = {
-        height = selected_code_size + 3,
+        height = height,
       },
       position = "top",
     })
     self.selected_code_container:mount()
-    if self:get_layout() == "horizontal" then
-      api.nvim_win_set_height(
-        self.result_container.winid,
-        api.nvim_win_get_height(self.result_container.winid) - selected_code_size - 3
-      )
-    end
-    self:adjust_result_container_layout()
-    self:adjust_selected_files_container_layout()
+    self:adjust_layout()
   end
 end
 
@@ -2135,22 +2235,306 @@ end
 function Sidebar:reload_chat_history()
   if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then return end
   self.chat_history = Path.history.load(self.code.bufnr)
+  self._history_cache_invalidated = true
 end
 
+---@param opts? {all?: boolean}
 ---@return avante.HistoryMessage[]
-function Sidebar:get_history_messages_for_api()
-  local history_messages = Utils.get_history_messages(self.chat_history)
-  self.chat_history.messages = history_messages
+function Sidebar:get_history_messages_for_api(opts)
+  opts = opts or {}
+  local history_messages0 = Utils.get_history_messages(self.chat_history)
+  self.chat_history.messages = history_messages0
 
-  if self.chat_history.memory then
-    history_messages = {}
-    for i = #self.chat_history.messages, 1, -1 do
-      local message = self.chat_history.messages[i]
+  history_messages0 = vim
+    .iter(history_messages0)
+    :filter(function(message) return not message.just_for_display and not message.is_compacted end)
+    :totable()
+
+  if opts.all then return history_messages0 end
+
+  local use_ReAct_prompt = Providers[Config.provider].use_ReAct_prompt ~= nil
+
+  history_messages0 = vim
+    .iter(history_messages0)
+    :filter(function(message) return message.state ~= "generating" end)
+    :totable()
+
+  if self.chat_history and self.chat_history.memory then
+    local picked_messages = {}
+    for idx = #history_messages0, 1, -1 do
+      local message = history_messages0[idx]
       if message.uuid == self.chat_history.memory.last_message_uuid then break end
-      table.insert(history_messages, 1, message)
+      table.insert(picked_messages, 1, message)
+    end
+    history_messages0 = picked_messages
+  end
+
+  local tool_id_to_tool_name = {}
+  local tool_id_to_path = {}
+  local tool_id_to_start_line = {}
+  local tool_id_to_end_line = {}
+  local viewed_files = {}
+  local last_modified_files = {}
+  local history_messages = {}
+  local failed_edit_tool_ids = {}
+
+  for idx, message in ipairs(history_messages0) do
+    if Utils.is_tool_result_message(message) then
+      local tool_use_message = Utils.get_tool_use_message(message, history_messages0)
+
+      local is_edit_func_call, _, _, path = Utils.is_edit_func_call_message(tool_use_message)
+
+      local tool_result = message.message.content[1]
+
+      -- Only track as failed if it's an error AND not user-declined
+      if is_edit_func_call and tool_result.is_error and not tool_result.is_user_declined then
+        failed_edit_tool_ids[tool_result.tool_use_id] = true
+      end
+
+      -- Only track as successful modification if not an error AND not user-declined
+      if
+        is_edit_func_call
+        and path
+        and not message.message.content[1].is_error
+        and not message.message.content[1].is_user_declined
+      then
+        local uniformed_path = Utils.uniform_path(path)
+        last_modified_files[uniformed_path] = idx
+      end
     end
   end
-  return vim.iter(history_messages):filter(function(message) return not message.just_for_display end):totable()
+
+  for idx, message in ipairs(history_messages0) do
+    if Utils.is_tool_use_message(message) then
+      if failed_edit_tool_ids[message.message.content[1].id] then goto continue end
+    end
+    table.insert(history_messages, message)
+    if Utils.is_tool_result_message(message) then
+      local tool_use_message = Utils.get_tool_use_message(message, history_messages0)
+      local is_edit_func_call, is_str_replace_editor_func_call, is_str_replace_based_edit_tool_func_call, path =
+        Utils.is_edit_func_call_message(tool_use_message)
+      --- For models like gpt-4o, the input parameter of replace_in_file is treated as the latest file content, so here we need to insert a fake view tool call to ensure it uses the latest file content
+      if is_edit_func_call and path and not message.message.content[1].is_error then
+        local uniformed_path = Utils.uniform_path(path)
+        local view_result, view_error = require("avante.llm_tools.view").func({ path = path }, nil, nil, nil)
+        if view_error then view_result = "Error: " .. view_error end
+        local get_diagnostics_tool_use_id = Utils.uuid()
+        local view_tool_use_id = Utils.uuid()
+        local view_tool_name = "view"
+        local view_tool_input = { path = path }
+        if is_str_replace_editor_func_call then
+          view_tool_name = "str_replace_editor"
+          view_tool_input = { command = "view", path = path }
+        end
+        if is_str_replace_based_edit_tool_func_call then
+          view_tool_name = "str_replace_based_edit_tool"
+          view_tool_input = { command = "view", path = path }
+        end
+        history_messages = vim.list_extend(history_messages, {
+          HistoryMessage:new({
+            role = "assistant",
+            content = string.format("Viewing file %s to get the latest content", path),
+          }, {
+            is_dummy = true,
+          }),
+          HistoryMessage:new({
+            role = "assistant",
+            content = {
+              {
+                type = "tool_use",
+                id = view_tool_use_id,
+                name = view_tool_name,
+                input = view_tool_input,
+              },
+            },
+          }, {
+            is_dummy = true,
+          }),
+          HistoryMessage:new({
+            role = "user",
+            content = {
+              {
+                type = "tool_result",
+                tool_use_id = view_tool_use_id,
+                content = view_result,
+                is_error = view_error ~= nil,
+                is_user_declined = false,
+              },
+            },
+          }, {
+            is_dummy = true,
+          }),
+        })
+        if last_modified_files[uniformed_path] == idx and Config.behaviour.auto_check_diagnostics then
+          local diagnostics = Utils.lsp.get_diagnostics_from_filepath(path)
+          history_messages = vim.list_extend(history_messages, {
+            HistoryMessage:new({
+              role = "assistant",
+              content = string.format(
+                "The file %s has been modified, let me check if there are any errors in the changes.",
+                path
+              ),
+            }, {
+              is_dummy = true,
+            }),
+            HistoryMessage:new({
+              role = "assistant",
+              content = {
+                {
+                  type = "tool_use",
+                  id = get_diagnostics_tool_use_id,
+                  name = "get_diagnostics",
+                  input = { path = path },
+                },
+              },
+            }, {
+              is_dummy = true,
+            }),
+            HistoryMessage:new({
+              role = "user",
+              content = {
+                {
+                  type = "tool_result",
+                  tool_use_id = get_diagnostics_tool_use_id,
+                  content = vim.json.encode(diagnostics),
+                  is_error = false,
+                  is_user_declined = false,
+                },
+              },
+            }, {
+              is_dummy = true,
+            }),
+          })
+        end
+      end
+    end
+    ::continue::
+  end
+  for _, message in ipairs(history_messages) do
+    local content = message.message.content
+    if type(content) ~= "table" then goto continue end
+    for _, item in ipairs(content) do
+      if type(item) ~= "table" then goto continue1 end
+      if item.type ~= "tool_use" then goto continue1 end
+      local tool_name = item.name
+      if tool_name ~= "view" then goto continue1 end
+      local path = item.input.path
+      tool_id_to_tool_name[item.id] = tool_name
+      if path then
+        local uniform_path = Utils.uniform_path(path)
+        tool_id_to_path[item.id] = uniform_path
+        tool_id_to_start_line[item.id] = item.input.start_line
+        tool_id_to_end_line[item.id] = item.input.end_line
+        viewed_files[uniform_path] = item.id
+      end
+      ::continue1::
+    end
+    ::continue::
+  end
+  for _, message in ipairs(history_messages) do
+    local content = message.message.content
+    if type(content) == "table" then
+      for _, item in ipairs(content) do
+        if type(item) ~= "table" then goto continue end
+        if item.type ~= "tool_result" then goto continue end
+        local tool_name = tool_id_to_tool_name[item.tool_use_id]
+        if tool_name ~= "view" then goto continue end
+        if item.is_error then goto continue end
+        local path = tool_id_to_path[item.tool_use_id]
+        local latest_tool_id = viewed_files[path]
+        if not latest_tool_id then goto continue end
+        if latest_tool_id ~= item.tool_use_id then
+          item.content = string.format("The file %s has been updated. Please use the latest `view` tool result!", path)
+        else
+          local start_line = tool_id_to_start_line[item.tool_use_id]
+          local end_line = tool_id_to_end_line[item.tool_use_id]
+          local view_result, view_error = require("avante.llm_tools.view").func(
+            { path = path, start_line = start_line, end_line = end_line },
+            nil,
+            nil,
+            nil
+          )
+          if view_error then view_result = "Error: " .. view_error end
+          item.content = view_result
+          item.is_error = view_error ~= nil
+        end
+        ::continue::
+      end
+    end
+  end
+
+  if not use_ReAct_prompt then
+    local picked_messages = {}
+    local max_tool_use_count = 25
+    local tool_use_count = 0
+    for idx = #history_messages, 1, -1 do
+      local msg = history_messages[idx]
+      if tool_use_count > max_tool_use_count then
+        if Utils.is_tool_result_message(msg) then
+          local tool_use_message = Utils.get_tool_use_message(msg, history_messages)
+          if tool_use_message then
+            table.insert(
+              picked_messages,
+              1,
+              HistoryMessage:new({
+                role = "user",
+                content = {
+                  {
+                    type = "text",
+                    text = string.format(
+                      "Tool use [%s] is successful: %s",
+                      tool_use_message.message.content[1].name,
+                      tostring(not msg.message.content[1].is_error)
+                    ),
+                  },
+                },
+              }, { is_dummy = true })
+            )
+            local msg_content = {}
+            table.insert(msg_content, {
+              type = "text",
+              text = string.format(
+                "Tool use %s(%s)",
+                tool_use_message.message.content[1].name,
+                vim.json.encode(tool_use_message.message.content[1].input)
+              ),
+            })
+            table.insert(
+              picked_messages,
+              1,
+              HistoryMessage:new({ role = "assistant", content = msg_content }, { is_dummy = true })
+            )
+          end
+        elseif Utils.is_tool_use_message(msg) then
+          tool_use_count = tool_use_count + 1
+          goto continue
+        else
+          table.insert(picked_messages, 1, msg)
+        end
+      else
+        if Utils.is_tool_use_message(msg) then tool_use_count = tool_use_count + 1 end
+        table.insert(picked_messages, 1, msg)
+      end
+      ::continue::
+    end
+
+    history_messages = picked_messages
+  end
+
+  local final_history_messages = {}
+  for _, msg in ipairs(history_messages) do
+    local tool_result_message
+    if Utils.is_tool_use_message(msg) then
+      tool_result_message = Utils.get_tool_result_message(msg, history_messages)
+      if not tool_result_message then goto continue end
+    end
+    if Utils.is_tool_result_message(msg) then goto continue end
+    table.insert(final_history_messages, msg)
+    if tool_result_message then table.insert(final_history_messages, tool_result_message) end
+    ::continue::
+  end
+
+  return final_history_messages
 end
 
 ---@param request string
@@ -2235,8 +2619,6 @@ function Sidebar:get_generate_prompts_options(request, cb)
     history_messages = history_messages,
     code_lang = filetype,
     selected_code = selected_code,
-    disable_compact_history_messages = true,
-    -- instructions = request,
     tools = tools,
   }
 
@@ -2261,6 +2643,8 @@ function Sidebar:create_input_container()
 
   ---@param request string
   local function handle_submit(request)
+    if Config.prompt_logger.enabled then PromptLogger.log_prompt(request) end
+
     if self.is_generating then
       self:add_history_messages({
         HistoryMessage:new({ role = "user", content = request }),
@@ -2298,11 +2682,6 @@ function Sidebar:create_input_container()
         return
       end
     end
-
-    -- local model = Config.has_provider(Config.provider) and Config.get_provider_config(Config.provider).model
-    --   or "default"
-    --
-    -- local timestamp = Utils.get_timestamp()
 
     local selected_filepaths = self.file_selector:get_selected_filepaths()
 
@@ -2357,8 +2736,6 @@ function Sidebar:create_input_container()
       self:render_state()
     end
 
-    local save_history = Utils.debounce(function() Path.history.save(self.code.bufnr, self.chat_history) end, 3000)
-
     ---@param tool_id string
     ---@param tool_name string
     ---@param log string
@@ -2375,15 +2752,18 @@ function Sidebar:create_input_container()
         end
       end
       if not tool_use_message then
-        Utils.debug("tool_use message not found", tool_id, tool_name)
+        -- Utils.debug("tool_use message not found", tool_id, tool_name)
         return
       end
       local tool_use_logs = tool_use_message.tool_use_logs or {}
       local content = string.format("[%s]: %s", tool_name, log)
       table.insert(tool_use_logs, content)
+      local orig_is_calling = tool_use_message.is_calling
       tool_use_message.tool_use_logs = tool_use_logs
-      save_history()
+      tool_use_message.is_calling = true
       self:update_content("")
+      tool_use_message.is_calling = orig_is_calling
+      self:save_history()
     end
 
     ---@type AvanteLLMStopCallback
@@ -2450,8 +2830,21 @@ function Sidebar:create_input_container()
         on_tool_log = on_tool_log,
         on_messages_add = on_messages_add,
         on_state_change = on_state_change,
-        get_history_messages = function() return self:get_history_messages_for_api() end,
+        get_history_messages = function(opts) return self:get_history_messages_for_api(opts) end,
+        get_todos = function()
+          local history = Path.history.load(self.code.bufnr)
+          return history and history.todos or {}
+        end,
         session_ctx = {},
+        ---@param usage avante.LLMTokenUsage
+        update_tokens_usage = function(usage)
+          if not usage then return end
+          if usage.completion_tokens == nil then return end
+          if usage.prompt_tokens == nil then return end
+          self.chat_history.tokens_usage = usage
+          self:save_history()
+        end,
+        get_tokens_usage = function() return self.chat_history.tokens_usage end,
       })
 
       ---@param pending_compaction_history_messages avante.HistoryMessage[]
@@ -2489,11 +2882,11 @@ function Sidebar:create_input_container()
       height = Config.windows.input.height,
     } end
 
-    local selected_code_size = self:get_selected_code_size()
+    local selected_code_container_height = self:get_selected_code_container_height()
 
     return {
       width = "40%",
-      height = math.max(1, api.nvim_win_get_height(self.result_container.winid) - selected_code_size),
+      height = math.max(1, api.nvim_win_get_height(self.result_container.winid) - selected_code_container_height),
     }
   end
 
@@ -2547,6 +2940,10 @@ function Sidebar:create_input_container()
 
   self.input_container:map("n", Config.mappings.submit.normal, on_submit)
   self.input_container:map("i", Config.mappings.submit.insert, on_submit)
+  self.input_container:map("n", Config.prompt_logger.next_prompt.normal, PromptLogger.on_log_retrieve(-1))
+  self.input_container:map("i", Config.prompt_logger.next_prompt.insert, PromptLogger.on_log_retrieve(-1))
+  self.input_container:map("n", Config.prompt_logger.prev_prompt.normal, PromptLogger.on_log_retrieve(1))
+  self.input_container:map("i", Config.prompt_logger.prev_prompt.insert, PromptLogger.on_log_retrieve(1))
 
   if Config.mappings.sidebar.close_from_input ~= nil then
     if Config.mappings.sidebar.close_from_input.normal ~= nil then
@@ -2665,39 +3062,41 @@ function Sidebar:get_input_value()
   return table.concat(lines, "\n")
 end
 
-function Sidebar:get_selected_code_size()
-  local selected_code_max_lines_count = 10
+function Sidebar:get_selected_code_container_height()
+  local selected_code_max_lines_count = 5
 
   local selected_code_size = 0
 
   if self.code.selection ~= nil then
     local selected_code_lines = vim.split(self.code.selection.content, "\n")
-    local selected_code_lines_count = #selected_code_lines
+    local selected_code_lines_count = #selected_code_lines + 1
     selected_code_size = math.min(selected_code_lines_count, selected_code_max_lines_count)
   end
 
   return selected_code_size
 end
 
-function Sidebar:get_selected_files_size()
-  if not self.file_selector then return 0 end
-
-  local selected_files_max_lines_count = 10
-
-  local selected_filepaths = self.file_selector:get_selected_filepaths()
-  local selected_files_size = #selected_filepaths
-  selected_files_size = math.min(selected_files_size, selected_files_max_lines_count)
-
-  return selected_files_size
+function Sidebar:get_todos_container_height()
+  local history = Path.history.load(self.code.bufnr)
+  if not history or not history.todos or #history.todos == 0 then return 0 end
+  return 3
 end
 
 function Sidebar:get_result_container_height()
-  local selected_code_size = self:get_selected_code_size()
-  local selected_files_size = self:get_selected_files_size()
+  local todos_container_height = self:get_todos_container_height()
+  local selected_code_container_height = self:get_selected_code_container_height()
+  local selected_files_container_height = self:get_selected_files_container_height()
 
   if self:get_layout() == "horizontal" then return math.floor(Config.windows.height / 100 * vim.o.lines) end
 
-  return math.max(1, api.nvim_win_get_height(self.code.winid) - selected_files_size - selected_code_size - 3 - 8)
+  return math.max(
+    1,
+    api.nvim_win_get_height(self.code.winid)
+      - selected_files_container_height
+      - selected_code_container_height
+      - todos_container_height
+      - 6
+  )
 end
 
 function Sidebar:get_result_container_width()
@@ -2707,8 +3106,10 @@ function Sidebar:get_result_container_width()
 end
 
 function Sidebar:adjust_result_container_layout()
+  local width = self:get_result_container_width()
   local height = self:get_result_container_height()
 
+  api.nvim_win_set_width(self.result_container.winid, width)
   api.nvim_win_set_height(self.result_container.winid, height)
 end
 
@@ -2772,6 +3173,8 @@ function Sidebar:render(opts)
 
   self:create_selected_code_container()
 
+  self:create_todos_container()
+
   self:on_mount(opts)
 
   self:setup_colors()
@@ -2789,6 +3192,20 @@ function Sidebar:adjust_selected_files_container_layout()
 
   local win_height = self:get_selected_files_container_height()
   api.nvim_win_set_height(self.selected_files_container.winid, win_height)
+end
+
+function Sidebar:adjust_selected_code_container_layout()
+  if not Utils.is_valid_container(self.selected_code_container, true) then return end
+
+  local win_height = self:get_selected_code_container_height()
+  api.nvim_win_set_height(self.selected_code_container.winid, win_height)
+end
+
+function Sidebar:adjust_todos_container_layout()
+  if not Utils.is_valid_container(self.todos_container, true) then return end
+
+  local win_height = self:get_todos_container_height()
+  api.nvim_win_set_height(self.todos_container.winid, win_height)
 end
 
 function Sidebar:create_selected_files_container()
@@ -2819,7 +3236,6 @@ function Sidebar:create_selected_files_container()
     }),
     position = "top",
     size = {
-      width = "40%",
       height = 2,
     },
   })
@@ -2849,13 +3265,16 @@ function Sidebar:create_selected_files_container()
     local lines_to_set = {}
     local highlights_to_apply = {}
 
+    local project_path = Utils.root.get()
     for i, filepath in ipairs(selected_filepaths_) do
       local icon, hl = Utils.file.get_file_icon(filepath)
-      local formatted_line = string.format("%s %s", icon, filepath)
+      local renderpath = PPath:new(filepath):normalize(project_path)
+      local formatted_line = string.format("%s %s", icon, renderpath)
       table.insert(lines_to_set, formatted_line)
       if hl and hl ~= "" then table.insert(highlights_to_apply, { line_nr = i, icon = icon, hl = hl }) end
     end
 
+    local selected_files_count = #lines_to_set ---@type integer
     local selected_files_buf = api.nvim_win_get_buf(self.selected_files_container.winid)
     Utils.unlock_buf(selected_files_buf)
     api.nvim_buf_clear_namespace(selected_files_buf, SELECTED_FILES_ICON_NAMESPACE, 0, -1)
@@ -2877,11 +3296,16 @@ function Sidebar:create_selected_files_container()
     self:render_header(
       self.selected_files_container.winid,
       selected_files_buf,
-      Utils.icon(" ") .. "Selected Files",
+      string.format(
+        "%sSelected (%d file%s)",
+        Utils.icon(" "),
+        selected_files_count,
+        selected_files_count > 1 and "s" or ""
+      ),
       Highlights.SUBTITLE,
       Highlights.REVERSED_SUBTITLE
     )
-    self:adjust_result_container_layout()
+    self:adjust_layout()
   end
 
   self.file_selector:on("update", render)
@@ -2917,6 +3341,79 @@ function Sidebar:create_selected_files_container()
   self.selected_files_container:on(event.BufLeave, function() self:close_selected_files_hint() end, {})
 
   render()
+end
+
+function Sidebar:create_todos_container()
+  local history = Path.history.load(self.code.bufnr)
+  if not history or not history.todos or #history.todos == 0 then
+    if self.todos_container then self.todos_container:unmount() end
+    self.todos_container = nil
+    self:adjust_layout()
+    self:refresh_winids()
+    return
+  end
+  if not Utils.is_valid_container(self.todos_container, true) then
+    self.todos_container = Split({
+      enter = false,
+      relative = {
+        type = "win",
+        winid = self.input_container.winid,
+      },
+      buf_options = vim.tbl_deep_extend("force", buf_options, {
+        modifiable = false,
+        swapfile = false,
+        buftype = "nofile",
+        bufhidden = "wipe",
+        filetype = "AvanteTodos",
+      }),
+      win_options = vim.tbl_deep_extend("force", base_win_options, {
+        fillchars = Config.windows.fillchars,
+      }),
+      position = "top",
+      size = {
+        height = 3,
+      },
+    })
+    self.todos_container:mount()
+  end
+  local done_count = 0
+  local total_count = #history.todos
+  local focused_idx = 1
+  local todos_content_lines = {}
+  for idx, todo in ipairs(history.todos) do
+    local status_content = "[ ]"
+    if todo.status == "done" then
+      done_count = done_count + 1
+      status_content = "[x]"
+    end
+    if todo.status == "doing" then status_content = "[-]" end
+    local line = string.format("%s %d. %s", status_content, idx, todo.content)
+    if todo.status == "cancelled" then line = "~~" .. line .. "~~" end
+    if todo.status ~= "todo" then focused_idx = idx + 1 end
+    table.insert(todos_content_lines, line)
+  end
+  if focused_idx > #todos_content_lines then focused_idx = #todos_content_lines end
+  local todos_buf = api.nvim_win_get_buf(self.todos_container.winid)
+  Utils.unlock_buf(todos_buf)
+  api.nvim_buf_set_lines(todos_buf, 0, -1, false, todos_content_lines)
+  api.nvim_win_set_cursor(self.todos_container.winid, { focused_idx, 0 })
+  Utils.lock_buf(todos_buf)
+  self:render_header(
+    self.todos_container.winid,
+    todos_buf,
+    Utils.icon(" ") .. "Todos" .. " (" .. done_count .. "/" .. total_count .. ")",
+    Highlights.SUBTITLE,
+    Highlights.REVERSED_SUBTITLE
+  )
+  self:adjust_layout()
+  self:refresh_winids()
+end
+
+function Sidebar:adjust_layout()
+  self:adjust_result_container_layout()
+  self:adjust_todos_container_layout()
+  self:adjust_selected_code_container_layout()
+  self:adjust_selected_files_container_layout()
 end
 
 return Sidebar

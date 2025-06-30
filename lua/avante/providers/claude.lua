@@ -3,6 +3,7 @@ local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
 local Config = require("avante.config")
 local HistoryMessage = require("avante.history_message")
+local JsonParser = require("avante.libs.jsonparser")
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -49,6 +50,7 @@ end
 
 function M:is_disable_stream() return false end
 
+---@return AvanteClaudeMessage[]
 function M:parse_messages(opts)
   ---@type AvanteClaudeMessage[]
   local messages = {}
@@ -63,37 +65,26 @@ function M:parse_messages(opts)
 
   table.sort(messages_with_length, function(a, b) return a.length > b.length end)
 
-  ---@type table<integer, boolean>
-  local top_two = {}
-  if self.support_prompt_caching then
-    for i = 1, math.min(2, #messages_with_length) do
-      top_two[messages_with_length[i].idx] = true
-    end
-  end
-
   local has_tool_use = false
-  for idx, message in ipairs(opts.messages) do
+  for _, message in ipairs(opts.messages) do
     local content_items = message.content
     local message_content = {}
     if type(content_items) == "string" then
-      table.insert(message_content, {
-        type = "text",
-        text = message.content,
-        cache_control = top_two[idx] and { type = "ephemeral" } or nil,
-      })
+      if message.role == "assistant" then content_items = content_items:gsub("%s+$", "") end
+      if content_items ~= "" then
+        table.insert(message_content, {
+          type = "text",
+          text = content_items,
+        })
+      end
     elseif type(content_items) == "table" then
       ---@cast content_items AvanteLLMMessageContentItem[]
       for _, item in ipairs(content_items) do
         if type(item) == "string" then
-          table.insert(
-            message_content,
-            { type = "text", text = item, cache_control = top_two[idx] and { type = "ephemeral" } or nil }
-          )
+          if message.role == "assistant" then item = item:gsub("%s+$", "") end
+          table.insert(message_content, { type = "text", text = item })
         elseif type(item) == "table" and item.type == "text" then
-          table.insert(
-            message_content,
-            { type = "text", text = item.text, cache_control = top_two[idx] and { type = "ephemeral" } or nil }
-          )
+          table.insert(message_content, { type = "text", text = item.text })
         elseif type(item) == "table" and item.type == "image" then
           table.insert(message_content, { type = "image", source = item.source })
         elseif not provider_conf.disable_tools and type(item) == "table" and item.type == "tool_use" then
@@ -142,6 +133,18 @@ function M:parse_messages(opts)
   return messages
 end
 
+---@param usage avante.AnthropicTokenUsage | nil
+---@return avante.LLMTokenUsage | nil
+function M.transform_anthropic_usage(usage)
+  if not usage then return nil end
+  ---@type avante.LLMTokenUsage
+  local res = {
+    prompt_tokens = usage.input_tokens + usage.cache_creation_input_tokens,
+    completion_tokens = usage.output_tokens + usage.cache_read_input_tokens,
+  }
+  return res
+end
+
 function M:parse_response(ctx, data_stream, event_state, opts)
   if event_state == nil then
     if data_stream:match('"message_start"') then
@@ -162,7 +165,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
   if event_state == "message_start" then
     local ok, jsn = pcall(vim.json.decode, data_stream)
     if not ok then return end
-    opts.on_start(jsn.message.usage)
+    ctx.usage = jsn.message.usage
   elseif event_state == "content_block_start" then
     local ok, jsn = pcall(vim.json.decode, data_stream)
     if not ok then return end
@@ -175,6 +178,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
         content = content_block.text,
       }, {
         state = "generating",
+        turn_id = ctx.turn_id,
       })
       content_block.uuid = msg.uuid
       if opts.on_messages_add then opts.on_messages_add({ msg }) end
@@ -193,12 +197,14 @@ function M:parse_response(ctx, data_stream, event_state, opts)
           },
         }, {
           state = "generating",
+          turn_id = ctx.turn_id,
         })
         content_block.uuid = msg.uuid
         opts.on_messages_add({ msg })
       end
     end
     if content_block.type == "tool_use" and opts.on_messages_add then
+      local incomplete_json = JsonParser.parse(content_block.input_json)
       local msg = HistoryMessage:new({
         role = "assistant",
         content = {
@@ -206,14 +212,16 @@ function M:parse_response(ctx, data_stream, event_state, opts)
             type = "tool_use",
             name = content_block.name,
             id = content_block.id,
-            input = {},
+            input = incomplete_json or {},
           },
         },
       }, {
         state = "generating",
+        turn_id = ctx.turn_id,
       })
       content_block.uuid = msg.uuid
       opts.on_messages_add({ msg })
+      -- opts.on_stop({ reason = "tool_use", streaming_tool_use = true })
     end
   elseif event_state == "content_block_delta" then
     local ok, jsn = pcall(vim.json.decode, data_stream)
@@ -238,6 +246,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
       }, {
         state = "generating",
         uuid = content_block.uuid,
+        turn_id = ctx.turn_id,
       })
       if opts.on_messages_add then opts.on_messages_add({ msg }) end
     elseif jsn.delta.type == "text_delta" then
@@ -249,6 +258,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
       }, {
         state = "generating",
         uuid = content_block.uuid,
+        turn_id = ctx.turn_id,
       })
       if opts.on_messages_add then opts.on_messages_add({ msg }) end
     elseif jsn.delta.type == "signature_delta" then
@@ -267,6 +277,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
       }, {
         state = "generated",
         uuid = content_block.uuid,
+        turn_id = ctx.turn_id,
       })
       if opts.on_messages_add then opts.on_messages_add({ msg }) end
     end
@@ -285,6 +296,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
       }, {
         state = "generated",
         uuid = content_block.uuid,
+        turn_id = ctx.turn_id,
       })
       if opts.on_messages_add then opts.on_messages_add({ msg }) end
     end
@@ -308,18 +320,22 @@ function M:parse_response(ctx, data_stream, event_state, opts)
       }, {
         state = "generated",
         uuid = content_block.uuid,
+        turn_id = ctx.turn_id,
       })
       if opts.on_messages_add then opts.on_messages_add({ msg }) end
     end
   elseif event_state == "message_delta" then
     local ok, jsn = pcall(vim.json.decode, data_stream)
     if not ok then return end
+    if jsn.usage and ctx.usage then ctx.usage.output_tokens = ctx.usage.output_tokens + jsn.usage.output_tokens end
     if jsn.delta.stop_reason == "end_turn" then
-      opts.on_stop({ reason = "complete", usage = jsn.usage })
+      opts.on_stop({ reason = "complete", usage = M.transform_anthropic_usage(ctx.usage) })
+    elseif jsn.delta.stop_reason == "max_tokens" then
+      opts.on_stop({ reason = "max_tokens", usage = M.transform_anthropic_usage(ctx.usage) })
     elseif jsn.delta.stop_reason == "tool_use" then
       opts.on_stop({
         reason = "tool_use",
-        usage = jsn.usage,
+        usage = M.transform_anthropic_usage(ctx.usage),
       })
     end
     return
@@ -361,7 +377,12 @@ function M:parse_curl_args(prompt_opts)
   end
 
   if prompt_opts.tools and #prompt_opts.tools > 0 and Config.mode == "agentic" then
-    if provider_conf.model:match("claude%-3%-7%-sonnet") then
+    if provider_conf.model:match("claude%-sonnet%-4") then
+      table.insert(tools, {
+        type = "text_editor_20250429",
+        name = "str_replace_based_edit_tool",
+      })
+    elseif provider_conf.model:match("claude%-3%-7%-sonnet") then
       table.insert(tools, {
         type = "text_editor_20250124",
         name = "str_replace_editor",
@@ -374,24 +395,48 @@ function M:parse_curl_args(prompt_opts)
     end
   end
 
-  if self.support_prompt_caching and #tools > 0 then
-    local last_tool = vim.deepcopy(tools[#tools])
-    last_tool.cache_control = { type = "ephemeral" }
-    tools[#tools] = last_tool
+  if self.support_prompt_caching then
+    if #messages > 0 then
+      local found = false
+      for i = #messages, 1, -1 do
+        local message = messages[i]
+        message = vim.deepcopy(message)
+        ---@cast message AvanteClaudeMessage
+        local content = message.content
+        ---@cast content AvanteClaudeMessageContentTextItem[]
+        for j = #content, 1, -1 do
+          local item = content[j]
+          if item.type == "text" then
+            item.cache_control = { type = "ephemeral" }
+            found = true
+            break
+          end
+        end
+        if found then
+          messages[i] = message
+          break
+        end
+      end
+    end
+    if #tools > 0 then
+      local last_tool = vim.deepcopy(tools[#tools])
+      last_tool.cache_control = { type = "ephemeral" }
+      tools[#tools] = last_tool
+    end
   end
 
   return {
     url = Utils.url_join(provider_conf.endpoint, "/v1/messages"),
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,
-    headers = headers,
+    headers = Utils.tbl_override(headers, self.extra_headers),
     body = vim.tbl_deep_extend("force", {
       model = provider_conf.model,
       system = {
         {
           type = "text",
           text = prompt_opts.system_prompt,
-          cache_control = { type = "ephemeral" },
+          cache_control = self.support_prompt_caching and { type = "ephemeral" } or nil,
         },
       },
       messages = messages,

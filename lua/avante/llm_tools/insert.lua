@@ -32,6 +32,11 @@ M.param = {
       type = "string",
     },
   },
+  usage = {
+    path = "The path to the file to modify",
+    insert_line = "The line number after which to insert the text (0 for beginning of file)",
+    new_str = "The text to insert",
+  },
 }
 
 ---@type AvanteLLMToolReturn[]
@@ -72,6 +77,8 @@ function M.func(opts, on_log, on_complete, session_ctx)
       return { { line_, Highlights.INCOMING } }
     end)
     :totable()
+  local line_count = vim.api.nvim_buf_line_count(bufnr)
+  if opts.insert_line > line_count - 1 then opts.insert_line = line_count - 1 end
   vim.api.nvim_buf_set_extmark(bufnr, ns_id, opts.insert_line, 0, {
     virt_lines = virt_lines,
     hl_eol = true,
@@ -87,7 +94,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
     vim.api.nvim_buf_call(bufnr, function() vim.cmd("noautocmd write") end)
     if session_ctx then Helpers.mark_as_not_viewed(opts.path, session_ctx) end
     on_complete(true, nil)
-  end, { focus = true }, session_ctx)
+  end, { focus = true }, session_ctx, M.name)
 end
 
 return M

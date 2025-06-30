@@ -2,6 +2,7 @@ local Utils = require("avante.utils")
 local Providers = require("avante.providers")
 local Clipboard = require("avante.clipboard")
 local OpenAI = require("avante.providers").openai
+local Prompts = require("avante.utils.prompts")
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -33,6 +34,9 @@ function M:transform_to_function_declaration(tool)
 end
 
 function M:parse_messages(opts)
+  local provider_conf, _ = Providers.parse_config(self)
+  local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
+
   local contents = {}
   local prev_role = nil
 
@@ -72,7 +76,7 @@ function M:parse_messages(opts)
               data = item.source.data,
             },
           })
-        elseif type(item) == "table" and item.type == "tool_use" then
+        elseif type(item) == "table" and item.type == "tool_use" and not use_ReAct_prompt then
           tool_id_to_name[item.id] = item.name
           role = "model"
           table.insert(parts, {
@@ -81,7 +85,7 @@ function M:parse_messages(opts)
               args = item.input,
             },
           })
-        elseif type(item) == "table" and item.type == "tool_result" then
+        elseif type(item) == "table" and item.type == "tool_result" and not use_ReAct_prompt then
           role = "function"
           local ok, content = pcall(vim.json.decode, item.content)
           if not ok then content = item.content end
@@ -107,8 +111,40 @@ function M:parse_messages(opts)
           table.insert(parts, { text = item.data })
         end
       end
+      if not provider_conf.disable_tools and use_ReAct_prompt then
+        if content_items[1].type == "tool_result" then
+          local tool_use = nil
+          for _, msg_ in ipairs(opts.messages) do
+            if type(msg_.content) == "table" and #msg_.content > 0 then
+              if msg_.content[1].type == "tool_use" and msg_.content[1].id == content_items[1].tool_use_id then
+                tool_use = msg_
+                break
+              end
+            end
+          end
+          if tool_use then
+            table.insert(contents, {
+              role = "model",
+              parts = {
+                { text = Utils.tool_use_to_xml(tool_use.content[1]) },
+              },
+            })
+            role = "user"
+            table.insert(parts, {
+              text = "["
+                .. tool_use.content[1].name
+                .. " for '"
+                .. (tool_use.content[1].input.path or tool_use.content[1].input.rel_path or "")
+                .. "'] Result:",
+            })
+            table.insert(parts, {
+              text = content_items[1].content,
+            })
+          end
+        end
+      end
     end
-    table.insert(contents, { role = M.role_map[role] or role, parts = parts })
+    if #parts > 0 then table.insert(contents, { role = M.role_map[role] or role, parts = parts }) end
   end)
 
   if Clipboard.support_paste_image() and opts.image_paths then
@@ -124,12 +160,16 @@ function M:parse_messages(opts)
     end
   end
 
+  local system_prompt = opts.system_prompt
+
+  if use_ReAct_prompt then system_prompt = Prompts.get_ReAct_system_prompt(provider_conf, opts) end
+
   return {
     systemInstruction = {
       role = "user",
       parts = {
         {
-          text = opts.system_prompt,
+          text = system_prompt,
         },
       },
     },
@@ -141,21 +181,17 @@ end
 ---@param provider_instance AvanteProviderFunctor The provider instance (self).
 ---@param prompt_opts AvantePromptOptions Prompt options including messages, tools, system_prompt.
 ---@param provider_conf table Provider configuration from config.lua (e.g., model, top-level temperature/max_tokens).
----@param request_body table Request-specific overrides, typically from provider_conf.request_config_overrides.
+---@param request_body_ table Request-specific overrides, typically from provider_conf.request_config_overrides.
 ---@return table The fully constructed request body.
-function M.prepare_request_body(provider_instance, prompt_opts, provider_conf, request_body)
-  request_body = vim.tbl_deep_extend("force", request_body, {
-    generationConfig = {
-      temperature = request_body.temperature,
-      maxOutputTokens = request_body.max_tokens,
-    },
-  })
-  request_body.temperature = nil
-  request_body.max_tokens = nil
+function M.prepare_request_body(provider_instance, prompt_opts, provider_conf, request_body_)
+  local request_body = {}
+  request_body.generationConfig = request_body_.generationConfig or {}
+
+  local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
 
   local disable_tools = provider_conf.disable_tools or false
 
-  if not disable_tools and prompt_opts.tools then
+  if not use_ReAct_prompt and not disable_tools and prompt_opts.tools then
     local function_declarations = {}
     for _, tool in ipairs(prompt_opts.tools) do
       table.insert(function_declarations, provider_instance:transform_to_function_declaration(tool))
@@ -173,16 +209,33 @@ function M.prepare_request_body(provider_instance, prompt_opts, provider_conf, r
   return vim.tbl_deep_extend("force", {}, provider_instance:parse_messages(prompt_opts), request_body)
 end
 
+---@param usage avante.GeminiTokenUsage | nil
+---@return avante.LLMTokenUsage | nil
+function M.transform_gemini_usage(usage)
+  if not usage then return nil end
+  ---@type avante.LLMTokenUsage
+  local res = {
+    prompt_tokens = usage.promptTokenCount,
+    completion_tokens = usage.candidatesTokenCount,
+  }
+  return res
+end
+
 function M:parse_response(ctx, data_stream, _, opts)
-  local ok, json = pcall(vim.json.decode, data_stream)
+  local ok, jsn = pcall(vim.json.decode, data_stream)
   if not ok then
-    opts.on_stop({ reason = "error", error = "Failed to parse JSON response: " .. tostring(json) })
+    opts.on_stop({ reason = "error", error = "Failed to parse JSON response: " .. tostring(jsn) })
     return
   end
 
+  if opts.update_tokens_usage and jsn.usageMetadata and jsn.usageMetadata ~= nil then
+    local usage = M.transform_gemini_usage(jsn.usageMetadata)
+    if usage ~= nil then opts.update_tokens_usage(usage) end
+  end
+
   -- Handle prompt feedback first, as it might indicate an overall issue with the prompt
-  if json.promptFeedback and json.promptFeedback.blockReason then
-    local feedback = json.promptFeedback
+  if jsn.promptFeedback and jsn.promptFeedback.blockReason then
+    local feedback = jsn.promptFeedback
     OpenAI:finish_pending_messages(ctx, opts) -- Ensure any pending messages are cleared
     opts.on_stop({
       reason = "error",
@@ -192,10 +245,10 @@ function M:parse_response(ctx, data_stream, _, opts)
     return
   end
 
-  if json.candidates and #json.candidates > 0 then
-    local candidate = json.candidates[1]
+  if jsn.candidates and #jsn.candidates > 0 then
+    local candidate = jsn.candidates[1]
     ---@type AvanteLLMToolUse[]
-    local tool_use_list = {}
+    ctx.tool_use_list = ctx.tool_use_list or {}
 
     -- Check if candidate.content and candidate.content.parts exist before iterating
     if candidate.content and candidate.content.parts then
@@ -207,12 +260,12 @@ function M:parse_response(ctx, data_stream, _, opts)
           if not ctx.function_call_id then ctx.function_call_id = 0 end
           ctx.function_call_id = ctx.function_call_id + 1
           local tool_use = {
-            id = ctx.session_id .. "-" .. tostring(ctx.function_call_id),
+            id = ctx.turn_id .. "-" .. tostring(ctx.function_call_id),
             name = part.functionCall.name,
             input_json = vim.json.encode(part.functionCall.args),
           }
-          table.insert(tool_use_list, tool_use)
-          OpenAI:add_tool_use_message(tool_use, "generated", opts)
+          table.insert(ctx.tool_use_list, tool_use)
+          OpenAI:add_tool_use_message(ctx, tool_use, "generated", opts)
         end
       end
     end
@@ -222,13 +275,14 @@ function M:parse_response(ctx, data_stream, _, opts)
       OpenAI:finish_pending_messages(ctx, opts)
       local reason_str = candidate.finishReason
       local stop_details = { finish_reason = reason_str }
+      stop_details.usage = M.transform_gemini_usage(jsn.usageMetadata)
 
       if reason_str == "TOOL_CODE" then
         -- Model indicates a tool-related stop.
         -- The tool_use list is added to the table in llm.lua
         opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
       elseif reason_str == "STOP" then
-        if #tool_use_list > 0 then
+        if ctx.tool_use_list and #ctx.tool_use_list > 0 then
           -- Natural stop, but tools were found in this final chunk.
           opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
         else
@@ -273,7 +327,7 @@ function M:parse_curl_args(prompt_opts)
     ),
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,
-    headers = { ["Content-Type"] = "application/json" },
+    headers = Utils.tbl_override({ ["Content-Type"] = "application/json" }, self.extra_headers),
     body = M.prepare_request_body(self, prompt_opts, provider_conf, request_body),
   }
 end

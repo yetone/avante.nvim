@@ -26,9 +26,11 @@ function M.show(selector)
       })
     end
   end
+
   local completed = false
+
   ---@diagnostic disable-next-line: undefined-global
-  Snacks.picker.pick({
+  Snacks.picker.pick(vim.tbl_deep_extend("force", {
     source = "select",
     items = finder_items,
     ---@diagnostic disable-next-line: undefined-global
@@ -37,7 +39,6 @@ function M.show(selector)
     preview = selector.get_preview_content and "preview" or nil,
     layout = {
       preset = "default",
-      preview = selector.get_preview_content ~= nil,
     },
     confirm = function(picker)
       if completed then return end
@@ -52,7 +53,7 @@ function M.show(selector)
       completed = true
       vim.schedule(function() selector.on_select(nil) end)
     end,
-  })
+  }, selector.provider_opts))
 end
 
 return M

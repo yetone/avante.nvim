@@ -1,9 +1,12 @@
----@class AvanteAzureProvider: AvanteDefaultBaseProvider
----@field deployment string
----@field api_version string
+---@class AvanteAzureExtraRequestBody
 ---@field temperature number
 ---@field max_completion_tokens number
 ---@field reasoning_effort? string
+
+---@class AvanteAzureProvider: AvanteDefaultBaseProvider
+---@field deployment string
+---@field api_version string
+---@field extra_request_body AvanteAzureExtraRequestBody
 
 local Utils = require("avante.utils")
 local P = require("avante.providers")
@@ -55,7 +58,7 @@ function M:parse_curl_args(prompt_opts)
     ),
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,
-    headers = headers,
+    headers = Utils.tbl_override(headers, self.extra_headers),
     body = vim.tbl_deep_extend("force", {
       messages = self:parse_messages(prompt_opts),
       stream = true,

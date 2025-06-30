@@ -14,7 +14,7 @@ M.param = {
   type = "table",
   fields = {
     {
-      name = "rel_path",
+      name = "path",
       description = "Relative path to the project directory",
       type = "string",
     },
@@ -23,6 +23,10 @@ M.param = {
       description = "Maximum depth of the directory",
       type = "integer",
     },
+  },
+  usage = {
+    path = "Relative path to the project directory",
+    max_depth = "Maximum depth of the directory",
   },
 }
 
@@ -41,9 +45,9 @@ M.returns = {
   },
 }
 
----@type AvanteLLMToolFunc<{ rel_path: string, max_depth?: integer }>
+---@type AvanteLLMToolFunc<{ path: string, max_depth?: integer }>
 function M.func(opts, on_log)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
   if on_log then on_log("path: " .. abs_path) end
   if on_log then on_log("max depth: " .. tostring(opts.max_depth)) end

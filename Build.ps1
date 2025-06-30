@@ -9,6 +9,8 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
 $BuildDir = "build"
+$REPO_OWNER = "yetone"
+$REPO_NAME = "avante.nvim"
 
 function Build-FromSource($feature) {
     if (-not (Test-Path $BuildDir)) {
@@ -41,9 +43,7 @@ function Test-GHAuth {
     }
 }
 
-function Download-Prebuilt($feature) {
-    $REPO_OWNER = "yetone"
-    $REPO_NAME = "avante.nvim"
+function Download-Prebuilt($feature, $tag) {
 
     $SCRIPT_DIR = $PSScriptRoot
     # Set the target directory to clone the artifact
@@ -65,11 +65,12 @@ function Download-Prebuilt($feature) {
     $TempFile = Get-Item ([System.IO.Path]::GetTempFilename()) | Rename-Item -NewName { $_.Name + ".zip" } -PassThru
 
     if ((Test-Command "gh") -and (Test-GHAuth)) {
-        gh release download --repo "$REPO_OWNER/$REPO_NAME" --pattern "*$ARTIFACT_NAME_PATTERN*" --output $TempFile --clobber
+        write-host "Using GitHub CLI to download artifacts..."
+        gh release download $latestTag --repo "$REPO_OWNER/$REPO_NAME" --pattern "*$ARTIFACT_NAME_PATTERN*" --output $TempFile --clobber
     } else {
       # Get the artifact download URL
-      $LATEST_RELEASE = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/latest"
-      $ARTIFACT_URL = $LATEST_RELEASE.assets | Where-Object { $_.name -like "*$ARTIFACT_NAME_PATTERN*" } | Select-Object -ExpandProperty browser_download_url
+      $RELEASE = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$tag"
+      $ARTIFACT_URL = $RELEASE.assets | Where-Object { $_.name -like "*$ARTIFACT_NAME_PATTERN*" } | Select-Object -ExpandProperty browser_download_url
 
       # Download and extract the artifact
       Invoke-WebRequest -Uri $ARTIFACT_URL -OutFile $TempFile
@@ -89,22 +90,30 @@ function Main {
         Write-Host "Building for $Version..."
         Build-FromSource $Version
     } else {
-        $latestTag = git tag --sort=-creatordate | Select-Object -First 1
-        $latestTagTime = [int](git log -1 $latestTag --format=%at 2>&1 | Where-Object { $_ -match '^\d+$' })
-
-        $currentBuildTime = if ($buildFiles = Get-ChildItem -Path "build/avante_html2md*" -ErrorAction SilentlyContinue) {
-            [long](($buildFiles | ForEach-Object { $_.LastWriteTime } |
-                Measure-Object -Maximum).Maximum.Subtract([datetime]'1970-01-01').TotalSeconds)
+        $latestTag = git describe --tags --abbrev=0 2>&1 | Where-Object { $_ -ne $null }
+        $builtTag = if (Test-Path "build/.tag") {
+            Get-Content "build/.tag"
         } else {
-            $latestTagTime
+            $null
         }
 
-        if ($latestTagTime -lt $currentBuildTime) {
-            Write-Host "Local build is up to date. No download needed."
-            return
+        function Save-Tag($tag) {
+            $tag | Set-Content "build/.tag"
         }
-        Write-Host "Downloading for $Version..."
-        Download-Prebuilt $Version
+
+        if ($latestTag -eq $builtTag -and $latestTag) {
+            Write-Host "Local build is up to date. No download needed."
+        } elseif ($latestTag -ne $builtTag -and $latestTag) {
+            Write-Host "Downloading prebuilt binaries $latestTag for $Version..."
+            Download-Prebuilt $Version $latestTag
+            Save-Tag $latestTag
+        } else {
+            cargo build --release --features=$Version
+            Get-ChildItem -Path "target/release/avante_*.dll" | ForEach-Object {
+                Copy-Item $_.FullName "build/$($_.Name)"
+            }
+            Save-Tag $latestTag
+        }
     }
     Write-Host "Completed!"
 }

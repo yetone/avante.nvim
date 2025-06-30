@@ -31,25 +31,22 @@ function M.parse(key_name, override)
       end
     end
 
-    if type(cmd) == "string" then cmd = vim.split(cmd, " ", { trimempty = true }) end
+    if type(cmd) == "table" then cmd = table.concat(cmd, " ") end
 
     Utils.debug("running command:", cmd)
     local exit_codes = { 0 }
-    local ok, job_or_err = pcall(vim.system, cmd, { text = true }, function(result)
-      local code = result.code
-      local stderr = result.stderr or ""
-      local stdout = result.stdout and vim.split(result.stdout, "\n") or {}
-      if vim.tbl_contains(exit_codes, code) then
-        value = stdout[1]
-        M.cache[cache_key] = value
-      else
-        Utils.error("failed to get key: (error code" .. code .. ")\n" .. stderr, { once = true, title = "Avante" })
-      end
-    end)
 
-    if not ok then
-      Utils.error("failed to run command: " .. cmd .. "\n" .. job_or_err)
-      return
+    local result = Utils.shell_run(cmd)
+    local code = result.code
+    local stdout = result.stdout and vim.split(result.stdout, "\n") or {}
+
+    if vim.tbl_contains(exit_codes, code) then
+      value = stdout[1]
+    else
+      Utils.error(
+        "failed to get key: (error code" .. code .. ")\n" .. result.stdout,
+        { once = true, title = "Avante" }
+      )
     end
   else
     value = os.getenv(key_name)

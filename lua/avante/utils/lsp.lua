@@ -1,6 +1,8 @@
 ---@class avante.utils.lsp
 local M = {}
 
+local LspMethod = vim.lsp.protocol.Methods
+
 ---@alias vim.lsp.Client.filter {id?: number, bufnr?: number, name?: string, method?: string, filter?:fun(client: vim.lsp.Client):boolean}
 
 ---@param opts? vim.lsp.Client.filter
@@ -43,7 +45,12 @@ local function get_full_definition(location)
   local filetype = vim.filetype.match({ filename = filepath, buf = buf }) or ""
 
   --- use tree-sitter to get the full definition
-  local parser = require("nvim-treesitter.parsers").get_parser(buf, filetype)
+  local lang = vim.treesitter.language.get_lang(filetype)
+  local parser = vim.treesitter.get_parser(buf, lang)
+  if not parser then
+    vim.api.nvim_buf_delete(buf, { force = true })
+    return {}
+  end
   local tree = parser:parse()[1]
   local root = tree:root()
   local node = root:named_descendant_for_range(
@@ -73,8 +80,19 @@ function M.read_definitions(bufnr, symbol_name, show_line_numbers, on_complete)
     on_complete(nil, "No LSP client found")
     return
   end
+  local supports_workspace_symbol = false
+  for _, client in ipairs(clients) do
+    if client:supports_method(LspMethod.workspace_symbol) then
+      supports_workspace_symbol = true
+      break
+    end
+  end
+  if not supports_workspace_symbol then
+    on_complete(nil, "Cannot read definitions.")
+    return
+  end
   local params = { query = symbol_name }
-  vim.lsp.buf_request_all(bufnr, "workspace/symbol", params, function(results)
+  vim.lsp.buf_request_all(bufnr, LspMethod.workspace_symbol, params, function(results)
     if not results or #results == 0 then
       on_complete(nil, "No results")
       return

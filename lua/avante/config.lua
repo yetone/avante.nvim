@@ -2,6 +2,7 @@
 ---we add a default var_accessor for this table to config values.
 
 ---@alias WebSearchEngineProviderResponseBodyFormatter fun(body: table): (string, string?)
+---@alias avante.InputProvider "native" | "dressing" | "snacks" | fun(input: avante.ui.Input): nil
 
 local Utils = require("avante.utils")
 
@@ -20,16 +21,18 @@ local M = {}
 M._defaults = {
   debug = false,
   ---@alias avante.Mode "agentic" | "legacy"
+  ---@type avante.Mode
   mode = "agentic",
   ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | string
+  ---@type avante.ProviderName
   provider = "claude",
   -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
   -- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
   -- Of course, you can reduce the request frequency by increasing `suggestion.debounce`.
   auto_suggestions_provider = nil,
-  cursor_applying_provider = nil,
   memory_summary_provider = nil,
   ---@alias Tokenizer "tiktoken" | "hf"
+  ---@type Tokenizer
   -- Used for counting tokens and encoding text.
   -- By default, we will use tiktoken.
   -- For most providers that we support we will determine this automatically.
@@ -37,14 +40,24 @@ M._defaults = {
   tokenizer = "tiktoken",
   ---@type string | (fun(): string) | nil
   system_prompt = nil,
-  rag_service = {
-    enabled = false, -- Enables the rag service, requires OPENAI_API_KEY to be set
-    host_mount = os.getenv("HOME"), -- Host mount path for the rag service (docker will mount this path)
-    runner = "docker", -- The runner for the rag service, (can use docker, or nix)
-    provider = "openai", -- The provider to use for RAG service. eg: openai or ollama
-    llm_model = "", -- The LLM model to use for RAG service
-    embed_model = "", -- The embedding model to use for RAG service
-    endpoint = "https://api.openai.com/v1", -- The API endpoint for RAG service
+  rag_service = { -- RAG service configuration
+    enabled = false, -- Enables the RAG service
+    host_mount = os.getenv("HOME"), -- Host mount path for the RAG service (Docker will mount this path)
+    runner = "docker", -- The runner for the RAG service (can use docker or nix)
+    llm = { -- Configuration for the Language Model (LLM) used by the RAG service
+      provider = "openai", -- The LLM provider
+      endpoint = "https://api.openai.com/v1", -- The LLM API endpoint
+      api_key = "OPENAI_API_KEY", -- The environment variable name for the LLM API key
+      model = "gpt-4o-mini", -- The LLM model name
+      extra = nil, -- Extra configuration options for the LLM
+    },
+    embed = { -- Configuration for the Embedding model used by the RAG service
+      provider = "openai", -- The embedding provider
+      endpoint = "https://api.openai.com/v1", -- The embedding API endpoint
+      api_key = "OPENAI_API_KEY", -- The environment variable name for the embedding API key
+      model = "text-embedding-3-large", -- The embedding model name
+      extra = nil, -- Extra configuration options for the embedding model
+    },
     docker_extra_args = "", -- Extra arguments to pass to the docker command
   },
   web_search_engine = {
@@ -215,113 +228,143 @@ M._defaults = {
       },
     },
   },
-  ---@type AvanteSupportedProvider
-  openai = {
-    endpoint = "https://api.openai.com/v1",
-    model = "gpt-4o",
-    timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
-    temperature = 0,
-    max_completion_tokens = 16384, -- Increase this to include reasoning tokens (for reasoning models)
-    reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
-  },
-  ---@type AvanteSupportedProvider
-  copilot = {
-    endpoint = "https://api.githubcopilot.com",
-    model = "gpt-4o-2024-11-20",
-    proxy = nil, -- [protocol://]host[:port] Use this proxy
-    allow_insecure = false, -- Allow insecure server connections
-    timeout = 30000, -- Timeout in milliseconds
-    temperature = 0,
-    max_tokens = 20480,
-  },
-  ---@type AvanteAzureProvider
-  azure = {
-    endpoint = "", -- example: "https://<your-resource-name>.openai.azure.com"
-    deployment = "", -- Azure deployment name (e.g., "gpt-4o", "my-gpt-4o-deployment")
-    api_version = "2024-12-01-preview",
-    timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
-    temperature = 0,
-    max_completion_tokens = 20480, -- Increase this to include reasoning tokens (for reasoning models)
-    reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
-  },
-  ---@type AvanteSupportedProvider
-  claude = {
-    endpoint = "https://api.anthropic.com",
-    model = "claude-3-7-sonnet-20250219",
-    timeout = 30000, -- Timeout in milliseconds
-    temperature = 0,
-    max_tokens = 20480,
-  },
-  ---@type AvanteSupportedProvider
-  bedrock = {
-    model = "anthropic.claude-3-5-sonnet-20241022-v2:0",
-    timeout = 30000, -- Timeout in milliseconds
-    temperature = 0,
-    max_tokens = 20480,
-    aws_region = "", -- AWS region to use for authentication and bedrock API
-    aws_profile = "", -- AWS profile to use for authentication, if unspecified uses default credentials chain
-  },
-  ---@type AvanteSupportedProvider
-  gemini = {
-    endpoint = "https://generativelanguage.googleapis.com/v1beta/models",
-    model = "gemini-2.0-flash",
-    timeout = 30000, -- Timeout in milliseconds
-    temperature = 0,
-    max_tokens = 8192,
-  },
-  ---@type AvanteSupportedProvider
-  vertex = {
-    endpoint = "https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/google/models",
-    model = "gemini-1.5-flash-002",
-    timeout = 30000, -- Timeout in milliseconds
-    temperature = 0,
-    max_tokens = 20480,
-  },
-  ---@type AvanteSupportedProvider
-  cohere = {
-    endpoint = "https://api.cohere.com/v2",
-    model = "command-r-plus-08-2024",
-    timeout = 30000, -- Timeout in milliseconds
-    temperature = 0,
-    max_tokens = 20480,
-  },
-  ---@type AvanteSupportedProvider
-  ollama = {
-    endpoint = "http://127.0.0.1:11434",
-    timeout = 30000, -- Timeout in milliseconds
-    options = {
-      temperature = 0,
-      num_ctx = 20480,
-      keep_alive = "5m",
-    },
-  },
-  ---@type AvanteSupportedProvider
-  vertex_claude = {
-    endpoint = "https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/antrhopic/models",
-    model = "claude-3-5-sonnet-v2@20241022",
-    timeout = 30000, -- Timeout in milliseconds
-    temperature = 0,
-    max_tokens = 20480,
-  },
   ---To add support for custom provider, follow the format below
   ---See https://github.com/yetone/avante.nvim/wiki#custom-providers for more details
   ---@type {[string]: AvanteProvider}
-  vendors = {
+  providers = {
+    ---@type AvanteSupportedProvider
+    openai = {
+      endpoint = "https://api.openai.com/v1",
+      model = "gpt-4o",
+      timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
+      context_window = 128000, -- Number of tokens to send to the model for context
+      extra_request_body = {
+        temperature = 0.75,
+        max_completion_tokens = 16384, -- Increase this to include reasoning tokens (for reasoning models)
+        reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
+      },
+    },
+    ---@type AvanteSupportedProvider
+    copilot = {
+      endpoint = "https://api.githubcopilot.com",
+      model = "gpt-4o-2024-11-20",
+      proxy = nil, -- [protocol://]host[:port] Use this proxy
+      allow_insecure = false, -- Allow insecure server connections
+      timeout = 30000, -- Timeout in milliseconds
+      context_window = 64000, -- Number of tokens to send to the model for context
+      extra_request_body = {
+        temperature = 0.75,
+        max_tokens = 20480,
+      },
+    },
+    ---@type AvanteAzureProvider
+    azure = {
+      endpoint = "", -- example: "https://<your-resource-name>.openai.azure.com"
+      deployment = "", -- Azure deployment name (e.g., "gpt-4o", "my-gpt-4o-deployment")
+      api_version = "2024-12-01-preview",
+      timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
+      extra_request_body = {
+        temperature = 0.75,
+        max_completion_tokens = 20480, -- Increase this to include reasoning tokens (for reasoning models)
+        reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
+      },
+    },
+    ---@type AvanteSupportedProvider
+    claude = {
+      endpoint = "https://api.anthropic.com",
+      model = "claude-sonnet-4-20250514",
+      timeout = 30000, -- Timeout in milliseconds
+      context_window = 200000,
+      extra_request_body = {
+        temperature = 0.75,
+        max_tokens = 64000,
+      },
+    },
+    ---@type AvanteSupportedProvider
+    bedrock = {
+      model = "anthropic.claude-3-5-sonnet-20241022-v2:0",
+      timeout = 30000, -- Timeout in milliseconds
+      extra_request_body = {
+        temperature = 0.75,
+        max_tokens = 20480,
+      },
+      aws_region = "", -- AWS region to use for authentication and bedrock API
+      aws_profile = "", -- AWS profile to use for authentication, if unspecified uses default credentials chain
+    },
+    ---@type AvanteSupportedProvider
+    gemini = {
+      endpoint = "https://generativelanguage.googleapis.com/v1beta/models",
+      model = "gemini-2.0-flash",
+      timeout = 30000, -- Timeout in milliseconds
+      context_window = 1048576,
+      use_ReAct_prompt = true,
+      extra_request_body = {
+        generationConfig = {
+          temperature = 0.75,
+        },
+      },
+    },
+    ---@type AvanteSupportedProvider
+    vertex = {
+      endpoint = "https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/google/models",
+      model = "gemini-1.5-flash-002",
+      timeout = 30000, -- Timeout in milliseconds
+      extra_request_body = {
+        temperature = 0.75,
+        max_tokens = 20480,
+      },
+    },
+    ---@type AvanteSupportedProvider
+    cohere = {
+      endpoint = "https://api.cohere.com/v2",
+      model = "command-r-plus-08-2024",
+      timeout = 30000, -- Timeout in milliseconds
+      extra_request_body = {
+        temperature = 0.75,
+        max_tokens = 20480,
+      },
+    },
+    ---@type AvanteSupportedProvider
+    ollama = {
+      endpoint = "http://127.0.0.1:11434",
+      timeout = 30000, -- Timeout in milliseconds
+      extra_request_body = {
+        options = {
+          temperature = 0.75,
+          num_ctx = 20480,
+          keep_alive = "5m",
+        },
+      },
+    },
+    ---@type AvanteSupportedProvider
+    vertex_claude = {
+      endpoint = "https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/antrhopic/models",
+      model = "claude-3-5-sonnet-v2@20241022",
+      timeout = 30000, -- Timeout in milliseconds
+      extra_request_body = {
+        temperature = 0.75,
+        max_tokens = 20480,
+      },
+    },
     ---@type AvanteSupportedProvider
     ["claude-haiku"] = {
       __inherited_from = "claude",
       model = "claude-3-5-haiku-20241022",
       timeout = 30000, -- Timeout in milliseconds
-      temperature = 0,
-      max_tokens = 8192,
+      extra_request_body = {
+        temperature = 0.75,
+        max_tokens = 8192,
+      },
     },
     ---@type AvanteSupportedProvider
     ["claude-opus"] = {
       __inherited_from = "claude",
       model = "claude-3-opus-20240229",
       timeout = 30000, -- Timeout in milliseconds
-      temperature = 0,
-      max_tokens = 20480,
+      extra_request_body = {
+        temperature = 0.75,
+        max_tokens = 20480,
+      },
     },
     ["openai-gpt-4o-mini"] = {
       __inherited_from = "openai",
@@ -342,7 +385,9 @@ M._defaults = {
     ["bedrock-claude-3.7-sonnet"] = {
       __inherited_from = "bedrock",
       model = "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
-      max_tokens = 4096,
+      extra_request_body = {
+        max_tokens = 4096,
+      },
     },
   },
   ---Specify the special dual_boost mode
@@ -386,11 +431,27 @@ M._defaults = {
     enable_token_counting = true,
     use_cwd_as_project_root = false,
     auto_focus_on_diff_view = false,
+    ---@type boolean | string[] -- true: auto-approve all tools, false: normal prompts, string[]: auto-approve specific tools by name
+    auto_approve_tool_permissions = false, -- Default: show permission prompts for all tools
+    auto_check_diagnostics = true,
+  },
+  prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
+    enabled = true, -- toggle logging entirely
+    log_dir = Utils.join_paths(vim.fn.stdpath("cache"), "avante_prompts"), -- directory where logs are saved
+    fortune_cookie_on_success = false, -- shows a random fortune after each logged prompt (requires `fortune` installed)
+    next_prompt = {
+      normal = "<C-n>", -- load the next (newer) prompt log in normal mode
+      insert = "<C-n>",
+    },
+    prev_prompt = {
+      normal = "<C-p>", -- load the previous (older) prompt log in normal mode
+      insert = "<C-p>",
+    },
   },
   history = {
     max_tokens = 4096,
     carried_entry_count = nil,
-    storage_path = vim.fn.stdpath("state") .. "/avante",
+    storage_path = Utils.join_paths(vim.fn.stdpath("state"), "avante"),
     paste = {
       extension = "png",
       filename = "pasted-%Y-%m-%d-%H-%M-%S",
@@ -450,6 +511,8 @@ M._defaults = {
       repomap = "<leader>aR",
     },
     sidebar = {
+      next_prompt = "]p",
+      prev_prompt = "[p",
       apply_all = "A",
       apply_cursor = "a",
       retry_user_request = "r",
@@ -469,9 +532,16 @@ M._defaults = {
     },
     select_model = "<leader>a?", -- Select model command
     select_history = "<leader>ah", -- Select history command
+    confirm = {
+      focus_window = "<C-w>f",
+      code = "c",
+      resp = "r",
+      input = "i",
+    },
   },
   windows = {
     ---@alias AvantePosition "right" | "left" | "top" | "bottom" | "smart"
+    ---@type AvantePosition
     position = "right",
     fillchars = "eob: ",
     wrap = true, -- similar to vim.o.wrap
@@ -484,7 +554,7 @@ M._defaults = {
     },
     input = {
       prefix = "> ",
-      height = 8, -- Height of the input window in vertical layout
+      height = 6, -- Height of the input window in vertical layout
     },
     edit = {
       border = { " ", " ", " ", " ", " ", " ", " ", " " },
@@ -495,6 +565,7 @@ M._defaults = {
       border = { " ", " ", " ", " ", " ", " ", " ", " " },
       start_insert = true, -- Start insert mode when opening the ask window
       ---@alias AvanteInitialDiff "ours" | "theirs"
+      ---@type AvanteInitialDiff
       focus_on_apply = "ours", -- which diff to focus after applying
     },
   },
@@ -523,9 +594,14 @@ M._defaults = {
   },
   selector = {
     ---@alias avante.SelectorProvider "native" | "fzf_lua" | "mini_pick" | "snacks" | "telescope" | fun(selector: avante.ui.Selector): nil
+    ---@type avante.SelectorProvider
     provider = "native",
     provider_opts = {},
     exclude_auto_select = {}, -- List of items to exclude from auto selection
+  },
+  input = {
+    provider = "native",
+    provider_opts = {},
   },
   suggestion = {
     debounce = 600,
@@ -542,17 +618,133 @@ M._defaults = {
 ---@diagnostic disable-next-line: missing-fields
 M._options = {}
 
----@type avante.ProviderName[]
-M.provider_names = {}
-
 ---@param opts? avante.Config
 function M.setup(opts)
-  vim.validate({ opts = { opts, "table", true } })
+  if vim.fn.has("nvim-0.11") == 1 then
+    vim.validate("opts", opts, "table", true)
+  else
+    vim.validate({ opts = { opts, "table", true } })
+  end
+
+  opts = opts or {}
+
+  local migration_url = "https://github.com/yetone/avante.nvim/wiki/Provider-configuration-migration-guide"
+
+  if opts.providers ~= nil then
+    for k, v in pairs(opts.providers) do
+      local extra_request_body
+      if type(v) == "table" then
+        if M._defaults.providers[k] ~= nil then
+          extra_request_body = M._defaults.providers[k].extra_request_body
+        elseif v.__inherited_from ~= nil then
+          if M._defaults.providers[v.__inherited_from] ~= nil then
+            extra_request_body = M._defaults.providers[v.__inherited_from].extra_request_body
+          end
+        end
+      end
+      if extra_request_body ~= nil then
+        for k_, v_ in pairs(v) do
+          if extra_request_body[k_] ~= nil then
+            opts.providers[k].extra_request_body = opts.providers[k].extra_request_body or {}
+            opts.providers[k].extra_request_body[k_] = v_
+            Utils.warn(
+              string.format(
+                "[DEPRECATED] The configuration of `providers.%s.%s` should be placed in `providers.%s.extra_request_body.%s`; for detailed migration instructions, please visit: %s",
+                k,
+                k_,
+                k,
+                k_,
+                migration_url
+              ),
+              { title = "Avante" }
+            )
+          end
+        end
+      end
+    end
+  end
+
+  for k, v in pairs(opts) do
+    if M._defaults.providers[k] ~= nil then
+      opts.providers = opts.providers or {}
+      opts.providers[k] = v
+      Utils.warn(
+        string.format(
+          "[DEPRECATED] The configuration of `%s` should be placed in `providers.%s`. For detailed migration instructions, please visit: %s",
+          k,
+          k,
+          migration_url
+        ),
+        { title = "Avante" }
+      )
+      local extra_request_body = M._defaults.providers[k].extra_request_body
+      if type(v) == "table" and extra_request_body ~= nil then
+        for k_, v_ in pairs(v) do
+          if extra_request_body[k_] ~= nil then
+            opts.providers[k].extra_request_body = opts.providers[k].extra_request_body or {}
+            opts.providers[k].extra_request_body[k_] = v_
+            Utils.warn(
+              string.format(
+                "[DEPRECATED] The configuration of `%s.%s` should be placed in `providers.%s.extra_request_body.%s`; for detailed migration instructions, please visit: %s",
+                k,
+                k_,
+                k,
+                k_,
+                migration_url
+              ),
+              { title = "Avante" }
+            )
+          end
+        end
+      end
+    end
+    if k == "vendors" and v ~= nil then
+      for k2, v2 in pairs(v) do
+        opts.providers = opts.providers or {}
+        opts.providers[k2] = v2
+        Utils.warn(
+          string.format(
+            "[DEPRECATED] The configuration of `vendors.%s` should be placed in `providers.%s`. For detailed migration instructions, please visit: %s",
+            k2,
+            k2,
+            migration_url
+          ),
+          { title = "Avante" }
+        )
+        if
+          type(v2) == "table"
+          and v2.__inherited_from ~= nil
+          and M._defaults.providers[v2.__inherited_from] ~= nil
+        then
+          local extra_request_body = M._defaults.providers[v2.__inherited_from].extra_request_body
+          if extra_request_body ~= nil then
+            for k2_, v2_ in pairs(v2) do
+              if extra_request_body[k2_] ~= nil then
+                opts.providers[k2].extra_request_body = opts.providers[k2].extra_request_body or {}
+                opts.providers[k2].extra_request_body[k2_] = v2_
+                Utils.warn(
+                  string.format(
+                    "[DEPRECATED] The configuration of `vendors.%s.%s` should be placed in `providers.%s.extra_request_body.%s`; for detailed migration instructions, please visit: %s",
+                    k2,
+                    k2_,
+                    k2,
+                    k2_,
+                    migration_url
+                  ),
+                  { title = "Avante" }
+                )
+              end
+            end
+          end
+        end
+      end
+    end
+  end
 
   local merged = vim.tbl_deep_extend(
     "force",
     M._defaults,
-    opts or {},
+    opts,
     ---@type avante.Config
     {
       behaviour = {
@@ -562,38 +754,45 @@ function M.setup(opts)
   )
 
   M._options = merged
-  M.provider_names = vim
-    .iter(M._defaults)
-    :filter(function(_, value) return type(value) == "table" and (value.endpoint ~= nil or value.model ~= nil) end)
-    :fold({}, function(acc, k)
-      acc = vim.list_extend({}, acc)
-      acc = vim.list_extend(acc, { k })
-      return acc
-    end)
 
-  vim.validate({ provider = { M._options.provider, "string", false } })
+  ---@diagnostic disable-next-line: undefined-field
+  if M._options.disable_tools ~= nil then
+    Utils.warn(
+      "`disable_tools` is provider-scoped, not globally scoped. Therefore, you cannot set `disable_tools` at the top level. It should be set under a provider, for example: `openai.disable_tools = true`",
+      { title = "Avante" }
+    )
+  end
 
-  if next(M._options.vendors) ~= nil then
-    for k, v in pairs(M._options.vendors) do
-      M._options.vendors[k] = type(v) == "function" and v() or v
-    end
-    vim.validate({ vendors = { M._options.vendors, "table", true } })
-    M.provider_names = vim.list_extend(M.provider_names, vim.tbl_keys(M._options.vendors))
+  if type(M._options.disabled_tools) == "boolean" then
+    Utils.warn(
+      '`disabled_tools` must be a list, not a boolean. Please change it to `disabled_tools = { "tool1", "tool2" }`. Note the difference between `disabled_tools` and `disable_tools`.',
+      { title = "Avante" }
+    )
+  end
+
+  if vim.fn.has("nvim-0.11") == 1 then
+    vim.validate("provider", M._options.provider, "string", false)
+  else
+    vim.validate({ provider = { M._options.provider, "string", false } })
+  end
+
+  for k, v in pairs(M._options.providers) do
+    M._options.providers[k] = type(v) == "function" and v() or v
   end
 end
 
 ---@param opts table<string, any>
 function M.override(opts)
-  vim.validate({ opts = { opts, "table", true } })
+  if vim.fn.has("nvim-0.11") == 1 then
+    vim.validate("opts", opts, "table", true)
+  else
+    vim.validate({ opts = { opts, "table", true } })
+  end
 
   M._options = vim.tbl_deep_extend("force", M._options, opts or {})
 
-  if next(M._options.vendors) ~= nil then
-    for k, v in pairs(M._options.vendors) do
-      M._options.vendors[k] = type(v) == "function" and v() or v
-      if not vim.tbl_contains(M.provider_names, k) then M.provider_names = vim.list_extend(M.provider_names, { k }) end
-    end
-    vim.validate({ vendors = { M._options.vendors, "table", true } })
+  for k, v in pairs(M._options.providers) do
+    M._options.providers[k] = type(v) == "function" and v() or v
   end
 end
 
@@ -607,55 +806,20 @@ function M.support_paste_image() return Utils.has("img-clip.nvim") or Utils.has(
 
 function M.get_window_width() return math.ceil(vim.o.columns * (M.windows.width / 100)) end
 
----@param provider_name avante.ProviderName
----@return boolean
-function M.has_provider(provider_name) return vim.list_contains(M.provider_names, provider_name) end
-
 ---get supported providers
 ---@param provider_name avante.ProviderName
 function M.get_provider_config(provider_name)
-  if not M.has_provider(provider_name) then error("No provider found: " .. provider_name, 2) end
   local found = false
   local config = {}
 
-  if M.vendors and M.vendors[provider_name] ~= nil then
+  if M.providers[provider_name] ~= nil then
     found = true
-    config = vim.tbl_deep_extend("force", config, vim.deepcopy(M.vendors[provider_name], true))
-  end
-
-  if M._options[provider_name] ~= nil then
-    found = true
-    config = vim.tbl_deep_extend("force", config, vim.deepcopy(M._options[provider_name], true))
+    config = vim.tbl_deep_extend("force", config, vim.deepcopy(M.providers[provider_name], true))
   end
 
   if not found then error("Failed to find provider: " .. provider_name, 2) end
 
   return config
 end
-
-M.BASE_PROVIDER_KEYS = {
-  "endpoint",
-  "extra_headers",
-  "model",
-  "deployment",
-  "api_version",
-  "proxy",
-  "allow_insecure",
-  "api_key_name",
-  "timeout",
-  "display_name",
-  "aws_region",
-  "aws_profile",
-  -- internal
-  "local",
-  "_shellenv",
-  "tokenizer_id",
-  "role_map",
-  "support_prompt_caching",
-  "__inherited_from",
-  "disable_tools",
-  "entra",
-  "hide_in_model_selector",
-}
 
 return M

@@ -7,10 +7,10 @@ local Helpers = require("avante.llm_tools.helpers")
 
 local M = {}
 
----@type AvanteLLMToolFunc<{ rel_path: string }>
+---@type AvanteLLMToolFunc<{ path: string }>
 function M.read_file_toplevel_symbols(opts, on_log)
   local RepoMap = require("avante.repo_map")
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
   if on_log then on_log("path: " .. abs_path) end
   if not Path:new(abs_path):exists() then return "", "File does not exists: " .. abs_path end
@@ -25,6 +25,16 @@ end
 
 ---@type AvanteLLMToolFunc<{ command: "view" | "str_replace" | "create" | "insert" | "undo_edit", path: string, old_str?: string, new_str?: string, file_text?: string, insert_line?: integer, new_str?: string, view_range?: integer[] }>
 function M.str_replace_editor(opts, on_log, on_complete, session_ctx)
+  if opts.command == "undo_edit" then
+    return require("avante.llm_tools.undo_edit").func(opts, on_log, on_complete, session_ctx)
+  end
+  ---@cast opts any
+  return M.str_replace_based_edit_tool(opts, on_log, on_complete, session_ctx)
+end
+
+---@type AvanteLLMToolFunc<{ command: "view" | "str_replace" | "create" | "insert", path: string, old_str?: string, new_str?: string, file_text?: string, insert_line?: integer, new_str?: string, view_range?: integer[], streaming?: boolean }>
+function M.str_replace_based_edit_tool(opts, on_log, on_complete, session_ctx)
+  if not opts.command then return false, "command not provided" end
   if on_log then on_log("command: " .. opts.command) end
   if not on_complete then return false, "on_complete not provided" end
   local abs_path = Helpers.get_abs_path(opts.path)
@@ -34,10 +44,8 @@ function M.str_replace_editor(opts, on_log, on_complete, session_ctx)
     local opts_ = { path = opts.path }
     if opts.view_range then
       local start_line, end_line = unpack(opts.view_range)
-      opts_.view_range = {
-        start_line = start_line,
-        end_line = end_line,
-      }
+      opts_.start_line = start_line
+      opts_.end_line = end_line
     end
     return view(opts_, on_log, on_complete, session_ctx)
   end
@@ -49,9 +57,6 @@ function M.str_replace_editor(opts, on_log, on_complete, session_ctx)
   end
   if opts.command == "insert" then
     return require("avante.llm_tools.insert").func(opts, on_log, on_complete, session_ctx)
-  end
-  if opts.command == "undo_edit" then
-    return require("avante.llm_tools.undo_edit").func(opts, on_log, on_complete, session_ctx)
   end
   return false, "Unknown command: " .. opts.command
 end
@@ -91,21 +96,20 @@ function M.write_global_file(opts, on_log, on_complete)
   end)
 end
 
----@type AvanteLLMToolFunc<{ rel_path: string, new_rel_path: string }>
-function M.rename_file(opts, on_log, on_complete)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+---@type AvanteLLMToolFunc<{ source_path: string, destination_path: string }>
+function M.move_path(opts, on_log, on_complete)
+  local abs_path = Helpers.get_abs_path(opts.source_path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
-  if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
-  if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
-  local new_abs_path = Helpers.get_abs_path(opts.new_rel_path)
+  if not Path:new(abs_path):exists() then return false, "The source path not found: " .. abs_path end
+  local new_abs_path = Helpers.get_abs_path(opts.destination_path)
   if on_log then on_log(abs_path .. " -> " .. new_abs_path) end
   if not Helpers.has_permission_to_access(new_abs_path) then
     return false, "No permission to access path: " .. new_abs_path
   end
-  if Path:new(new_abs_path):exists() then return false, "File already exists: " .. new_abs_path end
+  if Path:new(new_abs_path):exists() then return false, "The destination path already exists: " .. new_abs_path end
   if not on_complete then return false, "on_complete not provided" end
   Helpers.confirm(
-    "Are you sure you want to rename the file: " .. abs_path .. " to: " .. new_abs_path,
+    "Are you sure you want to move the path: " .. abs_path .. " to: " .. new_abs_path,
     function(ok, reason)
       if not ok then
         on_complete(false, "User declined, reason: " .. (reason or "unknown"))
@@ -117,43 +121,69 @@ function M.rename_file(opts, on_log, on_complete)
   )
 end
 
----@type AvanteLLMToolFunc<{ rel_path: string, new_rel_path: string }>
-function M.copy_file(opts, on_log)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+---@type AvanteLLMToolFunc<{ source_path: string, destination_path: string }>
+function M.copy_path(opts, on_log, on_complete)
+  local abs_path = Helpers.get_abs_path(opts.source_path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
-  if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
-  if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
-  local new_abs_path = Helpers.get_abs_path(opts.new_rel_path)
+  if not Path:new(abs_path):exists() then return false, "The source path not found: " .. abs_path end
+  local new_abs_path = Helpers.get_abs_path(opts.destination_path)
   if not Helpers.has_permission_to_access(new_abs_path) then
     return false, "No permission to access path: " .. new_abs_path
   end
-  if Path:new(new_abs_path):exists() then return false, "File already exists: " .. new_abs_path end
-  if on_log then on_log("Copying file: " .. abs_path .. " to " .. new_abs_path) end
-  Path:new(new_abs_path):write(Path:new(abs_path):read())
-  return true, nil
+  if Path:new(new_abs_path):exists() then return false, "The destination path already exists: " .. new_abs_path end
+  if not on_complete then return false, "on_complete not provided" end
+  Helpers.confirm(
+    "Are you sure you want to copy the path: " .. abs_path .. " to: " .. new_abs_path,
+    function(ok, reason)
+      if not ok then
+        on_complete(false, "User declined, reason: " .. (reason or "unknown"))
+        return
+      end
+      if on_log then on_log("Copying path: " .. abs_path .. " to " .. new_abs_path) end
+      if Path:new(abs_path):is_dir() then
+        Path:new(new_abs_path):mkdir({ parents = true })
+        for _, entry in ipairs(Path:new(abs_path):list()) do
+          local new_entry_path = Path:new(new_abs_path):joinpath(entry)
+          if entry:match("^%.") then goto continue end
+          if Path:new(new_entry_path):exists() then
+            if Path:new(new_entry_path):is_dir() then
+              Path:new(new_entry_path):rmdir()
+            else
+              Path:new(new_entry_path):unlink()
+            end
+          end
+          vim.fn.mkdir(new_entry_path, "p")
+          Path:new(new_entry_path):write(Path:new(abs_path):joinpath(entry):read(), "w")
+          ::continue::
+        end
+      else
+        Path:new(new_abs_path):write(Path:new(abs_path):read(), "w")
+      end
+      on_complete(true, nil)
+    end
+  )
 end
 
----@type AvanteLLMToolFunc<{ rel_path: string }>
-function M.delete_file(opts, on_log, on_complete)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+---@type AvanteLLMToolFunc<{ path: string }>
+function M.delete_path(opts, on_log, on_complete)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
-  if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
-  if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
+  if not Path:new(abs_path):exists() then return false, "Path not found: " .. abs_path end
   if not on_complete then return false, "on_complete not provided" end
-  Helpers.confirm("Are you sure you want to delete the file: " .. abs_path, function(ok, reason)
+  Helpers.confirm("Are you sure you want to delete the path: " .. abs_path, function(ok, reason)
     if not ok then
       on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
     end
-    if on_log then on_log("Deleting file: " .. abs_path) end
+    if on_log then on_log("Deleting path: " .. abs_path) end
     os.remove(abs_path)
     on_complete(true, nil)
   end)
 end
 
----@type AvanteLLMToolFunc<{ rel_path: string }>
+---@type AvanteLLMToolFunc<{ path: string }>
 function M.create_dir(opts, on_log, on_complete)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if Path:new(abs_path):exists() then return false, "Directory already exists: " .. abs_path end
   if not on_complete then return false, "on_complete not provided" end
@@ -164,50 +194,6 @@ function M.create_dir(opts, on_log, on_complete)
     end
     if on_log then on_log("Creating directory: " .. abs_path) end
     Path:new(abs_path):mkdir({ parents = true })
-    on_complete(true, nil)
-  end)
-end
-
----@type AvanteLLMToolFunc<{ rel_path: string, new_rel_path: string }>
-function M.rename_dir(opts, on_log, on_complete)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
-  if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
-  if not Path:new(abs_path):exists() then return false, "Directory not found: " .. abs_path end
-  if not Path:new(abs_path):is_dir() then return false, "Path is not a directory: " .. abs_path end
-  local new_abs_path = Helpers.get_abs_path(opts.new_rel_path)
-  if not Helpers.has_permission_to_access(new_abs_path) then
-    return false, "No permission to access path: " .. new_abs_path
-  end
-  if Path:new(new_abs_path):exists() then return false, "Directory already exists: " .. new_abs_path end
-  if not on_complete then return false, "on_complete not provided" end
-  Helpers.confirm(
-    "Are you sure you want to rename directory " .. abs_path .. " to " .. new_abs_path .. "?",
-    function(ok, reason)
-      if not ok then
-        on_complete(false, "User declined, reason: " .. (reason or "unknown"))
-        return
-      end
-      if on_log then on_log("Renaming directory: " .. abs_path .. " to " .. new_abs_path) end
-      os.rename(abs_path, new_abs_path)
-      on_complete(true, nil)
-    end
-  )
-end
-
----@type AvanteLLMToolFunc<{ rel_path: string }>
-function M.delete_dir(opts, on_log, on_complete)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
-  if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
-  if not Path:new(abs_path):exists() then return false, "Directory not found: " .. abs_path end
-  if not Path:new(abs_path):is_dir() then return false, "Path is not a directory: " .. abs_path end
-  if not on_complete then return false, "on_complete not provided" end
-  Helpers.confirm("Are you sure you want to delete the directory: " .. abs_path, function(ok, reason)
-    if not ok then
-      on_complete(false, "User declined, reason: " .. (reason or "unknown"))
-      return
-    end
-    if on_log then on_log("Deleting directory: " .. abs_path) end
-    os.remove(abs_path)
     on_complete(true, nil)
   end)
 end
@@ -522,9 +508,9 @@ function M.rag_search(opts, on_log, on_complete)
   )
 end
 
----@type AvanteLLMToolFunc<{ code: string, rel_path: string, container_image?: string }>
+---@type AvanteLLMToolFunc<{ code: string, path: string, container_image?: string }>
 function M.python(opts, on_log, on_complete)
-  local abs_path = Helpers.get_abs_path(opts.rel_path)
+  local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return nil, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return nil, "Path not found: " .. abs_path end
   if on_log then on_log("cwd: " .. abs_path) end
@@ -604,6 +590,18 @@ function M.get_tools(user_input, history_messages)
     :totable()
 end
 
+function M.get_tool_names()
+  local custom_tools = Config.custom_tools
+  if type(custom_tools) == "function" then custom_tools = custom_tools() end
+  ---@type AvanteLLMTool[]
+  local unfiltered_tools = vim.list_extend(vim.list_extend({}, M._tools), custom_tools)
+  local tool_names = {}
+  for _, tool in ipairs(unfiltered_tools) do
+    table.insert(tool_names, tool.name)
+  end
+  return tool_names
+end
+
 ---@type AvanteLLMTool[]
 M._tools = {
   require("avante.llm_tools.replace_in_file"),
@@ -621,6 +619,9 @@ M._tools = {
           description = "Query to search",
           type = "string",
         },
+      },
+      usage = {
+        query = "Query to search",
       },
     },
     returns = {
@@ -649,10 +650,14 @@ M._tools = {
           type = "string",
         },
         {
-          name = "rel_path",
+          name = "path",
           description = "Relative path to the project directory, as cwd",
           type = "string",
         },
+      },
+      usage = {
+        code = "Python code to run",
+        path = "Relative path to the project directory, as cwd",
       },
     },
     returns = {
@@ -680,6 +685,9 @@ M._tools = {
           description = "Scope for the git diff (e.g. specific files or directories)",
           type = "string",
         },
+      },
+      usage = {
+        scope = "Scope for the git diff (e.g. specific files or directories)",
       },
     },
     returns = {
@@ -714,6 +722,10 @@ M._tools = {
           optional = true,
         },
       },
+      usage = {
+        message = "Commit message to use",
+        scope = "Scope for staging files (e.g. specific files or directories)",
+      },
     },
     returns = {
       {
@@ -731,6 +743,9 @@ M._tools = {
   },
   require("avante.llm_tools.ls"),
   require("avante.llm_tools.grep"),
+  require("avante.llm_tools.delete_tool_use_messages"),
+  require("avante.llm_tools.add_todos"),
+  require("avante.llm_tools.update_todo_status"),
   {
     name = "read_file_toplevel_symbols",
     description = "Read the top-level symbols of a file in current project scope",
@@ -738,10 +753,13 @@ M._tools = {
       type = "table",
       fields = {
         {
-          name = "rel_path",
+          name = "path",
           description = "Relative path to the file in current project scope",
           type = "string",
         },
+      },
+      usage = {
+        path = "Relative path to the file in current project scope",
       },
     },
     returns = {
@@ -760,7 +778,7 @@ M._tools = {
   },
   require("avante.llm_tools.str_replace"),
   require("avante.llm_tools.view"),
-  require("avante.llm_tools.create"),
+  require("avante.llm_tools.write_to_file"),
   require("avante.llm_tools.insert"),
   require("avante.llm_tools.undo_edit"),
   {
@@ -789,6 +807,9 @@ M._tools = {
           description = "Absolute path to the file in global scope",
           type = "string",
         },
+      },
+      usage = {
+        abs_path = "Absolute path to the file in global scope",
       },
     },
     returns = {
@@ -837,6 +858,10 @@ M._tools = {
           type = "string",
         },
       },
+      usage = {
+        abs_path = "The path to the file in the current project scope",
+        content = "The content to write to the file",
+      },
     },
     returns = {
       {
@@ -853,21 +878,42 @@ M._tools = {
     },
   },
   {
-    name = "rename_file",
-    description = "Rename a file in current project scope",
+    name = "move_path",
+    description = [[Moves or rename a file or directory in the project, and returns confirmation that the move succeeded.
+If the source and destination directories are the same, but the filename is different, this performs a rename. Otherwise, it performs a move.
+
+This tool should be used when it's desirable to move or rename a file or directory without changing its contents at all.]],
     param = {
       type = "table",
       fields = {
         {
-          name = "rel_path",
-          description = "Relative path to the file in current project scope",
+          name = "source_path",
+          description = [[The source path of the file or directory to move/rename.
+
+<example>
+If the project has the following files:
+
+- directory1/a/something.txt
+- directory2/a/things.txt
+- directory3/a/other.txt
+
+You can move the first file by providing a source_path of "directory1/a/something.txt"
+</example>]],
           type = "string",
         },
         {
-          name = "new_rel_path",
-          description = "New relative path for the file",
+          name = "destination_path",
+          description = [[The destination path where the file or directory should be moved/renamed to. If the paths are the same except for the filename, then this will be a rename.
+
+<example>
+To move "directory1/a/something.txt" to "directory2/b/renamed.txt", provide a destination_path of "directory2/b/renamed.txt"
+</example>]],
           type = "string",
         },
+      },
+      usage = {
+        source_path = "The source path of the file or directory to move/rename",
+        destination_path = "The destination path where the file or directory should be moved/renamed to",
       },
     },
     returns = {
@@ -885,16 +931,81 @@ M._tools = {
     },
   },
   {
-    name = "delete_file",
-    description = "Delete a file in current project scope",
+    name = "copy_path",
+    description = [[Copies a file or directory from the project to a new location, and returns confirmation that the copy succeeded.
+
+This tool should be used when it's desirable to copy a file or directory without changing its contents at all.]],
     param = {
       type = "table",
       fields = {
         {
-          name = "rel_path",
-          description = "Relative path to the file in current project scope",
+          name = "source_path",
+          description = [[The source path of the file or directory to copy.
+
+<example>
+If the project has the following files:
+
+- directory1/a/something.txt
+- directory2/a/things.txt
+- directory3/a/other.txt
+
+You can copy the first file by providing a source_path of "directory1/a/something.txt"
+</example>]],
           type = "string",
         },
+        {
+          name = "destination_path",
+          description = [[The destination path where the file or directory should be copied to.
+
+<example>
+To copy "directory1/a/something.txt" to "directory2/b/copied.txt", provide a destination_path of "directory2/b/copied.txt"
+</example>]],
+          type = "string",
+        },
+      },
+      usage = {
+        source_path = "The source path of the file or directory to copy",
+        destination_path = "The destination path where the file or directory should be copied to",
+      },
+    },
+    returns = {
+      {
+        name = "success",
+        description = "True if the file was copied successfully, false otherwise",
+        type = "boolean",
+      },
+      {
+        name = "error",
+        description = "Error message if the file was not copied successfully",
+        type = "string",
+        optional = true,
+      },
+    },
+  },
+  {
+    name = "delete_path",
+    description = "Deletes the file or directory (and the directory's contents, recursively) at the specified path in the project, and returns confirmation of the deletion.",
+    param = {
+      type = "table",
+      fields = {
+        {
+          name = "path",
+          description = [[The path of the file or directory to delete.
+<example>
+If the project has the following files:
+
+- directory1/a/something.txt
+- directory2/a/things.txt
+- directory3/a/other.txt
+
+You can delete the first file by providing a path of "directory1/a/something.txt"
+</example>
+          ]],
+          type = "string",
+        },
+      },
+      usage = {
+        path = "Relative path to the file or directory in the current project scope",
       },
     },
     returns = {
@@ -918,10 +1029,13 @@ M._tools = {
       type = "table",
       fields = {
         {
-          name = "rel_path",
+          name = "path",
           description = "Relative path to the project directory",
           type = "string",
         },
+      },
+      usage = {
+        path = "Relative path to the project directory",
       },
     },
     returns = {
@@ -938,67 +1052,10 @@ M._tools = {
       },
     },
   },
-  {
-    name = "rename_dir",
-    description = "Rename a directory in current project scope",
-    param = {
-      type = "table",
-      fields = {
-        {
-          name = "rel_path",
-          description = "Relative path to the project directory",
-          type = "string",
-        },
-        {
-          name = "new_rel_path",
-          description = "New relative path for the directory",
-          type = "string",
-        },
-      },
-    },
-    returns = {
-      {
-        name = "success",
-        description = "True if the directory was renamed successfully, false otherwise",
-        type = "boolean",
-      },
-      {
-        name = "error",
-        description = "Error message if the directory was not renamed successfully",
-        type = "string",
-        optional = true,
-      },
-    },
-  },
-  {
-    name = "delete_dir",
-    description = "Delete a directory in current project scope",
-    param = {
-      type = "table",
-      fields = {
-        {
-          name = "rel_path",
-          description = "Relative path to the project directory",
-          type = "string",
-        },
-      },
-    },
-    returns = {
-      {
-        name = "success",
-        description = "True if the directory was deleted successfully, false otherwise",
-        type = "boolean",
-      },
-      {
-        name = "error",
-        description = "Error message if the directory was not deleted successfully",
-        type = "string",
-        optional = true,
-      },
-    },
-  },
+  require("avante.llm_tools.think"),
   require("avante.llm_tools.get_diagnostics"),
   require("avante.llm_tools.bash"),
+  require("avante.llm_tools.attempt_completion"),
   {
     name = "web_search",
     description = "Search the web",
@@ -1010,6 +1067,9 @@ M._tools = {
           description = "Query to search",
           type = "string",
         },
+      },
+      usage = {
+        query = "Query to search",
       },
     },
     returns = {
@@ -1037,6 +1097,9 @@ M._tools = {
           description = "Url to fetch markdown from",
           type = "string",
         },
+      },
+      usage = {
+        url = "Url to fetch markdown from",
       },
     },
     returns = {
@@ -1070,6 +1133,10 @@ M._tools = {
           type = "boolean",
           default = false,
         },
+      },
+      usage = {
+        symbol_name = "The name of the symbol to retrieve the definition for, example: fibonacci",
+        show_line_numbers = "true or false",
       },
     },
     returns = {
@@ -1117,8 +1184,6 @@ M.run_python = M.python
 ---@return string | nil result
 ---@return string | nil error
 function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
-  -- Utils.debug("use tool", tool_use.name, tool_use.input_json)
-
   -- Check if execution is already cancelled
   if Helpers.is_cancelled then
     Utils.debug("Tool execution cancelled before starting: " .. tool_use.name)
@@ -1132,6 +1197,8 @@ function M.process_tool_use(tools, tool_use, on_log, on_complete, session_ctx)
   local func
   if tool_use.name == "str_replace_editor" then
     func = M.str_replace_editor
+  elseif tool_use.name == "str_replace_based_edit_tool" then
+    func = M.str_replace_based_edit_tool
   else
     ---@type AvanteLLMTool?
     local tool = vim.iter(tools):find(function(tool) return tool.name == tool_use.name end) ---@param tool AvanteLLMTool

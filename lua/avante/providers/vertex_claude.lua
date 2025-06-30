@@ -1,4 +1,5 @@
 local P = require("avante.providers")
+local Utils = require("avante.utils")
 local Vertex = require("avante.providers.vertex")
 
 ---@class AvanteProviderFunctor
@@ -14,6 +15,7 @@ M.parse_messages = P.claude.parse_messages
 M.parse_response = P.claude.parse_response
 M.parse_api_key = Vertex.parse_api_key
 M.on_error = Vertex.on_error
+M.transform_anthropic_usage = P.claude.transform_anthropic_usage
 
 Vertex.api_key_name = "cmd:gcloud auth print-access-token"
 
@@ -48,7 +50,7 @@ function M:parse_curl_args(prompt_opts)
 
   request_body = vim.tbl_deep_extend("force", request_body, {
     anthropic_version = "vertex-2023-10-16",
-    temperature = 0,
+    temperature = 0.75,
     max_tokens = 4096,
     stream = true,
     messages = messages,
@@ -64,10 +66,10 @@ function M:parse_curl_args(prompt_opts)
 
   return {
     url = url,
-    headers = {
+    headers = Utils.tbl_override({
       ["Authorization"] = "Bearer " .. Vertex.parse_api_key(),
       ["Content-Type"] = "application/json; charset=utf-8",
-    },
+    }, self.extra_headers),
     body = vim.tbl_deep_extend("force", {}, request_body),
   }
 end
