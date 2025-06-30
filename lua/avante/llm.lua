@@ -5,6 +5,7 @@ local uv = vim.uv
 local curl = require("plenary.curl")
 
 local Utils = require("avante.utils")
+local Prompts = require("avante.utils.prompts")
 local Config = require("avante.config")
 local Path = require("avante.path")
 local Providers = require("avante.providers")
@@ -384,6 +385,9 @@ function M.generate_prompts(opts)
   local tools = {}
   if opts.tools then tools = vim.list_extend(tools, opts.tools) end
   if opts.prompt_opts and opts.prompt_opts.tools then tools = vim.list_extend(tools, opts.prompt_opts.tools) end
+
+  local agents_rules = Prompts.get_agents_rules_prompt()
+  if agents_rules then system_prompt = system_prompt .. "\n\n" .. agents_rules end
 
   ---@type AvantePromptOptions
   return {
