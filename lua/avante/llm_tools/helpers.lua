@@ -136,9 +136,10 @@ end
 function M.get_bufnr(abs_path)
   local sidebar = require("avante").get()
   if not sidebar then return 0, "Avante sidebar not found" end
-  local bufnr
+  local bufnr ---@type integer
   vim.api.nvim_win_call(sidebar.code.winid, function()
-    vim.cmd("edit " .. abs_path)
+    ---@diagnostic disable-next-line: param-type-mismatch
+    pcall(vim.cmd, "edit " .. abs_path)
     bufnr = vim.api.nvim_get_current_buf()
   end)
   return bufnr, nil
