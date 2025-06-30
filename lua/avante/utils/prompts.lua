@@ -210,4 +210,27 @@ I've successfully created the requested React component with the following featu
   return system_prompt
 end
 
+--- Get the content of AGENTS.md or CLAUDE.md or OPENCODE.md
+---@return string | nil
+function M.get_agents_rules_prompt()
+  local Utils = require("avante.utils")
+  local project_root = Utils.get_project_root()
+  local file_names = {
+    "AGENTS.md",
+    "CLAUDE.md",
+    "OPENCODE.md",
+    ".cursorrules",
+    ".windsurfrules",
+    Utils.join_paths(".github", "copilot-instructions.md"),
+  }
+  for _, file_name in ipairs(file_names) do
+    local file_path = Utils.join_paths(project_root, file_name)
+    if vim.fn.filereadable(file_path) == 1 then
+      local content = vim.fn.readfile(file_path)
+      if content then return table.concat(content, "\n") end
+    end
+  end
+  return nil
+end
+
 return M
