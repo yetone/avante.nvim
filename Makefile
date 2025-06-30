@@ -6,7 +6,8 @@ ifeq ($(UNAME), Linux)
 	EXT := so
 else ifeq ($(UNAME), Darwin)
 	OS := macOS
-	EXT := dylib
+	# looks interchangeable with "dylib", but nvim will find .so automatically in rtp
+	EXT := so
 else
 	$(error Unsupported operating system: $(UNAME))
 endif

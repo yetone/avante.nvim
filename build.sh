@@ -18,7 +18,7 @@ Linux*)
   ;;
 Darwin*)
   PLATFORM="darwin"
-  LIB_EXT="dylib"
+  LIB_EXT="so"
   ;;
 CYGWIN* | MINGW* | MSYS*)
   PLATFORM="windows"
