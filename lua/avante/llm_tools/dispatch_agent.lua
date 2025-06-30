@@ -105,10 +105,10 @@ When you're done, provide a clear and concise summary of what you found.]]):gsub
   local memory_content = nil
   local history_messages = {}
 
+  ---@type AvanteGeneratePromptsOptions
   local stream_options = {
     ask = true,
     memory = memory_content,
-    code_lang = "unknown",
     provider = Providers[Config.provider],
     get_history_messages = function() return history_messages end,
     on_tool_log = session_ctx.on_tool_log,

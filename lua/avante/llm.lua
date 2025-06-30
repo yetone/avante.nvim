@@ -216,7 +216,7 @@ function M.generate_prompts(opts)
 
   local system_info = Utils.get_system_info()
 
-  local selected_files = opts.selected_files or {}
+  local selected_files = {}
 
   if opts.selected_filepaths then
     for _, filepath in ipairs(opts.selected_filepaths) do
@@ -256,9 +256,9 @@ function M.generate_prompts(opts)
 
   selected_files = vim.iter(selected_files):filter(function(file) return viewed_files[file.path] == nil end):totable()
 
+  ---@type AvanteTemplateOptions
   local template_opts = {
     ask = opts.ask, -- TODO: add mode without ask instruction
-    code_lang = opts.code_lang,
     selected_files = selected_files,
     selected_code = opts.selected_code,
     recently_viewed_files = opts.recently_viewed_files,
