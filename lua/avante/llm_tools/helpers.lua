@@ -97,7 +97,11 @@ function M.is_ignored(abs_path)
   local success, _, exit_code = handle:close()
   if not success then return old_is_ignored(abs_path) end
 
-  return result ~= "" and exit_code == 0
+  if exit_code ~= 0 then return old_is_ignored(abs_path) end
+
+  if result:sub(1, 26) == "fatal: not a git repository" then return old_is_ignored(abs_path) end
+
+  return result ~= ""
 end
 
 ---@param abs_path string
