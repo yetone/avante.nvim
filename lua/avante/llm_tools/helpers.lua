@@ -72,7 +72,7 @@ end
 
 ---@param abs_path string
 ---@return boolean
-function M.is_ignored(abs_path)
+local function old_is_ignored(abs_path)
   local project_root = Utils.get_project_root()
   local gitignore_path = project_root .. "/.gitignore"
   local gitignore_patterns, gitignore_negate_patterns = Utils.parse_gitignore(gitignore_path)
@@ -82,6 +82,19 @@ function M.is_ignored(abs_path)
   -- insde the project root will be ignored
   local rel_path = Utils.make_relative_path(abs_path, project_root)
   return Utils.is_ignored(rel_path, gitignore_patterns, gitignore_negate_patterns)
+end
+
+---@param abs_path string
+---@return boolean
+function M.is_ignored(abs_path)
+  local handle = io.popen("git check-ignore " .. abs_path)
+  if handle == nil then return old_is_ignored(abs_path) end
+
+  local result = handle:read("*a")
+  local success, _, exit_code = handle:close()
+  if not success then return old_is_ignored(abs_path) end
+
+  return result ~= "" and exit_code == 0
 end
 
 ---@param abs_path string
