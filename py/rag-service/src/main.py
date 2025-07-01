@@ -682,10 +682,6 @@ def get_pathspec(directory: Path) -> pathspec.PathSpec | None:
     patterns = get_gitignore_files(directory)
     patterns.extend(get_gitcrypt_files(directory))
 
-    # Return None if no patterns were found
-    if len(patterns) <= 1:  # Only .git/ is in the list
-        return None
-
     return pathspec.GitIgnoreSpec.from_lines(patterns)
 
 
