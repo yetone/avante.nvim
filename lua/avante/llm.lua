@@ -388,6 +388,8 @@ function M.generate_prompts(opts)
 
   local agents_rules = Prompts.get_agents_rules_prompt()
   if agents_rules then system_prompt = system_prompt .. "\n\n" .. agents_rules end
+  local cursor_rules = Prompts.get_cursor_rules_prompt(selected_files)
+  if cursor_rules then system_prompt = system_prompt .. "\n\n" .. cursor_rules end
 
   ---@type AvantePromptOptions
   return {
