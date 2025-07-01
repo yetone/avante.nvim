@@ -87,7 +87,10 @@ end
 ---@param abs_path string
 ---@return boolean
 function M.is_ignored(abs_path)
-  local handle = io.popen("git check-ignore " .. abs_path)
+  local project_root = Utils.get_project_root()
+  local handle = io.popen(
+    string.format("git -C %s check-ignore %s", vim.fn.shellescape(project_root), vim.fn.shellescape(abs_path))
+  )
   if handle == nil then return old_is_ignored(abs_path) end
 
   local result = handle:read("*a")
