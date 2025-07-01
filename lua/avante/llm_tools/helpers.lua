@@ -73,15 +73,8 @@ end
 ---@param abs_path string
 ---@return boolean
 function M.is_ignored(abs_path)
-  local project_root = Utils.get_project_root()
-  local gitignore_path = project_root .. "/.gitignore"
-  local gitignore_patterns, gitignore_negate_patterns = Utils.parse_gitignore(gitignore_path)
-  -- The checker should only take care of the path inside the project root
-  -- Specifically, it should not check the project root itself
-  -- Otherwise if the binary is named the same as the project root (such as Go binary), any paths
-  -- insde the project root will be ignored
-  local rel_path = Utils.make_relative_path(abs_path, project_root)
-  return Utils.is_ignored(rel_path, gitignore_patterns, gitignore_negate_patterns)
+  vim.fn.system({ "git", " -C " .. Utils.get_project_root() .. " check-ignore " .. abs_path })
+  return vim.v.shell_error == 0
 end
 
 ---@param abs_path string
