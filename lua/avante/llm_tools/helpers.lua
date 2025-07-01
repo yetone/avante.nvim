@@ -88,20 +88,22 @@ end
 ---@return boolean
 function M.is_ignored(abs_path)
   local project_root = Utils.get_project_root()
-  local handle = io.popen(
+  local cmd =
     string.format("git -C %s check-ignore %s", vim.fn.shellescape(project_root), vim.fn.shellescape(abs_path))
-  )
-  if handle == nil then return old_is_ignored(abs_path) end
 
-  local result = handle:read("*a")
-  local success, _, exit_code = handle:close()
-  if not success then return old_is_ignored(abs_path) end
+  local result = vim.fn.system(cmd)
+  local exit_code = vim.v.shell_error
 
-  if exit_code ~= nil and exit_code ~= 0 then return old_is_ignored(abs_path) end
+  -- If command failed or git is not available, fall back to old method
+  if exit_code ~= 0 and exit_code ~= 1 then return old_is_ignored(abs_path) end
 
+  -- Check if result indicates this is not a git repository
   if result:sub(1, 26) == "fatal: not a git repository" then return old_is_ignored(abs_path) end
 
-  return result == ""
+  -- git check-ignore returns:
+  -- - exit code 0 and outputs the path if the file is ignored
+  -- - exit code 1 and no output if the file is not ignored
+  return exit_code == 0
 end
 
 ---@param abs_path string
