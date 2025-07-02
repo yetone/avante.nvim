@@ -3095,7 +3095,7 @@ function Sidebar:get_result_container_height()
       - selected_files_container_height
       - selected_code_container_height
       - todos_container_height
-      - 6
+      - Config.windows.input.height
   )
 end
 
