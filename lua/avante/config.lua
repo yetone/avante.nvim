@@ -40,6 +40,10 @@ M._defaults = {
   tokenizer = "tiktoken",
   ---@type string | (fun(): string) | nil
   system_prompt = nil,
+  rules = {
+    project_dir = nil, ---@type string | nil (could be relative dirpath)
+    global_dir = nil, ---@type string | nil (absolute dirpath)
+  },
   rag_service = { -- RAG service configuration
     enabled = false, -- Enables the RAG service
     host_mount = os.getenv("HOME"), -- Host mount path for the RAG service (Docker will mount this path)

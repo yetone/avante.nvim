@@ -222,21 +222,34 @@ function Prompt.get_templates_dir(project_root)
   local cache_prompt_dir = P.cache_path:joinpath(directory)
   if not cache_prompt_dir:exists() then cache_prompt_dir:mkdir({ parents = true }) end
 
-  local scanner = Scan.scan_dir(directory:absolute(), { depth = 1, add_dirs = true })
-  for _, entry in ipairs(scanner) do
-    local file = Path:new(entry)
-    if file:is_file() then
-      local pieces = vim.split(entry, "/")
-      local piece = pieces[#pieces]
-      local mode = piece:match("([^.]+)%.avanterules$")
-      if not mode or not Prompt.custom_modes[mode] then goto continue end
-      if Prompt.custom_prompts_contents[mode] == nil then
-        Utils.info(string.format("Using %s as %s system prompt", entry, mode))
-        Prompt.custom_prompts_contents[mode] = file:read()
+  local function find_rules(dir)
+    if not dir then return end
+    if vim.fn.isdirectory(dir) ~= 1 then return end
+
+    local scanner = Scan.scan_dir(dir, { depth = 1, add_dirs = true })
+    for _, entry in ipairs(scanner) do
+      local file = Path:new(entry)
+      if file:is_file() then
+        local pieces = vim.split(entry, "/")
+        local piece = pieces[#pieces]
+        local mode = piece:match("([^.]+)%.avanterules$")
+        if not mode or not Prompt.custom_modes[mode] then goto continue end
+        if Prompt.custom_prompts_contents[mode] == nil then
+          Utils.info(string.format("Using %s as %s system prompt", entry, mode))
+          Prompt.custom_prompts_contents[mode] = file:read()
+        end
       end
+      ::continue::
     end
-    ::continue::
   end
+
+  if Config.rules.project_dir then
+    local project_rules_path = Path:new(Config.rules.project_dir)
+    if not project_rules_path:is_absolute() then project_rules_path = directory:joinpath(project_rules_path) end
+    find_rules(tostring(project_rules_path))
+  end
+  find_rules(Config.rules.global_dir)
+  find_rules(directory:absolute())
 
   Path:new(debug.getinfo(1).source:match("@?(.*/)"):gsub("/lua/avante/path.lua$", "") .. "templates")
     :copy({ destination = cache_prompt_dir, recursive = true })
