@@ -572,7 +572,16 @@ end
 
 function M.trim_slashes(text)
   if not text then return text end
-  return text:gsub("//n", "/n"):gsub("//r", "/r"):gsub("//t", "/t"):gsub('/"', '"')
+  local res = text
+    :gsub("//n", "/n")
+    :gsub("//r", "/r")
+    :gsub("//t", "/t")
+    :gsub('/"', '"')
+    :gsub('\\"', '"')
+    :gsub("\\n", "\n")
+    :gsub("\\r", "\r")
+    :gsub("\\t", "\t")
+  return res
 end
 
 ---@param original_lines string[]
