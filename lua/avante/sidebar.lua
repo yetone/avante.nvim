@@ -1964,7 +1964,7 @@ end
 
 function Sidebar:init_current_project(args, cb)
   local user_input = [[
-Please analyze the code and documentation of this project, then:
+You are a responsible senior development engineer, and you are about to leave your position. Please carefully analyze the entire project and generate a handover document to be stored in the AGENTS.md file, so that subsequent developers can quickly get up to speed. The requirements are as follows:
 - If there is an AGENTS.md file in the project root directory, combine it with the existing AGENTS.md content to generate a new AGENTS.md.
 - If the existing AGENTS.md content conflicts with the newly generated content, replace the conflicting old parts with the new content.
 - If there is no AGENTS.md file in the project root directory, create a new AGENTS.md file and write the new content in it.]]
