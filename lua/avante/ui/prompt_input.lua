@@ -44,47 +44,7 @@ function PromptInput:new(opts)
   obj.close_on_submit = opts.close_on_submit or false
   obj.win_opts = opts.win_opts
   obj.default_value = opts.default_value
-  obj.spinner_chars = {
-    "⡀",
-    "⠄",
-    "⠂",
-    "⠁",
-    "⠈",
-    "⠐",
-    "⠠",
-    "⢀",
-    "⣀",
-    "⢄",
-    "⢂",
-    "⢁",
-    "⢈",
-    "⢐",
-    "⢠",
-    "⣠",
-    "⢤",
-    "⢢",
-    "⢡",
-    "⢨",
-    "⢰",
-    "⣰",
-    "⢴",
-    "⢲",
-    "⢱",
-    "⢸",
-    "⣸",
-    "⢼",
-    "⢺",
-    "⢹",
-    "⣹",
-    "⢽",
-    "⢻",
-    "⣻",
-    "⢿",
-    "⣿",
-    "⣶",
-    "⣤",
-    "⣀",
-  }
+  obj.spinner_chars = Config.windows.spinner.editing
   obj.spinner_index = 1
   obj.spinner_timer = nil
   obj.spinner_active = false
