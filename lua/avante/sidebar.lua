@@ -1962,6 +1962,19 @@ function Sidebar:render_state()
   self.state_timer = vim.defer_fn(function() self:render_state() end, 160)
 end
 
+function Sidebar:init_current_project(args, cb)
+  local user_input = [[
+Please analyze the code and documentation of this project, then:
+- If there is an AGENTS.md file in the project root directory, combine it with the existing AGENTS.md content to generate a new AGENTS.md.
+- If the existing AGENTS.md content conflicts with the newly generated content, replace the conflicting old parts with the new content.
+- If there is no AGENTS.md file in the project root directory, create a new AGENTS.md file and write the new content in it.]]
+  self:new_chat(args, cb)
+  self.code.selection = nil
+  self.file_selector:reset()
+  if self.selected_files_container then self.selected_files_container:unmount() end
+  vim.api.nvim_exec_autocmds("User", { pattern = "AvanteInputSubmitted", data = { request = user_input } })
+end
+
 function Sidebar:compact_history_messages(args, cb)
   local history_memory = self.chat_history.memory
   local messages = Utils.get_history_messages(self.chat_history)

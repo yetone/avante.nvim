@@ -1376,6 +1376,7 @@ function M.get_commands()
 
   local builtin_items = {
     { description = "Show help message", name = "help" },
+    { description = "Init AGENTS.md based on the current project", name = "init" },
     { description = "Clear chat history", name = "clear" },
     { description = "New chat", name = "new" },
     { description = "Compact history messages to save tokens", name = "compact" },
@@ -1397,6 +1398,7 @@ function M.get_commands()
     clear = function(sidebar, args, cb) sidebar:clear_history(args, cb) end,
     new = function(sidebar, args, cb) sidebar:new_chat(args, cb) end,
     compact = function(sidebar, args, cb) sidebar:compact_history_messages(args, cb) end,
+    init = function(sidebar, args, cb) sidebar:init_current_project(args, cb) end,
     lines = function(_, args, cb)
       if cb then cb(args) end
     end,
