@@ -8,7 +8,7 @@ local Helpers = require("avante.llm_tools.helpers")
 local M = {}
 
 ---@type AvanteLLMToolFunc<{ path: string }>
-function M.read_file_toplevel_symbols(opts, on_log)
+function M.read_file_toplevel_symbols(opts, on_log, on_complete, session_ctx)
   local RepoMap = require("avante.repo_map")
   local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
@@ -62,7 +62,7 @@ function M.str_replace_based_edit_tool(opts, on_log, on_complete, session_ctx)
 end
 
 ---@type AvanteLLMToolFunc<{ abs_path: string }>
-function M.read_global_file(opts, on_log)
+function M.read_global_file(opts, on_log, on_complete, session_ctx)
   local abs_path = Helpers.get_abs_path(opts.abs_path)
   if Helpers.is_ignored(abs_path) then return "", "This file is ignored: " .. abs_path end
   if on_log then on_log("path: " .. abs_path) end
@@ -74,7 +74,7 @@ function M.read_global_file(opts, on_log)
 end
 
 ---@type AvanteLLMToolFunc<{ abs_path: string, content: string }>
-function M.write_global_file(opts, on_log, on_complete)
+function M.write_global_file(opts, on_log, on_complete, session_ctx)
   local abs_path = Helpers.get_abs_path(opts.abs_path)
   if Helpers.is_ignored(abs_path) then return false, "This file is ignored: " .. abs_path end
   if on_log then on_log("path: " .. abs_path) end
@@ -93,11 +93,11 @@ function M.write_global_file(opts, on_log, on_complete)
     file:write(opts.content)
     file:close()
     on_complete(true, nil)
-  end)
+  end, nil, session_ctx, "write_global_file")
 end
 
 ---@type AvanteLLMToolFunc<{ source_path: string, destination_path: string }>
-function M.move_path(opts, on_log, on_complete)
+function M.move_path(opts, on_log, on_complete, session_ctx)
   local abs_path = Helpers.get_abs_path(opts.source_path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "The source path not found: " .. abs_path end
@@ -117,12 +117,15 @@ function M.move_path(opts, on_log, on_complete)
       end
       os.rename(abs_path, new_abs_path)
       on_complete(true, nil)
-    end
+    end,
+    nil,
+    session_ctx,
+    "move_path"
   )
 end
 
 ---@type AvanteLLMToolFunc<{ source_path: string, destination_path: string }>
-function M.copy_path(opts, on_log, on_complete)
+function M.copy_path(opts, on_log, on_complete, session_ctx)
   local abs_path = Helpers.get_abs_path(opts.source_path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "The source path not found: " .. abs_path end
@@ -160,12 +163,15 @@ function M.copy_path(opts, on_log, on_complete)
         Path:new(new_abs_path):write(Path:new(abs_path):read(), "w")
       end
       on_complete(true, nil)
-    end
+    end,
+    nil,
+    session_ctx,
+    "copy_path"
   )
 end
 
 ---@type AvanteLLMToolFunc<{ path: string }>
-function M.delete_path(opts, on_log, on_complete)
+function M.delete_path(opts, on_log, on_complete, session_ctx)
   local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "Path not found: " .. abs_path end
@@ -178,11 +184,11 @@ function M.delete_path(opts, on_log, on_complete)
     if on_log then on_log("Deleting path: " .. abs_path) end
     os.remove(abs_path)
     on_complete(true, nil)
-  end)
+  end, nil, session_ctx, "delete_path")
 end
 
 ---@type AvanteLLMToolFunc<{ path: string }>
-function M.create_dir(opts, on_log, on_complete)
+function M.create_dir(opts, on_log, on_complete, session_ctx)
   local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if Path:new(abs_path):exists() then return false, "Directory already exists: " .. abs_path end
@@ -195,11 +201,11 @@ function M.create_dir(opts, on_log, on_complete)
     if on_log then on_log("Creating directory: " .. abs_path) end
     Path:new(abs_path):mkdir({ parents = true })
     on_complete(true, nil)
-  end)
+  end, nil, session_ctx, "create_dir")
 end
 
 ---@type AvanteLLMToolFunc<{ query: string }>
-function M.web_search(opts, on_log)
+function M.web_search(opts, on_log, on_complete, session_ctx)
   local provider_type = Config.web_search_engine.provider
   local proxy = Config.web_search_engine.proxy
   if provider_type == nil then return nil, "Search engine provider is not set" end
@@ -352,7 +358,7 @@ function M.web_search(opts, on_log)
 end
 
 ---@type AvanteLLMToolFunc<{ url: string }>
-function M.fetch(opts, on_log)
+function M.fetch(opts, on_log, on_complete, session_ctx)
   if on_log then on_log("url: " .. opts.url) end
   local Html2Md = require("avante.html2md")
   local res, err = Html2Md.fetch_md(opts.url)
@@ -361,7 +367,7 @@ function M.fetch(opts, on_log)
 end
 
 ---@type AvanteLLMToolFunc<{ scope?: string }>
-function M.git_diff(opts, on_log)
+function M.git_diff(opts, on_log, on_complete, session_ctx)
   local git_cmd = vim.fn.exepath("git")
   if git_cmd == "" then return nil, "Git command not found" end
   local project_root = Utils.get_project_root()
@@ -390,7 +396,7 @@ function M.git_diff(opts, on_log)
 end
 
 ---@type AvanteLLMToolFunc<{ message: string, scope?: string }>
-function M.git_commit(opts, on_log, on_complete)
+function M.git_commit(opts, on_log, on_complete, session_ctx)
   local git_cmd = vim.fn.exepath("git")
   if git_cmd == "" then return false, "Git command not found" end
   local project_root = Utils.get_project_root()
@@ -484,11 +490,11 @@ function M.git_commit(opts, on_log, on_complete)
     end
 
     on_complete(true, nil)
-  end)
+  end, nil, session_ctx, "git_commit")
 end
 
 ---@type AvanteLLMToolFunc<{ query: string }>
-function M.rag_search(opts, on_log, on_complete)
+function M.rag_search(opts, on_log, on_complete, session_ctx)
   if not Config.rag_service.enabled then return nil, "Rag service is not enabled" end
   if not opts.query then return nil, "No query provided" end
   if on_log then on_log("query: " .. opts.query) end
@@ -509,7 +515,7 @@ function M.rag_search(opts, on_log, on_complete)
 end
 
 ---@type AvanteLLMToolFunc<{ code: string, path: string, container_image?: string }>
-function M.python(opts, on_log, on_complete)
+function M.python(opts, on_log, on_complete, session_ctx)
   local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return nil, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return nil, "Path not found: " .. abs_path end
@@ -564,7 +570,10 @@ function M.python(opts, on_log, on_complete)
           on_complete(output, err)
         end)
       )
-    end
+    end,
+    nil,
+    session_ctx,
+    "python"
   )
 end
 
