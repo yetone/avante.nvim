@@ -67,6 +67,7 @@ function Suggestion:suggest()
   ctx.prev_doc = doc
 
   local bufnr = api.nvim_get_current_buf()
+  local filepath = api.nvim_buf_get_name(bufnr)
   local filetype = api.nvim_get_option_value("filetype", { buf = bufnr })
   local code_content =
     Utils.prepend_line_number(table.concat(api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n") .. "\n\n")
@@ -141,8 +142,7 @@ L5:     pass
     provider = provider,
     ask = true,
     diagnostics = vim.json.encode(diagnostics),
-    selected_files = { { content = code_content, file_type = filetype, path = "" } },
-    code_lang = filetype,
+    selected_filepaths = { filepath },
     history_messages = history_messages,
     instructions = vim.json.encode(doc),
     mode = "suggesting",
