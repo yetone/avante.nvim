@@ -960,6 +960,23 @@ vim.keymap.set("n", "<leader>am", function() vim.api.nvim_exec_autocmds("User", 
 - 当前缓冲区的文件名的根模式
 - cwd 的根模式
 
+您还可以使用 `rules` 选项为您的 `avanterules` 文件配置自定义目录：
+
+```lua
+require('avante').setup({
+  rules = {
+    project_dir = '.avante/rules', -- 相对于项目根目录，也可以是绝对路径
+    global_dir = '~/.config/avante/rules', -- 绝对路径
+  },
+})
+```
+
+加载优先级如下：
+
+1.  `rules.project_dir`
+2.  `rules.global_dir`
+3.  项目根目录
+
 <details>
 
   <summary>自定义提示的示例文件夹结构</summary>
