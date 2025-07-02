@@ -24,37 +24,6 @@ M.did_setup = false
 
 local H = {}
 
-function H.load_path()
-  local ok, LazyConfig = pcall(require, "lazy.core.config")
-
-  if ok then
-    Utils.debug("LazyConfig loaded")
-    local name = "avante.nvim"
-    local function load_path() require("avante_lib").load() end
-
-    if LazyConfig.plugins[name] and LazyConfig.plugins[name]._.loaded then
-      vim.schedule(load_path)
-    else
-      api.nvim_create_autocmd("User", {
-        pattern = "LazyLoad",
-        callback = function(event)
-          if event.data == name then
-            load_path()
-            return true
-          end
-        end,
-      })
-    end
-
-    api.nvim_create_autocmd("User", {
-      pattern = "VeryLazy",
-      callback = load_path,
-    })
-  else
-    require("avante_lib").load()
-  end
-end
-
 function H.keymaps()
   vim.keymap.set({ "n", "v" }, "<Plug>(AvanteAsk)", function() require("avante.api").ask() end, { noremap = true })
   vim.keymap.set(
@@ -438,8 +407,6 @@ function M.setup(opts)
   Config.setup(opts)
 
   if M.did_setup then return end
-
-  H.load_path()
 
   require("avante.html2md").setup()
   require("avante.repo_map").setup()
