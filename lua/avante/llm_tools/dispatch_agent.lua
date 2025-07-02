@@ -83,6 +83,7 @@ end
 function M.func(opts, on_log, on_complete, session_ctx)
   local Llm = require("avante.llm")
   if not on_complete then return false, "on_complete not provided" end
+
   local prompt = opts.prompt
   local tools = get_available_tools()
   local start_time = Utils.get_timestamp()
@@ -94,23 +95,16 @@ Your task is to help the user with their request: "${prompt}"
 Be thorough and use the tools available to you to find the most relevant information.
 When you're done, provide a clear and concise summary of what you found.]]):gsub("${prompt}", prompt)
 
-  local messages = {}
-  table.insert(messages, { role = "user", content = "go!" })
-
   local tool_use_messages = {}
 
   local total_tokens = 0
   local final_response = ""
 
-  local memory_content = nil
-  local history_messages = {}
-
-  local stream_options = {
-    ask = true,
-    memory = memory_content,
-    code_lang = "unknown",
-    provider = Providers[Config.provider],
-    get_history_messages = function() return history_messages end,
+  ---@type avante.AgentLoopOptions
+  local agent_loop_options = {
+    system_prompt = system_prompt,
+    user_input = "start",
+    tools = tools,
     on_tool_log = session_ctx.on_tool_log,
     on_messages_add = function(msgs)
       msgs = vim.islist(msgs) and msgs or { msgs }
@@ -120,37 +114,18 @@ When you're done, provide a clear and concise summary of what you found.]]):gsub
           tool_use_messages[msg.uuid] = true
         end
       end
-      for _, msg in ipairs(msgs) do
-        local idx = nil
-        for i, m in ipairs(history_messages) do
-          if m.uuid == msg.uuid then
-            idx = i
-            break
-          end
-        end
-        if idx ~= nil then
-          history_messages[idx] = msg
-        else
-          table.insert(history_messages, msg)
-        end
-      end
       if session_ctx.on_messages_add then session_ctx.on_messages_add(msgs) end
     end,
     session_ctx = session_ctx,
-    prompt_opts = {
-      system_prompt = system_prompt,
-      tools = tools,
-      messages = messages,
-    },
     on_start = session_ctx.on_start,
     on_chunk = function(chunk)
       if not chunk then return end
       final_response = final_response .. chunk
       total_tokens = total_tokens + (#vim.split(chunk, " ") * 1.3)
     end,
-    on_stop = function(stop_opts)
-      if stop_opts.error ~= nil then
-        local err = string.format("dispatch_agent failed: %s", vim.inspect(stop_opts.error))
+    on_complete = function(err)
+      if err ~= nil then
+        err = string.format("dispatch_agent failed: %s", vim.inspect(err))
         on_complete(err, nil)
         return
       end
@@ -178,29 +153,7 @@ When you're done, provide a clear and concise summary of what you found.]]):gsub
     end,
   }
 
-  local function on_memory_summarize(pending_compaction_history_messages)
-    Llm.summarize_memory(memory_content, pending_compaction_history_messages or {}, function(memory)
-      if memory then stream_options.memory = memory.content end
-      local new_history_messages = {}
-      for _, msg in ipairs(history_messages) do
-        if
-          vim
-            .iter(pending_compaction_history_messages)
-            :find(function(pending_compaction_msg) return pending_compaction_msg.uuid == msg.uuid end)
-        then
-          goto continue
-        end
-        table.insert(new_history_messages, msg)
-        ::continue::
-      end
-      history_messages = new_history_messages
-      Llm._stream(stream_options)
-    end)
-  end
-
-  stream_options.on_memory_summarize = on_memory_summarize
-
-  Llm._stream(stream_options)
+  Llm.agent_loop(agent_loop_options)
 end
 
 return M
