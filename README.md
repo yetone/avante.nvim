@@ -453,6 +453,11 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
       align = "center", -- left, center, right for title
       rounded = true,
     },
+    spinner = {
+      editing = { "⡀", "⠄", "⠂", "⠁", "⠈", "⠐", "⠠", "⢀", "⣀", "⢄", "⢂", "⢁", "⢈", "⢐", "⢠", "⣠", "⢤", "⢢", "⢡", "⢨", "⢰", "⣰", "⢴", "⢲", "⢱", "⢸", "⣸", "⢼", "⢺", "⢹", "⣹", "⢽", "⢻", "⣻", "⢿", "⣿" },
+      generating = { "·", "✢", "✳", "∗", "✻", "✽" }, -- Spinner characters for the 'generating' state
+      thinking = { "🤯", "🙄" }, -- Spinner characters for the 'thinking' state
+    },
     input = {
       prefix = "> ",
       height = 8, -- Height of the input window in vertical layout
