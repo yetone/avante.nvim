@@ -66,6 +66,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
   local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if opts.content == nil then return false, "content not provided" end
+  if type(opts.content) ~= "string" then opts.content = vim.json.encode(opts.content) end
   local old_lines = Utils.read_file_from_buf_or_disk(abs_path)
   local old_content = table.concat(old_lines or {}, "\n")
   local str_replace = require("avante.llm_tools.str_replace")
