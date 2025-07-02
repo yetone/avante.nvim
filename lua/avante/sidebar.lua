@@ -3163,6 +3163,7 @@ function Sidebar:render(opts)
     api.nvim_buf_attach(self.code.bufnr, false, {
       on_detach = function(_, _)
         vim.schedule(function()
+          if not self.code.winid or not api.nvim_win_is_valid(self.code.winid) then return end
           local bufnr = api.nvim_win_get_buf(self.code.winid)
           self.code.bufnr = bufnr
           self:reload_chat_history()
