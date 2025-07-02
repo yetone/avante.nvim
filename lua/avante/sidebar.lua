@@ -2289,20 +2289,12 @@ function Sidebar:get_history_messages_for_api(opts)
   local viewed_files = {}
   local last_modified_files = {}
   local history_messages = {}
-  local failed_edit_tool_ids = {}
 
   for idx, message in ipairs(history_messages0) do
     if Utils.is_tool_result_message(message) then
       local tool_use_message = Utils.get_tool_use_message(message, history_messages0)
 
       local is_edit_func_call, _, _, path = Utils.is_edit_func_call_message(tool_use_message)
-
-      local tool_result = message.message.content[1]
-
-      -- Only track as failed if it's an error AND not user-declined
-      if is_edit_func_call and tool_result.is_error and not tool_result.is_user_declined then
-        failed_edit_tool_ids[tool_result.tool_use_id] = true
-      end
 
       -- Only track as successful modification if not an error AND not user-declined
       if
@@ -2318,9 +2310,6 @@ function Sidebar:get_history_messages_for_api(opts)
   end
 
   for idx, message in ipairs(history_messages0) do
-    if Utils.is_tool_use_message(message) then
-      if failed_edit_tool_ids[message.message.content[1].id] then goto continue end
-    end
     table.insert(history_messages, message)
     if Utils.is_tool_result_message(message) then
       local tool_use_message = Utils.get_tool_use_message(message, history_messages0)
@@ -2421,7 +2410,6 @@ function Sidebar:get_history_messages_for_api(opts)
         end
       end
     end
-    ::continue::
   end
   for _, message in ipairs(history_messages) do
     local content = message.message.content
