@@ -1137,6 +1137,23 @@ The rules for root hierarchy:
 - root pattern of filename of the current buffer
 - root pattern of cwd
 
+You can also configure custom directories for your `avanterules` files using the `rules` option:
+
+```lua
+require('avante').setup({
+  rules = {
+    project_dir = '.avante/rules', -- relative to project root, can also be an absolute path
+    global_dir = '~/.config/avante/rules', -- absolute path
+  },
+})
+```
+
+The loading priority is as follows:
+
+1.  `rules.project_dir`
+2.  `rules.global_dir`
+3.  Project root
+
 <details>
 
   <summary>Example folder structure for custom prompt</summary>
