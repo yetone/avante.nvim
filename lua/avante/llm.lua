@@ -200,6 +200,92 @@ function M.generate_todos(user_input, cb)
   })
 end
 
+---@class avante.AgentLoopOptions
+---@field system_prompt string
+---@field user_input string
+---@field tools AvanteLLMTool[]
+---@field on_complete fun(error: string | nil): nil
+---@field session_ctx? table
+---@field on_tool_log? fun(tool_id: string, tool_name: string, log: string, state: AvanteLLMToolUseState): nil
+---@field on_start? fun(): nil
+---@field on_chunk? fun(chunk: string): nil
+---@field on_messages_add? fun(messages: avante.HistoryMessage[]): nil
+
+---@param opts avante.AgentLoopOptions
+function M.agent_loop(opts)
+  local messages = {}
+  table.insert(messages, { role = "user", content = "<task>" .. opts.user_input .. "</task>" })
+
+  local memory_content = nil
+  local history_messages = {}
+  local function no_op() end
+  local session_ctx = opts.session_ctx or {}
+
+  local stream_options = {
+    ask = true,
+    memory = memory_content,
+    code_lang = "unknown",
+    provider = Providers[Config.provider],
+    get_history_messages = function() return history_messages end,
+    on_tool_log = opts.on_tool_log or no_op,
+    on_messages_add = function(msgs)
+      msgs = vim.islist(msgs) and msgs or { msgs }
+      for _, msg in ipairs(msgs) do
+        local idx = nil
+        for i, m in ipairs(history_messages) do
+          if m.uuid == msg.uuid then
+            idx = i
+            break
+          end
+        end
+        if idx ~= nil then
+          history_messages[idx] = msg
+        else
+          table.insert(history_messages, msg)
+        end
+      end
+    end,
+    session_ctx = session_ctx,
+    prompt_opts = {
+      system_prompt = opts.system_prompt,
+      tools = opts.tools,
+      messages = messages,
+    },
+    on_start = opts.on_start or no_op,
+    on_chunk = opts.on_chunk or no_op,
+    on_stop = function(stop_opts)
+      if stop_opts.error ~= nil then
+        local err = string.format("dispatch_agent failed: %s", vim.inspect(stop_opts.error))
+        opts.on_complete(err)
+        return
+      end
+      opts.on_complete(nil)
+    end,
+  }
+
+  local function on_memory_summarize(pending_compaction_history_messages)
+    local compaction_history_message_uuids = {}
+    for _, msg in ipairs(pending_compaction_history_messages or {}) do
+      compaction_history_message_uuids[msg.uuid] = true
+    end
+    M.summarize_memory(memory_content, pending_compaction_history_messages or {}, function(memory)
+      if memory then stream_options.memory = memory.content end
+      local new_history_messages = {}
+      for _, msg in ipairs(history_messages) do
+        if compaction_history_message_uuids[msg.uuid] then goto continue end
+        table.insert(new_history_messages, msg)
+        ::continue::
+      end
+      history_messages = new_history_messages
+      M._stream(stream_options)
+    end)
+  end
+
+  stream_options.on_memory_summarize = on_memory_summarize
+
+  M._stream(stream_options)
+end
+
 ---@param opts AvanteGeneratePromptsOptions
 ---@return AvantePromptOptions
 function M.generate_prompts(opts)
