@@ -40,7 +40,7 @@ M.returns = {
 }
 
 ---@type AvanteLLMToolFunc<{ tool_use_id: string }>
-function M.func(opts)
+function M.func(opts, on_log, on_complete, session_ctx)
   local sidebar = require("avante").get()
   if not sidebar then return false, "Avante sidebar not found" end
   local history_messages = Utils.get_history_messages(sidebar.chat_history)

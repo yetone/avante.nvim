@@ -69,7 +69,7 @@ M.returns = {
 }
 
 ---@type AvanteLLMToolFunc<{ path: string, query: string, case_sensitive?: boolean, include_pattern?: string, exclude_pattern?: string }>
-function M.func(opts, on_log)
+function M.func(opts, on_log, on_complete, session_ctx)
   local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return "", "No such file or directory: " .. abs_path end
