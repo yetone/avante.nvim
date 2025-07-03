@@ -218,7 +218,9 @@ end
 
 function Sidebar:recover_code_winhl()
   if self.code.old_winhl ~= nil then
-    vim.wo[self.code.winid].winhl = self.code.old_winhl
+    if self.code.winid and api.nvim_win_is_valid(self.code.winid) then
+      vim.wo[self.code.winid].winhl = self.code.old_winhl
+    end
     self.code.old_winhl = nil
   end
 end
