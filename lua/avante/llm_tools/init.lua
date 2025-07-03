@@ -50,6 +50,10 @@ function M.str_replace_based_edit_tool(opts, on_log, on_complete, session_ctx)
     return view(opts_, on_log, on_complete, session_ctx)
   end
   if opts.command == "str_replace" then
+    if opts.new_str == nil and opts.file_text ~= nil then
+      opts.new_str = opts.file_text
+      opts.file_text = nil
+    end
     return require("avante.llm_tools.str_replace").func(opts, on_log, on_complete, session_ctx)
   end
   if opts.command == "create" then
