@@ -3094,7 +3094,7 @@ function Sidebar:get_result_container_height()
 
   return math.max(
     1,
-    api.nvim_win_get_height(self.code.winid)
+    api.nvim_get_option_value("lines", {})
       - selected_files_container_height
       - selected_code_container_height
       - todos_container_height
