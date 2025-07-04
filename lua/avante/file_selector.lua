@@ -83,6 +83,7 @@ end
 
 function FileSelector:add_selected_file(filepath)
   if not filepath or filepath == "" or has_scheme(filepath) then return end
+  if filepath:match("^oil:") then filepath = filepath:gsub("^oil:", "") end
   local absolute_path = Utils.to_absolute_path(filepath)
   local stat = vim.loop.fs_stat(absolute_path)
   if stat and stat.type == "directory" then
