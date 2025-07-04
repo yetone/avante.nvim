@@ -786,27 +786,53 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 
 The following key bindings are available for use with `avante.nvim`:
 
-| Key Binding                               | Description                                  |
-| ----------------------------------------- | -------------------------------------------- |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>a</kbd> | show sidebar                                 |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>t</kbd> | toggle sidebar visibility                    |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>r</kbd> | refresh sidebar                              |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>f</kbd> | switch sidebar focus                         |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>?</kbd> | select model                                 |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>e</kbd> | edit selected blocks                         |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>S</kbd> | stop current AI request                      |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>h</kbd> | select between chat histories                |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>B</kbd> | add all buffer (files) as Selected Files     |
-| <kbd>c</kbd><kbd>o</kbd>                  | choose ours                                  |
-| <kbd>c</kbd><kbd>t</kbd>                  | choose theirs                                |
-| <kbd>c</kbd><kbd>a</kbd>                  | choose all theirs                            |
-| <kbd>c</kbd><kbd>0</kbd>                  | choose none                                  |
-| <kbd>c</kbd><kbd>b</kbd>                  | choose both                                  |
-| <kbd>c</kbd><kbd>c</kbd>                  | choose cursor                                |
-| <kbd>]</kbd><kbd>x</kbd>                  | move to previous conflict                    |
-| <kbd>[</kbd><kbd>x</kbd>                  | move to next conflict                        |
-| <kbd>[</kbd><kbd>[</kbd>                  | jump to previous codeblocks (results window) |
-| <kbd>]</kbd><kbd>]</kbd>                  | jump to next codeblocks (results windows)    |
+| Key Binding                               | Description                            |
+| ----------------------------------------- | -------------------------------------- |
+| **Sidebar**                               |                                        |
+| <kbd>]</kbd><kbd>p</kbd>                  | next prompt                            |
+| <kbd>[</kbd><kbd>p</kbd>                  | previous prompt                        |
+| <kbd>A</kbd>                              | apply all                              |
+| <kbd>a</kbd>                              | apply cursor                           |
+| <kbd>r</kbd>                              | retry user request                     |
+| <kbd>e</kbd>                              | edit user request                      |
+| <kbd>&lt;Tab&gt;</kbd>                    | switch windows                         |
+| <kbd>&lt;S-Tab&gt;</kbd>                  | reverse switch windows                 |
+| <kbd>d</kbd>                              | remove file                            |
+| <kbd>@</kbd>                              | add file                               |
+| <kbd>q</kbd>                              | close sidebar                          |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>a</kbd> | show sidebar                           |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>t</kbd> | toggle sidebar visibility              |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>r</kbd> | refresh sidebar                        |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>f</kbd> | switch sidebar focus                   |
+| **Suggestion**                            |                                        |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>?</kbd> | select model                           |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>n</kbd> | new ask                                |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>e</kbd> | edit selected blocks                   |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>S</kbd> | stop current AI request                |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>h</kbd> | select between chat histories          |
+| <kbd>&lt;M-l&gt;</kbd>                    | accept suggestion                      |
+| <kbd>&lt;M-]&gt;</kbd>                    | next suggestion                        |
+| <kbd>&lt;M-[&gt;</kbd>                    | previous suggestion                    |
+| <kbd>&lt;C-]&gt;</kbd>                    | dismiss suggestion                     |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>d</kbd> | toggle debug mode                      |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>s</kbd> | toggle suggestion display              |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>R</kbd> | toggle repomap                         |
+| **Files**                                 |                                        |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>c</kbd> | add current buffer to selected files   |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>B</kbd> | add all buffer files to selected files |
+| **Diff**                                  |                                        |
+| <kbd>c</kbd><kbd>o</kbd>                  | choose ours                            |
+| <kbd>c</kbd><kbd>t</kbd>                  | choose theirs                          |
+| <kbd>c</kbd><kbd>a</kbd>                  | choose all theirs                      |
+| <kbd>c</kbd><kbd>b</kbd>                  | choose both                            |
+| <kbd>c</kbd><kbd>c</kbd>                  | choose cursor                          |
+| <kbd>]</kbd><kbd>x</kbd>                  | move to next conflict                  |
+| <kbd>[</kbd><kbd>x</kbd>                  | move to previous conflict              |
+| **Confirm**                               |                                        |
+| <kbd>Ctrl</kbd><kbd>w</kbd><kbd>f</kbd>   | focus confirm window                   |
+| <kbd>c</kbd>                              | confirm code                           |
+| <kbd>r</kbd>                              | confirm response                       |
+| <kbd>i</kbd>                              | confirm input                          |
 
 > [!NOTE]
 >
