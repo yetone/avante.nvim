@@ -58,11 +58,17 @@ function Selection:get_virt_text_line()
 end
 
 function Selection:show_shortcuts_hints_popup()
-  self:close_shortcuts_hints_popup()
+  local virt_text_line = self:get_virt_text_line()
+  if self.shortcuts_extmark_id then
+    local extmark = vim.api.nvim_buf_get_extmark_by_id(0, NAMESPACE, self.shortcuts_extmark_id, {})
+    if extmark and extmark[1] == virt_text_line then
+      -- The hint text is already where it is supposed to be
+      return
+    end
+    self:close_shortcuts_hints_popup()
+  end
 
   local hint_text = string.format(" [%s: ask, %s: edit] ", Config.mappings.ask, Config.mappings.edit)
-
-  local virt_text_line = self:get_virt_text_line()
 
   self.shortcuts_extmark_id = api.nvim_buf_set_extmark(0, NAMESPACE, virt_text_line, -1, {
     virt_text = { { hint_text, "AvanteInlineHint" } },
