@@ -3009,24 +3009,11 @@ function Sidebar:create_input_container()
     callback = function() vim.cmd("noautocmd stopinsert") end,
   })
 
-  -- Show hint in insert mode
+  -- Update hint on mode change as submit key sequence may be different
   api.nvim_create_autocmd("ModeChanged", {
     group = self.augroup,
-    pattern = "*:i",
-    callback = function()
-      local cur_buf = api.nvim_get_current_buf()
-      if self.input_container and cur_buf == self.input_container.bufnr then self:show_input_hint() end
-    end,
-  })
-
-  -- Close hint when exiting insert mode
-  api.nvim_create_autocmd("ModeChanged", {
-    group = self.augroup,
-    pattern = "i:*",
-    callback = function()
-      local cur_buf = api.nvim_get_current_buf()
-      if self.input_container and cur_buf == self.input_container.bufnr then self:show_input_hint() end
-    end,
+    buffer = self.input_container.bufnr,
+    callback = function() self:show_input_hint() end,
   })
 
   api.nvim_create_autocmd("WinEnter", {
