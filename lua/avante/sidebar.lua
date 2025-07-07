@@ -244,6 +244,7 @@ function Sidebar:close(opts)
   end
 
   self:recover_code_winhl()
+  self:close_input_hint()
 end
 
 function Sidebar:shutdown()
