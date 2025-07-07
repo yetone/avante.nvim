@@ -46,8 +46,8 @@ from llama_index.core import (
     load_index_from_storage,
 )
 from llama_index.core.node_parser import CodeSplitter
-from llama_index.core.schema import Document
 from llama_index.core.postprocessor import MetadataReplacementPostProcessor
+from llama_index.core.schema import Document
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from markdownify import markdownify as md
 from models.resource import Resource
