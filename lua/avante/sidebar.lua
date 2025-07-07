@@ -262,7 +262,10 @@ function Sidebar:focus()
 end
 
 function Sidebar:focus_input()
-  if Utils.is_valid_container(self.input_container, true) then api.nvim_set_current_win(self.input_container.winid) end
+  if Utils.is_valid_container(self.input_container, true) then
+    api.nvim_set_current_win(self.input_container.winid)
+    self:show_input_hint()
+  end
 end
 
 function Sidebar:is_open() return Utils.is_valid_container(self.result_container, true) end
