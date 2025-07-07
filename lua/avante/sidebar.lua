@@ -66,6 +66,7 @@ Sidebar.__index = Sidebar
 ---@field input_hint_window integer | nil
 ---@field ask_opts AskOptions
 ---@field old_result_lines avante.ui.Line[]
+---@field token_count integer | nil
 
 ---@param id integer the tabpage id retrieved from api.nvim_get_current_tabpage()
 function Sidebar:new(id)
@@ -97,7 +98,8 @@ function Sidebar:new(id)
     input_hint_window = nil,
     ask_opts = {},
     old_result_lines = {},
-    -- 缓存相关字段
+    token_count = nil,
+    -- Cache-related fields
     _cached_history_lines = nil,
     _history_cache_invalidated = true,
   }, Sidebar)
@@ -137,6 +139,7 @@ function Sidebar:reset()
   self.input_container = nil
   self.scroll = true
   self.old_result_lines = {}
+  self.token_count = nil
 end
 
 ---@class SidebarOpenOptions: AskOptions
@@ -2171,44 +2174,34 @@ function Sidebar:show_input_hint()
   self:close_input_hint() -- Close the existing hint window
 
   local hint_text = (fn.mode() ~= "i" and Config.mappings.submit.normal or Config.mappings.submit.insert) .. ": submit"
-
-  local function show()
-    local buf = api.nvim_create_buf(false, true)
-    api.nvim_buf_set_lines(buf, 0, -1, false, { hint_text })
-    api.nvim_buf_set_extmark(buf, INPUT_HINT_NAMESPACE, 0, 0, { hl_group = "AvantePopupHint", end_col = #hint_text })
-
-    -- Get the current window size
-    local win_width = api.nvim_win_get_width(self.input_container.winid)
-    local width = #hint_text
-
-    -- Set the floating window options
-    local win_opts = {
-      relative = "win",
-      win = self.input_container.winid,
-      width = width,
-      height = 1,
-      row = self:get_input_float_window_row(),
-      col = math.max(win_width - width, 0), -- Display in the bottom right corner
-      style = "minimal",
-      border = "none",
-      focusable = false,
-      zindex = 100,
-    }
-
-    -- Create the floating window
-    self.input_hint_window = api.nvim_open_win(buf, false, win_opts)
-  end
-
   if Config.behaviour.enable_token_counting then
     local input_value = table.concat(api.nvim_buf_get_lines(self.input_container.bufnr, 0, -1, false), "\n")
-    self:get_generate_prompts_options(input_value, function(generate_prompts_options)
-      local tokens = Llm.calculate_tokens(generate_prompts_options) + Utils.tokens.calculate_tokens(input_value)
-      hint_text = "Tokens: " .. tostring(tokens) .. "; " .. hint_text
-      show()
-    end)
-  else
-    show()
+    if self.token_count == nil then self:initialize_token_count() end
+    local tokens = self.token_count + Utils.tokens.calculate_tokens(input_value)
+    hint_text = "Tokens: " .. tostring(tokens) .. "; " .. hint_text
   end
+
+  local buf = api.nvim_create_buf(false, true)
+  api.nvim_buf_set_lines(buf, 0, -1, false, { hint_text })
+  api.nvim_buf_set_extmark(buf, INPUT_HINT_NAMESPACE, 0, 0, { hl_group = "AvantePopupHint", end_col = #hint_text })
+
+  -- Get the current window size
+  local win_width = api.nvim_win_get_width(self.input_container.winid)
+  local width = #hint_text
+
+  -- Create the floating window
+  self.input_hint_window = api.nvim_open_win(buf, false, {
+    relative = "win",
+    win = self.input_container.winid,
+    width = width,
+    height = 1,
+    row = self:get_input_float_window_row(),
+    col = math.max(win_width - width, 0), -- Display in the bottom right corner
+    style = "minimal",
+    border = "none",
+    focusable = false,
+    zindex = 100,
+  })
 end
 
 function Sidebar:close_selected_files_hint()
@@ -2248,6 +2241,7 @@ function Sidebar:show_selected_files_hint()
 end
 
 function Sidebar:reload_chat_history()
+  self.token_count = nil
   if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then return end
   self.chat_history = Path.history.load(self.code.bufnr)
   self._history_cache_invalidated = true
@@ -2541,7 +2535,7 @@ function Sidebar:get_history_messages_for_api(opts)
 end
 
 ---@param request string
----@param cb fun(opts: AvanteGeneratePromptsOptions): nil
+---@param cb? fun(opts: AvanteGeneratePromptsOptions): nil
 function Sidebar:get_generate_prompts_options(request, cb)
   local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
   local file_ext = nil
@@ -2634,7 +2628,13 @@ function Sidebar:get_generate_prompts_options(request, cb)
 
   if self.chat_history.memory then prompts_opts.memory = self.chat_history.memory.content end
 
-  cb(prompts_opts)
+  if Config.behaviour.enable_token_counting then self.token_count = Llm.calculate_tokens(prompts_opts) end
+
+  if cb then cb(prompts_opts) end
+end
+
+function Sidebar:initialize_token_count()
+  if Config.behaviour.enable_token_counting then self:get_generate_prompts_options("") end
 end
 
 function Sidebar:create_input_container()
