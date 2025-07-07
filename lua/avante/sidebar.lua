@@ -2971,11 +2971,14 @@ function Sidebar:create_input_container()
     callback = function() end,
   })
 
+  local debounced_show_input_hint = Utils.debounce(function()
+    if vim.api.nvim_win_is_valid(self.input_container.winid) then self:show_input_hint() end
+  end, 200)
   api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "VimResized" }, {
     group = self.augroup,
     buffer = self.input_container.bufnr,
     callback = function()
-      self:show_input_hint()
+      debounced_show_input_hint()
       place_sign_at_first_line(self.input_container.bufnr)
     end,
   })
