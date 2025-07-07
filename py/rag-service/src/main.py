@@ -29,9 +29,24 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException
 from libs.configs import BASE_DATA_DIR, CHROMA_PERSIST_DIR
 from libs.db import init_db
 from libs.logger import logger
-from libs.utils import get_node_uri, inject_uri_to_node, is_local_uri, is_path_node, is_remote_uri, path_to_uri, uri_to_path
-from llama_index.core import Settings, SimpleDirectoryReader, StorageContext, VectorStoreIndex, load_index_from_storage
+from libs.utils import (
+    get_node_uri,
+    inject_uri_to_node,
+    is_local_uri,
+    is_path_node,
+    is_remote_uri,
+    path_to_uri,
+    uri_to_path,
+)
+from llama_index.core import (
+    Settings,
+    SimpleDirectoryReader,
+    StorageContext,
+    VectorStoreIndex,
+    load_index_from_storage,
+)
 from llama_index.core.node_parser import CodeSplitter
+from llama_index.core.postprocessor import MetadataReplacementPostProcessor
 from llama_index.core.schema import Document
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from markdownify import markdownify as md
@@ -527,9 +542,6 @@ def process_document_batch(documents: list[Document]) -> bool:  # noqa: PLR0915,
                     invalid_documents.append(doc_id)
                     continue
 
-                # Create new document object with cleaned content
-                from llama_index.core.schema import Document
-
                 cleaned_content = clean_text(content)
                 metadata = getattr(doc, "metadata", {}).copy()
 
@@ -583,7 +595,11 @@ def process_document_batch(documents: list[Document]) -> bool:  # noqa: PLR0915,
 
 def get_gitignore_files(directory: Path) -> list[str]:
     """Get patterns from .gitignore file."""
-    patterns = [".git/"]
+    patterns = []
+
+    # Always include .git/ if it exists
+    if (directory / ".git").is_dir():
+        patterns.append(".git/")
 
     # Check for .gitignore
     gitignore_path = directory / ".gitignore"
@@ -796,6 +812,10 @@ def update_index_for_file(directory: Path, abs_file_path: Path) -> None:
     """Update the index for a single file."""
     logger.debug("Starting to index file: %s", abs_file_path)
 
+    if not abs_file_path.is_file():
+        logger.debug("File does not exist or is not a file, skipping: %s", abs_file_path)
+        return
+
     rel_file_path = abs_file_path.relative_to(directory)
 
     spec = get_pathspec(directory)
@@ -867,8 +887,6 @@ def split_documents(documents: list[Document]) -> list[Document]:
                 continue
 
             for i, text in enumerate(texts):
-                from llama_index.core.schema import Document
-
                 new_doc = Document(
                     text=text,
                     doc_id=f"{doc.doc_id}__part_{i}",
@@ -957,8 +975,6 @@ async def index_local_resource_async(resource: Resource) -> None:
     directory_path = uri_to_path(resource.uri)
     try:
         logger.info("Loading directory content: %s", directory_path)
-
-        from llama_index.core.readers.file.base import SimpleDirectoryReader
 
         documents = SimpleDirectoryReader(
             input_files=scan_directory(directory_path),
@@ -1188,8 +1204,6 @@ async def retrieve(request: RetrieveRequest):  # noqa: D103, ANN201, C901, PLR09
             base_uri += os.path.sep
         return uri.startswith(base_uri)
 
-    from llama_index.core.postprocessor import MetadataReplacementPostProcessor
-
     # Create a custom post processor
     class ResourceFilterPostProcessor(MetadataReplacementPostProcessor):
         """Post-processor for filtering nodes based on directory."""
@@ -1262,7 +1276,7 @@ async def retrieve(request: RetrieveRequest):  # noqa: D103, ANN201, C901, PLR09
                 doc_info = {
                     "uri": uri,
                     "content": cleaned_content,
-                    "score": float(node.score) if hasattr(node, "score") else None,
+                    "score": float(node.score) if node.score is not None else None,
                 }
                 sources.append(doc_info)
             else:
