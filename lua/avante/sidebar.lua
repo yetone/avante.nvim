@@ -3006,7 +3006,10 @@ function Sidebar:create_input_container()
   api.nvim_create_autocmd("BufLeave", {
     group = self.augroup,
     buffer = self.input_container.bufnr,
-    callback = function() vim.cmd("noautocmd stopinsert") end,
+    callback = function()
+      vim.cmd("noautocmd stopinsert")
+      self:close_input_hint()
+    end,
   })
 
   -- Update hint on mode change as submit key sequence may be different
@@ -3035,9 +3038,6 @@ function Sidebar:create_input_container()
       if ev.data and ev.data.request then handle_submit(ev.data.request) end
     end,
   })
-
-  -- Clear hint when leaving the window
-  self.input_container:on(event.BufLeave, function() self:close_input_hint() end, {})
 
   self:refresh_winids()
 end
