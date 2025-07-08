@@ -15,11 +15,13 @@ local SELECTED_CODE_NAMESPACE = api.nvim_create_namespace("avante_selected_code"
 local PRIORITY = (vim.hl or vim.highlight).priorities.user
 
 ---@class avante.Selection
+---@field id integer
 ---@field selection avante.SelectionResult | nil
 ---@field cursor_pos table | nil
 ---@field shortcuts_extmark_id integer | nil
 ---@field selected_code_extmark_id integer | nil
 ---@field augroup integer | nil
+---@field visual_mode_augroup integer | nil
 ---@field code_winid integer | nil
 ---@field code_bufnr integer | nil
 ---@field prompt_input avante.ui.PromptInput | nil
@@ -31,6 +33,7 @@ Selection.did_setup = false
 ---@param id integer the tabpage id retrieved from api.nvim_get_current_tabpage()
 function Selection:new(id)
   return setmetatable({
+    id = id,
     shortcuts_extmark_id = nil,
     selected_code_extmark_id = nil,
     augroup = api.nvim_create_augroup("avante_selection_" .. id, { clear = true }),
@@ -58,11 +61,17 @@ function Selection:get_virt_text_line()
 end
 
 function Selection:show_shortcuts_hints_popup()
-  self:close_shortcuts_hints_popup()
+  local virt_text_line = self:get_virt_text_line()
+  if self.shortcuts_extmark_id then
+    local extmark = vim.api.nvim_buf_get_extmark_by_id(0, NAMESPACE, self.shortcuts_extmark_id, {})
+    if extmark and extmark[1] == virt_text_line then
+      -- The hint text is already where it is supposed to be
+      return
+    end
+    self:close_shortcuts_hints_popup()
+  end
 
   local hint_text = string.format(" [%s: ask, %s: edit] ", Config.mappings.ask, Config.mappings.edit)
-
-  local virt_text_line = self:get_virt_text_line()
 
   self.shortcuts_extmark_id = api.nvim_buf_set_extmark(0, NAMESPACE, virt_text_line, -1, {
     virt_text = { { hint_text, "AvanteInlineHint" } },
@@ -296,8 +305,44 @@ function Selection:create_editing_input(request, line1, line2)
   prompt_input:open()
 end
 
+---Show the hints virtual line and set up autocommands to update it or stop showing it when exiting visual mode
+---@param bufnr integer
+function Selection:on_entering_visual_mode(bufnr)
+  if vim.bo[bufnr].buftype == "terminal" or Utils.is_sidebar_buffer(bufnr) then return end
+
+  self:show_shortcuts_hints_popup()
+
+  self.visual_mode_augroup = api.nvim_create_augroup("avante_selection_visual_" .. self.id, { clear = true })
+  api.nvim_create_autocmd({ "CursorMoved" }, {
+    group = self.visual_mode_augroup,
+    buffer = bufnr,
+    callback = function() self:show_shortcuts_hints_popup() end,
+  })
+  api.nvim_create_autocmd({ "ModeChanged" }, {
+    group = self.visual_mode_augroup,
+    buffer = bufnr,
+    callback = function(ev)
+      -- Check if exiting visual mode. Autocommand pattern matching does not work
+      -- with buffer-local autocommands so need to test explicitly
+      if ev.match:match("[vV]:[^vV]") then self:on_exiting_visual_mode() end
+    end,
+  })
+  api.nvim_create_autocmd({ "BufLeave" }, {
+    group = self.visual_mode_augroup,
+    buffer = bufnr,
+    callback = function() self:on_exiting_visual_mode() end,
+  })
+end
+
+function Selection:on_exiting_visual_mode()
+  self:close_shortcuts_hints_popup()
+
+  api.nvim_del_augroup_by_id(self.visual_mode_augroup)
+  self.visual_mode_augroup = nil
+end
+
 function Selection:setup_autocmds()
-  Selection.did_setup = true
+  self.did_setup = true
 
   api.nvim_create_autocmd("User", {
     group = self.augroup,
@@ -308,46 +353,17 @@ function Selection:setup_autocmds()
   api.nvim_create_autocmd({ "ModeChanged" }, {
     group = self.augroup,
     pattern = { "n:v", "n:V", "n:" }, -- Entering Visual mode from Normal mode
-    callback = function(ev)
-      if not Utils.is_sidebar_buffer(ev.buf) then self:show_shortcuts_hints_popup() end
-    end,
+    callback = function(ev) self:on_entering_visual_mode(ev.buf) end,
   })
-
-  api.nvim_create_autocmd({ "CursorMoved" }, {
-    group = self.augroup,
-    callback = function(ev)
-      if vim.bo[ev.buf].buftype ~= "terminal" and not Utils.is_sidebar_buffer(ev.buf) then
-        if Utils.in_visual_mode() then
-          self:show_shortcuts_hints_popup()
-        else
-          self:close_shortcuts_hints_popup()
-        end
-      end
-    end,
-  })
-
-  api.nvim_create_autocmd({ "ModeChanged" }, {
-    group = self.augroup,
-    pattern = { "v:n", "v:i", "v:c" }, -- Switching from visual mode back to normal, insert, or other modes
-    callback = function(ev)
-      if not Utils.is_sidebar_buffer(ev.buf) then self:close_shortcuts_hints_popup() end
-    end,
-  })
-
-  api.nvim_create_autocmd({ "BufLeave" }, {
-    group = self.augroup,
-    callback = function(ev)
-      if not Utils.is_sidebar_buffer(ev.buf) then self:close_shortcuts_hints_popup() end
-    end,
-  })
-
-  return self
 end
 
 function Selection:delete_autocmds()
-  if self.augroup then api.nvim_del_augroup_by_id(self.augroup) end
-  self.augroup = nil
-  Selection.did_setup = false
+  if self.augroup then
+    api.nvim_del_augroup_by_id(self.augroup)
+    self.augroup = nil
+  end
+
+  self.did_setup = false
 end
 
 return Selection
