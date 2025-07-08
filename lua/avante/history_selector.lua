@@ -1,3 +1,4 @@
+local History = require("avante.history")
 local Utils = require("avante.utils")
 local Path = require("avante.path")
 local Config = require("avante.config")
@@ -9,7 +10,7 @@ local M = {}
 ---@param history avante.ChatHistory
 ---@return table?
 local function to_selector_item(history)
-  local messages = Utils.get_history_messages(history)
+  local messages = History.get_history_messages(history)
   local timestamp = #messages > 0 and messages[#messages].timestamp or history.timestamp
   local name = history.title .. " - " .. timestamp .. " (" .. #messages .. ")"
   name = name:gsub("\n", "\\n")

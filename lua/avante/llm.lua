@@ -11,7 +11,7 @@ local Path = require("avante.path")
 local Providers = require("avante.providers")
 local LLMToolHelpers = require("avante.llm_tools.helpers")
 local LLMTools = require("avante.llm_tools")
-local HistoryMessage = require("avante.history_message")
+local History = require("avante.history")
 
 ---@class avante.LLM
 local M = {}
@@ -771,7 +771,7 @@ function M._stream(opts)
           ---@type avante.HistoryMessage[]
           local messages = {}
           for _, tool_result in ipairs(tool_results) do
-            messages[#messages + 1] = HistoryMessage:new({
+            messages[#messages + 1] = History.Message:new({
               role = "user",
               content = {
                 {
@@ -816,7 +816,7 @@ function M._stream(opts)
             Utils.debug("Tool execution was cancelled by user")
             if opts.on_chunk then opts.on_chunk("\n*[Request cancelled by user during tool execution.]*\n") end
             if opts.on_messages_add then
-              local message = HistoryMessage:new({
+              local message = History.Message:new({
                 role = "assistant",
                 content = "\n*[Request cancelled by user during tool execution.]*\n",
               }, {
@@ -868,7 +868,7 @@ function M._stream(opts)
       if stop_opts.reason == "cancelled" then
         if opts.on_chunk then opts.on_chunk("\n*[Request cancelled by user.]*\n") end
         if opts.on_messages_add then
-          local message = HistoryMessage:new({
+          local message = History.Message:new({
             role = "assistant",
             content = "\n*[Request cancelled by user.]*\n",
           }, {
@@ -885,7 +885,7 @@ function M._stream(opts)
         for idx = #history_messages, 1, -1 do
           local message = history_messages[idx]
           if message.is_user_submission then break end
-          if not Utils.is_tool_use_message(message) then goto continue end
+          if not History.Helpers.is_tool_use_message(message) then goto continue end
           if message.message.content[1].name ~= "attempt_completion" then break end
           completed_attempt_completion_tool_use = message
           if message then break end
@@ -909,14 +909,14 @@ function M._stream(opts)
           Utils.debug("user reminder count", user_reminder_count)
           local message
           if #unfinished_todos > 0 then
-            message = HistoryMessage:new({
+            message = History.Message:new({
               role = "user",
               content = "<user-reminder>You should use tool calls to answer the question, for example, use update_todo_status if the task step is done or cancelled.</user-reminder>",
             }, {
               visible = false,
             })
           else
-            message = HistoryMessage:new({
+            message = History.Message:new({
               role = "user",
               content = "<user-reminder>You should use tool calls to answer the question, for example, use attempt_completion if the job is done.</user-reminder>",
             }, {
@@ -954,7 +954,7 @@ function M._stream(opts)
         if opts.on_chunk then opts.on_chunk("\n" .. msg_content .. "\n") end
         local message
         if opts.on_messages_add then
-          message = HistoryMessage:new({
+          message = History.Message:new({
             role = "assistant",
             content = "\n\n" .. msg_content,
           }, {
