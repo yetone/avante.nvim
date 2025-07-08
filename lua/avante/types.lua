@@ -79,7 +79,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field on_state_change? fun(state: avante.GenerateState): nil
 ---@field update_tokens_usage? fun(usage: avante.LLMTokenUsage): nil
 ---
----@alias AvanteLLMMessageContentItem string | { type: "text", text: string, cache_control: { type: string } | nil } | { type: "image", source: { type: "base64", media_type: string, data: string } } | { type: "tool_use", name: string, id: string, input: any } | { type: "tool_result", tool_use_id: string, content: string, is_error?: boolean } | { type: "thinking", thinking: string, signature: string } | { type: "redacted_thinking", data: string }
+---@alias AvanteLLMMessageContentItem string | { type: "text", text: string, cache_control: { type: string } | nil } | { type: "image", source: { type: "base64", media_type: string, data: string } } | { type: "tool_use", name: string, id: string, input: any } | { type: "tool_result", tool_use_id: string, content: string, is_error?: boolean, is_user_declined?: boolean } | { type: "thinking", thinking: string, signature: string } | { type: "redacted_thinking", data: string }
 
 ---@alias AvanteLLMMessageContent AvanteLLMMessageContentItem[] | string
 
