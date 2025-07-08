@@ -1,5 +1,7 @@
 FROM python:3.11-slim-bookworm
 
+COPY gitconfig /root/.gitconfig
+
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends curl git \
