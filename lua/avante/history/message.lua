@@ -28,4 +28,23 @@ function M:new(message, opts)
   return obj
 end
 
+---Creates a new instance of synthetic (dummy) history message
+---@param role "assistant" | "user"
+---@param item AvanteLLMMessageContentItem | string
+---@return avante.HistoryMessage
+function M:new_synthetic(role, item)
+  local content = type(item) == "string" and item or { item }
+  return M:new({ role = role, content = content }, { is_dummy = true })
+end
+
+---Creates a new instance of synthetic (dummy) history message attributed to the assistant
+---@param item AvanteLLMMessageContentItem | string
+---@return avante.HistoryMessage
+function M:new_assistant_synthetic(item) return M:new_synthetic("assistant", item) end
+
+---Creates a new instance of synthetic (dummy) history message attributed to the user
+---@param item AvanteLLMMessageContentItem | string
+---@return avante.HistoryMessage
+function M:new_user_synthetic(item) return M:new_synthetic("user", item) end
+
 return M
