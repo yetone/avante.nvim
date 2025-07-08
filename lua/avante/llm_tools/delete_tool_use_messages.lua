@@ -1,5 +1,5 @@
 local Base = require("avante.llm_tools.base")
-local Utils = require("avante.utils")
+local History = require("avante.history")
 
 ---@class AvanteLLMTool
 local M = setmetatable({}, Base)
@@ -43,10 +43,10 @@ M.returns = {
 function M.func(input, opts)
   local sidebar = require("avante").get()
   if not sidebar then return false, "Avante sidebar not found" end
-  local history_messages = Utils.get_history_messages(sidebar.chat_history)
+  local history_messages = History.get_history_messages(sidebar.chat_history)
   local the_deleted_message_uuids = {}
   for _, msg in ipairs(history_messages) do
-    if Utils.is_tool_use_message(msg) then
+    if History.Helpers.is_tool_use_message(msg) then
       local content = msg.message.content
       if type(content) == "table" then
         for _, item in ipairs(content) do

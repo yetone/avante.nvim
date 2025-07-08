@@ -2,7 +2,7 @@ local Utils = require("avante.utils")
 local Providers = require("avante.providers")
 local Config = require("avante.config")
 local Clipboard = require("avante.clipboard")
-local HistoryMessage = require("avante.history_message")
+local HistoryMessage = require("avante.history.message")
 local Prompts = require("avante.utils.prompts")
 
 ---@class AvanteProviderFunctor
