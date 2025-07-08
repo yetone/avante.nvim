@@ -8,9 +8,11 @@ local M = setmetatable({}, Base)
 
 M.name = "view"
 
-M.description =
-  [[The view tool allows you to examine the contents of a file or list the contents of a directory. It can read the entire file or a specific range of lines. If the file content is already in the context, do not use this tool.
-IMPORTANT NOTE: If the file content exceeds a certain size, the returned content will be truncated, and `is_truncated` will be set to true. If `is_truncated` is true, use the `start_line` parameter and `end_line` parameter to specify the range to view.
+M.description = [[Reads the content of the given file in the project.
+
+  - Never attempt to read a path that hasn't been previously mentioned.
+
+IMPORTANT NOTE: If the file content exceeds a certain size, the returned content will be truncated, and `is_truncated` will be set to true. If `is_truncated` is true, please use the `start_line` parameter and `end_line` parameter to call this `view` tool again.
 ]]
 
 M.enabled = function(opts)
@@ -35,18 +37,29 @@ M.param = {
   fields = {
     {
       name = "path",
-      description = "The path to the file in the current project scope",
+      description = [[The relative path of the file to read.
+
+This path should never be absolute, and the first component of the path should always be a root directory in a project.
+
+<example>
+If the project has the following root directories:
+
+- directory1
+- directory2
+
+If you want to access `file.txt` in `directory1`, you should use the path `directory1/file.txt`. If you want to access `file.txt` in `directory2`, you should use the path `directory2/file.txt`.
+</example>]],
       type = "string",
     },
     {
       name = "start_line",
-      description = "The start line of the view range, 1-indexed",
+      description = "Optional line number to start reading on (1-based index)",
       type = "integer",
       optional = true,
     },
     {
       name = "end_line",
-      description = "The end line of the view range, 1-indexed, and -1 for the end line means read to the end of the file",
+      description = "Optional line number to end reading on (1-based index, inclusive)",
       type = "integer",
       optional = true,
     },
@@ -75,6 +88,7 @@ M.returns = {
 
 ---@type AvanteLLMToolFunc<{ path: string, start_line?: integer, end_line?: integer }>
 function M.func(opts, on_log, on_complete, session_ctx)
+  if not opts.path then return false, "path is required" end
   if on_log then on_log("path: " .. opts.path) end
   local abs_path = Helpers.get_abs_path(opts.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end

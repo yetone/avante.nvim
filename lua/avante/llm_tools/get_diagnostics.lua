@@ -48,7 +48,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
   if not on_complete then return false, "on_complete is required" end
   local diagnostics = Utils.lsp.get_diagnostics_from_filepath(abs_path)
   local jsn_str = vim.json.encode(diagnostics)
-  on_complete(true, jsn_str)
+  on_complete(jsn_str, nil)
 end
 
 return M

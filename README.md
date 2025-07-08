@@ -73,31 +73,37 @@ For building binary if you wish to build from source, then `cargo` is required. 
 ```lua
 {
   "yetone/avante.nvim",
+  -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
+  -- ⚠️ must add this setting! ! !
+  build = function()
+    -- conditionally use the correct build system for the current OS
+    if vim.fn.has("win32") == 1 then
+      return "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false"
+    else
+      return "make"
+    end
+  end,
   event = "VeryLazy",
   version = false, -- Never set this value to "*"! Never!
+  ---@module 'avante'
+  ---@type avante.Config
   opts = {
     -- add any opts here
     -- for example
-    provider = "openai",
+    provider = "claude",
     providers = {
-      openai = {
-        endpoint = "https://api.openai.com/v1",
-        model = "gpt-4o", -- your desired model (or use gpt-4o, etc.)
-        extra_request_body = {
-          timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
-          temperature = 0.75,
-          max_completion_tokens = 8192, -- Increase this to include reasoning tokens (for reasoning models)
-          --reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
-        },
+      claude = {
+        endpoint = "https://api.anthropic.com",
+        model = "claude-sonnet-4-20250514",
+        timeout = 30000, -- Timeout in milliseconds
+          extra_request_body = {
+            temperature = 0.75,
+            max_tokens = 20480,
+          },
       },
     },
   },
-  -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
-  build = "make",
-  -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- for windows
   dependencies = {
-    "nvim-treesitter/nvim-treesitter",
-    "stevearc/dressing.nvim",
     "nvim-lua/plenary.nvim",
     "MunifTanjim/nui.nvim",
     --- The below dependencies are optional,
@@ -105,6 +111,8 @@ For building binary if you wish to build from source, then `cargo` is required. 
     "nvim-telescope/telescope.nvim", -- for file_selector provider telescope
     "hrsh7th/nvim-cmp", -- autocompletion for avante commands and mentions
     "ibhagwan/fzf-lua", -- for file_selector provider fzf
+    "stevearc/dressing.nvim", -- for input provider dressing
+    "folke/snacks.nvim", -- for input provider snacks
     "nvim-tree/nvim-web-devicons", -- or echasnovski/mini.icons
     "zbirenbaum/copilot.lua", -- for providers='copilot'
     {
@@ -145,8 +153,6 @@ For building binary if you wish to build from source, then `cargo` is required. 
 ```vim
 
 " Deps
-Plug 'nvim-treesitter/nvim-treesitter'
-Plug 'stevearc/dressing.nvim'
 Plug 'nvim-lua/plenary.nvim'
 Plug 'MunifTanjim/nui.nvim'
 Plug 'MeanderingProgrammer/render-markdown.nvim'
@@ -156,6 +162,8 @@ Plug 'hrsh7th/nvim-cmp'
 Plug 'nvim-tree/nvim-web-devicons' "or Plug 'echasnovski/mini.icons'
 Plug 'HakonHarnes/img-clip.nvim'
 Plug 'zbirenbaum/copilot.lua'
+Plug 'stevearc/dressing.nvim' " for enhanced input UI
+Plug 'folke/snacks.nvim' " for modern input UI
 
 " Yay, pass source=true if you want to build from source
 Plug 'yetone/avante.nvim', { 'branch': 'main', 'do': 'make' }
@@ -177,8 +185,6 @@ add({
   source = 'yetone/avante.nvim',
   monitor = 'main',
   depends = {
-    'nvim-treesitter/nvim-treesitter',
-    'stevearc/dressing.nvim',
     'nvim-lua/plenary.nvim',
     'MunifTanjim/nui.nvim',
     'echasnovski/mini.icons'
@@ -208,8 +214,6 @@ end)
 ```vim
 
   -- Required plugins
-  use 'nvim-treesitter/nvim-treesitter'
-  use 'stevearc/dressing.nvim'
   use 'nvim-lua/plenary.nvim'
   use 'MunifTanjim/nui.nvim'
   use 'MeanderingProgrammer/render-markdown.nvim'
@@ -219,6 +223,8 @@ end)
   use 'nvim-tree/nvim-web-devicons' -- or use 'echasnovski/mini.icons'
   use 'HakonHarnes/img-clip.nvim'
   use 'zbirenbaum/copilot.lua'
+  use 'stevearc/dressing.nvim' -- for enhanced input UI
+  use 'folke/snacks.nvim' -- for modern input UI
 
   -- Avante.nvim with build process
   use {
@@ -285,8 +291,18 @@ require('copilot').setup ({
 require('render-markdown').setup ({
   -- use recommended settings from above
 })
-require('avante').setup ({
-  -- Your config here!
+require('avante').setup({
+  -- Example: Using snacks.nvim as input provider
+  input = {
+    provider = "snacks", -- "native" | "dressing" | "snacks"
+    provider_opts = {
+      -- Snacks input configuration
+      title = "Avante Input",
+      icon = " ",
+      placeholder = "Enter your API key...",
+    },
+  },
+  -- Your other config here!
 })
 ```
 
@@ -323,8 +339,10 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
 ```lua
 {
   ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | string
+  ---@type Provider
   provider = "claude", -- The provider used in Aider mode or in the planning phase of Cursor Planning Mode
   ---@alias Mode "agentic" | "legacy"
+  ---@type Mode
   mode = "agentic", -- The default mode for interaction. "agentic" uses tools to automatically generate code, "legacy" uses the old planning method to generate code.
   -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
   -- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
@@ -368,6 +386,19 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     -- Examples:
     -- auto_approve_tool_permissions = true,                -- Auto-approve all tools (no prompts)
     -- auto_approve_tool_permissions = {"bash", "replace_in_file"}, -- Auto-approve specific tools only
+  },
+  prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
+    enabled = true, -- toggle logging entirely
+    log_dir = vim.fn.stdpath("cache") .. "/avante_prompts", -- directory where logs are saved
+    fortune_cookie_on_success = false, -- shows a random fortune after each logged prompt (requires `fortune` installed)
+    next_prompt = {
+      normal = "<C-n>", -- load the next (newer) prompt log in normal mode
+      insert = "<C-n>",
+    },
+    prev_prompt = {
+      normal = "<C-p>", -- load the previous (older) prompt log in normal mode
+      insert = "<C-p>",
+    },
   },
   mappings = {
     --- @class AvanteConflictMappings
@@ -421,6 +452,11 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
       enabled = true, -- true, false to enable/disable the header
       align = "center", -- left, center, right for title
       rounded = true,
+    },
+    spinner = {
+      editing = { "⡀", "⠄", "⠂", "⠁", "⠈", "⠐", "⠠", "⢀", "⣀", "⢄", "⢂", "⢁", "⢈", "⢐", "⢠", "⣠", "⢤", "⢢", "⢡", "⢨", "⢰", "⣰", "⢴", "⢲", "⢱", "⢸", "⣸", "⢼", "⢺", "⢹", "⣹", "⢽", "⢻", "⣻", "⢿", "⣿" },
+      generating = { "·", "✢", "✳", "∗", "✻", "✽" }, -- Spinner characters for the 'generating' state
+      thinking = { "🤯", "🙄" }, -- Spinner characters for the 'thinking' state
     },
     input = {
       prefix = "> ",
@@ -476,6 +512,7 @@ or you can use [Kaiser-Yang/blink-cmp-avante](https://github.com/Kaiser-Yang/bli
 ```lua
       selector = {
         --- @alias avante.SelectorProvider "native" | "fzf_lua" | "mini_pick" | "snacks" | "telescope" | fun(selector: avante.ui.Selector): nil
+        --- @type avante.SelectorProvider
         provider = "fzf",
         -- Options override for custom providers
         provider_opts = {},
@@ -496,6 +533,97 @@ To create a customized selector provider, you can specify a customized function 
         end,
       }
 ```
+
+### Input Provider Configuration
+
+Avante.nvim supports multiple input providers for user input (like API key entry). You can configure which provider to use:
+
+<details>
+  <summary>Native Input Provider (Default)</summary>
+
+```lua
+{
+  input = {
+    provider = "native", -- Uses vim.ui.input
+    provider_opts = {},
+  }
+}
+```
+
+</details>
+
+<details>
+  <summary>Dressing.nvim Input Provider</summary>
+
+For enhanced input UI with better styling and features:
+
+```lua
+{
+  input = {
+    provider = "dressing",
+    provider_opts = {},
+  }
+}
+```
+
+You'll need to install dressing.nvim:
+
+```lua
+-- With lazy.nvim
+{ "stevearc/dressing.nvim" }
+```
+
+</details>
+
+<details>
+  <summary>Snacks.nvim Input Provider (Recommended)</summary>
+
+For modern, feature-rich input UI:
+
+```lua
+{
+  input = {
+    provider = "snacks",
+    provider_opts = {
+      -- Additional snacks.input options
+      title = "Avante Input",
+      icon = " ",
+    },
+  }
+}
+```
+
+You'll need to install snacks.nvim:
+
+```lua
+-- With lazy.nvim
+{ "folke/snacks.nvim" }
+```
+
+</details>
+
+<details>
+  <summary>Custom Input Provider</summary>
+
+To create a customized input provider, you can specify a function:
+
+```lua
+{
+  input = {
+    ---@param input avante.ui.Input
+    provider = function(input)
+      local title = input.title ---@type string
+      local default = input.default ---@type string
+      local conceal = input.conceal ---@type boolean
+      local on_submit = input.on_submit ---@type fun(result: string|nil): nil
+
+      --- your customized input logic here
+    end,
+  }
+}
+```
+
+</details>
 
 Choose a selector other that native, the default as that currently has an issue
 For lazyvim users copy the full config for blink.cmp from the website or extend the options
@@ -547,6 +675,26 @@ For other users just add a custom provider
 
 ## Usage
 
+### @mentions
+
+avante.nvim supports the following @mentions to help you reference different parts of your codebase:
+
+| Mention        | Description                         |
+| -------------- | ----------------------------------- |
+| `@codebase`    | Include the entire codebase context |
+| `@diagnostics` | Include current diagnostic issues   |
+| `@file`        | Include the current file            |
+| `@quickfix`    | Include the quickfix list           |
+| `@buffers`     | Include all open buffers            |
+
+You can use these mentions in your conversations with avante.nvim to provide relevant context. For example:
+
+- `@file what are the issues in this code?` - analyzes the current file
+- `@codebase explain the project structure` - looks at the entire codebase
+- `@diagnostics how do I fix these errors?` - helps resolve diagnostic issues
+
+### Basic Functionality
+
 Given its early stage, `avante.nvim` currently supports the following basic functionalities:
 
 > [!IMPORTANT]
@@ -566,6 +714,24 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 >
 > For most consistency between neovim session, it is recommended to set the environment variables in your shell file.
 > By default, `Avante` will prompt you at startup to input the API key for the provider you have selected.
+>
+> **Scoped API Keys (Recommended for Isolation)**
+>
+> Avante now supports scoped API keys, allowing you to isolate API keys specifically for Avante without affecting other applications. Simply prefix any API key with `AVANTE_`:
+>
+> ```sh
+> # Scoped keys (recommended)
+> export AVANTE_ANTHROPIC_API_KEY=your-claude-api-key
+> export AVANTE_OPENAI_API_KEY=your-openai-api-key
+> export AVANTE_AZURE_OPENAI_API_KEY=your-azure-api-key
+> export AVANTE_GEMINI_API_KEY=your-gemini-api-key
+> export AVANTE_CO_API_KEY=your-cohere-api-key
+> export AVANTE_AIHUBMIX_API_KEY=your-aihubmix-api-key
+> ```
+>
+> **Global API Keys (Legacy)**
+>
+> You can still use the traditional global API keys if you prefer:
 >
 > For Claude:
 >
@@ -604,7 +770,7 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 >   model = "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
 >   aws_profile = "bedrock",
 >   aws_region = "us-east-1",
->},
+> },
 > ```
 >
 > Note: Bedrock requires the [AWS CLI](https://aws.amazon.com/cli/) to be installed on your system.
@@ -620,27 +786,53 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 
 The following key bindings are available for use with `avante.nvim`:
 
-| Key Binding                               | Description                                  |
-| ----------------------------------------- | -------------------------------------------- |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>a</kbd> | show sidebar                                 |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>t</kbd> | toggle sidebar visibility                    |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>r</kbd> | refresh sidebar                              |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>f</kbd> | switch sidebar focus                         |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>?</kbd> | select model                                 |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>e</kbd> | edit selected blocks                         |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>S</kbd> | stop current AI request                      |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>h</kbd> | select between chat histories                |
-| <kbd>Leader</kbd><kbd>a</kbd><kbd>B</kbd> | add all buffer (files) as Selected Files     |
-| <kbd>c</kbd><kbd>o</kbd>                  | choose ours                                  |
-| <kbd>c</kbd><kbd>t</kbd>                  | choose theirs                                |
-| <kbd>c</kbd><kbd>a</kbd>                  | choose all theirs                            |
-| <kbd>c</kbd><kbd>0</kbd>                  | choose none                                  |
-| <kbd>c</kbd><kbd>b</kbd>                  | choose both                                  |
-| <kbd>c</kbd><kbd>c</kbd>                  | choose cursor                                |
-| <kbd>]</kbd><kbd>x</kbd>                  | move to previous conflict                    |
-| <kbd>[</kbd><kbd>x</kbd>                  | move to next conflict                        |
-| <kbd>[</kbd><kbd>[</kbd>                  | jump to previous codeblocks (results window) |
-| <kbd>]</kbd><kbd>]</kbd>                  | jump to next codeblocks (results windows)    |
+| Key Binding                               | Description                            |
+| ----------------------------------------- | -------------------------------------- |
+| **Sidebar**                               |                                        |
+| <kbd>]</kbd><kbd>p</kbd>                  | next prompt                            |
+| <kbd>[</kbd><kbd>p</kbd>                  | previous prompt                        |
+| <kbd>A</kbd>                              | apply all                              |
+| <kbd>a</kbd>                              | apply cursor                           |
+| <kbd>r</kbd>                              | retry user request                     |
+| <kbd>e</kbd>                              | edit user request                      |
+| <kbd>&lt;Tab&gt;</kbd>                    | switch windows                         |
+| <kbd>&lt;S-Tab&gt;</kbd>                  | reverse switch windows                 |
+| <kbd>d</kbd>                              | remove file                            |
+| <kbd>@</kbd>                              | add file                               |
+| <kbd>q</kbd>                              | close sidebar                          |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>a</kbd> | show sidebar                           |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>t</kbd> | toggle sidebar visibility              |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>r</kbd> | refresh sidebar                        |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>f</kbd> | switch sidebar focus                   |
+| **Suggestion**                            |                                        |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>?</kbd> | select model                           |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>n</kbd> | new ask                                |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>e</kbd> | edit selected blocks                   |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>S</kbd> | stop current AI request                |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>h</kbd> | select between chat histories          |
+| <kbd>&lt;M-l&gt;</kbd>                    | accept suggestion                      |
+| <kbd>&lt;M-]&gt;</kbd>                    | next suggestion                        |
+| <kbd>&lt;M-[&gt;</kbd>                    | previous suggestion                    |
+| <kbd>&lt;C-]&gt;</kbd>                    | dismiss suggestion                     |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>d</kbd> | toggle debug mode                      |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>s</kbd> | toggle suggestion display              |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>R</kbd> | toggle repomap                         |
+| **Files**                                 |                                        |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>c</kbd> | add current buffer to selected files   |
+| <kbd>Leader</kbd><kbd>a</kbd><kbd>B</kbd> | add all buffer files to selected files |
+| **Diff**                                  |                                        |
+| <kbd>c</kbd><kbd>o</kbd>                  | choose ours                            |
+| <kbd>c</kbd><kbd>t</kbd>                  | choose theirs                          |
+| <kbd>c</kbd><kbd>a</kbd>                  | choose all theirs                      |
+| <kbd>c</kbd><kbd>b</kbd>                  | choose both                            |
+| <kbd>c</kbd><kbd>c</kbd>                  | choose cursor                          |
+| <kbd>]</kbd><kbd>x</kbd>                  | move to next conflict                  |
+| <kbd>[</kbd><kbd>x</kbd>                  | move to previous conflict              |
+| **Confirm**                               |                                        |
+| <kbd>Ctrl</kbd><kbd>w</kbd><kbd>f</kbd>   | focus confirm window                   |
+| <kbd>c</kbd>                              | confirm code                           |
+| <kbd>r</kbd>                              | confirm response                       |
+| <kbd>i</kbd>                              | confirm input                          |
 
 > [!NOTE]
 >
@@ -783,21 +975,37 @@ For more information, see [Custom Providers](https://github.com/yetone/avante.nv
 Avante provides a RAG service, which is a tool for obtaining the required context for the AI to generate the codes. By default, it is not enabled. You can enable it this way:
 
 ```lua
-rag_service = {
-  enabled = false, -- Enables the RAG service
-  host_mount = os.getenv("HOME"), -- Host mount path for the rag service
-  provider = "openai", -- The provider to use for RAG service (e.g. openai or ollama)
-  llm_model = "", -- The LLM model to use for RAG service
-  embed_model = "", -- The embedding model to use for RAG service
-  endpoint = "https://api.openai.com/v1", -- The API endpoint for RAG service
-},
+  rag_service = { -- RAG Service configuration
+    enabled = false, -- Enables the RAG service
+    host_mount = os.getenv("HOME"), -- Host mount path for the rag service (Docker will mount this path)
+    runner = "docker", -- Runner for the RAG service (can use docker or nix)
+    llm = { -- Language Model (LLM) configuration for RAG service
+      provider = "openai", -- LLM provider
+      endpoint = "https://api.openai.com/v1", -- LLM API endpoint
+      api_key = "OPENAI_API_KEY", -- Environment variable name for the LLM API key
+      model = "gpt-4o-mini", -- LLM model name
+      extra = nil, -- Additional configuration options for LLM
+    },
+    embed = { -- Embedding model configuration for RAG service
+      provider = "openai", -- Embedding provider
+      endpoint = "https://api.openai.com/v1", -- Embedding API endpoint
+      api_key = "OPENAI_API_KEY", -- Environment variable name for the embedding API key
+      model = "text-embedding-3-large", -- Embedding model name
+      extra = nil, -- Additional configuration options for the embedding model
+    },
+    docker_extra_args = "", -- Extra arguments to pass to the docker command
+  },
 ```
 
-If your rag_service provider is `openai`, then you need to set the `OPENAI_API_KEY` environment variable!
+The RAG Service can currently configure the LLM and embedding models separately. In the `llm` and `embed` configuration blocks, you can set the following fields:
 
-If your rag_service provider is `ollama`, you need to set the endpoint to `http://localhost:11434` (note there is no `/v1` at the end) or any address of your own ollama server.
+- `provider`: Model provider (e.g., "openai", "ollama", "dashscope", and "openrouter")
+- `endpoint`: API endpoint
+- `api_key`: Environment variable name for the API key
+- `model`: Model name
+- `extra`: Additional configuration options
 
-If your rag_service provider is `ollama`, when `llm_model` is empty, it defaults to `llama3`, and when `embed_model` is empty, it defaults to `nomic-embed-text`. Please make sure these models are available in your ollama server.
+For detailed configuration of different model providers, you can check [here](./py/rag-service/README.md).
 
 Additionally, RAG Service also depends on Docker! (For macOS users, OrbStack is recommended as a Docker alternative).
 
@@ -848,15 +1056,17 @@ Environment variables required for providers:
 Avante enables tools by default, but some LLM models do not support tools. You can disable tools by setting `disable_tools = true` for the provider. For example:
 
 ```lua
-{
+providers = {
   claude = {
     endpoint = "https://api.anthropic.com",
-    model = "claude-3-5-sonnet-20241022",
+    model = "claude-sonnet-4-20250514",
     timeout = 30000, -- Timeout in milliseconds
-    temperature = 0,
-    max_tokens = 4096,
     disable_tools = true, -- disable tools!
-  },
+    extra_request_body = {
+      temperature = 0,
+      max_tokens = 4096,
+    }
+  }
 }
 ```
 
@@ -870,8 +1080,8 @@ In case you want to ban some tools to avoid its usage (like Claude 3.7 overusing
 
 Tool list
 
-> rag_search, python, git_diff, git_commit, list_files, search_files, search_keyword, read_file_toplevel_symbols,
-> read_file, create_file, rename_file, delete_file, create_dir, rename_dir, delete_dir, bash, web_search, fetch
+> rag_search, python, git_diff, git_commit, glob, search_keyword, read_file_toplevel_symbols,
+> read_file, create_file, move_path, copy_path, delete_path, create_dir, bash, web_search, fetch
 
 ## Custom Tools
 
@@ -937,7 +1147,9 @@ By default, `avante.nvim` provides three different modes to interact with: `plan
 - `suggesting`: Used with `require("avante").get_suggestion():suggest()` on Tab flow.
 - `cursor-planning`: Used with `require("avante").toggle()` on Tab flow, but only when cursor planning mode is enabled.
 
-Users can customize the system prompts via `Config.system_prompt`. We recommend calling this in a custom Autocmds depending on your need:
+Users can customize the system prompts via `Config.system_prompt` or `Config.override_prompt_dir`.
+
+`Config.system_prompt` allows you to set a global system prompt. We recommend calling this in a custom Autocmds depending on your need:
 
 ```lua
 vim.api.nvim_create_autocmd("User", {
@@ -948,7 +1160,29 @@ vim.api.nvim_create_autocmd("User", {
 vim.keymap.set("n", "<leader>am", function() vim.api.nvim_exec_autocmds("User", { pattern = "ToggleMyPrompt" }) end, { desc = "avante: toggle my prompt" })
 ```
 
-If one wish to custom prompts for each mode, `avante.nvim` will check for project root based on the given buffer whether it contains
+`Config.override_prompt_dir` allows you to specify a directory containing your own custom prompt templates, which will override the built-in templates. This is useful if you want to maintain a set of custom prompts outside of your Neovim configuration. It can be a string representing the directory path, or a function that returns a string representing the directory path.
+
+```lua
+-- Example: Override with prompts from a specific directory
+require("avante").setup({
+  override_prompt_dir = vim.fn.expand("~/.config/nvim/avante_prompts"),
+})
+
+-- Example: Override with prompts from a function (dynamic directory)
+require("avante").setup({
+  override_prompt_dir = function()
+    -- Your logic to determine the prompt directory
+    return vim.fn.expand("~/.config/nvim/my_dynamic_prompts")
+  end,
+})
+```
+
+> [!WARNING]
+>
+> If you customize `base.avanterules`, please ensure that `{% block custom_prompt %}{% endblock %}` and `{% block extra_prompt %}{% endblock %}` exist, otherwise the entire plugin may become unusable.
+> If you are unsure about the specific reasons or what you are doing, please do not override the built-in prompts. The built-in prompts work very well.
+
+If you wish to custom prompts for each mode, `avante.nvim` will check for project root based on the given buffer whether it contains
 the following patterns: `*.{mode}.avanterules`.
 
 The rules for root hierarchy:
@@ -957,6 +1191,23 @@ The rules for root hierarchy:
 - lsp root_dir
 - root pattern of filename of the current buffer
 - root pattern of cwd
+
+You can also configure custom directories for your `avanterules` files using the `rules` option:
+
+```lua
+require('avante').setup({
+  rules = {
+    project_dir = '.avante/rules', -- relative to project root, can also be an absolute path
+    global_dir = '~/.config/avante/rules', -- absolute path
+  },
+})
+```
+
+The loading priority is as follows:
+
+1.  `rules.project_dir`
+2.  `rules.global_dir`
+3.  Project root
 
 <details>
 

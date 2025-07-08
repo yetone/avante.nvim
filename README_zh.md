@@ -58,31 +58,30 @@
 ```lua
 {
   "yetone/avante.nvim",
+  -- 如果您想从源代码构建，请执行 `make BUILD_FROM_SOURCE=true`
+  build = "make", -- ⚠️ 一定要加上这一行配置！！！！！
+  -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- 对于 Windows
   event = "VeryLazy",
   version = false, -- 永远不要将此值设置为 "*"！永远不要！
+  ---@module 'avante'
+  ---@type avante.Config
   opts = {
     -- 在此处添加任何选项
     -- 例如
-    provider = "openai",
+    provider = "claude",
     providers = {
-      openai = {
-        endpoint = "https://api.openai.com/v1",
-        model = "gpt-4o", -- 您想要的模型（或使用 gpt-4o 等）
-        extra_request_body = {
-          timeout = 30000, -- 超时时间（毫秒），增加此值以适应推理模型
-          temperature = 0,
-          max_tokens = 8192, -- 增加此值以包括推理模型的推理令牌
-          --reasoning_effort = "medium", -- low|medium|high，仅用于推理模型
-        },
+      claude = {
+        endpoint = "https://api.anthropic.com",
+        model = "claude-sonnet-4-20250514",
+        timeout = 30000, -- Timeout in milliseconds
+          extra_request_body = {
+            temperature = 0.75,
+            max_tokens = 20480,
+          },
       },
     },
   },
-  -- 如果您想从源代码构建，请执行 `make BUILD_FROM_SOURCE=true`
-  build = "make",
-  -- build = "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false" -- 对于 Windows
   dependencies = {
-    "nvim-treesitter/nvim-treesitter",
-    "stevearc/dressing.nvim",
     "nvim-lua/plenary.nvim",
     "MunifTanjim/nui.nvim",
     --- 以下依赖项是可选的，
@@ -130,8 +129,6 @@
 ```vim
 
 " 依赖项
-Plug 'nvim-treesitter/nvim-treesitter'
-Plug 'stevearc/dressing.nvim'
 Plug 'nvim-lua/plenary.nvim'
 Plug 'MunifTanjim/nui.nvim'
 Plug 'MeanderingProgrammer/render-markdown.nvim'
@@ -162,8 +159,6 @@ add({
   source = 'yetone/avante.nvim',
   monitor = 'main',
   depends = {
-    'nvim-treesitter/nvim-treesitter',
-    'stevearc/dressing.nvim',
     'nvim-lua/plenary.nvim',
     'MunifTanjim/nui.nvim',
     'echasnovski/mini.icons'
@@ -193,8 +188,6 @@ end)
 ```vim
 
   -- 必需插件
-  use 'nvim-treesitter/nvim-treesitter'
-  use 'stevearc/dressing.nvim'
   use 'nvim-lua/plenary.nvim'
   use 'MunifTanjim/nui.nvim'
   use 'MeanderingProgrammer/render-markdown.nvim'
@@ -403,6 +396,11 @@ _请参见 [config.lua#L9](./lua/avante/config.lua) 以获取完整配置_
       align = "center", -- left, center, right 用于标题
       rounded = true,
     },
+    spinner = {
+      editing = { "⡀", "⠄", "⠂", "⠁", "⠈", "⠐", "⠠", "⢀", "⣀", "⢄", "⢂", "⢁", "⢈", "⢐", "⢠", "⣠", "⢤", "⢢", "⢡", "⢨", "⢰", "⣰", "⢴", "⢲", "⢱", "⢸", "⣸", "⢼", "⢺", "⢹", "⣹", "⢽", "⢻", "⣻", "⢿", "⣿" },
+      generating = { "·", "✢", "✳", "∗", "✻", "✽" }, -- '生成中' 状态的旋转字符
+      thinking = { "🤯", "🙄" }, -- '思考中' 状态的旋转字符
+    },
     input = {
       prefix = "> ",
       height = 8, -- 垂直布局中输入窗口的高度
@@ -547,6 +545,24 @@ _请参见 [config.lua#L9](./lua/avante/config.lua) 以获取完整配置_
 >
 > 为了在 neovim 会话之间保持一致性，建议在 shell 文件中设置环境变量。
 > 默认情况下，`Avante` 会在启动时提示您输入所选提供者的 API 密钥。
+>
+> **作用域 API 密钥（推荐用于隔离）**
+>
+> Avante 现在支持作用域 API 密钥，允许您专门为 Avante 隔离 API 密钥，而不影响其他应用程序。只需在任何 API 密钥前加上 `AVANTE_` 前缀：
+>
+> ```sh
+> # 作用域密钥（推荐）
+> export AVANTE_ANTHROPIC_API_KEY=your-claude-api-key
+> export AVANTE_OPENAI_API_KEY=your-openai-api-key
+> export AVANTE_AZURE_OPENAI_API_KEY=your-azure-api-key
+> export AVANTE_GEMINI_API_KEY=your-gemini-api-key
+> export AVANTE_CO_API_KEY=your-cohere-api-key
+> export AVANTE_AIHUBMIX_API_KEY=your-aihubmix-api-key
+> ```
+>
+> **全局 API 密钥（传统方式）**
+>
+> 如果您愿意，仍然可以使用传统的全局 API 密钥：
 >
 > 对于 Claude：
 >
@@ -747,21 +763,37 @@ Avante 提供了一组默认提供者，但用户也可以创建自己的提供�
 Avante 提供了一个 RAG 服务，这是一个用于获取 AI 生成代码所需上下文的工具。默认情况下，它未启用。您可以通过以下方式启用它：
 
 ```lua
-rag_service = {
-  enabled = false, -- 启用 RAG 服务
-  host_mount = os.getenv("HOME"), -- RAG 服务的主机挂载路径
-  provider = "openai", -- 用于 RAG 服务的提供者（例如 openai 或 ollama）
-  llm_model = "", -- 用于 RAG 服务的 LLM 模型
-  embed_model = "", -- 用于 RAG 服务的嵌入模型
-  endpoint = "https://api.openai.com/v1", -- RAG 服务的 API 端点
-},
+  rag_service = { -- RAG 服务配置
+    enabled = false, -- 启用 RAG 服务
+    host_mount = os.getenv("HOME"), -- RAG 服务的主机挂载路径 (Docker 将挂载此路径)
+    runner = "docker", -- RAG 服务的运行器 (可以使用 docker 或 nix)
+    llm = { -- RAG 服务使用的语言模型 (LLM) 配置
+      provider = "openai", -- LLM 提供者
+      endpoint = "https://api.openai.com/v1", -- LLM API 端点
+      api_key = "OPENAI_API_KEY", -- LLM API 密钥的环境变量名称
+      model = "gpt-4o-mini", -- LLM 模型名称
+      extra = nil, -- LLM 的额外配置选项
+    },
+    embed = { -- RAG 服务使用的嵌入模型配置
+      provider = "openai", -- 嵌入提供者
+      endpoint = "https://api.openai.com/v1", -- 嵌入 API 端点
+      api_key = "OPENAI_API_KEY", -- 嵌入 API 密钥的环境变量名称
+      model = "text-embedding-3-large", -- 嵌入模型名称
+      extra = nil, -- 嵌入模型的额外配置选项
+    },
+    docker_extra_args = "", -- 传递给 docker 命令的额外参数
+  },
 ```
 
-如果您的 rag_service 提供者是 `openai`，那么您需要设置 `OPENAI_API_KEY` 环境变量！
+RAG 服务可以单独设置llm模型和嵌入模型。在 `llm` 和 `embed` 配置块中，您可以设置以下字段：
 
-如果您的 rag_service 提供者是 `ollama`，您需要将端点设置为 `http://localhost:11434`（注意末尾没有 `/v1`）或您自己的 ollama 服务器的任何地址。
+- `provider`: 模型提供者（例如 "openai", "ollama", "dashscope"以及"openrouter"）
+- `endpoint`: API 端点
+- `api_key`: API 密钥的环境变量名称
+- `model`: 模型名称
+- `extra`: 额外的配置选项
 
-如果您的 rag_service 提供者是 `ollama`，当 `llm_model` 为空时，默认为 `llama3`，当 `embed_model` 为空时，默认为 `nomic-embed-text`。请确保这些模型在您的 ollama 服务器中可用。
+有关不同模型提供商的详细配置，你可以在[这里](./py/rag-service/README.md)查看。
 
 此外，RAG 服务还依赖于 Docker！（对于 macOS 用户，推荐使用 OrbStack 作为 Docker 的替代品）。
 
@@ -831,8 +863,8 @@ Avante 默认启用工具，但某些 LLM 模型不支持工具。您可以通�
 
 工具列表
 
-> rag_search, python, git_diff, git_commit, list_files, search_files, search_keyword, read_file_toplevel_symbols,
-> read_file, create_file, rename_file, delete_file, create_dir, rename_dir, delete_dir, bash, web_search, fetch
+> rag_search, python, git_diff, git_commit, glob, search_keyword, read_file_toplevel_symbols,
+> read_file, create_file, move_path, copy_path, delete_path, create_dir, bash, web_search, fetch
 
 ## 自定义工具
 
@@ -913,7 +945,9 @@ Avante 利用 [Claude 文本编辑器工具](https://docs.anthropic.com/en/docs/
 - `suggesting`：与 Tab 流上的 `require("avante").get_suggestion():suggest()` 一起使用。
 - `cursor-planning`：与 Tab 流上的 `require("avante").toggle()` 一起使用，但仅在启用 cursor 规划模式时。
 
-用户可以通过 `Config.system_prompt` 自定义系统提示。我们建议根据您的需要在自定义 Autocmds 中调用此方法：
+用户可以通过 `Config.system_prompt` 或 `Config.override_prompt_dir` 自定义系统提示。
+
+`Config.system_prompt` 允许您设置全局系统提示。我们建议根据您的需要在自定义 Autocmds 中调用此方法：
 
 ```lua
 vim.api.nvim_create_autocmd("User", {
@@ -924,6 +958,28 @@ vim.api.nvim_create_autocmd("User", {
 vim.keymap.set("n", "<leader>am", function() vim.api.nvim_exec_autocmds("User", { pattern = "ToggleMyPrompt" }) end, { desc = "avante: toggle my prompt" })
 ```
 
+`Config.override_prompt_dir` 允许您指定一个目录，其中包含您自己的自定义提示模板，这将覆盖内置模板。如果您想在 Neovim 配置之外维护一组自定义提示，这将非常有用。它可以是一个表示目录路径的字符串，也可以是一个返回表示目录路径的字符串的函数。
+
+```lua
+-- 示例：使用特定目录中的提示进行覆盖
+require("avante").setup({
+  override_prompt_dir = vim.fn.expand("~/.config/nvim/avante_prompts"),
+})
+
+-- 示例：使用函数（动态目录）中的提示进行覆盖
+require("avante").setup({
+  override_prompt_dir = function()
+    -- 确定提示目录的逻辑
+    return vim.fn.expand("~/.config/nvim/my_dynamic_prompts")
+  end,
+})
+```
+
+> [!WARNING]
+>
+> 如果您自定 `base.avanterules`，请一定要确保 `{% block custom_prompt %}{% endblock %}` 和 `{% block extra_prompt %}{% endblock %}` 存在，否则可能会导致整个插件无法使用。
+> 如果您不清楚具体原因或者您不知道自己在干什么，请不要覆盖内置 prompt。内置 prompt 工作得非常好。
+
 如果希望为每种模式自定义提示，`avante.nvim` 将根据给定缓冲区的项目根目录检查是否包含以下模式：`*.{mode}.avanterules`。
 
 根目录层次结构的规则：
@@ -932,6 +988,23 @@ vim.keymap.set("n", "<leader>am", function() vim.api.nvim_exec_autocmds("User", 
 - lsp root_dir
 - 当前缓冲区的文件名的根模式
 - cwd 的根模式
+
+您还可以使用 `rules` 选项为您的 `avanterules` 文件配置自定义目录：
+
+```lua
+require('avante').setup({
+  rules = {
+    project_dir = '.avante/rules', -- 相对于项目根目录，也可以是绝对路径
+    global_dir = '~/.config/avante/rules', -- 绝对路径
+  },
+})
+```
+
+加载优先级如下：
+
+1.  `rules.project_dir`
+2.  `rules.global_dir`
+3.  项目根目录
 
 <details>
 

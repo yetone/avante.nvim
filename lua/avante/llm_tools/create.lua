@@ -57,6 +57,10 @@ function M.func(opts, on_log, on_complete, session_ctx)
   if opts.file_text == nil then return false, "file_text not provided" end
   if Path:new(abs_path):exists() then return false, "File already exists: " .. abs_path end
   local lines = vim.split(opts.file_text, "\n")
+  if #lines == 1 and opts.file_text:match("\\n") then
+    local text = Utils.trim_slashes(opts.file_text)
+    lines = vim.split(text, "\n")
+  end
   local bufnr, err = Helpers.get_bufnr(abs_path)
   if err then return false, err end
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)

@@ -53,6 +53,7 @@ local function create_model_entries(provider_name, provider_cfg)
       and {
         {
           name = provider_cfg.display_name or (provider_name .. "/" .. provider_cfg.model),
+          display_name = provider_cfg.display_name or (provider_name .. "/" .. provider_cfg.model),
           provider_name = provider_name,
           model = provider_cfg.model,
         },
@@ -74,6 +75,9 @@ function M.open()
     models = vim.list_extend(models, entries)
     ::continue::
   end
+
+  -- Sort models by name for stable display
+  table.sort(models, function(a, b) return (a.name or "") < (b.name or "") end)
 
   if #models == 0 then
     Utils.warn("No models available in config")
@@ -111,6 +115,9 @@ function M.open()
       },
     })
 
+    local provider_cfg = Providers[choice.provider_name]
+    if provider_cfg then provider_cfg.model = choice.model end
+
     Utils.info("Switched to model: " .. choice.name)
   end
 
@@ -121,6 +128,11 @@ function M.open()
     provider = Config.selector.provider,
     provider_opts = Config.selector.provider_opts,
     on_select = on_select,
+    get_preview_content = function(item_id)
+      local model = vim.iter(models):find(function(item) return item.name == item_id end)
+      if not model then return "", "markdown" end
+      return model.name, "markdown"
+    end,
   })
 
   selector:open()

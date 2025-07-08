@@ -7,6 +7,7 @@ local Config = require("avante.config")
 ---@class avante.Path
 ---@field history_path Path
 ---@field cache_path Path
+---@field data_path Path
 local P = {}
 
 ---@param bufnr integer | nil
@@ -154,6 +155,35 @@ History.save = function(bufnr, history)
   History.save_latest_filename(bufnr, history.filename)
 end
 
+--- Deletes a specific chat history file.
+---@param bufnr integer
+---@param filename string
+function History.delete(bufnr, filename)
+  local history_filepath = History.get_filepath(bufnr, filename)
+  if history_filepath:exists() then
+    local was_latest = (filename == History.get_latest_filename(bufnr, false))
+    history_filepath:rm()
+
+    if was_latest then
+      local remaining_histories = History.list(bufnr) -- This list is sorted by recency
+      if #remaining_histories > 0 then
+        History.save_latest_filename(bufnr, remaining_histories[1].filename)
+      else
+        -- No histories left, clear the latest_filename from metadata
+        local metadata_filepath = History.get_metadata_filepath(bufnr)
+        if metadata_filepath:exists() then
+          local metadata_content = metadata_filepath:read()
+          local metadata = vim.json.decode(metadata_content)
+          metadata.latest_filename = nil -- Or "", depending on desired behavior for an empty latest
+          metadata_filepath:write(vim.json.encode(metadata), "w")
+        end
+      end
+    end
+  else
+    Utils.warn("History file not found: " .. tostring(history_filepath))
+  end
+end
+
 P.history = History
 
 -- Prompt path
@@ -193,24 +223,80 @@ function Prompt.get_templates_dir(project_root)
   local cache_prompt_dir = P.cache_path:joinpath(directory)
   if not cache_prompt_dir:exists() then cache_prompt_dir:mkdir({ parents = true }) end
 
-  local scanner = Scan.scan_dir(directory:absolute(), { depth = 1, add_dirs = true })
-  for _, entry in ipairs(scanner) do
-    local file = Path:new(entry)
-    if file:is_file() then
-      local pieces = vim.split(entry, "/")
-      local piece = pieces[#pieces]
-      local mode = piece:match("([^.]+)%.avanterules$")
-      if not mode or not Prompt.custom_modes[mode] then goto continue end
-      if Prompt.custom_prompts_contents[mode] == nil then
-        Utils.info(string.format("Using %s as %s system prompt", entry, mode))
-        Prompt.custom_prompts_contents[mode] = file:read()
+  local function find_rules(dir)
+    if not dir then return end
+    if vim.fn.isdirectory(dir) ~= 1 then return end
+
+    local scanner = Scan.scan_dir(dir, { depth = 1, add_dirs = true })
+    for _, entry in ipairs(scanner) do
+      local file = Path:new(entry)
+      if file:is_file() then
+        local pieces = vim.split(entry, "/")
+        local piece = pieces[#pieces]
+        local mode = piece:match("([^.]+)%.avanterules$")
+        if not mode or not Prompt.custom_modes[mode] then goto continue end
+        if Prompt.custom_prompts_contents[mode] == nil then
+          Utils.info(string.format("Using %s as %s system prompt", entry, mode))
+          Prompt.custom_prompts_contents[mode] = file:read()
+        end
       end
+      ::continue::
     end
-    ::continue::
   end
 
-  Path:new(debug.getinfo(1).source:match("@?(.*/)"):gsub("/lua/avante/path.lua$", "") .. "templates")
-    :copy({ destination = cache_prompt_dir, recursive = true })
+  -- Check for override prompt
+  local override_prompt_dir = Config.override_prompt_dir
+  if override_prompt_dir then
+    -- Handle the case where override_prompt_dir is a function
+    if type(override_prompt_dir) == "function" then
+      local ok, result = pcall(override_prompt_dir)
+      if ok and result then override_prompt_dir = result end
+    end
+
+    if override_prompt_dir then
+      local user_template_path = Path:new(override_prompt_dir)
+      if user_template_path:exists() then
+        local user_scanner = Scan.scan_dir(user_template_path:absolute(), { depth = 1, add_dirs = false })
+        for _, entry in ipairs(user_scanner) do
+          local file = Path:new(entry)
+          if file:is_file() then
+            local pieces = vim.split(entry, "/")
+            local piece = pieces[#pieces]
+
+            if piece == "base.avanterules" then
+              local content = file:read()
+
+              if not content:match("{%% block extra_prompt %%}[%s,\\n]*{%% endblock %%}") then
+                file:write("{% block extra_prompt %}\n", "a")
+                file:write("{% endblock %}\n", "a")
+              end
+
+              if not content:match("{%% block custom_prompt %%}[%s,\\n]*{%% endblock %%}") then
+                file:write("{% block custom_prompt %}\n", "a")
+                file:write("{% endblock %}", "a")
+              end
+            end
+            file:copy({ destination = cache_prompt_dir:joinpath(piece) })
+          end
+        end
+      end
+    end
+  end
+
+  if Config.rules.project_dir then
+    local project_rules_path = Path:new(Config.rules.project_dir)
+    if not project_rules_path:is_absolute() then project_rules_path = directory:joinpath(project_rules_path) end
+    find_rules(tostring(project_rules_path))
+  end
+  find_rules(Config.rules.global_dir)
+  find_rules(directory:absolute())
+
+  -- Copy built-in templates to cache directory (only if not overridden by user templates)
+  Path:new(debug.getinfo(1).source:match("@?(.*/)"):gsub("/lua/avante/path.lua$", "") .. "templates"):copy({
+    destination = cache_prompt_dir,
+    recursive = true,
+    override = false,
+  })
 
   vim.iter(Prompt.custom_prompts_contents):filter(function(_, v) return v ~= nil end):each(function(k, v)
     local orig_file = cache_prompt_dir:joinpath(Prompt.get_builtin_prompts_filepath(k))

@@ -17,6 +17,8 @@ M.role_map = {
   assistant = "assistant",
 }
 
+function M.is_env_set() return false end
+
 function M:parse_messages(opts)
   local messages = {}
   local provider_conf, _ = Providers.parse_config(self)
@@ -213,7 +215,7 @@ function M:parse_curl_args(prompt_opts)
 
   return {
     url = Utils.url_join(provider_conf.endpoint, "/api/chat"),
-    headers = headers,
+    headers = Utils.tbl_override(headers, self.extra_headers),
     body = vim.tbl_deep_extend("force", {
       model = provider_conf.model,
       messages = self:parse_messages(prompt_opts),
@@ -231,6 +233,61 @@ M.on_error = function(result)
     if ok and body.error then error_msg = body.error end
   end
   Utils.error(error_msg, { title = "Ollama" })
+end
+
+-- List available models using Ollama's tags API
+function M:models_list()
+  -- Return cached models if available
+  if self._model_list_cache then return self._model_list_cache end
+
+  -- Parse provider config and construct tags endpoint URL
+  local provider_conf = Providers.parse_config(self)
+  if not provider_conf.endpoint then error("Ollama requires endpoint configuration") end
+
+  local curl = require("plenary.curl")
+  local tags_url = Utils.url_join(provider_conf.endpoint, "/api/tags")
+  local base_headers = {
+    ["Content-Type"] = "application/json",
+    ["Accept"] = "application/json",
+  }
+  local headers = Utils.tbl_override(base_headers, self.extra_headers)
+
+  -- Request the model tags from Ollama
+  local response = curl.get(tags_url, { headers = headers })
+  if response.status ~= 200 then
+    Utils.error("Failed to fetch Ollama models: " .. (response.body or response.status))
+    return {}
+  end
+
+  -- Parse the response body
+  local ok, res_body = pcall(vim.json.decode, response.body)
+  if not ok or not res_body.models then return {} end
+
+  -- Helper to format model display string from its details
+  local function format_display_name(details)
+    local parts = {}
+    for _, key in ipairs({ "family", "parameter_size", "quantization_level" }) do
+      if details[key] then table.insert(parts, details[key]) end
+    end
+    return table.concat(parts, ", ")
+  end
+
+  -- Format the models list
+  local models = {}
+  for _, model in ipairs(res_body.models) do
+    local details = model.details or {}
+    local display = format_display_name(details)
+    table.insert(models, {
+      id = model.name,
+      name = string.format("ollama/%s (%s)", model.name, display),
+      display_name = model.name,
+      provider_name = "ollama",
+      version = model.digest,
+    })
+  end
+
+  self._model_list_cache = models
+  return models
 end
 
 return M

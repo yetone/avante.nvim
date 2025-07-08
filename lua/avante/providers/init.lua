@@ -3,13 +3,6 @@ local api, fn = vim.api, vim.fn
 local Config = require("avante.config")
 local Utils = require("avante.utils")
 
-local DressingConfig = {
-  conceal_char = "*",
-  filetype = "DressingInput",
-  close_window = function() require("dressing.input").close() end,
-}
-local DressingState = { winid = nil, input_winid = nil, input_bufnr = nil }
-
 ---@class avante.Providers
 ---@field openai AvanteProviderFunctor
 ---@field claude AvanteProviderFunctor
@@ -33,6 +26,25 @@ E.cache = {}
 ---@param Opts AvanteSupportedProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor
 ---@return string | nil
 function E.parse_envvar(Opts)
+  -- First try the scoped version (e.g., AVANTE_ANTHROPIC_API_KEY)
+  local scoped_key_name = nil
+  if Opts.api_key_name and type(Opts.api_key_name) == "string" and Opts.api_key_name ~= "" then
+    -- Only add AVANTE_ prefix if it's a regular environment variable (not a cmd: or already prefixed)
+    if not Opts.api_key_name:match("^cmd:") and not Opts.api_key_name:match("^AVANTE_") then
+      scoped_key_name = "AVANTE_" .. Opts.api_key_name
+    end
+  end
+
+  -- Try scoped key first if available
+  if scoped_key_name then
+    local scoped_value = Utils.environment.parse(scoped_key_name, Opts._shellenv)
+    if scoped_value ~= nil then
+      vim.g.avante_login = true
+      return scoped_value
+    end
+  end
+
+  -- Fall back to the original global key
   local value = Utils.environment.parse(Opts.api_key_name, Opts._shellenv)
   if value ~= nil then
     vim.g.avante_login = true
@@ -79,7 +91,7 @@ function E.setup(opts)
     end
   end
 
-  local function mount_dressing_buffer()
+  local function mount_input_ui()
     vim.defer_fn(function()
       -- only mount if given buffer is not of buftype ministarter, dashboard, alpha, qf
       local exclude_filetypes = {
@@ -94,63 +106,37 @@ function E.setup(opts)
         "gitcommit",
         "gitrebase",
         "DressingInput",
+        "snacks_input",
         "noice",
       }
 
       if not vim.tbl_contains(exclude_filetypes, vim.bo.filetype) and not opts.provider.is_env_set() then
-        DressingState.winid = api.nvim_get_current_win()
-        vim.ui.input({ default = "", prompt = "Enter " .. var .. ": " }, on_confirm)
-        for _, winid in ipairs(api.nvim_list_wins()) do
-          local bufnr = api.nvim_win_get_buf(winid)
-          if vim.bo[bufnr].filetype == DressingConfig.filetype then
-            DressingState.input_winid = winid
-            DressingState.input_bufnr = bufnr
-            vim.wo[winid].conceallevel = 2
-            vim.wo[winid].concealcursor = "nvi"
-            break
-          end
-        end
-
-        local prompt_length = api.nvim_strwidth(fn.prompt_getprompt(DressingState.input_bufnr))
-        api.nvim_buf_call(
-          DressingState.input_bufnr,
-          function()
-            vim.cmd(string.format(
-              [[
-      syn region SecretValue start=/^/ms=s+%s end=/$/ contains=SecretChar
-      syn match SecretChar /./ contained conceal %s
-      ]],
-              prompt_length,
-              "cchar=*"
-            ))
-          end
-        )
+        local Input = require("avante.ui.input")
+        local input = Input:new({
+          provider = Config.input.provider,
+          title = "Enter " .. var .. ": ",
+          default = "",
+          conceal = true, -- Password input should be concealed
+          provider_opts = Config.input.provider_opts,
+          on_submit = on_confirm,
+        })
+        input:open()
       end
     end, 200)
   end
 
-  if refresh then return mount_dressing_buffer() end
+  if refresh then return mount_input_ui() end
 
   api.nvim_create_autocmd("User", {
     pattern = E.REQUEST_LOGIN_PATTERN,
-    callback = mount_dressing_buffer,
+    callback = mount_input_ui,
   })
 end
 
 E.REQUEST_LOGIN_PATTERN = "AvanteRequestLogin"
 
 ---@param provider AvanteDefaultBaseProvider
-function E.require_api_key(provider)
-  if provider["local"] ~= nil then
-    if provider["local"] then
-      vim.deprecate('"local" = true', "api_key_name = ''", "0.1.0", "avante.nvim")
-    else
-      vim.deprecate('"local" = false', "api_key_name", "0.1.0", "avante.nvim")
-    end
-    return not provider["local"]
-  end
-  return provider.api_key_name ~= nil and provider.api_key_name ~= ""
-end
+function E.require_api_key(provider) return provider.api_key_name ~= nil and provider.api_key_name ~= "" end
 
 M.env = E
 
@@ -169,28 +155,43 @@ M = setmetatable(M, {
       provider_config = Utils.deep_extend_with_metatable("force", module, base_provider_config, provider_config)
     else
       local ok, module = pcall(require, "avante.providers." .. k)
-      if ok then provider_config = Utils.deep_extend_with_metatable("force", module, provider_config) end
+      if ok then
+        provider_config = Utils.deep_extend_with_metatable("force", module, provider_config)
+      elseif provider_config.parse_curl_args == nil then
+        error(
+          string.format(
+            'The configuration of your provider "%s" is incorrect, missing the `__inherited_from` attribute or a custom `parse_curl_args` function. Please fix your provider configuration. For more details, see: https://github.com/yetone/avante.nvim/wiki/Custom-providers',
+            k
+          )
+        )
+      end
     end
 
     t[k] = provider_config
 
-    if t[k].parse_api_key == nil then t[k].parse_api_key = function() return E.parse_envvar(t[k]) end end
+    if rawget(t[k], "parse_api_key") == nil then t[k].parse_api_key = function() return E.parse_envvar(t[k]) end end
 
     -- default to gpt-4o as tokenizer
     if t[k].tokenizer_id == nil then t[k].tokenizer_id = "gpt-4o" end
 
-    if t[k].is_env_set == nil then
+    if rawget(t[k], "is_env_set") == nil then
       t[k].is_env_set = function()
+        if not E.require_api_key(t[k]) then return true end
+        if type(t[k].api_key_name) == "string" and t[k].api_key_name:match("^cmd:") then return true end
         local ok, result = pcall(t[k].parse_api_key)
         if not ok then return false end
         return result ~= nil
       end
     end
 
-    if t[k].setup == nil then
+    if rawget(t[k], "setup") == nil then
       local provider_conf = M.parse_config(t[k])
       t[k].setup = function()
-        if E.require_api_key(provider_conf) then t[k].parse_api_key() end
+        if E.require_api_key(provider_conf) then
+          if not (type(provider_conf.api_key_name) == "string" and provider_conf.api_key_name:match("^cmd:")) then
+            t[k].parse_api_key()
+          end
+        end
         require("avante.tokenizers").setup(t[k].tokenizer_id)
       end
     end

@@ -2,6 +2,7 @@
 ---we add a default var_accessor for this table to config values.
 
 ---@alias WebSearchEngineProviderResponseBodyFormatter fun(body: table): (string, string?)
+---@alias avante.InputProvider "native" | "dressing" | "snacks" | fun(input: avante.ui.Input): nil
 
 local Utils = require("avante.utils")
 
@@ -20,8 +21,10 @@ local M = {}
 M._defaults = {
   debug = false,
   ---@alias avante.Mode "agentic" | "legacy"
+  ---@type avante.Mode
   mode = "agentic",
   ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | string
+  ---@type avante.ProviderName
   provider = "claude",
   -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
   -- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
@@ -29,21 +32,38 @@ M._defaults = {
   auto_suggestions_provider = nil,
   memory_summary_provider = nil,
   ---@alias Tokenizer "tiktoken" | "hf"
+  ---@type Tokenizer
   -- Used for counting tokens and encoding text.
   -- By default, we will use tiktoken.
   -- For most providers that we support we will determine this automatically.
   -- If you wish to use a given implementation, then you can override it here.
   tokenizer = "tiktoken",
-  ---@type string | (fun(): string) | nil
+  ---@type string | fun(): string | nil
   system_prompt = nil,
-  rag_service = {
-    enabled = false, -- Enables the rag service, requires OPENAI_API_KEY to be set
-    host_mount = os.getenv("HOME"), -- Host mount path for the rag service (docker will mount this path)
-    runner = "docker", -- The runner for the rag service, (can use docker, or nix)
-    provider = "openai", -- The provider to use for RAG service. eg: openai or ollama
-    llm_model = "", -- The LLM model to use for RAG service
-    embed_model = "", -- The embedding model to use for RAG service
-    endpoint = "https://api.openai.com/v1", -- The API endpoint for RAG service
+  ---@type string | fun(): string | nil
+  override_prompt_dir = nil,
+  rules = {
+    project_dir = nil, ---@type string | nil (could be relative dirpath)
+    global_dir = nil, ---@type string | nil (absolute dirpath)
+  },
+  rag_service = { -- RAG service configuration
+    enabled = false, -- Enables the RAG service
+    host_mount = os.getenv("HOME"), -- Host mount path for the RAG service (Docker will mount this path)
+    runner = "docker", -- The runner for the RAG service (can use docker or nix)
+    llm = { -- Configuration for the Language Model (LLM) used by the RAG service
+      provider = "openai", -- The LLM provider
+      endpoint = "https://api.openai.com/v1", -- The LLM API endpoint
+      api_key = "OPENAI_API_KEY", -- The environment variable name for the LLM API key
+      model = "gpt-4o-mini", -- The LLM model name
+      extra = nil, -- Extra configuration options for the LLM
+    },
+    embed = { -- Configuration for the Embedding model used by the RAG service
+      provider = "openai", -- The embedding provider
+      endpoint = "https://api.openai.com/v1", -- The embedding API endpoint
+      api_key = "OPENAI_API_KEY", -- The environment variable name for the embedding API key
+      model = "text-embedding-3-large", -- The embedding model name
+      extra = nil, -- Extra configuration options for the embedding model
+    },
     docker_extra_args = "", -- Extra arguments to pass to the docker command
   },
   web_search_engine = {
@@ -223,6 +243,7 @@ M._defaults = {
       endpoint = "https://api.openai.com/v1",
       model = "gpt-4o",
       timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
+      context_window = 128000, -- Number of tokens to send to the model for context
       extra_request_body = {
         temperature = 0.75,
         max_completion_tokens = 16384, -- Increase this to include reasoning tokens (for reasoning models)
@@ -236,6 +257,7 @@ M._defaults = {
       proxy = nil, -- [protocol://]host[:port] Use this proxy
       allow_insecure = false, -- Allow insecure server connections
       timeout = 30000, -- Timeout in milliseconds
+      context_window = 64000, -- Number of tokens to send to the model for context
       extra_request_body = {
         temperature = 0.75,
         max_tokens = 20480,
@@ -256,11 +278,12 @@ M._defaults = {
     ---@type AvanteSupportedProvider
     claude = {
       endpoint = "https://api.anthropic.com",
-      model = "claude-3-7-sonnet-20250219",
+      model = "claude-sonnet-4-20250514",
       timeout = 30000, -- Timeout in milliseconds
+      context_window = 200000,
       extra_request_body = {
         temperature = 0.75,
-        max_tokens = 20480,
+        max_tokens = 64000,
       },
     },
     ---@type AvanteSupportedProvider
@@ -279,6 +302,7 @@ M._defaults = {
       endpoint = "https://generativelanguage.googleapis.com/v1beta/models",
       model = "gemini-2.0-flash",
       timeout = 30000, -- Timeout in milliseconds
+      context_window = 1048576,
       use_ReAct_prompt = true,
       extra_request_body = {
         generationConfig = {
@@ -415,6 +439,20 @@ M._defaults = {
     auto_focus_on_diff_view = false,
     ---@type boolean | string[] -- true: auto-approve all tools, false: normal prompts, string[]: auto-approve specific tools by name
     auto_approve_tool_permissions = false, -- Default: show permission prompts for all tools
+    auto_check_diagnostics = true,
+  },
+  prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
+    enabled = true, -- toggle logging entirely
+    log_dir = Utils.join_paths(vim.fn.stdpath("cache"), "avante_prompts"), -- directory where logs are saved
+    fortune_cookie_on_success = false, -- shows a random fortune after each logged prompt (requires `fortune` installed)
+    next_prompt = {
+      normal = "<C-n>", -- load the next (newer) prompt log in normal mode
+      insert = "<C-n>",
+    },
+    prev_prompt = {
+      normal = "<C-p>", -- load the previous (older) prompt log in normal mode
+      insert = "<C-p>",
+    },
   },
   history = {
     max_tokens = 4096,
@@ -479,6 +517,8 @@ M._defaults = {
       repomap = "<leader>aR",
     },
     sidebar = {
+      next_prompt = "]p",
+      prev_prompt = "[p",
       apply_all = "A",
       apply_cursor = "a",
       retry_user_request = "r",
@@ -498,9 +538,16 @@ M._defaults = {
     },
     select_model = "<leader>a?", -- Select model command
     select_history = "<leader>ah", -- Select history command
+    confirm = {
+      focus_window = "<C-w>f",
+      code = "c",
+      resp = "r",
+      input = "i",
+    },
   },
   windows = {
     ---@alias AvantePosition "right" | "left" | "top" | "bottom" | "smart"
+    ---@type AvantePosition
     position = "right",
     fillchars = "eob: ",
     wrap = true, -- similar to vim.o.wrap
@@ -511,9 +558,51 @@ M._defaults = {
       align = "center", -- left, center, right for title
       rounded = true,
     },
+    spinner = {
+      editing = {
+        "⡀",
+        "⠄",
+        "⠂",
+        "⠁",
+        "⠈",
+        "⠐",
+        "⠠",
+        "⢀",
+        "⣀",
+        "⢄",
+        "⢂",
+        "⢁",
+        "⢈",
+        "⢐",
+        "⢠",
+        "⣠",
+        "⢤",
+        "⢢",
+        "⢡",
+        "⢨",
+        "⢰",
+        "⣰",
+        "⢴",
+        "⢲",
+        "⢱",
+        "⢸",
+        "⣸",
+        "⢼",
+        "⢺",
+        "⢹",
+        "⣹",
+        "⢽",
+        "⢻",
+        "⣻",
+        "⢿",
+        "⣿",
+      },
+      generating = { "·", "✢", "✳", "∗", "✻", "✽" },
+      thinking = { "🤯", "🙄" },
+    },
     input = {
       prefix = "> ",
-      height = 8, -- Height of the input window in vertical layout
+      height = 6, -- Height of the input window in vertical layout
     },
     edit = {
       border = { " ", " ", " ", " ", " ", " ", " ", " " },
@@ -524,6 +613,7 @@ M._defaults = {
       border = { " ", " ", " ", " ", " ", " ", " ", " " },
       start_insert = true, -- Start insert mode when opening the ask window
       ---@alias AvanteInitialDiff "ours" | "theirs"
+      ---@type AvanteInitialDiff
       focus_on_apply = "ours", -- which diff to focus after applying
     },
   },
@@ -552,9 +642,14 @@ M._defaults = {
   },
   selector = {
     ---@alias avante.SelectorProvider "native" | "fzf_lua" | "mini_pick" | "snacks" | "telescope" | fun(selector: avante.ui.Selector): nil
+    ---@type avante.SelectorProvider
     provider = "native",
     provider_opts = {},
     exclude_auto_select = {}, -- List of items to exclude from auto selection
+  },
+  input = {
+    provider = "native",
+    provider_opts = {},
   },
   suggestion = {
     debounce = 600,
@@ -573,7 +668,11 @@ M._options = {}
 
 ---@param opts? avante.Config
 function M.setup(opts)
-  vim.validate({ opts = { opts, "table", true } })
+  if vim.fn.has("nvim-0.11") == 1 then
+    vim.validate("opts", opts, "table", true)
+  else
+    vim.validate({ opts = { opts, "table", true } })
+  end
 
   opts = opts or {}
 
@@ -619,7 +718,7 @@ function M.setup(opts)
       opts.providers[k] = v
       Utils.warn(
         string.format(
-          "[DEPRACATED] The configuration of `%s` should be placed in `providers.%s`. For detailed migration instructions, please visit: %s",
+          "[DEPRECATED] The configuration of `%s` should be placed in `providers.%s`. For detailed migration instructions, please visit: %s",
           k,
           k,
           migration_url
@@ -719,7 +818,11 @@ function M.setup(opts)
     )
   end
 
-  vim.validate({ provider = { M._options.provider, "string", false } })
+  if vim.fn.has("nvim-0.11") == 1 then
+    vim.validate("provider", M._options.provider, "string", false)
+  else
+    vim.validate({ provider = { M._options.provider, "string", false } })
+  end
 
   for k, v in pairs(M._options.providers) do
     M._options.providers[k] = type(v) == "function" and v() or v
@@ -728,7 +831,11 @@ end
 
 ---@param opts table<string, any>
 function M.override(opts)
-  vim.validate({ opts = { opts, "table", true } })
+  if vim.fn.has("nvim-0.11") == 1 then
+    vim.validate("opts", opts, "table", true)
+  else
+    vim.validate({ opts = { opts, "table", true } })
+  end
 
   M._options = vim.tbl_deep_extend("force", M._options, opts or {})
 

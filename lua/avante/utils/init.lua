@@ -2,12 +2,16 @@ local api = vim.api
 local fn = vim.fn
 local lsp = vim.lsp
 
+local LRUCache = require("avante.utils.lru_cache")
+
 ---@class avante.utils: LazyUtilCore
 ---@field tokens avante.utils.tokens
 ---@field root avante.utils.root
 ---@field file avante.utils.file
+---@field path avante.utils.path
 ---@field environment avante.utils.environment
 ---@field lsp avante.utils.lsp
+---@field logger avante.utils.promptLogger
 local M = {}
 
 setmetatable(M, {
@@ -32,20 +36,9 @@ function M.has(plugin)
   return res
 end
 
-local _is_win = nil
+function M.is_win() return M.path.is_win() end
 
-function M.is_win()
-  if _is_win == nil then _is_win = jit.os:find("Windows") ~= nil end
-  return _is_win
-end
-
-M.path_sep = (function()
-  if M.is_win() then
-    return "\\"
-  else
-    return "/"
-  end
-end)()
+M.path_sep = M.path.SEP
 
 ---@return "linux" | "darwin" | "windows"
 function M.get_os_name()
@@ -66,13 +59,14 @@ function M.get_system_info()
   local os_version = vim.loop.os_uname().release
   local os_machine = vim.loop.os_uname().machine
   local lang = os.getenv("LANG")
+  local shell = os.getenv("SHELL")
 
   local res = string.format(
     "- Platform: %s-%s-%s\n- Shell: %s\n- Language: %s\n- Current date: %s",
     os_name,
     os_version,
     os_machine,
-    vim.o.shell,
+    shell,
     lang,
     os.date("%Y-%m-%d")
   )
@@ -340,7 +334,7 @@ end
 
 ---@param path string
 ---@return string
-function M.norm(path) return vim.fs.normalize(path) end
+function M.norm(path) return M.path.normalize(path) end
 
 ---@param msg string|string[]
 ---@param opts? LazyNotifyOpts
@@ -365,7 +359,6 @@ function M.notify(msg, opts)
   n(msg, opts.level or vim.log.levels.INFO, {
     on_open = function(win)
       local ok = pcall(function() vim.treesitter.language.add("markdown") end)
-      if not ok then pcall(require, "nvim-treesitter") end
       vim.wo[win].conceallevel = 3
       vim.wo[win].concealcursor = ""
       vim.wo[win].spell = false
@@ -566,17 +559,97 @@ function M.is_type(type_name, v)
 end
 -- luacheck: pop
 
----@param code string
+---@param text string
 ---@return string
-function M.get_indentation(code)
-  if not code then return "" end
-  return code:match("^%s*") or ""
+function M.get_indentation(text)
+  if not text then return "" end
+  return text:match("^%s*") or ""
 end
 
---- remove indentation from code: spaces or tabs
-function M.remove_indentation(code)
-  if not code then return code end
-  return code:gsub("%s*", "")
+function M.trim_space(text)
+  if not text then return text end
+  return text:gsub("%s*", "")
+end
+
+function M.trim_slashes(text)
+  if not text then return text end
+  local res = text
+    :gsub("//n", "/n")
+    :gsub("//r", "/r")
+    :gsub("//t", "/t")
+    :gsub('/"', '"')
+    :gsub('\\"', '"')
+    :gsub("\\n", "\n")
+    :gsub("\\r", "\r")
+    :gsub("\\t", "\t")
+  return res
+end
+
+---@param original_lines string[]
+---@param target_lines string[]
+---@param compare_fn fun(line_a: string, line_b: string): boolean
+---@return integer | nil start_line
+---@return integer | nil end_line
+function M.try_find_match(original_lines, target_lines, compare_fn)
+  local start_line, end_line
+  for i = 1, #original_lines - #target_lines + 1 do
+    local match = true
+    for j = 1, #target_lines do
+      if not compare_fn(original_lines[i + j - 1], target_lines[j]) then
+        match = false
+        break
+      end
+    end
+    if match then
+      start_line = i
+      end_line = i + #target_lines - 1
+      break
+    end
+  end
+  return start_line, end_line
+end
+
+---@param original_lines string[]
+---@param target_lines string[]
+---@return integer | nil start_line
+---@return integer | nil end_line
+function M.fuzzy_match(original_lines, target_lines)
+  local start_line, end_line
+  ---exact match
+  start_line, end_line = M.try_find_match(
+    original_lines,
+    target_lines,
+    function(line_a, line_b) return line_a == line_b end
+  )
+  if start_line ~= nil and end_line ~= nil then return start_line, end_line end
+  ---fuzzy match
+  start_line, end_line = M.try_find_match(
+    original_lines,
+    target_lines,
+    function(line_a, line_b) return M.trim(line_a, { suffix = " \t" }) == M.trim(line_b, { suffix = " \t" }) end
+  )
+  if start_line ~= nil and end_line ~= nil then return start_line, end_line end
+  ---trim_space match
+  start_line, end_line = M.try_find_match(
+    original_lines,
+    target_lines,
+    function(line_a, line_b) return M.trim_space(line_a) == M.trim_space(line_b) end
+  )
+  if start_line ~= nil and end_line ~= nil then return start_line, end_line end
+  ---trim slashes match
+  start_line, end_line = M.try_find_match(
+    original_lines,
+    target_lines,
+    function(line_a, line_b) return line_a == M.trim_slashes(line_b) end
+  )
+  if start_line ~= nil and end_line ~= nil then return start_line, end_line end
+  ---trim slashes and trim_space match
+  start_line, end_line = M.try_find_match(
+    original_lines,
+    target_lines,
+    function(line_a, line_b) return M.trim_space(line_a) == M.trim_space(M.trim_slashes(line_b)) end
+  )
+  return start_line, end_line
 end
 
 function M.relative_path(absolute)
@@ -630,19 +703,45 @@ function M.trim_all_line_numbers(content)
 end
 
 function M.debounce(func, delay)
-  local timer_id = nil
+  local timer = nil
 
   return function(...)
     local args = { ... }
 
-    if timer_id then fn.timer_stop(timer_id) end
+    if timer then
+      timer:stop()
+      timer:close()
+    end
 
-    timer_id = fn.timer_start(delay, function()
-      func(unpack(args))
-      timer_id = nil
+    timer = vim.loop.new_timer()
+    if not timer then return end
+
+    timer:start(delay, 0, function()
+      vim.schedule(function() func(unpack(args)) end)
+      timer:close()
+      timer = nil
     end)
 
-    return timer_id
+    return timer
+  end
+end
+
+function M.throttle(func, delay)
+  local timer = nil
+  local args
+
+  return function(...)
+    args = { ... }
+
+    if timer then return end
+
+    timer = vim.loop.new_timer()
+    if not timer then return end
+    timer:start(delay, 0, function()
+      vim.schedule(function() func(unpack(args)) end)
+      timer:close()
+      timer = nil
+    end)
   end
 end
 
@@ -848,25 +947,14 @@ function M.get_parent_path(filepath)
   return res
 end
 
-function M.make_relative_path(filepath, base_dir)
-  if filepath:sub(-2) == M.path_sep .. "." then filepath = filepath:sub(1, -3) end
-  if base_dir:sub(-2) == M.path_sep .. "." then base_dir = base_dir:sub(1, -3) end
-  if filepath == base_dir then return "." end
-  if filepath:sub(1, #base_dir) == base_dir then
-    filepath = filepath:sub(#base_dir + 1)
-    if filepath:sub(1, 2) == "." .. M.path_sep then
-      filepath = filepath:sub(3)
-    elseif filepath:sub(1, 1) == M.path_sep then
-      filepath = filepath:sub(2)
-    end
-  end
-  return filepath
-end
+function M.make_relative_path(filepath, base_dir) return M.path.relative(base_dir, filepath, false) end
 
-function M.is_absolute_path(path)
-  if not path then return false end
-  if M.is_win() then return path:match("^%a:[/\\]") ~= nil end
-  return path:match("^/") ~= nil
+function M.is_absolute_path(path) return M.path.is_absolute(path) end
+
+function M.to_absolute_path(path)
+  if not path or path == "" then return path end
+  if path:sub(1, 1) == "/" or path:sub(1, 7) == "term://" then return path end
+  return M.join_paths(M.get_project_root(), path)
 end
 
 function M.join_paths(...)
@@ -881,16 +969,13 @@ function M.join_paths(...)
       goto continue
     end
 
-    if path:sub(1, 2) == "." .. M.path_sep then path = path:sub(3) end
-
-    if result ~= "" and result:sub(-1) ~= M.path_sep then result = result .. M.path_sep end
-    result = result .. path
+    result = result == "" and path or M.path.join(result, path)
     ::continue::
   end
   return M.norm(result)
 end
 
-function M.path_exists(path) return vim.loop.fs_stat(path) ~= nil end
+function M.path_exists(path) return M.path.is_exist(path) end
 
 function M.is_first_letter_uppercase(str) return string.match(str, "^[A-Z]") ~= nil end
 
@@ -965,10 +1050,18 @@ function M.open_buffer(path, set_current_buf)
 
   local abs_path = M.join_paths(M.get_project_root(), path)
 
-  local bufnr = vim.fn.bufnr(abs_path, true)
-  vim.fn.bufload(bufnr)
-
-  if set_current_buf then vim.api.nvim_set_current_buf(bufnr) end
+  local bufnr ---@type integer
+  if set_current_buf then
+    bufnr = vim.fn.bufnr(abs_path)
+    if bufnr ~= -1 and vim.api.nvim_buf_is_loaded(bufnr) and vim.bo[bufnr].modified then
+      vim.api.nvim_buf_call(bufnr, function() vim.cmd("noautocmd write") end)
+    end
+    vim.cmd("noautocmd edit " .. abs_path)
+    bufnr = vim.api.nvim_get_current_buf()
+  else
+    bufnr = vim.fn.bufnr(abs_path, true)
+    pcall(vim.fn.bufload, bufnr)
+  end
 
   vim.cmd("filetype detect")
 
@@ -979,6 +1072,13 @@ end
 ---@param new_lines avante.ui.Line[]
 ---@return { start_line: integer, end_line: integer, content: avante.ui.Line[] }[]
 local function get_lines_diff(old_lines, new_lines)
+  local remaining_lines = 100
+  local start_line = 0
+  if #new_lines >= #old_lines then
+    start_line = math.max(#old_lines - remaining_lines, 0)
+    old_lines = vim.list_slice(old_lines, start_line + 1)
+    new_lines = vim.list_slice(new_lines, start_line + 1)
+  end
   local diffs = {}
   local prev_diff_idx = nil
   for i, line in ipairs(new_lines) do
@@ -987,19 +1087,23 @@ local function get_lines_diff(old_lines, new_lines)
     else
       if prev_diff_idx ~= nil then
         local content = vim.list_slice(new_lines, prev_diff_idx, i - 1)
-        table.insert(diffs, { start_line = prev_diff_idx, end_line = i, content = content })
+        table.insert(diffs, { start_line = start_line + prev_diff_idx, end_line = start_line + i, content = content })
         prev_diff_idx = nil
       end
     end
   end
   if prev_diff_idx ~= nil then
-    table.insert(
-      diffs,
-      { start_line = prev_diff_idx, end_line = #new_lines + 1, content = vim.list_slice(new_lines, prev_diff_idx) }
-    )
+    table.insert(diffs, {
+      start_line = start_line + prev_diff_idx,
+      end_line = start_line + #new_lines + 1,
+      content = vim.list_slice(new_lines, prev_diff_idx),
+    })
   end
   if #new_lines < #old_lines then
-    table.insert(diffs, { start_line = #new_lines + 1, end_line = #old_lines + 1, content = {} })
+    table.insert(
+      diffs,
+      { start_line = start_line + #new_lines + 1, end_line = start_line + #old_lines + 1, content = {} }
+    )
   end
   table.sort(diffs, function(a, b) return a.start_line > b.start_line end)
   return diffs
@@ -1078,7 +1182,11 @@ function M.is_same_file(filepath_a, filepath_b) return M.uniform_path(filepath_a
 
 function M.trim_think_content(content) return content:gsub("^<think>.-</think>", "", 1) end
 
+local _filetype_lru_cache = LRUCache:new(60)
+
 function M.get_filetype(filepath)
+  local cached_filetype = _filetype_lru_cache:get(filepath)
+  if cached_filetype then return cached_filetype end
   -- Some files are sometimes not detected correctly when buffer is not included
   -- https://github.com/neovim/neovim/issues/27265
 
@@ -1087,6 +1195,7 @@ function M.get_filetype(filepath)
   vim.api.nvim_buf_delete(buf, { force = true })
   -- Parse the first filetype from a multifiltype file
   filetype = filetype:gsub("%..*$", "")
+  _filetype_lru_cache:set(filepath, filetype)
   return filetype
 end
 
@@ -1102,6 +1211,9 @@ function M.read_file_from_buf_or_disk(filepath)
     local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
     return lines, nil
   end
+
+  local stat = vim.uv.fs_stat(abs_path)
+  if stat and stat.type == "directory" then return {}, "Cannot read a directory as file" .. filepath end
 
   -- Fallback: read file from disk
   local file, open_err = io.open(abs_path, "r")
@@ -1238,11 +1350,20 @@ function M.llm_tool_param_fields_to_json_schema(fields)
         properties = properties_,
         required = required_,
       }
+    elseif field.type == "array" and field.items then
+      local properties_ = M.llm_tool_param_fields_to_json_schema({ field.items })
+      local _, obj = next(properties_)
+      properties[field.name] = {
+        type = field.type,
+        description = field.get_description and field.get_description() or field.description,
+        items = obj,
+      }
     else
       properties[field.name] = {
         type = field.type,
         description = field.get_description and field.get_description() or field.description,
       }
+      if field.choices then properties[field.name].enum = field.choices end
     end
     if not field.optional then table.insert(required, field.name) end
   end
@@ -1265,6 +1386,7 @@ function M.get_commands()
 
   local builtin_items = {
     { description = "Show help message", name = "help" },
+    { description = "Init AGENTS.md based on the current project", name = "init" },
     { description = "Clear chat history", name = "clear" },
     { description = "New chat", name = "new" },
     { description = "Compact history messages to save tokens", name = "compact" },
@@ -1286,6 +1408,7 @@ function M.get_commands()
     clear = function(sidebar, args, cb) sidebar:clear_history(args, cb) end,
     new = function(sidebar, args, cb) sidebar:new_chat(args, cb) end,
     compact = function(sidebar, args, cb) sidebar:compact_history_messages(args, cb) end,
+    init = function(sidebar, args, cb) sidebar:init_current_project(args, cb) end,
     lines = function(_, args, cb)
       if cb then cb(args) end
     end,
@@ -1426,11 +1549,11 @@ end
 
 ---@param tool_use AvanteLLMToolUse
 function M.tool_use_to_xml(tool_use)
-  local xml = string.format("<%s>\n", tool_use.name)
+  local xml = string.format("<tool_use>\n<%s>\n", tool_use.name)
   for k, v in pairs(tool_use.input or {}) do
     xml = xml .. string.format("<%s>%s</%s>\n", k, tostring(v), k)
   end
-  xml = xml .. "</" .. tool_use.name .. ">"
+  xml = xml .. "</" .. tool_use.name .. ">\n</tool_use>"
   return xml
 end
 
@@ -1440,10 +1563,6 @@ function M.is_edit_func_call_tool_use(tool_use)
   local is_str_replace_editor_func_call = false
   local is_str_replace_based_edit_tool_func_call = false
   local path = nil
-  if tool_use.name == "write_to_file" then
-    is_replace_func_call = true
-    path = tool_use.input.path
-  end
   if tool_use.name == "replace_in_file" then
     is_replace_func_call = true
     path = tool_use.input.path
@@ -1560,7 +1679,7 @@ function M.message_content_item_to_lines(item, message, messages)
       local hl = "AvanteStateSpinnerToolCalling"
       local ok, llm_tool = pcall(require, "avante.llm_tools." .. item.name)
       if ok then
-        if llm_tool.on_render then return llm_tool.on_render(item.input, message.tool_use_logs) end
+        if llm_tool.on_render then return llm_tool.on_render(item.input, message.tool_use_logs, message.state) end
       end
       local tool_result_message = M.get_tool_result_message(message, messages)
       if tool_result_message then
@@ -1606,6 +1725,7 @@ end
 ---@param messages avante.HistoryMessage[]
 ---@return avante.ui.Line[]
 function M.message_to_lines(message, messages)
+  if message.displayed_content then return M.text_to_lines(message.displayed_content) end
   local content = message.message.content
   if type(content) == "string" then return M.text_to_lines(content) end
   if vim.islist(content) then
@@ -1660,6 +1780,64 @@ function M.count_lines(str)
   if str:byte(len) == newline_byte then count = count - 1 end
 
   return count
+end
+
+function M.tbl_override(value, override)
+  override = override or {}
+  if type(override) == "function" then return override(value) or value end
+  return vim.tbl_extend("force", value, override)
+end
+
+---@param history_messages avante.HistoryMessage[]
+---@return AvantePartialLLMToolUse[]
+---@return avante.HistoryMessage[]
+function M.get_uncalled_tool_uses(history_messages)
+  local last_turn_id = nil
+  if #history_messages > 0 then last_turn_id = history_messages[#history_messages].turn_id end
+  local uncalled_tool_uses = {} ---@type AvantePartialLLMToolUse[]
+  local uncalled_tool_uses_messages = {} ---@type avante.HistoryMessage[]
+  local tool_result_seen = {}
+  for idx = #history_messages, 1, -1 do
+    local message = history_messages[idx]
+    if last_turn_id then
+      if message.turn_id ~= last_turn_id then break end
+    else
+      if not M.is_tool_use_message(message) and not M.is_tool_result_message(message) then break end
+    end
+    local content = message.message.content
+    if type(content) ~= "table" or #content == 0 then goto continue end
+    local is_break = false
+    for _, item in ipairs(content) do
+      if item.type == "tool_use" then
+        if not tool_result_seen[item.id] then
+          local partial_tool_use = {
+            name = item.name,
+            id = item.id,
+            input = item.input,
+            state = message.state,
+          }
+          table.insert(uncalled_tool_uses, 1, partial_tool_use)
+          table.insert(uncalled_tool_uses_messages, 1, message)
+        else
+          is_break = true
+          break
+        end
+      end
+      if item.type == "tool_result" then tool_result_seen[item.tool_use_id] = true end
+    end
+    if is_break then break end
+    ::continue::
+  end
+  return uncalled_tool_uses, uncalled_tool_uses_messages
+end
+
+function M.call_once(func)
+  local called = false
+  return function(...)
+    if called then return end
+    called = true
+    return func(...)
+  end
 end
 
 return M
