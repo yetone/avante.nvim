@@ -1,7 +1,7 @@
 local Utils = require("avante.utils")
 local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
-local HistoryMessage = require("avante.history_message")
+local HistoryMessage = require("avante.history.message")
 local JsonParser = require("avante.libs.jsonparser")
 
 ---@class AvanteProviderFunctor

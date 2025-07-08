@@ -2,7 +2,7 @@ local Providers = require("avante.providers")
 local Config = require("avante.config")
 local Utils = require("avante.utils")
 local Base = require("avante.llm_tools.base")
-local HistoryMessage = require("avante.history_message")
+local History = require("avante.history")
 local Line = require("avante.ui.line")
 local Highlights = require("avante.highlights")
 
@@ -94,7 +94,7 @@ function M.on_render(input, opts)
     local content = msg.message.content
     local summary
     if type(content) == "table" and #content > 0 and content[1].type == "tool_use" then
-      local tool_result_message = Utils.get_tool_result_message(msg, messages)
+      local tool_result_message = History.Helpers.get_tool_result_message(msg, messages)
       if tool_result_message then
         local tool_name = msg.message.content[1].name
         if tool_name == "ls" then
@@ -267,7 +267,7 @@ When you're done, provide a clear and concise summary of what you found.]]):gsub
         .. elapsed_time
         .. "s)"
       if session_ctx.on_messages_add then
-        local message = HistoryMessage:new({
+        local message = History.Message:new({
           role = "assistant",
           content = "\n\n" .. summary,
         }, {

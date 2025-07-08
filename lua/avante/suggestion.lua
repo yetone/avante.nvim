@@ -3,7 +3,7 @@ local Llm = require("avante.llm")
 local Highlights = require("avante.highlights")
 local Config = require("avante.config")
 local Providers = require("avante.providers")
-local HistoryMessage = require("avante.history_message")
+local HistoryMessage = require("avante.history.message")
 local api = vim.api
 local fn = vim.fn
 

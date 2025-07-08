@@ -1473,41 +1473,6 @@ function M.get_commands()
   return vim.list_extend(builtin_commands, Config.slash_commands)
 end
 
----@param history avante.ChatHistory
----@return avante.HistoryMessage[]
-function M.get_history_messages(history)
-  local HistoryMessage = require("avante.history_message")
-  if history.messages then return history.messages end
-  local messages = {}
-  for _, entry in ipairs(history.entries or {}) do
-    if entry.request and entry.request ~= "" then
-      local message = HistoryMessage:new({
-        role = "user",
-        content = entry.request,
-      }, {
-        timestamp = entry.timestamp,
-        is_user_submission = true,
-        visible = entry.visible,
-        selected_filepaths = entry.selected_filepaths,
-        selected_code = entry.selected_code,
-      })
-      table.insert(messages, message)
-    end
-    if entry.response and entry.response ~= "" then
-      local message = HistoryMessage:new({
-        role = "assistant",
-        content = entry.response,
-      }, {
-        timestamp = entry.timestamp,
-        visible = entry.visible,
-      })
-      table.insert(messages, message)
-    end
-  end
-  history.messages = messages
-  return messages
-end
-
 function M.get_timestamp() return tostring(os.date("%Y-%m-%d %H:%M:%S")) end
 
 ---@param history_messages avante.HistoryMessage[]
@@ -1528,60 +1493,6 @@ function M.uuid()
     local v = (c == "x") and math.random(0, 0xf) or math.random(8, 0xb)
     return string.format("%x", v)
   end)
-end
-
----@param message avante.HistoryMessage
----@return boolean
-function M.is_tool_use_message(message)
-  local content = message.message.content
-  if type(content) == "string" then return false end
-  if vim.islist(content) then
-    for _, item in ipairs(content) do
-      if item.type == "tool_use" then return true end
-    end
-  end
-  return false
-end
-
----@param message avante.HistoryMessage
----@return boolean
-function M.is_tool_result_message(message)
-  local content = message.message.content
-  if type(content) == "string" then return false end
-  if vim.islist(content) then
-    for _, item in ipairs(content) do
-      if item.type == "tool_result" then return true end
-    end
-  end
-  return false
-end
-
----@param message avante.HistoryMessage
----@param messages avante.HistoryMessage[]
----@return avante.HistoryMessage | nil
-function M.get_tool_use_message(message, messages)
-  local content = message.message.content
-  if type(content) == "string" then return nil end
-  if vim.islist(content) then
-    local tool_id = nil
-    for _, item in ipairs(content) do
-      if item.type == "tool_result" then
-        tool_id = item.tool_use_id
-        break
-      end
-    end
-    if not tool_id then return nil end
-    for idx_ = #messages, 1, -1 do
-      local message_ = messages[idx_]
-      local content_ = message_.message.content
-      if type(content_) == "table" then
-        for _, item in ipairs(content_) do
-          if item.type == "tool_use" and item.id == tool_id then return message_ end
-        end
-      end
-    end
-  end
-  return nil
 end
 
 ---@param tool_use AvanteLLMToolUse
@@ -1619,48 +1530,6 @@ function M.is_edit_func_call_tool_use(tool_use)
     end
   end
   return is_replace_func_call, is_str_replace_editor_func_call, is_str_replace_based_edit_tool_func_call, path
-end
-
----@param tool_use_message avante.HistoryMessage | nil
-function M.is_edit_func_call_message(tool_use_message)
-  local is_replace_func_call = false
-  local is_str_replace_editor_func_call = false
-  local is_str_replace_based_edit_tool_func_call = false
-  local path = nil
-  if tool_use_message and M.is_tool_use_message(tool_use_message) then
-    local tool_use = tool_use_message.message.content[1]
-    ---@cast tool_use AvanteLLMToolUse
-    return M.is_edit_func_call_tool_use(tool_use)
-  end
-  return is_replace_func_call, is_str_replace_editor_func_call, is_str_replace_based_edit_tool_func_call, path
-end
-
----@param message avante.HistoryMessage
----@param messages avante.HistoryMessage[]
----@return avante.HistoryMessage | nil
-function M.get_tool_result_message(message, messages)
-  local content = message.message.content
-  if type(content) == "string" then return nil end
-  if vim.islist(content) then
-    local tool_id = nil
-    for _, item in ipairs(content) do
-      if item.type == "tool_use" then
-        tool_id = item.id
-        break
-      end
-    end
-    if not tool_id then return nil end
-    for idx_ = #messages, 1, -1 do
-      local message_ = messages[idx_]
-      local content_ = message_.message.content
-      if type(content_) == "table" then
-        for _, item in ipairs(content_) do
-          if item.type == "tool_result" and item.tool_use_id == tool_id then return message_ end
-        end
-      end
-    end
-  end
-  return nil
 end
 
 ---@param text string
@@ -1701,6 +1570,7 @@ end
 ---@return avante.ui.Line[]
 function M.message_content_item_to_lines(item, message, messages)
   local Line = require("avante.ui.line")
+  local HistoryHelpers = require("avante.history.helpers")
   if type(item) == "string" then return M.text_to_lines(item) end
   if type(item) == "table" then
     if item.type == "thinking" or item.type == "redacted_thinking" then
@@ -1711,7 +1581,7 @@ function M.message_content_item_to_lines(item, message, messages)
       return { Line:new({ { "![image](" .. item.source.media_type .. ": " .. item.source.data .. ")" } }) }
     end
     if item.type == "tool_use" then
-      local tool_result_message = M.get_tool_result_message(message, messages)
+      local tool_result_message = HistoryHelpers.get_tool_result_message(message, messages)
       local lines = {}
       local state = "generating"
       local hl = "AvanteStateSpinnerToolCalling"
@@ -1832,6 +1702,7 @@ end
 ---@return AvantePartialLLMToolUse[]
 ---@return avante.HistoryMessage[]
 function M.get_uncalled_tool_uses(history_messages)
+  local HistoryHelpers = require("avante.history.helpers")
   local last_turn_id = nil
   if #history_messages > 0 then last_turn_id = history_messages[#history_messages].turn_id end
   local uncalled_tool_uses = {} ---@type AvantePartialLLMToolUse[]
@@ -1841,8 +1712,8 @@ function M.get_uncalled_tool_uses(history_messages)
     local message = history_messages[idx]
     if last_turn_id then
       if message.turn_id ~= last_turn_id then break end
-    else
-      if not M.is_tool_use_message(message) and not M.is_tool_result_message(message) then break end
+    elseif not HistoryHelpers.is_tool_use_message(message) and not HistoryHelpers.is_tool_result_message(message) then
+      break
     end
     local content = message.message.content
     if type(content) ~= "table" or #content == 0 then goto continue end
