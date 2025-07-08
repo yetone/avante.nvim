@@ -97,78 +97,42 @@ M.update_history_messages = function(messages, using_ReAct_prompt, add_diagnosti
           view_tool_input = { command = "view", path = path }
         end
         history_messages = vim.list_extend(history_messages, {
-          Message:new({
-            role = "assistant",
-            content = string.format("Viewing file %s to get the latest content", path),
-          }, {
-            is_dummy = true,
+          Message:new_assistant_synthetic(string.format("Viewing file %s to get the latest content", path)),
+          Message:new_assistant_synthetic({
+            type = "tool_use",
+            id = view_tool_use_id,
+            name = view_tool_name,
+            input = view_tool_input,
           }),
-          Message:new({
-            role = "assistant",
-            content = {
-              {
-                type = "tool_use",
-                id = view_tool_use_id,
-                name = view_tool_name,
-                input = view_tool_input,
-              },
-            },
-          }, {
-            is_dummy = true,
-          }),
-          Message:new({
-            role = "user",
-            content = {
-              {
-                type = "tool_result",
-                tool_use_id = view_tool_use_id,
-                content = view_result,
-                is_error = view_error ~= nil,
-                is_user_declined = false,
-              },
-            },
-          }, {
-            is_dummy = true,
+          Message:new_user_synthetic({
+            type = "tool_result",
+            tool_use_id = view_tool_use_id,
+            content = view_result,
+            is_error = view_error ~= nil,
+            is_user_declined = false,
           }),
         })
         if last_modified_files[uniformed_path] == idx and add_diagnostic then
           local diagnostics = Utils.lsp.get_diagnostics_from_filepath(path)
           history_messages = vim.list_extend(history_messages, {
-            Message:new({
-              role = "assistant",
-              content = string.format(
+            Message:new_assistant_synthetic(
+              string.format(
                 "The file %s has been modified, let me check if there are any errors in the changes.",
                 path
-              ),
-            }, {
-              is_dummy = true,
+              )
+            ),
+            Message:new_assistant_synthetic({
+              type = "tool_use",
+              id = get_diagnostics_tool_use_id,
+              name = "get_diagnostics",
+              input = { path = path },
             }),
-            Message:new({
-              role = "assistant",
-              content = {
-                {
-                  type = "tool_use",
-                  id = get_diagnostics_tool_use_id,
-                  name = "get_diagnostics",
-                  input = { path = path },
-                },
-              },
-            }, {
-              is_dummy = true,
-            }),
-            Message:new({
-              role = "user",
-              content = {
-                {
-                  type = "tool_result",
-                  tool_use_id = get_diagnostics_tool_use_id,
-                  content = vim.json.encode(diagnostics),
-                  is_error = false,
-                  is_user_declined = false,
-                },
-              },
-            }, {
-              is_dummy = true,
+            Message:new_user_synthetic({
+              type = "tool_result",
+              tool_use_id = get_diagnostics_tool_use_id,
+              content = vim.json.encode(diagnostics),
+              is_error = false,
+              is_user_declined = false,
             }),
           })
         end
@@ -239,33 +203,26 @@ M.update_history_messages = function(messages, using_ReAct_prompt, add_diagnosti
             table.insert(
               picked_messages,
               1,
-              Message:new({
-                role = "user",
-                content = {
-                  {
-                    type = "text",
-                    text = string.format(
-                      "Tool use [%s] is successful: %s",
-                      tool_use_message.message.content[1].name,
-                      tostring(not msg.message.content[1].is_error)
-                    ),
-                  },
-                },
-              }, { is_dummy = true })
+              Message:new_user_synthetic({
+                type = "text",
+                text = string.format(
+                  "Tool use [%s] is successful: %s",
+                  tool_use_message.message.content[1].name,
+                  tostring(not msg.message.content[1].is_error)
+                ),
+              })
             )
-            local msg_content = {}
-            table.insert(msg_content, {
-              type = "text",
-              text = string.format(
-                "Tool use %s(%s)",
-                tool_use_message.message.content[1].name,
-                vim.json.encode(tool_use_message.message.content[1].input)
-              ),
-            })
             table.insert(
               picked_messages,
               1,
-              Message:new({ role = "assistant", content = msg_content }, { is_dummy = true })
+              Message:new_assistant_synthetic({
+                type = "text",
+                text = string.format(
+                  "Tool use %s(%s)",
+                  tool_use_message.message.content[1].name,
+                  vim.json.encode(tool_use_message.message.content[1].input)
+                ),
+              })
             )
           end
         elseif Helpers.is_tool_use_message(msg) then
