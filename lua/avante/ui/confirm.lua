@@ -186,7 +186,7 @@ function M:open()
     if sidebar.code.winid and vim.api.nvim_win_is_valid(sidebar.code.winid) then
       vim.api.nvim_set_current_win(sidebar.code.winid)
     end
-  end, { buffer = popup.bufnr })
+  end, { buffer = popup.bufnr, nowait = true })
 
   vim.keymap.set("n", Config.mappings.confirm.resp, function()
     local sidebar = require("avante").get()
@@ -194,7 +194,7 @@ function M:open()
     if sidebar.winids.result_container and vim.api.nvim_win_is_valid(sidebar.winids.result_container) then
       vim.api.nvim_set_current_win(sidebar.winids.result_container)
     end
-  end, { buffer = popup.bufnr })
+  end, { buffer = popup.bufnr, nowait = true })
 
   vim.keymap.set("n", Config.mappings.confirm.input, function()
     local sidebar = require("avante").get()
@@ -202,43 +202,43 @@ function M:open()
     if sidebar.winids.input_container and vim.api.nvim_win_is_valid(sidebar.winids.input_container) then
       vim.api.nvim_set_current_win(sidebar.winids.input_container)
     end
-  end, { buffer = popup.bufnr })
+  end, { buffer = popup.bufnr, nowait = true })
 
   vim.keymap.set("n", "y", function()
     focus_index = 1
     render_content()
     click_button()
-  end, { buffer = popup.bufnr })
+  end, { buffer = popup.bufnr, nowait = true })
 
   vim.keymap.set("n", "Y", function()
     focus_index = 1
     render_content()
     click_button()
-  end, { buffer = popup.bufnr })
+  end, { buffer = popup.bufnr, nowait = true })
 
   vim.keymap.set("n", "a", function()
     focus_index = 2
     render_content()
     click_button()
-  end, { buffer = popup.bufnr })
+  end, { buffer = popup.bufnr, nowait = true })
 
   vim.keymap.set("n", "A", function()
     focus_index = 2
     render_content()
     click_button()
-  end, { buffer = popup.bufnr })
+  end, { buffer = popup.bufnr, nowait = true })
 
   vim.keymap.set("n", "n", function()
     focus_index = 3
     render_content()
     click_button()
-  end, { buffer = popup.bufnr })
+  end, { buffer = popup.bufnr, nowait = true })
 
   vim.keymap.set("n", "N", function()
     focus_index = 3
     render_content()
     click_button()
-  end, { buffer = popup.bufnr })
+  end, { buffer = popup.bufnr, nowait = true })
 
   vim.keymap.set("n", "<Left>", function()
     focus_index = focus_index - 1
