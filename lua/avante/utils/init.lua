@@ -59,13 +59,14 @@ function M.get_system_info()
   local os_version = vim.loop.os_uname().release
   local os_machine = vim.loop.os_uname().machine
   local lang = os.getenv("LANG")
+  local shell = os.getenv("SHELL")
 
   local res = string.format(
     "- Platform: %s-%s-%s\n- Shell: %s\n- Language: %s\n- Current date: %s",
     os_name,
     os_version,
     os_machine,
-    vim.o.shell,
+    shell,
     lang,
     os.date("%Y-%m-%d")
   )
