@@ -1496,30 +1496,10 @@ function M.tool_use_to_xml(tool_use)
 end
 
 ---@param tool_use AvanteLLMToolUse
-function M.is_edit_func_call_tool_use(tool_use)
-  local is_replace_func_call = false
-  local is_str_replace_editor_func_call = false
-  local is_str_replace_based_edit_tool_func_call = false
-  local path = nil
-  if tool_use.name == "replace_in_file" then
-    is_replace_func_call = true
-    path = tool_use.input.path
-  end
-  if tool_use.name == "str_replace_editor" then
-    if tool_use.input.command == "str_replace" then
-      is_replace_func_call = true
-      is_str_replace_editor_func_call = true
-      path = tool_use.input.path
-    end
-  end
-  if tool_use.name == "str_replace_based_edit_tool" then
-    if tool_use.input.command == "str_replace" then
-      is_replace_func_call = true
-      is_str_replace_based_edit_tool_func_call = true
-      path = tool_use.input.path
-    end
-  end
-  return is_replace_func_call, is_str_replace_editor_func_call, is_str_replace_based_edit_tool_func_call, path
+function M.is_edit_tool_use(tool_use)
+  return tool_use.name == "replace_in_file"
+    or (tool_use.name == "str_replace_editor" and tool_use.input.command == "str_replace")
+    or (tool_use.name == "str_replace_based_edit_tool" and tool_use.input.command == "str_replace")
 end
 
 ---Counts number of strings in text, accounting for possibility of a trailing newline

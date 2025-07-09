@@ -2255,35 +2255,50 @@ end
 ---@return avante.HistoryMessage[]
 function Sidebar:get_history_messages_for_api(opts)
   opts = opts or {}
-  local history_messages0 = History.get_history_messages(self.chat_history)
+  local messages = History.get_history_messages(self.chat_history)
 
-  history_messages0 = vim
-    .iter(history_messages0)
-    :filter(function(message) return not message.just_for_display and not message.is_compacted end)
+  -- Scan the initial set of messages, filtering out "uninteresting" ones, but also
+  -- check if the last message mentioned in the chat memory is actually present.
+  local last_message = self.chat_history.memory and self.chat_history.memory.last_message_uuid
+  local last_message_present = false
+  messages = vim
+    .iter(messages)
+    :filter(function(message)
+      if message.just_for_display or message.is_compacted then return false end
+      if not opts.all then
+        if message.state == "generating" then return false end
+        if last_message and message.uuid == last_message then last_message_present = true end
+      end
+      return true
+    end)
     :totable()
 
-  if opts.all then return history_messages0 end
-
-  history_messages0 = vim
-    .iter(history_messages0)
-    :filter(function(message) return message.state ~= "generating" end)
-    :totable()
-
-  if self.chat_history and self.chat_history.memory then
-    local picked_messages = {}
-    for idx = #history_messages0, 1, -1 do
-      local message = history_messages0[idx]
-      if message.uuid == self.chat_history.memory.last_message_uuid then break end
-      table.insert(picked_messages, 1, message)
+  if not opts.all then
+    if last_message and last_message_present then
+      -- Drop all old messages preceding the "last" one from the memory
+      local last_message_seen = false
+      messages = vim
+        .iter(messages)
+        :filter(function(message)
+          if not last_message_seen then
+            if message.uuid == last_message then last_message_seen = true end
+            return false
+          end
+          return true
+        end)
+        :totable()
     end
-    history_messages0 = picked_messages
+
+    local tool_limit
+    if Providers[Config.provider].use_ReAct_prompt then
+      tool_limit = nil
+    else
+      tool_limit = 25
+    end
+    messages = History.update_tool_invocation_history(messages, tool_limit, Config.behaviour.auto_check_diagnostics)
   end
 
-  return History.update_history_messages(
-    history_messages0,
-    Providers[Config.provider].use_ReAct_prompt ~= nil,
-    Config.behaviour.auto_check_diagnostics
-  )
+  return messages
 end
 
 ---@param request string

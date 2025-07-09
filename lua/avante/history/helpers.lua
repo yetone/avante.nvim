@@ -67,20 +67,6 @@ function M.get_tool_use_message(message, messages)
   end
 end
 
----@param tool_use_message avante.HistoryMessage | nil
-function M.is_edit_func_call_message(tool_use_message)
-  local is_replace_func_call = false
-  local is_str_replace_editor_func_call = false
-  local is_str_replace_based_edit_tool_func_call = false
-  local path = nil
-  if tool_use_message and M.is_tool_use_message(tool_use_message) then
-    local tool_use = tool_use_message.message.content[1]
-    ---@cast tool_use AvanteLLMToolUse
-    return Utils.is_edit_func_call_tool_use(tool_use)
-  end
-  return is_replace_func_call, is_str_replace_editor_func_call, is_str_replace_based_edit_tool_func_call, path
-end
-
 ---Given a tool use message locate corresponding tool result message
 ---@param message avante.HistoryMessage
 ---@param messages avante.HistoryMessage[]
