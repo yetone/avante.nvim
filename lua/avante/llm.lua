@@ -824,7 +824,7 @@ function M._stream(opts)
           table.insert(tool_results, tool_result)
           return handle_next_tool_use(tool_uses, tool_use_messages, tool_use_index + 1, tool_results)
         end
-        local is_edit_tool_use = Utils.is_edit_func_call_tool_use(partial_tool_use)
+        local is_edit_tool_use = Utils.is_edit_tool_use(partial_tool_use)
         local support_streaming = false
         local llm_tool = vim.iter(prompt_opts.tools):find(function(tool) return tool.name == partial_tool_use.name end)
         if llm_tool then support_streaming = llm_tool.support_streaming == true end
