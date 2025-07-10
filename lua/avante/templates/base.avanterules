@@ -14,8 +14,8 @@ Memory is crucial, you must follow the instructions in <memory>!
 
 ====
 
-{% block extra_prompt %}
+{%- block extra_prompt %}
 {% endblock %}
 
-{% block custom_prompt %}
+{%- block custom_prompt %}
 {% endblock %}
