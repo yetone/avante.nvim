@@ -809,7 +809,6 @@ Avante 的工具包括一些 Web 搜索引擎，目前支持：
 
 - [Tavily](https://tavily.com/)
 - [SerpApi](https://serpapi.com/)
-- [SearchAPI](https://www.searchapi.io/)
 - Google's [Programmable Search Engine](https://developers.google.com/custom-search/v1/overview)
 - [Kagi](https://help.kagi.com/kagi/api/search.html)
 - [Brave Search](https://api-dashboard.search.brave.com/app/documentation/web-search/get-started)
@@ -819,7 +818,7 @@ Avante 的工具包括一些 Web 搜索引擎，目前支持：
 
 ```lua
 web_search_engine = {
-  provider = "tavily", -- tavily, serpapi, searchapi, google, kagi, brave 或 searxng
+  provider = "tavily", -- tavily, serpapi, google, kagi, brave 或 searxng
   proxy = nil, -- proxy support, e.g., http://127.0.0.1:7890
 }
 ```
@@ -828,7 +827,6 @@ web_search_engine = {
 
 - Tavily: `TAVILY_API_KEY`
 - SerpApi: `SERPAPI_API_KEY`
-- SearchAPI: `SEARCHAPI_API_KEY`
 - Google:
   - `GOOGLE_SEARCH_API_KEY` 作为 [API 密钥](https://developers.google.com/custom-search/v1/overview)
   - `GOOGLE_SEARCH_ENGINE_ID` 作为 [搜索引擎](https://programmablesearchengine.google.com) ID

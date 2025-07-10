@@ -1024,7 +1024,6 @@ Avante's tools include some web search engines, currently support:
 
 - [Tavily](https://tavily.com/)
 - [SerpApi](https://serpapi.com/)
-- [SearchAPI](https://www.searchapi.io/)
 - Google's [Programmable Search Engine](https://developers.google.com/custom-search/v1/overview)
 - [Kagi](https://help.kagi.com/kagi/api/search.html)
 - [Brave Search](https://api-dashboard.search.brave.com/app/documentation/web-search/get-started)
@@ -1034,7 +1033,7 @@ The default is Tavily, and can be changed through configuring `Config.web_search
 
 ```lua
 web_search_engine = {
-  provider = "tavily", -- tavily, serpapi, searchapi, google, kagi, brave, or searxng
+  provider = "tavily", -- tavily, serpapi, google, kagi, brave, or searxng
   proxy = nil, -- proxy support, e.g., http://127.0.0.1:7890
 }
 ```
@@ -1043,7 +1042,6 @@ Environment variables required for providers:
 
 - Tavily: `TAVILY_API_KEY`
 - SerpApi: `SERPAPI_API_KEY`
-- SearchAPI: `SEARCHAPI_API_KEY`
 - Google:
   - `GOOGLE_SEARCH_API_KEY` as the [API key](https://developers.google.com/custom-search/v1/overview)
   - `GOOGLE_SEARCH_ENGINE_ID` as the [search engine](https://programmablesearchengine.google.com) ID
