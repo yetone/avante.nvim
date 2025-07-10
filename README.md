@@ -945,25 +945,6 @@ providers = {
 }
 ```
 
-## AiHubMix
-
-[AiHubMix](https://s.kiiro.ai/r/PPELHy) is a built-in provider for avante.nvim. You can register an account on the [AiHubMix official website](https://s.kiiro.ai/r/PPELHy), then create an API Key within the website, and set this API Key in your environment variables:
-
-```bash
-export AIHUBMIX_API_KEY=your_api_key
-```
-
-Then in your configuration, set `provider = "aihubmix"`, and set the `model` field to the model name you want to use, for example:
-
-```lua
-provider = "aihubmix",
-providers = {
-  aihubmix = {
-    model = "gpt-4o-2024-11-20",
-  },
-}
-```
-
 ## Custom providers
 
 Avante provides a set of default providers, but users can also create their own providers.
