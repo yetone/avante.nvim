@@ -291,11 +291,13 @@ function Prompt.get_templates_dir(project_root)
   find_rules(Config.rules.global_dir)
   find_rules(directory:absolute())
 
+  local source_dir =
+    Path:new(debug.getinfo(1).source:match("@?(.*/)"):gsub("/lua/avante/path.lua$", "") .. "templates")
   -- Copy built-in templates to cache directory (only if not overridden by user templates)
-  Path:new(debug.getinfo(1).source:match("@?(.*/)"):gsub("/lua/avante/path.lua$", "") .. "templates"):copy({
+  source_dir:copy({
     destination = cache_prompt_dir,
     recursive = true,
-    override = false,
+    override = true,
   })
 
   vim.iter(Prompt.custom_prompts_contents):filter(function(_, v) return v ~= nil end):each(function(k, v)
