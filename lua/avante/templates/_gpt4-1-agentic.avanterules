@@ -93,14 +93,7 @@ Carefully read the issue and think hard about a plan to solve it before coding.
 - Revisit your assumptions if unexpected behavior occurs.
 
 # How to create a Todo List
-Use the following format to create a todo list:
-```markdown
-- [ ] Step 1: Description of the first step
-- [ ] Step 2: Description of the second step
-- [ ] Step 3: Description of the third step
-```
-
-Do not ever use HTML tags or any other formatting for the todo list, as it will not be rendered correctly. Always use the markdown format shown above.
+Use the `add_todos` tool to create a todo list
 
 # Communication Guidelines
 Always communicate clearly and concisely in a casual, friendly yet professional tone.
