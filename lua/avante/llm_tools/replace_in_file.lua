@@ -575,6 +575,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
   end
 
   local function highlight_diff_blocks()
+    local line_count = vim.api.nvim_buf_line_count(bufnr)
     vim.api.nvim_buf_clear_namespace(bufnr, NAMESPACE, 0, -1)
     local base_line_ = 0
     local max_col = vim.o.columns
@@ -591,17 +592,19 @@ function M.func(opts, on_log, on_complete, session_ctx)
         :totable()
       -- local extmark_line = math.max(0, start_line - 2)
       local end_row = start_line + #diff_block.new_lines - 1
-      local delete_extmark_id = vim.api.nvim_buf_set_extmark(bufnr, NAMESPACE, end_row - 1, 0, {
-        virt_lines = deleted_virt_lines,
-        hl_eol = true,
-        hl_mode = "combine",
-      })
-      local incoming_extmark_id = vim.api.nvim_buf_set_extmark(bufnr, NAMESPACE, start_line - 1, 0, {
-        hl_group = Highlights.INCOMING,
-        hl_eol = true,
-        hl_mode = "combine",
-        end_row = end_row,
-      })
+      local delete_extmark_id =
+        vim.api.nvim_buf_set_extmark(bufnr, NAMESPACE, math.min(math.max(end_row - 1, 0), line_count - 1), 0, {
+          virt_lines = deleted_virt_lines,
+          hl_eol = true,
+          hl_mode = "combine",
+        })
+      local incoming_extmark_id =
+        vim.api.nvim_buf_set_extmark(bufnr, NAMESPACE, math.min(math.max(start_line - 1, 0), line_count - 1), 0, {
+          hl_group = Highlights.INCOMING,
+          hl_eol = true,
+          hl_mode = "combine",
+          end_row = end_row,
+        })
       diff_block.delete_extmark_id = delete_extmark_id
       diff_block.incoming_extmark_id = incoming_extmark_id
     end
