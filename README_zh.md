@@ -789,7 +789,7 @@ RAG 服务可以单独设置llm模型和嵌入模型。在 `llm` 和 `embed` 配
 Avante 的工具包括一些 Web 搜索引擎，目前支持：
 
 - [Tavily](https://tavily.com/)
-- [SerpApi](https://serpapi.com/)
+- [SerpApi - Search API](https://serpapi.com/)
 - Google's [Programmable Search Engine](https://developers.google.com/custom-search/v1/overview)
 - [Kagi](https://help.kagi.com/kagi/api/search.html)
 - [Brave Search](https://api-dashboard.search.brave.com/app/documentation/web-search/get-started)
