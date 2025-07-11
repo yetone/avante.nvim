@@ -1004,7 +1004,7 @@ After changing the rag_service configuration, you need to manually delete the ra
 Avante's tools include some web search engines, currently support:
 
 - [Tavily](https://tavily.com/)
-- [SerpApi](https://serpapi.com/)
+- [SerpApi - Search API](https://serpapi.com/)
 - Google's [Programmable Search Engine](https://developers.google.com/custom-search/v1/overview)
 - [Kagi](https://help.kagi.com/kagi/api/search.html)
 - [Brave Search](https://api-dashboard.search.brave.com/app/documentation/web-search/get-started)
