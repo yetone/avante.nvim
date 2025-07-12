@@ -188,15 +188,13 @@ L5:     pass
               :map(function(s)
                 local lines = vim.split(s.content, "\n")
                 local new_start_row = s.start_row
-                local new_content_lines = lines
                 for i = s.start_row, s.start_row + #lines - 1 do
-                  if current_lines[i] == lines[i - s.start_row + 1] then
-                    new_start_row = i + 1
-                    new_content_lines = vim.list_slice(new_content_lines, 2)
-                  else
-                    break
-                  end
+                  if current_lines[i] ~= lines[i - s.start_row + 1] then break end
+                  new_start_row = i + 1
                 end
+                local new_content_lines = new_start_row ~= s.start_row
+                    and vim.list_slice(lines, new_start_row - s.start_row + 1)
+                  or lines
                 if #new_content_lines == 0 then return nil end
                 new_content_lines = Utils.trim_line_numbers(new_content_lines)
                 return {
