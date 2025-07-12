@@ -23,7 +23,7 @@ M._defaults = {
   ---@alias avante.Mode "agentic" | "legacy"
   ---@type avante.Mode
   mode = "agentic",
-  ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | string
+  ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | "watsonx" | string
   ---@type avante.ProviderName
   provider = "claude",
   -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
@@ -371,6 +371,12 @@ M._defaults = {
         temperature = 0.75,
         max_tokens = 20480,
       },
+    },
+  ---@type AvanteSupportedProvider
+    ["watsonx_code_assistant"] = {
+      endpoint = "https://api.dataplatform.cloud.ibm.com",
+      model = "granite-8b-code-instruct",
+      timeout = 30000, -- Timeout in milliseconds
     },
     ["openai-gpt-4o-mini"] = {
       __inherited_from = "openai",
