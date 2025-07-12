@@ -1766,20 +1766,15 @@ function M.message_to_text(message, messages)
   return ""
 end
 
+---Counts number of strings in text, accounting for possibility of a trailing newline
+---@param str string | nil
+---@return integer
 function M.count_lines(str)
   if not str or str == "" then return 0 end
 
-  local count = 1
-  local len = #str
-  local newline_byte = string.byte("\n")
-
-  for i = 1, len do
-    if str:byte(i) == newline_byte then count = count + 1 end
-  end
-
-  if str:byte(len) == newline_byte then count = count - 1 end
-
-  return count
+  local _, count = str:gsub("\n", "\n")
+  -- Number of lines is one more than number of newlines unless we have a trailing newline
+  return str:sub(-1) ~= "\n" and count + 1 or count
 end
 
 function M.tbl_override(value, override)
