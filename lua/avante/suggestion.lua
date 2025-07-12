@@ -198,12 +198,13 @@ L5:     pass
                   end
                 end
                 if #new_content_lines == 0 then return nil end
+                new_content_lines = Utils.trim_line_numbers(new_content_lines)
                 return {
                   id = s.start_row,
                   original_start_row = s.start_row,
                   start_row = new_start_row,
                   end_row = s.end_row,
-                  content = Utils.trim_all_line_numbers(table.concat(new_content_lines, "\n")),
+                  content = table.concat(new_content_lines, "\n"),
                 }
               end)
               :filter(function(s) return s ~= nil end)
