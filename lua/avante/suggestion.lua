@@ -9,13 +9,19 @@ local fn = vim.fn
 
 local SUGGESTION_NS = api.nvim_create_namespace("avante_suggestion")
 
+---Represents contents of a single code block that can be placed between start and end rows
 ---@class avante.SuggestionItem
+---@field id integer
 ---@field content string
----@field row number
----@field col number
+---@field start_row integer
+---@field end_row integer
+---@field original_start_row integer
+
+---A list of code blocks that form a complete set of edits to implement a recommended change
+---@alias avante.SuggestionSet avante.SuggestionItem[]
 
 ---@class avante.SuggestionContext
----@field suggestions avante.SuggestionItem[]
+---@field suggestions_list avante.SuggestionSet[]
 ---@field current_suggestion_idx number
 ---@field prev_doc? table
 
