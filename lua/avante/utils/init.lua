@@ -1175,7 +1175,10 @@ end
 
 function M.is_same_file(filepath_a, filepath_b) return M.uniform_path(filepath_a) == M.uniform_path(filepath_b) end
 
-function M.trim_think_content(content) return content:gsub("^<think>.-</think>", "", 1) end
+---Removes <think> tags, returning only text between them
+---@param content string
+---@return string
+function M.trim_think_content(content) return (content:gsub("^<think>.-</think>", "", 1)) end
 
 local _filetype_lru_cache = LRUCache:new(60)
 
