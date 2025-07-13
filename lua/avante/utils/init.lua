@@ -746,10 +746,11 @@ function M.throttle(func, delay)
 end
 
 function M.winline(winid)
+  -- If the winid is not provided, then line number should be 1, so that it can land on the first line
   if not vim.api.nvim_win_is_valid(winid) then return 1 end
 
   local line = 1
-  vim.api.nvim_win_call(winid, function() line = vim.fn.winline() end)
+  vim.api.nvim_win_call(winid, function() line = fn.winline() end)
 
   return line
 end
