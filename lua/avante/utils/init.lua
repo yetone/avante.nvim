@@ -746,10 +746,11 @@ function M.throttle(func, delay)
 end
 
 function M.winline(winid)
-  local current_win = api.nvim_get_current_win()
-  api.nvim_set_current_win(winid)
-  local line = fn.winline()
-  api.nvim_set_current_win(current_win)
+  if not vim.api.nvim_win_is_valid(winid) then return 1 end
+
+  local line = 1
+  vim.api.nvim_win_call(winid, function() line = vim.fn.winline() end)
+
   return line
 end
 
