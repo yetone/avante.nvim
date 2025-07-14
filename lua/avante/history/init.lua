@@ -257,4 +257,45 @@ M.update_history_messages = function(messages, using_ReAct_prompt, add_diagnosti
   return final_history_messages
 end
 
+---Scans message history backwards, looking for tool invocations that have not been executed yet
+---@param messages avante.HistoryMessage[]
+---@return AvantePartialLLMToolUse[]
+---@return avante.HistoryMessage[]
+function M.get_pending_tools(messages)
+  local last_turn_id = nil
+  if #messages > 0 then last_turn_id = messages[#messages].turn_id end
+
+  local pending_tool_uses = {} ---@type AvantePartialLLMToolUse[]
+  local pending_tool_uses_messages = {} ---@type avante.HistoryMessage[]
+  local tool_result_seen = {}
+
+  for idx = #messages, 1, -1 do
+    local message = messages[idx]
+
+    if last_turn_id and message.turn_id ~= last_turn_id then break end
+
+    local use = Helpers.get_tool_use_data(message)
+    if use then
+      if not tool_result_seen[use.id] then
+        local partial_tool_use = {
+          name = use.name,
+          id = use.id,
+          input = use.input,
+          state = message.state,
+        }
+        table.insert(pending_tool_uses, 1, partial_tool_use)
+        table.insert(pending_tool_uses_messages, 1, message)
+      end
+      goto continue
+    end
+
+    local result = Helpers.get_tool_result_data(message)
+    if result then tool_result_seen[result.tool_use_id] = true end
+
+    ::continue::
+  end
+
+  return pending_tool_uses, pending_tool_uses_messages
+end
+
 return M

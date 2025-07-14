@@ -147,10 +147,10 @@ function M.generate_todos(user_input, cb)
           return
         end
         if stop_opts.reason == "tool_use" then
-          local uncalled_tool_uses = Utils.get_uncalled_tool_uses(history_messages)
-          for _, partial_tool_use in ipairs(uncalled_tool_uses) do
-            if partial_tool_use.state == "generated" and partial_tool_use.name == "add_todos" then
-              local result = LLMTools.process_tool_use(tools, partial_tool_use, {
+          local pending_tools = History.get_pending_tools(history_messages)
+          for _, pending_tool in ipairs(pending_tools) do
+            if pending_tool.state == "generated" and pending_tool.name == "add_todos" then
+              local result = LLMTools.process_tool_use(tools, pending_tool, {
                 session_ctx = {},
                 on_complete = function() cb() end,
               })
@@ -864,7 +864,7 @@ function M._stream(opts)
         return opts.on_stop({ reason = "cancelled" })
       end
       local history_messages = opts.get_history_messages and opts.get_history_messages({ all = true }) or {}
-      local uncalled_tool_uses, uncalled_tool_uses_messages = Utils.get_uncalled_tool_uses(history_messages)
+      local pending_tools, pending_tool_use_messages = History.get_pending_tools(history_messages)
       if stop_opts.reason == "complete" and Config.mode == "agentic" then
         local completed_attempt_completion_tool_use = nil
         for idx = #history_messages, 1, -1 do
@@ -927,13 +927,7 @@ function M._stream(opts)
       end
       if stop_opts.reason == "tool_use" then
         opts.session_ctx.user_reminder_count = 0
-        return handle_next_tool_use(
-          uncalled_tool_uses,
-          uncalled_tool_uses_messages,
-          1,
-          {},
-          stop_opts.streaming_tool_use
-        )
+        return handle_next_tool_use(pending_tools, pending_tool_use_messages, 1, {}, stop_opts.streaming_tool_use)
       end
       if stop_opts.reason == "rate_limit" then
         local msg_content = "*[Rate limit reached. Retrying in " .. stop_opts.retry_after .. " seconds ...]*"
