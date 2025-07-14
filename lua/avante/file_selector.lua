@@ -52,17 +52,19 @@ function FileSelector:handle_path_selection(selected_paths)
   self:emit("update")
 end
 
+---Scans a given directory and produces a list of files/directories with paths relative to the project root
+---@return string[]
 local function get_project_filepaths()
   local project_root = Utils.get_project_root()
   local files = Utils.scan_directory({ directory = project_root, add_dirs = true })
-  files = vim.iter(files):map(function(filepath) return Utils.make_relative_path(filepath, project_root) end):totable()
-
-  return vim.tbl_map(function(path)
-    local rel_path = Utils.make_relative_path(path, project_root)
-    local stat = vim.loop.fs_stat(path)
-    if stat and stat.type == "directory" then rel_path = rel_path .. "/" end
-    return rel_path
-  end, files)
+  return vim
+    .iter(files)
+    :map(function(path)
+      local rel_path = Utils.make_relative_path(path, project_root)
+      if vim.fn.isdirectory(rel_path) == 1 then rel_path = rel_path .. "/" end
+      return rel_path
+    end)
+    :totable()
 end
 
 ---@param id integer
