@@ -238,9 +238,7 @@ function M.agent_loop(opts)
       if memory then stream_options.memory = memory.content end
       local new_history_messages = {}
       for _, msg in ipairs(history_messages) do
-        if compaction_history_message_uuids[msg.uuid] then goto continue end
-        table.insert(new_history_messages, msg)
-        ::continue::
+        if not compaction_history_message_uuids[msg.uuid] then table.insert(new_history_messages, msg) end
       end
       history_messages = new_history_messages
       M._stream(stream_options)
@@ -270,40 +268,27 @@ function M.generate_prompts(opts)
   local system_info = Utils.get_system_info()
 
   local selected_files = opts.selected_files or {}
-
   if opts.selected_filepaths then
     for _, filepath in ipairs(opts.selected_filepaths) do
       local lines, error = Utils.read_file_from_buf_or_disk(filepath)
-      lines = lines or {}
-      local filetype = Utils.get_filetype(filepath)
       if error ~= nil then
         Utils.error("error reading file: " .. error)
       else
-        local content = table.concat(lines, "\n")
+        local content = table.concat(lines or {}, "\n")
+        local filetype = Utils.get_filetype(filepath)
         table.insert(selected_files, { path = filepath, content = content, file_type = filetype })
       end
     end
   end
 
   local viewed_files = {}
-
   if opts.history_messages then
     for _, message in ipairs(opts.history_messages) do
-      local content = message.message.content
-      if type(content) ~= "table" then goto continue end
-      for _, item in ipairs(content) do
-        if type(item) ~= "table" then goto continue1 end
-        if item.type ~= "tool_use" then goto continue1 end
-        local tool_name = item.name
-        if tool_name ~= "view" then goto continue1 end
-        local path = item.input.path
-        if path then
-          local uniform_path = Utils.uniform_path(path)
-          viewed_files[uniform_path] = item.id
-        end
-        ::continue1::
+      local use = History.Helpers.get_tool_use_data(message)
+      if use and use.name == "view" and use.input.path then
+        local uniform_path = Utils.uniform_path(use.input.path)
+        viewed_files[uniform_path] = use.id
       end
-      ::continue::
     end
   end
 
@@ -884,12 +869,13 @@ function M._stream(opts)
         local completed_attempt_completion_tool_use = nil
         for idx = #history_messages, 1, -1 do
           local message = history_messages[idx]
-          if message.is_user_submission then break end
-          if not History.Helpers.is_tool_use_message(message) then goto continue end
-          if message.message.content[1].name ~= "attempt_completion" then break end
-          completed_attempt_completion_tool_use = message
-          if message then break end
-          ::continue::
+          if not message.is_user_submission then
+            local use = History.Helpers.get_tool_use_data(message)
+            if use and use.name == "attempt_completion" then
+              completed_attempt_completion_tool_use = message
+              break
+            end
+          end
         end
         local unfinished_todos = {}
         if opts.get_todos then
