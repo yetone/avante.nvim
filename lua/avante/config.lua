@@ -372,7 +372,7 @@ M._defaults = {
         max_tokens = 20480,
       },
     },
-  ---@type AvanteSupportedProvider
+    ---@type AvanteSupportedProvider
     ["watsonx_code_assistant"] = {
       endpoint = "https://api.dataplatform.cloud.ibm.com",
       model = "granite-8b-code-instruct",
