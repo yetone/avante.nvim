@@ -16,7 +16,7 @@ local FileSelector = {}
 
 local function has_scheme(path) return path:find("^(?!term://)%w+://") ~= nil end
 
-function FileSelector:process_directory(absolute_path, project_root)
+function FileSelector:process_directory(absolute_path)
   if absolute_path:sub(-1) == Utils.path_sep then absolute_path = absolute_path:sub(1, -2) end
   local files = Utils.scan_directory({ directory = absolute_path, add_dirs = false })
 
@@ -31,13 +31,12 @@ end
 ---@return nil
 function FileSelector:handle_path_selection(selected_paths)
   if not selected_paths then return end
-  local project_root = Utils.get_project_root()
 
   for _, selected_path in ipairs(selected_paths) do
     local absolute_path = Utils.to_absolute_path(selected_path)
     local stat = vim.loop.fs_stat(absolute_path)
     if stat and stat.type == "directory" then
-      self.process_directory(self, absolute_path, project_root)
+      self:process_directory(absolute_path)
     else
       local abs_path = Utils.to_absolute_path(selected_path)
       if Config.file_selector.provider == "native" then
@@ -89,7 +88,7 @@ function FileSelector:add_selected_file(filepath)
   local absolute_path = Utils.to_absolute_path(filepath)
   local stat = vim.loop.fs_stat(absolute_path)
   if stat and stat.type == "directory" then
-    self.process_directory(self, absolute_path, Utils.get_project_root())
+    self:process_directory(absolute_path)
     return
   end
   -- Avoid duplicates
