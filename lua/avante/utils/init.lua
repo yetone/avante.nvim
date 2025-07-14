@@ -1475,18 +1475,6 @@ end
 
 function M.get_timestamp() return tostring(os.date("%Y-%m-%d %H:%M:%S")) end
 
----@param history_messages avante.HistoryMessage[]
----@return AvanteLLMMessage[]
-function M.history_messages_to_messages(history_messages)
-  local messages = {}
-  for _, history_message in ipairs(history_messages) do
-    if history_message.just_for_display then goto continue end
-    table.insert(messages, history_message.message)
-    ::continue::
-  end
-  return messages
-end
-
 function M.uuid()
   local template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
   return string.gsub(template, "[xy]", function(c)
