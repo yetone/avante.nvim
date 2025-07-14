@@ -9,7 +9,7 @@ local FileSelector = {}
 
 --- @class FileSelector
 --- @field id integer
---- @field selected_filepaths string[]
+--- @field selected_filepaths string[] Absolute paths
 --- @field event_handlers table<string, function[]>
 
 ---@alias FileSelectorHandler fun(self: FileSelector, on_select: fun(filepaths: string[] | nil)): nil
@@ -181,9 +181,17 @@ function FileSelector:get_filepaths()
     end
   end)
 
+  local selected_filepaths_set = {}
+  for _, abs_path in ipairs(self.selected_filepaths) do
+    selected_filepaths_set[abs_path] = true
+  end
+
   return vim
     .iter(filepaths)
-    :filter(function(filepath) return not vim.tbl_contains(self.selected_filepaths, filepath) end)
+    :filter(function(filepath)
+      local abs_filepath = Utils.to_absolute_path(filepath)
+      return not selected_filepaths_set[abs_filepath]
+    end)
     :totable()
 end
 
