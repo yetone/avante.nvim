@@ -102,6 +102,10 @@ M.returns = {
 ---@param diff string
 ---@return string
 local function fix_diff(diff)
+  -- Normalize block headers to the expected ones (fix for some LLMs output)
+  diff = diff:gsub("<<<<<<<%s*SEARCH", "------- SEARCH")
+  diff = diff:gsub(">>>>>>>%s*REPLACE", "+++++++ REPLACE")
+
   local has_search_line = diff:match("^%s*-------* SEARCH") ~= nil
   if has_search_line then return diff end
 
