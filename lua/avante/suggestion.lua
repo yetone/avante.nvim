@@ -9,13 +9,19 @@ local fn = vim.fn
 
 local SUGGESTION_NS = api.nvim_create_namespace("avante_suggestion")
 
+---Represents contents of a single code block that can be placed between start and end rows
 ---@class avante.SuggestionItem
+---@field id integer
 ---@field content string
----@field row number
----@field col number
+---@field start_row integer
+---@field end_row integer
+---@field original_start_row integer
+
+---A list of code blocks that form a complete set of edits to implement a recommended change
+---@alias avante.SuggestionSet avante.SuggestionItem[]
 
 ---@class avante.SuggestionContext
----@field suggestions avante.SuggestionItem[]
+---@field suggestions_list avante.SuggestionSet[]
 ---@field current_suggestion_idx number
 ---@field prev_doc? table
 
@@ -57,6 +63,98 @@ function Suggestion:destroy()
   self:stop_timer()
   self:reset()
   self:delete_autocmds()
+end
+
+---Validates a potential suggestion item, ensuring that it has all needed data
+---@param item table The suggestion item to validate.
+---@return boolean `true` if valid, otherwise `false`.
+local function validate_suggestion_item(item)
+  return not not (
+    item.content
+    and type(item.content) == "string"
+    and item.start_row
+    and type(item.start_row) == "number"
+    and item.end_row
+    and type(item.end_row) == "number"
+    and item.start_row <= item.end_row
+  )
+end
+
+---Validates incoming raw suggestion data and builds a suggestion set, minimizing content
+---@param raw_suggestions table[]
+---@param current_content string[]
+---@return avante.SuggestionSet
+local function build_suggestion_set(raw_suggestions, current_content)
+  ---@type avante.SuggestionSet
+  local items = vim
+    .iter(raw_suggestions)
+    :map(function(s)
+      --- 's' is a table generated from parsing json, it may not have
+      --- all the expected keys or they may have bad values.
+      if not validate_suggestion_item(s) then
+        Utils.error("Provider returned malformed or invalid suggestion data", { once = true })
+        return
+      end
+
+      local lines = vim.split(s.content, "\n")
+      local new_start_row = s.start_row
+      for i = s.start_row, s.start_row + #lines - 1 do
+        if current_content[i] ~= lines[i - s.start_row + 1] then break end
+        new_start_row = i + 1
+      end
+      local new_content_lines = new_start_row ~= s.start_row and vim.list_slice(lines, new_start_row - s.start_row + 1)
+        or lines
+      if #new_content_lines == 0 then return nil end
+      new_content_lines = Utils.trim_line_numbers(new_content_lines)
+      return {
+        id = s.start_row,
+        original_start_row = s.start_row,
+        start_row = new_start_row,
+        end_row = s.end_row,
+        content = table.concat(new_content_lines, "\n"),
+      }
+    end)
+    :filter(function(s) return s ~= nil end)
+    :totable()
+
+  --- sort the suggestions by start_row
+  table.sort(items, function(a, b) return a.start_row < b.start_row end)
+  return items
+end
+
+---Parses provider response and builds a list of suggestions
+---@param full_response string
+---@param bufnr integer
+---@return avante.SuggestionSet[] | nil
+local function build_suggestion_list(full_response, bufnr)
+  -- Clean up markdown code blocks
+  full_response = Utils.trim_think_content(full_response)
+  full_response = full_response:gsub("<suggestions>\n(.-)\n</suggestions>", "%1")
+  full_response = full_response:gsub("^```%w*\n(.-)\n```$", "%1")
+  full_response = full_response:gsub("(.-)\n```\n?$", "%1")
+  -- Remove everything before the first '[' to ensure we get just the JSON array
+  full_response = full_response:gsub("^.-(%[.*)", "%1")
+  -- Remove everything after the last ']' to ensure we get just the JSON array
+  full_response = full_response:gsub("(.*%]).-$", "%1")
+
+  local ok, suggestions_list = pcall(vim.json.decode, full_response)
+  if not ok then
+    Utils.error("Error while decoding suggestions: " .. full_response, { once = true, title = "Avante" })
+    return
+  end
+
+  if not suggestions_list then
+    Utils.info("No suggestions found", { once = true, title = "Avante" })
+    return
+  end
+  if #suggestions_list ~= 0 and not vim.islist(suggestions_list[1]) then suggestions_list = { suggestions_list } end
+
+  local current_lines = Utils.get_buf_lines(0, -1, bufnr)
+
+  return vim
+    .iter(suggestions_list)
+    :map(function(suggestions) return build_suggestion_set(suggestions, current_lines) end)
+    :totable()
 end
 
 function Suggestion:suggest()
@@ -158,63 +256,10 @@ L5:     pass
       vim.schedule(function()
         local cursor_row, cursor_col = Utils.get_cursor_pos()
         if cursor_row ~= doc.position.row or cursor_col ~= doc.position.col then return end
-        -- Clean up markdown code blocks
-        full_response = Utils.trim_think_content(full_response)
-        full_response = full_response:gsub("<suggestions>\n(.-)\n</suggestions>", "%1")
-        full_response = full_response:gsub("^```%w*\n(.-)\n```$", "%1")
-        full_response = full_response:gsub("(.-)\n```\n?$", "%1")
-        -- Remove everything before the first '[' to ensure we get just the JSON array
-        full_response = full_response:gsub("^.-(%[.*)", "%1")
-        -- Remove everything after the last ']' to ensure we get just the JSON array
-        full_response = full_response:gsub("(.*%]).-$", "%1")
-        local ok, suggestions_list = pcall(vim.json.decode, full_response)
-        if not ok then
-          Utils.error("Error while decoding suggestions: " .. full_response, { once = true, title = "Avante" })
-          return
-        end
-        if not suggestions_list then
-          Utils.info("No suggestions found", { once = true, title = "Avante" })
-          return
-        end
-        if #suggestions_list ~= 0 and not vim.islist(suggestions_list[1]) then
-          suggestions_list = { suggestions_list }
-        end
-        local current_lines = Utils.get_buf_lines(0, -1, bufnr)
-        suggestions_list = vim
-          .iter(suggestions_list)
-          :map(function(suggestions)
-            local new_suggestions = vim
-              .iter(suggestions)
-              :map(function(s)
-                local lines = vim.split(s.content, "\n")
-                local new_start_row = s.start_row
-                local new_content_lines = lines
-                for i = s.start_row, s.start_row + #lines - 1 do
-                  if current_lines[i] == lines[i - s.start_row + 1] then
-                    new_start_row = i + 1
-                    new_content_lines = vim.list_slice(new_content_lines, 2)
-                  else
-                    break
-                  end
-                end
-                if #new_content_lines == 0 then return nil end
-                return {
-                  id = s.start_row,
-                  original_start_row = s.start_row,
-                  start_row = new_start_row,
-                  end_row = s.end_row,
-                  content = Utils.trim_all_line_numbers(table.concat(new_content_lines, "\n")),
-                }
-              end)
-              :filter(function(s) return s ~= nil end)
-              :totable()
-            --- sort the suggestions by start_row
-            table.sort(new_suggestions, function(a, b) return a.start_row < b.start_row end)
-            return new_suggestions
-          end)
-          :totable()
-        ctx.suggestions_list = suggestions_list
+
+        ctx.suggestions_list = build_suggestion_list(full_response, bufnr)
         ctx.current_suggestions_idx = 1
+
         self:show()
       end)
     end,
