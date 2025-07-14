@@ -1698,50 +1698,6 @@ function M.tbl_override(value, override)
   return vim.tbl_extend("force", value, override)
 end
 
----@param history_messages avante.HistoryMessage[]
----@return AvantePartialLLMToolUse[]
----@return avante.HistoryMessage[]
-function M.get_uncalled_tool_uses(history_messages)
-  local HistoryHelpers = require("avante.history.helpers")
-  local last_turn_id = nil
-  if #history_messages > 0 then last_turn_id = history_messages[#history_messages].turn_id end
-  local uncalled_tool_uses = {} ---@type AvantePartialLLMToolUse[]
-  local uncalled_tool_uses_messages = {} ---@type avante.HistoryMessage[]
-  local tool_result_seen = {}
-  for idx = #history_messages, 1, -1 do
-    local message = history_messages[idx]
-    if last_turn_id then
-      if message.turn_id ~= last_turn_id then break end
-    elseif not HistoryHelpers.is_tool_use_message(message) and not HistoryHelpers.is_tool_result_message(message) then
-      break
-    end
-    local content = message.message.content
-    if type(content) ~= "table" or #content == 0 then goto continue end
-    local is_break = false
-    for _, item in ipairs(content) do
-      if item.type == "tool_use" then
-        if not tool_result_seen[item.id] then
-          local partial_tool_use = {
-            name = item.name,
-            id = item.id,
-            input = item.input,
-            state = message.state,
-          }
-          table.insert(uncalled_tool_uses, 1, partial_tool_use)
-          table.insert(uncalled_tool_uses_messages, 1, message)
-        else
-          is_break = true
-          break
-        end
-      end
-      if item.type == "tool_result" then tool_result_seen[item.tool_use_id] = true end
-    end
-    if is_break then break end
-    ::continue::
-  end
-  return uncalled_tool_uses, uncalled_tool_uses_messages
-end
-
 function M.call_once(func)
   local called = false
   return function(...)
