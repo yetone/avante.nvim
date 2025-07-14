@@ -690,16 +690,11 @@ function M.prepend_line_number(content, start_line)
   return table.concat(result, "\n")
 end
 
-function M.trim_line_number(line) return line:gsub("^L%d+: ", "") end
-
-function M.trim_all_line_numbers(content)
-  return vim
-    .iter(vim.split(content, "\n"))
-    :map(function(line)
-      local new_line = M.trim_line_number(line)
-      return new_line
-    end)
-    :join("\n")
+---Iterates through a list of strings and removes prefixes in form of "L<number>: " from them
+---@param content string[]
+---@return string[]
+function M.trim_line_numbers(content)
+  return vim.iter(content):map(function(line) return line:gsub("^L%d+: ", "") end):totable()
 end
 
 function M.debounce(func, delay)
@@ -1180,7 +1175,10 @@ end
 
 function M.is_same_file(filepath_a, filepath_b) return M.uniform_path(filepath_a) == M.uniform_path(filepath_b) end
 
-function M.trim_think_content(content) return content:gsub("^<think>.-</think>", "", 1) end
+---Removes <think> tags, returning only text between them
+---@param content string
+---@return string
+function M.trim_think_content(content) return (content:gsub("^<think>.-</think>", "", 1)) end
 
 local _filetype_lru_cache = LRUCache:new(60)
 
