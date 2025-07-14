@@ -91,62 +91,63 @@ function M.on_render(input, opts)
   local messages = store.messages or {}
   local tool_use_summary = {}
   for _, msg in ipairs(messages) do
-    local content = msg.message.content
     local summary
-    if type(content) == "table" and #content > 0 and content[1].type == "tool_use" then
-      local tool_result_message = History.Helpers.get_tool_result_message(msg, messages)
-      if tool_result_message then
-        local tool_name = msg.message.content[1].name
-        if tool_name == "ls" then
-          local path = msg.message.content[1].input.path
-          if tool_result_message.message.content[1].is_error then
+    local tool_use = History.Helpers.get_tool_use_data(msg)
+    if tool_use then
+      local tool_result = History.Helpers.get_tool_result(tool_use.id, messages)
+      if tool_result then
+        if tool_use.name == "ls" then
+          local path = tool_use.input.path
+          if tool_result.is_error then
             summary = string.format("Ls %s: failed", path)
           else
-            local ok, filepaths = pcall(vim.json.decode, tool_result_message.message.content[1].content)
+            local ok, filepaths = pcall(vim.json.decode, tool_result.content)
             if ok then summary = string.format("Ls %s: %d paths", path, #filepaths) end
           end
-        elseif tool_name == "grep" then
-          local path = msg.message.content[1].input.path
-          local query = msg.message.content[1].input.query
-          if tool_result_message.message.content[1].is_error then
+        elseif tool_use.name == "grep" then
+          local path = tool_use.input.path
+          local query = tool_use.input.query
+          if tool_result.is_error then
             summary = string.format("Grep %s in %s: failed", query, path)
           else
-            local ok, filepaths = pcall(vim.json.decode, tool_result_message.message.content[1].content)
+            local ok, filepaths = pcall(vim.json.decode, tool_result.content)
             if ok then summary = string.format("Grep %s in %s: %d paths", query, path, #filepaths) end
           end
-        elseif tool_name == "glob" then
-          local path = msg.message.content[1].input.path
-          local pattern = msg.message.content[1].input.pattern
-          if tool_result_message.message.content[1].is_error then
+        elseif tool_use.name == "glob" then
+          local path = tool_use.input.path
+          local pattern = tool_use.input.pattern
+          if tool_result.is_error then
             summary = string.format("Glob %s in %s: failed", pattern, path)
           else
-            local ok, result = pcall(vim.json.decode, tool_result_message.message.content[1].content)
+            local ok, result = pcall(vim.json.decode, tool_result.content)
             if ok then
               local matches = result.matches
               if matches then summary = string.format("Glob %s in %s: %d matches", pattern, path, #matches) end
             end
           end
-        elseif tool_name == "view" then
-          local path = msg.message.content[1].input.path
-          if tool_result_message.message.content[1].is_error then
+        elseif tool_use.name == "view" then
+          local path = tool_use.input.path
+          if tool_result.is_error then
             summary = string.format("View %s: failed", path)
           else
-            local ok, result = pcall(vim.json.decode, tool_result_message.message.content[1].content)
+            local ok, result = pcall(vim.json.decode, tool_result.content)
             if ok then
-              local content_ = result.content
-              local lines = vim.split(content_, "\n")
+              local lines = vim.split(result.content, "\n")
               summary = string.format("View %s: %d lines", path, #lines)
             end
           end
         end
       end
       if summary then summary = "  " .. Utils.icon("🛠️ ") .. summary end
-    elseif type(content) == "table" and #content > 0 and type(content[1]) == "table" and content[1].type == "text" then
-      summary = content[1].content
-    elseif type(content) == "table" and #content > 0 and type(content[1]) == "string" then
-      summary = content[1]
-    elseif type(content) == "string" then
-      summary = content
+    else
+      local content = msg.message.content
+      if type(content) == "table" and #content > 0 and type(content[1]) == "table" and content[1].type == "text" then
+        summary = content[1].content
+      elseif type(content) == "table" and #content > 0 and type(content[1]) == "string" then
+        summary = content[1]
+      elseif type(content) == "string" then
+        summary = content
+      end
     end
     if summary then table.insert(tool_use_summary, summary) end
   end
@@ -233,12 +234,11 @@ When you're done, provide a clear and concise summary of what you found.]]):gsub
       end
       if opts.set_store then opts.set_store("messages", history_messages) end
       for _, msg in ipairs(msgs) do
-        local content = msg.message.content
-        if type(content) == "table" and #content > 0 and content[1].type == "tool_use" then
+        local tool_use = History.Helpers.get_tool_use_data(msg)
+        if tool_use then
           tool_use_messages[msg.uuid] = true
-          if content[1].name == "attempt_completion" then
-            local input_ = content[1].input
-            if input_ and input_.result then result = input_.result end
+          if tool_use.name == "attempt_completion" and tool_use.input and tool_use.input.result then
+            result = tool_use.input.result
           end
         end
       end
