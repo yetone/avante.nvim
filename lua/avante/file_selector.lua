@@ -34,8 +34,7 @@ function FileSelector:handle_path_selection(selected_paths)
 
   for _, selected_path in ipairs(selected_paths) do
     local absolute_path = Utils.to_absolute_path(selected_path)
-    local stat = vim.loop.fs_stat(absolute_path)
-    if stat and stat.type == "directory" then
+    if vim.fn.isdirectory(absolute_path) == 1 then
       self:process_directory(absolute_path)
     else
       local abs_path = Utils.to_absolute_path(selected_path)
@@ -51,17 +50,19 @@ function FileSelector:handle_path_selection(selected_paths)
   self:emit("update")
 end
 
----Scans a given directory and produces a list of files/directories with paths relative to the project root
----@return string[]
-local function get_project_filepaths()
+---Scans a given directory and produces a list of files/directories with absolute paths
+---@param excluded_paths_set? table<string, boolean> Optional set of absolute paths to exclude
+---@return { path: string, is_dir: boolean }[]
+local function get_project_filepaths(excluded_paths_set)
+  excluded_paths_set = excluded_paths_set or {}
   local project_root = Utils.get_project_root()
   local files = Utils.scan_directory({ directory = project_root, add_dirs = true })
   return vim
     .iter(files)
+    :filter(function(path) return not excluded_paths_set[path] end)
     :map(function(path)
-      local rel_path = Utils.make_relative_path(path, project_root)
-      if vim.fn.isdirectory(rel_path) == 1 then rel_path = rel_path .. "/" end
-      return rel_path
+      local is_dir = vim.fn.isdirectory(path) == 1
+      return { path = path, is_dir = is_dir }
     end)
     :totable()
 end
@@ -86,8 +87,7 @@ function FileSelector:add_selected_file(filepath)
   if not filepath or filepath == "" or has_scheme(filepath) then return end
   if filepath:match("^oil:") then filepath = filepath:gsub("^oil:", "") end
   local absolute_path = Utils.to_absolute_path(filepath)
-  local stat = vim.loop.fs_stat(absolute_path)
-  if stat and stat.type == "directory" then
+  if vim.fn.isdirectory(absolute_path) == 1 then
     self:process_directory(absolute_path)
     return
   end
@@ -163,33 +163,31 @@ function FileSelector:get_filepaths()
     return Config.file_selector.provider_opts.get_filepaths(params)
   end
 
-  local filepaths = get_project_filepaths()
-
-  table.sort(filepaths, function(a, b)
-    local a_stat = vim.loop.fs_stat(a)
-    local b_stat = vim.loop.fs_stat(b)
-    local a_is_dir = a_stat and a_stat.type == "directory"
-    local b_is_dir = b_stat and b_stat.type == "directory"
-
-    if a_is_dir and not b_is_dir then
-      return true
-    elseif not a_is_dir and b_is_dir then
-      return false
-    else
-      return a < b
-    end
-  end)
-
   local selected_filepaths_set = {}
   for _, abs_path in ipairs(self.selected_filepaths) do
     selected_filepaths_set[abs_path] = true
   end
 
+  local project_root = Utils.get_project_root()
+  local file_info = get_project_filepaths(selected_filepaths_set)
+
+  table.sort(file_info, function(a, b)
+    -- Sort alphabetically with directories being first
+    if a.is_dir and not b.is_dir then
+      return true
+    elseif not a.is_dir and b.is_dir then
+      return false
+    else
+      return a.path < b.path
+    end
+  end)
+
   return vim
-    .iter(filepaths)
-    :filter(function(filepath)
-      local abs_filepath = Utils.to_absolute_path(filepath)
-      return not selected_filepaths_set[abs_filepath]
+    .iter(file_info)
+    :map(function(info)
+      local rel_path = Utils.make_relative_path(info.path, project_root)
+      if info.is_dir then rel_path = rel_path .. "/" end
+      return rel_path
     end)
     :totable()
 end
