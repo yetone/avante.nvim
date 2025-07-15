@@ -57,11 +57,11 @@ M.returns = {
 }
 
 ---@type avante.LLMToolOnRender<AttemptCompletionInput>
-function M.on_render(opts)
+function M.on_render(input)
   local lines = {}
   table.insert(lines, Line:new({ { "✓  Task Completed", Highlights.AVANTE_TASK_COMPLETED } }))
   table.insert(lines, Line:new({ { "" } }))
-  local result = opts.result or ""
+  local result = input.result or ""
   local text_lines = vim.split(result, "\n")
   for _, text_line in ipairs(text_lines) do
     table.insert(lines, Line:new({ { text_line } }))
@@ -70,24 +70,29 @@ function M.on_render(opts)
 end
 
 ---@type AvanteLLMToolFunc<AttemptCompletionInput>
-function M.func(opts, on_log, on_complete, session_ctx)
-  if not on_complete then return false, "on_complete not provided" end
+function M.func(input, opts)
+  if not opts.on_complete then return false, "on_complete not provided" end
   local sidebar = require("avante").get()
   if not sidebar then return false, "Avante sidebar not found" end
 
-  local is_streaming = opts.streaming or false
+  local is_streaming = input.streaming or false
   if is_streaming then
     -- wait for stream completion as command may not be complete yet
     return
   end
 
-  session_ctx.attempt_completion_is_called = true
+  opts.session_ctx.attempt_completion_is_called = true
 
-  if opts.command and opts.command ~= vim.NIL and opts.command ~= "" and not vim.startswith(opts.command, "open ") then
-    session_ctx.always_yes = false
-    require("avante.llm_tools.bash").func({ command = opts.command }, on_log, on_complete, session_ctx)
+  if
+    input.command
+    and input.command ~= vim.NIL
+    and input.command ~= ""
+    and not vim.startswith(input.command, "open ")
+  then
+    opts.session_ctx.always_yes = false
+    require("avante.llm_tools.bash").func({ command = input.command }, opts)
   else
-    on_complete(true, nil)
+    opts.on_complete(true, nil)
   end
 end
 

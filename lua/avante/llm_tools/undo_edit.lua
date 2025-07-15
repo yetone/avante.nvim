@@ -43,9 +43,14 @@ M.returns = {
 }
 
 ---@type AvanteLLMToolFunc<{ path: string }>
-function M.func(opts, on_log, on_complete, session_ctx)
-  if on_log then on_log("path: " .. opts.path) end
-  local abs_path = Helpers.get_abs_path(opts.path)
+function M.func(input, opts)
+  local on_log = opts.on_log
+  local on_complete = opts.on_complete
+  local session_ctx = opts.session_ctx
+  if not on_complete then return false, "on_complete not provided" end
+
+  if on_log then on_log("path: " .. input.path) end
+  local abs_path = Helpers.get_abs_path(input.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "File not found: " .. abs_path end
   if not Path:new(abs_path):is_file() then return false, "Path is not a file: " .. abs_path end
@@ -59,7 +64,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
     end
     vim.api.nvim_win_call(winid, function() vim.cmd("noautocmd undo") end)
     vim.api.nvim_buf_call(bufnr, function() vim.cmd("noautocmd write") end)
-    if session_ctx then Helpers.mark_as_not_viewed(opts.path, session_ctx) end
+    if session_ctx then Helpers.mark_as_not_viewed(input.path, session_ctx) end
     on_complete(true, nil)
   end, { focus = true }, session_ctx, M.name)
 end

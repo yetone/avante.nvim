@@ -107,6 +107,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field selected_code AvanteSelectedCode | nil
 ---@field selected_filepaths string[] | nil
 ---@field tool_use_logs string[] | nil
+---@field tool_use_store table | nil
 ---@field just_for_display boolean | nil
 ---@field is_dummy boolean | nil
 ---@field is_compacted boolean | nil
@@ -407,19 +408,30 @@ vim.g.avante_login = vim.g.avante_login
 ---@field on_stop AvanteLLMStopCallback
 ---@field on_memory_summarize? AvanteLLMMemorySummarizeCallback
 ---@field on_tool_log? fun(tool_id: string, tool_name: string, log: string, state: AvanteLLMToolUseState): nil
+---@field set_tool_use_store? fun(tool_id: string, key: string, value: any): nil
 ---@field get_history_messages? fun(opts?: { all?: boolean }): avante.HistoryMessage[]
 ---@field on_messages_add? fun(messages: avante.HistoryMessage[]): nil
 ---@field on_state_change? fun(state: avante.GenerateState): nil
 ---@field update_tokens_usage? fun(usage: avante.LLMTokenUsage): nil
 ---
+---@class AvanteLLMToolFuncOpts
+---@field session_ctx table
+---@field on_complete? fun(result: boolean | string | nil, error: string | nil): nil
+---@field on_log? fun(log: string): nil
+---@field set_store? fun(key: string, value: any): nil
+---
 ---@alias AvanteLLMToolFunc<T> fun(
 ---  input: T,
----  on_log?: (fun(log: string): nil),
----  on_complete?: (fun(result: boolean | string | nil, error: string | nil): nil),
----  session_ctx?: table)
+---  opts: AvanteLLMToolFuncOpts)
 ---  : (boolean | string | nil, string | nil)
 ---
---- @alias avante.LLMToolOnRender<T> fun(input: T, logs: string[], state: avante.HistoryMessageState | nil): avante.ui.Line[]
+---@class avante.LLMToolOnRenderOpts
+---@field logs string[]
+---@field state avante.HistoryMessageState
+---@field store table | nil
+---@field result_message avante.HistoryMessage | nil
+---
+--- @alias avante.LLMToolOnRender<T> fun(input: T, opts: avante.LLMToolOnRenderOpts): avante.ui.Line[]
 ---
 ---@class AvanteLLMTool
 ---@field name string

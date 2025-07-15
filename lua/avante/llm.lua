@@ -150,8 +150,11 @@ function M.generate_todos(user_input, cb)
           local uncalled_tool_uses = Utils.get_uncalled_tool_uses(history_messages)
           for _, partial_tool_use in ipairs(uncalled_tool_uses) do
             if partial_tool_use.state == "generated" and partial_tool_use.name == "add_todos" then
-              LLMTools.process_tool_use(tools, partial_tool_use, function() end, function() cb() end, {})
-              cb()
+              local result = LLMTools.process_tool_use(tools, partial_tool_use, {
+                session_ctx = {},
+                on_complete = function() cb() end,
+              })
+              if result ~= nil then cb() end
             end
           end
         else
@@ -206,6 +209,7 @@ function M.agent_loop(opts)
           table.insert(history_messages, msg)
         end
       end
+      if opts.on_messages_add then opts.on_messages_add(msgs) end
     end,
     session_ctx = session_ctx,
     prompt_opts = {
@@ -331,8 +335,9 @@ function M.generate_prompts(opts)
   end
 
   if Config.system_prompt ~= nil then
-    local custom_system_prompt = Config.system_prompt
-    if type(custom_system_prompt) == "function" then custom_system_prompt = custom_system_prompt() end
+    local custom_system_prompt
+    if type(Config.system_prompt) == "function" then custom_system_prompt = Config.system_prompt() end
+    if type(Config.system_prompt) == "string" then custom_system_prompt = Config.system_prompt end
     if custom_system_prompt ~= nil and custom_system_prompt ~= "" and custom_system_prompt ~= "null" then
       system_prompt = system_prompt .. "\n\n" .. custom_system_prompt
     end
@@ -841,13 +846,9 @@ function M._stream(opts)
         if partial_tool_use.state == "generating" then
           if type(partial_tool_use.input) == "table" then
             partial_tool_use.input.streaming = true
-            LLMTools.process_tool_use(
-              prompt_opts.tools,
-              partial_tool_use,
-              function() end,
-              function() end,
-              opts.session_ctx
-            )
+            LLMTools.process_tool_use(prompt_opts.tools, partial_tool_use, {
+              session_ctx = opts.session_ctx,
+            })
           end
           return
         else
@@ -856,13 +857,12 @@ function M._stream(opts)
         partial_tool_use_message.is_calling = true
         if opts.on_messages_add then opts.on_messages_add({ partial_tool_use_message }) end
         -- Either on_complete handles the tool result asynchronously or we receive the result and error synchronously when either is not nil
-        local result, error = LLMTools.process_tool_use(
-          prompt_opts.tools,
-          partial_tool_use,
-          opts.on_tool_log,
-          handle_tool_result,
-          opts.session_ctx
-        )
+        local result, error = LLMTools.process_tool_use(prompt_opts.tools, partial_tool_use, {
+          session_ctx = opts.session_ctx,
+          on_log = opts.on_tool_log,
+          set_tool_use_store = opts.set_tool_use_store,
+          on_complete = handle_tool_result,
+        })
         if result ~= nil or error ~= nil then return handle_tool_result(result, error) end
       end
       if stop_opts.reason == "cancelled" then
@@ -1098,6 +1098,13 @@ function M.stream(opts)
     opts.on_tool_log = vim.schedule_wrap(function(...)
       if not original_on_tool_log then return end
       return original_on_tool_log(...)
+    end)
+  end
+  if opts.set_tool_use_store ~= nil then
+    local original_set_tool_use_store = opts.set_tool_use_store
+    opts.set_tool_use_store = vim.schedule_wrap(function(...)
+      if not original_set_tool_use_store then return end
+      return original_set_tool_use_store(...)
     end)
   end
   if opts.on_chunk ~= nil then

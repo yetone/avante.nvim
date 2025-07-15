@@ -69,8 +69,10 @@ M.returns = {
 }
 
 ---@type AvanteLLMToolFunc<{ path: string, query: string, case_sensitive?: boolean, include_pattern?: string, exclude_pattern?: string }>
-function M.func(opts, on_log, on_complete, session_ctx)
-  local abs_path = Helpers.get_abs_path(opts.path)
+function M.func(input, opts)
+  local on_log = opts.on_log
+
+  local abs_path = Helpers.get_abs_path(input.path)
   if not Helpers.has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return "", "No such file or directory: " .. abs_path end
 
@@ -85,31 +87,31 @@ function M.func(opts, on_log, on_complete, session_ctx)
   local cmd = ""
   if search_cmd:find("rg") then
     cmd = string.format("%s --files-with-matches --hidden", search_cmd)
-    if opts.case_sensitive then
+    if input.case_sensitive then
       cmd = string.format("%s --case-sensitive", cmd)
     else
       cmd = string.format("%s --ignore-case", cmd)
     end
-    if opts.include_pattern then cmd = string.format("%s --glob '%s'", cmd, opts.include_pattern) end
-    if opts.exclude_pattern then cmd = string.format("%s --glob '!%s'", cmd, opts.exclude_pattern) end
-    cmd = string.format("%s '%s' %s", cmd, opts.query, abs_path)
+    if input.include_pattern then cmd = string.format("%s --glob '%s'", cmd, input.include_pattern) end
+    if input.exclude_pattern then cmd = string.format("%s --glob '!%s'", cmd, input.exclude_pattern) end
+    cmd = string.format("%s '%s' %s", cmd, input.query, abs_path)
   elseif search_cmd:find("ag") then
     cmd = string.format("%s --nocolor --nogroup --hidden", search_cmd)
-    if opts.case_sensitive then cmd = string.format("%s --case-sensitive", cmd) end
-    if opts.include_pattern then cmd = string.format("%s --ignore '!%s'", cmd, opts.include_pattern) end
-    if opts.exclude_pattern then cmd = string.format("%s --ignore '%s'", cmd, opts.exclude_pattern) end
-    cmd = string.format("%s '%s' %s", cmd, opts.query, abs_path)
+    if input.case_sensitive then cmd = string.format("%s --case-sensitive", cmd) end
+    if input.include_pattern then cmd = string.format("%s --ignore '!%s'", cmd, input.include_pattern) end
+    if input.exclude_pattern then cmd = string.format("%s --ignore '%s'", cmd, input.exclude_pattern) end
+    cmd = string.format("%s '%s' %s", cmd, input.query, abs_path)
   elseif search_cmd:find("ack") then
     cmd = string.format("%s --nocolor --nogroup --hidden", search_cmd)
-    if opts.case_sensitive then cmd = string.format("%s --smart-case", cmd) end
-    if opts.exclude_pattern then cmd = string.format("%s --ignore-dir '%s'", cmd, opts.exclude_pattern) end
-    cmd = string.format("%s '%s' %s", cmd, opts.query, abs_path)
+    if input.case_sensitive then cmd = string.format("%s --smart-case", cmd) end
+    if input.exclude_pattern then cmd = string.format("%s --ignore-dir '%s'", cmd, input.exclude_pattern) end
+    cmd = string.format("%s '%s' %s", cmd, input.query, abs_path)
   elseif search_cmd:find("grep") then
     cmd = string.format("cd %s && git ls-files -co --exclude-standard | xargs %s -rH", abs_path, search_cmd, abs_path)
-    if not opts.case_sensitive then cmd = string.format("%s -i", cmd) end
-    if opts.include_pattern then cmd = string.format("%s --include '%s'", cmd, opts.include_pattern) end
-    if opts.exclude_pattern then cmd = string.format("%s --exclude '%s'", cmd, opts.exclude_pattern) end
-    cmd = string.format("%s '%s'", cmd, opts.query)
+    if not input.case_sensitive then cmd = string.format("%s -i", cmd) end
+    if input.include_pattern then cmd = string.format("%s --include '%s'", cmd, input.include_pattern) end
+    if input.exclude_pattern then cmd = string.format("%s --exclude '%s'", cmd, input.exclude_pattern) end
+    cmd = string.format("%s '%s'", cmd, input.query)
   end
 
   Utils.debug("cmd", cmd)
