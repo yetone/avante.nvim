@@ -425,7 +425,13 @@ vim.g.avante_login = vim.g.avante_login
 ---  opts: AvanteLLMToolFuncOpts)
 ---  : (boolean | string | nil, string | nil)
 ---
---- @alias avante.LLMToolOnRender<T> fun(input: T, logs: string[], state: avante.HistoryMessageState | nil): avante.ui.Line[]
+---@class avante.LLMToolOnRenderOpts
+---@field logs string[]
+---@field state avante.HistoryMessageState
+---@field store table | nil
+---@field result_message avante.HistoryMessage | nil
+---
+--- @alias avante.LLMToolOnRender<T> fun(input: T, opts: avante.LLMToolOnRenderOpts): avante.ui.Line[]
 ---
 ---@class AvanteLLMTool
 ---@field name string

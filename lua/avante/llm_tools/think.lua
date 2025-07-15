@@ -47,7 +47,8 @@ M.returns = {
 ---@field thought string
 
 ---@type avante.LLMToolOnRender<ThinkingInput>
-function M.on_render(input, _, state)
+function M.on_render(input, opts)
+  local state = opts.state
   local lines = {}
   local text = state == "generating" and "Thinking" or "Thoughts"
   table.insert(lines, Line:new({ { Utils.icon("🤔 ") .. text, Highlights.AVANTE_THINKING } }))
