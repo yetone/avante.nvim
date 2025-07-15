@@ -117,11 +117,31 @@ end
 ---@param shell_cmd string?
 ---@param on_complete fun(output: string, code: integer)
 ---@param cwd? string
-function M.shell_run_async(input_cmd, shell_cmd, on_complete, cwd)
+---@param timeout? integer Timeout in milliseconds
+function M.shell_run_async(input_cmd, shell_cmd, on_complete, cwd, timeout)
   local cmd = get_cmd_for_shell(input_cmd, shell_cmd)
   ---@type string[]
   local output = {}
-  fn.jobstart(cmd, {
+  local timer = nil
+  local completed = false
+
+  -- Create a wrapper for on_complete to ensure it's only called once
+  local function complete_once(out, code)
+    if completed then return end
+    completed = true
+
+    -- Clean up timer if it exists
+    if timer then
+      timer:stop()
+      timer:close()
+      timer = nil
+    end
+
+    on_complete(out, code)
+  end
+
+  -- Start the job
+  local job_id = fn.jobstart(cmd, {
     on_stdout = function(_, data)
       if not data then return end
       vim.list_extend(output, data)
@@ -130,9 +150,26 @@ function M.shell_run_async(input_cmd, shell_cmd, on_complete, cwd)
       if not data then return end
       vim.list_extend(output, data)
     end,
-    on_exit = function(_, exit_code) on_complete(table.concat(output, "\n"), exit_code) end,
+    on_exit = function(_, exit_code) complete_once(table.concat(output, "\n"), exit_code) end,
     cwd = cwd,
   })
+
+  -- Set up timeout if specified
+  if timeout and timeout > 0 then
+    timer = vim.loop.new_timer()
+    if timer then
+      timer:start(timeout, 0, function()
+        vim.schedule(function()
+          if not completed and job_id then
+            -- Kill the job
+            fn.jobstop(job_id)
+            -- Complete with timeout error
+            complete_once("Command timed out after " .. timeout .. "ms", 124)
+          end
+        end)
+      end)
+    end
+  end
 end
 
 ---@see https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/util/toggle.lua

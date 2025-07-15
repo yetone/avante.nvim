@@ -251,7 +251,7 @@ function M.func(input, opts)
       Utils.shell_run_async(input.command, "bash -c", function(output, exit_code)
         local result, err = handle_result(output, exit_code)
         opts.on_complete(result, err)
-      end, abs_path)
+      end, abs_path, 1000 * 60 * 2)
     end,
     { focus = true },
     opts.session_ctx,
