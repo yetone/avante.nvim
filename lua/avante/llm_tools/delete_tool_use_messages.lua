@@ -40,7 +40,7 @@ M.returns = {
 }
 
 ---@type AvanteLLMToolFunc<{ tool_use_id: string }>
-function M.func(opts, on_log, on_complete, session_ctx)
+function M.func(input, opts)
   local sidebar = require("avante").get()
   if not sidebar then return false, "Avante sidebar not found" end
   local history_messages = Utils.get_history_messages(sidebar.chat_history)
@@ -50,7 +50,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
       local content = msg.message.content
       if type(content) == "table" then
         for _, item in ipairs(content) do
-          if item.id == opts.tool_use_id then table.insert(the_deleted_message_uuids, msg.uuid) end
+          if item.id == input.tool_use_id then table.insert(the_deleted_message_uuids, msg.uuid) end
         end
       end
     end

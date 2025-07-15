@@ -2318,7 +2318,7 @@ function Sidebar:get_history_messages_for_api(opts)
       --- For models like gpt-4o, the input parameter of replace_in_file is treated as the latest file content, so here we need to insert a fake view tool call to ensure it uses the latest file content
       if is_edit_func_call and path and not message.message.content[1].is_error then
         local uniformed_path = Utils.uniform_path(path)
-        local view_result, view_error = require("avante.llm_tools.view").func({ path = path }, nil, nil, nil)
+        local view_result, view_error = require("avante.llm_tools.view").func({ path = path }, {})
         if view_error then view_result = "Error: " .. view_error end
         local get_diagnostics_tool_use_id = Utils.uuid()
         local view_tool_use_id = Utils.uuid()
@@ -2451,9 +2451,7 @@ function Sidebar:get_history_messages_for_api(opts)
           local end_line = tool_id_to_end_line[item.tool_use_id]
           local view_result, view_error = require("avante.llm_tools.view").func(
             { path = path, start_line = start_line, end_line = end_line },
-            nil,
-            nil,
-            nil
+            {}
           )
           if view_error then view_result = "Error: " .. view_error end
           item.content = view_result
@@ -2773,6 +2771,23 @@ function Sidebar:create_input_container()
       self:save_history()
     end
 
+    local function set_tool_use_store(tool_id, key, value)
+      local tool_use_message = nil
+      for idx = #self.chat_history.messages, 1, -1 do
+        local message = self.chat_history.messages[idx]
+        local content = message.message.content
+        if type(content) == "table" and content[1].type == "tool_use" and content[1].id == tool_id then
+          tool_use_message = message
+          break
+        end
+      end
+      if not tool_use_message then return end
+      local tool_use_store = tool_use_message.tool_use_store or {}
+      tool_use_store[key] = value
+      tool_use_message.tool_use_store = tool_use_store
+      self:save_history()
+    end
+
     ---@type AvanteLLMStopCallback
     local function on_stop(stop_opts)
       self.is_generating = false
@@ -2837,6 +2852,7 @@ function Sidebar:create_input_container()
         on_tool_log = on_tool_log,
         on_messages_add = on_messages_add,
         on_state_change = on_state_change,
+        set_tool_use_store = set_tool_use_store,
         get_history_messages = function(opts) return self:get_history_messages_for_api(opts) end,
         get_todos = function()
           local history = Path.history.load(self.code.bufnr)

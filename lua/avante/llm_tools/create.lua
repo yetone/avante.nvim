@@ -45,20 +45,23 @@ M.returns = {
 }
 
 ---@type AvanteLLMToolFunc<{ path: string, file_text: string }>
-function M.func(opts, on_log, on_complete, session_ctx)
+function M.func(input, opts)
+  local on_log = opts.on_log
+  local on_complete = opts.on_complete
+  local session_ctx = opts.session_ctx
   if not on_complete then return false, "on_complete not provided" end
-  if on_log then on_log("path: " .. opts.path) end
-  if Helpers.already_in_context(opts.path) then
+  if on_log then on_log("path: " .. input.path) end
+  if Helpers.already_in_context(input.path) then
     on_complete(nil, "Ooooops! This file is already in the context! Why you are trying to create it again?")
     return
   end
-  local abs_path = Helpers.get_abs_path(opts.path)
+  local abs_path = Helpers.get_abs_path(input.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
-  if opts.file_text == nil then return false, "file_text not provided" end
+  if input.file_text == nil then return false, "file_text not provided" end
   if Path:new(abs_path):exists() then return false, "File already exists: " .. abs_path end
-  local lines = vim.split(opts.file_text, "\n")
-  if #lines == 1 and opts.file_text:match("\\n") then
-    local text = Utils.trim_slashes(opts.file_text)
+  local lines = vim.split(input.file_text, "\n")
+  if #lines == 1 and input.file_text:match("\\n") then
+    local text = Utils.trim_slashes(input.file_text)
     lines = vim.split(text, "\n")
   end
   local bufnr, err = Helpers.get_bufnr(abs_path)

@@ -80,11 +80,15 @@ local function get_available_tools()
 end
 
 ---@type AvanteLLMToolFunc<{ prompt: string }>
-function M.func(opts, on_log, on_complete, session_ctx)
+function M.func(input, opts)
+  local on_log = opts.on_log
+  local on_complete = opts.on_complete
+  local session_ctx = opts.session_ctx
+
   local Llm = require("avante.llm")
   if not on_complete then return false, "on_complete not provided" end
 
-  local prompt = opts.prompt
+  local prompt = input.prompt
   local tools = get_available_tools()
   local start_time = Utils.get_timestamp()
 

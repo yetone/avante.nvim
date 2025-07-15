@@ -46,15 +46,16 @@ M.returns = {
 }
 
 ---@type AvanteLLMToolFunc<{ path: string, max_depth?: integer }>
-function M.func(opts, on_log, on_complete, session_ctx)
-  local abs_path = Helpers.get_abs_path(opts.path)
+function M.func(input, opts)
+  local on_log = opts.on_log
+  local abs_path = Helpers.get_abs_path(input.path)
   if not Helpers.has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
   if on_log then on_log("path: " .. abs_path) end
-  if on_log then on_log("max depth: " .. tostring(opts.max_depth)) end
+  if on_log then on_log("max depth: " .. tostring(input.max_depth)) end
   local files = Utils.scan_directory({
     directory = abs_path,
     add_dirs = true,
-    max_depth = opts.max_depth,
+    max_depth = input.max_depth,
   })
   local filepaths = {}
   for _, file in ipairs(files) do

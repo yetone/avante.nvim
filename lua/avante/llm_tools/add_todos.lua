@@ -65,10 +65,11 @@ M.returns = {
 M.on_render = function() return {} end
 
 ---@type AvanteLLMToolFunc<{ todos: avante.TODO[] }>
-function M.func(opts, on_log, on_complete, session_ctx)
+function M.func(input, opts)
+  local on_complete = opts.on_complete
   local sidebar = require("avante").get()
   if not sidebar then return false, "Avante sidebar not found" end
-  local todos = opts.todos
+  local todos = input.todos
   if not todos or #todos == 0 then return false, "No todos provided" end
   sidebar:update_todos(todos)
   if on_complete then
