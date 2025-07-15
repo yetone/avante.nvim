@@ -215,18 +215,18 @@ M.returns = {
 }
 
 ---@type AvanteLLMToolFunc<{ path: string, command: string, streaming?: boolean }>
-function M.func(opts, on_log, on_complete, session_ctx)
-  local is_streaming = opts.streaming or false
+function M.func(input, opts)
+  local is_streaming = input.streaming or false
   if is_streaming then
     -- wait for stream completion as command may not be complete yet
     return
   end
 
-  local abs_path = Helpers.get_abs_path(opts.path)
+  local abs_path = Helpers.get_abs_path(input.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "Path not found: " .. abs_path end
-  if not opts.command then return false, "Command is required" end
-  if on_log then on_log("command: " .. opts.command) end
+  if not input.command then return false, "Command is required" end
+  if opts.on_log then opts.on_log("command: " .. input.command) end
 
   ---change cwd to abs_path
   ---@param output string
@@ -240,21 +240,21 @@ function M.func(opts, on_log, on_complete, session_ctx)
     end
     return output, nil
   end
-  if not on_complete then return false, "on_complete not provided" end
+  if not opts.on_complete then return false, "on_complete not provided" end
   Helpers.confirm(
-    "Are you sure you want to run the command: `" .. opts.command .. "` in the directory: " .. abs_path,
+    "Are you sure you want to run the command: `" .. input.command .. "` in the directory: " .. abs_path,
     function(ok, reason)
       if not ok then
-        on_complete(false, "User declined, reason: " .. (reason and reason or "unknown"))
+        opts.on_complete(false, "User declined, reason: " .. (reason and reason or "unknown"))
         return
       end
-      Utils.shell_run_async(opts.command, "bash -c", function(output, exit_code)
+      Utils.shell_run_async(input.command, "bash -c", function(output, exit_code)
         local result, err = handle_result(output, exit_code)
-        on_complete(result, err)
+        opts.on_complete(result, err)
       end, abs_path)
     end,
     { focus = true },
-    session_ctx,
+    opts.session_ctx,
     M.name -- Pass the tool name for permission checking
   )
 end

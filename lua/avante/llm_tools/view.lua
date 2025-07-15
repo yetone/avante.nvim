@@ -87,18 +87,20 @@ M.returns = {
 }
 
 ---@type AvanteLLMToolFunc<{ path: string, start_line?: integer, end_line?: integer }>
-function M.func(opts, on_log, on_complete, session_ctx)
-  if not opts.path then return false, "path is required" end
-  if on_log then on_log("path: " .. opts.path) end
-  local abs_path = Helpers.get_abs_path(opts.path)
+function M.func(input, opts)
+  local on_log = opts.on_log
+  local on_complete = opts.on_complete
+  if not input.path then return false, "path is required" end
+  if on_log then on_log("path: " .. input.path) end
+  local abs_path = Helpers.get_abs_path(input.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return false, "Path not found: " .. abs_path end
   if Path:new(abs_path):is_dir() then return false, "Path is a directory: " .. abs_path end
   local file = io.open(abs_path, "r")
   if not file then return false, "file not found: " .. abs_path end
   local lines = Utils.read_file_from_buf_or_disk(abs_path)
-  local start_line = opts.start_line
-  local end_line = opts.end_line
+  local start_line = input.start_line
+  local end_line = input.end_line
   if start_line and end_line and lines then lines = vim.list_slice(lines, start_line, end_line) end
   local truncated_lines = {}
   local is_truncated = false

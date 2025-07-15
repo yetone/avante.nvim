@@ -47,12 +47,13 @@ M.returns = {
 ---@field thought string
 
 ---@type avante.LLMToolOnRender<ThinkingInput>
-function M.on_render(opts, _, state)
+function M.on_render(input, opts)
+  local state = opts.state
   local lines = {}
   local text = state == "generating" and "Thinking" or "Thoughts"
   table.insert(lines, Line:new({ { Utils.icon("🤔 ") .. text, Highlights.AVANTE_THINKING } }))
   table.insert(lines, Line:new({ { "" } }))
-  local content = opts.thought or ""
+  local content = input.thought or ""
   local text_lines = vim.split(content, "\n")
   for _, text_line in ipairs(text_lines) do
     table.insert(lines, Line:new({ { "> " .. text_line } }))
@@ -61,7 +62,8 @@ function M.on_render(opts, _, state)
 end
 
 ---@type AvanteLLMToolFunc<ThinkingInput>
-function M.func(opts, on_log, on_complete, session_ctx)
+function M.func(input, opts)
+  local on_complete = opts.on_complete
   if not on_complete then return false, "on_complete not provided" end
   on_complete(true, nil)
 end
