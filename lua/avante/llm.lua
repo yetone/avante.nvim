@@ -46,9 +46,10 @@ function M.summarize_memory(prev_memory, history_messages, cb)
     cb(nil)
     return
   end
+  local Render = require("avante.history.render")
   local conversation_items = vim
     .iter(history_messages)
-    :map(function(msg) return msg.message.role .. ": " .. Utils.message_to_text(msg, history_messages) end)
+    :map(function(msg) return msg.message.role .. ": " .. Render.message_to_text(msg, history_messages) end)
     :totable()
   local conversation_text = table.concat(conversation_items, "\n")
   local user_prompt = "Here is the conversation so far:\n"
