@@ -17,6 +17,7 @@ local RepoMap = require("avante.repo_map")
 local FileSelector = require("avante.file_selector")
 local LLMTools = require("avante.llm_tools")
 local History = require("avante.history")
+local Render = require("avante.history.render")
 local Line = require("avante.ui.line")
 local LRUCache = require("avante.utils.lru_cache")
 
@@ -1694,7 +1695,7 @@ end
 ---@return avante.ui.Line[]
 local function _get_message_lines(message, messages, ctx)
   if message.visible == false then return {} end
-  local lines = Utils.message_to_lines(message, messages)
+  local lines = Render.message_to_lines(message, messages)
   if message.is_user_submission then
     ctx.selected_filepaths = message.selected_filepaths
     local text = table.concat(vim.tbl_map(function(line) return tostring(line) end, lines), "\n")
@@ -1793,7 +1794,7 @@ end
 ---@return string | nil
 local function render_message(message, messages, ctx)
   if message.visible == false then return nil end
-  local text = Utils.message_to_text(message, messages)
+  local text = Render.message_to_text(message, messages)
   if text == "" then return nil end
   if message.is_user_submission then
     ctx.selected_filepaths = message.selected_filepaths
@@ -2070,7 +2071,7 @@ function Sidebar:add_history_messages(messages)
     and messages[1].just_for_display ~= true
     and messages[1].state == "generated"
   then
-    local first_msg_text = Utils.message_to_text(messages[1], messages)
+    local first_msg_text = Render.message_to_text(messages[1], messages)
     local lines_ = vim.iter(vim.split(first_msg_text, "\n")):filter(function(line) return line ~= "" end):totable()
     if #lines_ > 0 then
       self.chat_history.title = lines_[1]
