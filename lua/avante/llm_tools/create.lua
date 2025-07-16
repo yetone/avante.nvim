@@ -61,7 +61,7 @@ function M.func(input, opts)
   if Path:new(abs_path):exists() then return false, "File already exists: " .. abs_path end
   local lines = vim.split(input.file_text, "\n")
   if #lines == 1 and input.file_text:match("\\n") then
-    local text = Utils.trim_slashes(input.file_text)
+    local text = Utils.trim_escapes(input.file_text)
     lines = vim.split(text, "\n")
   end
   local bufnr, err = Helpers.get_bufnr(abs_path)
