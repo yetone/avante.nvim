@@ -931,6 +931,68 @@ return {
 
 See [highlights.lua](./lua/avante/highlights.lua) for more information
 
+## Fast Apply
+
+Fast Apply is a feature that enables instant code edits with high accuracy by leveraging specialized models. It replicates Cursor's instant apply functionality, allowing for seamless code modifications without the typical delays associated with traditional code generation.
+
+### Purpose and Benefits
+
+Fast Apply addresses the common pain point of slow code application in AI-assisted development. Instead of waiting for a full language model to process and apply changes, Fast Apply uses a specialized "apply model" that can quickly and accurately merge code edits with 96-98% accuracy at speeds of 2500-4500+ tokens per second.
+
+Key benefits:
+- **Instant application**: Code changes are applied immediately without noticeable delays
+- **High accuracy**: Specialized models achieve 96-98% accuracy for code edits
+- **Seamless workflow**: Maintains the natural flow of development without interruptions
+- **Large context support**: Handles up to 16k tokens for both input and output
+
+### Configuration
+
+To enable Fast Apply, you need to:
+
+1. **Enable Fast Apply in your configuration**:
+   ```lua
+   require('avante').setup({
+     behaviour = {
+       enable_fastapply = true,  -- Enable Fast Apply feature
+     },
+     -- ... other configuration
+   })
+   ```
+
+2. **Get your Morph API key**:
+   Go to [morph.com](https://morphllm.com/api-keys) and create an account and get the API key.
+
+3. **Set your Morph API key**:
+   ```bash
+   export MORPH_API_KEY="your-enterprise-api-key"
+   ```
+
+### Model Options
+
+Morph provides different models optimized for different use cases:
+
+| Model | Speed | Accuracy | Context Limit |
+|-------|-------|----------|---------------|
+| `morph-v3-fast` | 4500+ tok/sec | 96% | 16k tokens |
+| `morph-v3-large` | 2500+ tok/sec | 98% | 16k tokens |
+| `auto` | 2500-4500 tok/sec | 98% | 16k tokens |
+
+### How It Works
+
+When Fast Apply is enabled and a Morph provider is configured, avante.nvim will:
+
+1. Use the `edit_file` tool for code modifications instead of traditional tools
+2. Send the original code, edit instructions, and update snippet to the Morph API
+3. Receive the fully merged code back from the specialized apply model
+4. Apply the changes directly to your files with high accuracy
+
+The process uses a specialized prompt format that includes:
+- `<instructions>`: Clear description of what changes to make
+- `<code>`: The original code content
+- `<update>`: The specific changes using truncation markers (`// ... existing code ...`)
+
+This approach ensures that the apply model can quickly and accurately merge your changes without the overhead of full code generation.
+
 ## Ollama
 
 ollama is a first-class provider for avante.nvim. You can use it by setting `provider = "ollama"` in the configuration, and set the `model` field in `ollama` to the model you want to use. For example:
