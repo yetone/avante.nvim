@@ -245,6 +245,23 @@ function Prompt.get_templates_dir(project_root)
     end
   end
 
+  if Config.rules.project_dir then
+    local project_rules_path = Path:new(Config.rules.project_dir)
+    if not project_rules_path:is_absolute() then project_rules_path = directory:joinpath(project_rules_path) end
+    find_rules(tostring(project_rules_path))
+  end
+  find_rules(Config.rules.global_dir)
+  find_rules(directory:absolute())
+
+  local source_dir =
+    Path:new(debug.getinfo(1).source:match("@?(.*/)"):gsub("/lua/avante/path.lua$", "") .. "templates")
+  -- Copy built-in templates to cache directory (only if not overridden by user templates)
+  source_dir:copy({
+    destination = cache_prompt_dir,
+    recursive = true,
+    override = true,
+  })
+
   -- Check for override prompt
   local override_prompt_dir = Config.override_prompt_dir
   if override_prompt_dir then
@@ -283,23 +300,6 @@ function Prompt.get_templates_dir(project_root)
       end
     end
   end
-
-  if Config.rules.project_dir then
-    local project_rules_path = Path:new(Config.rules.project_dir)
-    if not project_rules_path:is_absolute() then project_rules_path = directory:joinpath(project_rules_path) end
-    find_rules(tostring(project_rules_path))
-  end
-  find_rules(Config.rules.global_dir)
-  find_rules(directory:absolute())
-
-  local source_dir =
-    Path:new(debug.getinfo(1).source:match("@?(.*/)"):gsub("/lua/avante/path.lua$", "") .. "templates")
-  -- Copy built-in templates to cache directory (only if not overridden by user templates)
-  source_dir:copy({
-    destination = cache_prompt_dir,
-    recursive = true,
-    override = true,
-  })
 
   vim.iter(Prompt.custom_prompts_contents):filter(function(_, v) return v ~= nil end):each(function(k, v)
     local orig_file = cache_prompt_dir:joinpath(Prompt.get_builtin_prompts_filepath(k))
