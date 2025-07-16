@@ -608,7 +608,7 @@ function M.trim_space(text)
   return text:gsub("%s*", "")
 end
 
-function M.trim_slashes(text)
+function M.trim_escapes(text)
   if not text then return text end
   local res = text
     :gsub("//n", "/n")
@@ -677,14 +677,14 @@ function M.fuzzy_match(original_lines, target_lines)
   start_line, end_line = M.try_find_match(
     original_lines,
     target_lines,
-    function(line_a, line_b) return line_a == M.trim_slashes(line_b) end
+    function(line_a, line_b) return line_a == M.trim_escapes(line_b) end
   )
   if start_line ~= nil and end_line ~= nil then return start_line, end_line end
   ---trim slashes and trim_space match
   start_line, end_line = M.try_find_match(
     original_lines,
     target_lines,
-    function(line_a, line_b) return M.trim_space(line_a) == M.trim_space(M.trim_slashes(line_b)) end
+    function(line_a, line_b) return M.trim_space(line_a) == M.trim_space(M.trim_escapes(line_b)) end
   )
   return start_line, end_line
 end
