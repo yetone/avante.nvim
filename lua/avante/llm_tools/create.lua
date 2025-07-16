@@ -10,7 +10,9 @@ M.name = "create"
 
 M.description = "The create tool allows you to create a new file with specified content."
 
-function M.enabled() return require("avante.config").mode == "agentic" end
+function M.enabled()
+  return require("avante.config").mode == "agentic" and not require("avante.config").behaviour.enable_fastapply
+end
 
 ---@type AvanteLLMToolParam
 M.param = {
