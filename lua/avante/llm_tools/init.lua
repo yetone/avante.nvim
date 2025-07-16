@@ -1088,6 +1088,7 @@ You can delete the first file by providing a path of "directory1/a/something.txt
   require("avante.llm_tools.get_diagnostics"),
   require("avante.llm_tools.bash"),
   require("avante.llm_tools.attempt_completion"),
+  require("avante.llm_tools.edit_file"),
   {
     name = "web_search",
     description = "Search the web",

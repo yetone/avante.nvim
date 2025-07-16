@@ -10,7 +10,9 @@ M.name = "insert"
 
 M.description = "The insert tool allows you to insert text at a specific location in a file."
 
-function M.enabled() return require("avante.config").mode == "agentic" end
+function M.enabled()
+  return require("avante.config").mode == "agentic" and not require("avante.config").behaviour.enable_fastapply
+end
 
 ---@type AvanteLLMToolParam
 M.param = {

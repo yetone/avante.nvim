@@ -1242,11 +1242,13 @@ end
 function M.read_file_from_buf_or_disk(filepath)
   local abs_path = filepath:sub(1, 7) == "term://" and filepath or M.join_paths(M.get_project_root(), filepath)
   --- Lookup if the file is loaded in a buffer
-  local bufnr = vim.fn.bufnr(abs_path)
-  if bufnr ~= -1 and vim.api.nvim_buf_is_loaded(bufnr) then
-    -- If buffer exists and is loaded, get buffer content
-    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-    return lines, nil
+  local ok, bufnr = pcall(vim.fn.bufnr, abs_path)
+  if ok then
+    if bufnr ~= -1 and vim.api.nvim_buf_is_loaded(bufnr) then
+      -- If buffer exists and is loaded, get buffer content
+      local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+      return lines, nil
+    end
   end
 
   local stat = vim.uv.fs_stat(abs_path)
