@@ -79,6 +79,15 @@
             max_tokens = 20480,
           },
       },
+      moonshot = {
+        endpoint = "https://api.moonshot.ai/v1",
+        model = "kimi-k2-0711-preview",
+        timeout = 30000, -- 超时时间（毫秒）
+          extra_request_body = {
+            temperature = 0.75,
+            max_tokens = 32768,
+          },
+      },
     },
   },
   dependencies = {
@@ -315,6 +324,15 @@ _请参见 [config.lua#L9](./lua/avante/config.lua) 以获取完整配置_
         max_tokens = 4096,
       },
     },
+    moonshot = {
+      endpoint = "https://api.moonshot.ai/v1",
+      model = "kimi-k2-0711-preview",
+      timeout = 30000, -- 超时时间（毫秒）
+      extra_request_body = {
+        temperature = 0.75,
+        max_tokens = 32768,
+      },
+    },
   },
   ---指定特殊的 dual_boost 模式
   ---1. enabled: 是否启用 dual_boost 模式。默认为 false。
@@ -545,6 +563,7 @@ _请参见 [config.lua#L9](./lua/avante/config.lua) 以获取完整配置_
 > export AVANTE_GEMINI_API_KEY=your-gemini-api-key
 > export AVANTE_CO_API_KEY=your-cohere-api-key
 > export AVANTE_AIHUBMIX_API_KEY=your-aihubmix-api-key
+> export AVANTE_MOONSHOT_API_KEY=your-moonshot-api-key
 > ```
 >
 > **全局 API 密钥（传统方式）**
