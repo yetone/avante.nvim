@@ -79,8 +79,6 @@ function M.func(input, opts)
     path = input.path,
     old_str = old_content,
     new_str = input.content,
-    streaming = input.streaming,
-    tool_use_id = input.tool_use_id,
   }
   return str_replace.func(new_input, opts)
 end

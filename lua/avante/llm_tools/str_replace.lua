@@ -57,12 +57,10 @@ M.returns = {
 function M.func(input, opts)
   local replace_in_file = require("avante.llm_tools.replace_in_file")
   local diff = "------- SEARCH\n" .. input.old_str .. "\n=======\n" .. input.new_str
-  if not input.streaming then diff = diff .. "\n+++++++ REPLACE" end
+  if not opts.streaming then diff = diff .. "\n+++++++ REPLACE" end
   local new_input = {
     path = input.path,
     diff = diff,
-    streaming = input.streaming,
-    tool_use_id = input.tool_use_id,
   }
   return replace_in_file.func(new_input, opts)
 end

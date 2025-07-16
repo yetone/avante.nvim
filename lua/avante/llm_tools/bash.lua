@@ -216,7 +216,7 @@ M.returns = {
 
 ---@type AvanteLLMToolFunc<{ path: string, command: string, streaming?: boolean }>
 function M.func(input, opts)
-  local is_streaming = input.streaming or false
+  local is_streaming = opts.streaming or false
   if is_streaming then
     -- wait for stream completion as command may not be complete yet
     return

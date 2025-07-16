@@ -413,6 +413,10 @@ function M:parse_response(ctx, data_stream, _, opts)
       if usage then opts.update_tokens_usage(usage) end
     end
   end
+  if jsn.error and jsn.error ~= vim.NIL then
+    opts.on_stop({ reason = "error", error = vim.inspect(jsn.error) })
+    return
+  end
   ---@cast jsn AvanteOpenAIChatResponse
   if not jsn.choices then return end
   local choice = jsn.choices[1]

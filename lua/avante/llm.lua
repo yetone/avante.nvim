@@ -827,14 +827,16 @@ function M._stream(opts)
         local support_streaming = false
         local llm_tool = vim.iter(prompt_opts.tools):find(function(tool) return tool.name == partial_tool_use.name end)
         if llm_tool then support_streaming = llm_tool.support_streaming == true end
+        ---@type AvanteLLMToolFuncOpts
+        local tool_use_opts = {
+          session_ctx = opts.session_ctx,
+        }
         if partial_tool_use.state == "generating" and not is_edit_tool_use and not support_streaming then return end
-        if type(partial_tool_use.input) == "table" then partial_tool_use.input.tool_use_id = partial_tool_use.id end
+        if type(partial_tool_use.input) == "table" then tool_use_opts.tool_use_id = partial_tool_use.id end
         if partial_tool_use.state == "generating" then
           if type(partial_tool_use.input) == "table" then
-            partial_tool_use.input.streaming = true
-            LLMTools.process_tool_use(prompt_opts.tools, partial_tool_use, {
-              session_ctx = opts.session_ctx,
-            })
+            tool_use_opts.streaming = true
+            LLMTools.process_tool_use(prompt_opts.tools, partial_tool_use, tool_use_opts)
           end
           return
         else

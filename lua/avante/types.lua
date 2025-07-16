@@ -419,6 +419,8 @@ vim.g.avante_login = vim.g.avante_login
 ---@field on_complete? fun(result: boolean | string | nil, error: string | nil): nil
 ---@field on_log? fun(log: string): nil
 ---@field set_store? fun(key: string, value: any): nil
+---@field tool_use_id? string
+---@field streaming? boolean
 ---
 ---@alias AvanteLLMToolFunc<T> fun(
 ---  input: T,
