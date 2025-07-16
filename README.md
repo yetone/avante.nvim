@@ -699,19 +699,6 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 
 > [!IMPORTANT]
 >
-> Avante will only support Claude, and OpenAI (and its variants including azure)out-of-the-box due to its high code quality generation.
-> For all OpenAI-compatible providers, see [wiki](https://github.com/yetone/avante.nvim/wiki/Custom-providers) for more details.
-
-> [!IMPORTANT]
->
-> ~~Due to the poor performance of other models, avante.nvim only recommends using the claude-3.5-sonnet model.~~ > ~~All features can only be guaranteed to work properly on the claude-3.5-sonnet model.~~ > ~~We do not accept changes to the code or prompts to accommodate other models. Otherwise, it will greatly increase our maintenance costs.~~ > ~~We hope everyone can understand. Thank you!~~
-
-> [!IMPORTANT]
->
-> Since avante.nvim now supports [cursor planning mode](./cursor-planning-mode.md), the above statement is no longer valid! avante.nvim now supports most models! If you encounter issues with normal usage, please try enabling [cursor planning mode](./cursor-planning-mode.md).
-
-> [!IMPORTANT]
->
 > For most consistency between neovim session, it is recommended to set the environment variables in your shell file.
 > By default, `Avante` will prompt you at startup to input the API key for the provider you have selected.
 >
