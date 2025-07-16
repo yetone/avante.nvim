@@ -101,6 +101,15 @@ For building binary if you wish to build from source, then `cargo` is required. 
             max_tokens = 20480,
           },
       },
+      moonshot = {
+        endpoint = "https://api.moonshot.ai/v1",
+        model = "kimi-k2-0711-preview",
+        timeout = 30000, -- Timeout in milliseconds
+        extra_request_body = {
+          temperature = 0.75,
+          max_tokens = 32768,
+        },
+      },
     },
   },
   dependencies = {
@@ -714,6 +723,7 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 > export AVANTE_GEMINI_API_KEY=your-gemini-api-key
 > export AVANTE_CO_API_KEY=your-cohere-api-key
 > export AVANTE_AIHUBMIX_API_KEY=your-aihubmix-api-key
+> export AVANTE_MOONSHOT_API_KEY=your-moonshot-api-key
 > ```
 >
 > **Global API Keys (Legacy)**
