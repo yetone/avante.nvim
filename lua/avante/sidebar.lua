@@ -192,7 +192,6 @@ function Sidebar:setup_colors()
         ::continue::
       end
       self:set_code_winhl()
-      self:adjust_layout()
     end,
   })
 end
