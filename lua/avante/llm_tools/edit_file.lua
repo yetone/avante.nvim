@@ -163,8 +163,6 @@ M.func = vim.schedule_wrap(function(input, opts)
         path = input.target_file,
         old_str = original_code,
         new_str = jsn.choices[1].message.content,
-        streaming = input.streaming,
-        tool_use_id = input.tool_use_id,
       }
       str_replace.func(new_input, opts)
     end)
