@@ -401,6 +401,12 @@ M._defaults = {
       model = "auto",
       api_key_name = "MORPH_API_KEY",
     },
+    moonshot = {
+      __inherited_from = "openai",
+      endpoint = "https://api.moonshot.ai/v1",
+      model = "kimi-k2-0711-preview",
+      api_key_name = "MOONSHOT_API_KEY",
+    },
   },
   ---Specify the special dual_boost mode
   ---1. enabled: Whether to enable dual_boost mode. Default to false.
