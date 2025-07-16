@@ -75,7 +75,7 @@ function M.func(input, opts)
   local sidebar = require("avante").get()
   if not sidebar then return false, "Avante sidebar not found" end
 
-  local is_streaming = input.streaming or false
+  local is_streaming = opts.streaming or false
   if is_streaming then
     -- wait for stream completion as command may not be complete yet
     return
