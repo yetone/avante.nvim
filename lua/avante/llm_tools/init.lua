@@ -1185,9 +1185,11 @@ You can delete the first file by providing a path of "directory1/a/something.txt
         optional = true,
       },
     },
-    func = function(input_json, on_log, on_complete)
-      local symbol_name = input_json.symbol_name
-      local show_line_numbers = input_json.show_line_numbers
+    func = function(input, opts)
+      local on_log = opts.on_log
+      local on_complete = opts.on_complete
+      local symbol_name = input.symbol_name
+      local show_line_numbers = input.show_line_numbers
       if on_log then on_log("symbol_name: " .. vim.inspect(symbol_name)) end
       if on_log then on_log("show_line_numbers: " .. vim.inspect(show_line_numbers)) end
       if not symbol_name then return nil, "No symbol name provided" end
