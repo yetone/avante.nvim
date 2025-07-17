@@ -830,12 +830,12 @@ function M._stream(opts)
         ---@type AvanteLLMToolFuncOpts
         local tool_use_opts = {
           session_ctx = opts.session_ctx,
+          tool_use_id = partial_tool_use.id,
+          streaming = partial_tool_use.state == "generating",
         }
         if partial_tool_use.state == "generating" and not is_edit_tool_use and not support_streaming then return end
-        if type(partial_tool_use.input) == "table" then tool_use_opts.tool_use_id = partial_tool_use.id end
         if partial_tool_use.state == "generating" then
           if type(partial_tool_use.input) == "table" then
-            tool_use_opts.streaming = true
             LLMTools.process_tool_use(prompt_opts.tools, partial_tool_use, tool_use_opts)
           end
           return

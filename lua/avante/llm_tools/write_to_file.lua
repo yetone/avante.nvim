@@ -58,7 +58,7 @@ M.returns = {
 }
 
 --- IMPORTANT: Using "the_content" instead of "content" is to avoid LLM streaming generating function parameters in alphabetical order, which would result in generating "path" after "content", making it impossible to achieve a stream diff view.
----@type AvanteLLMToolFunc<{ path: string, content: string, the_content?: string, streaming?: boolean, tool_use_id?: string }>
+---@type AvanteLLMToolFunc<{ path: string, content: string, the_content?: string }>
 function M.func(input, opts)
   if input.the_content ~= nil then
     input.content = input.the_content

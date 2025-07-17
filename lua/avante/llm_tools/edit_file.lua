@@ -51,7 +51,7 @@ M.returns = {
   },
 }
 
----@type AvanteLLMToolFunc<{ target_file: string, instructions: string, code_edit: string, streaming?: boolean, tool_use_id?: string }>
+---@type AvanteLLMToolFunc<{ target_file: string, instructions: string, code_edit: string }>
 M.func = vim.schedule_wrap(function(input, opts)
   local on_complete = opts.on_complete
   if not on_complete then return false, "on_complete not provided" end

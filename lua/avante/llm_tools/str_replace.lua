@@ -53,7 +53,7 @@ M.returns = {
   },
 }
 
----@type AvanteLLMToolFunc<{ path: string, old_str: string, new_str: string, streaming?: boolean, tool_use_id?: string }>
+---@type AvanteLLMToolFunc<{ path: string, old_str: string, new_str: string }>
 function M.func(input, opts)
   local replace_in_file = require("avante.llm_tools.replace_in_file")
   local diff = "------- SEARCH\n" .. input.old_str .. "\n=======\n" .. input.new_str
