@@ -154,6 +154,7 @@ function M.generate_todos(user_input, cb)
               local result = LLMTools.process_tool_use(tools, pending_tool, {
                 session_ctx = {},
                 on_complete = function() cb() end,
+                tool_use_id = pending_tool.id,
               })
               if result ~= nil then cb() end
             end
@@ -850,6 +851,7 @@ function M._stream(opts)
           on_log = opts.on_tool_log,
           set_tool_use_store = opts.set_tool_use_store,
           on_complete = handle_tool_result,
+          tool_use_id = partial_tool_use.id,
         })
         if result ~= nil or error ~= nil then return handle_tool_result(result, error) end
       end
