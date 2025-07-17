@@ -1324,6 +1324,8 @@ function M.process_tool_use(tools, tool_use, opts)
       end
       on_complete(result, err)
     end,
+    streaming = opts.streaming,
+    tool_use_id = opts.tool_use_id,
   })
 
   -- Result and error being nil means that the tool was executed asynchronously
