@@ -833,6 +833,7 @@ function M._stream(opts)
           session_ctx = opts.session_ctx,
           tool_use_id = partial_tool_use.id,
           streaming = partial_tool_use.state == "generating",
+          on_complete = function() end,
         }
         if partial_tool_use.state == "generating" and not is_edit_tool_use and not support_streaming then return end
         if partial_tool_use.state == "generating" then
