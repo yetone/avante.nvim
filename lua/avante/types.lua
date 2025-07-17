@@ -114,6 +114,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field is_deleted boolean | nil
 ---@field turn_id string | nil
 ---@field is_calling boolean | nil
+---@field original_content AvanteLLMMessageContent | nil
 ---
 ---@class AvanteLLMToolResult
 ---@field tool_name string

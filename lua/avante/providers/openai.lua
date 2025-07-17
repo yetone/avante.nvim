@@ -237,6 +237,7 @@ function M:add_text_message(ctx, text, state, opts)
   }, {
     state = state,
     uuid = ctx.content_uuid,
+    original_content = ctx.content,
   })
   ctx.content_uuid = msg.uuid
   local msgs = { msg }
@@ -332,7 +333,7 @@ function M:add_text_message(ctx, text, state, opts)
       end
       ::continue::
     end
-    msg.displayed_content = table.concat(new_content_list, "\n")
+    msg.message.content = table.concat(new_content_list, "\n")
   end
   if opts.on_messages_add then opts.on_messages_add(msgs) end
   if has_tool_use and state == "generating" then opts.on_stop({ reason = "tool_use", streaming_tool_use = true }) end
