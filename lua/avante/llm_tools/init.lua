@@ -31,7 +31,7 @@ function M.str_replace_editor(input, opts)
   return M.str_replace_based_edit_tool(input, opts)
 end
 
----@type AvanteLLMToolFunc<{ command: "view" | "str_replace" | "create" | "insert", path: string, old_str?: string, new_str?: string, file_text?: string, insert_line?: integer, new_str?: string, view_range?: integer[], streaming?: boolean }>
+---@type AvanteLLMToolFunc<{ command: "view" | "str_replace" | "create" | "insert", path: string, old_str?: string, new_str?: string, file_text?: string, insert_line?: integer, new_str?: string, view_range?: integer[] }>
 function M.str_replace_based_edit_tool(input, opts)
   local on_log = opts.on_log
   local on_complete = opts.on_complete
