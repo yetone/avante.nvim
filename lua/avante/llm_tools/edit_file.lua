@@ -59,17 +59,20 @@ M.func = vim.schedule_wrap(function(input, opts)
   if not provider then return false, "morph provider not found" end
   if not provider.is_env_set() then return false, "morph provider not set" end
 
-  local original_code
   local ok, lines = pcall(Utils.read_file_from_buf_or_disk, input.target_file)
   if not ok then
     local f = io.open(input.target_file, "r")
     if f then
-      original_code = f:read("*all")
+      local original_code = f:read("*all")
       f:close()
+      lines = vim.split(original_code, "\n")
     end
-  else
-    original_code = table.concat(lines or {}, "\n")
   end
+
+  if lines and #lines > 0 then
+    if lines[#lines] == "" then lines = vim.list_slice(lines, 0, #lines - 1) end
+  end
+  local original_code = table.concat(lines or {}, "\n")
 
   local provider_conf = Providers.parse_config(provider)
 
