@@ -215,14 +215,13 @@ M.update_history_messages = function(messages, using_ReAct_prompt, add_diagnosti
             table.insert(
               picked_messages,
               1,
-              Message:new_assistant_synthetic({
-                type = "text",
-                text = string.format(
+              Message:new_assistant_synthetic(
+                string.format(
                   "Tool use %s(%s)",
                   tool_use_message.message.content[1].name,
                   vim.json.encode(tool_use_message.message.content[1].input)
-                ),
-              })
+                )
+              )
             )
           end
         elseif Helpers.is_tool_use_message(msg) then
