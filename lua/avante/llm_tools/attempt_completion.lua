@@ -3,7 +3,7 @@ local Config = require("avante.config")
 local Highlights = require("avante.highlights")
 local Line = require("avante.ui.line")
 
----@alias AttemptCompletionInput {result: string, command?: string, streaming?: boolean}
+---@alias AttemptCompletionInput {result: string, command?: string}
 
 ---@class AvanteLLMTool
 local M = setmetatable({}, Base)
