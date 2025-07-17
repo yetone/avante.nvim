@@ -221,13 +221,9 @@ function M:models_list()
   -- (this should rarely happen, as we refresh the token in the background)
   H.refresh_token(false, false)
   local provider_conf = Providers.parse_config(self)
+  local headers = self:build_headers()
   local curl_opts = {
-    headers = Utils.tbl_override({
-      ["Content-Type"] = "application/json",
-      ["Authorization"] = "Bearer " .. M.state.github_token.token,
-      ["Copilot-Integration-Id"] = "vscode-chat",
-      ["Editor-Version"] = ("Neovim/%s.%s.%s"):format(vim.version().major, vim.version().minor, vim.version().patch),
-    }, self.extra_headers),
+    headers = Utils.tbl_override(headers, self.extra_headers),
     timeout = provider_conf.timeout,
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,
@@ -268,6 +264,17 @@ function M:models_list()
   return handle_response(response)
 end
 
+function M:build_headers()
+  return {
+    ["Authorization"] = "Bearer " .. M.state.github_token.token,
+    ["User-Agent"] = "GitHubCopilotChat/0.26.7",
+    ["Editor-Version"] = "vscode/1.99.3",
+    ["Editor-Plugin-Version"] = "copilot-chat/0.26.7",
+    ["Copilot-Integration-Id"] = "vscode-chat",
+    ["Openai-Intent"] = "conversation-edits",
+  }
+end
+
 function M:parse_curl_args(prompt_opts)
   -- refresh token synchronously, only if it has expired
   -- (this should rarely happen, as we refresh the token in the background)
@@ -285,19 +292,20 @@ function M:parse_curl_args(prompt_opts)
     end
   end
 
+  local headers = self:build_headers()
+
+  if prompt_opts.messages and #prompt_opts.messages > 0 then
+    local last_message = prompt_opts.messages[#prompt_opts.messages]
+    local initiator = last_message.role == "user" and "user" or "agent"
+    headers["X-Initiator"] = initiator
+  end
+
   return {
     url = H.chat_completion_url(M.state.github_token.endpoints.api or provider_conf.endpoint),
     timeout = provider_conf.timeout,
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,
-    headers = Utils.tbl_override({
-      ["Authorization"] = "Bearer " .. M.state.github_token.token,
-      ["User-Agent"] = "GitHubCopilotChat/0.26.7",
-      ["Editor-Version"] = "vscode/1.99.3",
-      ["Editor-Plugin-Version"] = "copilot-chat/0.26.7",
-      ["Copilot-Integration-Id"] = "vscode-chat",
-      ["Openai-Intent"] = "conversation-edits",
-    }, self.extra_headers),
+    headers = Utils.tbl_override(headers, self.extra_headers),
     body = vim.tbl_deep_extend("force", {
       model = provider_conf.model,
       messages = self:parse_messages(prompt_opts),
