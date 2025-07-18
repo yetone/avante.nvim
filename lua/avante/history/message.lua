@@ -4,29 +4,34 @@ local Utils = require("avante.utils")
 local M = {}
 M.__index = M
 
+---@class avante.HistoryMessage.Opts
+---@field uuid? string
+---@field turn_id? string
+---@field state? avante.HistoryMessageState
+---@field displayed_content? string
+---@field original_content? AvanteLLMMessageContent
+---@field selected_code? AvanteSelectedCode
+---@field selected_filepaths? string[]
+---@field is_calling? boolean
+---@field is_dummy? boolean
+---@field is_user_submission? boolean
+---@field just_for_display? boolean
+---@field visible? boolean
+---
 ---@param message AvanteLLMMessage
----@param opts? {is_user_submission?: boolean, visible?: boolean, displayed_content?: string, state?: avante.HistoryMessageState, uuid?: string, selected_filepaths?: string[], selected_code?: AvanteSelectedCode, just_for_display?: boolean, is_dummy?: boolean, turn_id?: string, is_calling?: boolean, original_content?: AvanteLLMMessageContent}
+---@param opts? avante.HistoryMessage.Opts
 ---@return avante.HistoryMessage
 function M:new(message, opts)
-  opts = opts or {}
-  local obj = setmetatable({}, M)
-  obj.message = message
-  obj.uuid = opts.uuid or Utils.uuid()
-  obj.state = opts.state or "generated"
-  obj.timestamp = Utils.get_timestamp()
-  obj.is_user_submission = false
-  obj.visible = true
-  if opts.is_user_submission ~= nil then obj.is_user_submission = opts.is_user_submission end
-  if opts.visible ~= nil then obj.visible = opts.visible end
-  if opts.displayed_content ~= nil then obj.displayed_content = opts.displayed_content end
-  if opts.selected_filepaths ~= nil then obj.selected_filepaths = opts.selected_filepaths end
-  if opts.selected_code ~= nil then obj.selected_code = opts.selected_code end
-  if opts.just_for_display ~= nil then obj.just_for_display = opts.just_for_display end
-  if opts.is_dummy ~= nil then obj.is_dummy = opts.is_dummy end
-  if opts.turn_id ~= nil then obj.turn_id = opts.turn_id end
-  if opts.is_calling ~= nil then obj.is_calling = opts.is_calling end
-  if opts.original_content ~= nil then obj.original_content = opts.original_content end
-  return obj
+  local obj = {
+    message = message,
+    uuid = Utils.uuid(),
+    state = "generated",
+    timestamp = Utils.get_timestamp(),
+    is_user_submission = false,
+    visible = true,
+  }
+  obj = vim.tbl_extend("force", obj, opts or {})
+  return setmetatable(obj, M)
 end
 
 ---Creates a new instance of synthetic (dummy) history message
