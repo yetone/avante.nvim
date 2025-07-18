@@ -53,4 +53,11 @@ function M:new_assistant_synthetic(item) return M:new_synthetic("assistant", ite
 ---@return avante.HistoryMessage
 function M:new_user_synthetic(item) return M:new_synthetic("user", item) end
 
+---Updates content of a message as long as it is a simple text (or empty).
+---@param new_content string
+function M:update_content(new_content)
+  assert(type(self.message.content) == "string", "can only update content of simple string messages")
+  self.message.content = new_content
+end
+
 return M
