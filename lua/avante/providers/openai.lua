@@ -231,10 +231,7 @@ function M:add_text_message(ctx, text, state, opts)
   local content =
     ctx.content:gsub("<tool_code>", ""):gsub("</tool_code>", ""):gsub("<tool_call>", ""):gsub("</tool_call>", "")
   ctx.content = content
-  local msg = HistoryMessage:new({
-    role = "assistant",
-    content = ctx.content,
-  }, {
+  local msg = HistoryMessage:new("assistant", ctx.content, {
     state = state,
     uuid = ctx.content_uuid,
     original_content = ctx.content,
@@ -299,16 +296,11 @@ function M:add_text_message(ctx, text, state, opts)
         has_tool_use = true
         local msg_uuid = ctx.content_uuid .. "-" .. idx
         local tool_use_id = msg_uuid
-        local msg_ = HistoryMessage:new({
-          role = "assistant",
-          content = {
-            {
-              type = "tool_use",
-              name = item.tool_name,
-              id = tool_use_id,
-              input = input,
-            },
-          },
+        local msg_ = HistoryMessage:new("assistant", {
+          type = "tool_use",
+          name = item.tool_name,
+          id = tool_use_id,
+          input = input,
         }, {
           state = state,
           uuid = msg_uuid,
@@ -342,15 +334,10 @@ end
 function M:add_thinking_message(ctx, text, state, opts)
   if ctx.reasonging_content == nil then ctx.reasonging_content = "" end
   ctx.reasonging_content = ctx.reasonging_content .. text
-  local msg = HistoryMessage:new({
-    role = "assistant",
-    content = {
-      {
-        type = "thinking",
-        thinking = ctx.reasonging_content,
-        signature = "",
-      },
-    },
+  local msg = HistoryMessage:new("assistant", {
+    type = "thinking",
+    thinking = ctx.reasonging_content,
+    signature = "",
   }, {
     state = state,
     uuid = ctx.reasonging_content_uuid,
@@ -362,16 +349,11 @@ end
 
 function M:add_tool_use_message(ctx, tool_use, state, opts)
   local jsn = JsonParser.parse(tool_use.input_json)
-  local msg = HistoryMessage:new({
-    role = "assistant",
-    content = {
-      {
-        type = "tool_use",
-        name = tool_use.name,
-        id = tool_use.id,
-        input = jsn or {},
-      },
-    },
+  local msg = HistoryMessage:new("assistant", {
+    type = "tool_use",
+    name = tool_use.name,
+    id = tool_use.id,
+    input = jsn or {},
   }, {
     state = state,
     uuid = tool_use.uuid,
