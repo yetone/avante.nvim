@@ -140,14 +140,7 @@ function M.on_render(input, opts)
       end
       if summary then summary = "  " .. Utils.icon("🛠️ ") .. summary end
     else
-      local content = msg.message.content
-      if type(content) == "table" and #content > 0 and type(content[1]) == "table" and content[1].type == "text" then
-        summary = content[1].content
-      elseif type(content) == "table" and #content > 0 and type(content[1]) == "string" then
-        summary = content[1]
-      elseif type(content) == "string" then
-        summary = content
-      end
+      summary = History.Helpers.get_text_data(msg)
     end
     if summary then table.insert(tool_use_summary, summary) end
   end
