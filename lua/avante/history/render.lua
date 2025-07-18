@@ -104,7 +104,7 @@ local function message_content_item_to_lines(item, message, messages)
     elseif item.type == "tool_use" then
       local ok, llm_tool = pcall(require, "avante.llm_tools." .. item.name)
       if ok then
-        local tool_result_message = Helpers.get_tool_result_message(message, messages)
+        local tool_result_message = Helpers.get_tool_result_message(item.id, messages)
         ---@cast llm_tool AvanteLLMTool
         if llm_tool.on_render then
           return llm_tool.on_render(item.input, {
