@@ -263,10 +263,7 @@ When you're done, provide a clear and concise summary of what you found.]]):gsub
         .. elapsed_time
         .. "s)"
       if session_ctx.on_messages_add then
-        local message = History.Message:new({
-          role = "assistant",
-          content = "\n\n" .. summary,
-        }, {
+        local message = History.Message:new("assistant", "\n\n" .. summary, {
           just_for_display = true,
         })
         session_ctx.on_messages_add({ message })

@@ -135,27 +135,24 @@ function M:is_disable_stream() return false end
 ---@param tool_calls avante.OllamaToolCall[]
 ---@param opts AvanteLLMStreamOptions
 function M:add_tool_use_messages(tool_calls, opts)
-  local msgs = {}
-  for _, tool_call in ipairs(tool_calls) do
-    local id = Utils.uuid()
-    local func = tool_call["function"]
-    local msg = HistoryMessage:new({
-      role = "assistant",
-      content = {
-        {
-          type = "tool_use",
-          name = func.name,
-          id = id,
-          input = func.arguments,
-        },
-      },
-    }, {
-      state = "generated",
-      uuid = id,
-    })
-    table.insert(msgs, msg)
+  if opts.on_messages_add then
+    local msgs = {}
+    for _, tool_call in ipairs(tool_calls) do
+      local id = Utils.uuid()
+      local func = tool_call["function"]
+      local msg = HistoryMessage:new("assistant", {
+        type = "tool_use",
+        name = func.name,
+        id = id,
+        input = func.arguments,
+      }, {
+        state = "generated",
+        uuid = id,
+      })
+      table.insert(msgs, msg)
+    end
+    opts.on_messages_add(msgs)
   end
-  if opts.on_messages_add then opts.on_messages_add(msgs) end
 end
 
 function M:parse_stream_data(ctx, data, opts)

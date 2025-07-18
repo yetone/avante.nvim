@@ -18,10 +18,13 @@ M.__index = M
 ---@field just_for_display? boolean
 ---@field visible? boolean
 ---
----@param message AvanteLLMMessage
+---@param role "user" | "assistant"
+---@param content AvanteLLMMessageContentItem
 ---@param opts? avante.HistoryMessage.Opts
 ---@return avante.HistoryMessage
-function M:new(message, opts)
+function M:new(role, content, opts)
+  ---@type AvanteLLMMessage
+  local message = { role = role, content = type(content) == "string" and content or { content } }
   local obj = {
     message = message,
     uuid = Utils.uuid(),
@@ -36,20 +39,17 @@ end
 
 ---Creates a new instance of synthetic (dummy) history message
 ---@param role "assistant" | "user"
----@param item AvanteLLMMessageContentItem | string
+---@param item AvanteLLMMessageContentItem
 ---@return avante.HistoryMessage
-function M:new_synthetic(role, item)
-  local content = type(item) == "string" and item or { item }
-  return M:new({ role = role, content = content }, { is_dummy = true })
-end
+function M:new_synthetic(role, item) return M:new(role, item, { is_dummy = true }) end
 
 ---Creates a new instance of synthetic (dummy) history message attributed to the assistant
----@param item AvanteLLMMessageContentItem | string
+---@param item AvanteLLMMessageContentItem
 ---@return avante.HistoryMessage
 function M:new_assistant_synthetic(item) return M:new_synthetic("assistant", item) end
 
 ---Creates a new instance of synthetic (dummy) history message attributed to the user
----@param item AvanteLLMMessageContentItem | string
+---@param item AvanteLLMMessageContentItem
 ---@return avante.HistoryMessage
 function M:new_user_synthetic(item) return M:new_synthetic("user", item) end
 

@@ -2094,6 +2094,7 @@ function Sidebar:add_history_messages(messages)
   end)
 end
 
+-- FIXME: this is used by external plugin users
 ---@param messages AvanteLLMMessage | AvanteLLMMessage[]
 ---@param options {visible?: boolean}
 function Sidebar:add_chat_history(messages, options)
@@ -2102,25 +2103,18 @@ function Sidebar:add_chat_history(messages, options)
   local is_first_user = true
   local history_messages = {}
   for _, message in ipairs(messages) do
-    local content = message.content
-    if message.role == "system" and type(content) == "string" then
-      ---@cast content string
-      self.chat_history.system_prompt = content
-      goto continue
-    end
-    local history_message = History.Message:new(message)
-    if message.role == "user" and is_first_user then
-      is_first_user = false
-      history_message.is_user_submission = true
-      history_message.provider = Config.provider
-      history_message.model = Config.get_provider_config(Config.provider).model
-    end
-    table.insert(history_messages, history_message)
-    ::continue::
-  end
-  if options.visible ~= nil then
-    for _, history_message in ipairs(history_messages) do
-      history_message.visible = options.visible
+    local role = message.role
+    if role == "system" and type(message.content) == "string" then
+      self.chat_history.system_prompt = message.content --[[@as string]]
+    else
+      ---@type AvanteLLMMessageContentItem
+      local content = type(message.content) ~= "table" and message.content or message.content[1]
+      local msg_opts = { visible = options.visible }
+      if role == "user" and is_first_user then
+        msg_opts.is_user_submission = true
+        is_first_user = false
+      end
+      table.insert(history_messages, History.Message:new(role, content, msg_opts))
     end
   end
   self:add_history_messages(history_messages)
@@ -2415,7 +2409,7 @@ function Sidebar:create_input_container()
 
     if self.is_generating then
       self:add_history_messages({
-        History.Message:new({ role = "user", content = request }),
+        History.Message:new("user", request),
       })
       return
     end
@@ -2553,10 +2547,7 @@ function Sidebar:create_input_container()
         local msg_content = stop_opts.error
         if type(msg_content) ~= "string" then msg_content = vim.inspect(msg_content) end
         self:add_history_messages({
-          History.Message:new({
-            role = "assistant",
-            content = "\n\nError: " .. msg_content,
-          }, {
+          History.Message:new("assistant", "\n\nError: " .. msg_content, {
             just_for_display = true,
           }),
         })
@@ -2584,10 +2575,7 @@ function Sidebar:create_input_container()
 
     if request and request ~= "" then
       self:add_history_messages({
-        History.Message:new({
-          role = "user",
-          content = request,
-        }, {
+        History.Message:new("user", request, {
           is_user_submission = true,
           selected_filepaths = selected_filepaths,
           selected_code = selected_code,
@@ -2812,6 +2800,7 @@ function Sidebar:create_input_container()
   })
 end
 
+-- FIXME: this is used by external plugin users
 ---@param value string
 function Sidebar:set_input_value(value)
   if not self.containers.input then return end

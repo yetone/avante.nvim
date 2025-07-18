@@ -231,7 +231,10 @@ L5:     pass
     },
   }
 
-  local history_messages = vim.iter(llm_messages):map(function(msg) return HistoryMessage:new(msg) end):totable()
+  local history_messages = vim
+    .iter(llm_messages)
+    :map(function(msg) return HistoryMessage:new(msg.role, msg.content) end)
+    :totable()
 
   local diagnostics = Utils.lsp.get_diagnostics(bufnr)
 
