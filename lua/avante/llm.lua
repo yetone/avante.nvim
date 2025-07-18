@@ -979,7 +979,7 @@ function M._stream(opts)
               opts.on_chunk(prefix .. "\n" .. msg_content .. "\n")
             end
             if opts.on_messages_add and message then
-              message.message.content = "\n\n" .. msg_content
+              message:update_content("\n\n" .. msg_content)
               opts.on_messages_add({ message })
             end
 
