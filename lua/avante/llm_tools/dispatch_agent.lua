@@ -148,14 +148,17 @@ function M.on_render(input, opts)
   local icon = Utils.icon("🔄 ")
   local hl = Highlights.AVANTE_TASK_RUNNING
   if result_message then
-    if result_message.message.content[1].is_error then
-      state = "failed"
-      icon = Utils.icon("❌ ")
-      hl = Highlights.AVANTE_TASK_FAILED
-    else
-      state = "completed"
-      icon = Utils.icon("✅ ")
-      hl = Highlights.AVANTE_TASK_COMPLETED
+    local result = History.Helpers.get_tool_result_data(result_message)
+    if result then
+      if result.is_error then
+        state = "failed"
+        icon = Utils.icon("❌ ")
+        hl = Highlights.AVANTE_TASK_FAILED
+      else
+        state = "completed"
+        icon = Utils.icon("✅ ")
+        hl = Highlights.AVANTE_TASK_COMPLETED
+      end
     end
   end
   local lines = {}
