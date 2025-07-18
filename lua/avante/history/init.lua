@@ -14,10 +14,7 @@ function M.get_history_messages(history)
   local messages = {}
   for _, entry in ipairs(history.entries or {}) do
     if entry.request and entry.request ~= "" then
-      local message = Message:new({
-        role = "user",
-        content = entry.request,
-      }, {
+      local message = Message:new("user", entry.request, {
         timestamp = entry.timestamp,
         is_user_submission = true,
         visible = entry.visible,
@@ -27,10 +24,7 @@ function M.get_history_messages(history)
       table.insert(messages, message)
     end
     if entry.response and entry.response ~= "" then
-      local message = Message:new({
-        role = "assistant",
-        content = entry.response,
-      }, {
+      local message = Message:new("assistant", entry.response, {
         timestamp = entry.timestamp,
         visible = entry.visible,
       })
