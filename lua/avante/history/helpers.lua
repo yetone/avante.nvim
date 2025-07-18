@@ -35,10 +35,6 @@ function M.get_tool_use_data(message)
   end
 end
 
----@param message avante.HistoryMessage
----@return boolean
-function M.is_tool_use_message(message) return M.get_tool_use_data(message) ~= nil end
-
 ---If message is a "tool result" message returns results of the tool invocation.
 ---@param message avante.HistoryMessage
 ---@return AvanteLLMToolResult | nil
@@ -66,38 +62,43 @@ function M.get_tool_result(id, messages)
   end
 end
 
+---Given a tool invocation ID locate corresponding tool use message
+---@param id string
+---@param messages avante.HistoryMessage[]
+---@return avante.HistoryMessage | nil
+function M.get_tool_use_message(id, messages)
+  for idx = #messages, 1, -1 do
+    local msg = messages[idx]
+    local use = M.get_tool_use_data(msg)
+    if use and use.id == id then return msg end
+  end
+end
+
+---Given a tool invocation ID locate corresponding tool result message
+---@param id string
+---@param messages avante.HistoryMessage[]
+---@return avante.HistoryMessage | nil
+function M.get_tool_result_message(id, messages)
+  for idx = #messages, 1, -1 do
+    local msg = messages[idx]
+    local result = M.get_tool_result_data(msg)
+    if result and result.tool_use_id == id then return msg end
+  end
+end
+
+---@param message avante.HistoryMessage
+---@return boolean
+function M.is_thinking_message(message)
+  local content = message.message.content
+  return type(content) == "table" and (content[1].type == "thinking" or content[1].type == "redacted_thinking")
+end
+
 ---@param message avante.HistoryMessage
 ---@return boolean
 function M.is_tool_result_message(message) return M.get_tool_result_data(message) ~= nil end
 
----Given a tool result message locate corresponding tool use message
 ---@param message avante.HistoryMessage
----@param messages avante.HistoryMessage[]
----@return avante.HistoryMessage | nil
-function M.get_tool_use_message(message, messages)
-  local result = M.get_tool_result_data(message)
-  if result then
-    for idx = #messages, 1, -1 do
-      local msg = messages[idx]
-      local use = M.get_tool_use_data(msg)
-      if use and use.id == result.tool_use_id then return msg end
-    end
-  end
-end
-
----Given a tool use message locate corresponding tool result message
----@param message avante.HistoryMessage
----@param messages avante.HistoryMessage[]
----@return avante.HistoryMessage | nil
-function M.get_tool_result_message(message, messages)
-  local use = M.get_tool_use_data(message)
-  if use then
-    for idx = #messages, 1, -1 do
-      local msg = messages[idx]
-      local result = M.get_tool_result_data(msg)
-      if result and result.tool_use_id == use.id then return msg end
-    end
-  end
-end
+---@return boolean
+function M.is_tool_use_message(message) return M.get_tool_use_data(message) ~= nil end
 
 return M
