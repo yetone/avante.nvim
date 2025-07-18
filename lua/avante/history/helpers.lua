@@ -2,6 +2,24 @@ local Utils = require("avante.utils")
 
 local M = {}
 
+---If message is a text message return the text.
+---@param message avante.HistoryMessage
+---@return string | nil
+function M.get_text_data(message)
+  local content = message.message.content
+  if type(content) == "table" then
+    assert(#content == 1, "more than one entry in message content")
+    local item = content[1]
+    if type(item) == "string" then
+      return item
+    elseif type(item) == "table" and item.type == "text" then
+      return item.content
+    end
+  elseif type(content) == "string" then
+    return content
+  end
+end
+
 ---If message is a "tool use" message returns information about the tool invocation.
 ---@param message avante.HistoryMessage
 ---@return AvanteLLMToolUse | nil
