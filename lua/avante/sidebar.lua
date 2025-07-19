@@ -2176,7 +2176,7 @@ end
 -- Create a floating window as a hint
 function Sidebar:show_input_hint()
   self:close_input_hint() -- Close the existing hint window
-  
+
   local hint_text = (fn.mode() ~= "i" and Config.mappings.submit.normal or Config.mappings.submit.insert) .. ": submit"
   if Config.behaviour.enable_token_counting then
     local input_value = table.concat(api.nvim_buf_get_lines(self.input_container.bufnr, 0, -1, false), "\n")
@@ -2184,16 +2184,16 @@ function Sidebar:show_input_hint()
     local tokens = self.token_count + Utils.tokens.calculate_tokens(input_value)
     hint_text = "Tokens: " .. tostring(tokens) .. "; " .. hint_text
   end
-  
+
   local buf = api.nvim_create_buf(false, true)
   api.nvim_buf_set_lines(buf, 0, -1, false, { hint_text })
   api.nvim_buf_set_extmark(buf, INPUT_HINT_NAMESPACE, 0, 0, { hl_group = "AvantePopupHint", end_col = #hint_text })
-  
+
   -- Get the current window size
   local win_width = api.nvim_win_get_width(self.input_container.winid)
   local win_height = api.nvim_win_get_height(self.input_container.winid)
   local width = #hint_text
-  
+
   -- Create the floating window positioned below the input container
   self.input_hint_window = api.nvim_open_win(buf, false, {
     relative = "win",
