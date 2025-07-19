@@ -948,12 +948,10 @@ To enable Fast Apply, you need to:
 
 1. **Enable Fast Apply in your configuration**:
    ```lua
-   require('avante').setup({
      behaviour = {
        enable_fastapply = true,  -- Enable Fast Apply feature
      },
      -- ... other configuration
-   })
    ```
 
 2. **Get your Morph API key**:
