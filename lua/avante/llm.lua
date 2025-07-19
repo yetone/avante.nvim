@@ -309,10 +309,7 @@ function M.generate_prompts(opts)
     memory = opts.memory,
   }
 
-  if opts.get_todos then
-    local todos = opts.get_todos()
-    if todos and #todos > 0 then template_opts.todos = vim.json.encode(todos) end
-  end
+  -- Removed the original todos processing logic, now handled in context_messages
 
   local system_prompt
   if opts.prompt_opts and opts.prompt_opts.system_prompt then
@@ -416,6 +413,30 @@ function M.generate_prompts(opts)
 
   if opts.instructions ~= nil and opts.instructions ~= "" then
     messages = vim.list_extend(messages, { { role = "user", content = opts.instructions } })
+  end
+
+  if opts.get_todos then
+    local todos = opts.get_todos()
+    if todos and #todos > 0 then
+      -- Remove existing todos-related messages - use more precise <todos> tag matching
+      messages = vim
+        .iter(messages)
+        :filter(function(msg)
+          if not msg.content or type(msg.content) ~= "string" then return true end
+          -- Only filter out messages that start with <todos> and end with </todos> to avoid accidentally deleting other messages
+          return not msg.content:match("^<todos>.*</todos>$")
+        end)
+        :totable()
+
+      -- Add the latest todos to the end of messages, wrapped in <todos> tags
+      local todos_content = vim.json.encode(todos)
+      table.insert(messages, {
+        role = "user",
+        content = "<todos>\n" .. todos_content .. "\n</todos>",
+        visible = false,
+        is_context = true,
+      })
+    end
   end
 
   opts.session_ctx = opts.session_ctx or {}
