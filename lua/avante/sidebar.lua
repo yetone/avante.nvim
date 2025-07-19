@@ -2184,16 +2184,17 @@ function Sidebar:show_input_hint()
 
   -- Get the current window size
   local win_width = api.nvim_win_get_width(self.input_container.winid)
+  local win_height = api.nvim_win_get_height(self.input_container.winid)
   local width = #hint_text
 
-  -- Create the floating window
+  -- Create the floating window positioned below the input container
   self.input_hint_window = api.nvim_open_win(buf, false, {
     relative = "win",
     win = self.input_container.winid,
     width = width,
     height = 1,
-    row = self:get_input_float_window_row(),
-    col = math.max(win_width - width, 0), -- Display in the bottom right corner
+    row = win_height, -- Position below the input container
+    col = math.max(win_width - width, 0), -- Right-aligned
     style = "minimal",
     border = "none",
     focusable = false,
