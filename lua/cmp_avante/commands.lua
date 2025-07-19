@@ -51,7 +51,7 @@ function CommandsSource:execute(item, callback)
 
   local sidebar = require("avante").get()
   command.callback(sidebar, nil, function()
-    local bufnr = sidebar.input_container.bufnr ---@type integer
+    local bufnr = sidebar.containers.input.bufnr ---@type integer
     local content = table.concat(api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n")
 
     vim.defer_fn(function()
