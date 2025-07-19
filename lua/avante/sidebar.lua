@@ -1579,18 +1579,11 @@ function Sidebar:update_content(content, opts)
     history_lines = vim.deepcopy(self._cached_history_lines)
   end
 
-  -- 批量处理内容行，减少表操作
   if content ~= nil and content ~= "" then
-    local content_lines = vim.split(content, "\n")
-    local new_lines = { Line:new({ { "" } }) }
-
-    -- 预分配表大小，提升性能
-    for i = 1, #content_lines do
-      new_lines[i + 1] = Line:new({ { content_lines[i] } })
+    table.insert(history_lines, Line:new({ { "" } }))
+    for _, line in ipairs(vim.split(content, "\n")) do
+      table.insert(history_lines, Line:new({ { line } }))
     end
-
-    -- 一次性扩展，而不是逐个插入
-    vim.list_extend(history_lines, new_lines)
   end
 
   -- 使用 vim.schedule 而不是 vim.defer_fn(0)，性能更好
