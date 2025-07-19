@@ -48,12 +48,12 @@ function M.confirm(message, callback, confirm_opts, session_ctx, tool_name)
   end
   local Confirm = require("avante.ui.confirm")
   local sidebar = require("avante").get()
-  if not sidebar or not sidebar.input_container or not sidebar.input_container.winid then
+  if not sidebar or not sidebar.containers.input or not sidebar.containers.input.winid then
     Utils.error("Avante sidebar not found", { title = "Avante" })
     callback(false)
     return
   end
-  confirm_opts = vim.tbl_deep_extend("force", { container_winid = sidebar.input_container.winid }, confirm_opts or {})
+  confirm_opts = vim.tbl_deep_extend("force", { container_winid = sidebar.containers.input.winid }, confirm_opts or {})
   if M.confirm_popup then M.confirm_popup:close() end
   M.confirm_popup = Confirm:new(message, function(type, reason)
     if type == "yes" then
