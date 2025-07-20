@@ -190,17 +190,15 @@ function M:open()
 
   vim.keymap.set("n", Config.mappings.confirm.resp, function()
     local sidebar = require("avante").get()
-    if not sidebar then return end
-    if sidebar.winids.result_container and vim.api.nvim_win_is_valid(sidebar.winids.result_container) then
-      vim.api.nvim_set_current_win(sidebar.winids.result_container)
+    if sidebar and sidebar.containers.result and vim.api.nvim_win_is_valid(sidebar.containers.result.winid) then
+      vim.api.nvim_set_current_win(sidebar.containers.result.winid)
     end
   end, { buffer = popup.bufnr, nowait = true })
 
   vim.keymap.set("n", Config.mappings.confirm.input, function()
     local sidebar = require("avante").get()
-    if not sidebar then return end
-    if sidebar.winids.input_container and vim.api.nvim_win_is_valid(sidebar.winids.input_container) then
-      vim.api.nvim_set_current_win(sidebar.winids.input_container)
+    if sidebar and sidebar.containers.input and vim.api.nvim_win_is_valid(sidebar.containers.input.winid) then
+      vim.api.nvim_set_current_win(sidebar.containers.input.winid)
     end
   end, { buffer = popup.bufnr, nowait = true })
 

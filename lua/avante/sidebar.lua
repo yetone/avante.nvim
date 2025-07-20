@@ -35,6 +35,16 @@ local PRIORITY = (vim.hl or vim.highlight).priorities.user
 
 local RESP_SEPARATOR = "-------"
 
+---This is a list of known sidebar containers or sub-windows. They are listed in
+---the order they appear in the sidebar, from top to bottom.
+local SIDEBAR_CONTAINERS = {
+  "result",
+  "selected_code",
+  "selected_files",
+  "todos",
+  "input",
+}
+
 ---@class avante.Sidebar
 local Sidebar = {}
 Sidebar.__index = Sidebar
@@ -49,7 +59,6 @@ Sidebar.__index = Sidebar
 ---@field id integer
 ---@field augroup integer
 ---@field code avante.CodeState
----@field winids table<"result_container" | "todos_container" | "selected_code_container" | "selected_files_container" | "input_container", integer>
 ---@field containers { result?: NuiSplit, todos?: NuiSplit, selected_code?: NuiSplit, selected_files?: NuiSplit, input?: NuiSplit }
 ---@field file_selector FileSelector
 ---@field chat_history avante.ChatHistory | nil
@@ -127,8 +136,6 @@ function Sidebar:reset()
   self:delete_containers()
 
   self.code = { bufnr = 0, winid = 0, selection = nil }
-  self.winids =
-    { result_container = 0, selected_files_container = 0, selected_code_container = 0, input_container = 0 }
   self.scroll = true
   self.old_result_lines = {}
   self.token_count = nil
@@ -190,8 +197,9 @@ end
 
 function Sidebar:set_code_winhl()
   if not self.code.winid or not api.nvim_win_is_valid(self.code.winid) then return end
+  if not self.containers.result or not api.nvim_win_is_valid(self.containers.result.winid) then return end
 
-  if Utils.should_hidden_border(self.code.winid, self.winids.result_container) then
+  if Utils.should_hidden_border(self.code.winid, self.containers.result.winid) then
     Utils.debug("setting winhl")
     local old_winhl = vim.wo[self.code.winid].winhl
     if self.code.old_winhl == nil then
@@ -923,18 +931,14 @@ local base_win_options = {
 }
 
 function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl)
+  if not Config.windows.sidebar_header.enabled then return end
   if not bufnr or not api.nvim_buf_is_valid(bufnr) then return end
 
-  local is_result_win = self.winids.result_container == winid
-
+  local is_result_win = self.containers.result and self.containers.result.winid == winid
   local separator_char = is_result_win and " " or "-"
-
-  if not Config.windows.sidebar_header.enabled then return end
-
-  if not Config.windows.sidebar_header.rounded then header_text = " " .. header_text .. " " end
-
   local win_width = vim.api.nvim_win_get_width(winid)
 
+  if not Config.windows.sidebar_header.rounded then header_text = " " .. header_text .. " " end
   local padding = math.floor((win_width - #header_text) / 2)
   if Config.windows.sidebar_header.align ~= "center" then padding = win_width - #header_text end
 
@@ -1205,7 +1209,7 @@ end
 
 ---@param opts AskOptions
 function Sidebar:on_mount(opts)
-  self:refresh_winids()
+  self:setup_window_navigation(self.containers.result)
 
   -- Add keymap to add current buffer while sidebar is open
   if Config.mappings.files and Config.mappings.files.add_current then
@@ -1390,10 +1394,13 @@ function Sidebar:on_mount(opts)
     group = self.augroup,
     callback = function(args)
       local closed_winid = tonumber(args.match)
-      if closed_winid == self.winids.selected_files_container then return end
-      if closed_winid == self.winids.todos_container then return end
-      if not self:is_sidebar_winid(closed_winid) then return end
-      self:close()
+      if closed_winid then
+        local container = self:get_sidebar_window(closed_winid)
+        -- Ignore closing selected files and todos windows because they can disappear during normal operation
+        if container and container ~= self.containers.selected_files and container ~= self.containers.todos then
+          self:close()
+        end
+      end
     end,
   })
 
@@ -1404,62 +1411,74 @@ function Sidebar:on_mount(opts)
   end
 end
 
-function Sidebar:refresh_winids()
-  self.winids = {}
-  for key, container in pairs(self.containers) do
-    if container.winid and api.nvim_win_is_valid(container.winid) then
-      self.winids[key .. "_container"] = container.winid
+--- Given a desired container name, returns the window ID of the first valid container
+--- situated above it in the sidebar's order.
+--- @param container_name string The name of the container to start searching from.
+--- @return integer|nil The window ID of the previous valid container, or nil.
+function Sidebar:get_split_candidate(container_name)
+  local start_index = 0
+  for i, name in ipairs(SIDEBAR_CONTAINERS) do
+    if name == container_name then
+      start_index = i
+      break
     end
   end
 
-  local winids = {}
-  if self.winids.result_container then table.insert(winids, self.winids.result_container) end
-  if self.winids.selected_files_container then table.insert(winids, self.winids.selected_files_container) end
-  if self.winids.selected_code_container then table.insert(winids, self.winids.selected_code_container) end
-  if self.winids.todos_container then table.insert(winids, self.winids.todos_container) end
-  if self.winids.input_container then table.insert(winids, self.winids.input_container) end
+  if start_index > 1 then
+    for i = start_index - 1, 1, -1 do
+      local container = self.containers[SIDEBAR_CONTAINERS[i]]
+      if Utils.is_valid_container(container, true) then return container.winid end
+    end
+  end
+  return nil
+end
 
-  local function switch_windows()
-    local current_winid = api.nvim_get_current_win()
-    winids = vim.iter(winids):filter(function(winid) return api.nvim_win_is_valid(winid) end):totable()
-    local current_idx = Utils.tbl_indexof(winids, current_winid) or 1
-    if current_idx == #winids then
-      current_idx = 1
+---Cycles focus over sidebar components.
+---@param direction "next" | "previous"
+function Sidebar:switch_window_focus(direction)
+  local current_winid = vim.api.nvim_get_current_win()
+  local current_index = nil
+  local ordered_winids = {}
+
+  for _, name in ipairs(SIDEBAR_CONTAINERS) do
+    local container = self.containers[name]
+    if container and container.winid then
+      table.insert(ordered_winids, container.winid)
+      if container.winid == current_winid then current_index = #ordered_winids end
+    end
+  end
+
+  if current_index and #ordered_winids > 1 then
+    local next_index
+    if direction == "next" then
+      next_index = (current_index % #ordered_winids) + 1
+    elseif direction == "previous" then
+      next_index = current_index - 1
+      if next_index < 1 then next_index = #ordered_winids end
     else
-      current_idx = current_idx + 1
+      error("Invalid 'direction' parameter: " .. direction)
     end
-    local winid = winids[current_idx]
-    if winid and api.nvim_win_is_valid(winid) then pcall(api.nvim_set_current_win, winid) end
-  end
 
-  local function reverse_switch_windows()
-    local current_winid = api.nvim_get_current_win()
-    winids = vim.iter(winids):filter(function(winid) return api.nvim_win_is_valid(winid) end):totable()
-    local current_idx = Utils.tbl_indexof(winids, current_winid) or 1
-    if current_idx == 1 then
-      current_idx = #winids
-    else
-      current_idx = current_idx - 1
-    end
-    local winid = winids[current_idx]
-    if winid and api.nvim_win_is_valid(winid) then api.nvim_set_current_win(winid) end
+    vim.api.nvim_set_current_win(ordered_winids[next_index])
   end
+end
 
-  for _, winid in ipairs(winids) do
-    local buf = api.nvim_win_get_buf(winid)
-    Utils.safe_keymap_set(
-      { "n", "i" },
-      Config.mappings.sidebar.switch_windows,
-      function() switch_windows() end,
-      { buffer = buf, noremap = true, silent = true, nowait = true }
-    )
-    Utils.safe_keymap_set(
-      { "n", "i" },
-      Config.mappings.sidebar.reverse_switch_windows,
-      function() reverse_switch_windows() end,
-      { buffer = buf, noremap = true, silent = true, nowait = true }
-    )
-  end
+---Sets up focus switching shortcuts for a sidebar component
+---@param container NuiSplit
+function Sidebar:setup_window_navigation(container)
+  local buf = api.nvim_win_get_buf(container.winid)
+  Utils.safe_keymap_set(
+    { "n", "i" },
+    Config.mappings.sidebar.switch_windows,
+    function() self:switch_window_focus("next") end,
+    { buffer = buf, noremap = true, silent = true, nowait = true }
+  )
+  Utils.safe_keymap_set(
+    { "n", "i" },
+    Config.mappings.sidebar.reverse_switch_windows,
+    function() self:switch_window_focus("previous") end,
+    { buffer = buf, noremap = true, silent = true, nowait = true }
+  )
 end
 
 function Sidebar:resize()
@@ -1506,12 +1525,19 @@ function Sidebar:is_focused_on_result()
   return self:is_open() and self.containers.result and self.containers.result.winid == api.nvim_get_current_win()
 end
 
-function Sidebar:is_sidebar_winid(winid)
-  for _, stored_winid in pairs(self.winids) do
-    if stored_winid == winid then return true end
+---Locates container object by its window ID
+---@param winid integer
+---@return NuiSplit|nil
+function Sidebar:get_sidebar_window(winid)
+  for _, container in pairs(self.containers) do
+    if container and container.winid == winid then return container end
   end
-  return false
 end
+
+---Checks if a window with given ID belongs to the sidebar
+---@param winid integer
+---@return boolean
+function Sidebar:is_sidebar_winid(winid) return self:get_sidebar_window(winid) ~= nil end
 
 ---@return boolean
 function Sidebar:should_auto_scroll()
@@ -2117,17 +2143,18 @@ function Sidebar:create_selected_code_container()
       enter = false,
       relative = {
         type = "win",
-        winid = self.containers.input.winid,
+        winid = self:get_split_candidate("selected_code"),
       },
       buf_options = buf_options,
       win_options = vim.tbl_deep_extend("force", base_win_options, {}),
       size = {
         height = height,
       },
-      position = "top",
+      position = "bottom",
     })
     self.containers.selected_code:mount()
     self:adjust_layout()
+    self:setup_window_navigation(self.containers.selected_code)
   end
 end
 
@@ -2703,6 +2730,7 @@ function Sidebar:create_input_container()
     vim.cmd("noautocmd stopinsert")
   end
 
+  self:setup_window_navigation(self.containers.input)
   self.containers.input:map("n", Config.mappings.submit.normal, on_submit)
   self.containers.input:map("i", Config.mappings.submit.insert, on_submit)
   self.containers.input:map("n", Config.prompt_logger.next_prompt.normal, PromptLogger.on_log_retrieve(-1))
@@ -2797,8 +2825,6 @@ function Sidebar:create_input_container()
       if ev.data and ev.data.request then handle_submit(ev.data.request) end
     end,
   })
-
-  self:refresh_winids()
 end
 
 ---@param value string
@@ -2977,7 +3003,7 @@ function Sidebar:create_selected_files_container()
     enter = false,
     relative = {
       type = "win",
-      winid = self.containers.input.winid,
+      winid = self:get_split_candidate("selected_files"),
     },
     buf_options = vim.tbl_deep_extend("force", buf_options, {
       modifiable = false,
@@ -2989,28 +3015,22 @@ function Sidebar:create_selected_files_container()
     win_options = vim.tbl_deep_extend("force", base_win_options, {
       fillchars = Config.windows.fillchars,
     }),
-    position = "top",
+    position = "bottom",
     size = {
       height = 2,
     },
   })
-
   self.containers.selected_files:mount()
 
   local function render()
     local selected_filepaths_ = self.file_selector:get_selected_filepaths()
-
     if #selected_filepaths_ == 0 then
-      if Utils.is_valid_container(self.containers.selected_files) then
-        self.containers.selected_files:unmount()
-        self:refresh_winids()
-      end
+      if Utils.is_valid_container(self.containers.selected_files) then self.containers.selected_files:unmount() end
       return
     end
 
     if not Utils.is_valid_container(self.containers.selected_files, true) then
       self:create_selected_files_container()
-      self:refresh_winids()
       if not Utils.is_valid_container(self.containers.selected_files, true) then
         Utils.warn("Failed to create or find selected files container window.")
         return
@@ -3095,6 +3115,8 @@ function Sidebar:create_selected_files_container()
   -- Clear hint when leaving the window
   self.containers.selected_files:on(event.BufLeave, function() self:close_selected_files_hint() end, {})
 
+  self:setup_window_navigation(self.containers.selected_files)
+
   render()
 end
 
@@ -3104,7 +3126,6 @@ function Sidebar:create_todos_container()
     if self.containers.todos then self.containers.todos:unmount() end
     self.containers.todos = nil
     self:adjust_layout()
-    self:refresh_winids()
     return
   end
   if not Utils.is_valid_container(self.containers.todos, true) then
@@ -3112,7 +3133,7 @@ function Sidebar:create_todos_container()
       enter = false,
       relative = {
         type = "win",
-        winid = self.containers.input.winid,
+        winid = self:get_split_candidate("todos"),
       },
       buf_options = vim.tbl_deep_extend("force", buf_options, {
         modifiable = false,
@@ -3124,12 +3145,13 @@ function Sidebar:create_todos_container()
       win_options = vim.tbl_deep_extend("force", base_win_options, {
         fillchars = Config.windows.fillchars,
       }),
-      position = "top",
+      position = "bottom",
       size = {
         height = 3,
       },
     })
     self.containers.todos:mount()
+    self:setup_window_navigation(self.containers.todos)
   end
   local done_count = 0
   local total_count = #history.todos
@@ -3161,7 +3183,6 @@ function Sidebar:create_todos_container()
     Highlights.REVERSED_SUBTITLE
   )
   self:adjust_layout()
-  self:refresh_winids()
 end
 
 function Sidebar:adjust_layout()
