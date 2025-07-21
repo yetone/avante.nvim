@@ -25,24 +25,35 @@ local function execute_command(command)
   return result:match("^%s*(.-)%s*$")
 end
 
-function M.parse_api_key()
-  if not M.api_key_name:match("^cmd:") then
-    error("Invalid api_key_name: Expected 'cmd:<command>' format, got '" .. M.api_key_name .. "'")
+local function parse_cmd(cmd_input, error_msg)
+  if not cmd_input:match("^cmd:") then
+    if not error_msg then
+      error("Invalid cmd: Expected 'cmd:<command>' format, got '" .. cmd_input .. "'")
+    else
+      error(error_msg)
+    end
   end
-  local command = M.api_key_name:sub(5)
+  local command = cmd_input:sub(5)
   local direct_output = execute_command(command)
   return direct_output
+end
+
+function M.parse_api_key()
+  return parse_cmd(
+    M.api_key_name,
+    "Invalid api_key_name: Expected 'cmd:<command>' format, got '" .. M.api_key_name .. "'"
+  )
 end
 
 function M:parse_curl_args(prompt_opts)
   local provider_conf, request_body = P.parse_config(self)
 
-  local location = vim.fn.getenv("LOCATION")
-  local project_id = vim.fn.getenv("PROJECT_ID")
   local model_id = provider_conf.model or "default-model-id"
+  local project_id = parse_cmd("cmd:gcloud config get-value project")
+  local location = vim.fn.getenv("GOOGLE_CLOUD_LOCATION") -- same as gemini-cli
 
-  if location == nil or location == vim.NIL then location = "default-location" end
   if project_id == nil or project_id == vim.NIL then project_id = "default-project-id" end
+  if location == nil or location == vim.NIL then location = "global" end
 
   local url = provider_conf.endpoint:gsub("LOCATION", location):gsub("PROJECT_ID", project_id)
   url = string.format("%s/%s:streamGenerateContent?alt=sse", url, model_id)
