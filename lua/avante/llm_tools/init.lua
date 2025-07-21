@@ -780,7 +780,39 @@ M._tools = {
   require("avante.llm_tools.update_todo_status"),
   {
     name = "read_file_toplevel_symbols",
-    description = "Read the top-level symbols of a file in current project scope",
+    description = [[Read the top-level symbols of a file in current project scope.
+
+This tool is useful for understanding the structure of a file and extracting information about its contents. It can be used to extract information about functions, types, constants, and other symbols that are defined at the top level of a file.
+
+
+<example>
+
+Given the following file:
+a.py:
+```python
+a = 1
+
+class A:
+  pass
+
+def foo():
+    return "bar"
+
+def baz():
+    return "qux"
+```
+
+The top-level symbols of "a.py":
+[
+  "a",
+  "A",
+  "foo",
+  "baz"
+]
+
+Then you can use the "read_definitions" tool to retrieve the source code definitions of these symbols.
+
+</example>]],
     param = {
       type = "table",
       fields = {
