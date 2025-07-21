@@ -241,6 +241,7 @@ local function refresh_history(messages, tools, files, add_diagnostic, tools_to_
     if use then
       -- This is a tool invocation message. We will be handling both use and result together.
       local tool_info = tools[use.id]
+      if not tool_info then goto continue end
       if not tool_info.result then goto continue end
 
       if tool_count < tools_to_text then
