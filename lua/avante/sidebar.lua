@@ -1359,8 +1359,18 @@ function Sidebar:on_mount(opts)
         Utils.lock_buf(selected_code_buf)
       end
       if self.code.bufnr and api.nvim_buf_is_valid(self.code.bufnr) then
-        local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
-        api.nvim_set_option_value("filetype", filetype, { buf = selected_code_buf })
+        local ts_ok, ts_highlighter = pcall(require, "vim.treesitter.highlighter")
+        if ts_ok and ts_highlighter.active[self.code.bufnr] then
+          -- Treesitter highlighting is active in the code buffer, activate it
+          -- it in code selection buffer as well.
+          local filetype = vim.bo[self.code.bufnr].filetype
+          if filetype and filetype ~= "" then
+            vim.treesitter.start(selected_code_buf, vim.bo[self.code.bufnr].filetype)
+          end
+        end
+        -- Try the old syntax highlighting
+        local syntax = api.nvim_get_option_value("syntax", { buf = self.code.bufnr })
+        if syntax and syntax ~= "" then api.nvim_set_option_value("syntax", syntax, { buf = selected_code_buf }) end
       end
     end
   end
@@ -2127,7 +2137,7 @@ function Sidebar:create_selected_code_container()
         type = "win",
         winid = self:get_split_candidate("selected_code"),
       },
-      buf_options = buf_options,
+      buf_options = vim.tbl_deep_extend("force", buf_options, { filetype = "AvanteSelectedCode" }),
       win_options = vim.tbl_deep_extend("force", base_win_options, {}),
       size = {
         height = height,
