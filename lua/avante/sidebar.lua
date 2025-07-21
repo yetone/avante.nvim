@@ -1017,23 +1017,15 @@ function Sidebar:render_input(ask)
 end
 
 function Sidebar:render_selected_code()
+  if not self.code.selection then return end
   if not Utils.is_valid_container(self.containers.selected_code) then return end
 
-  local selected_code_lines_count = 0
-  local selected_code_max_lines_count = 5
+  local count = Utils.count_lines(self.code.selection.content)
+  local max_shown = api.nvim_win_get_height(self.containers.selected_code.winid)
+  if Config.windows.sidebar_header.enabled then max_shown = max_shown - 1 end
 
-  if self.code.selection ~= nil then
-    local selected_code_lines = vim.split(self.code.selection.content, "\n")
-    selected_code_lines_count = #selected_code_lines
-  end
-
-  local header_text = Utils.icon(" ")
-    .. "Selected Code"
-    .. (
-      selected_code_lines_count > selected_code_max_lines_count
-        and " (Show only the first " .. tostring(selected_code_max_lines_count) .. " lines)"
-      or ""
-    )
+  local header_text = Utils.icon(" ") .. "Selected Code"
+  if max_shown < count then header_text = string.format("%s (%d/%d lines)", header_text, max_shown, count) end
 
   self:render_header(
     self.containers.selected_code.winid,
@@ -2816,17 +2808,14 @@ function Sidebar:get_input_value()
 end
 
 function Sidebar:get_selected_code_container_height()
-  local selected_code_max_lines_count = 5
+  if not self.code.selection then return 0 end
 
-  local selected_code_size = 0
+  local max_height = 5
 
-  if self.code.selection ~= nil then
-    local selected_code_lines = vim.split(self.code.selection.content, "\n")
-    local selected_code_lines_count = #selected_code_lines + 1
-    selected_code_size = math.min(selected_code_lines_count, selected_code_max_lines_count)
-  end
+  local count = Utils.count_lines(self.code.selection.content)
+  if Config.windows.sidebar_header.enabled then count = count + 1 end
 
-  return selected_code_size
+  return math.min(count, max_height)
 end
 
 function Sidebar:get_todos_container_height()
