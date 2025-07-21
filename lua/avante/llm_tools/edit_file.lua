@@ -59,6 +59,8 @@ M.func = vim.schedule_wrap(function(input, opts)
   if not provider then return false, "morph provider not found" end
   if not provider.is_env_set() then return false, "morph provider not set" end
 
+  if not input.target_file then return false, "target_file not provided" end
+
   local ok, lines = pcall(Utils.read_file_from_buf_or_disk, input.target_file)
   if not ok then
     local f = io.open(input.target_file, "r")
