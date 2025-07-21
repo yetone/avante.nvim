@@ -962,6 +962,15 @@ To enable Fast Apply, you need to:
    export MORPH_API_KEY="your-enterprise-api-key"
    ```
 
+4. **Change Morph model**:
+   ```lua
+   providers = {
+     morph = {
+       model = "morph-v3-large",
+     },
+   }
+   ```
+
 ### Model Options
 
 Morph provides different models optimized for different use cases:
