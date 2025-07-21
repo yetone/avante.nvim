@@ -36,16 +36,16 @@ M.param = {
       name = "the_diff",
       description = [[
 One or more SEARCH/REPLACE blocks following this exact format:
-  \`\`\`
+  ```
   ------- SEARCH
   [exact content to find]
   =======
   [new content to replace with]
   +++++++ REPLACE
-  \`\`\`
+  ```
 
 Example:
-  \`\`\`
+  ```
   ------- SEARCH
   func my_function(param1, param2) {
     // This is a comment
@@ -57,7 +57,7 @@ Example:
     console.log(param2);
   }
   +++++++ REPLACE
-  \`\`\`
+  ```
 
   Critical rules:
   1. SEARCH content must match the associated file section to find EXACTLY:
@@ -108,6 +108,7 @@ local function fix_diff(diff)
   -- Normalize block headers to the expected ones (fix for some LLMs output)
   diff = diff:gsub("<<<<<<<%s*SEARCH", "------- SEARCH")
   diff = diff:gsub(">>>>>>>%s*REPLACE", "+++++++ REPLACE")
+  diff = diff:gsub("-------%s*REPLACE", "+++++++ REPLACE")
 
   local has_search_line = diff:match("^%s*-------* SEARCH") ~= nil
   if has_search_line then return diff end
@@ -123,7 +124,21 @@ local function fix_diff(diff)
     table.insert(fixed_diff_lines, "------- SEARCH")
     fixed_diff_lines = vim.list_extend(fixed_diff_lines, lines, 1)
   end
-  return table.concat(fixed_diff_lines, "\n")
+  local the_final_diff_lines = {}
+  local has_split_line = false
+  for _, line in ipairs(fixed_diff_lines) do
+    if line:match("^-------%s*SEARCH") then has_split_line = false end
+    if line:match("^=======") then has_split_line = true end
+    if line:match("^+++++++%s*REPLACE") then
+      if not has_split_line then
+        table.insert(the_final_diff_lines, "=======")
+        goto continue
+      end
+    end
+    table.insert(the_final_diff_lines, line)
+    ::continue::
+  end
+  return table.concat(the_final_diff_lines, "\n")
 end
 
 --- IMPORTANT: Using "the_diff" instead of "diff" is to avoid LLM streaming generating function parameters in alphabetical order, which would result in generating "path" after "diff", making it impossible to achieve a streaming diff view.
@@ -208,7 +223,20 @@ function M.func(input, opts)
   if #rough_diff_blocks == 0 then
     -- Utils.debug("opts.diff", opts.diff)
     -- Utils.debug("diff", diff)
-    return false, "No diff blocks found"
+    local err = [[No diff blocks found.
+
+Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE blocks are in the correct order.
+
+For example:
+  ```
+  ------- SEARCH
+  [exact content to find]
+  =======
+  [new content to replace with]
+  +++++++ REPLACE
+  ```
+]]
+    return false, err
   end
 
   session_ctx.prev_streaming_diff_timestamp_map[opts.tool_use_id] = current_timestamp
