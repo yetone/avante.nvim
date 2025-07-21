@@ -46,25 +46,25 @@ M._defaults = {
     project_dir = nil, ---@type string | nil (could be relative dirpath)
     global_dir = nil, ---@type string | nil (absolute dirpath)
   },
-  rag_service = {                             -- RAG service configuration
-    enabled = false,                          -- Enables the RAG service
-    host_mount = os.getenv("HOME"),           -- Host mount path for the RAG service (Docker will mount this path)
-    runner = "docker",                        -- The runner for the RAG service (can use docker or nix)
-    llm = {                                   -- Configuration for the Language Model (LLM) used by the RAG service
-      provider = "openai",                    -- The LLM provider
+  rag_service = { -- RAG service configuration
+    enabled = false, -- Enables the RAG service
+    host_mount = os.getenv("HOME"), -- Host mount path for the RAG service (Docker will mount this path)
+    runner = "docker", -- The runner for the RAG service (can use docker or nix)
+    llm = { -- Configuration for the Language Model (LLM) used by the RAG service
+      provider = "openai", -- The LLM provider
       endpoint = "https://api.openai.com/v1", -- The LLM API endpoint
-      api_key = "OPENAI_API_KEY",             -- The environment variable name for the LLM API key
-      model = "gpt-4o-mini",                  -- The LLM model name
-      extra = nil,                            -- Extra configuration options for the LLM
+      api_key = "OPENAI_API_KEY", -- The environment variable name for the LLM API key
+      model = "gpt-4o-mini", -- The LLM model name
+      extra = nil, -- Extra configuration options for the LLM
     },
-    embed = {                                 -- Configuration for the Embedding model used by the RAG service
-      provider = "openai",                    -- The embedding provider
+    embed = { -- Configuration for the Embedding model used by the RAG service
+      provider = "openai", -- The embedding provider
       endpoint = "https://api.openai.com/v1", -- The embedding API endpoint
-      api_key = "OPENAI_API_KEY",             -- The environment variable name for the embedding API key
-      model = "text-embedding-3-large",       -- The embedding model name
-      extra = nil,                            -- Extra configuration options for the embedding model
+      api_key = "OPENAI_API_KEY", -- The environment variable name for the embedding API key
+      model = "text-embedding-3-large", -- The embedding model name
+      extra = nil, -- Extra configuration options for the embedding model
     },
-    docker_extra_args = "",                   -- Extra arguments to pass to the docker command
+    docker_extra_args = "", -- Extra arguments to pass to the docker command
   },
   web_search_engine = {
     provider = "tavily",
@@ -89,19 +89,19 @@ M._defaults = {
           if body.answer_box ~= nil and body.answer_box.result ~= nil then return body.answer_box.result, nil end
           if body.organic_results ~= nil then
             local jsn = vim
-                .iter(body.organic_results)
-                :map(
-                  function(result)
-                    return {
-                      title = result.title,
-                      link = result.link,
-                      snippet = result.snippet,
-                      date = result.date,
-                    }
-                  end
-                )
-                :take(10)
-                :totable()
+              .iter(body.organic_results)
+              :map(
+                function(result)
+                  return {
+                    title = result.title,
+                    link = result.link,
+                    snippet = result.snippet,
+                    date = result.date,
+                  }
+                end
+              )
+              :take(10)
+              :totable()
             return vim.json.encode(jsn), nil
           end
           return "", nil
@@ -117,19 +117,19 @@ M._defaults = {
           if body.answer_box ~= nil then return body.answer_box.result, nil end
           if body.organic_results ~= nil then
             local jsn = vim
-                .iter(body.organic_results)
-                :map(
-                  function(result)
-                    return {
-                      title = result.title,
-                      link = result.link,
-                      snippet = result.snippet,
-                      date = result.date,
-                    }
-                  end
-                )
-                :take(10)
-                :totable()
+              .iter(body.organic_results)
+              :map(
+                function(result)
+                  return {
+                    title = result.title,
+                    link = result.link,
+                    snippet = result.snippet,
+                    date = result.date,
+                  }
+                end
+              )
+              :take(10)
+              :totable()
             return vim.json.encode(jsn), nil
           end
           return "", nil
@@ -143,18 +143,18 @@ M._defaults = {
         format_response_body = function(body)
           if body.items ~= nil then
             local jsn = vim
-                .iter(body.items)
-                :map(
-                  function(result)
-                    return {
-                      title = result.title,
-                      link = result.link,
-                      snippet = result.snippet,
-                    }
-                  end
-                )
-                :take(10)
-                :totable()
+              .iter(body.items)
+              :map(
+                function(result)
+                  return {
+                    title = result.title,
+                    link = result.link,
+                    snippet = result.snippet,
+                  }
+                end
+              )
+              :take(10)
+              :totable()
             return vim.json.encode(jsn), nil
           end
           return "", nil
@@ -169,20 +169,20 @@ M._defaults = {
         format_response_body = function(body)
           if body.data ~= nil then
             local jsn = vim
-                .iter(body.data)
-                -- search results only
-                :filter(function(result) return result.t == 0 end)
-                :map(
-                  function(result)
-                    return {
-                      title = result.title,
-                      url = result.url,
-                      snippet = result.snippet,
-                    }
-                  end
-                )
-                :take(10)
-                :totable()
+              .iter(body.data)
+              -- search results only
+              :filter(function(result) return result.t == 0 end)
+              :map(
+                function(result)
+                  return {
+                    title = result.title,
+                    url = result.url,
+                    snippet = result.snippet,
+                  }
+                end
+              )
+              :take(10)
+              :totable()
             return vim.json.encode(jsn), nil
           end
           return "", nil
@@ -242,21 +242,21 @@ M._defaults = {
     openai = {
       endpoint = "https://api.openai.com/v1",
       model = "gpt-4o",
-      timeout = 30000,         -- Timeout in milliseconds, increase this for reasoning models
+      timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
       context_window = 128000, -- Number of tokens to send to the model for context
       extra_request_body = {
         temperature = 0.75,
         max_completion_tokens = 16384, -- Increase this to include reasoning tokens (for reasoning models)
-        reasoning_effort = "medium",   -- low|medium|high, only used for reasoning models
+        reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
       },
     },
     ---@type AvanteSupportedProvider
     copilot = {
       endpoint = "https://api.githubcopilot.com",
       model = "gpt-4o-2024-11-20",
-      proxy = nil,            -- [protocol://]host[:port] Use this proxy
+      proxy = nil, -- [protocol://]host[:port] Use this proxy
       allow_insecure = false, -- Allow insecure server connections
-      timeout = 30000,        -- Timeout in milliseconds
+      timeout = 30000, -- Timeout in milliseconds
       context_window = 64000, -- Number of tokens to send to the model for context
       extra_request_body = {
         temperature = 0.75,
@@ -265,14 +265,14 @@ M._defaults = {
     },
     ---@type AvanteAzureProvider
     azure = {
-      endpoint = "",   -- example: "https://<your-resource-name>.openai.azure.com"
+      endpoint = "", -- example: "https://<your-resource-name>.openai.azure.com"
       deployment = "", -- Azure deployment name (e.g., "gpt-4o", "my-gpt-4o-deployment")
       api_version = "2024-12-01-preview",
       timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
       extra_request_body = {
         temperature = 0.75,
         max_completion_tokens = 20480, -- Increase this to include reasoning tokens (for reasoning models)
-        reasoning_effort = "medium",   -- low|medium|high, only used for reasoning models
+        reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
       },
     },
     ---@type AvanteSupportedProvider
@@ -294,7 +294,7 @@ M._defaults = {
         temperature = 0.75,
         max_tokens = 20480,
       },
-      aws_region = "",  -- AWS region to use for authentication and bedrock API
+      aws_region = "", -- AWS region to use for authentication and bedrock API
       aws_profile = "", -- AWS profile to use for authentication, if unspecified uses default credentials chain
     },
     ---@type AvanteSupportedProvider
@@ -320,7 +320,7 @@ M._defaults = {
       extra_request_body = {
         generationConfig = {
           temperature = 0.75,
-        }
+        },
       },
     },
     ---@type AvanteSupportedProvider
@@ -347,8 +347,7 @@ M._defaults = {
     },
     ---@type AvanteSupportedProvider
     vertex_claude = {
-      endpoint =
-      "https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/antrhopic/models",
+      endpoint = "https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/antrhopic/models",
       model = "claude-3-5-sonnet-v2@20241022",
       timeout = 30000, -- Timeout in milliseconds
       extra_request_body = {
@@ -425,8 +424,7 @@ M._defaults = {
     enabled = false,
     first_provider = "openai",
     second_provider = "claude",
-    prompt =
-    "Based on the two reference outputs below, generate a response that incorporates elements from both but reflects your own judgment and unique perspective. Do not provide any explanation, just give the response directly. Reference Output 1: [{{provider1_output}}], Reference Output 2: [{{provider2_output}}]",
+    prompt = "Based on the two reference outputs below, generate a response that incorporates elements from both but reflects your own judgment and unique perspective. Do not provide any explanation, just give the response directly. Reference Output 1: [{{provider1_output}}], Reference Output 2: [{{provider2_output}}]",
     timeout = 60000, -- Timeout in milliseconds
   },
   ---Specify the behaviour of avante.nvim
@@ -459,12 +457,12 @@ M._defaults = {
     auto_check_diagnostics = true,
     enable_fastapply = false,
   },
-  prompt_logger = {                                                        -- logs prompts to disk (timestamped, for replay/debugging)
-    enabled = true,                                                        -- toggle logging entirely
+  prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
+    enabled = true, -- toggle logging entirely
     log_dir = Utils.join_paths(vim.fn.stdpath("cache"), "avante_prompts"), -- directory where logs are saved
-    fortune_cookie_on_success = false,                                     -- shows a random fortune after each logged prompt (requires `fortune` installed)
+    fortune_cookie_on_success = false, -- shows a random fortune after each logged prompt (requires `fortune` installed)
     next_prompt = {
-      normal = "<C-n>",                                                    -- load the next (newer) prompt log in normal mode
+      normal = "<C-n>", -- load the next (newer) prompt log in normal mode
       insert = "<C-n>",
     },
     prev_prompt = {
@@ -551,11 +549,11 @@ M._defaults = {
       close_from_input = nil, -- e.g., { normal = "<Esc>", insert = "<C-d>" }
     },
     files = {
-      add_current = "<leader>ac",     -- Add current buffer to selected files
+      add_current = "<leader>ac", -- Add current buffer to selected files
       add_all_buffers = "<leader>aB", -- Add all buffer files to selected files
     },
-    select_model = "<leader>a?",      -- Select model command
-    select_history = "<leader>ah",    -- Select history command
+    select_model = "<leader>a?", -- Select model command
+    select_history = "<leader>ah", -- Select history command
     confirm = {
       focus_window = "<C-w>f",
       code = "c",
@@ -568,11 +566,11 @@ M._defaults = {
     ---@type AvantePosition
     position = "right",
     fillchars = "eob: ",
-    wrap = true,        -- similar to vim.o.wrap
-    width = 30,         -- default % based on available width in vertical layout
-    height = 30,        -- default % based on available height in horizontal layout
+    wrap = true, -- similar to vim.o.wrap
+    width = 30, -- default % based on available width in vertical layout
+    height = 30, -- default % based on available height in horizontal layout
     sidebar_header = {
-      enabled = true,   -- true, false to enable/disable the header
+      enabled = true, -- true, false to enable/disable the header
       align = "center", -- left, center, right for title
       rounded = true,
     },
@@ -627,7 +625,7 @@ M._defaults = {
       start_insert = true, -- Start insert mode when opening the edit window
     },
     ask = {
-      floating = false,    -- Open the 'AvanteAsk' prompt in a floating window
+      floating = false, -- Open the 'AvanteAsk' prompt in a floating window
       border = { " ", " ", " ", " ", " ", " ", " ", " " },
       start_insert = true, -- Start insert mode when opening the ask window
       ---@alias AvanteInitialDiff "ours" | "theirs"
@@ -650,7 +648,7 @@ M._defaults = {
   --- @class AvanteRepoMapConfig
   repo_map = {
     ignore_patterns = { "%.git", "%.worktree", "__pycache__", "node_modules" }, -- ignore files matching these
-    negate_patterns = {},                                                       -- negate ignore files matching these.
+    negate_patterns = {}, -- negate ignore files matching these.
   },
   --- @class AvanteFileSelectorConfig
   file_selector = {
@@ -778,9 +776,9 @@ function M.setup(opts)
           { title = "Avante" }
         )
         if
-            type(v2) == "table"
-            and v2.__inherited_from ~= nil
-            and M._defaults.providers[v2.__inherited_from] ~= nil
+          type(v2) == "table"
+          and v2.__inherited_from ~= nil
+          and M._defaults.providers[v2.__inherited_from] ~= nil
         then
           local extra_request_body = M._defaults.providers[v2.__inherited_from].extra_request_body
           if extra_request_body ~= nil then

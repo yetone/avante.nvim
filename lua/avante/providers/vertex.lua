@@ -39,8 +39,10 @@ local function parse_cmd(cmd_input, error_msg)
 end
 
 function M.parse_api_key()
-  return parse_cmd(M.api_key_name,
-    "Invalid api_key_name: Expected 'cmd:<command>' format, got '" .. M.api_key_name .. "'")
+  return parse_cmd(
+    M.api_key_name,
+    "Invalid api_key_name: Expected 'cmd:<command>' format, got '" .. M.api_key_name .. "'"
+  )
 end
 
 function M:parse_curl_args(prompt_opts)
@@ -48,7 +50,7 @@ function M:parse_curl_args(prompt_opts)
 
   local model_id = provider_conf.model or "default-model-id"
   local project_id = parse_cmd("cmd:gcloud config get-value project")
-  local location = vim.fn.getenv('GOOGLE_CLOUD_LOCATION') -- same as gemini-cli
+  local location = vim.fn.getenv("GOOGLE_CLOUD_LOCATION") -- same as gemini-cli
 
   if project_id == nil or project_id == vim.NIL then project_id = "default-project-id" end
   if location == nil or location == vim.NIL then location = "global" end
