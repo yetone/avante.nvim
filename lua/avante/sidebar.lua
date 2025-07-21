@@ -2726,8 +2726,10 @@ function Sidebar:create_input_container()
   place_sign_at_first_line(self.containers.input.bufnr)
 
   if Utils.in_visual_mode() then
-    -- Exit visual mode
-    vim.cmd("noautocmd stopinsert")
+    -- Exit visual mode. Unfortunately there is no appropriate command
+    -- so we have to simulate keystrokes.
+    local esc_key = api.nvim_replace_termcodes("<Esc>", true, false, true)
+    vim.api.nvim_feedkeys(esc_key, "n", false)
   end
 
   self:setup_window_navigation(self.containers.input)
