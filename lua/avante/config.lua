@@ -312,12 +312,15 @@ M._defaults = {
     },
     ---@type AvanteSupportedProvider
     vertex = {
-      endpoint = "https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/google/models",
+      endpoint = "https://aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/google/models",
       model = "gemini-1.5-flash-002",
       timeout = 30000, -- Timeout in milliseconds
+      context_window = 1048576,
+      use_ReAct_prompt = true,
       extra_request_body = {
-        temperature = 0.75,
-        max_tokens = 20480,
+        generationConfig = {
+          temperature = 0.75,
+        },
       },
     },
     ---@type AvanteSupportedProvider
