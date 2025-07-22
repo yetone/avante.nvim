@@ -3,6 +3,7 @@ local Helpers = require("avante.llm_tools.helpers")
 local Utils = require("avante.utils")
 local Highlights = require("avante.highlights")
 local Config = require("avante.config")
+local diff2search_replace = require("avante.utils.diff2search_replace")
 
 local PRIORITY = (vim.hl or vim.highlight).priorities.user
 local NAMESPACE = vim.api.nvim_create_namespace("avante-diff")
@@ -105,13 +106,11 @@ M.returns = {
 ---@param diff string
 ---@return string
 local function fix_diff(diff)
+  diff = diff2search_replace(diff)
   -- Normalize block headers to the expected ones (fix for some LLMs output)
   diff = diff:gsub("<<<<<<<%s*SEARCH", "------- SEARCH")
   diff = diff:gsub(">>>>>>>%s*REPLACE", "+++++++ REPLACE")
   diff = diff:gsub("-------%s*REPLACE", "+++++++ REPLACE")
-
-  local has_search_line = diff:match("^%s*-------* SEARCH") ~= nil
-  if has_search_line then return diff end
 
   local fixed_diff_lines = {}
   local lines = vim.split(diff, "\n")
@@ -122,38 +121,45 @@ local function fix_diff(diff)
     fixed_diff_lines = vim.list_extend(fixed_diff_lines, lines, 2)
   else
     table.insert(fixed_diff_lines, "------- SEARCH")
-    fixed_diff_lines = vim.list_extend(fixed_diff_lines, lines, 1)
+    if first_line:match("------- SEARCH") then
+      fixed_diff_lines = vim.list_extend(fixed_diff_lines, lines, 2)
+    else
+      fixed_diff_lines = vim.list_extend(fixed_diff_lines, lines, 1)
+    end
   end
   local the_final_diff_lines = {}
   local has_split_line = false
+  local replace_block_closed = false
   for _, line in ipairs(fixed_diff_lines) do
     if line:match("^-------%s*SEARCH") then has_split_line = false end
     if line:match("^=======") then has_split_line = true end
     if line:match("^+++++++%s*REPLACE") then
       if not has_split_line then
         table.insert(the_final_diff_lines, "=======")
+        has_split_line = true
         goto continue
+      else
+        replace_block_closed = true
       end
     end
     table.insert(the_final_diff_lines, line)
     ::continue::
   end
+  if not replace_block_closed then table.insert(the_final_diff_lines, "+++++++ REPLACE") end
   return table.concat(the_final_diff_lines, "\n")
 end
 
 --- IMPORTANT: Using "the_diff" instead of "diff" is to avoid LLM streaming generating function parameters in alphabetical order, which would result in generating "path" after "diff", making it impossible to achieve a streaming diff view.
----@type AvanteLLMToolFunc<{ path: string, diff: string, the_diff?: string }>
+---@type AvanteLLMToolFunc<{ path: string, the_diff?: string }>
 function M.func(input, opts)
   local on_log = opts.on_log
   local on_complete = opts.on_complete
   local session_ctx = opts.session_ctx
   if not on_complete then return false, "on_complete not provided" end
 
-  if input.the_diff ~= nil then
-    input.diff = input.the_diff
-    input.the_diff = nil
+  if not input.path or not input.the_diff then
+    return false, "path and the_diff are required " .. vim.inspect(input)
   end
-  if not input.path or not input.diff then return false, "path and diff are required " .. vim.inspect(input) end
   if on_log then on_log("path: " .. input.path) end
   local abs_path = Helpers.get_abs_path(input.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
@@ -169,7 +175,7 @@ function M.func(input, opts)
         return false, "Diff hasn't changed in the last 2 seconds"
       end
     end
-    local streaming_diff_lines_count = Utils.count_lines(input.diff)
+    local streaming_diff_lines_count = Utils.count_lines(input.the_diff)
     session_ctx.streaming_diff_lines_count_history = session_ctx.streaming_diff_lines_count_history or {}
     local prev_streaming_diff_lines_count = session_ctx.streaming_diff_lines_count_history[opts.tool_use_id]
     if streaming_diff_lines_count == prev_streaming_diff_lines_count then
@@ -178,9 +184,9 @@ function M.func(input, opts)
     session_ctx.streaming_diff_lines_count_history[opts.tool_use_id] = streaming_diff_lines_count
   end
 
-  local diff = fix_diff(input.diff)
+  local diff = fix_diff(input.the_diff)
 
-  if on_log and diff ~= input.diff then on_log("diff fixed") end
+  if on_log and diff ~= input.the_diff then on_log("diff fixed") end
 
   local diff_lines = vim.split(diff, "\n")
 
