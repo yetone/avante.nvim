@@ -197,7 +197,7 @@ end
 
 function Sidebar:set_code_winhl()
   if not self.code.winid or not api.nvim_win_is_valid(self.code.winid) then return end
-  if not self.containers.result or not api.nvim_win_is_valid(self.containers.result.winid) then return end
+  if not Utils.is_valid_container(self.containers.result, true) then return end
 
   if Utils.should_hidden_border(self.code.winid, self.containers.result.winid) then
     Utils.debug("setting winhl")
