@@ -58,19 +58,15 @@ M.returns = {
 }
 
 --- IMPORTANT: Using "the_content" instead of "content" is to avoid LLM streaming generating function parameters in alphabetical order, which would result in generating "path" after "content", making it impossible to achieve a stream diff view.
----@type AvanteLLMToolFunc<{ path: string, content: string, the_content?: string }>
+---@type AvanteLLMToolFunc<{ path: string, the_content?: string }>
 function M.func(input, opts)
-  if input.the_content ~= nil then
-    input.content = input.the_content
-    input.the_content = nil
-  end
   local abs_path = Helpers.get_abs_path(input.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
-  if input.content == nil then return false, "content not provided" end
-  if type(input.content) ~= "string" then input.content = vim.json.encode(input.content) end
-  if Utils.count_lines(input.content) == 1 then
+  if input.the_content == nil then return false, "the_content not provided" end
+  if type(input.the_content) ~= "string" then input.the_content = vim.json.encode(input.the_content) end
+  if Utils.count_lines(input.the_content) == 1 then
     Utils.debug("Trimming escapes from content")
-    input.content = Utils.trim_escapes(input.content)
+    input.the_content = Utils.trim_escapes(input.the_content)
   end
   local old_lines = Utils.read_file_from_buf_or_disk(abs_path)
   local old_content = table.concat(old_lines or {}, "\n")
@@ -78,7 +74,7 @@ function M.func(input, opts)
   local new_input = {
     path = input.path,
     old_str = old_content,
-    new_str = input.content,
+    new_str = input.the_content,
   }
   return str_replace.func(new_input, opts)
 end
