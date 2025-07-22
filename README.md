@@ -950,11 +950,11 @@ To enable Fast Apply, you need to:
    ```
 
 2. **Get your Morph API key**:
-   Go to [morph.com](https://morphllm.com/api-keys) and create an account and get the API key.
+   Go to [morphllm.com](https://morphllm.com/api-keys) and create an account and get the API key.
 
 3. **Set your Morph API key**:
    ```bash
-   export MORPH_API_KEY="your-enterprise-api-key"
+   export MORPH_API_KEY="your-api-key"
    ```
 
 4. **Change Morph model**:
