@@ -1079,7 +1079,7 @@ end
 ---@return AvanteShortcut[]
 function M.get_shortcuts()
   local Config = require("avante.config")
-  
+
   -- Built-in shortcuts
   local builtin_shortcuts = {
     {
@@ -1119,16 +1119,16 @@ function M.get_shortcuts()
       prompt = "Please perform a security review of this code, identifying potential vulnerabilities, security best practices, and recommendations for improvement.",
     },
   }
-  
+
   local user_shortcuts = Config.shortcuts or {}
   local result = {}
-  
+
   -- Create a map of builtin shortcuts by name for quick lookup
   local builtin_map = {}
   for _, shortcut in ipairs(builtin_shortcuts) do
     builtin_map[shortcut.name] = shortcut
   end
-  
+
   -- Process user shortcuts first (they take precedence)
   for _, user_shortcut in ipairs(user_shortcuts) do
     if builtin_map[user_shortcut.name] then
@@ -1140,12 +1140,12 @@ function M.get_shortcuts()
       table.insert(result, user_shortcut)
     end
   end
-  
+
   -- Add remaining builtin shortcuts that weren't overridden
   for _, builtin_shortcut in pairs(builtin_map) do
     table.insert(result, builtin_shortcut)
   end
-  
+
   return result
 end
 
