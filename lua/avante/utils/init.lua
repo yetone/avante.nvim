@@ -1076,6 +1076,98 @@ function M.get_chat_mentions()
   return mentions
 end
 
+---@return AvanteShortcut[]
+function M.get_shortcuts()
+  local Config = require("avante.config")
+
+  -- Built-in shortcuts
+  local builtin_shortcuts = {
+    {
+      name = "refactor",
+      description = "Refactor code with best practices",
+      details = "Automatically refactor code to improve readability, maintainability, and follow best practices while preserving functionality",
+      prompt = "Please refactor this code following best practices, improving readability and maintainability while preserving functionality.",
+    },
+    {
+      name = "test",
+      description = "Generate unit tests",
+      details = "Create comprehensive unit tests covering edge cases, error scenarios, and various input conditions",
+      prompt = "Please generate comprehensive unit tests for this code, covering edge cases and error scenarios.",
+    },
+    {
+      name = "document",
+      description = "Add documentation",
+      details = "Add clear and comprehensive documentation including function descriptions, parameter explanations, and usage examples",
+      prompt = "Please add clear and comprehensive documentation to this code, including function descriptions, parameter explanations, and usage examples.",
+    },
+    {
+      name = "debug",
+      description = "Add debugging information",
+      details = "Add comprehensive debugging information including logging statements, error handling, and debugging utilities",
+      prompt = "Please add comprehensive debugging information to this code, including logging statements, error handling, and debugging utilities.",
+    },
+    {
+      name = "optimize",
+      description = "Optimize performance",
+      details = "Analyze and optimize code for better performance considering time complexity, memory usage, and algorithmic improvements",
+      prompt = "Please analyze and optimize this code for better performance, considering time complexity, memory usage, and algorithmic improvements.",
+    },
+    {
+      name = "security",
+      description = "Security review",
+      details = "Perform a security review identifying potential vulnerabilities, security best practices, and recommendations for improvement",
+      prompt = "Please perform a security review of this code, identifying potential vulnerabilities, security best practices, and recommendations for improvement.",
+    },
+  }
+
+  local user_shortcuts = Config.shortcuts or {}
+  local result = {}
+
+  -- Create a map of builtin shortcuts by name for quick lookup
+  local builtin_map = {}
+  for _, shortcut in ipairs(builtin_shortcuts) do
+    builtin_map[shortcut.name] = shortcut
+  end
+
+  -- Process user shortcuts first (they take precedence)
+  for _, user_shortcut in ipairs(user_shortcuts) do
+    if builtin_map[user_shortcut.name] then
+      -- User has overridden a builtin shortcut
+      table.insert(result, user_shortcut)
+      builtin_map[user_shortcut.name] = nil -- Remove from builtin map
+    else
+      -- User has added a new shortcut
+      table.insert(result, user_shortcut)
+    end
+  end
+
+  -- Add remaining builtin shortcuts that weren't overridden
+  for _, builtin_shortcut in pairs(builtin_map) do
+    table.insert(result, builtin_shortcut)
+  end
+
+  return result
+end
+
+---@param content string
+---@return string new_content
+---@return boolean has_shortcuts
+function M.extract_shortcuts(content)
+  local shortcuts = M.get_shortcuts()
+  local new_content = content
+  local has_shortcuts = false
+
+  for _, shortcut in ipairs(shortcuts) do
+    local pattern = "#" .. shortcut.name
+    if content:match(pattern) then
+      has_shortcuts = true
+      new_content = new_content:gsub(pattern, shortcut.prompt)
+    end
+  end
+
+  return new_content, has_shortcuts
+end
+
 ---@param path string
 ---@param set_current_buf? boolean
 ---@return integer bufnr

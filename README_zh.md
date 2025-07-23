@@ -509,11 +509,65 @@ _请参见 [config.lua#L9](./lua/avante/config.lua) 以获取完整配置_
 
 对于其他用户，只需添加自定义提供者
 
+### 可用的补全项
+
+Avante.nvim 提供了多个可以与 blink.cmp 集成的补全项：
+
+#### 提及功能 (`@` 触发器)
+提及功能允许您快速引用特定功能或将文件添加到聊天上下文：
+
+- `@codebase` - 启用项目上下文和仓库映射
+- `@diagnostics` - 启用诊断信息
+- `@file` - 打开文件选择器以将文件添加到聊天上下文
+- `@quickfix` - 将快速修复列表中的文件添加到聊天上下文
+- `@buffers` - 将打开的缓冲区添加到聊天上下文
+
+#### 斜杠命令 (`/` 触发器)
+内置斜杠命令用于常见操作：
+
+- `/help` - 显示可用命令的帮助信息
+- `/init` - 基于当前项目初始化 AGENTS.md
+- `/clear` - 清除聊天历史
+- `/new` - 开始新聊天
+- `/compact` - 压缩历史消息以节省令牌
+- `/lines <start>-<end> <question>` - 询问特定行的问题
+- `/commit` - 为更改生成提交消息
+
+#### 快捷方式 (`#` 触发器)
+快捷方式提供对预定义提示模板的快速访问。您可以在配置中自定义这些：
+
+```lua
+{
+  shortcuts = {
+    {
+      name = "refactor",
+      description = "使用最佳实践重构代码",
+      details = "自动重构代码以提高可读性、可维护性，并遵循最佳实践，同时保持功能不变",
+      prompt = "请按照最佳实践重构此代码，提高可读性和可维护性，同时保持功能不变。"
+    },
+    {
+      name = "test",
+      description = "生成单元测试",
+      details = "创建全面的单元测试，涵盖边界情况、错误场景和各种输入条件",
+      prompt = "请为此代码生成全面的单元测试，涵盖边界情况和错误场景。"
+    },
+    -- 添加更多自定义快捷方式...
+  }
+}
+```
+
+当您在输入中键入 `#refactor` 时，它将自动替换为相应的提示文本。
+
+### 配置示例
+
+以下是包含所有 Avante 源的完整 blink.cmp 配置示例：
+
 ```lua
       default = {
         ...
         "avante_commands",
         "avante_mentions",
+        "avante_shortcuts",
         "avante_files",
       }
 ```
@@ -534,6 +588,12 @@ _请参见 [config.lua#L9](./lua/avante/config.lua) 以获取完整配置_
         },
         avante_mentions = {
           name = "avante_mentions",
+          module = "blink.compat.source",
+          score_offset = 1000, -- 显示优先级高于 lsp
+          opts = {},
+        },
+        avante_shortcuts = {
+          name = "avante_shortcuts",
           module = "blink.compat.source",
           score_offset = 1000, -- 显示优先级高于 lsp
           opts = {},

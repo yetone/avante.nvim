@@ -496,11 +496,14 @@ function M.setup(opts)
 
     cmp.register_source("avante_prompt_mentions", require("cmp_avante.mentions"):new(Utils.get_mentions))
 
+    cmp.register_source("avante_shortcuts", require("cmp_avante.shortcuts"):new())
+
     cmp.setup.filetype({ "AvanteInput" }, {
       enabled = true,
       sources = {
         { name = "avante_commands" },
         { name = "avante_mentions" },
+        { name = "avante_shortcuts" },
         { name = "avante_files" },
       },
     })

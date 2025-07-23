@@ -642,11 +642,65 @@ For lazyvim users copy the full config for blink.cmp from the website or extend 
 
 For other users just add a custom provider
 
+### Available Completion Sources
+
+Avante.nvim provides several completion sources that can be integrated with blink.cmp:
+
+#### Mentions (`@` trigger)
+Mentions allow you to quickly reference specific features or add files to the chat context:
+
+- `@codebase` - Enable project context and repository mapping
+- `@diagnostics` - Enable diagnostics information
+- `@file` - Open file selector to add files to chat context
+- `@quickfix` - Add files from quickfix list to chat context
+- `@buffers` - Add open buffers to chat context
+
+#### Slash Commands (`/` trigger)
+Built-in slash commands for common operations:
+
+- `/help` - Show help message with available commands
+- `/init` - Initialize AGENTS.md based on current project
+- `/clear` - Clear chat history
+- `/new` - Start a new chat
+- `/compact` - Compact history messages to save tokens
+- `/lines <start>-<end> <question>` - Ask about specific lines
+- `/commit` - Generate commit message for changes
+
+#### Shortcuts (`#` trigger)
+Shortcuts provide quick access to predefined prompt templates. You can customize these in your config:
+
+```lua
+{
+  shortcuts = {
+    {
+      name = "refactor",
+      description = "Refactor code with best practices",
+      details = "Automatically refactor code to improve readability, maintainability, and follow best practices while preserving functionality",
+      prompt = "Please refactor this code following best practices, improving readability and maintainability while preserving functionality."
+    },
+    {
+      name = "test",
+      description = "Generate unit tests",
+      details = "Create comprehensive unit tests covering edge cases, error scenarios, and various input conditions",
+      prompt = "Please generate comprehensive unit tests for this code, covering edge cases and error scenarios."
+    },
+    -- Add more custom shortcuts...
+  }
+}
+```
+
+When you type `#refactor` in the input, it will automatically be replaced with the corresponding prompt text.
+
+### Configuration Example
+
+Here's a complete blink.cmp configuration example with all Avante sources:
+
 ```lua
       default = {
         ...
         "avante_commands",
         "avante_mentions",
+        "avante_shortcuts",
         "avante_files",
       }
 ```
@@ -670,6 +724,12 @@ For other users just add a custom provider
           module = "blink.compat.source",
           score_offset = 1000, -- show at a higher priority than lsp
           opts = {},
+        },
+        avante_shortcuts = {
+          name = "avante_shortcuts",
+          module = "blink.compat.source",
+          score_offset = 1000, -- show at a higher priority than lsp
+          opts = {},
         }
         ...
     }
@@ -678,24 +738,6 @@ For other users just add a custom provider
 </details>
 
 ## Usage
-
-### @mentions
-
-avante.nvim supports the following @mentions to help you reference different parts of your codebase:
-
-| Mention        | Description                         |
-| -------------- | ----------------------------------- |
-| `@codebase`    | Include the entire codebase context |
-| `@diagnostics` | Include current diagnostic issues   |
-| `@file`        | Include the current file            |
-| `@quickfix`    | Include the quickfix list           |
-| `@buffers`     | Include all open buffers            |
-
-You can use these mentions in your conversations with avante.nvim to provide relevant context. For example:
-
-- `@file what are the issues in this code?` - analyzes the current file
-- `@codebase explain the project structure` - looks at the entire codebase
-- `@diagnostics how do I fix these errors?` - helps resolve diagnostic issues
 
 ### Basic Functionality
 
