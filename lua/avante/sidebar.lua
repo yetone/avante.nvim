@@ -2446,6 +2446,10 @@ function Sidebar:create_input_container()
       end
     end
 
+    -- Process shortcut replacements
+    local new_content, has_shortcuts = Utils.extract_shortcuts(request)
+    if has_shortcuts then request = new_content end
+
     local selected_filepaths = self.file_selector:get_selected_filepaths()
 
     ---@type AvanteSelectedCode | nil

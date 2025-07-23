@@ -676,6 +676,8 @@ M._defaults = {
   custom_tools = {},
   ---@type AvanteSlashCommand[]
   slash_commands = {},
+  ---@type AvanteShortcut[]
+  shortcuts = {},
 }
 
 ---@type avante.Config
