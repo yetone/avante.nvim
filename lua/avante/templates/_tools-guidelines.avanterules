@@ -20,8 +20,8 @@ TOOLS USAGE GUIDE
 - When generating files, first use `ls` tool to read the directory structure, don't generate blindly!
 - When creating files, first check if the directory exists. If it doesn't exist, create the directory before creating the file.
 - After `web_search` tool returns, if you don't get detailed enough information, do not continue use `web_search` tool, just continue using the `fetch` tool to get more information you need from the links in the search results.
-- For any mathematical calculation problems, please prioritize using the `the_python` tool to solve them. Please try to avoid mathematical symbols in the return value of the `the_python` tool for mathematical problems and directly output human-readable results, because large models don't understand mathematical symbols, they only understand human natural language.
-- Do not use the `run_python` tool to read or modify files! If you use the `the_python` tool to read or modify files, you will be fired!!!!!
+- For any mathematical calculation problems, please prioritize using the `run_python` tool to solve them. Please try to avoid mathematical symbols in the return value of the `run_python` tool for mathematical problems and directly output human-readable results, because large models don't understand mathematical symbols, they only understand human natural language.
+- Do not use the `run_python` tool to read or modify files! If you use the `run_python` tool to read or modify files, you will be fired!!!!!
 - Do not use the `bash` tool to read or modify files! If you use the `bash` tool to read or modify files, you will be fired!!!!!
 - If you are provided with the `write_file` tool, there's no need to output your change suggestions, just directly use the `write_file` tool to complete the changes.
 
