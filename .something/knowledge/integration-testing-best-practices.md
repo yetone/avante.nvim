@@ -17,7 +17,7 @@ integration testing, test patterns, testing best practices, provider testing, wo
 ```lua
 describe("Test Suite", function()
   local test_ctx
-  
+
   before_each(function()
     test_ctx = helpers.setup_test_env({ git = false })
     helpers.configure_avante_for_testing({
@@ -25,7 +25,7 @@ describe("Test Suite", function()
       endpoint = "http://localhost:8080/v1/chat/completions"
     })
   end)
-  
+
   after_each(function()
     helpers.cleanup_test_env(test_ctx)
   end)
@@ -68,7 +68,7 @@ local test_response = {
   choices = {{ message = { role = "assistant", content = "Test response" } }}
 }
 
--- Claude pattern  
+-- Claude pattern
 local test_response = {
   content = {{ type = "text", text = "Test response" }}
 }
@@ -102,7 +102,7 @@ local test_buf = helpers.create_test_buffer(code_sample, "javascript")
 ```lua
 it("should handle network timeouts", function()
   local timeout_error = false
-  
+
   local code_opts = {
     timeout = 1000,
     on_error = function(err)
@@ -111,7 +111,7 @@ it("should handle network timeouts", function()
       end
     end
   }
-  
+
   -- Simulate timeout
   assert.is_true(timeout_error)
 end)

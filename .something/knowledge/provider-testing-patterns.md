@@ -12,8 +12,8 @@ provider testing, AI provider integration, API testing, mock services, provider 
 ```lua
 describe("{Provider} Provider Integration", function()
   local test_ctx
-  
-  before_each(function() 
+
+  before_each(function()
     test_ctx = helpers.setup_test_env()
     helpers.configure_avante_for_testing({
       provider = "{provider}",
@@ -22,7 +22,7 @@ describe("{Provider} Provider Integration", function()
     })
     vim.env.{PROVIDER}_API_KEY = "test-key"
   end)
-  
+
   after_each(function()
     helpers.cleanup_test_env(test_ctx)
     vim.env.{PROVIDER}_API_KEY = nil
@@ -41,7 +41,7 @@ local test_response = {
   choices = [{
     index = 0,
     message = {
-      role = "assistant", 
+      role = "assistant",
       content = "Test response"
     },
     finish_reason = "stop"
@@ -65,7 +65,7 @@ local streaming_chunks = [
 -- Claude uses content array structure
 local test_response = {
   id = "msg_test",
-  type = "message", 
+  type = "message",
   role = "assistant",
   content = [{
     type = "text",
@@ -92,12 +92,12 @@ local streaming_events = [
 -- Bedrock requires SigV4 authentication testing
 it("should handle AWS SigV4 authentication", function()
   local auth_headers_captured = {}
-  
+
   -- Mock AWS credential and signing
   vim.env.AWS_ACCESS_KEY_ID = "test-access-key"
   vim.env.AWS_SECRET_ACCESS_KEY = "test-secret-key"
   vim.env.AWS_REGION = "us-east-1"
-  
+
   -- Test different Bedrock model formats
   local models = {
     "anthropic.claude-3-opus-20240229-v1:0",
@@ -116,11 +116,11 @@ describe("Authentication", function()
     vim.env.{PROVIDER}_API_KEY = "valid-test-key"
     -- Test successful authentication
   end)
-  
+
   it("should handle invalid API keys", function()
     vim.env.{PROVIDER}_API_KEY = "invalid-key"
     local auth_error = false
-    
+
     local code_opts = {
       on_error = function(err)
         if err:match("API key") or err:match("authentication") then
@@ -128,7 +128,7 @@ describe("Authentication", function()
         end
       end
     }
-    
+
     assert.is_true(auth_error)
   end)
 end)
@@ -139,10 +139,10 @@ end)
 describe("Rate Limiting", function()
   it("should handle rate limit responses", function()
     vim.env.{PROVIDER}_API_KEY = "rate-limit-key"
-    
+
     local rate_limited = false
     local retry_after = nil
-    
+
     local code_opts = {
       on_error = function(err, headers)
         if err:match("rate limit") then
@@ -151,7 +151,7 @@ describe("Rate Limiting", function()
         end
       end
     }
-    
+
     assert.is_true(rate_limited)
     assert.True(retry_after ~= nil)
   end)
@@ -164,7 +164,7 @@ describe("Streaming Responses", function()
   it("should handle streaming chunks correctly", function()
     local chunks_received = {}
     local stream_complete = false
-    
+
     local code_opts = {
       stream = true,
       on_chunk = function(chunk)
@@ -174,10 +174,10 @@ describe("Streaming Responses", function()
         stream_complete = true
       end
     }
-    
+
     -- Simulate provider-specific streaming format
     -- ... provider-specific streaming simulation
-    
+
     assert.True(#chunks_received > 0)
     assert.is_true(stream_complete)
   end)
@@ -194,12 +194,12 @@ describe("Model Selection", function()
       claude = ["claude-3-opus-20240229", "claude-3-sonnet-20240229"],
       bedrock = ["anthropic.claude-3-opus-20240229-v1:0"]
     }
-    
+
     for _, model in ipairs(provider_models[current_provider]) do
       -- Test each model configuration
       table.insert(models_tested, model)
     end
-    
+
     assert.equals(#provider_models[current_provider], #models_tested)
   end)
 end)
@@ -212,7 +212,7 @@ end)
 describe("Network Errors", function()
   it("should handle connection timeouts", function()
     local timeout_error = false
-    
+
     local code_opts = {
       timeout = 1000,
       on_error = function(err)
@@ -221,15 +221,15 @@ describe("Network Errors", function()
         end
       end
     }
-    
+
     assert.is_true(timeout_error)
   end)
-  
+
   it("should handle DNS resolution failures", function()
     helpers.configure_avante_for_testing({
       endpoint = "http://nonexistent-domain.local/api"
     })
-    
+
     local dns_error = false
     local code_opts = {
       on_error = function(err)
@@ -238,7 +238,7 @@ describe("Network Errors", function()
         end
       end
     }
-    
+
     assert.is_true(dns_error)
   end)
 end)
@@ -249,11 +249,11 @@ end)
 describe("API Errors", function()
   it("should handle model not found errors", function()
     local model_error = false
-    
+
     helpers.configure_avante_for_testing({
       model = "nonexistent-model"
     })
-    
+
     local code_opts = {
       on_error = function(err, status_code)
         if status_code == 404 and err:match("model") then
@@ -261,10 +261,10 @@ describe("API Errors", function()
         end
       end
     }
-    
+
     assert.is_true(model_error)
   end)
-  
+
   it("should handle quota exceeded errors", function()
     -- Test quota/billing errors specific to provider
   end)
@@ -279,11 +279,11 @@ describe("Mock Service Validation", function()
   it("should receive expected mock responses", function()
     local response = helpers.simulate_api_call(
       "openai",
-      "/v1/chat/completions", 
+      "/v1/chat/completions",
       { model = "gpt-4", messages = [{ role = "user", content = "test" }] },
       helpers.create_mock_response("openai", "chat", "Mock response")
     )
-    
+
     assert.equals(200, response.status)
     assert.True(response.body:match("Mock response"))
   end)
@@ -303,14 +303,14 @@ describe("Provider Configuration", function()
       max_tokens = 2048,
       top_p = 0.9
     })
-    
-    -- Claude-specific options  
+
+    -- Claude-specific options
     helpers.configure_avante_for_testing({
       provider = "claude",
       max_tokens = 4096,
       system_message = "You are a helpful assistant"
     })
-    
+
     -- Validate configuration is applied correctly
   end)
 end)
@@ -324,17 +324,17 @@ describe("Performance", function()
   it("should respond within acceptable time limits", function()
     local start_time = vim.loop.hrtime()
     local response_time = nil
-    
+
     local code_opts = {
       on_complete = function()
         response_time = (vim.loop.hrtime() - start_time) / 1000000 -- Convert to ms
       end
     }
-    
+
     helpers.wait_for_condition(function()
       return response_time ~= nil
     end, 10000)
-    
+
     assert.True(response_time < 5000) -- Should respond within 5 seconds
   end)
 end)

@@ -27,7 +27,7 @@ Integration tests use Docker-based mock services to ensure reliable, determinist
 ```
 tests/integration/
 ├── helpers/           # Test utilities and helper functions
-├── providers/         # Provider-specific integration tests  
+├── providers/         # Provider-specific integration tests
 ├── workflows/         # End-to-end workflow tests
 ├── ui/               # UI component integration tests
 ├── fixtures/         # Test data and mock responses
@@ -53,7 +53,7 @@ make integration-test
 # Run provider tests only
 make test-providers
 
-# Run workflow tests only  
+# Run workflow tests only
 make test-workflows
 
 # Run UI tests only
@@ -126,7 +126,7 @@ Located in `tests/integration/ui/`, these tests validate:
 Mock API endpoints are configured in `mock_services/mappings/`:
 
 - `openai-chat.json`: OpenAI chat completions endpoint
-- `claude-chat.json`: Claude messages endpoint  
+- `claude-chat.json`: Claude messages endpoint
 - Provider-specific error scenarios and rate limiting
 
 ### Response Templates
@@ -198,7 +198,7 @@ Test data in `fixtures/` includes:
 Integration tests generate reports including:
 
 - Test execution time and coverage
-- Provider-specific success rates  
+- Provider-specific success rates
 - Error analysis and failure patterns
 - Performance metrics and regression detection
 
@@ -211,7 +211,7 @@ Integration tests generate reports including:
    before_each(function()
      test_ctx = helpers.setup_test_env()
    end)
-   
+
    after_each(function()
      helpers.cleanup_test_env(test_ctx)
    end)
@@ -288,7 +288,7 @@ Integration tests generate reports including:
 
 **Provider-specific Issues**:
 - Verify mock mappings match expected request format
-- Check response templates use correct JSON structure  
+- Check response templates use correct JSON structure
 - Ensure provider configuration matches test setup
 
 ### Getting Help
