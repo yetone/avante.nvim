@@ -101,7 +101,7 @@ local function message_content_item_to_lines(item, message, messages)
       return text_to_lines(item.text)
     elseif item.type == "image" then
       return { Line:new({ { "![image](" .. item.source.media_type .. ": " .. item.source.data .. ")" } }) }
-    elseif item.type == "tool_use" then
+    elseif item.type == "tool_use" and item.name then
       local ok, llm_tool = pcall(require, "avante.llm_tools." .. item.name)
       if ok then
         local tool_result_message = Helpers.get_tool_result_message(item.id, messages)
