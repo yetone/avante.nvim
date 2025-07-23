@@ -111,6 +111,8 @@ local function fix_diff(diff)
   diff = diff:gsub("<<<<<<<%s*SEARCH", "------- SEARCH")
   diff = diff:gsub(">>>>>>>%s*REPLACE", "+++++++ REPLACE")
   diff = diff:gsub("-------%s*REPLACE", "+++++++ REPLACE")
+  diff = diff:gsub("-------  ", "------- SEARCH\n")
+  diff = diff:gsub("=======  ", "======= \n")
 
   local fixed_diff_lines = {}
   local lines = vim.split(diff, "\n")
