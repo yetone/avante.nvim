@@ -1,0 +1,18 @@
+{
+  "id": "msg_fixture_test",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "text",
+      "text": "This Python Calculator class is well-designed with proper documentation and error handling. It maintains a history of operations, which is useful for debugging and auditing. The methods are clear and follow Python naming conventions. Consider adding validation for numeric inputs similar to the JavaScript example."
+    }
+  ],
+  "model": "claude-3-opus-20240229",
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 85,
+    "output_tokens": 67
+  }
+}

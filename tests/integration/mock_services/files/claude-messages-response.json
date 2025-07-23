@@ -1,0 +1,18 @@
+{
+  "id": "msg_{{randomValue type='UUID'}}",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "text",
+      "text": "This is a test response from the Claude mock service. The user asked: {{jsonPath request.body '$.messages[-1].content'}}"
+    }
+  ],
+  "model": "{{jsonPath request.body '$.model'}}",
+  "stop_reason": "end_turn",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 20,
+    "output_tokens": 25
+  }
+}

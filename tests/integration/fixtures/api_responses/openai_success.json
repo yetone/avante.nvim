@@ -1,0 +1,21 @@
+{
+  "id": "chatcmpl-fixture-test",
+  "object": "chat.completion",
+  "created": 1699999999,
+  "model": "gpt-4",
+  "choices": [
+    {
+      "index": 0,
+      "message": {
+        "role": "assistant",
+        "content": "This JavaScript function calculates the sum of two numbers with proper type checking. It throws an error if either argument is not a number, which is good defensive programming. The function is well-structured and includes example usage and module export."
+      },
+      "finish_reason": "stop"
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 45,
+    "completion_tokens": 52,
+    "total_tokens": 97
+  }
+}

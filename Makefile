@@ -97,6 +97,43 @@ rusttest:
 luatest:
 	nvim --headless -c "PlenaryBustedDirectory tests/"
 
+.PHONY: integration-test-setup
+integration-test-setup:
+	docker-compose -f docker-compose.test.yml up -d
+	@echo "Waiting for mock services to be ready..."
+	@timeout 60 bash -c 'until docker-compose -f docker-compose.test.yml exec wiremock curl -f http://localhost:8080/__admin/health; do sleep 2; done'
+
+.PHONY: integration-test-teardown
+integration-test-teardown:
+	docker-compose -f docker-compose.test.yml down -v
+
+.PHONY: integration-test
+integration-test: integration-test-setup
+	@echo "Running integration tests..."
+	nvim --headless -c "PlenaryBustedDirectory tests/integration/"
+	$(MAKE) integration-test-teardown
+
+.PHONY: test-providers
+test-providers: integration-test-setup
+	@echo "Running provider integration tests..."
+	nvim --headless -c "PlenaryBustedDirectory tests/integration/providers/"
+	$(MAKE) integration-test-teardown
+
+.PHONY: test-workflows
+test-workflows: integration-test-setup
+	@echo "Running workflow integration tests..."
+	nvim --headless -c "PlenaryBustedDirectory tests/integration/workflows/"
+	$(MAKE) integration-test-teardown
+
+.PHONY: test-ui
+test-ui: integration-test-setup
+	@echo "Running UI integration tests..."
+	nvim --headless -c "PlenaryBustedDirectory tests/integration/ui/"
+	$(MAKE) integration-test-teardown
+
+.PHONY: test-all
+test-all: luatest rusttest integration-test
+
 .PHONY: lint
 lint: luacheck luastylecheck ruststylecheck rustlint
 

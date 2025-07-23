@@ -1,0 +1,112 @@
+{
+  "mappings": [
+    {
+      "id": "claude-messages-success",
+      "name": "Claude Messages - Success",
+      "request": {
+        "method": "POST",
+        "urlPath": "/v1/messages",
+        "headers": {
+          "x-api-key": {
+            "matches": "sk-ant-.*"
+          },
+          "Content-Type": {
+            "equalTo": "application/json"
+          },
+          "anthropic-version": {
+            "equalTo": "2023-06-01"
+          }
+        },
+        "bodyPatterns": [
+          {
+            "matchesJsonPath": "$.model"
+          },
+          {
+            "matchesJsonPath": "$.messages"
+          },
+          {
+            "matchesJsonPath": "$.max_tokens"
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "bodyFileName": "claude-messages-response.json",
+        "transformers": ["response-template"],
+        "fixedDelayMilliseconds": 150
+      }
+    },
+    {
+      "id": "claude-messages-streaming",
+      "name": "Claude Messages - Streaming",
+      "request": {
+        "method": "POST",
+        "urlPath": "/v1/messages",
+        "headers": {
+          "x-api-key": {
+            "matches": "sk-ant-.*"
+          }
+        },
+        "bodyPatterns": [
+          {
+            "matchesJsonPath": "$.stream",
+            "equalToJson": "true"
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache"
+        },
+        "bodyFileName": "claude-streaming-response.txt",
+        "fixedDelayMilliseconds": 75
+      }
+    },
+    {
+      "id": "claude-auth-error",
+      "name": "Claude Auth Error",
+      "request": {
+        "method": "POST",
+        "urlPath": "/v1/messages",
+        "headers": {
+          "x-api-key": {
+            "equalTo": "invalid-key"
+          }
+        }
+      },
+      "response": {
+        "status": 401,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "bodyFileName": "claude-auth-error.json"
+      }
+    },
+    {
+      "id": "claude-rate-limit",
+      "name": "Claude Rate Limit",
+      "request": {
+        "method": "POST",
+        "urlPath": "/v1/messages",
+        "headers": {
+          "x-api-key": {
+            "equalTo": "rate-limit-key"
+          }
+        }
+      },
+      "response": {
+        "status": 529,
+        "headers": {
+          "Content-Type": "application/json",
+          "Retry-After": "60"
+        },
+        "bodyFileName": "claude-rate-limit-error.json"
+      }
+    }
+  ]
+}

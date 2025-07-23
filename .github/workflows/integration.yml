@@ -1,0 +1,248 @@
+name: Integration Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+    inputs:
+      test_scope:
+        description: 'Test scope to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+        - all
+        - providers
+        - workflows
+        - ui
+
+jobs:
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        neovim-version: ['v0.10.0', 'nightly']
+        test-scope: 
+          - ${{ github.event.inputs.test_scope || 'all' }}
+    
+    services:
+      # Docker-compose services will be started manually for better control
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Setup Neovim
+      uses: rhymond/setup-neovim@v1
+      with:
+        neovim-version: ${{ matrix.neovim-version }}
+        
+    - name: Setup Docker
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          curl \
+          git \
+          make \
+          ripgrep \
+          lua5.1 \
+          luajit \
+          luarocks
+          
+    - name: Setup Lua dependencies
+      run: |
+        # Install luacheck for code quality
+        sudo luarocks install luacheck
+        
+        # Create nvim config directory
+        mkdir -p ~/.config/nvim
+        
+    - name: Install plenary.nvim
+      run: |
+        git clone --depth 1 https://github.com/nvim-lua/plenary.nvim \
+          ~/.local/share/nvim/site/pack/plenary/start/plenary.nvim
+          
+    - name: Setup test environment
+      run: |
+        # Create test API keys (mock values for testing)
+        echo "OPENAI_API_KEY=test-openai-key" >> $GITHUB_ENV
+        echo "ANTHROPIC_API_KEY=sk-ant-test-key" >> $GITHUB_ENV
+        echo "AZURE_OPENAI_API_KEY=test-azure-key" >> $GITHUB_ENV
+        echo "GOOGLE_APPLICATION_CREDENTIALS=" >> $GITHUB_ENV
+        
+        # Set up mock service URLs
+        echo "MOCK_SERVICE_URL=http://localhost:8080" >> $GITHUB_ENV
+        
+    - name: Cache Docker images
+      uses: actions/cache@v4
+      with:
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ github.sha }}
+        restore-keys: |
+          ${{ runner.os }}-buildx-
+          
+    - name: Start mock services
+      run: |
+        echo "Starting Docker Compose services..."
+        docker-compose -f docker-compose.test.yml up -d
+        
+        # Wait for services to be healthy
+        echo "Waiting for Wiremock to be ready..."
+        timeout 120 bash -c 'until curl -f http://localhost:8080/__admin/health; do 
+          echo "Waiting for Wiremock..."; 
+          sleep 5; 
+        done'
+        
+        echo "Checking service status..."
+        docker-compose -f docker-compose.test.yml ps
+        
+    - name: Verify mock services
+      run: |
+        # Test Wiremock is responding
+        curl -f http://localhost:8080/__admin/health
+        echo "Wiremock health check passed"
+        
+        # List available mappings
+        curl -s http://localhost:8080/__admin/mappings | jq '.mappings | length'
+        echo "Mock mappings loaded successfully"
+        
+    - name: Run unit tests first
+      run: |
+        echo "Running unit tests to ensure basic functionality..."
+        make luatest
+        
+    - name: Run integration tests - All
+      if: matrix.test-scope == 'all'
+      run: |
+        echo "Running all integration tests..."
+        nvim --headless -c "PlenaryBustedDirectory tests/integration/" || {
+          echo "Integration tests failed, collecting logs..."
+          docker-compose -f docker-compose.test.yml logs
+          exit 1
+        }
+        
+    - name: Run integration tests - Providers
+      if: matrix.test-scope == 'providers'
+      run: |
+        echo "Running provider integration tests..."
+        nvim --headless -c "PlenaryBustedDirectory tests/integration/providers/" || {
+          echo "Provider tests failed, collecting logs..."
+          docker-compose -f docker-compose.test.yml logs wiremock
+          exit 1
+        }
+        
+    - name: Run integration tests - Workflows  
+      if: matrix.test-scope == 'workflows'
+      run: |
+        echo "Running workflow integration tests..."
+        nvim --headless -c "PlenaryBustedDirectory tests/integration/workflows/" || {
+          echo "Workflow tests failed, collecting logs..."
+          docker-compose -f docker-compose.test.yml logs
+          exit 1
+        }
+        
+    - name: Run integration tests - UI
+      if: matrix.test-scope == 'ui'
+      run: |
+        echo "Running UI integration tests..."
+        nvim --headless -c "PlenaryBustedDirectory tests/integration/ui/" || {
+          echo "UI tests failed, collecting logs..."
+          docker-compose -f docker-compose.test.yml logs
+          exit 1
+        }
+        
+    - name: Collect test results
+      if: always()
+      run: |
+        echo "=== Test Execution Summary ==="
+        echo "Neovim version: ${{ matrix.neovim-version }}"
+        echo "Test scope: ${{ matrix.test-scope }}"
+        echo "Build status: ${{ job.status }}"
+        
+        echo "=== Docker Service Status ==="
+        docker-compose -f docker-compose.test.yml ps
+        
+        echo "=== Mock Service Logs ==="
+        docker-compose -f docker-compose.test.yml logs --tail=50
+        
+    - name: Generate test report
+      if: always()
+      run: |
+        # Create test report directory
+        mkdir -p test-reports
+        
+        # Generate basic test report
+        cat > test-reports/integration-test-report.md << EOF
+        # Integration Test Report
+        
+        - **Date**: $(date)
+        - **Neovim Version**: ${{ matrix.neovim-version }}
+        - **Test Scope**: ${{ matrix.test-scope }}
+        - **Status**: ${{ job.status }}
+        - **Runner**: ${{ runner.os }}
+        
+        ## Services Used
+        - Wiremock (Port 8080)
+        - LocalStack for AWS mocking (Port 4566)
+        - Ollama mock (Port 11434)
+        
+        ## Test Coverage
+        - Provider integration tests
+        - Workflow integration tests
+        - UI component tests
+        - Error handling tests
+        - Mock service validation
+        
+        EOF
+        
+    - name: Upload test artifacts
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: integration-test-results-${{ matrix.neovim-version }}-${{ matrix.test-scope }}
+        path: |
+          test-reports/
+          tests/integration/
+        retention-days: 30
+        
+    - name: Cleanup mock services
+      if: always()  
+      run: |
+        echo "Stopping and cleaning up Docker services..."
+        docker-compose -f docker-compose.test.yml down -v --remove-orphans
+        
+        # Clean up any leftover containers/volumes
+        docker system prune -f --volumes || true
+        
+  integration-test-summary:
+    name: Integration Test Summary
+    runs-on: ubuntu-22.04
+    needs: integration-tests
+    if: always()
+    
+    steps:
+    - name: Check integration test results
+      run: |
+        echo "Integration test job status: ${{ needs.integration-tests.result }}"
+        
+        if [ "${{ needs.integration-tests.result }}" = "success" ]; then
+          echo "✅ All integration tests passed!"
+          exit 0
+        elif [ "${{ needs.integration-tests.result }}" = "failure" ]; then
+          echo "❌ Integration tests failed!"
+          exit 1
+        else
+          echo "⚠️  Integration tests completed with status: ${{ needs.integration-tests.result }}"
+          exit 1
+        fi

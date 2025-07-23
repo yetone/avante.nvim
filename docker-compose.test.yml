@@ -1,0 +1,71 @@
+version: '3.8'
+
+services:
+  wiremock:
+    image: wiremock/wiremock:3.5.4
+    container_name: avante-test-wiremock
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./tests/integration/mock_services/mappings:/home/wiremock/mappings
+      - ./tests/integration/mock_services/files:/home/wiremock/__files
+    command: >
+      --global-response-templating
+      --disable-gzip
+      --verbose
+      --root-dir=/home/wiremock
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/__admin/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - avante-test
+
+  # Additional mock services for specific providers
+  aws-localstack:
+    image: localstack/localstack:3.2.0
+    container_name: avante-test-localstack
+    ports:
+      - "4566:4566"
+    environment:
+      - SERVICES=bedrock
+      - DEBUG=1
+      - DATA_DIR=/tmp/localstack/data
+      - DOCKER_HOST=unix:///var/run/docker.sock
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - avante-test
+
+  ollama-mock:
+    image: ollama/ollama:0.1.32
+    container_name: avante-test-ollama
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    volumes:
+      - ./tests/integration/mock_services/ollama_models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/version"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - avante-test
+
+networks:
+  avante-test:
+    driver: bridge
+
+volumes:
+  localstack-data:
