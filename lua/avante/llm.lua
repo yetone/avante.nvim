@@ -981,7 +981,7 @@ function M._stream(opts)
               timer:stop()
               timer:close()
 
-              Utils.info("Restarting stream after rate limi pause")
+              Utils.info("Restarting stream after rate limit pause")
               M._stream(opts)
             else
               retry_count = retry_count - 1
