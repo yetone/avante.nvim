@@ -60,7 +60,7 @@ function M.func(input, opts)
   if not opts.streaming then diff = diff .. "\n+++++++ REPLACE" end
   local new_input = {
     path = input.path,
-    diff = diff,
+    the_diff = diff,
   }
   return replace_in_file.func(new_input, opts)
 end
