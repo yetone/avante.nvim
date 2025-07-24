@@ -276,7 +276,11 @@ function M:parse_response(ctx, data_stream, event_state, opts)
       end
     elseif content_block.type == "tool_use" then
       if opts.on_messages_add then
-        local complete_json = vim.json.decode(content_block.input_json)
+        local ok_, complete_json = pcall(vim.json.decode, content_block.input_json)
+        if not ok_ then
+          Utils.warn("Failed to parse tool_use input_json: " .. content_block.input_json)
+          return
+        end
         local msg = new_assistant_message({
           type = "tool_use",
           name = content_block.name,
