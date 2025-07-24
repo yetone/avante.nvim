@@ -23,12 +23,12 @@ local function trigger_tool_use_callback_once(completion_id, opts)
     Utils.debug("trigger_tool_use_callback_once: completion_id is nil, skipping")
     return
   end
-  
+
   if callback_sent[completion_id] then
     Utils.debug(string.format("Callback already sent for completion_id=%s, skipping duplicate", completion_id))
     return
   end
-  
+
   Utils.debug(string.format("Triggering tool_use callback for completion_id=%s", completion_id))
   callback_sent[completion_id] = true
   opts.on_stop({ reason = "tool_use", streaming_tool_use = true })

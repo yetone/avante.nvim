@@ -358,27 +358,25 @@ function M.parse(text, parser_state)
     parser_state = {
       completion_phase = "parsing",
       tool_buffer = {},
-      last_processed_position = 0
+      last_processed_position = 0,
     }
   end
 
   local result = {}
   local current_text = ""
-  
+
   -- Only process new content since last position to avoid reprocessing
   local start_pos = math.max(1, parser_state.last_processed_position + 1)
   local i = start_pos
   local len = #text
-  
+
   -- If we've already processed this content, return cached results
   if start_pos > len and parser_state.completion_phase == "processed" then
     return parser_state.tool_buffer, parser_state
   end
-  
+
   -- Add any text before our processing position to current_text
-  if start_pos > 1 then
-    current_text = string.sub(text, 1, start_pos - 1)
-  end
+  if start_pos > 1 then current_text = string.sub(text, 1, start_pos - 1) end
 
   -- Helper function to add text content to result
   local function add_text_content()

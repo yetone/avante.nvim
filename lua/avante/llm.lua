@@ -40,13 +40,21 @@ local function safe_on_stop(completion_id, reason, original_callback, opts)
       tool_use_detected = false,
       callback_triggered = false,
       streaming_active = false,
-      tool_processing_phase = "none"
+      tool_processing_phase = "none",
     }
     callback_states[completion_id] = state
   end
 
-  Utils.debug(string.format("safe_on_stop called: completion_id=%s, reason=%s, callback_triggered=%s, streaming_active=%s, tool_processing_phase=%s", 
-    completion_id, reason, tostring(state.callback_triggered), tostring(state.streaming_active), state.tool_processing_phase))
+  Utils.debug(
+    string.format(
+      "safe_on_stop called: completion_id=%s, reason=%s, callback_triggered=%s, streaming_active=%s, tool_processing_phase=%s",
+      completion_id,
+      reason,
+      tostring(state.callback_triggered),
+      tostring(state.streaming_active),
+      state.tool_processing_phase
+    )
+  )
 
   -- Prevent duplicate callbacks for the same completion cycle
   if reason == "tool_use" and state.callback_triggered and not opts.streaming_tool_use then
@@ -66,7 +74,7 @@ local function safe_on_stop(completion_id, reason, original_callback, opts)
   end
 
   Utils.debug(string.format("Executing callback: completion_id=%s, reason=%s", completion_id, reason))
-  
+
   -- Execute original callback with error handling
   local success, err = pcall(original_callback, opts)
   if not success then

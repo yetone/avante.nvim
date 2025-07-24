@@ -20,12 +20,12 @@ local function trigger_tool_use_callback_once(completion_id, opts)
     Utils.debug("trigger_tool_use_callback_once: completion_id is nil, skipping")
     return
   end
-  
+
   if callback_sent[completion_id] then
     Utils.debug(string.format("Gemini callback already sent for completion_id=%s, skipping duplicate", completion_id))
     return
   end
-  
+
   Utils.debug(string.format("Gemini triggering tool_use callback for completion_id=%s", completion_id))
   callback_sent[completion_id] = true
   opts.on_stop({ reason = "tool_use", streaming_tool_use = true })
@@ -63,14 +63,10 @@ function M:add_tool_use_message(ctx, tool_use, state, opts)
 end
 
 function M:finish_pending_messages(ctx, opts)
-  if ctx.content ~= nil and ctx.content ~= "" then 
-    self:add_text_message(ctx, "", "generated", opts) 
-  end
+  if ctx.content ~= nil and ctx.content ~= "" then self:add_text_message(ctx, "", "generated", opts) end
   if ctx.tool_use_list then
     for _, tool_use in ipairs(ctx.tool_use_list) do
-      if tool_use.state == "generating" then 
-        self:add_tool_use_message(ctx, tool_use, "generated", opts) 
-      end
+      if tool_use.state == "generating" then self:add_tool_use_message(ctx, tool_use, "generated", opts) end
     end
   end
 end
@@ -359,7 +355,9 @@ function M:parse_response(ctx, data_stream, _, opts)
             Utils.debug(string.format("Gemini STOP with tools completion for completion_id=%s", opts.completion_id))
             opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
           else
-            Utils.debug(string.format("Gemini STOP with tools callback already sent for completion_id=%s", opts.completion_id))
+            Utils.debug(
+              string.format("Gemini STOP with tools callback already sent for completion_id=%s", opts.completion_id)
+            )
           end
         else
           -- Natural stop, no tools
