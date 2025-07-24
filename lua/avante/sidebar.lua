@@ -3099,11 +3099,17 @@ end
 function Sidebar:create_todos_container()
   local history = Path.history.load(self.code.bufnr)
   if not history or not history.todos or #history.todos == 0 then
-    if self.containers.todos then self.containers.todos:unmount() end
+    if self.containers.todos and Utils.is_valid_container(self.containers.todos) then
+      self.containers.todos:unmount()
+    end
     self.containers.todos = nil
     self:adjust_layout()
     return
   end
+
+  -- Calculate safe height to prevent "Not enough room" error
+  local safe_height = math.min(3, math.max(1, vim.o.lines - 5))
+
   if not Utils.is_valid_container(self.containers.todos, true) then
     self.containers.todos = Split({
       enter = false,
@@ -3123,11 +3129,19 @@ function Sidebar:create_todos_container()
       }),
       position = "bottom",
       size = {
-        height = 3,
+        height = safe_height,
       },
     })
-    self.containers.todos:mount()
-    self:setup_window_navigation(self.containers.todos)
+
+    local ok, err = pcall(function()
+      self.containers.todos:mount()
+      self:setup_window_navigation(self.containers.todos)
+    end)
+    if not ok then
+      Utils.debug("Failed to create todos container:", err)
+      self.containers.todos = nil
+      return
+    end
   end
   local done_count = 0
   local total_count = #history.todos
@@ -3158,7 +3172,9 @@ function Sidebar:create_todos_container()
     Highlights.SUBTITLE,
     Highlights.REVERSED_SUBTITLE
   )
-  self:adjust_layout()
+
+  local ok, err = pcall(function() self:adjust_layout() end)
+  if not ok then Utils.debug("Failed to adjust layout after todos creation:", err) end
 end
 
 function Sidebar:adjust_layout()
