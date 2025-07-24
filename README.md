@@ -1004,6 +1004,7 @@ To enable Fast Apply, you need to:
    providers = {
      morph = {
        model = "morph-v3-large",
+       endpoint = "https://api.morphllm.com/v1"
      },
    }
    ```
