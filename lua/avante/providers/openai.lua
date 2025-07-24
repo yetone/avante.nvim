@@ -18,6 +18,19 @@ M.role_map = {
   assistant = "assistant",
 }
 
+-- Consolidated callback trigger to prevent duplicates
+local function trigger_tool_use_callback_once(ctx, opts)
+  if not ctx.callback_sent then
+    ctx.callback_sent = true
+    if Config.debug then
+      Utils.debug("[OPENAI_CALLBACK] Triggering tool_use callback", { turn_id = ctx.turn_id })
+    end
+    opts.on_stop({ reason = "tool_use", streaming_tool_use = true })
+  elseif Config.debug then
+    Utils.debug("[OPENAI_CALLBACK] Blocked duplicate tool_use callback", { turn_id = ctx.turn_id })
+  end
+end
+
 function M:is_disable_stream() return false end
 
 ---@param tool AvanteLLMTool
@@ -257,7 +270,12 @@ function M:add_text_message(ctx, text, state, opts)
     ::continue::
   end
   local cleaned_xml_content = table.concat(cleaned_xml_lines, "\n")
-  local xml = ReActParser.parse(cleaned_xml_content)
+  -- Initialize or reuse parser state for enhanced state tracking
+  if not ctx.react_parser_state then
+    ctx.react_parser_state = nil -- Let ReActParser create initial state
+  end
+  local xml, parser_state = ReActParser.parse(cleaned_xml_content, ctx.react_parser_state)
+  ctx.react_parser_state = parser_state
   local has_tool_use = false
   if xml and #xml > 0 then
     local new_content_list = {}
@@ -328,7 +346,7 @@ function M:add_text_message(ctx, text, state, opts)
     msg.message.content = table.concat(new_content_list, "\n")
   end
   if opts.on_messages_add then opts.on_messages_add(msgs) end
-  if has_tool_use and state == "generating" then opts.on_stop({ reason = "tool_use", streaming_tool_use = true }) end
+  if has_tool_use and state == "generating" then trigger_tool_use_callback_once(ctx, opts) end
 end
 
 function M:add_thinking_message(ctx, text, state, opts)
@@ -362,7 +380,7 @@ function M:add_tool_use_message(ctx, tool_use, state, opts)
   tool_use.uuid = msg.uuid
   tool_use.state = state
   if opts.on_messages_add then opts.on_messages_add({ msg }) end
-  if state == "generating" then opts.on_stop({ reason = "tool_use", streaming_tool_use = true }) end
+  if state == "generating" then trigger_tool_use_callback_once(ctx, opts) end
 end
 
 ---@param usage avante.OpenAITokenUsage | nil
@@ -379,6 +397,11 @@ function M.transform_openai_usage(usage)
 end
 
 function M:parse_response(ctx, data_stream, _, opts)
+  -- Initialize callback_sent flag for new completion cycles
+  if ctx.callback_sent == nil then
+    ctx.callback_sent = false
+  end
+  
   if data_stream:match('"%[DONE%]":') or data_stream == "[DONE]" then
     self:finish_pending_messages(ctx, opts)
     if ctx.tool_use_list and #ctx.tool_use_list > 0 then
@@ -473,21 +496,30 @@ function M:parse_response(ctx, data_stream, _, opts)
   if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" or choice.finish_reason == "length" then
     self:finish_pending_messages(ctx, opts)
     if ctx.tool_use_list and #ctx.tool_use_list > 0 then
-      opts.on_stop({ reason = "tool_use", usage = self.transform_openai_usage(jsn.usage) })
+      -- Only trigger tool_use callback if not already sent during streaming
+      if not ctx.callback_sent then
+        opts.on_stop({ reason = "tool_use", usage = self.transform_openai_usage(jsn.usage) })
+      end
     else
       opts.on_stop({ reason = "complete", usage = self.transform_openai_usage(jsn.usage) })
     end
   end
   if choice.finish_reason == "tool_calls" then
     self:finish_pending_messages(ctx, opts)
-    opts.on_stop({
-      reason = "tool_use",
-      usage = self.transform_openai_usage(jsn.usage),
-    })
+    -- Only trigger tool_use callback if not already sent during streaming
+    if not ctx.callback_sent then
+      opts.on_stop({
+        reason = "tool_use",
+        usage = self.transform_openai_usage(jsn.usage),
+      })
+    end
   end
 end
 
 function M:parse_response_without_stream(data, _, opts)
+  -- Initialize callback_sent flag for new completion cycles  
+  local ctx = { callback_sent = false }
+  
   ---@type AvanteOpenAIChatResponse
   local json = vim.json.decode(data)
   if json.choices and json.choices[1] then

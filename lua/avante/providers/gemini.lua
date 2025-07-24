@@ -1,7 +1,8 @@
 local Utils = require("avante.utils")
 local Providers = require("avante.providers")
 local Clipboard = require("avante.clipboard")
-local OpenAI = require("avante.providers").openai
+local HistoryMessage = require("avante.history.message")
+local JsonParser = require("avante.libs.jsonparser")
 local Prompts = require("avante.utils.prompts")
 
 ---@class AvanteProviderFunctor
@@ -14,6 +15,53 @@ M.role_map = {
 }
 
 function M:is_disable_stream() return false end
+
+-- Native Gemini callback management (independent of OpenAI)
+local function trigger_gemini_tool_callback(ctx, opts)
+  if not ctx.callback_sent then
+    ctx.callback_sent = true
+    if Utils.config and Utils.config.debug then
+      Utils.debug("[GEMINI_CALLBACK] Triggering tool_use callback", { turn_id = ctx.turn_id })
+    end
+    opts.on_stop({ reason = "tool_use", streaming_tool_use = true })
+  elseif Utils.config and Utils.config.debug then
+    Utils.debug("[GEMINI_CALLBACK] Blocked duplicate tool_use callback", { turn_id = ctx.turn_id })
+  end
+end
+
+-- Native Gemini tool use message handling
+function M:add_tool_use_message(ctx, tool_use, state, opts)
+  local jsn = JsonParser.parse(tool_use.input_json) or {}
+  local msg = HistoryMessage:new("assistant", {
+    type = "tool_use",
+    name = tool_use.name,
+    id = tool_use.id,
+    input = jsn,
+  }, {
+    state = state,
+    uuid = tool_use.uuid,
+    turn_id = ctx.turn_id,
+  })
+  tool_use.uuid = msg.uuid
+  tool_use.state = state
+  if opts.on_messages_add then opts.on_messages_add({ msg }) end
+  if state == "generating" then trigger_gemini_tool_callback(ctx, opts) end
+end
+
+-- Native Gemini pending messages finishing
+function M:finish_pending_messages(ctx, opts)
+  -- Implement native pending message handling for Gemini
+  -- This replaces the OpenAI dependency
+  if ctx.pending_messages then
+    for _, msg in ipairs(ctx.pending_messages) do
+      if msg.state == "generating" then
+        msg.state = "generated"
+      end
+    end
+    if opts.on_messages_add then opts.on_messages_add(ctx.pending_messages) end
+    ctx.pending_messages = {}
+  end
+end
 
 ---@param tool AvanteLLMTool
 function M:transform_to_function_declaration(tool)
@@ -222,6 +270,11 @@ function M.transform_gemini_usage(usage)
 end
 
 function M:parse_response(ctx, data_stream, _, opts)
+  -- Initialize callback_sent flag for new completion cycles
+  if ctx.callback_sent == nil then
+    ctx.callback_sent = false
+  end
+  
   local ok, jsn = pcall(vim.json.decode, data_stream)
   if not ok then
     opts.on_stop({ reason = "error", error = "Failed to parse JSON response: " .. tostring(jsn) })
@@ -265,29 +318,33 @@ function M:parse_response(ctx, data_stream, _, opts)
             input_json = vim.json.encode(part.functionCall.args),
           }
           table.insert(ctx.tool_use_list, tool_use)
-          OpenAI:add_tool_use_message(ctx, tool_use, "generated", opts)
+          self:add_tool_use_message(ctx, tool_use, "generated", opts)
         end
       end
     end
 
     -- Check for finishReason to determine if this candidate's stream is done.
     if candidate.finishReason then
-      OpenAI:finish_pending_messages(ctx, opts)
+      self:finish_pending_messages(ctx, opts)
       local reason_str = candidate.finishReason
       local stop_details = { finish_reason = reason_str }
       stop_details.usage = M.transform_gemini_usage(jsn.usageMetadata)
 
       if reason_str == "TOOL_CODE" then
         -- Model indicates a tool-related stop.
-        -- The tool_use list is added to the table in llm.lua
-        opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+        -- Only trigger callback if not already sent during streaming
+        if not ctx.callback_sent then
+          opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+        end
       elseif reason_str == "STOP" then
         if ctx.tool_use_list and #ctx.tool_use_list > 0 then
           -- Natural stop, but tools were found in this final chunk.
-          opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+          -- Only trigger callback if not already sent during streaming
+          if not ctx.callback_sent then
+            opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+          end
         else
           -- Natural stop, no tools in this final chunk.
-          -- llm.lua will check its accumulated tools if tool_choice was active.
           opts.on_stop(vim.tbl_deep_extend("force", { reason = "complete" }, stop_details))
         end
       elseif reason_str == "MAX_TOKENS" then

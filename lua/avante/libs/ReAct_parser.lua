@@ -11,6 +11,22 @@
 
 local M = {}
 
+---@class ReActParserState
+---@field completion_phase string -- "parsing" | "complete" | "processed"
+---@field tool_buffer table -- accumulated tools
+---@field last_processed_position integer -- prevent reprocessing
+---@field total_content_length integer -- track content growth
+
+-- Initialize parser state
+local function create_parser_state()
+  return {
+    completion_phase = "parsing",
+    tool_buffer = {},
+    last_processed_position = 0,
+    total_content_length = 0,
+  }
+end
+
 -- Helper function to parse a parameter tag like <param_name>value</param_name>
 -- Returns {name = string, value = string, next_pos = number} or nil if incomplete
 local function parse_parameter(text, start_pos)
@@ -345,12 +361,26 @@ end
 --- }
 ---
 ---@param text string
----@return (avante.TextContent|avante.ToolUseContent)[]
-function M.parse(text)
-  local result = {}
+---@param parser_state ReActParserState|nil
+---@return (avante.TextContent|avante.ToolUseContent)[], ReActParserState
+function M.parse(text, parser_state)
+  -- Initialize or use existing parser state
+  local state = parser_state or create_parser_state()
+  
+  -- Skip processing if already processed and no new content
+  if #text <= state.last_processed_position and state.completion_phase == "processed" then
+    return state.tool_buffer, state
+  end
+  
+  -- Only process new content since last position for efficiency
+  local start_pos = math.max(1, state.last_processed_position + 1)
+  local result = vim.deepcopy(state.tool_buffer) -- Start with accumulated tools
   local current_text = ""
-  local i = 1
+  local i = start_pos
   local len = #text
+  
+  -- Update total content length
+  state.total_content_length = len
 
   -- Helper function to add text content to result
   local function add_text_content()
@@ -402,7 +432,24 @@ function M.parse(text)
   -- Add any remaining text
   add_text_content()
 
-  return result
+  -- Update parser state
+  state.last_processed_position = len
+  state.tool_buffer = result
+  
+  -- Check if parsing is complete (no partial tool uses)
+  local has_partial = false
+  for _, item in ipairs(result) do
+    if item.type == "tool_use" and item.partial then
+      has_partial = true
+      break
+    end
+  end
+  
+  if not has_partial then
+    state.completion_phase = "complete"
+  end
+
+  return result, state
 end
 
 return M

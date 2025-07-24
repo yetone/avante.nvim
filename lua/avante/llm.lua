@@ -18,6 +18,25 @@ local M = {}
 
 M.CANCEL_PATTERN = "AvanteLLMEscape"
 
+---@class AvanteCallbackState
+---@field completion_id string
+---@field tool_use_detected boolean
+---@field callback_triggered boolean
+---@field streaming_active boolean
+---@field tool_processing_phase string
+---@field callback_sent boolean
+---@field last_callback_reason string | nil
+
+-- Global callback state management
+local callback_states = {}
+
+-- Debug logging for callback tracking
+local function debug_callback(message, data)
+  if Config.debug then
+    Utils.debug("[CALLBACK_DEBUG] " .. message, data or {})
+  end
+end
+
 ------------------------------Prompt and type------------------------------
 
 local group = api.nvim_create_augroup("avante_llm", { clear = true })
@@ -743,6 +762,59 @@ function M._stream(opts)
   ---@cast provider AvanteProviderFunctor
 
   local prompt_opts = M.generate_prompts(opts)
+  
+  -- Generate unique completion ID for this request
+  local completion_id = tostring(vim.loop.hrtime())
+  
+  -- Initialize callback state for this completion
+  callback_states[completion_id] = {
+    completion_id = completion_id,
+    tool_use_detected = false,
+    callback_triggered = false,
+    streaming_active = false,
+    tool_processing_phase = "none",
+    callback_sent = false,
+    last_callback_reason = nil,
+  }
+  
+  debug_callback("Initialized callback state", { completion_id = completion_id })
+  
+  -- Safe callback wrapper with deduplication logic
+  local function safe_on_stop(stop_opts)
+    local state = callback_states[completion_id]
+    if not state then
+      Utils.warn("Missing callback state for completion: " .. completion_id)
+      return safe_on_stop(stop_opts)
+    end
+    
+    debug_callback("Callback triggered", {
+      completion_id = completion_id,
+      reason = stop_opts.reason,
+      streaming_tool_use = stop_opts.streaming_tool_use,
+      callback_sent = state.callback_sent,
+      last_reason = state.last_callback_reason,
+    })
+    
+    -- Prevent duplicate callbacks with same reason for identical completion cycles
+    if stop_opts.reason == "tool_use" and state.callback_sent and state.last_callback_reason == "tool_use" then
+      debug_callback("Blocked duplicate tool_use callback", { completion_id = completion_id })
+      return
+    end
+    
+    -- Update state
+    state.callback_triggered = true
+    state.last_callback_reason = stop_opts.reason
+    if stop_opts.reason == "tool_use" then
+      state.callback_sent = true
+    end
+    
+    debug_callback("Executing callback", {
+      completion_id = completion_id,
+      reason = stop_opts.reason,
+    })
+    
+    return opts.on_stop(stop_opts)
+  end
 
   if
     prompt_opts.pending_compaction_history_messages
@@ -790,7 +862,7 @@ function M._stream(opts)
           if opts.on_messages_add then opts.on_messages_add(messages) end
           local the_last_tool_use = tool_uses[#tool_uses]
           if the_last_tool_use and the_last_tool_use.name == "attempt_completion" then
-            opts.on_stop({ reason = "complete" })
+            safe_on_stop({ reason = "complete" })
             return
           end
           local new_opts = vim.tbl_deep_extend("force", opts, {
@@ -825,7 +897,7 @@ function M._stream(opts)
               })
               opts.on_messages_add({ message })
             end
-            return opts.on_stop({ reason = "cancelled" })
+            return safe_on_stop({ reason = "cancelled" })
           end
 
           local is_user_declined = error and error:match("^User declined")
@@ -879,7 +951,7 @@ function M._stream(opts)
           })
           opts.on_messages_add({ message })
         end
-        return opts.on_stop({ reason = "cancelled" })
+        return safe_on_stop({ reason = "cancelled" })
       end
       local history_messages = opts.get_history_messages and opts.get_history_messages({ all = true }) or {}
       local pending_tools, pending_tool_use_messages = History.get_pending_tools(history_messages)
@@ -992,7 +1064,7 @@ function M._stream(opts)
         end
         return
       end
-      return opts.on_stop(stop_opts)
+      return safe_on_stop(stop_opts)
     end,
   }
 
