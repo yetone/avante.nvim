@@ -9,7 +9,7 @@ local function split_lines(text)
 end
 
 local function diff2search_replace(diff_text)
-  if not diff_text:match("^@@") then return diff_text end
+  if not diff_text:match("@@%s*%-%d+,%d+%s%+") then return diff_text end
 
   local blocks = {}
   local pos = 1
