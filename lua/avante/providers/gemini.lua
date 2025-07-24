@@ -3,11 +3,78 @@ local Providers = require("avante.providers")
 local Clipboard = require("avante.clipboard")
 local OpenAI = require("avante.providers").openai
 local Prompts = require("avante.utils.prompts")
+local HistoryMessage = require("avante.history.message")
 
 ---@class AvanteProviderFunctor
 local M = {}
 
 M.api_key_name = "GEMINI_API_KEY"
+
+-- Callback deduplication state for each completion
+local callback_sent = {}
+
+---@param completion_id string
+---@param opts table
+local function trigger_tool_use_callback_once(completion_id, opts)
+  if not completion_id then
+    Utils.debug("trigger_tool_use_callback_once: completion_id is nil, skipping")
+    return
+  end
+  
+  if callback_sent[completion_id] then
+    Utils.debug(string.format("Gemini callback already sent for completion_id=%s, skipping duplicate", completion_id))
+    return
+  end
+  
+  Utils.debug(string.format("Gemini triggering tool_use callback for completion_id=%s", completion_id))
+  callback_sent[completion_id] = true
+  opts.on_stop({ reason = "tool_use", streaming_tool_use = true })
+end
+
+function M:add_text_message(ctx, text, state, opts)
+  if ctx.content == nil then ctx.content = "" end
+  ctx.content = ctx.content .. text
+  local msg = HistoryMessage:new("assistant", ctx.content, {
+    state = state,
+    uuid = ctx.content_uuid,
+    original_content = ctx.content,
+    turn_id = ctx.turn_id,
+  })
+  ctx.content_uuid = msg.uuid
+  if opts.on_messages_add then opts.on_messages_add({ msg }) end
+end
+
+function M:add_tool_use_message(ctx, tool_use, state, opts)
+  local jsn = vim.json.decode(tool_use.input_json)
+  local msg = HistoryMessage:new("assistant", {
+    type = "tool_use",
+    name = tool_use.name,
+    id = tool_use.id,
+    input = jsn or {},
+  }, {
+    state = state,
+    uuid = tool_use.uuid,
+    turn_id = ctx.turn_id,
+  })
+  tool_use.uuid = msg.uuid
+  tool_use.state = state
+  if opts.on_messages_add then opts.on_messages_add({ msg }) end
+  if state == "generated" then trigger_tool_use_callback_once(opts.completion_id, opts) end
+end
+
+function M:finish_pending_messages(ctx, opts)
+  if ctx.content ~= nil and ctx.content ~= "" then 
+    self:add_text_message(ctx, "", "generated", opts) 
+  end
+  if ctx.tool_use_list then
+    for _, tool_use in ipairs(ctx.tool_use_list) do
+      if tool_use.state == "generating" then 
+        self:add_tool_use_message(ctx, tool_use, "generated", opts) 
+      end
+    end
+  end
+end
+
 M.role_map = {
   user = "user",
   assistant = "model",
@@ -255,7 +322,7 @@ function M:parse_response(ctx, data_stream, _, opts)
       for _, part in ipairs(candidate.content.parts) do
         if part.text then
           if opts.on_chunk then opts.on_chunk(part.text) end
-          OpenAI:add_text_message(ctx, part.text, "generating", opts)
+          self:add_text_message(ctx, part.text, "generating", opts)
         elseif part.functionCall then
           if not ctx.function_call_id then ctx.function_call_id = 0 end
           ctx.function_call_id = ctx.function_call_id + 1
@@ -265,29 +332,37 @@ function M:parse_response(ctx, data_stream, _, opts)
             input_json = vim.json.encode(part.functionCall.args),
           }
           table.insert(ctx.tool_use_list, tool_use)
-          OpenAI:add_tool_use_message(ctx, tool_use, "generated", opts)
+          self:add_tool_use_message(ctx, tool_use, "generated", opts)
         end
       end
     end
 
     -- Check for finishReason to determine if this candidate's stream is done.
     if candidate.finishReason then
-      OpenAI:finish_pending_messages(ctx, opts)
+      self:finish_pending_messages(ctx, opts)
       local reason_str = candidate.finishReason
       local stop_details = { finish_reason = reason_str }
       stop_details.usage = M.transform_gemini_usage(jsn.usageMetadata)
 
       if reason_str == "TOOL_CODE" then
-        -- Model indicates a tool-related stop.
-        -- The tool_use list is added to the table in llm.lua
-        opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
-      elseif reason_str == "STOP" then
-        if ctx.tool_use_list and #ctx.tool_use_list > 0 then
-          -- Natural stop, but tools were found in this final chunk.
+        -- Model indicates a tool-related stop - only trigger if not already sent
+        if not callback_sent[opts.completion_id] then
+          Utils.debug(string.format("Gemini TOOL_CODE completion for completion_id=%s", opts.completion_id))
           opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
         else
-          -- Natural stop, no tools in this final chunk.
-          -- llm.lua will check its accumulated tools if tool_choice was active.
+          Utils.debug(string.format("Gemini TOOL_CODE callback already sent for completion_id=%s", opts.completion_id))
+        end
+      elseif reason_str == "STOP" then
+        if ctx.tool_use_list and #ctx.tool_use_list > 0 then
+          -- Natural stop, but tools were found - only trigger if not already sent
+          if not callback_sent[opts.completion_id] then
+            Utils.debug(string.format("Gemini STOP with tools completion for completion_id=%s", opts.completion_id))
+            opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+          else
+            Utils.debug(string.format("Gemini STOP with tools callback already sent for completion_id=%s", opts.completion_id))
+          end
+        else
+          -- Natural stop, no tools
           opts.on_stop(vim.tbl_deep_extend("force", { reason = "complete" }, stop_details))
         end
       elseif reason_str == "MAX_TOKENS" then

@@ -18,6 +18,64 @@ local M = {}
 
 M.CANCEL_PATTERN = "AvanteLLMEscape"
 
+-- Callback state management for deduplication
+local callback_states = {}
+
+---@class AvanteCallbackState
+---@field completion_id string
+---@field tool_use_detected boolean
+---@field callback_triggered boolean
+---@field streaming_active boolean
+---@field tool_processing_phase string
+
+---@param completion_id string
+---@param reason string
+---@param original_callback function
+---@param opts table
+local function safe_on_stop(completion_id, reason, original_callback, opts)
+  local state = callback_states[completion_id]
+  if not state then
+    state = {
+      completion_id = completion_id,
+      tool_use_detected = false,
+      callback_triggered = false,
+      streaming_active = false,
+      tool_processing_phase = "none"
+    }
+    callback_states[completion_id] = state
+  end
+
+  Utils.debug(string.format("safe_on_stop called: completion_id=%s, reason=%s, callback_triggered=%s, streaming_active=%s, tool_processing_phase=%s", 
+    completion_id, reason, tostring(state.callback_triggered), tostring(state.streaming_active), state.tool_processing_phase))
+
+  -- Prevent duplicate callbacks for the same completion cycle
+  if reason == "tool_use" and state.callback_triggered and not opts.streaming_tool_use then
+    Utils.debug(string.format("Preventing duplicate tool_use callback for completion_id=%s", completion_id))
+    return
+  end
+
+  -- Update state before calling original callback
+  if reason == "tool_use" then
+    state.tool_use_detected = true
+    state.callback_triggered = true
+    state.streaming_active = opts.streaming_tool_use or false
+    state.tool_processing_phase = opts.streaming_tool_use and "streaming" or "complete"
+  elseif reason == "complete" then
+    state.tool_processing_phase = "complete"
+    state.streaming_active = false
+  end
+
+  Utils.debug(string.format("Executing callback: completion_id=%s, reason=%s", completion_id, reason))
+  
+  -- Execute original callback with error handling
+  local success, err = pcall(original_callback, opts)
+  if not success then
+    Utils.debug(string.format("Callback error for completion_id=%s: %s", completion_id, err))
+    -- Reset state on error to prevent deadlock
+    callback_states[completion_id] = nil
+  end
+end
+
 ------------------------------Prompt and type------------------------------
 
 local group = api.nvim_create_augroup("avante_llm", { clear = true })
@@ -755,6 +813,10 @@ function M._stream(opts)
 
   local resp_headers = {}
 
+  -- Generate unique completion ID for callback deduplication
+  local completion_id = tostring(os.time()) .. "_" .. math.random(10000, 99999)
+  Utils.debug(string.format("Starting completion with ID: %s", completion_id))
+
   ---@type AvanteHandlerOptions
   local handler_opts = {
     on_messages_add = opts.on_messages_add,
@@ -762,6 +824,7 @@ function M._stream(opts)
     update_tokens_usage = opts.update_tokens_usage,
     on_start = opts.on_start,
     on_chunk = opts.on_chunk,
+    completion_id = completion_id, -- Add completion ID for callback deduplication
     on_stop = function(stop_opts)
       if stop_opts.usage and opts.update_tokens_usage then opts.update_tokens_usage(stop_opts.usage) end
 

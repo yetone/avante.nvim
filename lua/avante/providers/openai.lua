@@ -13,6 +13,27 @@ local M = {}
 
 M.api_key_name = "OPENAI_API_KEY"
 
+-- Callback deduplication state for each completion
+local callback_sent = {}
+
+---@param completion_id string
+---@param opts table
+local function trigger_tool_use_callback_once(completion_id, opts)
+  if not completion_id then
+    Utils.debug("trigger_tool_use_callback_once: completion_id is nil, skipping")
+    return
+  end
+  
+  if callback_sent[completion_id] then
+    Utils.debug(string.format("Callback already sent for completion_id=%s, skipping duplicate", completion_id))
+    return
+  end
+  
+  Utils.debug(string.format("Triggering tool_use callback for completion_id=%s", completion_id))
+  callback_sent[completion_id] = true
+  opts.on_stop({ reason = "tool_use", streaming_tool_use = true })
+end
+
 M.role_map = {
   user = "user",
   assistant = "assistant",
@@ -328,7 +349,7 @@ function M:add_text_message(ctx, text, state, opts)
     msg.message.content = table.concat(new_content_list, "\n")
   end
   if opts.on_messages_add then opts.on_messages_add(msgs) end
-  if has_tool_use and state == "generating" then opts.on_stop({ reason = "tool_use", streaming_tool_use = true }) end
+  if has_tool_use and state == "generating" then trigger_tool_use_callback_once(opts.completion_id, opts) end
 end
 
 function M:add_thinking_message(ctx, text, state, opts)
@@ -362,7 +383,7 @@ function M:add_tool_use_message(ctx, tool_use, state, opts)
   tool_use.uuid = msg.uuid
   tool_use.state = state
   if opts.on_messages_add then opts.on_messages_add({ msg }) end
-  if state == "generating" then opts.on_stop({ reason = "tool_use", streaming_tool_use = true }) end
+  if state == "generating" then trigger_tool_use_callback_once(opts.completion_id, opts) end
 end
 
 ---@param usage avante.OpenAITokenUsage | nil
@@ -473,17 +494,29 @@ function M:parse_response(ctx, data_stream, _, opts)
   if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" or choice.finish_reason == "length" then
     self:finish_pending_messages(ctx, opts)
     if ctx.tool_use_list and #ctx.tool_use_list > 0 then
-      opts.on_stop({ reason = "tool_use", usage = self.transform_openai_usage(jsn.usage) })
+      -- Stream completion with tools - only trigger if not already sent
+      if not callback_sent[opts.completion_id] then
+        Utils.debug(string.format("Stream completion with tools for completion_id=%s", opts.completion_id))
+        opts.on_stop({ reason = "tool_use", usage = self.transform_openai_usage(jsn.usage) })
+      else
+        Utils.debug(string.format("Stream completion callback already sent for completion_id=%s", opts.completion_id))
+      end
     else
       opts.on_stop({ reason = "complete", usage = self.transform_openai_usage(jsn.usage) })
     end
   end
   if choice.finish_reason == "tool_calls" then
     self:finish_pending_messages(ctx, opts)
-    opts.on_stop({
-      reason = "tool_use",
-      usage = self.transform_openai_usage(jsn.usage),
-    })
+    -- Tool calls completion - only trigger if not already sent
+    if not callback_sent[opts.completion_id] then
+      Utils.debug(string.format("Tool calls completion for completion_id=%s", opts.completion_id))
+      opts.on_stop({
+        reason = "tool_use",
+        usage = self.transform_openai_usage(jsn.usage),
+      })
+    else
+      Utils.debug(string.format("Tool calls callback already sent for completion_id=%s", opts.completion_id))
+    end
   end
 end
 

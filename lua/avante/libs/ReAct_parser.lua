@@ -11,6 +11,11 @@
 
 local M = {}
 
+---@class ReActParserState
+---@field completion_phase string -- "parsing" | "complete" | "processed"
+---@field tool_buffer table -- accumulated tools
+---@field last_processed_position integer -- position of last processed content
+
 -- Helper function to parse a parameter tag like <param_name>value</param_name>
 -- Returns {name = string, value = string, next_pos = number} or nil if incomplete
 local function parse_parameter(text, start_pos)
@@ -345,12 +350,35 @@ end
 --- }
 ---
 ---@param text string
----@return (avante.TextContent|avante.ToolUseContent)[]
-function M.parse(text)
+---@param parser_state? ReActParserState
+---@return (avante.TextContent|avante.ToolUseContent)[], ReActParserState
+function M.parse(text, parser_state)
+  -- Initialize or use existing parser state
+  if not parser_state then
+    parser_state = {
+      completion_phase = "parsing",
+      tool_buffer = {},
+      last_processed_position = 0
+    }
+  end
+
   local result = {}
   local current_text = ""
-  local i = 1
+  
+  -- Only process new content since last position to avoid reprocessing
+  local start_pos = math.max(1, parser_state.last_processed_position + 1)
+  local i = start_pos
   local len = #text
+  
+  -- If we've already processed this content, return cached results
+  if start_pos > len and parser_state.completion_phase == "processed" then
+    return parser_state.tool_buffer, parser_state
+  end
+  
+  -- Add any text before our processing position to current_text
+  if start_pos > 1 then
+    current_text = string.sub(text, 1, start_pos - 1)
+  end
 
   -- Helper function to add text content to result
   local function add_text_content()
@@ -402,7 +430,12 @@ function M.parse(text)
   -- Add any remaining text
   add_text_content()
 
-  return result
+  -- Update parser state
+  parser_state.last_processed_position = len
+  parser_state.completion_phase = len == i and "complete" or "parsing"
+  parser_state.tool_buffer = result
+
+  return result, parser_state
 end
 
 return M
