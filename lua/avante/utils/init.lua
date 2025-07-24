@@ -731,7 +731,7 @@ end
 ---@param content string[]
 ---@return string[]
 function M.trim_line_numbers(content)
-  return vim.iter(content):map(function(line) return line:gsub("^L%d+: ", "") end):totable()
+  return vim.iter(content):map(function(line) return (line:gsub("^L%d+: ", "")) end):totable()
 end
 
 function M.debounce(func, delay)
