@@ -19,8 +19,8 @@ M.param = {
   type = "table",
   fields = {
     {
-      name = "target_file",
-      description = "The target file to modify.",
+      name = "path",
+      description = "The target file path to modify.",
       type = "string",
     },
     {
@@ -51,7 +51,7 @@ M.returns = {
   },
 }
 
----@type AvanteLLMToolFunc<{ target_file: string, instructions: string, code_edit: string }>
+---@type AvanteLLMToolFunc<{ path: string, instructions: string, code_edit: string }>
 M.func = vim.schedule_wrap(function(input, opts)
   local on_complete = opts.on_complete
   if not on_complete then return false, "on_complete not provided" end
@@ -59,11 +59,11 @@ M.func = vim.schedule_wrap(function(input, opts)
   if not provider then return false, "morph provider not found" end
   if not provider.is_env_set() then return false, "morph provider not set" end
 
-  if not input.target_file then return false, "target_file not provided" end
+  if not input.path then return false, "path not provided" end
 
-  local ok, lines = pcall(Utils.read_file_from_buf_or_disk, input.target_file)
+  local ok, lines = pcall(Utils.read_file_from_buf_or_disk, input.path)
   if not ok then
-    local f = io.open(input.target_file, "r")
+    local f = io.open(input.path, "r")
     if f then
       local original_code = f:read("*all")
       f:close()
@@ -99,7 +99,7 @@ M.func = vim.schedule_wrap(function(input, opts)
   local json_content = vim.json.encode(body)
   vim.fn.writefile(vim.split(json_content, "\n"), curl_body_file)
 
-  -- Construct curl command
+  -- Construct curl command with additional debugging and error handling
   local curl_cmd = {
     "curl",
     "-X",
@@ -108,6 +108,13 @@ M.func = vim.schedule_wrap(function(input, opts)
     "Content-Type: application/json",
     "-d",
     "@" .. curl_body_file,
+    "--fail", -- Return error for HTTP status codes >= 400
+    "--show-error", -- Show error messages
+    "--verbose", -- Enable verbose output for better debugging
+    "--connect-timeout",
+    "30", -- Connection timeout in seconds
+    "--max-time",
+    "120", -- Maximum operation time
     Utils.url_join(provider_conf.endpoint, "/chat/completions"),
   }
 
@@ -129,11 +136,49 @@ M.func = vim.schedule_wrap(function(input, opts)
 
       if result.code ~= 0 then
         local error_msg = result.stderr
-        if error_msg ~= nil and error_msg ~= "" then
-          on_complete(false, "Failed to edit file: " .. error_msg)
-          return
+        if not error_msg or error_msg == "" then error_msg = result.stdout end
+        if not error_msg or error_msg == "" then error_msg = "No detailed error message available" end
+
+        -- 检查curl常见的错误码
+        local curl_error_map = {
+          [1] = "Unsupported protocol (curl error 1)",
+          [2] = "Failed to initialize (curl error 2)",
+          [3] = "URL malformed (curl error 3)",
+          [4] = "Requested FTP action not supported (curl error 4)",
+          [5] = "Failed to resolve proxy (curl error 5)",
+          [6] = "Could not resolve host (DNS resolution failed)",
+          [7] = "Failed to connect to host (connection refused)",
+          [28] = "Operation timeout (connection timed out)",
+          [35] = "SSL connection error (handshake failed)",
+          [52] = "Empty reply from server",
+          [56] = "Failure in receiving network data",
+          [60] = "SSL certificate problem (certificate verification failed)",
+          [77] = "Problem with reading SSL CA certificate",
+        }
+
+        local curl_cmd_str = table.concat(curl_cmd, " ")
+        local error_hint = curl_error_map[result.code] or "curl exited with code " .. result.code
+        local full_error = "curl command failed: "
+          .. error_hint
+          .. "\n"
+          .. "Command: "
+          .. curl_cmd_str
+          .. "\n"
+          .. "Exit code: "
+          .. result.code
+
+        if error_msg and error_msg ~= "" then full_error = full_error .. "\nError details: " .. error_msg end
+
+        if provider_conf.endpoint and provider_conf.model then
+          full_error = full_error
+            .. "\nEndpoint: "
+            .. provider_conf.endpoint
+            .. "/chat/completions"
+            .. "\nModel: "
+            .. provider_conf.model
         end
-        on_complete(false, "Failed to edit file: " .. result.code)
+
+        on_complete(false, full_error)
         return
       end
 
@@ -165,7 +210,7 @@ M.func = vim.schedule_wrap(function(input, opts)
 
       local str_replace = require("avante.llm_tools.str_replace")
       local new_input = {
-        path = input.target_file,
+        path = input.path,
         old_str = original_code,
         new_str = jsn.choices[1].message.content,
       }
