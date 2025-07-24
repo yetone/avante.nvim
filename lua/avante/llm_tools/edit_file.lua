@@ -157,7 +157,7 @@ M.func = vim.schedule_wrap(function(input, opts)
         }
 
         local curl_cmd_str = table.concat(curl_cmd, " ")
-        local error_hint = curl_error_map[result.code] or "curl exited with code " .. result.code
+        local error_hint = curl_error_map[result.code] or ("curl exited with code " .. result.code)
         local full_error = "curl command failed: "
           .. error_hint
           .. "\n"
