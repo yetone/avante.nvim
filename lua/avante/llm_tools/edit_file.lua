@@ -19,8 +19,8 @@ M.param = {
   type = "table",
   fields = {
     {
-      name = "target_file",
-      description = "The target file to modify.",
+      name = "path",
+      description = "The target file path to modify.",
       type = "string",
     },
     {
@@ -51,7 +51,7 @@ M.returns = {
   },
 }
 
----@type AvanteLLMToolFunc<{ target_file: string, instructions: string, code_edit: string }>
+---@type AvanteLLMToolFunc<{ path: string, instructions: string, code_edit: string }>
 M.func = vim.schedule_wrap(function(input, opts)
   local on_complete = opts.on_complete
   if not on_complete then return false, "on_complete not provided" end
@@ -59,11 +59,11 @@ M.func = vim.schedule_wrap(function(input, opts)
   if not provider then return false, "morph provider not found" end
   if not provider.is_env_set() then return false, "morph provider not set" end
 
-  if not input.target_file then return false, "target_file not provided" end
+  if not input.path then return false, "path not provided" end
 
-  local ok, lines = pcall(Utils.read_file_from_buf_or_disk, input.target_file)
+  local ok, lines = pcall(Utils.read_file_from_buf_or_disk, input.path)
   if not ok then
-    local f = io.open(input.target_file, "r")
+    local f = io.open(input.path, "r")
     if f then
       local original_code = f:read("*all")
       f:close()
@@ -165,7 +165,7 @@ M.func = vim.schedule_wrap(function(input, opts)
 
       local str_replace = require("avante.llm_tools.str_replace")
       local new_input = {
-        path = input.target_file,
+        path = input.path,
         old_str = original_code,
         new_str = jsn.choices[1].message.content,
       }
