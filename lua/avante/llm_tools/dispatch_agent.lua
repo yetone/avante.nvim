@@ -131,7 +131,7 @@ function M.on_render(input, opts)
             summary = string.format("View %s: failed", path)
           else
             local ok, result = pcall(vim.json.decode, tool_result.content)
-            if ok then
+            if ok and type(result) == "table" and type(result.content) == "string" then
               local lines = vim.split(result.content, "\n")
               summary = string.format("View %s: %d lines", path, #lines)
             end
