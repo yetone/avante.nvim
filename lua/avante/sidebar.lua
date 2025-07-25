@@ -31,7 +31,7 @@ local INPUT_HINT_NAMESPACE = api.nvim_create_namespace("AVANTE_INPUT_HINT")
 local STATE_NAMESPACE = api.nvim_create_namespace("AVANTE_STATE")
 local RESULT_BUF_HL_NAMESPACE = api.nvim_create_namespace("AVANTE_RESULT_BUF_HL")
 
-local PRIORITY = (vim.hl or vim.highlight).priorities.user
+local PRIORITY = vim.hl.priorities.user
 
 local RESP_SEPARATOR = "-------"
 
