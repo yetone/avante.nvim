@@ -408,11 +408,14 @@ function M.parse(text, parser_state)
       local tool_use_result = parse_tool_use(text, i)
       if tool_use_result then
         table.insert(result, tool_use_result.content)
-        -- Add to tool buffer for state tracking
-        if tool_use_result.content.type == "tool_use" then
+        -- Add to tool buffer for state tracking (only non-partial tools)
+        if tool_use_result.content.type == "tool_use" and not tool_use_result.content.partial then
           table.insert(parser_state.tool_buffer, tool_use_result.content)
-          Utils.debug(string.format("ReAct Parser: Found tool use - name: %s, partial: %s", 
-            tool_use_result.content.tool_name, tostring(tool_use_result.content.partial)))
+          Utils.debug(string.format("ReAct Parser: Found complete tool use - name: %s", 
+            tool_use_result.content.tool_name))
+        elseif tool_use_result.content.type == "tool_use" and tool_use_result.content.partial then
+          Utils.debug(string.format("ReAct Parser: Found partial tool use - name: %s, not adding to buffer", 
+            tool_use_result.content.tool_name))
         end
         i = tool_use_result.next_pos
       else
@@ -443,14 +446,16 @@ function M.parse(text, parser_state)
   
   -- Determine completion phase based on parsing results
   local has_partial_tools = false
-  for _, tool in ipairs(parser_state.tool_buffer) do
-    if tool.partial then
+  for _, item in ipairs(result) do
+    if item.type == "tool_use" and item.partial then
       has_partial_tools = true
       break
     end
   end
   
-  if not has_partial_tools and len > 0 then
+  if has_partial_tools then
+    parser_state.completion_phase = "parsing"
+  elseif #parser_state.tool_buffer > 0 or (#result > 0 and not has_partial_tools) then
     parser_state.completion_phase = "complete"
   elseif parser_state.completion_phase == "complete" then
     parser_state.completion_phase = "processed"
