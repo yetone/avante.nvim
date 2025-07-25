@@ -331,6 +331,17 @@ function M:add_text_message(ctx, text, state, opts)
   if has_tool_use and state == "generating" then opts.on_stop({ reason = "tool_use", streaming_tool_use = true }) end
 end
 
+-- Consolidated callback trigger to prevent duplicate tool_use callbacks
+function M:trigger_tool_use_callback_once(ctx, opts)
+  if not ctx.callback_sent then
+    ctx.callback_sent = true
+    Utils.debug("OpenAI Provider: Triggering tool_use callback (consolidated)")
+    opts.on_stop({ reason = "tool_use" })
+  else
+    Utils.debug("OpenAI Provider: Skipping duplicate tool_use callback")
+  end
+end
+
 function M:add_thinking_message(ctx, text, state, opts)
   if ctx.reasonging_content == nil then ctx.reasonging_content = "" end
   ctx.reasonging_content = ctx.reasonging_content .. text
@@ -362,7 +373,10 @@ function M:add_tool_use_message(ctx, tool_use, state, opts)
   tool_use.uuid = msg.uuid
   tool_use.state = state
   if opts.on_messages_add then opts.on_messages_add({ msg }) end
-  if state == "generating" then opts.on_stop({ reason = "tool_use", streaming_tool_use = true }) end
+  if state == "generating" then 
+    Utils.debug("OpenAI Provider: Tool use message in generating state - triggering streaming callback")
+    opts.on_stop({ reason = "tool_use", streaming_tool_use = true }) 
+  end
 end
 
 ---@param usage avante.OpenAITokenUsage | nil
@@ -473,17 +487,17 @@ function M:parse_response(ctx, data_stream, _, opts)
   if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" or choice.finish_reason == "length" then
     self:finish_pending_messages(ctx, opts)
     if ctx.tool_use_list and #ctx.tool_use_list > 0 then
-      opts.on_stop({ reason = "tool_use", usage = self.transform_openai_usage(jsn.usage) })
+      Utils.debug("OpenAI Provider: Stream completed with tools - using consolidated callback")
+      self:trigger_tool_use_callback_once(ctx, opts)
     else
+      Utils.debug("OpenAI Provider: Stream completed without tools")
       opts.on_stop({ reason = "complete", usage = self.transform_openai_usage(jsn.usage) })
     end
   end
   if choice.finish_reason == "tool_calls" then
     self:finish_pending_messages(ctx, opts)
-    opts.on_stop({
-      reason = "tool_use",
-      usage = self.transform_openai_usage(jsn.usage),
-    })
+    Utils.debug("OpenAI Provider: Stream finished with tool_calls - using consolidated callback")
+    self:trigger_tool_use_callback_once(ctx, opts)
   end
 end
 

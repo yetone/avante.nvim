@@ -18,6 +18,107 @@ local M = {}
 
 M.CANCEL_PATTERN = "AvanteLLMEscape"
 
+-- Callback deduplication state management
+---@class AvanteCallbackState
+---@field completion_id string
+---@field tool_use_detected boolean
+---@field callback_triggered table<string, boolean>
+---@field streaming_active boolean
+---@field tool_processing_phase "none" | "streaming" | "processing" | "complete"
+---@field creation_time number
+
+-- Global callback state store
+local callback_states = {} -- completion_id -> AvanteCallbackState
+
+-- Create new callback state for completion cycle
+---@param completion_id string
+---@return AvanteCallbackState
+local function create_callback_state(completion_id)
+  local state = {
+    completion_id = completion_id,
+    tool_use_detected = false,
+    callback_triggered = {},
+    streaming_active = false,
+    tool_processing_phase = "none",
+    creation_time = vim.loop.hrtime(),
+  }
+  callback_states[completion_id] = state
+  Utils.debug(string.format("Created callback state for completion: %s", completion_id))
+  return state
+end
+
+-- Get or create callback state
+---@param completion_id string
+---@return AvanteCallbackState
+local function get_callback_state(completion_id)
+  if not callback_states[completion_id] then
+    return create_callback_state(completion_id)
+  end
+  return callback_states[completion_id]
+end
+
+-- Clean up old callback states (older than 5 minutes)
+local function cleanup_callback_states()
+  local current_time = vim.loop.hrtime()
+  local timeout = 5 * 60 * 1000000000 -- 5 minutes in nanoseconds
+  
+  for completion_id, state in pairs(callback_states) do
+    if current_time - state.creation_time > timeout then
+      Utils.debug(string.format("Cleaning up stale callback state: %s", completion_id))
+      callback_states[completion_id] = nil
+    end
+  end
+end
+
+-- Safe callback wrapper with deduplication logic
+---@param completion_id string
+---@param reason string
+---@param original_callback function
+---@param stop_opts table
+---@return boolean true if callback was executed, false if deduplicated
+local function safe_on_stop(completion_id, reason, original_callback, stop_opts)
+  local state = get_callback_state(completion_id)
+  local callback_key = reason .. "_" .. tostring(stop_opts.streaming_tool_use or false)
+  
+  -- Check if this exact callback has already been triggered
+  if state.callback_triggered[callback_key] then
+    Utils.debug(string.format("Deduplicating callback - completion_id: %s, reason: %s, key: %s", 
+      completion_id, reason, callback_key))
+    return false
+  end
+  
+  -- Mark callback as triggered before execution to prevent race conditions
+  state.callback_triggered[callback_key] = true
+  
+  -- Update tool processing phase
+  if reason == "tool_use" then
+    state.tool_use_detected = true
+    state.tool_processing_phase = stop_opts.streaming_tool_use and "streaming" or "processing"
+  elseif reason == "complete" then
+    state.tool_processing_phase = "complete"
+  end
+  
+  Utils.debug(string.format("Executing callback - completion_id: %s, reason: %s, phase: %s", 
+    completion_id, reason, state.tool_processing_phase))
+  
+  -- Execute original callback with error handling
+  local success, error_msg = pcall(original_callback, stop_opts)
+  if not success then
+    Utils.error(string.format("Callback execution failed - completion_id: %s, reason: %s, error: %s", 
+      completion_id, reason, error_msg))
+    -- Reset the callback trigger state on error to allow retry
+    state.callback_triggered[callback_key] = nil
+    return false
+  end
+  
+  -- Clean up old states periodically
+  if math.random() < 0.1 then -- 10% chance
+    cleanup_callback_states()
+  end
+  
+  return true
+end
+
 ------------------------------Prompt and type------------------------------
 
 local group = api.nvim_create_augroup("avante_llm", { clear = true })
@@ -763,7 +864,20 @@ function M._stream(opts)
     on_start = opts.on_start,
     on_chunk = opts.on_chunk,
     on_stop = function(stop_opts)
-      if stop_opts.usage and opts.update_tokens_usage then opts.update_tokens_usage(stop_opts.usage) end
+      -- Generate completion_id if not exists
+      if not opts.session_ctx.completion_id then
+        opts.session_ctx.completion_id = vim.fn.localtime() .. "_" .. math.random(1000, 9999)
+      end
+      local completion_id = opts.session_ctx.completion_id
+      
+      -- Use safe callback wrapper for deduplication
+      local original_callback = opts.on_stop
+      local executed = safe_on_stop(completion_id, stop_opts.reason, function(stop_opts_inner)
+        -- Enhanced debug logging for callback tracking
+        Utils.debug(string.format("LLM Callback triggered - completion_id: %s, reason: %s, streaming_tool_use: %s", 
+          completion_id, stop_opts_inner.reason or "none", tostring(stop_opts_inner.streaming_tool_use or false)))
+        
+        if stop_opts_inner.usage and opts.update_tokens_usage then opts.update_tokens_usage(stop_opts_inner.usage) end
 
       ---@param tool_uses AvantePartialLLMToolUse[]
       ---@param tool_use_index integer
@@ -871,6 +985,7 @@ function M._stream(opts)
         if result ~= nil or error ~= nil then return handle_tool_result(result, error) end
       end
       if stop_opts.reason == "cancelled" then
+        Utils.debug(string.format("Processing cancellation callback - completion_id: %s", completion_id))
         local cancelled_text = "\n*[Request cancelled by user.]*\n"
         if opts.on_chunk then opts.on_chunk(cancelled_text) end
         if opts.on_messages_add then
@@ -946,6 +1061,8 @@ function M._stream(opts)
         end
       end
       if stop_opts.reason == "tool_use" then
+        Utils.debug(string.format("Processing tool_use callback - completion_id: %s, pending_tools: %d, streaming: %s", 
+          completion_id, #pending_tools, tostring(stop_opts.streaming_tool_use or false)))
         opts.session_ctx.user_reminder_count = 0
         return handle_next_tool_use(pending_tools, pending_tool_use_messages, 1, {}, stop_opts.streaming_tool_use)
       end
@@ -992,7 +1109,13 @@ function M._stream(opts)
         end
         return
       end
-      return opts.on_stop(stop_opts)
+        return original_callback(stop_opts_inner)
+      end, stop_opts)
+      
+      -- If callback was deduplicated, don't continue
+      if not executed then
+        return
+      end
     end,
   }
 

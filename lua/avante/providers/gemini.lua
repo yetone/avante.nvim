@@ -1,7 +1,8 @@
 local Utils = require("avante.utils")
 local Providers = require("avante.providers")
 local Clipboard = require("avante.clipboard")
-local OpenAI = require("avante.providers").openai
+local HistoryMessage = require("avante.history.message")
+local JsonParser = require("avante.libs.jsonparser")
 local Prompts = require("avante.utils.prompts")
 
 ---@class AvanteProviderFunctor
@@ -265,29 +266,40 @@ function M:parse_response(ctx, data_stream, _, opts)
             input_json = vim.json.encode(part.functionCall.args),
           }
           table.insert(ctx.tool_use_list, tool_use)
-          OpenAI:add_tool_use_message(ctx, tool_use, "generated", opts)
+          self:add_tool_use_message(ctx, tool_use, "generated", opts)
         end
       end
     end
 
     -- Check for finishReason to determine if this candidate's stream is done.
     if candidate.finishReason then
-      OpenAI:finish_pending_messages(ctx, opts)
+      self:finish_pending_messages(ctx, opts)
       local reason_str = candidate.finishReason
       local stop_details = { finish_reason = reason_str }
       stop_details.usage = M.transform_gemini_usage(jsn.usageMetadata)
 
       if reason_str == "TOOL_CODE" then
-        -- Model indicates a tool-related stop.
-        -- The tool_use list is added to the table in llm.lua
-        opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
-      elseif reason_str == "STOP" then
-        if ctx.tool_use_list and #ctx.tool_use_list > 0 then
-          -- Natural stop, but tools were found in this final chunk.
+        -- Model indicates a tool-related stop - use callback deduplication
+        Utils.debug("Gemini Provider: TOOL_CODE finish reason - checking callback state")
+        if not ctx.callback_sent then
+          ctx.callback_sent = true
           opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
         else
+          Utils.debug("Gemini Provider: Skipping duplicate TOOL_CODE callback")
+        end
+      elseif reason_str == "STOP" then
+        if ctx.tool_use_list and #ctx.tool_use_list > 0 then
+          -- Natural stop, but tools were found - use callback deduplication
+          Utils.debug("Gemini Provider: STOP with tools - checking callback state")
+          if not ctx.callback_sent then
+            ctx.callback_sent = true
+            opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+          else
+            Utils.debug("Gemini Provider: Skipping duplicate STOP with tools callback")
+          end
+        else
           -- Natural stop, no tools in this final chunk.
-          -- llm.lua will check its accumulated tools if tool_choice was active.
+          Utils.debug("Gemini Provider: STOP without tools")
           opts.on_stop(vim.tbl_deep_extend("force", { reason = "complete" }, stop_details))
         end
       elseif reason_str == "MAX_TOKENS" then
@@ -311,6 +323,61 @@ function M:parse_response(ctx, data_stream, _, opts)
       end
     end
     -- If no finishReason, it's an intermediate chunk; do not call on_stop.
+  end
+end
+
+-- Native Gemini tool use message handling (replaces OpenAI dependency)
+function M:add_tool_use_message(ctx, tool_use, state, opts)
+  local jsn = JsonParser.parse(tool_use.input_json)
+  local msg = HistoryMessage:new("assistant", {
+    type = "tool_use",
+    name = tool_use.name,
+    id = tool_use.id,
+    input = jsn or {},
+  }, {
+    state = state,
+    uuid = tool_use.uuid,
+    turn_id = ctx.turn_id,
+  })
+  tool_use.uuid = msg.uuid
+  tool_use.state = state
+  if opts.on_messages_add then opts.on_messages_add({ msg }) end
+  
+  -- Direct callback triggering with proper callback_sent flag management
+  if not ctx.callback_sent then
+    ctx.callback_sent = true
+    Utils.debug("Gemini Provider: Triggering tool_use callback")
+    opts.on_stop({ reason = "tool_use" })
+  else
+    Utils.debug("Gemini Provider: Skipping duplicate tool_use callback")
+  end
+end
+
+-- Native Gemini finish pending messages (replaces OpenAI dependency)
+function M:finish_pending_messages(ctx, opts)
+  if ctx.content and ctx.content ~= "" then
+    local msg = HistoryMessage:new("assistant", ctx.content, {
+      state = "generated",
+      uuid = ctx.content_uuid,
+      turn_id = ctx.turn_id,
+    })
+    ctx.content_uuid = msg.uuid
+    if opts.on_messages_add then opts.on_messages_add({ msg }) end
+    ctx.content = ""
+  end
+  if ctx.reasonging_content and ctx.reasonging_content ~= "" then
+    local msg = HistoryMessage:new("assistant", {
+      type = "thinking",
+      thinking = ctx.reasonging_content,
+      signature = "",
+    }, {
+      state = "generated",
+      uuid = ctx.reasonging_content_uuid,
+      turn_id = ctx.turn_id,
+    })
+    ctx.reasonging_content_uuid = msg.uuid
+    if opts.on_messages_add then opts.on_messages_add({ msg }) end
+    ctx.reasonging_content = ""
   end
 end
 

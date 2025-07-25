@@ -9,7 +9,14 @@
 ---@field tool_input table
 ---@field partial boolean
 
+---@class avante.ReActParserState
+---@field completion_phase "parsing" | "complete" | "processed"
+---@field tool_buffer avante.ToolUseContent[]
+---@field last_processed_position integer
+---@field total_content_length integer
+
 local M = {}
+local Utils = require("avante.utils")
 
 -- Helper function to parse a parameter tag like <param_name>value</param_name>
 -- Returns {name = string, value = string, next_pos = number} or nil if incomplete
@@ -345,12 +352,33 @@ end
 --- }
 ---
 ---@param text string
----@return (avante.TextContent|avante.ToolUseContent)[]
-function M.parse(text)
+---@param parser_state? avante.ReActParserState
+---@return (avante.TextContent|avante.ToolUseContent)[], avante.ReActParserState
+function M.parse(text, parser_state)
+  -- Initialize or use existing parser state
+  parser_state = parser_state or {
+    completion_phase = "parsing",
+    tool_buffer = {},
+    last_processed_position = 1,
+    total_content_length = 0,
+  }
+  
   local result = {}
   local current_text = ""
-  local i = 1
   local len = #text
+  
+  -- Only process new content since last position for incremental parsing
+  local start_pos = parser_state.last_processed_position
+  if start_pos > len then
+    Utils.debug(string.format("ReAct Parser: No new content to process. Position: %d, Length: %d", start_pos, len))
+    parser_state.completion_phase = parser_state.completion_phase == "parsing" and "complete" or parser_state.completion_phase
+    return result, parser_state
+  end
+  
+  Utils.debug(string.format("ReAct Parser: Processing content from position %d to %d, phase: %s", 
+    start_pos, len, parser_state.completion_phase))
+  
+  local i = start_pos
 
   -- Helper function to add text content to result
   local function add_text_content()
@@ -380,9 +408,16 @@ function M.parse(text)
       local tool_use_result = parse_tool_use(text, i)
       if tool_use_result then
         table.insert(result, tool_use_result.content)
+        -- Add to tool buffer for state tracking
+        if tool_use_result.content.type == "tool_use" then
+          table.insert(parser_state.tool_buffer, tool_use_result.content)
+          Utils.debug(string.format("ReAct Parser: Found tool use - name: %s, partial: %s", 
+            tool_use_result.content.tool_name, tostring(tool_use_result.content.partial)))
+        end
         i = tool_use_result.next_pos
       else
         -- Incomplete tool_use, break
+        Utils.debug("ReAct Parser: Incomplete tool use detected, marking as partial")
         break
       end
     else
@@ -402,7 +437,29 @@ function M.parse(text)
   -- Add any remaining text
   add_text_content()
 
-  return result
+  -- Update parser state
+  parser_state.last_processed_position = len + 1
+  parser_state.total_content_length = len
+  
+  -- Determine completion phase based on parsing results
+  local has_partial_tools = false
+  for _, tool in ipairs(parser_state.tool_buffer) do
+    if tool.partial then
+      has_partial_tools = true
+      break
+    end
+  end
+  
+  if not has_partial_tools and len > 0 then
+    parser_state.completion_phase = "complete"
+  elseif parser_state.completion_phase == "complete" then
+    parser_state.completion_phase = "processed"
+  end
+  
+  Utils.debug(string.format("ReAct Parser: Completed parsing - phase: %s, tools_found: %d, has_partial: %s", 
+    parser_state.completion_phase, #parser_state.tool_buffer, tostring(has_partial_tools)))
+
+  return result, parser_state
 end
 
 return M
