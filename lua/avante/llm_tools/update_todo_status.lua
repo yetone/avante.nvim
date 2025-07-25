@@ -50,7 +50,7 @@ function M.func(input, opts)
   local todos = sidebar.chat_history.todos
   if not todos or #todos == 0 then return false, "No todos found" end
   for _, todo in ipairs(todos) do
-    if todo.id == input.id then
+    if tostring(todo.id) == tostring(input.id) then
       todo.status = input.status
       break
     end
