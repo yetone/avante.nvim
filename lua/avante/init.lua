@@ -75,7 +75,7 @@ function H.keymaps()
   vim.keymap.set("n", "<Plug>(AvanteBuild)", function() require("avante.api").build() end, { noremap = true })
   vim.keymap.set("n", "<Plug>(AvanteToggle)", function() M.toggle() end, { noremap = true })
   vim.keymap.set("n", "<Plug>(AvanteToggleDebug)", function() M.toggle.debug() end)
-  vim.keymap.set("n", "<Plug>(AvanteToggleHint)", function() M.toggle.hint() end)
+  vim.keymap.set("n", "<Plug>(AvanteToggleSelection)", function() M.toggle.selection() end)
   vim.keymap.set("n", "<Plug>(AvanteToggleSuggestion)", function() M.toggle.suggestion() end)
 
   vim.keymap.set({ "n", "v" }, "<Plug>(AvanteConflictOurs)", function() Diff.choose("ours") end)
@@ -134,9 +134,9 @@ function H.keymaps()
     )
     Utils.safe_keymap_set(
       "n",
-      Config.mappings.toggle.hint,
+      Config.mappings.toggle.selection,
       function() M.toggle.hint() end,
-      { desc = "avante: toggle hint" }
+      { desc = "avante: toggle selection" }
     )
     Utils.safe_keymap_set(
       "n",
@@ -230,7 +230,7 @@ function H.autocmds()
     callback = function(ev)
       local tab = tonumber(ev.file)
       M._init(tab or api.nvim_get_current_tabpage())
-      if Config.hints.enabled and not M.current.selection.did_setup then M.current.selection:setup_autocmds() end
+      if Config.selection.enabled and not M.current.selection.did_setup then M.current.selection:setup_autocmds() end
     end,
   })
 
@@ -287,7 +287,7 @@ function H.autocmds()
 
   vim.schedule(function()
     M._init(api.nvim_get_current_tabpage())
-    if Config.hints.enabled then M.current.selection:setup_autocmds() end
+    if Config.selection.enabled then M.current.selection:setup_autocmds() end
   end)
 
   local function setup_colors()
@@ -405,10 +405,10 @@ M.toggle.debug = H.api(Utils.toggle_wrap({
   set = function(state) Config.override({ debug = state }) end,
 }))
 
-M.toggle.hint = H.api(Utils.toggle_wrap({
-  name = "hint",
-  get = function() return Config.hints.enabled end,
-  set = function(state) Config.override({ hints = { enabled = state } }) end,
+M.toggle.selection = H.api(Utils.toggle_wrap({
+  name = "selection",
+  get = function() return Config.selection.enabled end,
+  set = function(state) Config.override({ selection = { enabled = state } }) end,
 }))
 
 M.toggle.suggestion = H.api(Utils.toggle_wrap({

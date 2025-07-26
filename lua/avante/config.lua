@@ -528,7 +528,7 @@ M._defaults = {
     toggle = {
       default = "<leader>at",
       debug = "<leader>ad",
-      hint = "<leader>ah",
+      selection = "<leader>aC",
       suggestion = "<leader>as",
       repomap = "<leader>aR",
     },
@@ -645,9 +645,14 @@ M._defaults = {
     --- Disable by setting to -1.
     override_timeoutlen = 500,
   },
-  --- @class AvanteHintsConfig
-  hints = {
+  --- Allows selecting code or other data in a buffer and ask LLM questions about it or
+  --- to perform edits/transformations.
+  --- @class AvanteSelectionConfig
+  --- @field enabled boolean
+  --- @field hint_display "delayed" | "immediate" | "none" When to show key map hints.
+  selection = {
     enabled = true,
+    hint_display = "delayed",
   },
   --- @class AvanteRepoMapConfig
   repo_map = {

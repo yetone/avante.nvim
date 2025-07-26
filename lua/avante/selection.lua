@@ -19,6 +19,7 @@ local PRIORITY = (vim.hl or vim.highlight).priorities.user
 ---@field selection avante.SelectionResult | nil
 ---@field cursor_pos table | nil
 ---@field shortcuts_extmark_id integer | nil
+---@field shortcuts_hint_timer? uv.uv_timer_t
 ---@field selected_code_extmark_id integer | nil
 ---@field augroup integer | nil
 ---@field visual_mode_augroup integer | nil
@@ -308,16 +309,34 @@ end
 ---Show the hints virtual line and set up autocommands to update it or stop showing it when exiting visual mode
 ---@param bufnr integer
 function Selection:on_entering_visual_mode(bufnr)
+  if Config.selection.hint_display == "none" then return end
   if vim.bo[bufnr].buftype == "terminal" or Utils.is_sidebar_buffer(bufnr) then return end
 
   self:show_shortcuts_hints_popup()
 
   self.visual_mode_augroup = api.nvim_create_augroup("avante_selection_visual_" .. self.id, { clear = true })
-  api.nvim_create_autocmd({ "CursorMoved" }, {
-    group = self.visual_mode_augroup,
-    buffer = bufnr,
-    callback = function() self:show_shortcuts_hints_popup() end,
-  })
+  if Config.selection.hint_display == "delayed" then
+    local deferred_show_shortcut_hints_popup = Utils.debounce(function()
+      self:show_shortcuts_hints_popup()
+      self.shortcuts_hint_timer = nil
+    end, vim.o.updatetime)
+
+    api.nvim_create_autocmd({ "CursorMoved" }, {
+      group = self.visual_mode_augroup,
+      buffer = bufnr,
+      callback = function()
+        self:close_shortcuts_hints_popup()
+        self.shortcuts_hint_timer = deferred_show_shortcut_hints_popup()
+      end,
+    })
+  else
+    self:show_shortcuts_hints_popup()
+    api.nvim_create_autocmd({ "CursorMoved" }, {
+      group = self.visual_mode_augroup,
+      buffer = bufnr,
+      callback = function() self:show_shortcuts_hints_popup() end,
+    })
+  end
   api.nvim_create_autocmd({ "ModeChanged" }, {
     group = self.visual_mode_augroup,
     buffer = bufnr,
@@ -336,6 +355,12 @@ end
 
 function Selection:on_exiting_visual_mode()
   self:close_shortcuts_hints_popup()
+
+  if self.shortcuts_hint_timer then
+    self.shortcuts_hint_timer:stop()
+    self.shortcuts_hint_timer:close()
+    self.shortcuts_hint_timer = nil
+  end
 
   api.nvim_del_augroup_by_id(self.visual_mode_augroup)
   self.visual_mode_augroup = nil
