@@ -3147,6 +3147,10 @@ function Sidebar:create_todos_container()
   local total_count = #history.todos
   local focused_idx = 1
   local todos_content_lines = {}
+  if type(history.todos) ~= "table" then
+    Utils.debug("Invalid todos type", history.todos)
+    history.todos = {}
+  end
   for idx, todo in ipairs(history.todos) do
     local status_content = "[ ]"
     if todo.status == "done" then
@@ -3163,7 +3167,7 @@ function Sidebar:create_todos_container()
   local todos_buf = api.nvim_win_get_buf(self.containers.todos.winid)
   Utils.unlock_buf(todos_buf)
   api.nvim_buf_set_lines(todos_buf, 0, -1, false, todos_content_lines)
-  api.nvim_win_set_cursor(self.containers.todos.winid, { focused_idx, 0 })
+  pcall(function() api.nvim_win_set_cursor(self.containers.todos.winid, { focused_idx, 0 }) end)
   Utils.lock_buf(todos_buf)
   self:render_header(
     self.containers.todos.winid,
