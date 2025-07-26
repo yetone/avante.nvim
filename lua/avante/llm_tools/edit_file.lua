@@ -53,6 +53,10 @@ M.returns = {
 
 ---@type AvanteLLMToolFunc<{ path: string, instructions: string, code_edit: string }>
 M.func = vim.schedule_wrap(function(input, opts)
+  if opts.streaming then return false, "streaming not supported" end
+  if not input.path then return false, "path not provided" end
+  if not input.instructions then input.instructions = "" end
+  if not input.code_edit then return false, "code_edit not provided" end
   local on_complete = opts.on_complete
   if not on_complete then return false, "on_complete not provided" end
   local provider = Providers["morph"]

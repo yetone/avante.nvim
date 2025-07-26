@@ -934,41 +934,25 @@ function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl)
   if not Config.windows.sidebar_header.enabled then return end
   if not bufnr or not api.nvim_buf_is_valid(bufnr) then return end
 
-  local is_result_win = self.containers.result and self.containers.result.winid == winid
-  local separator_char = is_result_win and " " or "-"
-  local win_width = vim.api.nvim_win_get_width(winid)
-
-  if not Config.windows.sidebar_header.rounded then header_text = " " .. header_text .. " " end
-  local padding = math.floor((win_width - #header_text) / 2)
-  if Config.windows.sidebar_header.align ~= "center" then padding = win_width - #header_text end
-
-  local winbar_text = "%#" .. Highlights.AVANTE_SIDEBAR_WIN_HORIZONTAL_SEPARATOR .. "#"
-
-  if Config.windows.sidebar_header.align ~= "left" then
-    if not Config.windows.sidebar_header.rounded then winbar_text = winbar_text .. " " end
-    winbar_text = winbar_text .. string.rep(separator_char, padding)
-  end
-
-  -- if Config.windows.sidebar_header.align == "center" then
-  --   winbar_text = winbar_text .. "%="
-  -- elseif Config.windows.sidebar_header.align == "right" then
-  --   winbar_text = winbar_text .. "%="
-  -- end
+  local function format_segment(text, highlight) return "%#" .. highlight .. "#" .. text end
 
   if Config.windows.sidebar_header.rounded then
-    winbar_text = winbar_text .. "%#" .. reverse_hl .. "#" .. Utils.icon("", "『") .. "%#" .. hl .. "#"
+    header_text = format_segment(Utils.icon("", "『"), reverse_hl)
+      .. format_segment(header_text, hl)
+      .. format_segment(Utils.icon("", "』"), reverse_hl)
   else
-    winbar_text = winbar_text .. "%#" .. hl .. "#"
+    header_text = format_segment(" " .. header_text .. " ", hl)
   end
-  winbar_text = winbar_text .. header_text
-  if Config.windows.sidebar_header.rounded then
-    winbar_text = winbar_text .. "%#" .. reverse_hl .. "#" .. Utils.icon("", "』")
-  end
-  -- if Config.windows.sidebar_header.align == "center" then winbar_text = winbar_text .. "%=" end
 
-  winbar_text = winbar_text .. "%#" .. Highlights.AVANTE_SIDEBAR_WIN_HORIZONTAL_SEPARATOR .. "#"
-  if Config.windows.sidebar_header.align ~= "right" then
-    winbar_text = winbar_text .. string.rep(separator_char, padding)
+  local winbar_text
+  if Config.windows.sidebar_header.align == "left" then
+    winbar_text = header_text .. "%=" .. format_segment("", Highlights.AVANTE_SIDEBAR_WIN_HORIZONTAL_SEPARATOR)
+  elseif Config.windows.sidebar_header.align == "center" then
+    winbar_text = format_segment("%=", Highlights.AVANTE_SIDEBAR_WIN_HORIZONTAL_SEPARATOR)
+      .. header_text
+      .. format_segment("%=", Highlights.AVANTE_SIDEBAR_WIN_HORIZONTAL_SEPARATOR)
+  elseif Config.windows.sidebar_header.align == "right" then
+    winbar_text = format_segment("%=", Highlights.AVANTE_SIDEBAR_WIN_HORIZONTAL_SEPARATOR) .. header_text
   end
 
   api.nvim_set_option_value("winbar", winbar_text, { win = winid })
@@ -3147,6 +3131,10 @@ function Sidebar:create_todos_container()
   local total_count = #history.todos
   local focused_idx = 1
   local todos_content_lines = {}
+  if type(history.todos) ~= "table" then
+    Utils.debug("Invalid todos type", history.todos)
+    history.todos = {}
+  end
   for idx, todo in ipairs(history.todos) do
     local status_content = "[ ]"
     if todo.status == "done" then
@@ -3163,7 +3151,7 @@ function Sidebar:create_todos_container()
   local todos_buf = api.nvim_win_get_buf(self.containers.todos.winid)
   Utils.unlock_buf(todos_buf)
   api.nvim_buf_set_lines(todos_buf, 0, -1, false, todos_content_lines)
-  api.nvim_win_set_cursor(self.containers.todos.winid, { focused_idx, 0 })
+  pcall(function() api.nvim_win_set_cursor(self.containers.todos.winid, { focused_idx, 0 }) end)
   Utils.lock_buf(todos_buf)
   self:render_header(
     self.containers.todos.winid,

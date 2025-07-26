@@ -1579,11 +1579,11 @@ end
 
 ---@param tool_use AvanteLLMToolUse
 function M.tool_use_to_xml(tool_use)
-  local xml = string.format("<tool_use>\n<%s>\n", tool_use.name)
-  for k, v in pairs(tool_use.input or {}) do
-    xml = xml .. string.format("<%s>%s</%s>\n", k, tostring(v), k)
-  end
-  xml = xml .. "</" .. tool_use.name .. ">\n</tool_use>"
+  local tool_use_json = vim.json.encode({
+    name = tool_use.name,
+    input = tool_use.input,
+  })
+  local xml = string.format("<tool_use>%s</tool_use>", tool_use_json)
   return xml
 end
 
