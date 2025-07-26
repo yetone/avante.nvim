@@ -173,80 +173,15 @@ function M.on_error(result)
   Utils.error(error_msg, { once = true, title = "Avante" })
 end
 
---- Run a command and capture its output
----@param cmd string The command to run
----@param args table The command arguments
----@return string output The command output
----@return number exit_code The command exit code
-local function run_command(cmd, args)
-  local stdout = vim.loop.new_pipe(false)
-  local stderr = vim.loop.new_pipe(false)
-  local output = ""
-  local error_output = ""
-  local exit_code = -1
-
-  local handle
-  handle = vim.loop.spawn(cmd, {
-    args = args,
-    stdio = { nil, stdout, stderr },
-  }, function(code)
-    -- Safely close all handles
-    if stdout then
-      stdout:read_stop()
-      stdout:close()
-    end
-    if stderr then
-      stderr:read_stop()
-      stderr:close()
-    end
-    if handle then handle:close() end
-    exit_code = code
-  end)
-
-  if not handle then
-    -- Clean up if spawn failed
-    if stdout then stdout:close() end
-    if stderr then stderr:close() end
-    return "", -1
-  end
-
-  if stdout then
-    stdout:read_start(function(err, data)
-      if err then
-        Utils.error("Error reading stdout: " .. err)
-        return
-      end
-      if data then output = output .. data end
-    end)
-  end
-
-  if stderr then
-    stderr:read_start(function(err, data)
-      if err then
-        Utils.error("Error reading stderr: " .. err)
-        return
-      end
-      if data then error_output = error_output .. data end
-    end)
-  end
-
-  -- Wait for the command to complete
-  vim.wait(10000, function() return exit_code ~= -1 end)
-
-  -- If we timed out, clean up
-  if exit_code == -1 then
-    if stdout then
-      stdout:read_stop()
-      stdout:close()
-    end
-    if stderr then
-      stderr:read_stop()
-      stderr:close()
-    end
-    if handle then handle:close() end
-  end
-
-  return output, exit_code
+--- Run a command and capture its output. Time out after 10 seconds
+---@param ... string Command and its arguments
+---@return string stdout
+---@return integer exit code (0 for success, 124 for timeout, etc)
+local function run_command(...)
+  local args = { ... }
+  local result = vim.system(args, { text = true }):wait(10000) -- Wait up to 10 seconds
+  -- result.code will be 124 if the command times out.
+  return result.stdout, result.code
 end
 
 --- get_aws_credentials returns aws credentials using the aws cli
@@ -260,7 +195,7 @@ function M:get_aws_credentials(region, profile)
     session_token = "",
   }
 
-  local args = { "configure", "export-credentials" }
+  local args = { "aws", "configure", "export-credentials" }
 
   if profile and profile ~= "" then
     table.insert(args, "--profile")
@@ -273,8 +208,8 @@ function M:get_aws_credentials(region, profile)
   end
 
   -- run aws configure export-credentials and capture the json output
-  local start_time = vim.loop.hrtime()
-  local output, exit_code = run_command("aws", args)
+  local start_time = vim.uv.hrtime()
+  local output, exit_code = run_command(unpack(args))
 
   if exit_code == 0 then
     local credentials = vim.json.decode(output)
@@ -285,7 +220,7 @@ function M:get_aws_credentials(region, profile)
     print("Failed to run AWS command")
   end
 
-  local end_time = vim.loop.hrtime()
+  local end_time = vim.uv.hrtime()
   local duration_ms = (end_time - start_time) / 1000000
   Utils.debug(string.format("AWS credentials fetch took %.2f ms", duration_ms))
 
@@ -295,7 +230,7 @@ end
 --- check_aws_cli_installed returns true when the aws cli is installed
 --- @return boolean
 function M.check_aws_cli_installed()
-  local _, exit_code = run_command("aws", { "--version" })
+  local _, exit_code = run_command("aws", "--version")
   return exit_code == 0
 end
 
@@ -322,7 +257,7 @@ end
 --- check_curl_supports_aws_sig returns true when the installed curl version supports aws sigv4
 --- @return boolean
 function M.check_curl_supports_aws_sig()
-  local output, exit_code = run_command("curl", { "--version" })
+  local output, exit_code = run_command("curl", "--version")
   if exit_code ~= 0 then return false end
 
   -- Get first line of output which contains version info
