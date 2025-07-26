@@ -735,6 +735,14 @@ function M.trim_line_numbers(content)
   return vim.iter(content):map(function(line) return (line:gsub("^L%d+: ", "")) end):totable()
 end
 
+---Creates a debounced version of a function that delays its execution.
+---
+---The debounced function will only run after a specified `delay` has
+---passed without any new calls. It's useful for deferring actions that
+---are triggered rapidly, like processing user input.
+---@param func fun(...) The original function to debounce.
+---@param delay integer The debounce delay in milliseconds.
+---@return fun(...: any): uv.uv_timer_t
 function M.debounce(func, delay)
   local timer = nil
 
@@ -746,9 +754,7 @@ function M.debounce(func, delay)
       timer:close()
     end
 
-    timer = vim.loop.new_timer()
-    if not timer then return end
-
+    timer = assert(vim.uv.new_timer())
     timer:start(delay, 0, function()
       vim.schedule(function() func(unpack(args)) end)
       timer:close()
