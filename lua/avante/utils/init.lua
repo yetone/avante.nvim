@@ -736,6 +736,10 @@ function M.trim_line_numbers(content)
   return vim.iter(content):map(function(line) return (line:gsub("^L%d+: ", "")) end):totable()
 end
 
+---Debounce a function call
+---@param func fun(...) function to debounce
+---@param delay integer delay in milliseconds
+---@return fun(...): uv.uv_timer_t debounced function
 function M.debounce(func, delay)
   local timer = nil
 
@@ -747,35 +751,31 @@ function M.debounce(func, delay)
       timer:close()
     end
 
-    timer = vim.loop.new_timer()
-    if not timer then return end
-
-    timer:start(delay, 0, function()
-      vim.schedule(function() func(unpack(args)) end)
-      timer:close()
+    timer = vim.defer_fn(function()
+      func(unpack(args))
       timer = nil
-    end)
+    end, delay)
 
     return timer
   end
 end
 
+---Throttle a function call
+---@param func fun(...) function to throttle
+---@param delay integer delay in milliseconds
+---@return fun(...): nil throttled function
 function M.throttle(func, delay)
   local timer = nil
-  local args
 
   return function(...)
-    args = { ... }
-
     if timer then return end
 
-    timer = vim.loop.new_timer()
-    if not timer then return end
-    timer:start(delay, 0, function()
-      vim.schedule(function() func(unpack(args)) end)
-      timer:close()
+    local args = { ... }
+
+    timer = vim.defer_fn(function()
+      func(unpack(args))
       timer = nil
-    end)
+    end, delay)
   end
 end
 
