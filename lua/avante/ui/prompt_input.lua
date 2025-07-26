@@ -15,7 +15,7 @@ local Utils = require("avante.utils")
 ---@field close_on_submit boolean
 ---@field spinner_chars table
 ---@field spinner_index integer
----@field spinner_timer uv_timer_t | nil
+---@field spinner_timer uv.uv_timer_t | nil
 ---@field spinner_active boolean
 ---@field default_value string | nil
 ---@field popup_hint_id integer | nil
@@ -196,7 +196,7 @@ function PromptInput:start_spinner()
     self.spinner_timer = nil
   end
 
-  self.spinner_timer = vim.loop.new_timer()
+  self.spinner_timer = vim.uv.new_timer()
   local spinner_timer = self.spinner_timer
 
   if self.spinner_timer then

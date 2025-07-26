@@ -5,7 +5,7 @@ local Highlights = require("avante.highlights")
 local Config = require("avante.config")
 local diff2search_replace = require("avante.utils.diff2search_replace")
 
-local PRIORITY = (vim.hl or vim.highlight).priorities.user
+local PRIORITY = vim.hl.priorities.user
 local NAMESPACE = vim.api.nvim_create_namespace("avante-diff")
 local KEYBINDING_NAMESPACE = vim.api.nvim_create_namespace("avante-diff-keybinding")
 
