@@ -21,7 +21,9 @@ function M.fetch_md(url)
   local html2md_lib = M._init_html2md_lib()
   if not html2md_lib then return nil, "Failed to load avante_html2md" end
 
-  return html2md_lib.fetch_md(url)
+  local ok, res = pcall(html2md_lib.fetch_md, url)
+  if not ok then return nil, res end
+  return res, nil
 end
 
 return M
