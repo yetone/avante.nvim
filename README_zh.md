@@ -405,7 +405,10 @@ _请参见 [config.lua#L9](./lua/avante/config.lua) 以获取完整配置_
       close_from_input = nil, -- 例如，{ normal = "<Esc>", insert = "<C-d>" }
     },
   },
-  hints = { enabled = true },
+  selection = {
+    enabled = true,
+    hint_display = "delayed",
+  },
   windows = {
     ---@type "right" | "left" | "top" | "bottom"
     position = "right", -- 侧边栏的位置
