@@ -119,6 +119,8 @@ function M.open()
     if provider_cfg then provider_cfg.model = choice.model end
 
     Utils.info("Switched to model: " .. choice.name)
+    -- Persist last used provider and model
+    Config.save_last_model(choice.model, choice.provider_name)
   end
 
   local selector = Selector:new({

@@ -704,11 +704,19 @@ function M.curl(opts)
         -- Mark as completed first to prevent error handler from running
         completed = true
 
-        -- Attempt to shutdown the active job, but ignore any errors
-        xpcall(function() active_job:shutdown() end, function(err)
-          Utils.debug("Ignored error during job shutdown: " .. vim.inspect(err))
-          return err
-        end)
+        -- 检查 active_job 的状态
+        local job_is_alive = pcall(function() return active_job:is_closing() == false end)
+        
+        -- 只有当 job 仍然活跃时才尝试关闭它
+        if job_is_alive then
+          -- Attempt to shutdown the active job, but ignore any errors
+          xpcall(function() active_job:shutdown() end, function(err)
+            Utils.debug("Ignored error during job shutdown: " .. vim.inspect(err))
+            return err
+          end)
+        else
+          Utils.debug("Job already closed, skipping shutdown")
+        end
 
         Utils.debug("LLM request cancelled")
         active_job = nil
