@@ -747,14 +747,10 @@ function M.debounce(func, delay)
       timer:close()
     end
 
-    timer = vim.uv.new_timer()
-    if not timer then return end
-
-    timer:start(delay, 0, function()
-      vim.schedule(function() func(unpack(args)) end)
-      timer:close()
+    timer = vim.defer_fn(function()
+      func(unpack(args))
       timer = nil
-    end)
+    end, delay)
 
     return timer
   end
@@ -762,20 +758,16 @@ end
 
 function M.throttle(func, delay)
   local timer = nil
-  local args
 
   return function(...)
-    args = { ... }
+    local args = { ... }
 
     if timer then return end
 
-    timer = vim.uv.new_timer()
-    if not timer then return end
-    timer:start(delay, 0, function()
-      vim.schedule(function() func(unpack(args)) end)
-      timer:close()
+    timer = vim.defer_fn(function()
+      func(unpack(args))
       timer = nil
-    end)
+    end, delay)
   end
 end
 
