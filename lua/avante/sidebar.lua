@@ -927,7 +927,7 @@ local base_win_options = {
     .. ",Normal:"
     .. Highlights.AVANTE_SIDEBAR_NORMAL,
   winbar = "",
-  statusline = " ",
+  statusline = vim.o.laststatus == 0 and " " or "",
 }
 
 function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl)
