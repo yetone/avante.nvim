@@ -35,7 +35,7 @@ function M.read_content(filepath)
 end
 
 function M.exists(filepath)
-  local stat = vim.loop.fs_stat(filepath)
+  local stat = vim.uv.fs_stat(filepath)
   return stat ~= nil
 end
 
