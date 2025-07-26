@@ -8,18 +8,18 @@ describe("File", function()
 
   -- Mock vim API
   local api_mock
-  local loop_mock
+  local uv_mock
 
   before_each(function()
     -- Setup mocks
     api_mock = mock(vim.api, true)
-    loop_mock = mock(vim.loop, true)
+    uv_mock = mock(vim.uv, true)
   end)
 
   after_each(function()
     -- Clean up mocks
     mock.revert(api_mock)
-    mock.revert(loop_mock)
+    mock.revert(uv_mock)
   end)
 
   describe("read_content", function()
@@ -57,14 +57,14 @@ describe("File", function()
 
   describe("exists", function()
     it("should return true for existing file", function()
-      loop_mock.fs_stat.returns({ type = "file" })
+      uv_mock.fs_stat.returns({ type = "file" })
 
       assert.is_true(File.exists(test_file))
-      assert.stub(loop_mock.fs_stat).was_called_with(test_file)
+      assert.stub(uv_mock.fs_stat).was_called_with(test_file)
     end)
 
     it("should return false for non-existent file", function()
-      loop_mock.fs_stat.returns(nil)
+      uv_mock.fs_stat.returns(nil)
 
       assert.is_false(File.exists("nonexistent.txt"))
     end)

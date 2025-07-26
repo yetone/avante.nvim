@@ -30,7 +30,7 @@ local SUGGESTION_NS = api.nvim_create_namespace("avante_suggestion")
 ---@field augroup integer
 ---@field ignore_patterns table
 ---@field negate_patterns table
----@field _timer? uv.uv_timer_t | uv_timer_t
+---@field _timer? uv.uv_timer_t
 ---@field _contexts table
 ---@field is_on_throttle boolean
 local Suggestion = {}

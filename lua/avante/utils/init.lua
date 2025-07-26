@@ -55,9 +55,9 @@ function M.get_os_name()
 end
 
 function M.get_system_info()
-  local os_name = vim.loop.os_uname().sysname
-  local os_version = vim.loop.os_uname().release
-  local os_machine = vim.loop.os_uname().machine
+  local os_name = vim.uv.os_uname().sysname
+  local os_version = vim.uv.os_uname().release
+  local os_machine = vim.uv.os_uname().machine
   local lang = os.getenv("LANG")
   local shell = os.getenv("SHELL")
 
@@ -156,7 +156,7 @@ function M.shell_run_async(input_cmd, shell_cmd, on_complete, cwd, timeout)
 
   -- Set up timeout if specified
   if timeout and timeout > 0 then
-    timer = vim.loop.new_timer()
+    timer = vim.uv.new_timer()
     if timer then
       timer:start(timeout, 0, function()
         vim.schedule(function()
@@ -734,6 +734,7 @@ function M.trim_line_numbers(content)
   return vim.iter(content):map(function(line) return (line:gsub("^L%d+: ", "")) end):totable()
 end
 
+---@return function(...): uv.uv_timer_t
 function M.debounce(func, delay)
   local timer = nil
 
@@ -745,7 +746,7 @@ function M.debounce(func, delay)
       timer:close()
     end
 
-    timer = vim.loop.new_timer()
+    timer = vim.uv.new_timer()
     if not timer then return end
 
     timer:start(delay, 0, function()
@@ -767,7 +768,7 @@ function M.throttle(func, delay)
 
     if timer then return end
 
-    timer = vim.loop.new_timer()
+    timer = vim.uv.new_timer()
     if not timer then return end
     timer:start(delay, 0, function()
       vim.schedule(function() func(unpack(args)) end)
