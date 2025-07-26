@@ -233,7 +233,6 @@ programs.neovim = {
       plugin = pkgs.vimPlugins.avante-nvim;
       type = "lua";
       config = ''
-              require("avante_lib").load()
               require("avante").setup()
       '' # 或 builtins.readFile ./plugins/avante.lua;
     }

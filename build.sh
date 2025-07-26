@@ -8,7 +8,7 @@ REPO_NAME="avante.nvim"
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 
 # Set the target directory to clone the artifact
-TARGET_DIR="${SCRIPT_DIR}/build"
+TARGET_DIR="${SCRIPT_DIR}/lua"
 
 # Get the artifact download URL based on the platform and Lua version
 case "$(uname -s)" in
@@ -79,10 +79,10 @@ fi
 
 fetch_remote_tags
 latest_tag="$(git describe --tags --abbrev=0 || true)" # will be empty in clone repos
-built_tag="$(cat build/.tag 2>/dev/null || true)"
+built_tag="$(cat "${TARGET_DIR}/.tag" 2>/dev/null || true)"
 
 save_tag() {
-  echo "$latest_tag" > build/.tag
+  echo "$latest_tag" > "${TARGET_DIR}/.tag"
 }
 
 if [[ "$latest_tag" = "$built_tag" && -n "$latest_tag" ]]; then
@@ -107,6 +107,6 @@ else
   echo "No latest tag found. Building from source."
   cargo build --release --features=$LUA_VERSION
   for f in target/release/lib*.$LIB_EXT; do
-    cp "$f" "build/$(echo $f | sed 's#.*/lib##')"
+    cp "$f" "${TARGET_DIR}/$(echo $f | sed 's#.*/lib##')"
   done
 fi
