@@ -1,14 +1,3 @@
----@class avante.TextContent
----@field type "text"
----@field text string
----@field partial boolean
----
----@class avante.ToolUseContent
----@field type "tool_use"
----@field tool_name string
----@field tool_input table
----@field partial boolean
-
 local M = {}
 
 -- Helper function to parse a parameter tag like <param_name>value</param_name>

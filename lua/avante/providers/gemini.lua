@@ -113,29 +113,25 @@ function M:parse_messages(opts)
       end
       if not provider_conf.disable_tools and use_ReAct_prompt then
         if content_items[1].type == "tool_result" then
-          local tool_use = nil
+          local tool_use_msg = nil
           for _, msg_ in ipairs(opts.messages) do
             if type(msg_.content) == "table" and #msg_.content > 0 then
               if msg_.content[1].type == "tool_use" and msg_.content[1].id == content_items[1].tool_use_id then
-                tool_use = msg_
+                tool_use_msg = msg_
                 break
               end
             end
           end
-          if tool_use then
+          if tool_use_msg then
             table.insert(contents, {
               role = "model",
               parts = {
-                { text = Utils.tool_use_to_xml(tool_use.content[1]) },
+                { text = Utils.tool_use_to_xml(tool_use_msg.content[1]) },
               },
             })
             role = "user"
             table.insert(parts, {
-              text = "["
-                .. tool_use.content[1].name
-                .. " for '"
-                .. (tool_use.content[1].input.path or tool_use.content[1].input.rel_path or "")
-                .. "'] Result:",
+              text = "The result of tool use " .. Utils.tool_use_to_xml(tool_use_msg.content[1]) .. " is:\n",
             })
             table.insert(parts, {
               text = content_items[1].content,
@@ -188,6 +184,8 @@ function M.prepare_request_body(provider_instance, prompt_opts, provider_conf, r
   request_body.generationConfig = request_body_.generationConfig or {}
 
   local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
+
+  if use_ReAct_prompt then request_body.generationConfig.stopSequences = { "</tool_use>" } end
 
   local disable_tools = provider_conf.disable_tools or false
 

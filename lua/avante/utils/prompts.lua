@@ -1,3 +1,4 @@
+local Config = require("avante.config")
 local M = {}
 
 ---@param provider_conf AvanteDefaultBaseProvider
@@ -16,34 +17,36 @@ You have access to a set of tools that are executed upon the user's approval. Yo
 
 # Tool Use Formatting
 
-Tool use is formatted using XML-style tags. Each tool use is wrapped in a <tool_use> tag. The tool name is enclosed in opening and closing tags, and each parameter is similarly enclosed within its own set of tags. Here's the structure:
+Tool use is formatted using XML-style tags. Each tool use is wrapped in a <tool_use> tag. The tool use content is a valid JSON with tool name and tool input. Here's the structure:
 
 <tool_use>
-<tool_name>
-<parameter1_name>value1</parameter1_name>
-<parameter2_name>value2</parameter2_name>
-...
-</tool_name>
+{
+  "name": "tool_name",
+  "input": {
+    "parameter1_name": "value1",
+    "parameter2_name": "value2",
+    ...
+  }
+}
 </tool_use>
 
 For example:
 
 <tool_use>
-<attempt_completion>
-<result>
-I have completed the task...
-</result>
-</attempt_completion>
+{"name": "attempt_completion", "input": {"result": "I have completed the task..."}}
 </tool_use>
 
+
 <tool_use>
-<bash>
-<path>./src</path>
-<command>npm run dev</command>
-</bash>
+{"name": "bash", "input": {"path": "./src", "command": "npm run dev"}}
 </tool_use>
 
 ALWAYS ADHERE TO this format for the tool use to ensure proper parsing and execution.
+
+## RULES
+- When outputting the JSON for tool_use, you MUST first output the "name" field and then the "input" field.
+- The value of "input" MUST be VALID JSON.
+- If the "input" JSON object contains a "path" field, you MUST output the "path" field before any other fields.
 
 ## OUTPUT FORMAT
 Please remember you are not allowed to use any format related to function calling or fc or tool_code.
@@ -71,15 +74,23 @@ Parameters:
               field.get_description and field.get_description() or (field.description or "")
             )
         end
+        if field.choices then
+          tool_prompt = tool_prompt .. "    - Choices: "
+          for i, choice in ipairs(field.choices) do
+            tool_prompt = tool_prompt .. string.format("%s", choice)
+            if i ~= #field.choices then tool_prompt = tool_prompt .. ", " end
+          end
+          tool_prompt = tool_prompt .. "\n"
+        end
       end
       if tool.param.usage then
-        tool_prompt = tool_prompt
-          .. ("Usage:\n<tool_use>\n<{{name}}>\n"):gsub("{{([%w_]+)}}", function(name) return tool[name] end)
-        for k, v in pairs(tool.param.usage) do
-          tool_prompt = tool_prompt .. "<" .. k .. ">" .. tostring(v) .. "</" .. k .. ">\n"
-        end
-        tool_prompt = tool_prompt
-          .. ("</{{name}}>\n</tool_use>\n"):gsub("{{([%w_]+)}}", function(name) return tool[name] end)
+        tool_prompt = tool_prompt .. "Usage:\n<tool_use>"
+        local tool_use = {
+          name = tool.name,
+          input = tool.param.usage,
+        }
+        local tool_use_json = vim.json.encode(tool_use)
+        tool_prompt = tool_prompt .. tool_use_json .. "</tool_use>\n"
       end
       tools_prompts = tools_prompts .. tool_prompt .. "\n"
     end
@@ -92,119 +103,46 @@ Parameters:
 
 ## Example 1: Requesting to execute a command
 
-<tool_use>
-<bash>
-<path>./src</path>
-<command>npm run dev</command>
-</bash>
-</tool_use>
+<tool_use>{"name": "bash", "input": {"path": "./src", "command": "npm run dev"}}</tool_use>
+]]
 
+    if Config.behaviour.enable_fastapply then
+      system_prompt = system_prompt
+        .. [[
 ## Example 2: Requesting to create a new file
 
-<tool_use>
-<write_to_file>
-<path>src/frontend-config.json</path>
-<content>
-{
-  "apiEndpoint": "https://api.example.com",
-  "theme": {
-    "primaryColor": "#007bff",
-    "secondaryColor": "#6c757d",
-    "fontFamily": "Arial, sans-serif"
-  },
-  "features": {
-    "darkMode": true,
-    "notifications": true,
-    "analytics": false
-  },
-  "version": "1.0.0"
-}
-</content>
-</write_to_file>
-</tool_use>
+<tool_use>{"name": "edit_file", "input": {"path": "src/frontend-config.json", "instructions": "write the following content to the file", "code_edit": "// ... existing code ...\nFIRST_EDIT\n// ... existing code ...\nSECOND_EDIT\n// ... existing code ...\nTHIRD_EDIT\n// ... existing code ...\n\n"}}</tool_use>
 
 ## Example 3: Requesting to make targeted edits to a file
 
-<tool_use>
-<replace_in_file>
-<path>src/components/App.tsx</path>
-<diff>
-------- SEARCH
-import React from 'react';
-=======
-import React, { useState } from 'react';
-+++++++ REPLACE
+<tool_use>{"name": "edit_file", "input": {"path": "src/frontend-config.json", "instructions": "write the following content to the file", "code_edit": "// ... existing code ...\nFIRST_EDIT\n// ... existing code ...\nSECOND_EDIT\n// ... existing code ...\nTHIRD_EDIT\n// ... existing code ...\n\n"}}</tool_use>
+]]
+    else
+      system_prompt = system_prompt
+        .. [[
+## Example 2: Requesting to create a new file
 
-------- SEARCH
-function handleSubmit() {
-  saveData();
-  setLoading(false);
-}
+<tool_use>{"name": "write_to_file", "input": {"path": "src/frontend-config.json", "the_content": "{\n  \"apiEndpoint\": \"https://api.example.com\",\n  \"theme\": {\n    \"primaryColor\": \"#007bff\",\n    \"secondaryColor\": \"#6c757d\",\n    \"fontFamily\": \"Arial, sans-serif\"\n  },\n  \"features\": {\n    \"darkMode\": true,\n    \"notifications\": true,\n    \"analytics\": false\n  },\n  \"version\": \"1.0.0\"\n}"}}</tool_use>
 
-=======
-+++++++ REPLACE
+## Example 3: Requesting to make targeted edits to a file
 
-------- SEARCH
-return (
-  <div>
-=======
-function handleSubmit() {
-  saveData();
-  setLoading(false);
-}
+<tool_use>{"name": "replace_in_file", "input": {"path": "src/components/App.tsx", "the_diff": "------- SEARCH\nimport React from 'react';\n=======\nimport React, { useState } from 'react';\n+++++++ REPLACE\n\n------- SEARCH\nfunction handleSubmit() {\n  saveData();\n  setLoading(false);\n}\n\n=======\n+++++++ REPLACE\n\n------- SEARCH\nreturn (\n  <div>\n=======\nfunction handleSubmit() {\n  saveData();\n  setLoading(false);\n}\n\nreturn (\n  <div>\n+++++++ REPLACE\n"}}}</tool_use>
+]]
+    end
 
-return (
-  <div>
-+++++++ REPLACE
-</diff>
-</replace_in_file>
-</tool_use>
-
+    system_prompt = system_prompt
+      .. [[
 ## Example 4: Complete current task
 
-<tool_use>
-<attempt_completion>
-<result>
-I've successfully created the requested React component with the following features:
-- Responsive layout
-- Dark/light mode toggle
-- Form validation
-- API integration
-</result>
-</attempt_completion>
-</tool_use>
+<tool_use>{"name": "attempt_completion", "input": {"result": "I've successfully created the requested React component with the following features:\n- Responsive layout\n- Dark/light mode toggle\n- Form validation\n- API integration"}}</tool_use>
 
 ## Example 5: Add todos
 
-<tool_use>
-<add_todos>
-<todos>
-[
-  {
-    "id": "1",
-    "content": "Implement a responsive layout",
-    "status": "todo",
-    "priority": "low"
-  },
-  {
-    "id": "2",
-    "content": "Add dark/light mode toggle",
-    "status": "todo",
-    "priority": "medium"
-  },
-]
-</todos>
-</add_todos>
-</tool_use>
+<tool_use>{"name": "add_todos", "input": {"todos": [{"id": "1", "content": "Implement a responsive layout", "status": "todo", "priority": "low"}, {"id": "2", "content": "Add dark/light mode toggle", "status": "todo", "priority": "medium"}]}}</tool_use>
 
 ## Example 6: Update todo status
 
-<tool_use>
-<update_todo_status>
-<id>1</id>
-<status>done</status>
-</update_todo_status>
-</tool_use>
+<tool_use>{"name": "update_todo_status", "input": {"id": "1", "status": "done"}}</tool_use>
 ]]
   end
   return system_prompt

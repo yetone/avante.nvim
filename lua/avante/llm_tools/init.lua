@@ -1274,7 +1274,7 @@ function M.process_tool_use(tools, tool_use, opts)
   else
     ---@type AvanteLLMTool?
     local tool = vim.iter(tools):find(function(tool) return tool.name == tool_use.name end) ---@param tool AvanteLLMTool
-    if tool == nil then return nil, "This tool is not provided: " .. tool_use.name end
+    if tool == nil then return nil, "This tool is not provided: " .. vim.inspect(tool_use.name) end
     func = tool.func or M[tool.name]
   end
   local input_json = tool_use.input

@@ -10,6 +10,8 @@ M.name = "write_to_file"
 M.description =
   "Request to write content to a file at the specified path. If the file exists, it will be overwritten with the provided content. If the file doesn't exist, it will be created. This tool will automatically create any directories needed to write the file."
 
+M.support_streaming = false
+
 function M.enabled()
   return require("avante.config").mode == "agentic" and not require("avante.config").behaviour.enable_fastapply
 end
