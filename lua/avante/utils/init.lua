@@ -56,9 +56,9 @@ function M.get_os_name()
 end
 
 function M.get_system_info()
-  local os_name = vim.loop.os_uname().sysname
-  local os_version = vim.loop.os_uname().release
-  local os_machine = vim.loop.os_uname().machine
+  local os_name = vim.uv.os_uname().sysname
+  local os_version = vim.uv.os_uname().release
+  local os_machine = vim.uv.os_uname().machine
   local lang = os.getenv("LANG")
   local shell = os.getenv("SHELL")
 
@@ -157,7 +157,7 @@ function M.shell_run_async(input_cmd, shell_cmd, on_complete, cwd, timeout)
 
   -- Set up timeout if specified
   if timeout and timeout > 0 then
-    timer = vim.loop.new_timer()
+    timer = vim.uv.new_timer()
     if timer then
       timer:start(timeout, 0, function()
         vim.schedule(function()

@@ -1291,7 +1291,7 @@ function M.process_tool_use(tools, tool_use, opts)
   -- Set up a timer to periodically check for cancellation
   local cancel_timer
   if on_complete then
-    cancel_timer = vim.loop.new_timer()
+    cancel_timer = vim.uv.new_timer()
     if cancel_timer then
       cancel_timer:start(
         100,

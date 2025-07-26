@@ -106,7 +106,7 @@ function RepoMap._get_repo_map(file_ext)
     build_and_save()
     if not repo_map then return end
   else
-    local timer = vim.loop.new_timer()
+    local timer = vim.uv.new_timer()
 
     if timer then
       timer:start(
@@ -147,7 +147,7 @@ function RepoMap._get_repo_map(file_ext)
     end
   end)
 
-  local handle = vim.loop.new_fs_event()
+  local handle = vim.uv.new_fs_event()
 
   if handle then
     handle:start(project_root, { recursive = true }, function(err, rel_filepath)
