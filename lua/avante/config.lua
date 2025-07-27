@@ -685,7 +685,6 @@ M._defaults = {
 ---@diagnostic disable-next-line: missing-fields
 M._options = {}
 
-
 --- Function to save the last used model
 ---@param model_name string
 function M.save_last_model(model_name, provider_name)
