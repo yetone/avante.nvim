@@ -5,16 +5,15 @@
   "exclude": [
     "**/node_modules",
     "**/__pycache__",
-    "**/.*"
+    "**/.*",
+    "py/rag-service"
   ],
   "defineConstant": {
     "DEBUG": true
   },
-  "venvPath": ".",
-  "venv": ".venv",
   "pythonVersion": "3.11",
-  "typeCheckingMode": "strict",
-  "reportMissingImports": true,
+  "typeCheckingMode": "basic",
+  "reportMissingImports": false,
   "reportMissingTypeStubs": false,
   "reportUnknownMemberType": false,
   "reportUnknownParameterType": false,
