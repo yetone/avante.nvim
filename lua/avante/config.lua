@@ -685,7 +685,7 @@ M._defaults = {
 ---@diagnostic disable-next-line: missing-fields
 M._options = {}
 
----@param opts? avante.Config
+
 --- Function to save the last used model
 ---@param model_name string
 function M.save_last_model(model_name, provider_name)
@@ -704,7 +704,7 @@ function M.save_last_model(model_name, provider_name)
 end
 
 --- Function to load the last used model
----@return string|nil
+---@return string|nil, string|nil
 function M.load_last_model()
   local config_dir = Utils.join_paths(vim.fn.expand("~"), ".config", "avante.nvim")
   local storage_path = Utils.join_paths(config_dir, "config.json")
