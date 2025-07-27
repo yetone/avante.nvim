@@ -706,7 +706,7 @@ function M.curl(opts)
 
         -- 检查 active_job 的状态
         local job_is_alive = pcall(function() return active_job:is_closing() == false end)
-        
+
         -- 只有当 job 仍然活跃时才尝试关闭它
         if job_is_alive then
           -- Attempt to shutdown the active job, but ignore any errors

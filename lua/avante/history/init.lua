@@ -64,14 +64,10 @@ local function collect_tool_info(messages)
       if use.name == "view" or Utils.is_edit_tool_use(use) then
         if use.input.path then
           local path = Utils.uniform_path(use.input.path)
-          if use.id then
-          tools[use.id] = { kind = use.name == "view" and "view" or "edit", use = use, path = path }
-        end
+          if use.id then tools[use.id] = { kind = use.name == "view" and "view" or "edit", use = use, path = path } end
         end
       else
-        if use.id then
-          tools[use.id] = { kind = "other", use = use }
-        end
+        if use.id then tools[use.id] = { kind = "other", use = use } end
       end
       goto continue
     end

@@ -691,12 +691,10 @@ M._options = {}
 function M.save_last_model(model_name, provider_name)
   local config_dir = Utils.join_paths(vim.fn.expand("~"), ".config", "avante.nvim")
   local storage_path = Utils.join_paths(config_dir, "config.json")
-  
+
   -- 确保目录存在
-  if not Utils.path_exists(config_dir) then
-    vim.fn.mkdir(config_dir, "p")
-  end
-  
+  if not Utils.path_exists(config_dir) then vim.fn.mkdir(config_dir, "p") end
+
   print("Attempting to save model and provider to:", storage_path)
   local file = io.open(storage_path, "w")
   if file then
