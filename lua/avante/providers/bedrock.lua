@@ -127,11 +127,18 @@ function M:parse_curl_args(prompt_opts)
     session_token = awsCreds.session_token
   end
 
-  local endpoint = string.format(
-    "https://bedrock-runtime.%s.amazonaws.com/model/%s/invoke-with-response-stream",
-    region,
-    provider_conf.model
-  )
+  local endpoint
+  if provider_conf.endpoint then
+    -- Use custom endpoint if provided
+    endpoint = provider_conf.endpoint
+  else
+    -- Default to AWS Bedrock endpoint
+    endpoint = string.format(
+      "https://bedrock-runtime.%s.amazonaws.com/model/%s/invoke-with-response-stream",
+      region,
+      provider_conf.model
+    )
+  end
 
   local headers = {
     ["Content-Type"] = "application/json",
