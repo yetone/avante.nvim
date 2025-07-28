@@ -1,13 +1,6 @@
 {
-  "include": [
-    "."
-  ],
-  "exclude": [
-    "**/node_modules",
-    "**/__pycache__",
-    "**/.*",
-    "py/rag-service"
-  ],
+  "include": ["."],
+  "exclude": ["**/node_modules", "**/__pycache__", "**/.*"],
   "defineConstant": {
     "DEBUG": true
   },
