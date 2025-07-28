@@ -694,7 +694,6 @@ function M.save_last_model(model_name, provider_name)
   -- 确保目录存在
   if not Utils.path_exists(config_dir) then vim.fn.mkdir(config_dir, "p") end
 
-  print("Attempting to save model and provider to:", storage_path)
   local file = io.open(storage_path, "w")
   if file then
     file:write(vim.json.encode({ last_model = model_name, last_provider = provider_name }))
