@@ -20,7 +20,6 @@ local M = {}
 ---@class avante.Config
 M._defaults = {
   debug = false,
-  last_model = nil, -- Stores the last used model
   ---@alias avante.Mode "agentic" | "legacy"
   ---@type avante.Mode
   mode = "agentic",
