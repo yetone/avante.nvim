@@ -863,7 +863,6 @@ function M.setup(opts)
 
   local last_model, last_provider = M.load_last_model()
   if last_model then
-    merged.last_model = last_model
     if last_provider then merged.provider = last_provider end
     if merged.providers and merged.provider and merged.providers[merged.provider] then
       merged.providers[merged.provider].model = last_model
