@@ -13,6 +13,42 @@ local M = {}
 
 M.api_key_name = "OPENAI_API_KEY"
 
+-- Consolidated callback management to prevent duplicate tool_use callbacks
+M.callback_sent = false
+
+---Consolidated function to trigger tool_use callback once per completion cycle
+---@param ctx table The context object
+---@param opts table The options with on_stop callback
+---@param extra_opts table|nil Extra options like usage, streaming_tool_use
+local function trigger_tool_use_callback_once(ctx, opts, extra_opts)
+  extra_opts = extra_opts or {}
+  
+  -- Prevent duplicate callbacks with callback_sent flag
+  if M.callback_sent then
+    Utils.debug("Preventing duplicate tool_use callback in OpenAI provider")
+    return
+  end
+  
+  -- Set flag to prevent future duplicates
+  M.callback_sent = true
+  
+  -- Build callback options
+  local callback_opts = vim.tbl_extend("force", { reason = "tool_use" }, extra_opts)
+  
+  Utils.debug(string.format(
+    "OpenAI provider triggering consolidated tool_use callback with streaming: %s",
+    tostring(callback_opts.streaming_tool_use)
+  ))
+  
+  -- Trigger the callback
+  opts.on_stop(callback_opts)
+end
+
+---Reset callback state for new completion cycle
+local function reset_callback_state()
+  M.callback_sent = false
+end
+
 M.role_map = {
   user = "user",
   assistant = "assistant",
@@ -320,7 +356,8 @@ function M:add_text_message(ctx, text, state, opts)
             state = "generating",
           }
         end
-        opts.on_stop({ reason = "tool_use", streaming_tool_use = item.partial })
+        -- CONSOLIDATED CALLBACK: Replace individual trigger point 1 with consolidated function
+        trigger_tool_use_callback_once(ctx, opts, { streaming_tool_use = item.partial })
       end
       ::continue::
     end
@@ -360,7 +397,10 @@ function M:add_tool_use_message(ctx, tool_use, state, opts)
   tool_use.uuid = msg.uuid
   tool_use.state = state
   if opts.on_messages_add then opts.on_messages_add({ msg }) end
-  if state == "generating" then opts.on_stop({ reason = "tool_use", streaming_tool_use = true }) end
+  -- CONSOLIDATED CALLBACK: Replace individual trigger point 2 with consolidated function
+  if state == "generating" then 
+    trigger_tool_use_callback_once(ctx, opts, { streaming_tool_use = true })
+  end
 end
 
 ---@param usage avante.OpenAITokenUsage | nil
@@ -377,12 +417,19 @@ function M.transform_openai_usage(usage)
 end
 
 function M:parse_response(ctx, data_stream, _, opts)
+  -- Reset callback state at the beginning of each parse_response call
+  if not ctx.callback_state_initialized then
+    reset_callback_state()
+    ctx.callback_state_initialized = true
+  end
   if data_stream:match('"%[DONE%]":') or data_stream == "[DONE]" then
     self:finish_pending_messages(ctx, opts)
     if ctx.tool_use_list and #ctx.tool_use_list > 0 then
       ctx.tool_use_list = {}
-      opts.on_stop({ reason = "tool_use" })
+      -- CONSOLIDATED CALLBACK: Replace individual trigger point 3 with consolidated function
+      trigger_tool_use_callback_once(ctx, opts, {})
     else
+      reset_callback_state() -- Reset for next completion cycle
       opts.on_stop({ reason = "complete" })
     end
     return
@@ -471,17 +518,17 @@ function M:parse_response(ctx, data_stream, _, opts)
   if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" or choice.finish_reason == "length" then
     self:finish_pending_messages(ctx, opts)
     if ctx.tool_use_list and #ctx.tool_use_list > 0 then
-      opts.on_stop({ reason = "tool_use", usage = self.transform_openai_usage(jsn.usage) })
+      -- CONSOLIDATED CALLBACK: Replace individual trigger point 4 with consolidated function
+      trigger_tool_use_callback_once(ctx, opts, { usage = self.transform_openai_usage(jsn.usage) })
     else
+      reset_callback_state() -- Reset for next completion cycle
       opts.on_stop({ reason = "complete", usage = self.transform_openai_usage(jsn.usage) })
     end
   end
   if choice.finish_reason == "tool_calls" then
     self:finish_pending_messages(ctx, opts)
-    opts.on_stop({
-      reason = "tool_use",
-      usage = self.transform_openai_usage(jsn.usage),
-    })
+    -- CONSOLIDATED CALLBACK: Replace individual trigger point 5 with consolidated function
+    trigger_tool_use_callback_once(ctx, opts, { usage = self.transform_openai_usage(jsn.usage) })
   end
 end
 

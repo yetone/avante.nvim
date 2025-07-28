@@ -1,5 +1,30 @@
 local M = {}
 
+-- Enhanced parser state with completion phase state machine for ReAct callback issues
+local parser_state = {
+  completion_phase = "detecting", -- "detecting" | "parsing" | "complete" | "processed"
+  tool_buffer = {},
+  last_processed_position = 0,
+  parsing_errors = {},
+  total_tools_seen = 0,
+  partial_tools_count = 0,
+  complete_tools_count = 0,
+}
+
+-- State machine transitions for completion phases
+local function transition_state(new_phase, context)
+  local old_phase = parser_state.completion_phase
+  parser_state.completion_phase = new_phase
+  
+  local Utils = require("avante.utils")
+  Utils.debug(string.format(
+    "ReAct parser state transition: %s -> %s (context: %s)",
+    old_phase,
+    new_phase,
+    context or "none"
+  ))
+end
+
 -- Helper function to parse a parameter tag like <param_name>value</param_name>
 -- Returns {name = string, value = string, next_pos = number} or nil if incomplete
 local function parse_parameter(text, start_pos)
@@ -336,6 +361,17 @@ end
 ---@param text string
 ---@return (avante.TextContent|avante.ToolUseContent)[]
 function M.parse(text)
+  -- Import Utils for debug logging
+  local Utils = require("avante.utils")
+  
+  -- Debug logging for ReAct parser state tracking
+  Utils.debug(string.format(
+    "ReAct parser called - text_length: %d, completion_phase: %s, last_processed: %d",
+    #text,
+    parser_state.completion_phase,
+    parser_state.last_processed_position
+  ))
+  
   local result = {}
   local current_text = ""
   local i = 1
@@ -391,7 +427,75 @@ function M.parse(text)
   -- Add any remaining text
   add_text_content()
 
+  -- Enhanced parser state update with state machine logic
+  local tool_count = 0
+  local partial_tool_count = 0
+  for _, item in ipairs(result) do
+    if item.type == "tool_use" then
+      tool_count = tool_count + 1
+      parser_state.total_tools_seen = parser_state.total_tools_seen + 1
+      
+      if item.partial then
+        partial_tool_count = partial_tool_count + 1
+        parser_state.partial_tools_count = parser_state.partial_tools_count + 1
+      else
+        parser_state.complete_tools_count = parser_state.complete_tools_count + 1
+        table.insert(parser_state.tool_buffer, item)
+      end
+    end
+  end
+  
+  -- State machine logic for completion phase transitions
+  if tool_count == 0 and parser_state.completion_phase == "detecting" then
+    -- No tools found yet, stay in detecting phase
+    -- No state transition needed
+  elseif partial_tool_count > 0 then
+    -- Found partial tools, transition to parsing
+    if parser_state.completion_phase ~= "parsing" then
+      transition_state("parsing", string.format("found %d partial tools", partial_tool_count))
+    end
+  elseif tool_count > 0 and partial_tool_count == 0 then
+    -- All tools are complete, transition to complete
+    if parser_state.completion_phase ~= "complete" then
+      transition_state("complete", string.format("found %d complete tools", tool_count))
+    end
+  elseif tool_count == 0 and parser_state.total_tools_seen > 0 then
+    -- No new tools but we've seen tools before, mark as processed
+    if parser_state.completion_phase == "complete" then
+      transition_state("processed", "no new tools after completion")
+    end
+  end
+  
+  parser_state.last_processed_position = len
+  
+  Utils.debug(string.format(
+    "ReAct parser completed - tools: %d, partial: %d, phase: %s, buffer_size: %d",
+    tool_count,
+    partial_tool_count,
+    parser_state.completion_phase,
+    #parser_state.tool_buffer
+  ))
+
   return result
+end
+
+-- Function to get current parser state (for debugging)
+function M.get_parser_state()
+  return vim.deepcopy(parser_state)
+end
+
+-- Function to reset parser state
+function M.reset_parser_state()
+  parser_state = {
+    completion_phase = "detecting",
+    tool_buffer = {},
+    last_processed_position = 0,
+    parsing_errors = {},
+    total_tools_seen = 0,
+    partial_tools_count = 0,
+    complete_tools_count = 0,
+  }
+  transition_state("detecting", "state reset")
 end
 
 return M

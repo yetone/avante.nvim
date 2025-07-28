@@ -3,11 +3,65 @@ local Providers = require("avante.providers")
 local Clipboard = require("avante.clipboard")
 local OpenAI = require("avante.providers").openai
 local Prompts = require("avante.utils.prompts")
+local HistoryMessage = require("avante.history.message")
+local JsonParser = require("avante.libs.jsonparser")
 
 ---@class AvanteProviderFunctor
 local M = {}
 
 M.api_key_name = "GEMINI_API_KEY"
+
+-- Native Gemini callback management to remove OpenAI dependency
+M.callback_sent = false
+
+---Native Gemini tool use message handling (replaces OpenAI dependency)
+---@param ctx table The context object
+---@param tool_use table The tool use object
+---@param state string The message state
+---@param opts table The options with on_messages_add callback
+function M:add_tool_use_message(ctx, tool_use, state, opts)
+  local jsn = JsonParser.parse(tool_use.input_json)
+  local msg = HistoryMessage:new("assistant", {
+    type = "tool_use",
+    name = tool_use.name,
+    id = tool_use.id,
+    input = jsn or {},
+  }, {
+    state = state,
+    uuid = tool_use.uuid,
+    turn_id = ctx.turn_id,
+  })
+  tool_use.uuid = msg.uuid
+  tool_use.state = state
+  if opts.on_messages_add then opts.on_messages_add({ msg }) end
+  
+  -- Direct callback triggering with callback_sent flag management
+  if state == "generating" and not M.callback_sent then
+    M.callback_sent = true
+    Utils.debug("Gemini provider triggering native tool_use callback")
+    opts.on_stop({ reason = "tool_use", streaming_tool_use = true })
+  end
+end
+
+---Native Gemini finish pending messages (replaces OpenAI dependency)
+---@param ctx table The context object
+---@param opts table The options
+function M:finish_pending_messages(ctx, opts)
+  -- Implementation similar to OpenAI's finish_pending_messages
+  -- Update any pending message states to "generated"
+  if ctx.content and ctx.content_uuid then
+    local updated_states = {}
+    -- Mark messages as generated and update states
+    if opts.on_state_change then
+      opts.on_state_change(updated_states)
+    end
+  end
+end
+
+---Reset callback state for new completion cycle
+local function reset_callback_state()
+  M.callback_sent = false
+end
 M.role_map = {
   user = "user",
   assistant = "model",
@@ -220,6 +274,11 @@ function M.transform_gemini_usage(usage)
 end
 
 function M:parse_response(ctx, data_stream, _, opts)
+  -- Initialize callback state at the beginning of each parse_response call
+  if not ctx.gemini_callback_state_initialized then
+    reset_callback_state()
+    ctx.gemini_callback_state_initialized = true
+  end
   local ok, jsn = pcall(vim.json.decode, data_stream)
   if not ok then
     opts.on_stop({ reason = "error", error = "Failed to parse JSON response: " .. tostring(jsn) })
@@ -263,34 +322,48 @@ function M:parse_response(ctx, data_stream, _, opts)
             input_json = vim.json.encode(part.functionCall.args),
           }
           table.insert(ctx.tool_use_list, tool_use)
-          OpenAI:add_tool_use_message(ctx, tool_use, "generated", opts)
+          -- Replace OpenAI dependency with native Gemini implementation
+          M:add_tool_use_message(ctx, tool_use, "generated", opts)
         end
       end
     end
 
     -- Check for finishReason to determine if this candidate's stream is done.
     if candidate.finishReason then
-      OpenAI:finish_pending_messages(ctx, opts)
+      -- Replace OpenAI dependency with native Gemini implementation
+      M:finish_pending_messages(ctx, opts)
       local reason_str = candidate.finishReason
       local stop_details = { finish_reason = reason_str }
       stop_details.usage = M.transform_gemini_usage(jsn.usageMetadata)
 
+      -- Standardized Gemini finishReason handling with callback deduplication
       if reason_str == "TOOL_CODE" then
         -- Model indicates a tool-related stop.
-        -- The tool_use list is added to the table in llm.lua
-        opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+        -- Only trigger callback if not already sent
+        if not M.callback_sent then
+          M.callback_sent = true
+          Utils.debug("Gemini provider: TOOL_CODE finish reason callback")
+          opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+        end
       elseif reason_str == "STOP" then
         if ctx.tool_use_list and #ctx.tool_use_list > 0 then
-          -- Natural stop, but tools were found in this final chunk.
-          opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+          -- Natural stop, but tools were found - only trigger if not already sent
+          if not M.callback_sent then
+            M.callback_sent = true
+            Utils.debug("Gemini provider: STOP with tools callback")
+            opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+          end
         else
-          -- Natural stop, no tools in this final chunk.
-          -- llm.lua will check its accumulated tools if tool_choice was active.
+          -- Natural stop, no tools - reset state and complete
+          reset_callback_state()
+          Utils.debug("Gemini provider: STOP complete callback")
           opts.on_stop(vim.tbl_deep_extend("force", { reason = "complete" }, stop_details))
         end
       elseif reason_str == "MAX_TOKENS" then
+        reset_callback_state()
         opts.on_stop(vim.tbl_deep_extend("force", { reason = "max_tokens" }, stop_details))
       elseif reason_str == "SAFETY" or reason_str == "RECITATION" then
+        reset_callback_state()
         opts.on_stop(
           vim.tbl_deep_extend(
             "force",

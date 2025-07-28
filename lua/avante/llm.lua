@@ -18,6 +18,93 @@ local M = {}
 
 M.CANCEL_PATTERN = "AvanteLLMEscape"
 
+-- Callback deduplication state management system for ReAct prompts fix
+---@class AvanteCallbackState
+---@field completion_id string Unique identifier for the completion cycle
+---@field tool_use_detected boolean Whether tool use has been detected in this cycle
+---@field callback_triggered boolean Whether callback has been triggered for this cycle
+---@field streaming_active boolean Whether streaming is currently active
+---@field tool_processing_phase string Current phase: "detecting" | "processing" | "complete"
+---@field last_callback_reason string Last callback reason that was triggered
+
+local callback_states = {}
+
+---@param completion_id string
+---@return AvanteCallbackState
+local function get_or_create_callback_state(completion_id)
+  if not callback_states[completion_id] then
+    callback_states[completion_id] = {
+      completion_id = completion_id,
+      tool_use_detected = false,
+      callback_triggered = false,
+      streaming_active = false,
+      tool_processing_phase = "detecting",
+      last_callback_reason = nil,
+    }
+  end
+  return callback_states[completion_id]
+end
+
+---@param completion_id string
+local function reset_callback_state(completion_id)
+  callback_states[completion_id] = nil
+end
+
+---Safe callback wrapper with deduplication logic to prevent duplicate tool_use callbacks
+---@param original_callback function The original on_stop callback function
+---@param completion_id string Unique identifier for the completion cycle
+---@return function The wrapped callback function
+local function safe_on_stop(original_callback, completion_id)
+  return function(stop_opts)
+    local state = get_or_create_callback_state(completion_id)
+    local reason = stop_opts.reason or "unknown"
+    
+    Utils.debug(string.format(
+      "safe_on_stop called - completion_id: %s, reason: %s, already_triggered: %s",
+      completion_id,
+      reason,
+      tostring(state.callback_triggered)
+    ))
+    
+    -- Deduplication logic for tool_use callbacks
+    if reason == "tool_use" then
+      -- Check if we already triggered a tool_use callback for this completion cycle
+      if state.callback_triggered and state.last_callback_reason == "tool_use" then
+        Utils.debug(string.format(
+          "Preventing duplicate tool_use callback - completion_id: %s",
+          completion_id
+        ))
+        return -- Skip duplicate callback
+      end
+      
+      -- Update state to prevent future duplicates
+      state.callback_triggered = true
+      state.tool_use_detected = true
+      state.last_callback_reason = reason
+      state.tool_processing_phase = "processing"
+    elseif reason == "complete" then
+      -- Reset state on completion
+      state.tool_processing_phase = "complete"
+      reset_callback_state(completion_id)
+    elseif reason == "cancelled" then
+      -- Reset state on cancellation
+      reset_callback_state(completion_id)
+    end
+    
+    -- Call the original callback with error handling
+    local success, error_msg = pcall(original_callback, stop_opts)
+    if not success then
+      Utils.error(string.format(
+        "Callback execution failed - completion_id: %s, error: %s",
+        completion_id,
+        tostring(error_msg)
+      ))
+      -- Reset state on callback failure to prevent deadlock
+      reset_callback_state(completion_id)
+    end
+  end
+end
+
 ------------------------------Prompt and type------------------------------
 
 local group = api.nvim_create_augroup("avante_llm", { clear = true })
@@ -774,7 +861,16 @@ function M._stream(opts)
     update_tokens_usage = opts.update_tokens_usage,
     on_start = opts.on_start,
     on_chunk = opts.on_chunk,
-    on_stop = function(stop_opts)
+    on_stop = safe_on_stop(function(stop_opts)
+      -- Debug logging for ReAct callback tracking
+      local completion_id = stop_opts.completion_id or (opts.session_ctx and opts.session_ctx.id) or "unknown"
+      Utils.debug(string.format(
+        "LLM orchestrator on_stop callback triggered - completion_id: %s, reason: %s, streaming_tool_use: %s",
+        completion_id,
+        stop_opts.reason or "nil",
+        tostring(stop_opts.streaming_tool_use)
+      ))
+      
       if stop_opts.usage and opts.update_tokens_usage then opts.update_tokens_usage(stop_opts.usage) end
 
       ---@param tool_uses AvantePartialLLMToolUse[]
@@ -787,6 +883,14 @@ function M._stream(opts)
         tool_results,
         streaming_tool_use
       )
+        Utils.debug(string.format(
+          "handle_next_tool_use called - completion_id: %s, tool_index: %d/%d, streaming: %s",
+          completion_id,
+          tool_use_index,
+          #tool_uses,
+          tostring(streaming_tool_use)
+        ))
+        
         if tool_use_index > #tool_uses then
           ---@type avante.HistoryMessage[]
           local messages = {}
@@ -956,6 +1060,12 @@ function M._stream(opts)
         end
       end
       if stop_opts.reason == "tool_use" then
+        Utils.debug(string.format(
+          "Processing tool_use callback - completion_id: %s, pending_tools: %d, streaming: %s",
+          completion_id,
+          #pending_tools,
+          tostring(stop_opts.streaming_tool_use)
+        ))
         opts.session_ctx.user_reminder_count = 0
         return handle_next_tool_use(pending_tools, pending_tool_use_messages, 1, {}, stop_opts.streaming_tool_use)
       end
@@ -1003,7 +1113,7 @@ function M._stream(opts)
         return
       end
       return opts.on_stop(stop_opts)
-    end,
+    end, opts.session_ctx and opts.session_ctx.id or "unknown"),
   }
 
   return M.curl({
