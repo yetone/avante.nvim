@@ -684,8 +684,50 @@ M._defaults = {
 ---@diagnostic disable-next-line: missing-fields
 M._options = {}
 
----@param opts? avante.Config
+--- Function to save the last used model
+---@param model_name string
+function M.save_last_model(model_name, provider_name)
+  local config_dir = Utils.join_paths(vim.fn.expand("~"), ".config", "avante.nvim")
+  local storage_path = Utils.join_paths(config_dir, "config.json")
+
+  -- 确保目录存在
+  if not Utils.path_exists(config_dir) then vim.fn.mkdir(config_dir, "p") end
+
+  local file = io.open(storage_path, "w")
+  if file then
+    file:write(vim.json.encode({ last_model = model_name, last_provider = provider_name }))
+    file:close()
+  end
+end
+
+--- Function to load the last used model
+---@return string|nil, string|nil
+function M.load_last_model()
+  local config_dir = Utils.join_paths(vim.fn.expand("~"), ".config", "avante.nvim")
+  local storage_path = Utils.join_paths(config_dir, "config.json")
+  local file = io.open(storage_path, "r")
+  if file then
+    local content = file:read("*a")
+    file:close()
+    if content and content ~= "" then
+      local success, data = pcall(vim.json.decode, content)
+      if success and data and data.last_model and data.last_provider then
+        return data.last_model, data.last_provider
+      elseif success and data and data.last_model then
+        return data.last_model, nil
+      else
+        Utils.warn("Invalid or corrupt JSON in last model file: " .. storage_path, { title = "Avante" })
+      end
+    else
+      Utils.warn("Last model file is empty: " .. storage_path, { title = "Avante" })
+    end
+  end
+  return nil
+end
+
+---@param opts table<string, any>|nil -- Optional table parameter for configuration settings
 function M.setup(opts)
+  opts = opts or {} -- Ensure `opts` is defined with a default table
   if vim.fn.has("nvim-0.11") == 1 then
     vim.validate("opts", opts, "table", true)
   else
@@ -818,6 +860,18 @@ function M.setup(opts)
       },
     }
   )
+
+  local last_model, last_provider = M.load_last_model()
+  if last_model then
+    if last_provider then merged.provider = last_provider end
+    if merged.providers and merged.provider and merged.providers[merged.provider] then
+      merged.providers[merged.provider].model = last_model
+      Utils.info(
+        "Using last model: " .. merged.provider .. "/" .. merged.providers[merged.provider].model,
+        { title = "Avante" }
+      )
+    end
+  end
 
   M._options = merged
 
