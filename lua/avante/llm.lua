@@ -296,6 +296,8 @@ function M.generate_prompts(opts)
 
   selected_files = vim.iter(selected_files):filter(function(file) return viewed_files[file.path] == nil end):totable()
 
+  local provider_conf = Providers.parse_config(provider)
+
   local template_opts = {
     ask = opts.ask, -- TODO: add mode without ask instruction
     code_lang = opts.code_lang,
@@ -308,6 +310,7 @@ function M.generate_prompts(opts)
     model_name = provider.model or "unknown",
     memory = opts.memory,
     enable_fastapply = Config.behaviour.enable_fastapply,
+    use_react_prompt = provider_conf.use_ReAct_prompt,
   }
 
   -- Removed the original todos processing logic, now handled in context_messages
