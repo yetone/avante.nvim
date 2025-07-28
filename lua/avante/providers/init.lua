@@ -192,10 +192,6 @@ M = setmetatable(M, {
           end
         end
         require("avante.tokenizers").setup(t[k].tokenizer_id)
-        Utils.info(
-          "Initializing provider: " .. k .. " with model: " .. (t[k].model or "default"),
-          { title = "Avante" }
-        )
       end
     end
 

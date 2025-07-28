@@ -494,15 +494,6 @@ function M.curl(opts)
   local prompt_opts = opts.prompt_opts
   local handler_opts = opts.handler_opts
 
-  Utils.info(
-    string.format(
-      "Starting LLM request with provider: %s, model: %s",
-      Config.provider or "unknown",
-      provider.model or "default"
-    ),
-    { title = "Avante" }
-  )
-
   local orig_on_stop = handler_opts.on_stop
   local stopped = false
   ---@param stop_opts AvanteLLMStopCallbackOptions

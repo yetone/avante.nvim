@@ -866,6 +866,10 @@ function M.setup(opts)
     if last_provider then merged.provider = last_provider end
     if merged.providers and merged.provider and merged.providers[merged.provider] then
       merged.providers[merged.provider].model = last_model
+      Utils.info(
+        "Using last model: " .. merged.provider .. "/" .. merged.providers[merged.provider].model,
+        { title = "Avante" }
+      )
     end
   end
 
