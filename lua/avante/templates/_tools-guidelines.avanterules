@@ -34,6 +34,9 @@ TOOLS USAGE GUIDE
 **Crucial Example of Correct Behavior:**
 *   **User Input:** "Hi there"
 *   **Your REQUIRED Output (as a tool call):**
+    {% if use_react_prompt -%}
+    <tool_use>{"name": "attempt_completion", "input": {"result": "[**Generated Response Following the Greeting Response Guideline**]"}}</tool_use>
+    {% else -%}
     ```json
     {
       "tool_calls": [
@@ -47,3 +50,4 @@ TOOLS USAGE GUIDE
       ]
     }
     ```
+    {% endif %}
