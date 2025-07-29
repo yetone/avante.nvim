@@ -278,11 +278,16 @@ function M:parse_response(ctx, data_stream, _, opts)
       if reason_str == "TOOL_CODE" then
         -- Model indicates a tool-related stop.
         -- The tool_use list is added to the table in llm.lua
+        ctx.tool_callback_sent = true
         opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
       elseif reason_str == "STOP" then
         if ctx.tool_use_list and #ctx.tool_use_list > 0 then
           -- Natural stop, but tools were found in this final chunk.
-          opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+          -- Add completion state checking before triggering tool_use callback
+          if not ctx.tool_callback_sent then
+            ctx.tool_callback_sent = true
+            opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+          end
         else
           -- Natural stop, no tools in this final chunk.
           -- llm.lua will check its accumulated tools if tool_choice was active.

@@ -379,9 +379,14 @@ end
 function M:parse_response(ctx, data_stream, _, opts)
   if data_stream:match('"%[DONE%]":') or data_stream == "[DONE]" then
     self:finish_pending_messages(ctx, opts)
+    -- For ReAct prompts, trust the main handler for tool completion processing
+    -- Don't trigger duplicate tool_use callback here when [DONE] is received
     if ctx.tool_use_list and #ctx.tool_use_list > 0 then
       ctx.tool_use_list = {}
-      opts.on_stop({ reason = "tool_use" })
+      -- Only call tool_use callback if not already called by finish_reason
+      if not ctx.tool_callback_sent then
+        opts.on_stop({ reason = "tool_use" })
+      end
     else
       opts.on_stop({ reason = "complete" })
     end
@@ -471,6 +476,7 @@ function M:parse_response(ctx, data_stream, _, opts)
   if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" or choice.finish_reason == "length" then
     self:finish_pending_messages(ctx, opts)
     if ctx.tool_use_list and #ctx.tool_use_list > 0 then
+      ctx.tool_callback_sent = true
       opts.on_stop({ reason = "tool_use", usage = self.transform_openai_usage(jsn.usage) })
     else
       opts.on_stop({ reason = "complete", usage = self.transform_openai_usage(jsn.usage) })
@@ -478,6 +484,7 @@ function M:parse_response(ctx, data_stream, _, opts)
   end
   if choice.finish_reason == "tool_calls" then
     self:finish_pending_messages(ctx, opts)
+    ctx.tool_callback_sent = true
     opts.on_stop({
       reason = "tool_use",
       usage = self.transform_openai_usage(jsn.usage),

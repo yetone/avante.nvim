@@ -767,6 +767,13 @@ function M._stream(opts)
 
   local resp_headers = {}
 
+  -- Tool completion state tracker to prevent duplicate callbacks
+  local tool_completion_tracker = {
+    has_pending_tools = false,
+    completion_in_progress = false,
+    final_callback_sent = false,
+  }
+
   ---@type AvanteHandlerOptions
   local handler_opts = {
     on_messages_add = opts.on_messages_add,
@@ -775,6 +782,20 @@ function M._stream(opts)
     on_start = opts.on_start,
     on_chunk = opts.on_chunk,
     on_stop = function(stop_opts)
+      -- Debug logging for ReAct callback sequences
+      if Config.debug then
+        Utils.debug("[ReAct] on_stop called with reason:", stop_opts.reason, 
+                   "completion_in_progress:", tool_completion_tracker.completion_in_progress,
+                   "final_callback_sent:", tool_completion_tracker.final_callback_sent)
+      end
+      
+      -- Prevent duplicate tool_use callbacks after completion
+      if stop_opts.reason == "tool_use" and tool_completion_tracker.final_callback_sent then
+        if Config.debug then
+          Utils.debug("[ReAct] Blocking duplicate tool_use callback - already completed")
+        end
+        return
+      end
       if stop_opts.usage and opts.update_tokens_usage then opts.update_tokens_usage(stop_opts.usage) end
 
       ---@param tool_uses AvantePartialLLMToolUse[]
@@ -815,6 +836,12 @@ function M._stream(opts)
               vim.defer_fn(function() M._stream(new_opts) end, sleep_time * 1000)
               return
             end
+          end
+          -- Mark completion when all tools are processed
+          tool_completion_tracker.completion_in_progress = false
+          tool_completion_tracker.final_callback_sent = true
+          if Config.debug then
+            Utils.debug("[ReAct] All tools processed, completion marked")
           end
           if not streaming_tool_use then M._stream(new_opts) end
           return
@@ -957,6 +984,11 @@ function M._stream(opts)
       end
       if stop_opts.reason == "tool_use" then
         opts.session_ctx.user_reminder_count = 0
+        tool_completion_tracker.completion_in_progress = true
+        tool_completion_tracker.has_pending_tools = true
+        if Config.debug then
+          Utils.debug("[ReAct] Starting tool processing, pending tools:", #pending_tools)
+        end
         return handle_next_tool_use(pending_tools, pending_tool_use_messages, 1, {}, stop_opts.streaming_tool_use)
       end
       if stop_opts.reason == "rate_limit" then

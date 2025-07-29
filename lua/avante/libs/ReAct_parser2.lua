@@ -13,6 +13,16 @@ local JsonParser = require("avante.libs.jsonparser")
 
 local M = {}
 
+-- State tracking for ReAct completion to prevent duplicate parsing triggers
+local parser_state = {
+  completion_detected = false,
+  parsing_complete = false,
+  reset = function(self)
+    self.completion_detected = false
+    self.parsing_complete = false
+  end,
+}
+
 --- Parse the text into a list of TextContent and ToolUseContent
 --- The text is a string.
 --- For example:
@@ -159,6 +169,8 @@ local M = {}
 ---@param text string
 ---@return (avante.TextContent|avante.ToolUseContent)[]
 function M.parse(text)
+  -- Reset parser state for new parsing session
+  parser_state:reset()
   local result = {}
   local pos = 1
   local len = #text
@@ -255,7 +267,15 @@ function M.parse(text)
     end
   end
 
+  -- Mark parsing as complete when we reach the end
+  parser_state.parsing_complete = true
+  
   return result
+end
+
+-- Get parser state for debugging and integration
+function M.get_parser_state()
+  return parser_state
 end
 
 return M
