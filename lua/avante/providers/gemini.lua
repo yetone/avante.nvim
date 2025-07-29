@@ -282,6 +282,18 @@ function M:parse_response(ctx, data_stream, _, opts)
       elseif reason_str == "STOP" then
         if ctx.tool_use_list and #ctx.tool_use_list > 0 then
           -- Natural stop, but tools were found in this final chunk.
+          -- Check for ReAct mode duplicate callback prevention
+          local provider_conf = Providers.parse_config(self)
+          if provider_conf.use_ReAct_prompt and opts.tool_completion_tracker then
+            if opts.tool_completion_tracker.final_callback_sent then
+              Utils.debug("Gemini: Blocked duplicate tool_use callback after completion")
+              return
+            end
+            if opts.tool_completion_tracker.completion_in_progress then
+              Utils.debug("Gemini: Blocked duplicate tool_use callback during processing")
+              return
+            end
+          end
           opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
         else
           -- Natural stop, no tools in this final chunk.

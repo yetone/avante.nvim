@@ -381,6 +381,18 @@ function M:parse_response(ctx, data_stream, _, opts)
     self:finish_pending_messages(ctx, opts)
     if ctx.tool_use_list and #ctx.tool_use_list > 0 then
       ctx.tool_use_list = {}
+      -- Check for ReAct mode duplicate callback prevention
+      local provider_conf = Providers.parse_config(self)
+      if provider_conf.use_ReAct_prompt and opts.tool_completion_tracker then
+        if opts.tool_completion_tracker.final_callback_sent then
+          Utils.debug("OpenAI: Blocked duplicate tool_use callback after completion")
+          return
+        end
+        if opts.tool_completion_tracker.completion_in_progress then
+          Utils.debug("OpenAI: Blocked duplicate tool_use callback during processing")
+          return
+        end
+      end
       opts.on_stop({ reason = "tool_use" })
     else
       opts.on_stop({ reason = "complete" })

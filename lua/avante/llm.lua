@@ -767,6 +767,13 @@ function M._stream(opts)
 
   local resp_headers = {}
 
+  -- Tool completion state tracking to prevent duplicate callbacks
+  local tool_completion_tracker = {
+    has_pending_tools = false,
+    completion_in_progress = false,
+    final_callback_sent = false,
+  }
+
   ---@type AvanteHandlerOptions
   local handler_opts = {
     on_messages_add = opts.on_messages_add,
@@ -774,7 +781,18 @@ function M._stream(opts)
     update_tokens_usage = opts.update_tokens_usage,
     on_start = opts.on_start,
     on_chunk = opts.on_chunk,
+    -- Pass tool completion tracker to providers for duplicate prevention
+    tool_completion_tracker = tool_completion_tracker,
     on_stop = function(stop_opts)
+      local current_provider_conf = Providers.parse_config(provider)
+      Utils.debug("LLM on_stop callback", {
+        reason = stop_opts.reason,
+        has_pending_tools = tool_completion_tracker.has_pending_tools,
+        completion_in_progress = tool_completion_tracker.completion_in_progress,
+        final_callback_sent = tool_completion_tracker.final_callback_sent,
+        use_react_prompt = current_provider_conf.use_ReAct_prompt,
+      })
+
       if stop_opts.usage and opts.update_tokens_usage then opts.update_tokens_usage(stop_opts.usage) end
 
       ---@param tool_uses AvantePartialLLMToolUse[]
@@ -788,6 +806,12 @@ function M._stream(opts)
         streaming_tool_use
       )
         if tool_use_index > #tool_uses then
+          Utils.debug("ReAct: All tools completed, finalizing")
+
+          -- Mark tool completion finished to prevent duplicate callbacks
+          tool_completion_tracker.completion_in_progress = false
+          tool_completion_tracker.final_callback_sent = true
+
           ---@type avante.HistoryMessage[]
           local messages = {}
           for _, tool_result in ipairs(tool_results) do
@@ -956,6 +980,16 @@ function M._stream(opts)
         end
       end
       if stop_opts.reason == "tool_use" then
+        Utils.debug("ReAct: Processing tool_use callback", {
+          pending_tools_count = #pending_tools,
+          completion_in_progress = tool_completion_tracker.completion_in_progress,
+          final_callback_sent = tool_completion_tracker.final_callback_sent,
+        })
+
+        -- Track tool completion state
+        tool_completion_tracker.has_pending_tools = #pending_tools > 0
+        tool_completion_tracker.completion_in_progress = true
+
         opts.session_ctx.user_reminder_count = 0
         return handle_next_tool_use(pending_tools, pending_tool_use_messages, 1, {}, stop_opts.streaming_tool_use)
       end
