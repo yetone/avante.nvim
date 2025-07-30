@@ -3,6 +3,7 @@ local fn = vim.fn
 local lsp = vim.lsp
 
 local LRUCache = require("avante.utils.lru_cache")
+local diff2search_replace = require("avante.utils.diff2search_replace")
 
 ---@class avante.utils: LazyUtilCore
 ---@field tokens avante.utils.tokens
@@ -1619,6 +1620,63 @@ function M.call_once(func)
     called = true
     return func(...)
   end
+end
+
+--- Some models (e.g., gpt-4o) cannot correctly return diff content and often miss the SEARCH line, so this needs to be manually fixed in such cases.
+---@param diff string
+---@return string
+function M.fix_diff(diff)
+  diff = diff2search_replace(diff)
+  -- Normalize block headers to the expected ones (fix for some LLMs output)
+  diff = diff:gsub("<<<<<<<%s*SEARCH", "------- SEARCH")
+  diff = diff:gsub(">>>>>>>%s*REPLACE", "+++++++ REPLACE")
+  diff = diff:gsub("-------%s*REPLACE", "+++++++ REPLACE")
+  diff = diff:gsub("-------  ", "------- SEARCH\n")
+  diff = diff:gsub("=======  ", "=======\n")
+
+  local fixed_diff_lines = {}
+  local lines = vim.split(diff, "\n")
+  local first_line = lines[1]
+  if first_line and first_line:match("^%s*```") then
+    table.insert(fixed_diff_lines, first_line)
+    table.insert(fixed_diff_lines, "------- SEARCH")
+    fixed_diff_lines = vim.list_extend(fixed_diff_lines, lines, 2)
+  else
+    table.insert(fixed_diff_lines, "------- SEARCH")
+    if first_line:match("------- SEARCH") then
+      fixed_diff_lines = vim.list_extend(fixed_diff_lines, lines, 2)
+    else
+      fixed_diff_lines = vim.list_extend(fixed_diff_lines, lines, 1)
+    end
+  end
+  local the_final_diff_lines = {}
+  local has_split_line = false
+  local replace_block_closed = false
+  local should_delete_following_lines = false
+  for _, line in ipairs(fixed_diff_lines) do
+    if should_delete_following_lines then goto continue end
+    if line:match("^-------%s*SEARCH") then has_split_line = false end
+    if line:match("^=======") then
+      if has_split_line then
+        should_delete_following_lines = true
+        goto continue
+      end
+      has_split_line = true
+    end
+    if line:match("^+++++++%s*REPLACE") then
+      if not has_split_line then
+        table.insert(the_final_diff_lines, "=======")
+        has_split_line = true
+        goto continue
+      else
+        replace_block_closed = true
+      end
+    end
+    table.insert(the_final_diff_lines, line)
+    ::continue::
+  end
+  if not replace_block_closed then table.insert(the_final_diff_lines, "+++++++ REPLACE") end
+  return table.concat(the_final_diff_lines, "\n")
 end
 
 return M
