@@ -2695,10 +2695,18 @@ function Sidebar:create_input_container()
   self:setup_window_navigation(self.containers.input)
   self.containers.input:map("n", Config.mappings.submit.normal, on_submit)
   self.containers.input:map("i", Config.mappings.submit.insert, on_submit)
-  self.containers.input:map("n", Config.prompt_logger.next_prompt.normal, PromptLogger.on_log_retrieve(-1))
-  self.containers.input:map("i", Config.prompt_logger.next_prompt.insert, PromptLogger.on_log_retrieve(-1))
-  self.containers.input:map("n", Config.prompt_logger.prev_prompt.normal, PromptLogger.on_log_retrieve(1))
-  self.containers.input:map("i", Config.prompt_logger.prev_prompt.insert, PromptLogger.on_log_retrieve(1))
+  if Config.prompt_logger.next_prompt.normal then
+    self.containers.input:map("n", Config.prompt_logger.next_prompt.normal, PromptLogger.on_log_retrieve(-1))
+  end
+  if Config.prompt_logger.next_prompt.insert then
+    self.containers.input:map("i", Config.prompt_logger.next_prompt.insert, PromptLogger.on_log_retrieve(-1))
+  end
+  if Config.prompt_logger.prev_prompt.normal then
+    self.containers.input:map("n", Config.prompt_logger.prev_prompt.normal, PromptLogger.on_log_retrieve(1))
+  end
+  if Config.prompt_logger.prev_prompt.insert then
+    self.containers.input:map("i", Config.prompt_logger.prev_prompt.insert, PromptLogger.on_log_retrieve(1))
+  end
 
   if Config.mappings.sidebar.close_from_input ~= nil then
     if Config.mappings.sidebar.close_from_input.normal ~= nil then
