@@ -280,9 +280,12 @@ function M:parse_response(ctx, data_stream, _, opts)
         -- The tool_use list is added to the table in llm.lua
         opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
       elseif reason_str == "STOP" then
+        -- Trust the main handler for tool completion processing
+        -- Distinguish between tool detection and post-completion cleanup
         if ctx.tool_use_list and #ctx.tool_use_list > 0 then
           -- Natural stop, but tools were found in this final chunk.
-          opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+          -- Let main handler process tools to prevent duplicate callbacks
+          opts.on_stop(vim.tbl_deep_extend("force", { reason = "complete" }, stop_details))
         else
           -- Natural stop, no tools in this final chunk.
           -- llm.lua will check its accumulated tools if tool_choice was active.

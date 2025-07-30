@@ -767,6 +767,14 @@ function M._stream(opts)
 
   local resp_headers = {}
 
+  -- Tool completion state tracker to prevent duplicate callbacks
+  local tool_completion_tracker = {
+    has_pending_tools = false,
+    completion_in_progress = false,
+    final_callback_sent = false,
+    callback_count = 0,
+  }
+
   ---@type AvanteHandlerOptions
   local handler_opts = {
     on_messages_add = opts.on_messages_add,
@@ -775,6 +783,23 @@ function M._stream(opts)
     on_start = opts.on_start,
     on_chunk = opts.on_chunk,
     on_stop = function(stop_opts)
+      tool_completion_tracker.callback_count = tool_completion_tracker.callback_count + 1
+      
+      -- Comprehensive debug logging for ReAct callback sequences
+      Utils.debug(string.format(
+        "[ReAct Debug] on_stop called - reason: %s, callback_count: %d, final_callback_sent: %s, completion_in_progress: %s",
+        stop_opts.reason or "nil",
+        tool_completion_tracker.callback_count,
+        tostring(tool_completion_tracker.final_callback_sent),
+        tostring(tool_completion_tracker.completion_in_progress)
+      ))
+      
+      -- State-aware wrapper to block duplicate tool_use callbacks
+      if stop_opts.reason == "tool_use" and tool_completion_tracker.final_callback_sent then
+        Utils.debug("[ReAct Debug] Blocking duplicate tool_use callback - final callback already sent")
+        return
+      end
+      
       if stop_opts.usage and opts.update_tokens_usage then opts.update_tokens_usage(stop_opts.usage) end
 
       ---@param tool_uses AvantePartialLLMToolUse[]
@@ -788,6 +813,11 @@ function M._stream(opts)
         streaming_tool_use
       )
         if tool_use_index > #tool_uses then
+          -- Mark tool completion state to prevent duplicate callbacks
+          tool_completion_tracker.completion_in_progress = false
+          tool_completion_tracker.final_callback_sent = true
+          Utils.debug("[ReAct Debug] Tools processing complete - marking final_callback_sent = true")
+          
           ---@type avante.HistoryMessage[]
           local messages = {}
           for _, tool_result in ipairs(tool_results) do
@@ -957,6 +987,13 @@ function M._stream(opts)
       end
       if stop_opts.reason == "tool_use" then
         opts.session_ctx.user_reminder_count = 0
+        -- Set completion state when starting tool processing
+        tool_completion_tracker.completion_in_progress = true
+        tool_completion_tracker.has_pending_tools = #pending_tools > 0
+        Utils.debug(string.format(
+          "[ReAct Debug] Starting tool processing - pending_tools: %d, completion_in_progress: true",
+          #pending_tools
+        ))
         return handle_next_tool_use(pending_tools, pending_tool_use_messages, 1, {}, stop_opts.streaming_tool_use)
       end
       if stop_opts.reason == "rate_limit" then

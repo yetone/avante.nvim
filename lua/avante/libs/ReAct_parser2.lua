@@ -13,6 +13,13 @@ local JsonParser = require("avante.libs.jsonparser")
 
 local M = {}
 
+-- ReAct parser state tracking to align with main handler completion logic
+local parser_state = {
+  completion_detected = false,
+  parsing_complete = false,
+  tool_count = 0,
+}
+
 --- Parse the text into a list of TextContent and ToolUseContent
 --- The text is a string.
 --- For example:
@@ -162,6 +169,11 @@ function M.parse(text)
   local result = {}
   local pos = 1
   local len = #text
+  
+  -- Reset parser state for each parse call
+  parser_state.tool_count = 0
+  parser_state.completion_detected = false
+  parser_state.parsing_complete = false
 
   while pos <= len do
     local tool_start = text:find("<tool_use>", pos, true)
@@ -210,6 +222,7 @@ function M.parse(text)
       local success, json_data = pcall(function() return vim.json.decode(json_text) end)
 
       if success and json_data and json_data.name then
+        parser_state.tool_count = parser_state.tool_count + 1
         table.insert(result, {
           type = "tool_use",
           tool_name = json_data.name,
@@ -220,6 +233,7 @@ function M.parse(text)
         local jsn = JsonParser.parse(json_text)
 
         if jsn and jsn.name then
+          parser_state.tool_count = parser_state.tool_count + 1
           table.insert(result, {
             type = "tool_use",
             tool_name = jsn.name,
@@ -236,6 +250,7 @@ function M.parse(text)
     local success, json_data = pcall(function() return vim.json.decode(json_text) end)
 
     if success and json_data and json_data.name then
+      parser_state.tool_count = parser_state.tool_count + 1
       table.insert(result, {
         type = "tool_use",
         tool_name = json_data.name,
@@ -255,7 +270,23 @@ function M.parse(text)
     end
   end
 
+  -- Mark parsing as complete and detect completion
+  parser_state.parsing_complete = true
+  parser_state.completion_detected = parser_state.tool_count > 0
+  
   return result
+end
+
+-- Get parser state for completion tracking
+function M.get_parser_state()
+  return parser_state
+end
+
+-- Reset parser state (useful for testing)
+function M.reset_parser_state()
+  parser_state.completion_detected = false
+  parser_state.parsing_complete = false
+  parser_state.tool_count = 0
 end
 
 return M

@@ -379,9 +379,13 @@ end
 function M:parse_response(ctx, data_stream, _, opts)
   if data_stream:match('"%[DONE%]":') or data_stream == "[DONE]" then
     self:finish_pending_messages(ctx, opts)
+    -- Trust the main handler for tool completion processing
+    -- The main handler in llm.lua will check for pending tools and call appropriate callbacks
     if ctx.tool_use_list and #ctx.tool_use_list > 0 then
       ctx.tool_use_list = {}
-      opts.on_stop({ reason = "tool_use" })
+      -- Remove duplicate opts.on_stop({ reason = "tool_use" }) call 
+      -- Main handler will process tools appropriately
+      opts.on_stop({ reason = "complete" })
     else
       opts.on_stop({ reason = "complete" })
     end
