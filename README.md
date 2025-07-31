@@ -75,7 +75,7 @@ For building binary if you wish to build from source, then `cargo` is required. 
   "yetone/avante.nvim",
   -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
   -- ⚠️ must add this setting! ! !
-  build = vim.fn.has("win32")
+  build = vim.fn.has("win32") ~= 0
       and "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false"
       or "make",
   event = "VeryLazy",
