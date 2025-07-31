@@ -20,7 +20,7 @@ describe("llm_tools", function()
     Config.setup()
     -- 创建测试目录和文件
     os.execute("mkdir -p " .. test_dir)
-    os.execute(string.format("cd %s; git init", test_dir))
+    os.execute(string.format("cd %s; git init -b main", test_dir))
     local file = io.open(test_file, "w")
     if not file then error("Failed to create test file") end
     file:write("test content")
