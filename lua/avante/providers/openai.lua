@@ -253,7 +253,7 @@ function M:add_text_message(ctx, text, state, opts)
     ::continue::
   end
   local cleaned_xml_content = table.concat(cleaned_xml_lines, "\n")
-  local xml = ReActParser.parse(cleaned_xml_content)
+  local xml, react_metadata = ReActParser.parse(cleaned_xml_content)
   if xml and #xml > 0 then
     local new_content_list = {}
     local xml_md_openned = false
@@ -320,7 +320,15 @@ function M:add_text_message(ctx, text, state, opts)
             state = "generating",
           }
         end
-        opts.on_stop({ reason = "tool_use", streaming_tool_use = item.partial })
+        -- Only call on_stop for ReAct tools when they are complete (not partial)  
+        if not item.partial then
+          local Utils = require("avante.utils")
+          Utils.debug("ReAct: Tool completed, calling on_stop for tool: " .. item.tool_name)
+          opts.on_stop({ reason = "tool_use", streaming_tool_use = false })
+        else
+          local Utils = require("avante.utils")
+          Utils.debug("ReAct: Tool partial, skipping on_stop for tool: " .. item.tool_name)
+        end
       end
       ::continue::
     end
@@ -381,7 +389,21 @@ function M:parse_response(ctx, data_stream, _, opts)
     self:finish_pending_messages(ctx, opts)
     if ctx.tool_use_list and #ctx.tool_use_list > 0 then
       ctx.tool_use_list = {}
-      opts.on_stop({ reason = "tool_use" })
+      -- For ReAct prompts, tools are already processed via add_ReAct_message_content
+      -- Only call on_stop for tool_use if not using ReAct prompts to avoid duplicate calls (if experimental fix enabled)
+      local Config = require("avante.config")
+      local provider_conf = Config.providers[Config.provider] or {}
+      local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
+      local Utils = require("avante.utils")
+      local fix_enabled = Config.experimental and Config.experimental.fix_react_double_invocation
+      
+      if not use_ReAct_prompt or not fix_enabled then
+        Utils.debug("ReAct: Stream done with tools, calling tool_use on_stop")
+        opts.on_stop({ reason = "tool_use" })
+      else
+        Utils.debug("ReAct: Stream done with ReAct tools, calling complete on_stop to prevent duplicate (fix enabled)")
+        opts.on_stop({ reason = "complete" })
+      end
     else
       opts.on_stop({ reason = "complete" })
     end

@@ -678,6 +678,13 @@ M._defaults = {
   slash_commands = {},
   ---@type AvanteShortcut[]
   shortcuts = {},
+  --- @class AvanteExperimentalConfig
+  experimental = {
+    --- Fix for ReAct prompts double LLM API invocation
+    --- When enabled, prevents duplicate tool_use callbacks when using ReAct prompts
+    --- This reduces API usage by ~50% and prevents unexpected behavior
+    fix_react_double_invocation = true,
+  },
 }
 
 ---@type avante.Config

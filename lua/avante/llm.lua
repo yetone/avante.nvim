@@ -13,10 +13,42 @@ local LLMToolHelpers = require("avante.llm_tools.helpers")
 local LLMTools = require("avante.llm_tools")
 local History = require("avante.history")
 
----@class avante.LLM
+---@class avante.LLM  
 local M = {}
 
 M.CANCEL_PATTERN = "AvanteLLMEscape"
+
+-- ReAct state tracking infrastructure
+local react_state = {
+  processing_tools = false,
+  tools_pending = false,
+  react_mode = false,
+}
+
+local function init_react_state()
+  react_state.processing_tools = false
+  react_state.tools_pending = false
+  react_state.react_mode = false
+end
+
+local function set_react_mode(enabled)
+  react_state.react_mode = enabled
+  if not enabled then
+    react_state.processing_tools = false
+    react_state.tools_pending = false
+  end
+end
+
+local function is_react_processing()
+  return react_state.react_mode and react_state.processing_tools
+end
+
+local function set_react_processing(processing)
+  if react_state.react_mode then
+    react_state.processing_tools = processing
+    Utils.debug("ReAct: Set processing state to " .. tostring(processing))
+  end
+end
 
 ------------------------------Prompt and type------------------------------
 
@@ -754,6 +786,16 @@ function M._stream(opts)
 
   ---@cast provider AvanteProviderFunctor
 
+  -- Initialize ReAct state tracking
+  init_react_state()
+  local provider_conf = Config.providers[Config.provider] or {}
+  if provider_conf.use_ReAct_prompt then
+    set_react_mode(true)
+    Utils.debug("ReAct: Enabled ReAct mode for provider " .. Config.provider)
+  else
+    Utils.debug("ReAct: ReAct mode disabled for provider " .. Config.provider)
+  end
+
   local prompt_opts = M.generate_prompts(opts)
 
   if
@@ -788,6 +830,12 @@ function M._stream(opts)
         streaming_tool_use
       )
         if tool_use_index > #tool_uses then
+          -- Reset ReAct processing state when all tools are completed (if experimental fix is enabled)
+          if Config.experimental and Config.experimental.fix_react_double_invocation and react_state.react_mode then
+            set_react_processing(false)
+            Utils.debug("ReAct: All tools completed, resetting processing state")
+          end
+          
           ---@type avante.HistoryMessage[]
           local messages = {}
           for _, tool_result in ipairs(tool_results) do
@@ -956,6 +1004,19 @@ function M._stream(opts)
         end
       end
       if stop_opts.reason == "tool_use" then
+        -- Prevent duplicate callbacks when in ReAct mode (if experimental fix is enabled)
+        if Config.experimental and Config.experimental.fix_react_double_invocation then
+          if is_react_processing() then
+            Utils.debug("ReAct: Ignoring duplicate tool_use callback - already processing")
+            return
+          end
+          
+          if react_state.react_mode then
+            set_react_processing(true)
+            Utils.debug("ReAct: Starting tool processing")
+          end
+        end
+        
         opts.session_ctx.user_reminder_count = 0
         return handle_next_tool_use(pending_tools, pending_tool_use_messages, 1, {}, stop_opts.streaming_tool_use)
       end

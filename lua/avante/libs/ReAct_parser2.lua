@@ -157,11 +157,19 @@ local M = {}
 --- }
 ---
 ---@param text string
----@return (avante.TextContent|avante.ToolUseContent)[]
+---@return (avante.TextContent|avante.ToolUseContent)[], table metadata with tool completion info
 function M.parse(text)
   local result = {}
   local pos = 1
   local len = #text
+  
+  -- Metadata for tool completion state
+  local metadata = {
+    tool_count = 0,
+    partial_tool_count = 0,
+    complete_tool_count = 0,
+    all_tools_complete = false,
+  }
 
   while pos <= len do
     local tool_start = text:find("<tool_use>", pos, true)
@@ -216,6 +224,8 @@ function M.parse(text)
           tool_input = json_data.input or {},
           partial = true,
         })
+        metadata.tool_count = metadata.tool_count + 1
+        metadata.partial_tool_count = metadata.partial_tool_count + 1
       else
         local jsn = JsonParser.parse(json_text)
 
@@ -226,6 +236,8 @@ function M.parse(text)
             tool_input = jsn.input or {},
             partial = true,
           })
+          metadata.tool_count = metadata.tool_count + 1
+          metadata.partial_tool_count = metadata.partial_tool_count + 1
         end
       end
       break
@@ -242,6 +254,8 @@ function M.parse(text)
         tool_input = json_data.input or {},
         partial = false,
       })
+      metadata.tool_count = metadata.tool_count + 1
+      metadata.complete_tool_count = metadata.complete_tool_count + 1
       pos = tool_end + 11 -- length of "</tool_use>"
     else
       -- Invalid JSON, treat the whole thing as text
@@ -255,7 +269,10 @@ function M.parse(text)
     end
   end
 
-  return result
+  -- Calculate all_tools_complete flag
+  metadata.all_tools_complete = metadata.tool_count > 0 and metadata.partial_tool_count == 0
+
+  return result, metadata
 end
 
 return M
