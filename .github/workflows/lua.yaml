@@ -91,7 +91,6 @@ jobs:
             "ibhagwan/fzf-lua"
             "nvim-tree/nvim-web-devicons"
             "zbirenbaum/copilot.lua"
-            "Bilal2453/luvit-meta"
             "folke/lazy.nvim"
           )
           for dep in "${DEPS[@]}"; do
