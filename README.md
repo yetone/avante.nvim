@@ -156,6 +156,8 @@ For building binary if you wish to build from source, then `cargo` is required. 
 
 ```vim
 
+call plug#begin()
+
 " Deps
 Plug 'nvim-lua/plenary.nvim'
 Plug 'MunifTanjim/nui.nvim'
@@ -171,8 +173,12 @@ Plug 'folke/snacks.nvim' " for modern input UI
 
 " Yay, pass source=true if you want to build from source
 Plug 'yetone/avante.nvim', { 'branch': 'main', 'do': 'make' }
-autocmd! User avante.nvim lua << EOF
-require('avante').setup()
+
+call plug#end()
+
+autocmd! User avante.nvim
+lua << EOF
+require('avante').setup({})
 EOF
 ```
 
