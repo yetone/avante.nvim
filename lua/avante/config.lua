@@ -459,8 +459,7 @@ M._defaults = {
   },
   prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
     enabled = true, -- toggle logging entirely
-    log_dir = Utils.join_paths(vim.fn.stdpath("cache"), "avante_prompts"), -- directory where logs are saved
-    fortune_cookie_on_success = false, -- shows a random fortune after each logged prompt (requires `fortune` installed)
+    log_dir = vim.fn.stdpath("cache"), -- directory where logs are saved
     next_prompt = {
       normal = "<C-n>", -- load the next (newer) prompt log in normal mode
       insert = "<C-n>",
