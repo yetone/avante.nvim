@@ -863,13 +863,19 @@ function M.setup(opts)
 
   local last_model, last_provider = M.load_last_model()
   if last_model then
+    local original_provider = merged.provider
+    local original_model = merged.providers
+      and merged.providers[original_provider]
+      and merged.providers[original_provider].model
     if last_provider then merged.provider = last_provider end
     if merged.providers and merged.provider and merged.providers[merged.provider] then
       merged.providers[merged.provider].model = last_model
-      Utils.info(
-        "Using last model: " .. merged.provider .. "/" .. merged.providers[merged.provider].model,
-        { title = "Avante" }
-      )
+      if last_model ~= original_model or last_provider ~= original_provider then
+        Utils.info(
+          "Using last model: " .. merged.provider .. "/" .. merged.providers[merged.provider].model,
+          { title = "Avante" }
+        )
+      end
     end
   end
 
