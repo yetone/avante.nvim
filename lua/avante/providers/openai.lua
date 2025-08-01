@@ -536,7 +536,15 @@ function M:parse_curl_args(prompt_opts)
   Utils.debug("model", provider_conf.model)
 
   local stop = nil
-  if use_ReAct_prompt then stop = { "</tool_use>" } end
+  if use_ReAct_prompt then
+    stop = { "</tool_use>" }
+  end
+
+  -- Support deployment-based model naming (for Azure and similar providers)
+  local model_to_use = provider_conf.model
+  if provider_conf.models and provider_conf.models[model_to_use] and provider_conf.models[model_to_use].deployment then
+    model_to_use = provider_conf.models[model_to_use].deployment
+  end
 
   return {
     url = Utils.url_join(provider_conf.endpoint, "/chat/completions"),
@@ -544,7 +552,7 @@ function M:parse_curl_args(prompt_opts)
     insecure = provider_conf.allow_insecure,
     headers = Utils.tbl_override(headers, self.extra_headers),
     body = vim.tbl_deep_extend("force", {
-      model = provider_conf.model,
+      model = model_to_use,
       messages = self:parse_messages(prompt_opts),
       stop = stop,
       stream = true,

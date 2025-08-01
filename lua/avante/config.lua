@@ -23,7 +23,7 @@ M._defaults = {
   ---@alias avante.Mode "agentic" | "legacy"
   ---@type avante.Mode
   mode = "agentic",
-  ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | string
+  ---@alias avante.ProviderName "claude" | "openai" | "azure" | "azure_next_gen" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | string
   ---@type avante.ProviderName
   provider = "claude",
   -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
@@ -273,6 +273,25 @@ M._defaults = {
         temperature = 0.75,
         max_completion_tokens = 20480, -- Increase this to include reasoning tokens (for reasoning models)
         reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
+      },
+    },
+    ---@type AvanteAzureNextGenProvider
+    azure_next_gen = {
+      endpoint = "", -- example: "https://<your-resource-name>.openai.azure.com/v1"
+      model = "", -- The model name from your models configuration
+      timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
+      extra_request_body = {
+        temperature = 0.75,
+        max_completion_tokens = 16384, -- Increase this to include reasoning tokens (for reasoning models)
+        reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
+      },
+      models = {
+        -- Example configuration:
+        -- ["azure_gpt_4o"] = {
+        --   deployment = "my-gpt4o-deployment",
+        --   openai_model = "gpt-4o", -- Inherits defaults from base OpenAI gpt-4o model
+        --   display_name = "Azure GPT-4o", -- Optional: custom display name in model selector
+        -- },
       },
     },
     ---@type AvanteSupportedProvider

@@ -15,6 +15,21 @@ local models_list_cached_result = {}
 ---@param provider_cfg table
 ---@return table
 local function create_model_entries(provider_name, provider_cfg)
+  -- Support for models dictionary (used by azure_next_gen and similar providers)
+  if provider_cfg.models and type(provider_cfg.models) == "table" and provider_cfg.__inherited_from == nil then
+    local models = {}
+    for model_key, model_config in pairs(provider_cfg.models) do
+      table.insert(models, {
+        id = model_key,
+        name = provider_name .. "/" .. model_key,
+        display_name = model_config.display_name or (provider_name .. "/" .. model_key),
+        provider_name = provider_name,
+        model = model_key, -- The key to use in the provider config
+      })
+    end
+    return models
+  end
+  
   if provider_cfg.models_list and provider_cfg.__inherited_from == nil then
     local models_list
     if type(provider_cfg.models_list) == "function" then
