@@ -52,6 +52,13 @@ function M.load_model_handler()
   error(error_msg)
 end
 
+function M.is_env_set()
+  local provider_conf, _ = P.parse_config(P["bedrock"])
+  ---@diagnostic disable-next-line: undefined-field
+  local profile = provider_conf.aws_profile
+  return profile ~= nil and profile ~= ""
+end
+
 function M:parse_messages(prompt_opts)
   local model_handler = M.load_model_handler()
   return model_handler.parse_messages(self, prompt_opts)
@@ -103,21 +110,11 @@ function M:parse_curl_args(prompt_opts)
 
   local access_key_id, secret_access_key, session_token, region
 
-  -- try to parse credentials from api key
-  local api_key = self.parse_api_key()
-  if api_key ~= nil then
-    local parts = vim.split(api_key, ",")
-    access_key_id = parts[1]
-    secret_access_key = parts[2]
-    region = parts[3]
-    session_token = parts[4]
-  else
-    -- alternatively parse credentials from default AWS credentials provider chain
-
+  ---@diagnostic disable-next-line: undefined-field
+  local profile = provider_conf.aws_profile
+  if profile ~= nil and profile ~= "" then
     ---@diagnostic disable-next-line: undefined-field
     region = provider_conf.aws_region
-    ---@diagnostic disable-next-line: undefined-field
-    local profile = provider_conf.aws_profile
 
     local awsCreds = M:get_aws_credentials(region, profile)
     if not region or region == "" then error("No aws_region specified in bedrock config") end
@@ -125,6 +122,18 @@ function M:parse_curl_args(prompt_opts)
     access_key_id = awsCreds.access_key_id
     secret_access_key = awsCreds.secret_access_key
     session_token = awsCreds.session_token
+  else
+    -- try to parse credentials from api key
+    local api_key = self.parse_api_key()
+    if api_key ~= nil then
+      local parts = vim.split(api_key, ",")
+      access_key_id = parts[1]
+      secret_access_key = parts[2]
+      region = parts[3]
+      session_token = parts[4]
+    else
+      error("API key not set correctly")
+    end
   end
 
   local endpoint
