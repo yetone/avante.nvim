@@ -65,6 +65,9 @@ M.func = vim.schedule_wrap(function(input, opts)
 
   if not input.path then return false, "path not provided" end
 
+  --- if input.path is a directory, return false
+  if vim.fn.isdirectory(input.path) == 1 then return false, "path is a directory" end
+
   local ok, lines = pcall(Utils.read_file_from_buf_or_disk, input.path)
   if not ok then
     local f = io.open(input.path, "r")
