@@ -63,14 +63,73 @@ clone_deps() {
 
 install_luals() {
     local dest_dir=${1:-"$PWD/target/tests"}
-    local luals_url_template="https://github.com/LuaLS/lua-language-server/releases/download/__VERSION__/lua-language-server-__VERSION__-linux-x64.tar.gz"
+
+    # Detect operating system and architecture
+    local os_name=""
+    local arch=""
+    local file_ext=""
+    local extract_cmd=""
+
+    case "$(uname -s)" in
+        Linux*)
+            os_name="linux"
+            file_ext="tar.gz"
+            ;;
+        Darwin*)
+            os_name="darwin"
+            file_ext="tar.gz"
+            ;;
+        CYGWIN*|MINGW*|MSYS*)
+            os_name="win32"
+            file_ext="zip"
+            ;;
+        *)
+            log "Unsupported operating system: $(uname -s)"
+            return 1
+            ;;
+    esac
+
+    case "$(uname -m)" in
+        x86_64|amd64)
+            arch="x64"
+            ;;
+        arm64|aarch64)
+            arch="arm64"
+            ;;
+        *)
+            log "Unsupported architecture: $(uname -m), falling back to x64"
+            arch="x64"
+            ;;
+    esac
+
+    # Set up extraction command based on file type
+    if [ "$file_ext" = "tar.gz" ]; then
+        extract_cmd="tar zx --directory"
+    else
+        extract_cmd="unzip -q -d"
+    fi
+
+    local platform="${os_name}-${arch}"
+    local luals_url_template="https://github.com/LuaLS/lua-language-server/releases/download/__VERSION__/lua-language-server-__VERSION__-__PLATFORM__.__EXT__"
     local luals_download_url="${luals_url_template//__VERSION__/$LUALS_VERSION}"
-    local luals_dir="$dest_dir/lua-language-server-${LUALS_VERSION}"
+    luals_download_url="${luals_download_url//__PLATFORM__/$platform}"
+    luals_download_url="${luals_download_url//__EXT__/$file_ext}"
+
+    local luals_dir="$dest_dir/lua-language-server-${LUALS_VERSION}-${platform}"
 
     if [ ! -d "$luals_dir" ]; then
-        log "Installing lua-language-server ${LUALS_VERSION}..."
+        log "Installing lua-language-server ${LUALS_VERSION} for ${platform}..."
         mkdir -p "$luals_dir"
-        curl -sSL "${luals_download_url}" | tar zx --directory "$luals_dir"
+
+        if [ "$file_ext" = "tar.gz" ]; then
+            curl -sSL "${luals_download_url}" | tar zx --directory "$luals_dir"
+        else
+            # For zip files, download first then extract
+            local temp_file="/tmp/luals-${LUALS_VERSION}.zip"
+            curl -sSL "${luals_download_url}" -o "$temp_file"
+            unzip -q "$temp_file" -d "$luals_dir"
+            rm -f "$temp_file"
+        fi
     else
         log_verbose "lua-language-server is already installed in $luals_dir"
     fi
