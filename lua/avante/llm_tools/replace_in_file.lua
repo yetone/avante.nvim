@@ -709,6 +709,7 @@ For example:
   end
 
   if diff_blocks[1] then
+    if not vim.api.nvim_buf_is_valid(bufnr) then return false, "Code buffer is not valid" end
     local line_count = vim.api.nvim_buf_line_count(bufnr)
     local winnr = Utils.get_winid(bufnr)
     if is_streaming then
@@ -740,6 +741,10 @@ For example:
     local parent_dir = vim.fn.fnamemodify(abs_path, ":h")
     --- check if the parent dir is exists, if not, create it
     if vim.fn.isdirectory(parent_dir) == 0 then vim.fn.mkdir(parent_dir, "p") end
+    if not vim.api.nvim_buf_is_valid(bufnr) then
+      on_complete(false, "Code buffer is not valid")
+      return
+    end
     vim.api.nvim_buf_call(bufnr, function() vim.cmd("noautocmd write!") end)
     if session_ctx then Helpers.mark_as_not_viewed(input.path, session_ctx) end
     on_complete(true, nil)
