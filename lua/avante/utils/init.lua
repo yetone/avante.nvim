@@ -377,6 +377,7 @@ function M.norm(path) return M.path.normalize(path) end
 ---@param msg string|string[]
 ---@param opts? LazyNotifyOpts
 function M.notify(msg, opts)
+  if msg == nil then return end
   if vim.in_fast_event() then
     return vim.schedule(function() M.notify(msg, opts) end)
   end
