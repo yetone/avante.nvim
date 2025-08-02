@@ -382,9 +382,50 @@ function M.notify(msg, opts)
   end
 
   opts = opts or {}
-  if type(msg) == "table" then
-    ---@diagnostic disable-next-line: no-unknown
-    msg = table.concat(vim.tbl_filter(function(line) return line or false end, msg), "\n")
+  
+  -- Enhanced input validation and nil handling
+  if msg == nil then
+    msg = "[Avante] Empty notification message"
+    -- Optional debug logging when config.debug is enabled
+    if require("avante.config").debug then
+      local info = debug.getinfo(2, "Sl")
+      local caller_source = info.source:match("@(.+)$") or "unknown"
+      local caller_module = caller_source:gsub("^.*/lua/", ""):gsub("%.lua$", ""):gsub("/", ".")
+      print("[AVANTE] [DEBUG] Nil message from " .. caller_module .. ":" .. info.currentline)
+    end
+  elseif type(msg) == "table" then
+    -- Handle table messages with nil filtering and safe processing
+    if next(msg) == nil then
+      -- Empty table
+      msg = "[Avante] Empty notification message"
+    else
+      -- Filter out nil values and convert non-string elements to strings
+      local filtered_lines = {}
+      for _, line in ipairs(msg) do
+        if line ~= nil then
+          if type(line) == "string" then
+            table.insert(filtered_lines, line)
+          else
+            -- Convert non-string values to strings safely
+            table.insert(filtered_lines, tostring(line))
+          end
+        end
+      end
+      
+      -- Handle case where all values were nil
+      if #filtered_lines == 0 then
+        msg = "[Avante] Empty notification message"
+      else
+        msg = table.concat(filtered_lines, "\n")
+      end
+    end
+  elseif type(msg) ~= "string" then
+    -- Handle non-string, non-table messages by converting to string
+    if type(msg) == "function" then
+      msg = "[Avante] Function object (unconvertible)"
+    else
+      msg = tostring(msg)
+    end
   end
   ---@diagnostic disable-next-line: undefined-field
   if opts.stacktrace then
@@ -451,7 +492,9 @@ function M.debug(...)
   }
 
   for _, arg in ipairs(args) do
-    if type(arg) == "string" then
+    if arg == nil then
+      table.insert(formated_args, "[nil]")
+    elseif type(arg) == "string" then
       table.insert(formated_args, arg)
     else
       table.insert(formated_args, vim.inspect(arg))
