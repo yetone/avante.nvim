@@ -452,7 +452,10 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
       close_from_input = nil, -- e.g., { normal = "<Esc>", insert = "<C-d>" }
     },
   },
-  hints = { enabled = true },
+  selection = {
+    enabled = true,
+    hint_display = "delayed",
+  },
   windows = {
     ---@type "right" | "left" | "top" | "bottom"
     position = "right", -- the position of the sidebar
