@@ -29,36 +29,65 @@ log_verbose() {
     fi
 }
 
+# Process a single dependency (used for parallel execution)
+process_single_dep() {
+    local dep="$1"
+    local deps_dir="$2"
+    local repo_name="$(echo "$dep" | cut -d'/' -f2)"
+    local repo_path="$deps_dir/$repo_name"
+
+    if [ -d "$repo_path/.git" ]; then
+        log_verbose "Updating existing repository: $repo_path"
+        (
+            cd "$repo_path"
+            git fetch -q
+            if git show-ref --verify --quiet refs/remotes/origin/main; then
+                git reset -q --hard origin/main
+            elif git show-ref --verify --quiet refs/remotes/origin/master; then
+                git reset -q --hard origin/master
+            else
+                log "Could not find main or master branch for $repo_name"
+                return 1
+            fi
+        )
+    else
+        if [ -d "$repo_path" ]; then
+            log_verbose "Directory '$repo_path' exists but is not a git repository. Removing and re-cloning."
+            rm -rf "$repo_path"
+        fi
+        log_verbose "Cloning new repository: $dep to $repo_path"
+        git clone -q --depth 1 "https://github.com/${dep}.git" "$repo_path"
+    fi
+}
+
 clone_deps() {
     local deps_dir=${1:-"$PWD/deps"}
-    log_verbose "Cloning dependencies into: $deps_dir"
+    log_verbose "Cloning dependencies into: $deps_dir (parallel mode)"
     mkdir -p "$deps_dir"
 
+    # Array to store background process PIDs
+    local pids=()
+
+    # Start all dependency processes in parallel
     for dep in "${DEPS[@]}"; do
-        repo_name="$(echo "$dep" | cut -d'/' -f2)"
-        local repo_path="$deps_dir/$repo_name"
-        if [ -d "$repo_path/.git" ]; then
-            log_verbose "Updating existing repository: $repo_path"
-            (
-                cd "$repo_path"
-                git fetch -q
-                if git show-ref --verify --quiet refs/remotes/origin/main; then
-                    git reset -q --hard origin/main
-                elif git show-ref --verify --quiet refs/remotes/origin/master; then
-                    git reset -q --hard origin/master
-                else
-                    log "Could not find main or master branch for $repo_name"
-                fi
-            )
-        else
-            if [ -d "$repo_path" ]; then
-                log_verbose "Directory '$repo_path' exists but is not a git repository. Removing and re-cloning."
-                rm -rf "$repo_path"
-            fi
-            log_verbose "Cloning new repository: $dep to $repo_path"
-            git clone -q --depth 1 "https://github.com/${dep}.git" "$repo_path"
+        process_single_dep "$dep" "$deps_dir" &
+        pids+=($!)
+    done
+
+    # Wait for all background processes to complete and check their exit status
+    local failed_count=0
+    for pid in "${pids[@]}"; do
+        if ! wait "$pid"; then
+            ((failed_count++))
         fi
     done
+
+    if [ "$failed_count" -gt 0 ]; then
+        log "Warning: $failed_count dependencies failed to process"
+        return 1
+    fi
+
+    log_verbose "All dependencies processed successfully"
 }
 
 install_luals() {
