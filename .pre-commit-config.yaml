@@ -7,6 +7,8 @@ repos:
     - id: trailing-whitespace
     - id: check-ast  # 检查Python语法错误
     - id: debug-statements  # 检查是否有debug语句
+    - id: check-added-large-files
+    - id: check-merge-conflict
 - repo: https://github.com/JohnnyMorganz/StyLua
   rev: v2.0.2
   hooks:
