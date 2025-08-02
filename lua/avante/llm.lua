@@ -969,7 +969,7 @@ function M._stream(opts)
             }
           )
 
-        local timer = vim.loop.new_timer()
+        local timer = vim.uv.new_timer()
         if timer then
           local retry_count = stop_opts.retry_after
           Utils.info("Rate limit reached. Retrying in " .. retry_count .. " seconds", { title = "Avante" })
