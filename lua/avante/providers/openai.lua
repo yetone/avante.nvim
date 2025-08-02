@@ -536,9 +536,7 @@ function M:parse_curl_args(prompt_opts)
   Utils.debug("model", provider_conf.model)
 
   local stop = nil
-  if use_ReAct_prompt then
-    stop = { "</tool_use>" }
-  end
+  if use_ReAct_prompt then stop = { "</tool_use>" } end
 
   -- Support deployment-based model naming (for Azure and similar providers)
   local model_to_use = provider_conf.model

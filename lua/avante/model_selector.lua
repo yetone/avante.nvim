@@ -29,7 +29,7 @@ local function create_model_entries(provider_name, provider_cfg)
     end
     return models
   end
-  
+
   if provider_cfg.models_list and provider_cfg.__inherited_from == nil then
     local models_list
     if type(provider_cfg.models_list) == "function" then

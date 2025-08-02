@@ -28,16 +28,16 @@ local function apply_model_inheritance(self, model_name)
   if not provider_conf.models or not provider_conf.models[model_name] then
     return {}
   end
-  
+
   local model_config = provider_conf.models[model_name]
   if not model_config.openai_model then
     return {}
   end
-  
+
   -- Get the base OpenAI model defaults from the config
   local openai_config = Config._defaults.providers.openai
   if not openai_config then return {} end
-  
+
   -- Return inherited defaults that can be merged
   return {
     context_window = openai_config.context_window,
@@ -52,15 +52,15 @@ function M:parse_curl_args(prompt_opts)
   local provider_conf, _ = P.parse_config(self)
   local current_model = provider_conf.model
   local inherited_config = apply_model_inheritance(self, current_model)
-  
+
   -- Temporarily merge inherited config into self for the parent call
   local original_extra_request_body = self.extra_request_body
   local original_context_window = self.context_window
   local original_timeout = self.timeout
-  
+
   if inherited_config.extra_request_body then
-    self.extra_request_body = vim.tbl_deep_extend("keep", 
-      self.extra_request_body or {}, 
+    self.extra_request_body = vim.tbl_deep_extend("keep",
+      self.extra_request_body or {},
       inherited_config.extra_request_body)
   end
   if inherited_config.context_window then
@@ -69,12 +69,12 @@ function M:parse_curl_args(prompt_opts)
   if inherited_config.timeout then
     self.timeout = inherited_config.timeout
   end
-  
+
   -- 1. Call the parent 'openai' provider's function first.
   -- This gives us a standard OpenAI request structure, including the body,
   -- model-specific options, tools, etc. It reuses all the complex logic.
   local curl_args = O.parse_curl_args(self, prompt_opts)
-  
+
   -- Restore original config
   self.extra_request_body = original_extra_request_body
   self.context_window = original_context_window

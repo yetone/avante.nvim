@@ -4,7 +4,7 @@
 
 local config = {
   provider = "azure_next_gen",
-  
+
   providers = {
     -- The user might still have a standard openai provider configured.
     -- avante.nvim has sensible defaults for models like "gpt-4o" here.
@@ -16,16 +16,16 @@ local config = {
     azure_next_gen = {
       endpoint = "https://my-azure-resource.openai.azure.com/v1/",
       api_key_name = "AZURE_OPENAI_API_KEY", -- or "cmd:bw get secret azure-openai-api-key"
-      
+
       -- Select the default model to use by its friendly name
-      model = "azure_gpt_4o", 
-      
+      model = "azure_gpt_4o",
+
       -- Model configurations with inheritance support
       models = {
         ["azure_gpt_4o"] = {
           -- This is the actual name of the deployment on Azure
           deployment = "my-gpt4o-deployment",
-          
+
           -- This is the new key that enables inheritance.
           -- It tells avante to apply all the sensible defaults it has for "gpt-4o"
           -- to this deployment (context_window, extra_request_body, timeout).
@@ -34,7 +34,7 @@ local config = {
           -- (Optional) The API version to use. Defaults to 'preview'.
           -- Other valid options might include 'latest' or a specific version string.
           api_version = "preview",
-          
+
           -- Optional: Custom display name in model selector
           display_name = "Azure GPT-4o",
         },
