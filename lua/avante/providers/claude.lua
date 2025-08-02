@@ -35,7 +35,24 @@ end
 ---@param tool AvanteLLMTool
 ---@return AvanteClaudeTool
 function M:transform_tool(tool)
-  local input_schema_properties, required = Utils.llm_tool_param_fields_to_json_schema(tool.param.fields)
+  -- ✅ Respect literal schemas (bypass generation)
+  if tool.input_schema and tool.input_schema.__avante_literal then
+    vim.notify("Avante: using literal input_schema", vim.log.levels.INFO)
+    return {
+      name = tool.name,
+      description = tool.get_description and tool.get_description() or tool.description,
+      input_schema = tool.input_schema,
+    }
+  end
+
+  -- 🟡 Fallback: auto-generate schema from param.fields
+  if not tool.param or not tool.param.fields then
+    error("Tool is missing param.fields and no literal schema provided")
+  end
+
+  local input_schema_properties, required =
+    require("avante.utils.init").llm_tool_param_fields_to_json_schema(tool.param.fields)
+
   return {
     name = tool.name,
     description = tool.get_description and tool.get_description() or tool.description,
