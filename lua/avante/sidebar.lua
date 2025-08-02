@@ -2674,6 +2674,7 @@ function Sidebar:create_input_container()
   self.handle_submit = handle_submit
 
   self.containers.input:mount()
+  PromptLogger.init()
 
   local function place_sign_at_first_line(bufnr)
     local group = "avante_input_prompt_group"
@@ -2738,6 +2739,11 @@ function Sidebar:create_input_container()
       debounced_show_input_hint()
       place_sign_at_first_line(self.containers.input.bufnr)
     end,
+  })
+  api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
+    group = self.augroup,
+    buffer = self.containers.input.bufnr,
+    callback = function() PromptLogger.update_current_input() end,
   })
 
   api.nvim_create_autocmd("QuitPre", {
