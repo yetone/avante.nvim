@@ -1288,7 +1288,13 @@ function M.update_buffer_lines(ns_id, bufnr, old_lines, new_lines)
   for _, diff in ipairs(diffs) do
     local lines = diff.content
     local text_lines = vim.tbl_map(function(line) return tostring(line) end, lines)
-    vim.api.nvim_buf_set_lines(bufnr, diff.start_line - 1, diff.end_line - 1, false, text_lines)
+    --- rmeove newlines from text_lines
+    local cleaned_lines = {}
+    for _, line in ipairs(text_lines) do
+      local lines_ = vim.split(line, "\n")
+      cleaned_lines = vim.list_extend(cleaned_lines, lines_)
+    end
+    vim.api.nvim_buf_set_lines(bufnr, diff.start_line - 1, diff.end_line - 1, false, cleaned_lines)
     for i, line in ipairs(lines) do
       line:set_highlights(ns_id, bufnr, diff.start_line + i - 2)
     end
