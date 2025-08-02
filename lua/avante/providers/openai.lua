@@ -158,8 +158,10 @@ function M:parse_messages(opts)
           local last_message = messages[#messages]
           if last_message and last_message.role == self.role_map["assistant"] and last_message.tool_calls then
             last_message.tool_calls = vim.list_extend(last_message.tool_calls, tool_calls)
+
+            if not last_message.content then last_message.content = "" end
           else
-            table.insert(messages, { role = self.role_map["assistant"], tool_calls = tool_calls })
+            table.insert(messages, { role = self.role_map["assistant"], tool_calls = tool_calls, content = "" })
           end
         end
         if #tool_results > 0 then
