@@ -71,6 +71,10 @@ end
 function M.on_log_retrieve(delta)
   return function()
     local res = _read_log(delta)
+    if not res or not res.input then
+      vim.notify("No log entry found.", vim.log.levels.WARN)
+      return
+    end
     vim.api.nvim_buf_set_lines(0, 0, -1, false, vim.split(res.input, "\n", { plain = true }))
     vim.api.nvim_win_set_cursor(
       0,
