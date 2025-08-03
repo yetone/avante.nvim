@@ -18,8 +18,8 @@ function M.init()
 
     local lines = vim.split(content, "\n", { plain = true })
     for _, line in ipairs(lines) do
-      local entry = loadstring("return " .. line)()
-      if entry and entry.time and entry.input then table.insert(entries, entry) end
+      local ok, entry = pcall(vim.fn.json_decode, line)
+      if ok and entry and entry.time and entry.input then table.insert(entries, entry) end
     end
   end
   table.insert(entries, { input = "" })
