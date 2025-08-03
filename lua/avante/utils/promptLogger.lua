@@ -53,7 +53,7 @@ function M.log_prompt(request)
   if file then
     -- Write all entries to the log file, except the last one
     for i = 1, #entries - 1, 1 do
-      file:write(vim.inspect(entries[i]):gsub("\n[ ]*", " ") .. "\n")
+      file:write(vim.fn.json_encode(entries[i]) .. "\n")
     end
     file:close()
   else
