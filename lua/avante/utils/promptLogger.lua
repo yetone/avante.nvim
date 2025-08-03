@@ -63,7 +63,7 @@ end
 
 local function _read_log(delta)
   -- index of array starts from 1 in lua, while this idx starts from 0
-  idx = (idx - delta) % #entries
+  idx = ((idx - delta) % #entries + #entries) % #entries
 
   return entries[idx + 1]
 end
