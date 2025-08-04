@@ -38,11 +38,12 @@ function M.log_prompt(request)
   }
 
   -- Remove any existing entries with the same input
-  if #entries > 1 then
-    for i = #entries - 1, 1, -1 do
-      if entries[i].input == entry.input then table.remove(entries, i) end
-    end
-    -- Add the new entry
+  for i = #entries - 1, 1, -1 do
+    if entries[i].input == entry.input then table.remove(entries, i) end
+  end
+
+  -- Add the new entry
+  if #entries > 0 then
     table.insert(entries, #entries, entry)
     idx = #entries - 1
   else
