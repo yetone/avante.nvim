@@ -617,7 +617,7 @@ M._defaults = {
     },
     input = {
       prefix = "> ",
-      height = 6, -- Height of the input window in vertical layout
+      height = 8, -- Height of the input window in vertical layout
     },
     edit = {
       border = { " ", " ", " ", " ", " ", " ", " ", " " },
