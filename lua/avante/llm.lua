@@ -18,6 +18,46 @@ local M = {}
 
 M.CANCEL_PATTERN = "AvanteLLMEscape"
 
+-- ReAct state tracking to prevent double API invocations
+M._react_state = {
+  react_mode = false,
+  tools_pending = false,
+  processing_tools = false,
+  react_tools_ready = false,
+}
+
+-- Initialize ReAct state for a new request
+function M._init_react_state(provider_conf)
+  M._react_state.react_mode = provider_conf and provider_conf.use_ReAct_prompt == true
+  M._react_state.tools_pending = false
+  M._react_state.processing_tools = false
+  M._react_state.react_tools_ready = false
+  
+  if M._react_state.react_mode then
+    Utils.debug("ReAct: Initialized ReAct mode for provider: " .. (provider_conf.model or "unknown"))
+  end
+end
+
+-- Reset ReAct state after completion
+function M._cleanup_react_state()
+  if M._react_state.react_mode then
+    Utils.debug("ReAct: Cleaning up ReAct state")
+  end
+  M._react_state.react_mode = false
+  M._react_state.tools_pending = false
+  M._react_state.processing_tools = false
+  M._react_state.react_tools_ready = false
+end
+
+-- Check if we should prevent duplicate tool_use callbacks
+function M._should_prevent_duplicate_callback()
+  -- Check if the experimental fix is enabled
+  local fix_enabled = Config.experimental and Config.experimental.fix_react_double_invocation
+  if fix_enabled == nil then fix_enabled = true end -- Default to enabled
+  
+  return fix_enabled and M._react_state.react_mode and M._react_state.processing_tools
+end
+
 ------------------------------Prompt and type------------------------------
 
 local group = api.nvim_create_augroup("avante_llm", { clear = true })
@@ -741,6 +781,10 @@ function M._stream(opts)
 
   local provider = opts.provider or Providers[Config.provider]
   opts.session_ctx = opts.session_ctx or {}
+  
+  -- Initialize ReAct state tracking
+  local provider_conf = Providers.parse_config(provider)
+  M._init_react_state(provider_conf)
 
   if not opts.session_ctx.on_messages_add then opts.session_ctx.on_messages_add = opts.on_messages_add end
   if not opts.session_ctx.on_state_change then opts.session_ctx.on_state_change = opts.on_state_change end
@@ -956,6 +1000,18 @@ function M._stream(opts)
         end
       end
       if stop_opts.reason == "tool_use" then
+        -- Prevent duplicate tool_use callbacks in ReAct mode
+        if M._should_prevent_duplicate_callback() then
+          Utils.debug("ReAct: Preventing duplicate tool_use callback - already processing tools")
+          return
+        end
+        
+        -- Set processing state to prevent further duplicates
+        if M._react_state.react_mode then
+          M._react_state.processing_tools = true
+          Utils.debug("ReAct: Starting tool processing, setting processing_tools = true")
+        end
+        
         opts.session_ctx.user_reminder_count = 0
         return handle_next_tool_use(pending_tools, pending_tool_use_messages, 1, {}, stop_opts.streaming_tool_use)
       end
@@ -1002,6 +1058,8 @@ function M._stream(opts)
         end
         return
       end
+      -- Cleanup ReAct state on completion
+      M._cleanup_react_state()
       return opts.on_stop(stop_opts)
     end,
   }

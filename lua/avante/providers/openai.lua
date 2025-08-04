@@ -322,7 +322,17 @@ function M:add_text_message(ctx, text, state, opts)
             state = "generating",
           }
         end
-        opts.on_stop({ reason = "tool_use", streaming_tool_use = item.partial })
+        -- Only call on_stop for tool_use if not in ReAct mode or if tools are ready
+        local provider_conf = Providers.parse_config(self)
+        local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
+        if not use_ReAct_prompt or not item.partial then
+          if use_ReAct_prompt then
+            Utils.debug("ReAct: OpenAI calling on_stop for tool_use, partial=" .. tostring(item.partial))
+          end
+          opts.on_stop({ reason = "tool_use", streaming_tool_use = item.partial })
+        else
+          Utils.debug("ReAct: OpenAI skipping on_stop for partial tool in ReAct mode")
+        end
       end
       ::continue::
     end
@@ -382,8 +392,35 @@ function M:parse_response(ctx, data_stream, _, opts)
   if data_stream:match('"%[DONE%]":') or data_stream == "[DONE]" then
     self:finish_pending_messages(ctx, opts)
     if ctx.tool_use_list and #ctx.tool_use_list > 0 then
+      -- Check if in ReAct mode and if tools are ready before calling on_stop
+      local provider_conf = Providers.parse_config(self)
+      local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
+      
       ctx.tool_use_list = {}
-      opts.on_stop({ reason = "tool_use" })
+      
+      -- Only call on_stop with tool_use if not in ReAct mode or if no partial tools remain  
+      if not use_ReAct_prompt then
+        Utils.debug("ReAct: OpenAI stream complete, calling tool_use (non-ReAct mode)")
+        opts.on_stop({ reason = "tool_use" })
+      else
+        -- In ReAct mode, check if all tools are complete
+        local has_partial_tools = false
+        if ctx.tool_use_list then
+          for _, tool in ipairs(ctx.tool_use_list) do
+            if tool.state == "generating" then
+              has_partial_tools = true
+              break
+            end
+          end
+        end
+        if not has_partial_tools then
+          Utils.debug("ReAct: OpenAI stream complete, all tools complete, calling tool_use")
+          opts.on_stop({ reason = "tool_use" })
+        else
+          Utils.debug("ReAct: OpenAI stream complete, partial tools remain, calling complete")
+          opts.on_stop({ reason = "complete" })
+        end
+      end
     else
       opts.on_stop({ reason = "complete" })
     end

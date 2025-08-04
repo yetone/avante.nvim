@@ -258,4 +258,34 @@ function M.parse(text)
   return result
 end
 
+--- Enhanced parse function that returns both parsed content and metadata
+--- @param text string
+--- @return (avante.TextContent|avante.ToolUseContent)[], table
+function M.parse_with_metadata(text)
+  local result = M.parse(text)
+  
+  -- Calculate metadata
+  local tool_count = 0
+  local partial_tool_count = 0
+  local all_tools_complete = true
+  
+  for _, item in ipairs(result) do
+    if item.type == "tool_use" then
+      tool_count = tool_count + 1
+      if item.partial then
+        partial_tool_count = partial_tool_count + 1
+        all_tools_complete = false
+      end
+    end
+  end
+  
+  local metadata = {
+    tool_count = tool_count,
+    partial_tool_count = partial_tool_count,
+    all_tools_complete = all_tools_complete,
+  }
+  
+  return result, metadata
+end
+
 return M

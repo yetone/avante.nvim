@@ -677,6 +677,13 @@ M._defaults = {
   slash_commands = {},
   ---@type AvanteShortcut[]
   shortcuts = {},
+  ---Experimental features configuration
+  ---Note: These are experimental features and may not work as expected.
+  experimental = {
+    ---Fix for ReAct prompts double LLM API invocation issue
+    ---When enabled, prevents duplicate tool_use callbacks in ReAct mode
+    fix_react_double_invocation = true,
+  },
 }
 
 ---@type avante.Config
