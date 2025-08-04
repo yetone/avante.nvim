@@ -255,7 +255,7 @@ function M:add_text_message(ctx, text, state, opts)
     ::continue::
   end
   local cleaned_xml_content = table.concat(cleaned_xml_lines, "\n")
-  local xml = ReActParser.parse(cleaned_xml_content)
+  local xml, xml_metadata = ReActParser.parse(cleaned_xml_content)
   if xml and #xml > 0 then
     local new_content_list = {}
     local xml_md_openned = false
@@ -322,7 +322,20 @@ function M:add_text_message(ctx, text, state, opts)
             state = "generating",
           }
         end
-        opts.on_stop({ reason = "tool_use", streaming_tool_use = item.partial })
+        -- Check if we're in ReAct mode to prevent premature callbacks for partial tools
+        local provider_conf = Providers.parse_config(self)
+        local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
+        local Config = require("avante.config")
+        
+        if use_ReAct_prompt and item.partial and Config.behaviour.fix_react_double_invocation then
+          -- For ReAct partial tools, don't immediately call on_stop if fix is enabled
+          Utils.debug("ReAct partial tool detected, skipping immediate on_stop", {
+            tool_name = item.tool_name,
+            partial = item.partial
+          })
+        else
+          opts.on_stop({ reason = "tool_use", streaming_tool_use = item.partial })
+        end
       end
       ::continue::
     end
@@ -382,8 +395,23 @@ function M:parse_response(ctx, data_stream, _, opts)
   if data_stream:match('"%[DONE%]":') or data_stream == "[DONE]" then
     self:finish_pending_messages(ctx, opts)
     if ctx.tool_use_list and #ctx.tool_use_list > 0 then
+      local provider_conf = Providers.parse_config(self)
+      local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
+      
       ctx.tool_use_list = {}
-      opts.on_stop({ reason = "tool_use" })
+      
+      if use_ReAct_prompt then
+        local Config = require("avante.config")
+        -- In ReAct mode, signal tools are ready and call on_stop only once
+        Utils.debug("ReAct stream completion - tools ready")
+        if Config.behaviour.fix_react_double_invocation then
+          opts.on_stop({ reason = "tool_use", react_tools_ready = true })
+        else
+          opts.on_stop({ reason = "tool_use" })
+        end
+      else
+        opts.on_stop({ reason = "tool_use" })
+      end
     else
       opts.on_stop({ reason = "complete" })
     end

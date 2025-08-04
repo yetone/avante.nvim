@@ -18,6 +18,36 @@ local M = {}
 
 M.CANCEL_PATTERN = "AvanteLLMEscape"
 
+-- ReAct state tracking infrastructure
+---@class avante.ReActState
+---@field react_mode boolean Whether we're currently in ReAct mode
+---@field tools_pending boolean Whether ReAct tools are still being processed
+---@field processing_tools boolean Whether we're currently processing tool callbacks
+---@field react_tools_ready boolean Whether all ReAct tools are ready for callback
+local react_state = {
+  react_mode = false,
+  tools_pending = false,
+  processing_tools = false,
+  react_tools_ready = false,
+}
+
+--- Initialize ReAct state
+---@param use_react boolean
+local function init_react_state(use_react)
+  react_state.react_mode = use_react or false
+  react_state.tools_pending = false
+  react_state.processing_tools = false
+  react_state.react_tools_ready = false
+end
+
+--- Clear ReAct state
+local function clear_react_state()
+  react_state.react_mode = false
+  react_state.tools_pending = false
+  react_state.processing_tools = false
+  react_state.react_tools_ready = false
+end
+
 ------------------------------Prompt and type------------------------------
 
 local group = api.nvim_create_augroup("avante_llm", { clear = true })
@@ -756,6 +786,18 @@ function M._stream(opts)
 
   local prompt_opts = M.generate_prompts(opts)
 
+  -- Initialize ReAct state tracking (only if fix is enabled)
+  if Config.behaviour.fix_react_double_invocation then
+    init_react_state(prompt_opts.use_react_prompt)
+    
+    if react_state.react_mode then
+      Utils.debug("ReAct mode initialized for request with double invocation fix")
+    end
+  else
+    -- Legacy behavior - no state tracking
+    clear_react_state()
+  end
+
   if
     prompt_opts.pending_compaction_history_messages
     and #prompt_opts.pending_compaction_history_messages > 0
@@ -956,6 +998,38 @@ function M._stream(opts)
         end
       end
       if stop_opts.reason == "tool_use" then
+        -- Prevent duplicate callbacks in ReAct mode (only if fix is enabled)
+        if react_state.react_mode and Config.behaviour.fix_react_double_invocation then
+          Utils.debug("ReAct tool_use callback received", {
+            processing_tools = react_state.processing_tools,
+            tools_ready = react_state.react_tools_ready,
+            streaming = stop_opts.streaming_tool_use,
+            react_tools_ready = stop_opts.react_tools_ready
+          })
+          
+          -- Update tools ready state from provider signal
+          if stop_opts.react_tools_ready then
+            react_state.react_tools_ready = true
+          end
+          
+          -- If we're already processing tools, prevent duplicate invocation
+          if react_state.processing_tools and not stop_opts.streaming_tool_use then
+            Utils.debug("Preventing duplicate ReAct tool_use callback")
+            return
+          end
+          
+          -- If this is a non-streaming callback and tools aren't ready, skip
+          if not stop_opts.streaming_tool_use and not react_state.react_tools_ready then
+            Utils.debug("Skipping premature ReAct tool_use callback - tools not ready")
+            return
+          end
+          
+          -- Set processing flag to prevent further duplicates
+          if not stop_opts.streaming_tool_use then
+            react_state.processing_tools = true
+          end
+        end
+        
         opts.session_ctx.user_reminder_count = 0
         return handle_next_tool_use(pending_tools, pending_tool_use_messages, 1, {}, stop_opts.streaming_tool_use)
       end
@@ -1002,6 +1076,12 @@ function M._stream(opts)
         end
         return
       end
+      -- Clean up ReAct state when request completes
+      if react_state.react_mode then
+        Utils.debug("Cleaning up ReAct state on completion", { reason = stop_opts.reason })
+        clear_react_state()
+      end
+      
       return opts.on_stop(stop_opts)
     end,
   }

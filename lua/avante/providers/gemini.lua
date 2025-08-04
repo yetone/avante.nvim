@@ -278,11 +278,37 @@ function M:parse_response(ctx, data_stream, _, opts)
       if reason_str == "TOOL_CODE" then
         -- Model indicates a tool-related stop.
         -- The tool_use list is added to the table in llm.lua
-        opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+        local provider_conf = require("avante.providers").parse_config(self)
+        local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
+        
+        if use_ReAct_prompt then
+          local Config = require("avante.config")
+          -- In ReAct mode, signal tools are ready
+          if Config.behaviour.fix_react_double_invocation then
+            opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use", react_tools_ready = true }, stop_details))
+          else
+            opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+          end
+        else
+          opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+        end
       elseif reason_str == "STOP" then
         if ctx.tool_use_list and #ctx.tool_use_list > 0 then
           -- Natural stop, but tools were found in this final chunk.
-          opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+          local provider_conf = require("avante.providers").parse_config(self)
+          local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
+          
+          if use_ReAct_prompt then
+            local Config = require("avante.config")
+            -- In ReAct mode, signal tools are ready
+            if Config.behaviour.fix_react_double_invocation then
+              opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use", react_tools_ready = true }, stop_details))
+            else
+              opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+            end
+          else
+            opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+          end
         else
           -- Natural stop, no tools in this final chunk.
           -- llm.lua will check its accumulated tools if tool_choice was active.

@@ -452,6 +452,8 @@ M._defaults = {
     enable_token_counting = true,
     use_cwd_as_project_root = false,
     auto_focus_on_diff_view = false,
+    -- ReAct prompt improvements
+    fix_react_double_invocation = true, -- Fix double LLM API calls with ReAct prompts
     ---@type boolean | string[] -- true: auto-approve all tools, false: normal prompts, string[]: auto-approve specific tools by name
     auto_approve_tool_permissions = false, -- Default: show permission prompts for all tools
     auto_check_diagnostics = true,
