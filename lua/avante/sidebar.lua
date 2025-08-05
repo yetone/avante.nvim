@@ -2740,11 +2740,6 @@ function Sidebar:create_input_container()
       place_sign_at_first_line(self.containers.input.bufnr)
     end,
   })
-  api.nvim_create_autocmd({ "TextChanged", "TextChangedI" }, {
-    group = self.augroup,
-    buffer = self.containers.input.bufnr,
-    callback = function() PromptLogger.update_current_input() end,
-  })
 
   api.nvim_create_autocmd("QuitPre", {
     group = self.augroup,
