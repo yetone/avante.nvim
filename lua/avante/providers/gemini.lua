@@ -278,11 +278,25 @@ function M:parse_response(ctx, data_stream, _, opts)
       if reason_str == "TOOL_CODE" then
         -- Model indicates a tool-related stop.
         -- The tool_use list is added to the table in llm.lua
-        opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+        local Config = require("avante.config")
+        local provider_conf = Providers.parse_config(self)
+        if Config.behaviour.fix_react_double_invocation and provider_conf and provider_conf.use_ReAct_prompt then
+          -- For ReAct mode, ensure proper state management
+          opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use", streaming_tool_use = false }, stop_details))
+        else
+          opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+        end
       elseif reason_str == "STOP" then
         if ctx.tool_use_list and #ctx.tool_use_list > 0 then
           -- Natural stop, but tools were found in this final chunk.
-          opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+          local Config = require("avante.config")
+          local provider_conf = Providers.parse_config(self)
+          if Config.behaviour.fix_react_double_invocation and provider_conf and provider_conf.use_ReAct_prompt then
+            -- For ReAct mode, ensure proper state management
+            opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use", streaming_tool_use = false }, stop_details))
+          else
+            opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+          end
         else
           -- Natural stop, no tools in this final chunk.
           -- llm.lua will check its accumulated tools if tool_choice was active.

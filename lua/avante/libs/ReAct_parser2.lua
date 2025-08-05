@@ -157,11 +157,13 @@ local M = {}
 --- }
 ---
 ---@param text string
----@return (avante.TextContent|avante.ToolUseContent)[]
+---@return (avante.TextContent|avante.ToolUseContent)[], {all_tools_complete: boolean, tool_count: integer, partial_tool_count: integer}
 function M.parse(text)
   local result = {}
   local pos = 1
   local len = #text
+  local tool_count = 0
+  local partial_tool_count = 0
 
   while pos <= len do
     local tool_start = text:find("<tool_use>", pos, true)
@@ -210,6 +212,8 @@ function M.parse(text)
       local success, json_data = pcall(function() return vim.json.decode(json_text) end)
 
       if success and json_data and json_data.name then
+        tool_count = tool_count + 1
+        partial_tool_count = partial_tool_count + 1
         table.insert(result, {
           type = "tool_use",
           tool_name = json_data.name,
@@ -220,6 +224,8 @@ function M.parse(text)
         local jsn = JsonParser.parse(json_text)
 
         if jsn and jsn.name then
+          tool_count = tool_count + 1
+          partial_tool_count = partial_tool_count + 1
           table.insert(result, {
             type = "tool_use",
             tool_name = jsn.name,
@@ -236,6 +242,7 @@ function M.parse(text)
     local success, json_data = pcall(function() return vim.json.decode(json_text) end)
 
     if success and json_data and json_data.name then
+      tool_count = tool_count + 1
       table.insert(result, {
         type = "tool_use",
         tool_name = json_data.name,
@@ -255,7 +262,13 @@ function M.parse(text)
     end
   end
 
-  return result
+  local all_tools_complete = partial_tool_count == 0 and tool_count > 0
+  
+  return result, {
+    all_tools_complete = all_tools_complete,
+    tool_count = tool_count,
+    partial_tool_count = partial_tool_count,
+  }
 end
 
 return M

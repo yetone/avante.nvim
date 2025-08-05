@@ -18,6 +18,56 @@ local M = {}
 
 M.CANCEL_PATTERN = "AvanteLLMEscape"
 
+-- ReAct state management
+M._react_state = {
+  react_mode = false,
+  tools_pending = false,
+  processing_tools = false,
+  react_tools_ready = false,
+}
+
+---@param session_id string|nil
+local function get_react_state_key(session_id)
+  return session_id or "default"
+end
+
+---@param session_id string|nil
+---@return table
+local function get_react_state(session_id)
+  local key = get_react_state_key(session_id)
+  if not M._react_state[key] then
+    M._react_state[key] = {
+      react_mode = false,
+      tools_pending = false,
+      processing_tools = false,
+      react_tools_ready = false,
+    }
+  end
+  return M._react_state[key]
+end
+
+---@param session_id string|nil
+local function clear_react_state(session_id)
+  local key = get_react_state_key(session_id)
+  Utils.debug("ReAct: Clearing state for session " .. key)
+  M._react_state[key] = {
+    react_mode = false,
+    tools_pending = false,
+    processing_tools = false,
+    react_tools_ready = false,
+  }
+end
+
+---@param session_id string|nil
+---@param field string
+---@param value any
+local function set_react_state(session_id, field, value)
+  local state = get_react_state(session_id)
+  local old_value = state[field]
+  state[field] = value
+  Utils.debug("ReAct: State transition " .. field .. ": " .. tostring(old_value) .. " -> " .. tostring(value))
+end
+
 ------------------------------Prompt and type------------------------------
 
 local group = api.nvim_create_augroup("avante_llm", { clear = true })
@@ -957,7 +1007,38 @@ function M._stream(opts)
       end
       if stop_opts.reason == "tool_use" then
         opts.session_ctx.user_reminder_count = 0
-        return handle_next_tool_use(pending_tools, pending_tool_use_messages, 1, {}, stop_opts.streaming_tool_use)
+        
+        -- ReAct double callback prevention (if feature flag enabled)
+        if Config.behaviour.fix_react_double_invocation then
+          local react_state = get_react_state(opts.session_ctx.session_id)
+          if react_state.processing_tools then
+            Utils.debug("ReAct: Preventing duplicate tool_use callback, already processing tools")
+            return
+          end
+          
+          -- Check if this is a ReAct mode provider
+          local provider_conf = Providers.parse_config(opts.provider_name or provider)
+          if provider_conf and provider_conf.use_ReAct_prompt then
+            set_react_state(opts.session_ctx.session_id, "react_mode", true)
+            if not stop_opts.streaming_tool_use and not react_state.react_tools_ready then
+              Utils.debug("ReAct: Tools not ready, skipping callback (streaming=" .. tostring(stop_opts.streaming_tool_use) .. ", ready=" .. tostring(react_state.react_tools_ready) .. ")")
+              return
+            end
+          end
+          
+          set_react_state(opts.session_ctx.session_id, "processing_tools", true)
+          Utils.debug("ReAct: Starting tool processing, mode=" .. tostring(react_state.react_mode) .. ", pending_tools=" .. #pending_tools)
+          
+          local original_handle_next_tool_use = handle_next_tool_use
+          local function wrapped_handle_next_tool_use(...)
+            local result = original_handle_next_tool_use(...)
+            set_react_state(opts.session_ctx.session_id, "processing_tools", false)
+            Utils.debug("ReAct: Finished tool processing")
+            return result
+          end
+          
+          return wrapped_handle_next_tool_use(pending_tools, pending_tool_use_messages, 1, {}, stop_opts.streaming_tool_use)
+        end
       end
       if stop_opts.reason == "rate_limit" then
         local message = opts.on_messages_add

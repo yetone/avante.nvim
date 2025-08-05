@@ -322,7 +322,16 @@ function M:add_text_message(ctx, text, state, opts)
             state = "generating",
           }
         end
-        opts.on_stop({ reason = "tool_use", streaming_tool_use = item.partial })
+        -- For ReAct mode, only trigger callback when tools are ready (not partial)
+        local Config = require("avante.config")
+        local provider_conf = require("avante.providers").parse_config(self)
+        if Config.behaviour.fix_react_double_invocation and provider_conf and provider_conf.use_ReAct_prompt then
+          if not item.partial then
+            opts.on_stop({ reason = "tool_use", streaming_tool_use = false })
+          end
+        else
+          opts.on_stop({ reason = "tool_use", streaming_tool_use = item.partial })
+        end
       end
       ::continue::
     end
@@ -383,7 +392,15 @@ function M:parse_response(ctx, data_stream, _, opts)
     self:finish_pending_messages(ctx, opts)
     if ctx.tool_use_list and #ctx.tool_use_list > 0 then
       ctx.tool_use_list = {}
-      opts.on_stop({ reason = "tool_use" })
+      -- For ReAct mode, check if tools are ready before triggering callback
+      local Config = require("avante.config")
+      local provider_conf = require("avante.providers").parse_config(self)
+      if Config.behaviour.fix_react_double_invocation and provider_conf and provider_conf.use_ReAct_prompt then
+        -- Only trigger if this is not a partial tool completion
+        opts.on_stop({ reason = "tool_use" })
+      else
+        opts.on_stop({ reason = "tool_use" })
+      end
     else
       opts.on_stop({ reason = "complete" })
     end

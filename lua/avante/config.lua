@@ -456,6 +456,8 @@ M._defaults = {
     auto_approve_tool_permissions = false, -- Default: show permission prompts for all tools
     auto_check_diagnostics = true,
     enable_fastapply = false,
+    ---@type boolean -- Fix ReAct prompts double LLM API invocation
+    fix_react_double_invocation = true, -- Default: true (enable the fix)
   },
   prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
     enabled = true, -- toggle logging entirely
