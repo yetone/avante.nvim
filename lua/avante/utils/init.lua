@@ -718,15 +718,13 @@ function M.get_doc()
   return doc
 end
 
-function M.prepend_line_number(content, start_line)
+---Prepends line numbers to each line in a list of strings.
+---@param lines string[] The lines of content to prepend line numbers to.
+---@param start_line? integer The starting line number. Defaults to 1.
+---@return string[] A new list of strings with line numbers prepended.
+function M.prepend_line_numbers(lines, start_line)
   start_line = start_line or 1
-  local lines = vim.split(content, "\n")
-  local result = {}
-  for i, line in ipairs(lines) do
-    i = i + start_line - 1
-    table.insert(result, "L" .. i .. ": " .. line)
-  end
-  return table.concat(result, "\n")
+  return vim.iter(lines):map(function(line, i) return string.format("L%d: %s", i + start_line, line) end):totable()
 end
 
 ---Iterates through a list of strings and removes prefixes in form of "L<number>: " from them
