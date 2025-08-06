@@ -541,6 +541,7 @@ M._defaults = {
       edit_user_request = "e",
       switch_windows = "<Tab>",
       reverse_switch_windows = "<S-Tab>",
+      toggle_code_window = "x",
       remove_file = "d",
       add_file = "@",
       close = { "q" },

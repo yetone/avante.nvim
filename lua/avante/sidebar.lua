@@ -54,6 +54,7 @@ Sidebar.__index = Sidebar
 ---@field bufnr integer
 ---@field selection avante.SelectionResult | nil
 ---@field old_winhl string | nil
+---@field win_width integer | nil
 
 ---@class avante.Sidebar
 ---@field id integer
@@ -1478,6 +1479,16 @@ function Sidebar:resize()
   vim.defer_fn(function() vim.cmd("AvanteRefresh") end, 200)
 end
 
+function Sidebar:toggleCodeWindow()
+  local win_width = api.nvim_win_get_width(self.code.winid)
+  if win_width == 0 then
+    api.nvim_win_set_width(self.code.winid, self.code.win_width)
+  else
+    self.code.win_width = win_width
+    api.nvim_win_set_width(self.code.winid, 0)
+  end
+end
+
 --- Initialize the sidebar instance.
 --- @return avante.Sidebar The Sidebar instance.
 function Sidebar:initialize()
@@ -2900,6 +2911,7 @@ function Sidebar:render(opts)
   end)
 
   self.containers.result:map("n", Config.mappings.sidebar.close, function() self:shutdown() end)
+  self.containers.result:map("n", Config.mappings.sidebar.toggle_code_window, function() self:toggleCodeWindow() end)
 
   self:create_input_container()
 
