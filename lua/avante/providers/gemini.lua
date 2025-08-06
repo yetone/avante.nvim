@@ -277,12 +277,60 @@ function M:parse_response(ctx, data_stream, _, opts)
 
       if reason_str == "TOOL_CODE" then
         -- Model indicates a tool-related stop.
-        -- The tool_use list is added to the table in llm.lua
-        opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+        -- ReAct-aware tool handling: Check if we should delay callback (if experimental feature enabled)
+        local Config = require("avante.config")
+        local provider_conf, _ = Providers.parse_config(self)
+        local is_react_mode = Config.experimental.fix_react_double_invocation and provider_conf and provider_conf.use_ReAct_prompt == true
+        
+        if is_react_mode then
+          -- Check if all tools are complete before triggering callback
+          local all_tools_complete = true
+          if ctx.tool_use_list then
+            for _, tool_use in ipairs(ctx.tool_use_list) do
+              if tool_use.state == "generating" then
+                all_tools_complete = false
+                break
+              end
+            end
+          end
+          
+          if all_tools_complete then
+            Utils.debug("ReAct: Gemini tools complete, triggering tool_use callback")
+            opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+          else
+            Utils.debug("ReAct: Gemini tools still generating, treating as complete")
+            opts.on_stop(vim.tbl_deep_extend("force", { reason = "complete" }, stop_details))
+          end
+        else
+          opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+        end
       elseif reason_str == "STOP" then
         if ctx.tool_use_list and #ctx.tool_use_list > 0 then
-          -- Natural stop, but tools were found in this final chunk.
-          opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+          -- ReAct-aware handling for natural stop with tools (if experimental feature enabled)
+          local Config = require("avante.config")
+          local provider_conf, _ = Providers.parse_config(self)
+          local is_react_mode = Config.experimental.fix_react_double_invocation and provider_conf and provider_conf.use_ReAct_prompt == true
+          
+          if is_react_mode then
+            -- Check tool completion state in ReAct mode
+            local all_tools_complete = true
+            for _, tool_use in ipairs(ctx.tool_use_list) do
+              if tool_use.state == "generating" then
+                all_tools_complete = false
+                break
+              end
+            end
+            
+            if all_tools_complete then
+              Utils.debug("ReAct: Gemini natural stop with complete tools, triggering tool_use")
+              opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+            else
+              Utils.debug("ReAct: Gemini natural stop with partial tools, treating as complete")
+              opts.on_stop(vim.tbl_deep_extend("force", { reason = "complete" }, stop_details))
+            end
+          else
+            opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+          end
         else
           -- Natural stop, no tools in this final chunk.
           -- llm.lua will check its accumulated tools if tool_choice was active.

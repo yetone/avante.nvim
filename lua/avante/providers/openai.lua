@@ -255,7 +255,7 @@ function M:add_text_message(ctx, text, state, opts)
     ::continue::
   end
   local cleaned_xml_content = table.concat(cleaned_xml_lines, "\n")
-  local xml = ReActParser.parse(cleaned_xml_content)
+  local xml, metadata = ReActParser.parse(cleaned_xml_content)
   if xml and #xml > 0 then
     local new_content_list = {}
     local xml_md_openned = false
@@ -322,6 +322,18 @@ function M:add_text_message(ctx, text, state, opts)
             state = "generating",
           }
         end
+        
+        -- ReAct-aware tool detection: Don't immediately trigger callback for partial tools in ReAct mode (if experimental feature enabled)
+        local Config = require("avante.config")
+        local provider_conf = Providers.parse_config(self)
+        local is_react_mode = Config.experimental.fix_react_double_invocation and provider_conf and provider_conf.use_ReAct_prompt == true
+        
+        if is_react_mode and item.partial then
+          -- In ReAct mode, only trigger callback when tools are complete and ready
+          Utils.debug("ReAct: Partial tool detected, delaying callback until complete")
+          return
+        end
+        
         opts.on_stop({ reason = "tool_use", streaming_tool_use = item.partial })
       end
       ::continue::
@@ -382,8 +394,33 @@ function M:parse_response(ctx, data_stream, _, opts)
   if data_stream:match('"%[DONE%]":') or data_stream == "[DONE]" then
     self:finish_pending_messages(ctx, opts)
     if ctx.tool_use_list and #ctx.tool_use_list > 0 then
-      ctx.tool_use_list = {}
-      opts.on_stop({ reason = "tool_use" })
+      -- ReAct-aware stream completion: Check if tools are ready before triggering callback (if experimental feature enabled)
+      local Config = require("avante.config")
+      local provider_conf = Providers.parse_config(self)
+      local is_react_mode = Config.experimental.fix_react_double_invocation and provider_conf and provider_conf.use_ReAct_prompt == true
+      
+      if is_react_mode then
+        -- Check if all tools are complete and non-partial
+        local all_tools_complete = true
+        for _, tool_use in ipairs(ctx.tool_use_list) do
+          if tool_use.state == "generating" then
+            all_tools_complete = false
+            break
+          end
+        end
+        
+        if all_tools_complete then
+          Utils.debug("ReAct: All tools complete, triggering tool_use callback")
+          ctx.tool_use_list = {}
+          opts.on_stop({ reason = "tool_use" })
+        else
+          Utils.debug("ReAct: Tools still generating, skipping tool_use callback")
+          opts.on_stop({ reason = "complete" })
+        end
+      else
+        ctx.tool_use_list = {}
+        opts.on_stop({ reason = "tool_use" })
+      end
     else
       opts.on_stop({ reason = "complete" })
     end

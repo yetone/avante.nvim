@@ -741,6 +741,12 @@ function M._stream(opts)
 
   local provider = opts.provider or Providers[Config.provider]
   opts.session_ctx = opts.session_ctx or {}
+  
+  -- ReAct state tracking infrastructure
+  opts.session_ctx.react_mode = opts.session_ctx.react_mode or false
+  opts.session_ctx.tools_pending = opts.session_ctx.tools_pending or false
+  opts.session_ctx.processing_tools = opts.session_ctx.processing_tools or false
+  opts.session_ctx.react_tools_ready = opts.session_ctx.react_tools_ready or false
 
   if not opts.session_ctx.on_messages_add then opts.session_ctx.on_messages_add = opts.on_messages_add end
   if not opts.session_ctx.on_state_change then opts.session_ctx.on_state_change = opts.on_state_change end
@@ -755,6 +761,13 @@ function M._stream(opts)
   ---@cast provider AvanteProviderFunctor
 
   local prompt_opts = M.generate_prompts(opts)
+  
+  -- Detect ReAct mode from provider configuration (if experimental feature enabled)
+  local provider_conf = Providers.parse_config(provider)
+  if Config.experimental.fix_react_double_invocation and provider_conf and provider_conf.use_ReAct_prompt == true then
+    opts.session_ctx.react_mode = true
+    Utils.debug("ReAct mode enabled for session")
+  end
 
   if
     prompt_opts.pending_compaction_history_messages
@@ -800,6 +813,13 @@ function M._stream(opts)
             })
           end
           if opts.on_messages_add then opts.on_messages_add(messages) end
+          
+          -- Reset ReAct processing state when all tools are complete (if experimental feature enabled)
+          if Config.experimental.fix_react_double_invocation and opts.session_ctx.react_mode and opts.session_ctx.processing_tools then
+            opts.session_ctx.processing_tools = false
+            Utils.debug("ReAct: Tool processing completed - resetting state")
+          end
+          
           local the_last_tool_use = tool_uses[#tool_uses]
           if the_last_tool_use and the_last_tool_use.name == "attempt_completion" then
             opts.on_stop({ reason = "complete" })
@@ -956,6 +976,17 @@ function M._stream(opts)
         end
       end
       if stop_opts.reason == "tool_use" then
+        -- Prevent duplicate callback execution in ReAct mode (if experimental feature enabled)
+        if Config.experimental.fix_react_double_invocation and opts.session_ctx.react_mode and opts.session_ctx.processing_tools then
+          Utils.debug("ReAct: Preventing duplicate tool_use callback - already processing tools")
+          return
+        end
+        
+        if Config.experimental.fix_react_double_invocation and opts.session_ctx.react_mode then
+          opts.session_ctx.processing_tools = true
+          Utils.debug("ReAct: Starting tool processing")
+        end
+        
         opts.session_ctx.user_reminder_count = 0
         return handle_next_tool_use(pending_tools, pending_tool_use_messages, 1, {}, stop_opts.streaming_tool_use)
       end

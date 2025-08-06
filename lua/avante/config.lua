@@ -679,6 +679,12 @@ M._defaults = {
   slash_commands = {},
   ---@type AvanteShortcut[]
   shortcuts = {},
+  ---Experimental features - use with caution
+  experimental = {
+    ---@type boolean
+    ---Fix ReAct prompts double invocation issue
+    fix_react_double_invocation = true,
+  },
 }
 
 ---@type avante.Config
