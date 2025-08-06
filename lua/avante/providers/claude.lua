@@ -3,6 +3,7 @@ local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
 local HistoryMessage = require("avante.history.message")
 local JsonParser = require("avante.libs.jsonparser")
+local Config = require("avante.config")
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -329,7 +330,36 @@ function M:parse_curl_args(prompt_opts)
   local tools = {}
   if not disable_tools and prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
+      if Config.mode == "agentic" then
+        if tool.name == "create_file" then goto continue end
+        if tool.name == "view" then goto continue end
+        if tool.name == "str_replace" then goto continue end
+        if tool.name == "create" then goto continue end
+        if tool.name == "insert" then goto continue end
+        if tool.name == "undo_edit" then goto continue end
+        if tool.name == "replace_in_file" then goto continue end
+      end
       table.insert(tools, self:transform_tool(tool))
+      ::continue::
+    end
+  end
+
+  if prompt_opts.tools and #prompt_opts.tools > 0 and Config.mode == "agentic" then
+    if provider_conf.model:match("claude%-sonnet%-4") then
+      table.insert(tools, {
+        type = "text_editor_20250429",
+        name = "str_replace_based_edit_tool",
+      })
+    elseif provider_conf.model:match("claude%-3%-7%-sonnet") then
+      table.insert(tools, {
+        type = "text_editor_20250124",
+        name = "str_replace_editor",
+      })
+    elseif provider_conf.model:match("claude%-3%-5%-sonnet") then
+      table.insert(tools, {
+        type = "text_editor_20250124",
+        name = "str_replace_editor",
+      })
     end
   end
 
