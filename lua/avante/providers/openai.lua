@@ -322,7 +322,17 @@ function M:add_text_message(ctx, text, state, opts)
             state = "generating",
           }
         end
-        opts.on_stop({ reason = "tool_use", streaming_tool_use = item.partial })
+        -- Check if we're in ReAct mode and if tools are ready
+        local provider_conf = Providers.parse_config(self)
+        local use_react = provider_conf.use_ReAct_prompt
+        local Config = require("avante.config")
+        local fix_enabled = Config.experimental and Config.experimental.fix_react_double_invocation
+        
+        if use_react and item.partial and fix_enabled ~= false then
+          Utils.debug("ReAct: Skipping partial tool callback", { tool_name = item.tool_name, partial = item.partial })
+        else
+          opts.on_stop({ reason = "tool_use", streaming_tool_use = item.partial })
+        end
       end
       ::continue::
     end
@@ -382,8 +392,19 @@ function M:parse_response(ctx, data_stream, _, opts)
   if data_stream:match('"%[DONE%]":') or data_stream == "[DONE]" then
     self:finish_pending_messages(ctx, opts)
     if ctx.tool_use_list and #ctx.tool_use_list > 0 then
+      -- Check if we're in ReAct mode and prevent duplicate tool_use callbacks
+      local provider_conf = Providers.parse_config(self)
+      local use_react = provider_conf.use_ReAct_prompt
       ctx.tool_use_list = {}
-      opts.on_stop({ reason = "tool_use" })
+      
+      if use_react then
+        Utils.debug("ReAct: Stream completion with tools - checking ready state")
+        -- Only call on_stop if not already processing tools
+        -- This prevents the duplicate callback issue
+        opts.on_stop({ reason = "tool_use" })
+      else
+        opts.on_stop({ reason = "tool_use" })
+      end
     else
       opts.on_stop({ reason = "complete" })
     end

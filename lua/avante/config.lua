@@ -457,6 +457,12 @@ M._defaults = {
     auto_check_diagnostics = true,
     enable_fastapply = false,
   },
+  ---Experimental features (may change or be removed)
+  experimental = {
+    ---Whether to fix ReAct prompts double invocation issue
+    ---When enabled, prevents duplicate LLM API calls after ReAct tool completion
+    fix_react_double_invocation = true,
+  },
   prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
     enabled = true, -- toggle logging entirely
     log_dir = vim.fn.stdpath("cache"), -- directory where logs are saved

@@ -18,6 +18,62 @@ local M = {}
 
 M.CANCEL_PATTERN = "AvanteLLMEscape"
 
+------------------------------ReAct State Management------------------------------
+
+-- Global ReAct state tracking to prevent duplicate callback invocations
+local react_state = {
+  -- Track if we're currently in ReAct processing mode
+  react_mode = false,
+  -- Track if tools are currently pending completion
+  tools_pending = false,
+  -- Track if we're currently processing tools to prevent callback loops
+  processing_tools = false,
+  -- Track if ReAct tools are ready (complete and non-partial)
+  react_tools_ready = false,
+}
+
+-- Initialize ReAct state for a new session
+local function init_react_state()
+  react_state.react_mode = false
+  react_state.tools_pending = false
+  react_state.processing_tools = false
+  react_state.react_tools_ready = false
+end
+
+-- Set ReAct mode and initialize state
+local function set_react_mode(enabled)
+  react_state.react_mode = enabled
+  if enabled then
+    react_state.tools_pending = false
+    react_state.processing_tools = false
+    react_state.react_tools_ready = false
+  end
+end
+
+-- Check if we should prevent duplicate callbacks
+local function should_prevent_callback()
+  local fix_enabled = Config.experimental and Config.experimental.fix_react_double_invocation
+  if fix_enabled == false then
+    return false -- Feature disabled, allow all callbacks (backward compatibility)
+  end
+  return react_state.react_mode and react_state.processing_tools
+end
+
+-- Mark tools as processing to prevent duplicate callbacks
+local function set_tools_processing(processing)
+  react_state.processing_tools = processing
+end
+
+-- Set tools ready state
+local function set_react_tools_ready(ready)
+  react_state.react_tools_ready = ready
+end
+
+-- Get current ReAct state for debugging
+local function get_react_state()
+  return vim.tbl_deep_extend("force", {}, react_state)
+end
+
 ------------------------------Prompt and type------------------------------
 
 local group = api.nvim_create_augroup("avante_llm", { clear = true })
@@ -754,6 +810,13 @@ function M._stream(opts)
 
   ---@cast provider AvanteProviderFunctor
 
+  -- Initialize ReAct state for new stream
+  local provider_conf = Providers.parse_config(provider)
+  local use_react = provider_conf.use_ReAct_prompt
+  init_react_state()
+  set_react_mode(use_react)
+  Utils.debug("ReAct: Initialized state", { use_react = use_react, state = get_react_state() })
+
   local prompt_opts = M.generate_prompts(opts)
 
   if
@@ -775,6 +838,12 @@ function M._stream(opts)
     on_start = opts.on_start,
     on_chunk = opts.on_chunk,
     on_stop = function(stop_opts)
+      -- ReAct duplicate callback prevention
+      if stop_opts.reason == "tool_use" and should_prevent_callback() then
+        Utils.debug("ReAct: Preventing duplicate tool_use callback", { state = get_react_state() })
+        return
+      end
+      
       if stop_opts.usage and opts.update_tokens_usage then opts.update_tokens_usage(stop_opts.usage) end
 
       ---@param tool_uses AvantePartialLLMToolUse[]
@@ -957,6 +1026,9 @@ function M._stream(opts)
       end
       if stop_opts.reason == "tool_use" then
         opts.session_ctx.user_reminder_count = 0
+        -- Set tools processing state to prevent duplicate callbacks
+        set_tools_processing(true)
+        Utils.debug("ReAct: Starting tool processing", { state = get_react_state() })
         return handle_next_tool_use(pending_tools, pending_tool_use_messages, 1, {}, stop_opts.streaming_tool_use)
       end
       if stop_opts.reason == "rate_limit" then

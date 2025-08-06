@@ -157,11 +157,18 @@ local M = {}
 --- }
 ---
 ---@param text string
----@return (avante.TextContent|avante.ToolUseContent)[]
+---@return (avante.TextContent|avante.ToolUseContent)[], table metadata
 function M.parse(text)
   local result = {}
   local pos = 1
   local len = #text
+  
+  -- Track metadata for ReAct state management
+  local metadata = {
+    tool_count = 0,
+    partial_tool_count = 0,
+    all_tools_complete = true,
+  }
 
   while pos <= len do
     local tool_start = text:find("<tool_use>", pos, true)
@@ -210,6 +217,9 @@ function M.parse(text)
       local success, json_data = pcall(function() return vim.json.decode(json_text) end)
 
       if success and json_data and json_data.name then
+        metadata.tool_count = metadata.tool_count + 1
+        metadata.partial_tool_count = metadata.partial_tool_count + 1
+        metadata.all_tools_complete = false
         table.insert(result, {
           type = "tool_use",
           tool_name = json_data.name,
@@ -220,6 +230,9 @@ function M.parse(text)
         local jsn = JsonParser.parse(json_text)
 
         if jsn and jsn.name then
+          metadata.tool_count = metadata.tool_count + 1
+          metadata.partial_tool_count = metadata.partial_tool_count + 1
+          metadata.all_tools_complete = false
           table.insert(result, {
             type = "tool_use",
             tool_name = jsn.name,
@@ -236,6 +249,7 @@ function M.parse(text)
     local success, json_data = pcall(function() return vim.json.decode(json_text) end)
 
     if success and json_data and json_data.name then
+      metadata.tool_count = metadata.tool_count + 1
       table.insert(result, {
         type = "tool_use",
         tool_name = json_data.name,
@@ -255,7 +269,10 @@ function M.parse(text)
     end
   end
 
-  return result
+  -- Final metadata calculation
+  metadata.all_tools_complete = (metadata.partial_tool_count == 0 and metadata.tool_count > 0)
+
+  return result, metadata
 end
 
 return M

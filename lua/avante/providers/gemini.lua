@@ -278,10 +278,20 @@ function M:parse_response(ctx, data_stream, _, opts)
       if reason_str == "TOOL_CODE" then
         -- Model indicates a tool-related stop.
         -- The tool_use list is added to the table in llm.lua
+        local provider_conf = Providers.parse_config(self)
+        local use_react = provider_conf.use_ReAct_prompt
+        if use_react then
+          Utils.debug("ReAct Gemini: Tool-related stop", { reason = reason_str })
+        end
         opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
       elseif reason_str == "STOP" then
         if ctx.tool_use_list and #ctx.tool_use_list > 0 then
           -- Natural stop, but tools were found in this final chunk.
+          local provider_conf = Providers.parse_config(self)
+          local use_react = provider_conf.use_ReAct_prompt
+          if use_react then
+            Utils.debug("ReAct Gemini: Natural stop with tools", { tool_count = #ctx.tool_use_list })
+          end
           opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
         else
           -- Natural stop, no tools in this final chunk.
