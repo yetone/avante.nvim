@@ -166,8 +166,10 @@ function Suggestion:suggest()
 
   local bufnr = api.nvim_get_current_buf()
   local filetype = api.nvim_get_option_value("filetype", { buf = bufnr })
-  local code_content =
-    Utils.prepend_line_number(table.concat(api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n") .. "\n\n")
+  local lines = api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  table.insert(lines, "")
+  table.insert(lines, "")
+  local code_content = table.concat(Utils.prepend_line_numbers(lines), "\n")
 
   local full_response = ""
 
