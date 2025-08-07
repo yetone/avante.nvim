@@ -2838,7 +2838,7 @@ function Sidebar:create_input_container()
         get_history_messages = function(opts) return self:get_history_messages_for_api(opts) end,
         get_todos = function()
           local history = Path.history.load(self.code.bufnr)
-          return history and history.todos or {}
+          return history.todos
         end,
         update_todos = function(todos) self:update_todos(todos) end,
         session_ctx = {},
@@ -3096,7 +3096,7 @@ end
 
 function Sidebar:get_todos_container_height()
   local history = Path.history.load(self.code.bufnr)
-  if not history or not history.todos or #history.todos == 0 then return 0 end
+  if #history.todos == 0 then return 0 end
   return 3
 end
 
@@ -3389,7 +3389,7 @@ end
 
 function Sidebar:create_todos_container()
   local history = Path.history.load(self.code.bufnr)
-  if not history or not history.todos or #history.todos == 0 then
+  if #history.todos == 0 then
     if self.containers.todos and Utils.is_valid_container(self.containers.todos) then
       self.containers.todos:unmount()
     end
@@ -3438,10 +3438,6 @@ function Sidebar:create_todos_container()
   local total_count = #history.todos
   local focused_idx = 1
   local todos_content_lines = {}
-  if type(history.todos) ~= "table" then
-    Utils.debug("Invalid todos type", history.todos)
-    history.todos = {}
-  end
   for idx, todo in ipairs(history.todos) do
     local status_content = "[ ]"
     if todo.status == "done" then
