@@ -280,7 +280,7 @@ function M:parse_response(ctx, data_stream, _, opts)
       if reason_str == "TOOL_CODE" then
         -- Model indicates a tool-related stop.
         -- The tool_use list is added to the table in llm.lua
-        -- ReAct awareness: check if we should call tool_use callback (controlled by experimental flag)
+        -- ReAct対応：tool_useコールバック呼び出し判定（実験的フラグで制御）
         if Config.experimental.fix_react_double_invocation and LLM._react_state.react_mode then
           if not LLM._react_state.processing_tools then
             Utils.debug("[ReAct] Gemini TOOL_CODE triggering tool_use")
@@ -290,12 +290,13 @@ function M:parse_response(ctx, data_stream, _, opts)
             opts.on_stop(vim.tbl_deep_extend("force", { reason = "complete" }, stop_details))
           end
         else
+          -- 従来の動作：常にtool_useコールバックを呼び出し
           opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
         end
       elseif reason_str == "STOP" then
         if ctx.tool_use_list and #ctx.tool_use_list > 0 then
           -- Natural stop, but tools were found in this final chunk.
-          -- ReAct awareness: check if we should call tool_use callback (controlled by experimental flag)
+          -- ReAct対応：自然停止時のtool_useコールバック判定（実験的フラグで制御）
           if Config.experimental.fix_react_double_invocation and LLM._react_state.react_mode then
             if not LLM._react_state.processing_tools then
               Utils.debug("[ReAct] Gemini STOP with tools triggering tool_use")
@@ -305,6 +306,7 @@ function M:parse_response(ctx, data_stream, _, opts)
               opts.on_stop(vim.tbl_deep_extend("force", { reason = "complete" }, stop_details))
             end
           else
+            -- 従来の動作：常にtool_useコールバックを呼び出し
             opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
           end
         else

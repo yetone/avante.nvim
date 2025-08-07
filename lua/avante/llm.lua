@@ -18,15 +18,19 @@ local M = {}
 
 M.CANCEL_PATTERN = "AvanteLLMEscape"
 
--- ReAct state management to prevent double invocation
+-- ReAct状態管理：二重呼び出しを防ぐためのグローバル状態
+-- ReAct prompts使用時のコールバックループを防止し、適切な状態遷移を管理する
 M._react_state = {
-  react_mode = false,
-  tools_pending = false,
-  processing_tools = false,
-  react_tools_ready = false,
+  react_mode = false,          -- ReActモードが有効かどうか
+  tools_pending = false,       -- ツールの処理が保留中かどうか
+  processing_tools = false,    -- ツールの処理中かどうか（重複防止用）
+  react_tools_ready = false,   -- ReActツールが準備完了かどうか
 }
 
--- ReAct state management functions
+-- ReAct状態管理関数群
+-- これらの関数は、ReAct処理の各段階で状態を適切に管理し、コールバックループを防ぐ
+
+-- ReAct状態を初期値にリセット（新しいストリーム開始時に呼び出し）
 function M._reset_react_state()
   M._react_state = {
     react_mode = false,
@@ -37,16 +41,19 @@ function M._reset_react_state()
   Utils.debug("[ReAct] State reset")
 end
 
+-- ReActモードの有効/無効を設定（プロバイダー設定に基づく）
 function M._set_react_mode(enabled)
   M._react_state.react_mode = enabled
   Utils.debug("[ReAct] Mode set to:", enabled)
 end
 
+-- ReActツールの準備状態を設定（すべてのツールが完了したかどうか）
 function M._set_react_tools_ready(ready)
   M._react_state.react_tools_ready = ready
   Utils.debug("[ReAct] Tools ready set to:", ready)
 end
 
+-- ツール処理中フラグを設定（重複コールバック防止のため）
 function M._set_processing_tools(processing)
   M._react_state.processing_tools = processing
   Utils.debug("[ReAct] Processing tools set to:", processing)
@@ -332,7 +339,8 @@ function M.generate_prompts(opts)
 
   local provider_conf = Providers.parse_config(provider)
   
-  -- Set ReAct mode based on provider configuration
+  -- プロバイダー設定に基づいてReActモードを設定
+  -- use_ReAct_promptが有効な場合、状態管理による二重呼び出し防止を有効化
   M._set_react_mode(provider_conf.use_ReAct_prompt == true)
 
   local template_opts = {
@@ -776,7 +784,8 @@ function M._stream(opts)
   -- Reset the cancellation flag at the start of a new request
   if LLMToolHelpers then LLMToolHelpers.is_cancelled = false end
   
-  -- Initialize ReAct state for new stream
+  -- 新しいストリーム開始時にReAct状態を初期化
+  -- これにより、前回のセッションの状態が新しいリクエストに影響しないようにする
   M._reset_react_state()
 
   local provider = opts.provider or Providers[Config.provider]
@@ -996,12 +1005,15 @@ function M._stream(opts)
         end
       end
       if stop_opts.reason == "tool_use" then
-        -- ReAct double invocation prevention (controlled by experimental flag)
+        -- ReAct二重呼び出し防止ロジック（実験的機能フラグで制御）
+        -- すでにツール処理中の場合は、重複するコールバックを防ぐために早期終了
         if Config.experimental.fix_react_double_invocation and M._react_state.react_mode and M._react_state.processing_tools then
           Utils.debug("[ReAct] Preventing duplicate tool_use callback - already processing")
           return
         end
         
+        -- ReActモードでツール処理開始時に処理中フラグを設定
+        -- これにより後続の重複コールバックを防止する
         if Config.experimental.fix_react_double_invocation and M._react_state.react_mode then
           M._set_processing_tools(true)
           Utils.debug("[ReAct] Starting tool processing")

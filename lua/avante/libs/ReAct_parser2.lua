@@ -158,6 +158,8 @@ local M = {}
 ---
 ---@param text string
 ---@return (avante.TextContent|avante.ToolUseContent)[], table metadata
+-- ReActテキストを解析し、テキスト内容とツール使用を分離する
+-- 戻り値: 解析結果の配列と、完了状態のメタデータ
 function M.parse(text)
   local result = {}
   local pos = 1
@@ -255,7 +257,8 @@ function M.parse(text)
     end
   end
 
-  -- Calculate completion metadata
+  -- ツール完了状態のメタデータを計算
+  -- ReAct二重呼び出し防止のために必要な状態情報を提供
   local tool_count = 0
   local partial_tool_count = 0
   local all_tools_complete = true
@@ -265,16 +268,17 @@ function M.parse(text)
       tool_count = tool_count + 1
       if item.partial then
         partial_tool_count = partial_tool_count + 1
-        all_tools_complete = false
+        all_tools_complete = false  -- 部分的なツールがある場合は未完了
       end
     end
   end
   
+  -- メタデータオブジェクト：プロバイダーでの判断に使用
   local metadata = {
-    tool_count = tool_count,
-    partial_tool_count = partial_tool_count,
-    all_tools_complete = all_tools_complete and tool_count > 0,
-    has_tools = tool_count > 0
+    tool_count = tool_count,                                    -- 総ツール数
+    partial_tool_count = partial_tool_count,                    -- 部分的なツール数
+    all_tools_complete = all_tools_complete and tool_count > 0, -- すべてのツールが完了かつツールが存在
+    has_tools = tool_count > 0                                  -- ツールが存在するかどうか
   }
 
   return result, metadata

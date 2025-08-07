@@ -256,6 +256,7 @@ function M:add_text_message(ctx, text, state, opts)
     ::continue::
   end
   local cleaned_xml_content = table.concat(cleaned_xml_lines, "\n")
+  -- ReActパーサーを使用してツール使用情報と完了状態メタデータを取得
   local xml, metadata = ReActParser.parse(cleaned_xml_content)
   if xml and #xml > 0 then
     local new_content_list = {}
@@ -323,12 +324,12 @@ function M:add_text_message(ctx, text, state, opts)
             state = "generating",
           }
         end
-        -- ReAct aware callback: only call on_stop when all tools are complete (controlled by experimental flag)
+        -- ReAct対応コールバック：すべてのツールが完了した場合のみon_stopを呼び出し（実験的フラグで制御）
         if Config.experimental.fix_react_double_invocation and metadata and metadata.all_tools_complete then
           Utils.debug("[ReAct] All tools complete, triggering callback")
           opts.on_stop({ reason = "tool_use", streaming_tool_use = false })
         elseif not Config.experimental.fix_react_double_invocation or not item.partial then
-          -- For non-ReAct mode or individual complete tools, or when fix is disabled
+          -- 非ReActモードまたは個別完了ツール、または修正が無効な場合
           opts.on_stop({ reason = "tool_use", streaming_tool_use = false })
         end
       end
@@ -391,9 +392,9 @@ function M:parse_response(ctx, data_stream, _, opts)
     self:finish_pending_messages(ctx, opts)
     if ctx.tool_use_list and #ctx.tool_use_list > 0 then
       ctx.tool_use_list = {}
-      -- ReAct awareness: check if we should call tool_use callback (controlled by experimental flag)
+      -- ReAct対応：tool_useコールバックを呼び出すかどうかの判定（実験的フラグで制御）
       if Config.experimental.fix_react_double_invocation and LLM._react_state.react_mode then
-        -- Only call if tools are ready and not already processing
+        -- ツールが準備完了で、かつまだ処理中でない場合のみ呼び出し
         if not LLM._react_state.processing_tools then
           Utils.debug("[ReAct] Stream completion triggering tool_use")
           opts.on_stop({ reason = "tool_use" })
@@ -402,6 +403,7 @@ function M:parse_response(ctx, data_stream, _, opts)
           opts.on_stop({ reason = "complete" })
         end
       else
+        -- 従来の動作：常にtool_useコールバックを呼び出し
         opts.on_stop({ reason = "tool_use" })
       end
     else

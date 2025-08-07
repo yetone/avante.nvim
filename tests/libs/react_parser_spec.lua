@@ -1,7 +1,9 @@
 local ReActParser = require("avante.libs.ReAct_parser2")
 
+-- ReActパーサーのテストスイート
+-- 二重呼び出し防止機能のためのメタデータ生成機能をテスト
 describe("ReAct Parser", function()
-  it("should parse text without tools", function()
+  it("should parse text without tools", function()  -- ツールなしのテキスト解析テスト
     local text = "Hello, world! This is plain text."
     local result, metadata = ReActParser.parse(text)
     
@@ -16,7 +18,7 @@ describe("ReAct Parser", function()
     assert.is_false(metadata.has_tools)
   end)
   
-  it("should parse complete tool use", function()
+  it("should parse complete tool use", function()  -- 完全なツール使用の解析テスト
     local text = [[Hello! <tool_use>{"name": "write", "input": {"path": "file.txt", "content": "test"}}</tool_use>]]
     local result, metadata = ReActParser.parse(text)
     
@@ -37,7 +39,7 @@ describe("ReAct Parser", function()
     assert.is_true(metadata.has_tools)
   end)
   
-  it("should parse partial tool use", function()
+  it("should parse partial tool use", function()  -- 部分的なツール使用の解析テスト
     local text = [[Hello! <tool_use>{"name": "write", "input": {"path": "file.txt"]]
     local result, metadata = ReActParser.parse(text)
     
@@ -56,7 +58,7 @@ describe("ReAct Parser", function()
     assert.is_true(metadata.has_tools)
   end)
   
-  it("should parse mixed complete and partial tools", function()
+  it("should parse mixed complete and partial tools", function()  -- 完全・部分的ツールの混在解析テスト
     local text = [[Text <tool_use>{"name": "write", "input": {"content": "done"}}</tool_use> More text <tool_use>{"name": "read", "input": {"path":]]
     local result, metadata = ReActParser.parse(text)
     
@@ -86,7 +88,7 @@ describe("ReAct Parser", function()
     assert.is_true(metadata.has_tools)
   end)
   
-  it("should handle invalid JSON gracefully", function()
+  it("should handle invalid JSON gracefully", function()  -- 無効なJSON処理のテスト
     local text = [[Text <tool_use>invalid json</tool_use> More text]]
     local result, metadata = ReActParser.parse(text)
     
