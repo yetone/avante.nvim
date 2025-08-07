@@ -48,7 +48,7 @@ function M.func(input, opts)
   local sidebar = require("avante").get()
   if not sidebar then return false, "Avante sidebar not found" end
   local todos = sidebar.chat_history.todos
-  if not todos or #todos == 0 then return false, "No todos found" end
+  if #todos == 0 then return false, "No todos found" end
   for _, todo in ipairs(todos) do
     if tostring(todo.id) == tostring(input.id) then
       todo.status = input.status

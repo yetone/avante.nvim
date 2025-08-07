@@ -54,10 +54,8 @@ function History.list(bufnr)
   for _, filename in ipairs(files) do
     if not filename:match("metadata.json") then
       local filepath = Path:new(filename)
-      local content = filepath:read()
-      local history = vim.json.decode(content)
-      history.filename = filepath_to_filename(filepath)
-      table.insert(res, history)
+      local history = History.from_file(filepath)
+      if history then table.insert(res, history) end
     end
   end
   --- sort by timestamp
@@ -134,10 +132,35 @@ function History.new(bufnr)
   local history = {
     title = "untitled",
     timestamp = Utils.get_timestamp(),
+    entries = {},
     messages = {},
+    todos = {},
     filename = filepath_to_filename(filepath),
   }
   return history
+end
+
+---Attempts to load chat history from a given file
+---@param filepath Path
+---@return avante.ChatHistory|nil
+function History.from_file(filepath)
+  if filepath:exists() then
+    local content = filepath:read()
+    if content ~= nil then
+      local decode_ok, history = pcall(vim.json.decode, content)
+      if decode_ok and type(history) == "table" then
+        if not history.title or history.title ~= "string" then history.title = "untitled" end
+        if not history.timestamp or history.timestamp ~= "string" then history.timestamp = Utils.get_timestamp() end
+        -- TODO: sanitize individual entries of the lists below as well.
+        if not vim.islist(history.entries) then history.entries = {} end
+        if not vim.islist(history.messages) then history.messages = {} end
+        if not vim.islist(history.todos) then history.todos = {} end
+        ---@cast history avante.ChatHistory
+        history.filename = filepath_to_filename(filepath)
+        return history
+      end
+    end
+  end
 end
 
 -- Loads the chat history for the given buffer.
@@ -147,21 +170,13 @@ end
 function History.load(bufnr, filename)
   local history_filepath = filename and History.get_filepath(bufnr, filename)
     or History.get_latest_filepath(bufnr, false)
-  if history_filepath:exists() then
-    local content = history_filepath:read()
-    if content ~= nil then
-      local history = vim.json.decode(content)
-      history.filename = filepath_to_filename(history_filepath)
-      return history
-    end
-  end
-  return History.new(bufnr)
+  return History.from_file(history_filepath) or History.new(bufnr)
 end
 
 -- Saves the chat history for the given buffer.
 ---@param bufnr integer
 ---@param history avante.ChatHistory
-History.save = function(bufnr, history)
+function History.save(bufnr, history)
   local history_filepath = History.get_filepath(bufnr, history.filename)
   history_filepath:write(vim.json.encode(history), "w")
   History.save_latest_filename(bufnr, history.filename)
