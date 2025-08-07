@@ -255,7 +255,7 @@ function M:add_text_message(ctx, text, state, opts)
     ::continue::
   end
   local cleaned_xml_content = table.concat(cleaned_xml_lines, "\n")
-  local xml = ReActParser.parse(cleaned_xml_content)
+  local xml, metadata = ReActParser.parse(cleaned_xml_content)
   if xml and #xml > 0 then
     local new_content_list = {}
     local xml_md_openned = false
@@ -322,7 +322,21 @@ function M:add_text_message(ctx, text, state, opts)
             state = "generating",
           }
         end
-        opts.on_stop({ reason = "tool_use", streaming_tool_use = item.partial })
+        -- Only trigger tool_use callback if not in ReAct mode or if all tools are ready
+        local provider_conf = Providers.parse_config(self)
+        local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
+        local Config = require("avante.config")
+        local should_trigger_callback = true
+        
+        if Config.experimental and Config.experimental.fix_react_double_invocation and use_ReAct_prompt and item.partial then
+          -- For ReAct mode, don't trigger callback for partial tools
+          should_trigger_callback = false
+          Utils.debug("Skipping ReAct partial tool callback for: " .. item.tool_name)
+        end
+        
+        if should_trigger_callback then
+          opts.on_stop({ reason = "tool_use", streaming_tool_use = item.partial })
+        end
       end
       ::continue::
     end
@@ -381,8 +395,20 @@ end
 function M:parse_response(ctx, data_stream, _, opts)
   if data_stream:match('"%[DONE%]":') or data_stream == "[DONE]" then
     self:finish_pending_messages(ctx, opts)
+    local provider_conf = Providers.parse_config(self)
+    local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
+    
     if ctx.tool_use_list and #ctx.tool_use_list > 0 then
       ctx.tool_use_list = {}
+      -- For ReAct mode, check if we should trigger tool_use callback
+      local Config = require("avante.config")
+      if Config.experimental and Config.experimental.fix_react_double_invocation and use_ReAct_prompt then
+        -- Set ReAct mode in LLM state tracking
+        local LLM = require("avante.llm")
+        local session_id = ctx.session_id or ctx.turn_id
+        LLM.set_react_mode(true, session_id)
+        Utils.debug("ReAct stream completion - triggering tool_use callback")
+      end
       opts.on_stop({ reason = "tool_use" })
     else
       opts.on_stop({ reason = "complete" })

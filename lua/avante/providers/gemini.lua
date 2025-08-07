@@ -278,10 +278,30 @@ function M:parse_response(ctx, data_stream, _, opts)
       if reason_str == "TOOL_CODE" then
         -- Model indicates a tool-related stop.
         -- The tool_use list is added to the table in llm.lua
+        local provider_conf = Providers.parse_config(self)
+        local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
+        local Config = require("avante.config")
+        if Config.experimental and Config.experimental.fix_react_double_invocation and use_ReAct_prompt then
+          -- Set ReAct mode in LLM state tracking
+          local LLM = require("avante.llm")
+          local session_id = ctx.session_id or ctx.turn_id
+          LLM.set_react_mode(true, session_id)
+          Utils.debug("Gemini ReAct TOOL_CODE - triggering tool_use callback")
+        end
         opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
       elseif reason_str == "STOP" then
         if ctx.tool_use_list and #ctx.tool_use_list > 0 then
           -- Natural stop, but tools were found in this final chunk.
+          local provider_conf = Providers.parse_config(self)
+          local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
+          local Config = require("avante.config")
+          if Config.experimental and Config.experimental.fix_react_double_invocation and use_ReAct_prompt then
+            -- Set ReAct mode in LLM state tracking
+            local LLM = require("avante.llm")
+            local session_id = ctx.session_id or ctx.turn_id
+            LLM.set_react_mode(true, session_id)
+            Utils.debug("Gemini ReAct STOP with tools - triggering tool_use callback")
+          end
           opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
         else
           -- Natural stop, no tools in this final chunk.

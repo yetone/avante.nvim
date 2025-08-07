@@ -18,6 +18,54 @@ local M = {}
 
 M.CANCEL_PATTERN = "AvanteLLMEscape"
 
+-- ReAct state tracking for preventing double invocations
+local react_state = {
+  processing_tools = false,
+  react_mode = false,
+  tools_pending = false,
+  session_id = nil,
+}
+
+---Reset ReAct state for new session
+---@param session_id string|nil
+function M.reset_react_state(session_id)
+  react_state.processing_tools = false
+  react_state.react_mode = false
+  react_state.tools_pending = false
+  react_state.session_id = session_id
+  Utils.debug("ReAct state reset for session: " .. (session_id or "nil"))
+end
+
+---Set ReAct mode for current session
+---@param enabled boolean
+---@param session_id string|nil
+function M.set_react_mode(enabled, session_id)
+  react_state.react_mode = enabled
+  react_state.session_id = session_id
+  Utils.debug("ReAct mode set to " .. tostring(enabled) .. " for session: " .. (session_id or "nil"))
+end
+
+---Check if ReAct tools are currently being processed
+---@param session_id string|nil
+---@return boolean
+function M.is_react_processing(session_id)
+  if session_id and react_state.session_id ~= session_id then
+    return false
+  end
+  return react_state.processing_tools and react_state.react_mode
+end
+
+---Mark ReAct tools as being processed
+---@param processing boolean
+---@param session_id string|nil
+function M.set_react_processing(processing, session_id)
+  if session_id and react_state.session_id ~= session_id then
+    return
+  end
+  react_state.processing_tools = processing
+  Utils.debug("ReAct processing set to " .. tostring(processing) .. " for session: " .. (session_id or "nil"))
+end
+
 ------------------------------Prompt and type------------------------------
 
 local group = api.nvim_create_augroup("avante_llm", { clear = true })
@@ -788,6 +836,15 @@ function M._stream(opts)
         streaming_tool_use
       )
         if tool_use_index > #tool_uses then
+          -- ReAct processing complete - reset state (if experimental flag is enabled)
+          if Config.experimental and Config.experimental.fix_react_double_invocation then
+            local session_id = opts.session_ctx and opts.session_ctx.id
+            if react_state.react_mode then
+              M.set_react_processing(false, session_id)
+              Utils.debug("ReAct tool processing completed for session: " .. (session_id or "nil"))
+            end
+          end
+          
           ---@type avante.HistoryMessage[]
           local messages = {}
           for _, tool_result in ipairs(tool_results) do
@@ -957,6 +1014,22 @@ function M._stream(opts)
       end
       if stop_opts.reason == "tool_use" then
         opts.session_ctx.user_reminder_count = 0
+        
+        -- ReAct double invocation prevention (if experimental flag is enabled)
+        if Config.experimental and Config.experimental.fix_react_double_invocation then
+          local session_id = opts.session_ctx and opts.session_ctx.id
+          if M.is_react_processing(session_id) then
+            Utils.debug("Preventing duplicate ReAct tool_use callback for session: " .. (session_id or "nil"))
+            return
+          end
+          
+          -- Mark as processing for ReAct mode if applicable
+          if react_state.react_mode then
+            M.set_react_processing(true, session_id)
+            Utils.debug("ReAct tool_use callback started for session: " .. (session_id or "nil"))
+          end
+        end
+        
         return handle_next_tool_use(pending_tools, pending_tool_use_messages, 1, {}, stop_opts.streaming_tool_use)
       end
       if stop_opts.reason == "rate_limit" then
