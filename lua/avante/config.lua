@@ -427,6 +427,10 @@ M._defaults = {
     prompt = "Based on the two reference outputs below, generate a response that incorporates elements from both but reflects your own judgment and unique perspective. Do not provide any explanation, just give the response directly. Reference Output 1: [{{provider1_output}}], Reference Output 2: [{{provider2_output}}]",
     timeout = 60000, -- Timeout in milliseconds
   },
+  ---@type table
+  experimental = {
+    fix_react_double_invocation = true, -- Fix double API calls in ReAct mode
+  },
   ---Specify the behaviour of avante.nvim
   ---1. auto_focus_sidebar              : Whether to automatically focus the sidebar when opening avante.nvim. Default to true.
   ---2. auto_suggestions = false, -- Whether to enable auto suggestions. Default to false.

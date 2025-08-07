@@ -18,6 +18,32 @@ local M = {}
 
 M.CANCEL_PATTERN = "AvanteLLMEscape"
 
+-- ReAct state management
+local react_state = {
+  react_mode = false,
+  tools_pending = false,
+  processing_tools = false,
+  react_tools_ready = false,
+}
+
+local function reset_react_state()
+  react_state.react_mode = false
+  react_state.tools_pending = false
+  react_state.processing_tools = false
+  react_state.react_tools_ready = false
+end
+
+local function set_react_mode(enabled)
+  if not Config.experimental.fix_react_double_invocation then
+    return
+  end
+  react_state.react_mode = enabled
+end
+
+local function is_react_mode()
+  return Config.experimental.fix_react_double_invocation and react_state.react_mode
+end
+
 ------------------------------Prompt and type------------------------------
 
 local group = api.nvim_create_augroup("avante_llm", { clear = true })
@@ -738,6 +764,9 @@ end
 function M._stream(opts)
   -- Reset the cancellation flag at the start of a new request
   if LLMToolHelpers then LLMToolHelpers.is_cancelled = false end
+  
+  -- Reset ReAct state at the start of a new request
+  reset_react_state()
 
   local provider = opts.provider or Providers[Config.provider]
   opts.session_ctx = opts.session_ctx or {}
@@ -755,6 +784,12 @@ function M._stream(opts)
   ---@cast provider AvanteProviderFunctor
 
   local prompt_opts = M.generate_prompts(opts)
+  
+  -- Initialize ReAct mode based on provider configuration
+  if provider.use_ReAct_prompt then
+    set_react_mode(true)
+    Utils.debug("ReAct mode enabled for provider: " .. (opts.provider or Config.provider))
+  end
 
   if
     prompt_opts.pending_compaction_history_messages
@@ -776,6 +811,16 @@ function M._stream(opts)
     on_chunk = opts.on_chunk,
     on_stop = function(stop_opts)
       if stop_opts.usage and opts.update_tokens_usage then opts.update_tokens_usage(stop_opts.usage) end
+      
+      -- Prevent duplicate tool_use callbacks in ReAct mode
+      if stop_opts.reason == "tool_use" and is_react_mode() then
+        if react_state.processing_tools then
+          Utils.debug("ReAct duplicate callback prevention: already processing tools")
+          return
+        end
+        react_state.processing_tools = true
+        Utils.debug("ReAct mode: Starting tool processing")
+      end
 
       ---@param tool_uses AvantePartialLLMToolUse[]
       ---@param tool_use_index integer
@@ -1002,6 +1047,13 @@ function M._stream(opts)
         end
         return
       end
+      
+      -- Reset ReAct processing state before calling original on_stop
+      if is_react_mode() then
+        react_state.processing_tools = false
+        Utils.debug("ReAct mode: Resetting processing state before original on_stop")
+      end
+      
       return opts.on_stop(stop_opts)
     end,
   }
