@@ -18,6 +18,36 @@ local M = {}
 
 M.CANCEL_PATTERN = "AvanteLLMEscape"
 
+-- ReAct state management variables
+---@class AvanteReActState
+---@field react_mode boolean Whether we're currently processing in ReAct mode
+---@field tools_pending boolean Whether we have tools waiting to be processed
+---@field processing_tools boolean Whether we're currently processing tools
+---@field tools_ready boolean Whether all ReAct tools are ready (not partial)
+local react_state = {
+  react_mode = false,
+  tools_pending = false,
+  processing_tools = false,
+  tools_ready = false,
+}
+
+--- Reset ReAct state to initial values
+local function reset_react_state()
+  react_state.react_mode = false
+  react_state.tools_pending = false
+  react_state.processing_tools = false
+  react_state.tools_ready = false
+end
+
+--- Set ReAct mode state
+---@param enabled boolean
+local function set_react_mode(enabled)
+  react_state.react_mode = enabled
+  if not enabled then
+    reset_react_state()
+  end
+end
+
 ------------------------------Prompt and type------------------------------
 
 local group = api.nvim_create_augroup("avante_llm", { clear = true })
@@ -756,6 +786,19 @@ function M._stream(opts)
 
   local prompt_opts = M.generate_prompts(opts)
 
+  -- Initialize ReAct state management
+  local provider_conf = Providers.parse_config(provider)
+  local use_react_prompt = provider_conf.use_ReAct_prompt == true
+  set_react_mode(use_react_prompt)
+  
+  -- Debug logging for ReAct state initialization
+  if use_react_prompt then
+    Utils.debug("ReAct mode enabled for stream request", {
+      provider = provider.id or "unknown",
+      react_state = react_state
+    })
+  end
+
   if
     prompt_opts.pending_compaction_history_messages
     and #prompt_opts.pending_compaction_history_messages > 0
@@ -775,6 +818,30 @@ function M._stream(opts)
     on_start = opts.on_start,
     on_chunk = opts.on_chunk,
     on_stop = function(stop_opts)
+      -- Debug logging for ReAct callback detection
+      if react_state.react_mode then
+        Utils.debug("ReAct on_stop callback received", {
+          reason = stop_opts.reason,
+          streaming_tool_use = stop_opts.streaming_tool_use,
+          processing_tools = react_state.processing_tools,
+          tools_ready = react_state.tools_ready
+        })
+      end
+      
+      -- Prevent duplicate tool_use callbacks in ReAct mode (if feature flag is enabled)
+      if react_state.react_mode and stop_opts.reason == "tool_use" and Config.experimental.fix_react_double_invocation then
+        if react_state.processing_tools and not stop_opts.streaming_tool_use then
+          Utils.debug("ReAct: Preventing duplicate tool_use callback during processing")
+          return
+        end
+        
+        -- Set processing flag when starting tool processing
+        if not react_state.processing_tools then
+          react_state.processing_tools = true
+          Utils.debug("ReAct: Starting tool processing")
+        end
+      end
+      
       if stop_opts.usage and opts.update_tokens_usage then opts.update_tokens_usage(stop_opts.usage) end
 
       ---@param tool_uses AvantePartialLLMToolUse[]
@@ -816,7 +883,14 @@ function M._stream(opts)
               return
             end
           end
-          if not streaming_tool_use then M._stream(new_opts) end
+          if not streaming_tool_use then 
+            -- Reset ReAct processing flag when starting new stream
+            if react_state.react_mode then
+              react_state.processing_tools = false
+              Utils.debug("ReAct: Resetting processing flag for new stream")
+            end
+            M._stream(new_opts) 
+          end
           return
         end
         local partial_tool_use = tool_uses[tool_use_index]

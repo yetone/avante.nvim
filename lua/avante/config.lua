@@ -427,6 +427,14 @@ M._defaults = {
     prompt = "Based on the two reference outputs below, generate a response that incorporates elements from both but reflects your own judgment and unique perspective. Do not provide any explanation, just give the response directly. Reference Output 1: [{{provider1_output}}], Reference Output 2: [{{provider2_output}}]",
     timeout = 60000, -- Timeout in milliseconds
   },
+  ---Experimental features configuration
+  ---Note: These features are experimental and may change or be removed in future versions
+  experimental = {
+    ---@type boolean Whether to enable the ReAct double invocation fix. Default to true.
+    ---When enabled, prevents duplicate LLM API calls when using ReAct prompts
+    ---with providers that support it (OpenAI, Gemini, Vertex).
+    fix_react_double_invocation = true,
+  },
   ---Specify the behaviour of avante.nvim
   ---1. auto_focus_sidebar              : Whether to automatically focus the sidebar when opening avante.nvim. Default to true.
   ---2. auto_suggestions = false, -- Whether to enable auto suggestions. Default to false.

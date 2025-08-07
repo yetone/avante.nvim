@@ -157,9 +157,14 @@ local M = {}
 --- }
 ---
 ---@param text string
----@return (avante.TextContent|avante.ToolUseContent)[]
+---@return (avante.TextContent|avante.ToolUseContent)[], table metadata with tool completion state
 function M.parse(text)
   local result = {}
+  local metadata = {
+    all_tools_complete = true,
+    tool_count = 0,
+    partial_tool_count = 0
+  }
   local pos = 1
   local len = #text
 
@@ -216,6 +221,9 @@ function M.parse(text)
           tool_input = json_data.input or {},
           partial = true,
         })
+        metadata.tool_count = metadata.tool_count + 1
+        metadata.partial_tool_count = metadata.partial_tool_count + 1
+        metadata.all_tools_complete = false
       else
         local jsn = JsonParser.parse(json_text)
 
@@ -226,6 +234,9 @@ function M.parse(text)
             tool_input = jsn.input or {},
             partial = true,
           })
+          metadata.tool_count = metadata.tool_count + 1
+          metadata.partial_tool_count = metadata.partial_tool_count + 1
+          metadata.all_tools_complete = false
         end
       end
       break
@@ -242,6 +253,7 @@ function M.parse(text)
         tool_input = json_data.input or {},
         partial = false,
       })
+      metadata.tool_count = metadata.tool_count + 1
       pos = tool_end + 11 -- length of "</tool_use>"
     else
       -- Invalid JSON, treat the whole thing as text
@@ -255,7 +267,7 @@ function M.parse(text)
     end
   end
 
-  return result
+  return result, metadata
 end
 
 return M

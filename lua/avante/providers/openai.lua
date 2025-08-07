@@ -255,7 +255,15 @@ function M:add_text_message(ctx, text, state, opts)
     ::continue::
   end
   local cleaned_xml_content = table.concat(cleaned_xml_lines, "\n")
-  local xml = ReActParser.parse(cleaned_xml_content)
+  local xml, react_metadata = ReActParser.parse(cleaned_xml_content)
+  
+  -- Update context with ReAct state
+  if react_metadata then
+    ctx.react_tools_ready = react_metadata.all_tools_complete
+    ctx.react_tool_count = react_metadata.tool_count
+    ctx.react_partial_tool_count = react_metadata.partial_tool_count
+  end
+  
   if xml and #xml > 0 then
     local new_content_list = {}
     local xml_md_openned = false
@@ -322,7 +330,21 @@ function M:add_text_message(ctx, text, state, opts)
             state = "generating",
           }
         end
-        opts.on_stop({ reason = "tool_use", streaming_tool_use = item.partial })
+        -- Check if this is ReAct mode and adjust callback behavior
+        local provider_conf = Providers.parse_config(self)
+        local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
+        local Config = require("avante.config")
+        
+        -- For ReAct mode, only call on_stop when tools are ready (not partial) - if fix enabled
+        if use_ReAct_prompt and Config.experimental.fix_react_double_invocation then
+          if not item.partial then
+            opts.on_stop({ reason = "tool_use", streaming_tool_use = false })
+          end
+          -- For partial tools in ReAct mode, we defer the callback
+        else
+          -- Normal behavior for non-ReAct providers or when fix is disabled
+          opts.on_stop({ reason = "tool_use", streaming_tool_use = item.partial })
+        end
       end
       ::continue::
     end
@@ -382,8 +404,31 @@ function M:parse_response(ctx, data_stream, _, opts)
   if data_stream:match('"%[DONE%]":') or data_stream == "[DONE]" then
     self:finish_pending_messages(ctx, opts)
     if ctx.tool_use_list and #ctx.tool_use_list > 0 then
+      -- Check if this is ReAct mode to prevent duplicate callbacks
+      local provider_conf = Providers.parse_config(self)
+      local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
+      local Config = require("avante.config")
+      
       ctx.tool_use_list = {}
-      opts.on_stop({ reason = "tool_use" })
+      
+      -- For ReAct mode, check if tools are ready before calling on_stop - if fix enabled
+      if use_ReAct_prompt and Config.experimental.fix_react_double_invocation then
+        -- Check if we have any partial tools remaining
+        local has_partial_tools = false
+        if ctx.react_tools_ready == false then
+          has_partial_tools = true
+        end
+        
+        if not has_partial_tools then
+          opts.on_stop({ reason = "tool_use" })
+        else
+          -- Tools not ready yet, defer the callback
+          return
+        end
+      else
+        -- Normal behavior for non-ReAct providers or when fix is disabled
+        opts.on_stop({ reason = "tool_use" })
+      end
     else
       opts.on_stop({ reason = "complete" })
     end

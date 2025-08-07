@@ -1,0 +1,50 @@
+[
+  {
+    "title": "ReAct State Management Infrastructure",
+    "content": "Added local state tracking variables to manage ReAct processing flow and prevent callback loops. This centralizes state management in the LLM module and provides a clean separation of concerns between ReAct and normal tool processing.",
+    "path": "lua/avante/llm.lua",
+    "line_range": [21, 49]
+  },
+  {
+    "title": "Duplicate Callback Prevention Logic",
+    "content": "Implemented early return logic to prevent duplicate tool_use callbacks when already processing tools in ReAct mode. This is the core fix that eliminates the double API invocation by checking processing state before allowing callbacks to proceed.",
+    "path": "lua/avante/llm.lua",
+    "line_range": [831, 843]
+  },
+  {
+    "title": "ReAct Parser Metadata Enhancement",
+    "content": "Enhanced the ReAct parser to return metadata about tool completion state alongside parsed content. This allows providers to make informed decisions about when to trigger callbacks based on whether tools are complete or partial.",
+    "path": "lua/avante/libs/ReAct_parser2.lua",
+    "line_range": [160, 167]
+  },
+  {
+    "title": "OpenAI Provider Callback Logic Fix",
+    "content": "Modified OpenAI provider to only call on_stop for complete (non-partial) tools when in ReAct mode. This prevents the immediate callback that was causing the first part of the double invocation issue.",
+    "path": "lua/avante/providers/openai.lua",
+    "line_range": [338, 347]
+  },
+  {
+    "title": "OpenAI Stream Completion ReAct Awareness",
+    "content": "Updated stream completion logic to check ReAct tool readiness before triggering final callbacks. This prevents the second part of the double invocation by deferring callbacks until tools are actually ready.",
+    "path": "lua/avante/providers/openai.lua",
+    "line_range": [414, 431]
+  },
+  {
+    "title": "Gemini Provider Consistency Update",
+    "content": "Applied similar callback prevention logic to Gemini provider to ensure consistent behavior across all ReAct-supporting providers. This maintains the same fix pattern across different provider implementations.",
+    "path": "lua/avante/providers/gemini.lua",
+    "line_range": [286, 311]
+  },
+  {
+    "title": "Feature Flag for Backward Compatibility",
+    "content": "Added experimental configuration flag to allow users to disable the fix if needed. This ensures backward compatibility and provides an easy way to rollback if issues arise, following best practices for breaking change management.",
+    "path": "lua/avante/config.lua",
+    "line_range": [432, 437]
+  },
+  {
+    "title": "Debug Logging for Troubleshooting",
+    "content": "Comprehensive debug logging throughout the ReAct flow to help troubleshoot issues and monitor state transitions. This aids in development, testing, and future maintenance of the ReAct functionality.",
+    "path": "lua/avante/llm.lua",
+    "line_range": [821, 829]
+  }
+]

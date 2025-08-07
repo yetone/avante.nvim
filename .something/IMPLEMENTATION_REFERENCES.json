@@ -1,0 +1,58 @@
+[
+  {
+    "title": "ReAct (Reasoning and Acting) Paper Reference",
+    "content": "The ReAct paradigm combines reasoning traces and task-specific actions in language models. Understanding this paradigm was crucial for implementing the proper state management and callback flow for ReAct prompts in Avante.",
+    "path": "lua/avante/llm.lua",
+    "line_range": [21, 49],
+    "url": "https://arxiv.org/abs/2210.03629"
+  },
+  {
+    "title": "Lua State Management Patterns",
+    "content": "Applied standard Lua state management patterns for tracking processing flow. The implementation follows Lua best practices for module-level state management with proper initialization and cleanup.",
+    "path": "lua/avante/llm.lua", 
+    "line_range": [27, 49],
+    "url": "https://www.lua.org/pil/16.html"
+  },
+  {
+    "title": "ReAct Double Invocation Knowledge",
+    "content": "Internal knowledge base entry documenting the ReAct double invocation issue and solution patterns. This serves as the primary reference for understanding the problem domain and solution approach.",
+    "path": "lua/avante/llm.lua",
+    "line_range": [831, 843],
+    "knowledge_uuid": "react-double-invocation-fix"
+  },
+  {
+    "title": "JSON Streaming Parser Patterns",
+    "content": "Understanding of JSON streaming parser patterns was essential for enhancing the ReAct parser to return metadata alongside parsed content. This enables better state management in streaming scenarios.",
+    "path": "lua/avante/libs/ReAct_parser2.lua",
+    "line_range": [160, 270],
+    "url": "https://tools.ietf.org/html/rfc7159"
+  },
+  {
+    "title": "OpenAI API Streaming Response Format",
+    "content": "Deep understanding of OpenAI API streaming response format and tool calling patterns was necessary to implement proper callback timing and prevent duplicate invocations in ReAct mode.",
+    "path": "lua/avante/providers/openai.lua",
+    "line_range": [394, 440],
+    "url": "https://platform.openai.com/docs/api-reference/chat/streaming"
+  },
+  {
+    "title": "Google Gemini API Tool Calling",
+    "content": "Reference to Gemini API documentation for understanding tool calling patterns and finish reasons, which informed the callback prevention logic implementation for consistency across providers.",
+    "path": "lua/avante/providers/gemini.lua",
+    "line_range": [282, 311],
+    "url": "https://ai.google.dev/docs/function_calling"
+  },
+  {
+    "title": "Lua Configuration Management Best Practices",
+    "content": "Following Lua configuration management patterns for implementing feature flags and experimental settings. This ensures proper configuration structure and backward compatibility.",
+    "path": "lua/avante/config.lua",
+    "line_range": [430, 437],
+    "url": "https://www.lua.org/manual/5.4/manual.html#6.3"
+  },
+  {
+    "title": "Software Engineering Debugging Patterns", 
+    "content": "Applied standard debugging and logging patterns to provide comprehensive observability into the ReAct processing flow. This follows established practices for debugging complex state machines.",
+    "path": "lua/avante/llm.lua",
+    "line_range": [821, 829],
+    "url": "https://en.wikipedia.org/wiki/Debugging#Techniques"
+  }
+]
