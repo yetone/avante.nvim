@@ -1,56 +1,56 @@
 [
   {
-    "title": "ReAct (Reasoning and Acting) Paper Reference",
-    "content": "The ReAct paradigm combines reasoning traces and task-specific actions in language models. Understanding this paradigm was crucial for implementing the proper state management and callback flow for ReAct prompts in Avante.",
+    "title": "ReAct (推論と行動) 論文参照",
+    "content": "ReActパラダイムは、言語モデルにおける推論の軌跡とタスク固有のアクションを組み合わせます。このパラダイムを理解することは、AvanteにおけるReActプロンプトの適切な状態管理とコールバックフローの実装に重要でした。",
     "path": "lua/avante/llm.lua",
     "line_range": [21, 49],
     "url": "https://arxiv.org/abs/2210.03629"
   },
   {
-    "title": "Lua State Management Patterns",
-    "content": "Applied standard Lua state management patterns for tracking processing flow. The implementation follows Lua best practices for module-level state management with proper initialization and cleanup.",
+    "title": "Lua状態管理パターン",
+    "content": "処理フローを追跡するための標準的なLua状態管理パターンを適用しました。この実装は、適切な初期化とクリーンアップを伴うモジュールレベルの状態管理に関するLuaのベストプラクティスに従っています。",
     "path": "lua/avante/llm.lua", 
     "line_range": [27, 49],
     "url": "https://www.lua.org/pil/16.html"
   },
   {
-    "title": "ReAct Double Invocation Knowledge",
-    "content": "Internal knowledge base entry documenting the ReAct double invocation issue and solution patterns. This serves as the primary reference for understanding the problem domain and solution approach.",
+    "title": "ReAct二重呼び出しナレッジ",
+    "content": "ReAct二重呼び出し問題とソリューションパターンを文書化した内部ナレッジベースエントリ。これは、問題領域とソリューションアプローチを理解するための主要な参考資料として機能します。",
     "path": "lua/avante/llm.lua",
     "line_range": [831, 843],
     "knowledge_uuid": "react-double-invocation-fix"
   },
   {
-    "title": "JSON Streaming Parser Patterns",
-    "content": "Understanding of JSON streaming parser patterns was essential for enhancing the ReAct parser to return metadata alongside parsed content. This enables better state management in streaming scenarios.",
+    "title": "JSONストリーミングパーサーパターン",
+    "content": "ReActパーサーを拡張して解析されたコンテンツと共にメタデータを返すために、JSONストリーミングパーサーパターンの理解が不可欠でした。これにより、ストリーミングシナリオでのより良い状態管理が可能になります。",
     "path": "lua/avante/libs/ReAct_parser2.lua",
     "line_range": [160, 270],
     "url": "https://tools.ietf.org/html/rfc7159"
   },
   {
-    "title": "OpenAI API Streaming Response Format",
-    "content": "Deep understanding of OpenAI API streaming response format and tool calling patterns was necessary to implement proper callback timing and prevent duplicate invocations in ReAct mode.",
+    "title": "OpenAI APIストリーミングレスポンス形式",
+    "content": "ReActモードで適切なコールバックタイミングを実装し、重複呼び出しを防止するために、OpenAI APIストリーミングレスポンス形式とツール呼び出しパターンの深い理解が必要でした。",
     "path": "lua/avante/providers/openai.lua",
     "line_range": [394, 440],
     "url": "https://platform.openai.com/docs/api-reference/chat/streaming"
   },
   {
-    "title": "Google Gemini API Tool Calling",
-    "content": "Reference to Gemini API documentation for understanding tool calling patterns and finish reasons, which informed the callback prevention logic implementation for consistency across providers.",
+    "title": "Google Gemini APIツール呼び出し",
+    "content": "ツール呼び出しパターンと完了理由を理解するためのGemini APIドキュメントへの参照。これは、プロバイダー間の一貫性を保つためのコールバック防止ロジック実装の情報源となりました。",
     "path": "lua/avante/providers/gemini.lua",
     "line_range": [282, 311],
     "url": "https://ai.google.dev/docs/function_calling"
   },
   {
-    "title": "Lua Configuration Management Best Practices",
-    "content": "Following Lua configuration management patterns for implementing feature flags and experimental settings. This ensures proper configuration structure and backward compatibility.",
+    "title": "Lua設定管理ベストプラクティス",
+    "content": "機能フラグと実験的設定を実装するためのLua設定管理パターンに従いました。これにより、適切な設定構造と後方互換性が保証されます。",
     "path": "lua/avante/config.lua",
     "line_range": [430, 437],
     "url": "https://www.lua.org/manual/5.4/manual.html#6.3"
   },
   {
-    "title": "Software Engineering Debugging Patterns", 
-    "content": "Applied standard debugging and logging patterns to provide comprehensive observability into the ReAct processing flow. This follows established practices for debugging complex state machines.",
+    "title": "ソフトウェアエンジニアリングデバッグパターン", 
+    "content": "ReAct処理フローへの包括的な可視性を提供するために、標準的なデバッグとログパターンを適用しました。これは、複雑な状態マシンをデバッグするための確立されたプラクティスに従っています。",
     "path": "lua/avante/llm.lua",
     "line_range": [821, 829],
     "url": "https://en.wikipedia.org/wiki/Debugging#Techniques"
