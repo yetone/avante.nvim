@@ -1,0 +1,44 @@
+[
+  {
+    "title": "ReAct state management infrastructure",
+    "content": "Added centralized state management in lua/avante/llm.lua to track ReAct processing mode and prevent callback loops. This allows coordinated control across all provider implementations.",
+    "path": "lua/avante/llm.lua",
+    "line_range": [21, 53]
+  },
+  {
+    "title": "Duplicate callback prevention logic",
+    "content": "Implemented duplicate callback prevention in the on_stop handler to detect when tools are already being processed and prevent additional LLM API calls. This fixes the core issue of double invocation.",
+    "path": "lua/avante/llm.lua",
+    "line_range": [999, 1012]
+  },
+  {
+    "title": "Enhanced ReAct parser with metadata",
+    "content": "Modified the ReAct parser to return metadata about tool completion state. This provides detailed information about partial vs complete tools, enabling better decision-making in callback logic.",
+    "path": "lua/avante/libs/ReAct_parser2.lua",
+    "line_range": [258, 280]
+  },
+  {
+    "title": "OpenAI provider ReAct awareness",
+    "content": "Updated OpenAI provider to use tool completion metadata and only trigger callbacks when all tools are complete, preventing premature callback execution for partial tools.",
+    "path": "lua/avante/providers/openai.lua",
+    "line_range": [326, 333]
+  },
+  {
+    "title": "Gemini provider consistency",
+    "content": "Applied the same ReAct state management pattern to Gemini provider to ensure consistent behavior across all ReAct-supporting providers.",
+    "path": "lua/avante/providers/gemini.lua",
+    "line_range": [283, 309]
+  },
+  {
+    "title": "Experimental feature flag",
+    "content": "Added experimental.fix_react_double_invocation configuration flag to allow gradual rollout and maintain backward compatibility while users migrate to the new behavior.",
+    "path": "lua/avante/config.lua",
+    "line_range": [442, 445]
+  },
+  {
+    "title": "Comprehensive test coverage",
+    "content": "Created unit tests for ReAct parser functionality and LLM state management to ensure reliability and prevent regressions in the fix.",
+    "path": "tests/libs/react_parser_spec.lua",
+    "line_range": [1, 85]
+  }
+]

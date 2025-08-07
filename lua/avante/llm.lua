@@ -18,6 +18,40 @@ local M = {}
 
 M.CANCEL_PATTERN = "AvanteLLMEscape"
 
+-- ReAct state management to prevent double invocation
+M._react_state = {
+  react_mode = false,
+  tools_pending = false,
+  processing_tools = false,
+  react_tools_ready = false,
+}
+
+-- ReAct state management functions
+function M._reset_react_state()
+  M._react_state = {
+    react_mode = false,
+    tools_pending = false,
+    processing_tools = false,
+    react_tools_ready = false,
+  }
+  Utils.debug("[ReAct] State reset")
+end
+
+function M._set_react_mode(enabled)
+  M._react_state.react_mode = enabled
+  Utils.debug("[ReAct] Mode set to:", enabled)
+end
+
+function M._set_react_tools_ready(ready)
+  M._react_state.react_tools_ready = ready
+  Utils.debug("[ReAct] Tools ready set to:", ready)
+end
+
+function M._set_processing_tools(processing)
+  M._react_state.processing_tools = processing
+  Utils.debug("[ReAct] Processing tools set to:", processing)
+end
+
 ------------------------------Prompt and type------------------------------
 
 local group = api.nvim_create_augroup("avante_llm", { clear = true })
@@ -297,6 +331,9 @@ function M.generate_prompts(opts)
   selected_files = vim.iter(selected_files):filter(function(file) return viewed_files[file.path] == nil end):totable()
 
   local provider_conf = Providers.parse_config(provider)
+  
+  -- Set ReAct mode based on provider configuration
+  M._set_react_mode(provider_conf.use_ReAct_prompt == true)
 
   local template_opts = {
     ask = opts.ask, -- TODO: add mode without ask instruction
@@ -738,6 +775,9 @@ end
 function M._stream(opts)
   -- Reset the cancellation flag at the start of a new request
   if LLMToolHelpers then LLMToolHelpers.is_cancelled = false end
+  
+  -- Initialize ReAct state for new stream
+  M._reset_react_state()
 
   local provider = opts.provider or Providers[Config.provider]
   opts.session_ctx = opts.session_ctx or {}
@@ -956,6 +996,17 @@ function M._stream(opts)
         end
       end
       if stop_opts.reason == "tool_use" then
+        -- ReAct double invocation prevention (controlled by experimental flag)
+        if Config.experimental.fix_react_double_invocation and M._react_state.react_mode and M._react_state.processing_tools then
+          Utils.debug("[ReAct] Preventing duplicate tool_use callback - already processing")
+          return
+        end
+        
+        if Config.experimental.fix_react_double_invocation and M._react_state.react_mode then
+          M._set_processing_tools(true)
+          Utils.debug("[ReAct] Starting tool processing")
+        end
+        
         opts.session_ctx.user_reminder_count = 0
         return handle_next_tool_use(pending_tools, pending_tool_use_messages, 1, {}, stop_opts.streaming_tool_use)
       end

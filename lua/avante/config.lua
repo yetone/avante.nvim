@@ -439,6 +439,10 @@ M._defaults = {
   ---7. support_paste_from_clipboard    : Whether to support pasting image from clipboard. This will be determined automatically based whether img-clip is available or not.
   ---8. minimize_diff                   : Whether to remove unchanged lines when applying a code block
   ---9. enable_token_counting           : Whether to enable token counting. Default to true.
+  -- Experimental features
+  experimental = {
+    fix_react_double_invocation = true, -- Fix ReAct prompts double LLM API invocation
+  },
   behaviour = {
     auto_focus_sidebar = true,
     auto_suggestions = false, -- Experimental stage

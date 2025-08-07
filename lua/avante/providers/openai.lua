@@ -7,6 +7,7 @@ local ReActParser = require("avante.libs.ReAct_parser2")
 local JsonParser = require("avante.libs.jsonparser")
 local Prompts = require("avante.utils.prompts")
 local LlmTools = require("avante.llm_tools")
+local LLM = require("avante.llm")
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -255,7 +256,7 @@ function M:add_text_message(ctx, text, state, opts)
     ::continue::
   end
   local cleaned_xml_content = table.concat(cleaned_xml_lines, "\n")
-  local xml = ReActParser.parse(cleaned_xml_content)
+  local xml, metadata = ReActParser.parse(cleaned_xml_content)
   if xml and #xml > 0 then
     local new_content_list = {}
     local xml_md_openned = false
@@ -322,7 +323,14 @@ function M:add_text_message(ctx, text, state, opts)
             state = "generating",
           }
         end
-        opts.on_stop({ reason = "tool_use", streaming_tool_use = item.partial })
+        -- ReAct aware callback: only call on_stop when all tools are complete (controlled by experimental flag)
+        if Config.experimental.fix_react_double_invocation and metadata and metadata.all_tools_complete then
+          Utils.debug("[ReAct] All tools complete, triggering callback")
+          opts.on_stop({ reason = "tool_use", streaming_tool_use = false })
+        elseif not Config.experimental.fix_react_double_invocation or not item.partial then
+          -- For non-ReAct mode or individual complete tools, or when fix is disabled
+          opts.on_stop({ reason = "tool_use", streaming_tool_use = false })
+        end
       end
       ::continue::
     end
@@ -383,7 +391,19 @@ function M:parse_response(ctx, data_stream, _, opts)
     self:finish_pending_messages(ctx, opts)
     if ctx.tool_use_list and #ctx.tool_use_list > 0 then
       ctx.tool_use_list = {}
-      opts.on_stop({ reason = "tool_use" })
+      -- ReAct awareness: check if we should call tool_use callback (controlled by experimental flag)
+      if Config.experimental.fix_react_double_invocation and LLM._react_state.react_mode then
+        -- Only call if tools are ready and not already processing
+        if not LLM._react_state.processing_tools then
+          Utils.debug("[ReAct] Stream completion triggering tool_use")
+          opts.on_stop({ reason = "tool_use" })
+        else
+          Utils.debug("[ReAct] Stream completion - tools already processing, completing")
+          opts.on_stop({ reason = "complete" })
+        end
+      else
+        opts.on_stop({ reason = "tool_use" })
+      end
     else
       opts.on_stop({ reason = "complete" })
     end

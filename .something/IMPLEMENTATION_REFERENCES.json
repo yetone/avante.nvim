@@ -1,0 +1,44 @@
+[
+  {
+    "title": "ReAct (Reason and Act) Pattern Documentation",
+    "content": "Implementation follows the ReAct prompting pattern which combines reasoning and action taking in language models. The pattern requires careful state management to prevent callback loops.",
+    "path": "lua/avante/llm.lua",
+    "line_range": [21, 53],
+    "url": "https://react-lm.github.io/"
+  },
+  {
+    "title": "Lua State Management Best Practices",
+    "content": "State management implementation follows Lua best practices for module-level state with proper initialization and cleanup functions.",
+    "path": "lua/avante/llm.lua",
+    "line_range": [29, 53],
+    "url": "https://www.lua.org/manual/5.1/manual.html#6.3"
+  },
+  {
+    "title": "OpenAI Tool Calling API Reference",
+    "content": "OpenAI provider implementation references the official OpenAI tool calling API documentation for proper handling of tool_use callbacks and streaming responses.",
+    "path": "lua/avante/providers/openai.lua",
+    "line_range": [384, 410],
+    "url": "https://platform.openai.com/docs/guides/function-calling"
+  },
+  {
+    "title": "Google Gemini Function Calling API",
+    "content": "Gemini provider implementation follows Google's Gemini API documentation for handling tool calls and function execution in streaming responses.",
+    "path": "lua/avante/providers/gemini.lua",
+    "line_range": [279, 313],
+    "url": "https://ai.google.dev/docs/function_calling"
+  },
+  {
+    "title": "JSON Parser Implementation Pattern",
+    "content": "ReAct parser enhancement follows established JSON parsing patterns in the codebase, specifically the existing JsonParser implementation for partial JSON handling.",
+    "path": "lua/avante/libs/ReAct_parser2.lua",
+    "line_range": [220, 230],
+    "url": "https://tools.ietf.org/html/rfc7159"
+  },
+  {
+    "title": "Neovim Plugin Testing Framework",
+    "content": "Unit tests implementation follows the established testing patterns in the codebase using the busted testing framework for Lua.",
+    "path": "tests/libs/react_parser_spec.lua",
+    "line_range": [1, 10],
+    "url": "https://olivinelabs.com/busted/"
+  }
+]

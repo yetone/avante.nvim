@@ -3,6 +3,8 @@ local Providers = require("avante.providers")
 local Clipboard = require("avante.clipboard")
 local OpenAI = require("avante.providers").openai
 local Prompts = require("avante.utils.prompts")
+local LLM = require("avante.llm")
+local Config = require("avante.config")
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -278,11 +280,33 @@ function M:parse_response(ctx, data_stream, _, opts)
       if reason_str == "TOOL_CODE" then
         -- Model indicates a tool-related stop.
         -- The tool_use list is added to the table in llm.lua
-        opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+        -- ReAct awareness: check if we should call tool_use callback (controlled by experimental flag)
+        if Config.experimental.fix_react_double_invocation and LLM._react_state.react_mode then
+          if not LLM._react_state.processing_tools then
+            Utils.debug("[ReAct] Gemini TOOL_CODE triggering tool_use")
+            opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+          else
+            Utils.debug("[ReAct] Gemini TOOL_CODE - tools already processing, completing")
+            opts.on_stop(vim.tbl_deep_extend("force", { reason = "complete" }, stop_details))
+          end
+        else
+          opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+        end
       elseif reason_str == "STOP" then
         if ctx.tool_use_list and #ctx.tool_use_list > 0 then
           -- Natural stop, but tools were found in this final chunk.
-          opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+          -- ReAct awareness: check if we should call tool_use callback (controlled by experimental flag)
+          if Config.experimental.fix_react_double_invocation and LLM._react_state.react_mode then
+            if not LLM._react_state.processing_tools then
+              Utils.debug("[ReAct] Gemini STOP with tools triggering tool_use")
+              opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+            else
+              Utils.debug("[ReAct] Gemini STOP - tools already processing, completing")
+              opts.on_stop(vim.tbl_deep_extend("force", { reason = "complete" }, stop_details))
+            end
+          else
+            opts.on_stop(vim.tbl_deep_extend("force", { reason = "tool_use" }, stop_details))
+          end
         else
           -- Natural stop, no tools in this final chunk.
           -- llm.lua will check its accumulated tools if tool_choice was active.

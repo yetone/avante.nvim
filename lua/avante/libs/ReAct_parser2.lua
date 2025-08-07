@@ -157,7 +157,7 @@ local M = {}
 --- }
 ---
 ---@param text string
----@return (avante.TextContent|avante.ToolUseContent)[]
+---@return (avante.TextContent|avante.ToolUseContent)[], table metadata
 function M.parse(text)
   local result = {}
   local pos = 1
@@ -255,7 +255,29 @@ function M.parse(text)
     end
   end
 
-  return result
+  -- Calculate completion metadata
+  local tool_count = 0
+  local partial_tool_count = 0
+  local all_tools_complete = true
+  
+  for _, item in ipairs(result) do
+    if item.type == "tool_use" then
+      tool_count = tool_count + 1
+      if item.partial then
+        partial_tool_count = partial_tool_count + 1
+        all_tools_complete = false
+      end
+    end
+  end
+  
+  local metadata = {
+    tool_count = tool_count,
+    partial_tool_count = partial_tool_count,
+    all_tools_complete = all_tools_complete and tool_count > 0,
+    has_tools = tool_count > 0
+  }
+
+  return result, metadata
 end
 
 return M
