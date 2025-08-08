@@ -2729,6 +2729,23 @@ function Sidebar:create_input_container()
     end
   end
 
+  if Config.mappings.sidebar.toggle_code_window_from_input ~= nil then
+    if Config.mappings.sidebar.toggle_code_window_from_input.normal ~= nil then
+      self.containers.input:map(
+        "n",
+        Config.mappings.sidebar.toggle_code_window_from_input.normal,
+        function() self:toggleCodeWindow() end
+      )
+    end
+    if Config.mappings.sidebar.toggle_code_window_from_input.insert ~= nil then
+      self.containers.input:map(
+        "i",
+        Config.mappings.sidebar.toggle_code_window_from_input.insert,
+        function() self:toggleCodeWindow() end
+      )
+    end
+  end
+
   api.nvim_set_option_value("filetype", "AvanteInput", { buf = self.containers.input.bufnr })
 
   -- Setup completion

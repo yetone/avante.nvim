@@ -548,6 +548,9 @@ M._defaults = {
       ---@alias AvanteCloseFromInput { normal: string | nil, insert: string | nil }
       ---@type AvanteCloseFromInput | nil
       close_from_input = nil, -- e.g., { normal = "<Esc>", insert = "<C-d>" }
+      ---@alias AvanteToggleCodeWindowFromInput { normal: string | nil, insert: string | nil }
+      ---@type AvanteToggleCodeWindowFromInput | nil
+      toggle_code_window_from_input = nil, -- e.g., { normal = "x", insert = "<C-;>" }
     },
     files = {
       add_current = "<leader>ac", -- Add current buffer to selected files
