@@ -396,6 +396,17 @@ function P.setup()
   P.data_path = data_path
 
   vim.defer_fn(P._init_templates_lib, 1000)
+  
+  -- 🚀 Initialize refactored history system
+  vim.defer_fn(function()
+    local startup_ok, startup_module = pcall(require, "avante.history.startup")
+    if startup_ok then
+      local success, error_msg = startup_module.initialize()
+      if not success then
+        Utils.warn("Failed to initialize history system:", error_msg)
+      end
+    end
+  end, 1500) -- 📌 Run after templates initialization
 end
 
 function P.available() return P._init_templates_lib() ~= nil end

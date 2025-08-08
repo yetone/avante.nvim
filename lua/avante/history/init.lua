@@ -1,15 +1,24 @@
 local Helpers = require("avante.history.helpers")
 local Message = require("avante.history.message")
+local Manager = require("avante.history.manager")
 local Utils = require("avante.utils")
 
 local M = {}
 
 M.Helpers = Helpers
 M.Message = Message
+M.Manager = Manager
 
----@param history avante.ChatHistory
+-- 🔄 Legacy compatibility function - now delegates to manager
+---@param history avante.ChatHistory | avante.UnifiedChatHistory
 ---@return avante.HistoryMessage[]
 function M.get_history_messages(history)
+  -- 🔄 Check if it's already a unified history with messages
+  if history.messages and history.schema_version then
+    return Manager.get_history_messages(history)
+  end
+  
+  -- 🔄 Handle legacy format with entries
   if history.messages then return history.messages end
   local messages = {}
   for _, entry in ipairs(history.entries or {}) do

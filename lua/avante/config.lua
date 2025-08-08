@@ -478,6 +478,69 @@ M._defaults = {
       extension = "png",
       filename = "pasted-%Y-%m-%d-%H-%M-%S",
     },
+    -- 🚀 New configuration sections for refactored history storage
+    performance = {
+      compression = {
+        enabled = true,              -- 📦 Enable LZ4 compression for large files
+        threshold = 1024,            -- 📏 Compress files larger than 1KB
+        level = 1,                   -- 🎯 Compression level (1=fast, 9=best)
+      },
+      caching = {
+        enabled = true,              -- 🏃 Enable LRU cache for frequently accessed histories
+        max_size = 50,               -- 📚 Maximum number of histories to cache
+        ttl_seconds = 300,           -- ⏱️ Time-to-live for cached entries (5 minutes)
+      },
+      async_operations = {
+        enabled = true,              -- ⚡ Enable async save/load operations
+        debounce_ms = 500,           -- 🕐 Debounce save operations (milliseconds)
+        batch_size = 10,             -- 📦 Process operations in batches
+      },
+    },
+    migration = {
+      auto_migrate = false,          -- 🔄 Automatically migrate legacy format on startup
+      create_backups = true,         -- 💾 Create backups before migration
+      preserve_legacy = false,       -- 📂 Keep legacy files after successful migration
+      dry_run = false,               -- 🧪 Perform migration dry run for testing
+      batch_size = 10,               -- 📦 Number of files to migrate in one batch
+    },
+    retention = {
+      enabled = false,               -- 🧹 Enable automatic cleanup policies
+      max_conversations = 1000,      -- 📊 Maximum number of conversations to keep
+      max_age_days = 365,            -- 📅 Archive conversations older than this
+      archive_threshold_days = 90,   -- 📦 Move to archive after this many days
+      cleanup_on_startup = false,    -- 🚀 Run cleanup automatically on plugin startup
+    },
+    search = {
+      enabled = true,                -- 🔍 Enable search functionality
+      index_content = true,          -- 📇 Index message content for faster search
+      search_metadata = false,       -- 🏷️ Include metadata in search results
+      case_sensitive = false,        -- 🔤 Case sensitive search by default
+      max_results = 50,              -- 📋 Maximum search results to return
+    },
+    storage = {
+      engine = "json",               -- 🏗️ Storage engine: "json", "sqlite", "hybrid"
+      json = {
+        compression = true,          -- 📦 Enable compression for JSON files
+        backup_on_save = true,       -- 💾 Create backups before saving
+        max_backups = 3,             -- 🗃️ Maximum backup files to keep
+      },
+      sqlite = {
+        enabled = false,             -- 🗄️ Enable SQLite storage (optional dependency)
+        database_path = Utils.join_paths(vim.fn.stdpath("data"), "avante", "history.db"),
+        connection_pool_size = 5,    -- 🔗 Number of database connections
+        pragma = {                   -- ⚙️ SQLite pragma settings
+          journal_mode = "WAL",
+          synchronous = "NORMAL",
+          cache_size = -64000,       -- 64MB cache
+        },
+      },
+      hybrid = {
+        enabled = false,             -- 🔀 Enable hybrid storage (JSON + SQLite)
+        recent_threshold_days = 30,  -- 📅 Keep recent conversations in JSON
+        archive_to_sqlite = true,    -- 🗄️ Move old conversations to SQLite
+        migration_batch_size = 100,  -- 📦 Batch size for hybrid migration
+      },
+    },
   },
   highlights = {
     diff = {
