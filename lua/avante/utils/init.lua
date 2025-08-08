@@ -718,15 +718,13 @@ function M.get_doc()
   return doc
 end
 
-function M.prepend_line_number(content, start_line)
+---Prepends line numbers to each line in a list of strings.
+---@param lines string[] The lines of content to prepend line numbers to.
+---@param start_line? integer The starting line number. Defaults to 1.
+---@return string[] A new list of strings with line numbers prepended.
+function M.prepend_line_numbers(lines, start_line)
   start_line = start_line or 1
-  local lines = vim.split(content, "\n")
-  local result = {}
-  for i, line in ipairs(lines) do
-    i = i + start_line - 1
-    table.insert(result, "L" .. i .. ": " .. line)
-  end
-  return table.concat(result, "\n")
+  return vim.iter(lines):map(function(line, i) return string.format("L%d: %s", i + start_line, line) end):totable()
 end
 
 ---Iterates through a list of strings and removes prefixes in form of "L<number>: " from them
@@ -736,6 +734,10 @@ function M.trim_line_numbers(content)
   return vim.iter(content):map(function(line) return (line:gsub("^L%d+: ", "")) end):totable()
 end
 
+---Debounce a function call
+---@param func fun(...) function to debounce
+---@param delay integer delay in milliseconds
+---@return fun(...): uv.uv_timer_t debounced function
 function M.debounce(func, delay)
   local timer = nil
 
@@ -747,35 +749,31 @@ function M.debounce(func, delay)
       timer:close()
     end
 
-    timer = vim.loop.new_timer()
-    if not timer then return end
-
-    timer:start(delay, 0, function()
-      vim.schedule(function() func(unpack(args)) end)
-      timer:close()
+    timer = vim.defer_fn(function()
+      func(unpack(args))
       timer = nil
-    end)
+    end, delay)
 
     return timer
   end
 end
 
+---Throttle a function call
+---@param func fun(...) function to throttle
+---@param delay integer delay in milliseconds
+---@return fun(...): nil throttled function
 function M.throttle(func, delay)
   local timer = nil
-  local args
 
   return function(...)
-    args = { ... }
-
     if timer then return end
 
-    timer = vim.loop.new_timer()
-    if not timer then return end
-    timer:start(delay, 0, function()
-      vim.schedule(function() func(unpack(args)) end)
-      timer:close()
+    local args = { ... }
+
+    timer = vim.defer_fn(function()
+      func(unpack(args))
       timer = nil
-    end)
+    end, delay)
   end
 end
 
