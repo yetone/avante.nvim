@@ -1,38 +1,20 @@
 local Helpers = require("avante.history.helpers")
 local Message = require("avante.history.message")
+local StorageIntegration = require("avante.history.storage_integration")
 local Utils = require("avante.utils")
 
 local M = {}
 
 M.Helpers = Helpers
 M.Message = Message
+M.StorageIntegration = StorageIntegration
 
----@param history avante.ChatHistory
+---🔄 Enhanced get_history_messages with new storage backend
+---@param history avante.ChatHistory | avante.storage.UnifiedChatHistory
 ---@return avante.HistoryMessage[]
 function M.get_history_messages(history)
-  if history.messages then return history.messages end
-  local messages = {}
-  for _, entry in ipairs(history.entries or {}) do
-    if entry.request and entry.request ~= "" then
-      local message = Message:new("user", entry.request, {
-        timestamp = entry.timestamp,
-        is_user_submission = true,
-        visible = entry.visible,
-        selected_filepaths = entry.selected_filepaths,
-        selected_code = entry.selected_code,
-      })
-      table.insert(messages, message)
-    end
-    if entry.response and entry.response ~= "" then
-      local message = Message:new("assistant", entry.response, {
-        timestamp = entry.timestamp,
-        visible = entry.visible,
-      })
-      table.insert(messages, message)
-    end
-  end
-  history.messages = messages
-  return messages
+  -- 🚀 Use enhanced storage integration that handles both legacy and new formats
+  return StorageIntegration.get_history_messages(history)
 end
 
 ---Represents information about tool use: invocation, result, affected file (for "view" or "edit" tools).
@@ -287,6 +269,7 @@ local function refresh_history(messages, tools, files, add_diagnostic, tools_to_
   return updated_messages
 end
 
+---🔄 Enhanced tool invocation history with new storage optimizations
 ---Analyzes the history looking for tool invocations, drops incomplete invocations,
 ---and updates complete ones with the latest data available.
 ---@param messages avante.HistoryMessage[]
@@ -294,69 +277,95 @@ end
 ---@param add_diagnostic boolean Mix in LSP diagnostic info for affected files
 ---@return avante.HistoryMessage[]
 M.update_tool_invocation_history = function(messages, max_tool_use, add_diagnostic)
-  local tools, files = collect_tool_info(messages)
-
-  -- Figure number of tool invocations that should be converted to simple "text"
-  -- messages to reduce prompt costs.
-  local tools_to_text = 0
-  if max_tool_use then
-    local n_edits = vim.iter(files):fold(
-      0,
-      ---@param count integer
-      ---@param file_info HistoryFileInfo
-      function(count, file_info)
-        if file_info.edit_tool_id then count = count + 1 end
-        return count
-      end
-    )
-    -- Each valid "edit" invocation will result in synthetic "view" and also
-    -- in "diagnostic" if it is requested by the caller.
-    local expected = #tools + n_edits + (add_diagnostic and n_edits or 0)
-    tools_to_text = expected - max_tool_use
-  end
-
-  return refresh_history(messages, tools, files, add_diagnostic, tools_to_text)
+  -- 🚀 Use enhanced storage integration that preserves all original logic
+  -- while providing performance optimizations
+  return StorageIntegration.update_tool_invocation_history(messages, max_tool_use, add_diagnostic)
 end
 
+---🔍 Enhanced pending tools detection with new storage optimizations
 ---Scans message history backwards, looking for tool invocations that have not been executed yet
 ---@param messages avante.HistoryMessage[]
 ---@return AvantePartialLLMToolUse[]
 ---@return avante.HistoryMessage[]
 function M.get_pending_tools(messages)
-  local last_turn_id = nil
-  if #messages > 0 then last_turn_id = messages[#messages].turn_id end
+  -- 🚀 Use enhanced storage integration with performance optimizations
+  return StorageIntegration.get_pending_tools(messages)
+end
 
-  local pending_tool_uses = {} ---@type AvantePartialLLMToolUse[]
-  local pending_tool_uses_messages = {} ---@type avante.HistoryMessage[]
-  local tool_result_seen = {}
+---🚀 New storage API functions
 
-  for idx = #messages, 1, -1 do
-    local message = messages[idx]
+---💾 Save history using new storage system
+---@param history avante.ChatHistory | avante.storage.UnifiedChatHistory
+---@param project_name string
+---@return boolean success
+---@return string? error_message
+function M.save_history(history, project_name)
+  return StorageIntegration.save_history(history, project_name)
+end
 
-    if last_turn_id and message.turn_id ~= last_turn_id then break end
+---📖 Load history using new storage system
+---@param history_id string
+---@param project_name string
+---@return avante.ChatHistory? history
+---@return string? error_message
+function M.load_history(history_id, project_name)
+  return StorageIntegration.load_history(history_id, project_name)
+end
 
-    local use = Helpers.get_tool_use_data(message)
-    if use then
-      if not tool_result_seen[use.id] then
-        local partial_tool_use = {
-          name = use.name,
-          id = use.id,
-          input = use.input,
-          state = message.state,
-        }
-        table.insert(pending_tool_uses, 1, partial_tool_use)
-        table.insert(pending_tool_uses_messages, 1, message)
-      end
-      goto continue
-    end
+---📋 List histories using new storage system
+---@param project_name string
+---@param opts? table Listing options
+---@return table[] histories
+---@return string? error_message
+function M.list_histories(project_name, opts)
+  return StorageIntegration.list_histories(project_name, opts)
+end
 
-    local result = Helpers.get_tool_result_data(message)
-    if result then tool_result_seen[result.tool_use_id] = true end
+---🔍 Search histories using new query system
+---@param query table Search parameters
+---@param project_name? string Optional project filter
+---@return table[] results
+---@return string? error_message
+function M.search_histories(query, project_name)
+  return StorageIntegration.search_histories(query, project_name)
+end
 
-    ::continue::
-  end
+---📊 Get storage statistics
+---@param project_name? string
+---@return table stats
+function M.get_storage_stats(project_name)
+  return StorageIntegration.get_storage_stats(project_name)
+end
 
-  return pending_tool_uses, pending_tool_uses_messages
+---✅ Perform storage health check
+---@return boolean healthy
+---@return table report
+function M.storage_health_check()
+  return StorageIntegration.storage_health_check()
+end
+
+---🔄 Trigger manual migration for a project
+---@param project_name string
+---@return boolean success
+---@return table migration_summary
+function M.migrate_project(project_name)
+  return StorageIntegration.migrate_project(project_name)
+end
+
+---🧹 Manual cleanup for a project
+---@param project_name string
+---@return boolean success
+---@return table cleanup_report
+function M.cleanup_project(project_name)
+  return StorageIntegration.cleanup_project(project_name)
+end
+
+---⚙️ Initialize storage system with configuration
+---@param config? table Storage configuration from avante config
+---@return boolean success
+---@return string? error_message
+function M.initialize_storage(config)
+  return StorageIntegration.initialize(config)
 end
 
 return M

@@ -478,6 +478,59 @@ M._defaults = {
       extension = "png",
       filename = "pasted-%Y-%m-%d-%H-%M-%S",
     },
+    -- 🚀 Enhanced storage configuration
+    storage = {
+      -- 🏗️ Storage engine selection: "json", "sqlite", "hybrid"
+      engine = "json",
+      -- 📁 Keep storage path at default location for compatibility
+      -- ~/.local/state/avante/projects/{project_name}/history/
+      base_path = nil, -- Uses storage_path/projects if nil
+    },
+    -- ⚡ Performance optimization settings
+    performance = {
+      -- 🗜️ Compression settings for storage optimization
+      compression = {
+        enabled = false, -- Enable compression for large conversations
+        algorithm = "lz4", -- Compression algorithm
+        min_size_threshold = 1024, -- Only compress files larger than 1KB
+      },
+      -- 💾 Caching configuration
+      cache = {
+        enabled = true, -- Enable LRU cache for frequently accessed histories
+        max_size = 100, -- Maximum number of cached conversations
+        ttl_seconds = 300, -- Cache TTL (5 minutes)
+      },
+      -- ⚡ Asynchronous operations
+      async = {
+        enabled = true, -- Enable async save/load operations
+        debounce_ms = 500, -- Debounce save operations
+        max_concurrent = 3, -- Maximum concurrent async operations
+      },
+    },
+    -- 🔄 Migration settings for legacy format conversion
+    migration = {
+      auto_migrate = true, -- Automatically migrate legacy format on startup
+      backup_enabled = true, -- Create backups before migration
+      max_backup_count = 5, -- Maximum number of migration backups to keep
+      chunk_size = 50, -- Process migrations in chunks to avoid memory issues
+      validate_after_migration = true, -- Validate data integrity after migration
+    },
+    -- 🧹 Retention and cleanup policies
+    retention = {
+      enabled = false, -- Enable automatic retention policies
+      max_conversations = 1000, -- Maximum number of conversations per project
+      max_age_days = 365, -- Archive conversations older than 1 year
+      cleanup_interval_hours = 24, -- How often to run cleanup (24 hours)
+      archive_path = nil, -- Custom archive path (uses base_path/archive if nil)
+    },
+    -- 🔍 Search and indexing configuration
+    search = {
+      enabled = true, -- Enable search functionality
+      index_content = true, -- Index message content for search
+      index_tool_calls = true, -- Index tool invocation data
+      max_search_results = 100, -- Maximum search results to return
+      search_debounce_ms = 200, -- Debounce search queries
+    },
   },
   highlights = {
     diff = {
