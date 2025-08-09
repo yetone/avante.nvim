@@ -368,4 +368,36 @@ function M.initialize_storage(config)
   return StorageIntegration.initialize(config)
 end
 
+---📦 Archive a specific conversation manually
+---@param history_id string
+---@param project_name string
+---@return boolean success
+---@return string? error_message
+function M.archive_conversation(history_id, project_name)
+  return StorageIntegration.archive_conversation(history_id, project_name)
+end
+
+---📦 Restore conversation from archive
+---@param history_id string
+---@param project_name string
+---@return boolean success
+---@return string? error_message
+function M.restore_conversation(history_id, project_name)
+  return StorageIntegration.restore_conversation(history_id, project_name)
+end
+
+---📋 List archived conversations for a project
+---@param project_name string
+---@return table[] archived_histories
+---@return string? error_message
+function M.list_archived_conversations(project_name)
+  return StorageIntegration.list_archived_conversations(project_name)
+end
+
+---🧹 Get cleanup engine statistics
+---@return table stats
+function M.get_cleanup_stats()
+  return StorageIntegration.get_cleanup_stats()
+end
+
 return M

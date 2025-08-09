@@ -522,4 +522,52 @@ function M.cleanup_project(project_name)
   return M._storage_manager:cleanup(project_name)
 end
 
+---📦 Archive a specific conversation manually
+---@param history_id string
+---@param project_name string
+---@return boolean success
+---@return string? error_message
+function M.archive_conversation(history_id, project_name)
+  if not M._storage_manager then
+    return false, "Storage manager not initialized"
+  end
+  
+  return M._storage_manager:archive_conversation(history_id, project_name)
+end
+
+---📦 Restore conversation from archive
+---@param history_id string
+---@param project_name string
+---@return boolean success
+---@return string? error_message
+function M.restore_conversation(history_id, project_name)
+  if not M._storage_manager then
+    return false, "Storage manager not initialized"
+  end
+  
+  return M._storage_manager:restore_conversation(history_id, project_name)
+end
+
+---📋 List archived conversations for a project
+---@param project_name string
+---@return table[] archived_histories
+---@return string? error_message
+function M.list_archived_conversations(project_name)
+  if not M._storage_manager then
+    return {}, "Storage manager not initialized"
+  end
+  
+  return M._storage_manager:list_archived_conversations(project_name)
+end
+
+---🧹 Get cleanup engine statistics
+---@return table stats
+function M.get_cleanup_stats()
+  if not M._storage_manager then
+    return { error = "Storage manager not initialized" }
+  end
+  
+  return M._storage_manager.cleanup_engine:get_stats()
+end
+
 return M

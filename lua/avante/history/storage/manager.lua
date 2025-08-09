@@ -6,6 +6,7 @@ local JSONStorageEngine = require("avante.history.storage.json_engine")
 local Models = require("avante.history.storage.models")
 local MigrationEngine = require("avante.history.storage.migration_engine")
 local QueryEngine = require("avante.history.storage.query_engine")
+local CleanupEngine = require("avante.history.storage.cleanup_engine")
 local Utils = require("avante.utils")
 
 local M = {}
@@ -15,6 +16,7 @@ local M = {}
 ---@field storage_engine avante.storage.StorageInterface Active storage engine
 ---@field query_engine avante.storage.QueryEngine Query engine instance
 ---@field migration_engine avante.storage.MigrationEngine Migration engine instance
+---@field cleanup_engine avante.storage.CleanupEngine Cleanup engine instance
 ---@field _initialized boolean Whether the manager is initialized
 local StorageManager = {}
 StorageManager.__index = StorageManager
@@ -57,11 +59,16 @@ function M.new(config)
   local migration_config = config.migration or {}
   local migration_engine = MigrationEngine.new(migration_config)
   
+  -- 🧹 Create cleanup engine
+  local cleanup_config = config.retention or {}
+  local cleanup_engine = CleanupEngine.new(storage_engine, cleanup_config)
+  
   local instance = {
     config = config,
     storage_engine = storage_engine,
     query_engine = query_engine,
     migration_engine = migration_engine,
+    cleanup_engine = cleanup_engine,
     _initialized = false,
   }
   
@@ -341,9 +348,104 @@ function StorageManager:cleanup(project_name)
     return true, { retention_disabled = true }
   end
   
-  -- 🧹 This would implement retention logic based on config
-  -- For now, return success with no-op
-  return true, { retention_not_implemented = true }
+  if not self._initialized then
+    local init_success, init_error = self:initialize()
+    if not init_success then
+      return false, { error = init_error }
+    end
+  end
+  
+  -- 🧹 Use cleanup engine for retention policies
+  if project_name then
+    -- 🧹 Cleanup specific project
+    return self.cleanup_engine:cleanup_project(project_name)
+  else
+    -- 🧹 Cleanup all projects
+    local batch_results = self.cleanup_engine:cleanup_all_projects()
+    local overall_success = batch_results.failed_projects == 0
+    return overall_success, batch_results
+  end
+end
+
+---🧹 Manual cleanup trigger for specific project
+---@param project_name string Project to clean up
+---@return boolean success
+---@return table cleanup_summary
+---@return string? error_message
+function StorageManager:cleanup_project_manual(project_name)
+  if not self._initialized then
+    local init_success, init_error = self:initialize()
+    if not init_success then
+      return false, {}, init_error
+    end
+  end
+  
+  return self.cleanup_engine:cleanup_project(project_name)
+end
+
+---📦 Archive a specific conversation
+---@param history_id string
+---@param project_name string
+---@return boolean success
+---@return string? error_message
+function StorageManager:archive_conversation(history_id, project_name)
+  if not self._initialized then
+    local init_success, init_error = self:initialize()
+    if not init_success then
+      return false, init_error
+    end
+  end
+  
+  -- 📋 Get history info first
+  local histories, list_error = self.storage_engine:list(project_name)
+  if list_error then
+    return false, "Failed to list histories: " .. list_error
+  end
+  
+  local history_info = nil
+  for _, info in ipairs(histories) do
+    if info.uuid == history_id then
+      history_info = info
+      break
+    end
+  end
+  
+  if not history_info then
+    return false, "History not found: " .. history_id
+  end
+  
+  return self.cleanup_engine:_archive_conversation(history_info, project_name)
+end
+
+---📦 Restore conversation from archive
+---@param history_id string
+---@param project_name string
+---@return boolean success
+---@return string? error_message
+function StorageManager:restore_conversation(history_id, project_name)
+  if not self._initialized then
+    local init_success, init_error = self:initialize()
+    if not init_success then
+      return false, init_error
+    end
+  end
+  
+  return self.cleanup_engine:restore_from_archive(history_id, project_name)
+end
+
+---📋 List archived conversations
+---@param project_name string
+---@return table[] archived_histories
+---@return string? error_message
+function StorageManager:list_archived_conversations(project_name)
+  if not self._initialized then
+    local init_success, init_error = self:initialize()
+    if not init_success then
+      return {}, init_error
+    end
+  end
+  
+  return self.cleanup_engine:list_archived(project_name)
 end
 
 ---🔧 Utility methods for backward compatibility
