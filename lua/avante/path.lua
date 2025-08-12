@@ -35,33 +35,90 @@ function History.get_history_dir(bufnr)
   return history_dir
 end
 
+-- 📊 Enhanced history listing with caching and lazy loading
 ---@return avante.ChatHistory[]
 function History.list(bufnr)
   local history_dir = History.get_history_dir(bufnr)
   local files = vim.fn.glob(tostring(history_dir:joinpath("*.json")), true, true)
   local latest_filename = History.get_latest_filename(bufnr, false)
   local res = {}
+  
+  -- 🚀 Performance optimization: Load only metadata for sorting, full content on demand
   for _, filename in ipairs(files) do
     if not filename:match("metadata.json") then
       local filepath = Path:new(filename)
-      local content = filepath:read()
-      local history = vim.json.decode(content)
-      history.filename = filepath_to_filename(filepath)
-      table.insert(res, history)
+      
+      -- 📊 Try to load minimal metadata first for performance
+      local ok, history = pcall(function()
+        local content = filepath:read()
+        local data = vim.json.decode(content)
+        
+        -- 🔄 Handle auto-migration during listing (lightweight check only)
+        if data.entries and not data.messages then
+          -- 📝 For listing, just extract basic metadata without full conversion
+          local entry_count = #(data.entries or {})
+          local last_entry = entry_count > 0 and data.entries[entry_count] or nil
+          
+          return {
+            title = data.title or "untitled",
+            timestamp = last_entry and last_entry.timestamp or data.timestamp,
+            filename = filepath_to_filename(filepath),
+            entries = data.entries, -- Keep for compatibility
+            messages = nil, -- Will be loaded on-demand
+            _is_legacy_format = true, -- Mark for lazy migration
+            _entry_count = entry_count,
+          }
+        else
+          -- ✅ Unified format - use existing timestamp logic
+          return {
+            title = data.title or "untitled", 
+            timestamp = data.timestamp,
+            filename = filepath_to_filename(filepath),
+            messages = data.messages,
+            version = data.version,
+            migration_metadata = data.migration_metadata,
+            _is_unified_format = true,
+            _message_count = data.messages and #data.messages or 0,
+          }
+        end
+      end)
+      
+      if ok and history then
+        table.insert(res, history)
+      else
+        Utils.warn("⚠️  Failed to load history file for listing: " .. filename)
+      end
     end
   end
-  --- sort by timestamp
-  --- sort by latest_filename
+  
+  -- 📊 Optimized sorting with cached timestamp extraction
   table.sort(res, function(a, b)
-    local H = require("avante.history")
+    -- 🥇 Latest file always comes first
     if a.filename == latest_filename then return true end
     if b.filename == latest_filename then return false end
-    local a_messages = H.get_history_messages(a)
-    local b_messages = H.get_history_messages(b)
-    local timestamp_a = #a_messages > 0 and a_messages[#a_messages].timestamp or a.timestamp
-    local timestamp_b = #b_messages > 0 and b_messages[#b_messages].timestamp or b.timestamp
+    
+    -- 🔄 Extract timestamps efficiently
+    local function get_sort_timestamp(history)
+      if history._is_unified_format and history.messages and #history.messages > 0 then
+        return history.messages[#history.messages].timestamp
+      elseif history._is_legacy_format and history.entries and #history.entries > 0 then
+        return history.entries[#history.entries].timestamp
+      else
+        return history.timestamp or "0"
+      end
+    end
+    
+    local timestamp_a = get_sort_timestamp(a)
+    local timestamp_b = get_sort_timestamp(b)
+    
     return timestamp_a > timestamp_b
   end)
+  
+  Utils.debug(string.format("📊 Listed %d history files (%d legacy, %d unified)", 
+                           #res,
+                           vim.tbl_count(res, function(h) return h._is_legacy_format end),
+                           vim.tbl_count(res, function(h) return h._is_unified_format end)))
+  
   return res
 end
 
@@ -129,31 +186,87 @@ function History.new(bufnr)
   return history
 end
 
--- Loads the chat history for the given buffer.
+-- 📚 Enhanced history loading with caching, unified format support and auto-migration
 ---@param bufnr integer
 ---@param filename string?
----@return avante.ChatHistory
+---@return avante.ChatHistory | avante.UnifiedChatHistory
 function History.load(bufnr, filename)
   local history_filepath = filename and History.get_filepath(bufnr, filename)
     or History.get_latest_filepath(bufnr, false)
+  
   if history_filepath:exists() then
     local content = history_filepath:read()
     if content ~= nil then
+      -- 🚀 Check cache first for performance
+      local Cache = require("avante.history.cache")
+      local cached_history, cache_hit = Cache.get(tostring(history_filepath), content)
+      
+      if cache_hit then
+        cached_history.filename = filepath_to_filename(history_filepath)
+        Utils.debug("🎯 Loaded history from cache")
+        return cached_history
+      end
+      
+      -- 📝 Parse history from file
       local history = vim.json.decode(content)
       history.filename = filepath_to_filename(history_filepath)
-      return history
+      
+      -- 🔄 Attempt auto-migration for legacy format
+      local AutoMigrator = require("avante.history.auto_migrator")
+      local migrated_history, was_migrated = AutoMigrator.auto_migrate_on_load(history, history_filepath)
+      
+      local final_history = was_migrated and migrated_history or history
+      
+      if was_migrated then
+        Utils.info("✅ Auto-migrated history file to unified format")
+        final_history.filename = filepath_to_filename(history_filepath)
+        -- 🔄 Update content for cache with migrated version
+        content = history_filepath:read() -- Re-read migrated content
+      end
+      
+      -- 💾 Cache the final result for future loads
+      Cache.set(tostring(history_filepath), final_history, content)
+      
+      return final_history
     end
   end
   return History.new(bufnr)
 end
 
--- Saves the chat history for the given buffer.
+-- 💾 Enhanced history saving with atomic operations and unified format support
 ---@param bufnr integer
----@param history avante.ChatHistory
+---@param history avante.ChatHistory | avante.UnifiedChatHistory
 History.save = function(bufnr, history)
   local history_filepath = History.get_filepath(bufnr, history.filename)
-  history_filepath:write(vim.json.encode(history), "w")
-  History.save_latest_filename(bufnr, history.filename)
+  
+  -- 🚀 Use atomic storage for safe writes
+  local AtomicStorage = require("avante.history.atomic_storage")
+  local operation_id = Utils.uuid()
+  
+  -- 📊 Ensure unified format for new saves
+  if not history.version or history.version < 2 then
+    Utils.debug("🔄 Upgrading history to unified format during save")
+    history.version = 2
+    if not history.migration_metadata then
+      local Migration = require("avante.history.migration")
+      history.migration_metadata = Migration.create_migration_metadata("upgraded_on_save", nil)
+    end
+  end
+  
+  local result = AtomicStorage.atomic_write(
+    history_filepath,
+    vim.json.encode(history),
+    operation_id,
+    false -- Don't create backup for regular saves
+  )
+  
+  if result.success then
+    History.save_latest_filename(bufnr, history.filename)
+    Utils.debug(string.format("💾 Saved history atomically in %.1fms", result.duration_ms))
+  else
+    Utils.error("❌ Failed to save history: " .. (result.error or "unknown error"))
+    error("History save failed: " .. (result.error or "unknown error"))
+  end
 end
 
 --- Deletes a specific chat history file.

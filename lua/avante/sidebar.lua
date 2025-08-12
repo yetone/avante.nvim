@@ -1749,7 +1749,8 @@ local function get_message_lines(message, messages, ctx)
   return lines
 end
 
----@param history avante.ChatHistory
+-- 📋 Enhanced history line generation with unified format support
+---@param history avante.ChatHistory | avante.UnifiedChatHistory
 ---@return avante.ui.Line[]
 function Sidebar.get_history_lines(history)
   local history_messages = History.get_history_messages(history)
@@ -1819,7 +1820,8 @@ local function render_message(message, messages, ctx)
   return ""
 end
 
----@param history avante.ChatHistory
+-- 📝 Enhanced history content rendering with unified format support  
+---@param history avante.ChatHistory | avante.UnifiedChatHistory
 ---@return string
 function Sidebar.render_history_content(history)
   local history_messages = History.get_history_messages(history)

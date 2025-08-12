@@ -7,32 +7,75 @@ local M = {}
 M.Helpers = Helpers
 M.Message = Message
 
----@param history avante.ChatHistory
----@return avante.HistoryMessage[]
-function M.get_history_messages(history)
-  if history.messages then return history.messages end
-  local messages = {}
-  for _, entry in ipairs(history.entries or {}) do
-    if entry.request and entry.request ~= "" then
-      local message = Message:new("user", entry.request, {
-        timestamp = entry.timestamp,
-        is_user_submission = true,
-        visible = entry.visible,
-        selected_filepaths = entry.selected_filepaths,
-        selected_code = entry.selected_code,
-      })
-      table.insert(messages, message)
-    end
-    if entry.response and entry.response ~= "" then
-      local message = Message:new("assistant", entry.response, {
-        timestamp = entry.timestamp,
-        visible = entry.visible,
-      })
-      table.insert(messages, message)
-    end
+--- 🔄 Enhanced history message retrieval with unified format support and auto-migration
+---@param history avante.ChatHistory | avante.UnifiedChatHistory
+---@param filepath Path | nil Optional file path for auto-migration context
+---@return avante.HistoryMessage[] messages History messages in unified format
+function M.get_history_messages(history, filepath)
+  -- ✅ Return messages if already in unified format
+  if history.messages then 
+    Utils.debug("📋 Using existing unified format messages")
+    return history.messages 
   end
-  history.messages = messages
-  return messages
+  
+  -- 🔄 Handle legacy format with potential auto-migration
+  if history.entries then
+    Utils.info("🔄 Processing legacy format history with entries")
+    
+    -- 🚀 Attempt auto-migration if filepath is provided
+    if filepath then
+      local AutoMigrator = require("avante.history.auto_migrator")
+      local migrated_history, was_migrated = AutoMigrator.auto_migrate_on_load(history, filepath)
+      
+      if was_migrated and migrated_history.messages then
+        Utils.info("✅ Successfully auto-migrated to unified format")
+        return migrated_history.messages
+      end
+    end
+    
+    -- 📝 Fallback: Convert entries to messages in-memory (non-persistent)
+    Utils.debug("📝 Converting legacy entries to messages (in-memory)")
+    local messages = {}
+    
+    for _, entry in ipairs(history.entries) do
+      -- 👤 Convert user request
+      if entry.request and entry.request ~= "" then
+        local message = Message:new("user", entry.request, {
+          timestamp = entry.timestamp,
+          is_user_submission = true,
+          visible = entry.visible ~= false, -- Default to true if not specified
+          selected_filepaths = entry.selected_filepaths,
+          selected_code = entry.selected_code,
+          provider = entry.provider,
+          model = entry.model,
+        })
+        table.insert(messages, message)
+      end
+      
+      -- 🤖 Convert assistant response
+      if entry.response and entry.response ~= "" then
+        local message = Message:new("assistant", entry.response, {
+          timestamp = entry.timestamp,
+          visible = entry.visible ~= false, -- Default to true if not specified
+          provider = entry.provider,
+          model = entry.model,
+          original_content = entry.original_response,
+        })
+        table.insert(messages, message)
+      end
+    end
+    
+    -- 📋 Cache converted messages for future use (in-memory only)
+    history.messages = messages
+    Utils.debug(string.format("📋 Converted %d legacy entries to %d messages", 
+                             #history.entries, #messages))
+    
+    return messages
+  end
+  
+  -- 🤷 No messages or entries found
+  Utils.debug("📭 No messages or entries found in history")
+  return {}
 end
 
 ---Represents information about tool use: invocation, result, affected file (for "view" or "edit" tools).

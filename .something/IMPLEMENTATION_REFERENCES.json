@@ -1,0 +1,107 @@
+[
+  {
+    "title": "Lua JSON Encoding/Decoding Standards",
+    "content": "Using vim.json.encode/decode for consistent JSON handling across the Neovim ecosystem, ensuring compatibility with existing Avante.nvim data structures",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [142, 150],
+    "url": "https://neovim.io/doc/user/lua.html#vim.json"
+  },
+  {
+    "title": "Plenary Path Library Documentation",
+    "content": "Leveraging plenary.path for cross-platform file operations, atomic writes, and path manipulation in the migration system",
+    "path": "lua/avante/history/atomic_storage.lua",
+    "line_range": [1, 10],
+    "url": "https://github.com/nvim-lua/plenary.nvim/blob/master/doc/plenary.txt"
+  },
+  {
+    "title": "UUID Generation Best Practices", 
+    "content": "Using avante.utils.uuid() for generating unique identifiers for migrations, operations, and tool chains to ensure traceability",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [50, 60],
+    "url": "https://tools.ietf.org/html/rfc4122"
+  },
+  {
+    "title": "Atomic File Operations Pattern",
+    "content": "Implementing write-then-rename pattern for atomic file operations, based on POSIX filesystem guarantees for data integrity",
+    "path": "lua/avante/history/atomic_storage.lua", 
+    "line_range": [112, 175],
+    "url": "https://lwn.net/Articles/457667/"
+  },
+  {
+    "title": "LRU Cache Implementation Strategy",
+    "content": "Cache eviction using Least Recently Used algorithm to optimize memory usage while maintaining frequently accessed data",
+    "path": "lua/avante/history/cache.lua",
+    "line_range": [140, 170],
+    "url": "https://en.wikipedia.org/wiki/Cache_replacement_policies#Least_recently_used_(LRU)"
+  },
+  {
+    "title": "Lua Type Annotations (LuaLS)",
+    "content": "Using LuaLS type annotations for comprehensive type safety and IDE support across the migration system components",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [8, 25],
+    "url": "https://luals.github.io/wiki/annotations/"
+  },
+  {
+    "title": "File Locking for Concurrency Control",
+    "content": "Implementing file-based locking mechanism to prevent concurrent modifications during migration operations",
+    "path": "lua/avante/history/atomic_storage.lua",
+    "line_range": [38, 85], 
+    "url": "https://stackoverflow.com/questions/788343/file-locking-in-linux"
+  },
+  {
+    "title": "Data Migration Patterns",
+    "content": "Following established patterns for data format migrations including versioning, backward compatibility, and rollback capabilities",
+    "path": "lua/avante/history/auto_migrator.lua",
+    "line_range": [1, 50],
+    "url": "https://martinfowler.com/articles/evodb.html"
+  },
+  {
+    "title": "Lua Performance Optimization Techniques",
+    "content": "Applying Lua-specific optimizations like table pre-allocation, string concatenation best practices, and efficient iteration patterns",
+    "path": "lua/avante/history/cache.lua",
+    "line_range": [200, 250],
+    "url": "https://www.lua.org/gems/sample.pdf"
+  },
+  {
+    "title": "Content Validation and Checksumming",
+    "content": "Using simple checksum algorithms for content validation and integrity checking during caching and migration operations",
+    "path": "lua/avante/history/cache.lua",
+    "line_range": [80, 95],
+    "url": "https://en.wikipedia.org/wiki/Checksum"
+  },
+  {
+    "title": "Avante.nvim History Architecture",
+    "content": "Building upon the existing avante.ChatHistory and avante.HistoryMessage structures while extending for unified format support",
+    "path": "lua/avante/history/init.lua",
+    "line_range": [10, 40],
+    "url": "https://github.com/yetone/avante.nvim/blob/main/lua/avante/types.lua"
+  },
+  {
+    "title": "Tool Processing Chain Preservation",
+    "content": "Maintaining compatibility with Avante's sophisticated tool use tracking system including HistoryToolInfo and synthetic message generation",
+    "path": "lua/avante/history/tool_processor.lua", 
+    "line_range": [48, 120],
+    "url": "https://github.com/yetone/avante.nvim/blob/main/lua/avante/history/init.lua"
+  },
+  {
+    "title": "Emoji Usage in Code Comments",
+    "content": "Following the project's established pattern of using emojis in code comments to improve readability and maintain consistency",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [1, 500],
+    "url": "https://gitmoji.dev/"
+  },
+  {
+    "title": "Progress Reporting for Long Operations",
+    "content": "Implementing user-friendly progress reporting for batch migration operations to provide feedback during long-running processes",
+    "path": "lua/avante/history/auto_migrator.lua",
+    "line_range": [120, 150],
+    "url": "https://ux.stackexchange.com/questions/23218/what-is-the-best-way-to-indicate-an-in-progress-activity-on-a-web-application"
+  },
+  {
+    "title": "Error Handling and Recovery Patterns",
+    "content": "Implementing comprehensive error handling with rollback capabilities, following resilient system design principles",
+    "path": "lua/avante/history/auto_migrator.lua",
+    "line_range": [250, 320],
+    "url": "https://martinfowler.com/articles/patterns-of-resilience.html"
+  }
+]

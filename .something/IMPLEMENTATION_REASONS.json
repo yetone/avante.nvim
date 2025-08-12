@@ -1,0 +1,62 @@
+[
+  {
+    "title": "📊 Unified Data Model Design",
+    "content": "The UnifiedChatHistory schema with migration metadata provides comprehensive tracking of format transitions while maintaining backward compatibility. This design ensures we can always identify the provenance of data and validate migration integrity.",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [18, 25]
+  },
+  {
+    "title": "⚡ Atomic Storage Operations",
+    "content": "Using temporary files with atomic rename operations prevents data corruption during saves and migrations. This pattern ensures that either the operation completes successfully or leaves the original data intact, eliminating partial write scenarios.",
+    "path": "lua/avante/history/atomic_storage.lua", 
+    "line_range": [112, 150]
+  },
+  {
+    "title": "🔍 Format Detection with Confidence Scoring",
+    "content": "Confidence-based format detection allows the system to make informed decisions about when to trigger auto-migration. High confidence prevents unnecessary migrations, while lower confidence can prompt user confirmation or fall back to safe defaults.",
+    "path": "lua/avante/history/auto_migrator.lua",
+    "line_range": [28, 75]
+  },
+  {
+    "title": "🛠️ Tool Processing Preservation",
+    "content": "Enhanced tool processing with migration context ensures that complex tool invocation chains are preserved during format conversion. This includes maintaining synthetic message generation and tool result linking.",
+    "path": "lua/avante/history/tool_processor.lua",
+    "line_range": [48, 100]
+  },
+  {
+    "title": "💾 Intelligent Caching System", 
+    "content": "The cache uses content checksums for validation and LRU eviction for memory management. This prevents serving stale data while optimizing performance for frequently accessed history files.",
+    "path": "lua/avante/history/cache.lua",
+    "line_range": [165, 210]
+  },
+  {
+    "title": "🔒 Lock-based Concurrency Control",
+    "content": "File-based locking prevents concurrent modification issues during migrations and saves. The timeout mechanism ensures locks don't become permanent if a process crashes, while unique operation IDs enable precise tracking.",
+    "path": "lua/avante/history/atomic_storage.lua",
+    "line_range": [38, 85]
+  },
+  {
+    "title": "📝 Comprehensive Validation Framework",
+    "content": "Multi-level validation (structure, content, tool processing, migration metadata) with severity classification enables detailed quality assessment. This helps identify issues early and provides actionable feedback for corrections.",
+    "path": "lua/avante/history/validator.lua",
+    "line_range": [350, 420]
+  },
+  {
+    "title": "🔄 Backward Compatibility Strategy",
+    "content": "The enhanced get_history_messages() function automatically handles both legacy and unified formats, with optional auto-migration. This ensures existing code continues to work while gradually migrating to the new format.",
+    "path": "lua/avante/history/init.lua",
+    "line_range": [14, 79]
+  },
+  {
+    "title": "📊 Performance Optimization with Lazy Loading",
+    "content": "History listing uses metadata-only loading for sorting and display, only loading full content when needed. This dramatically improves performance for users with many history files.",
+    "path": "lua/avante/path.lua",
+    "line_range": [46, 93]
+  },
+  {
+    "title": "🎯 Migration Session Tracking",
+    "content": "Comprehensive session tracking with statistics, progress reporting, and error collection enables effective monitoring of large batch migrations. This is crucial for users migrating hundreds of history files.",
+    "path": "lua/avante/history/auto_migrator.lua",
+    "line_range": [140, 200]
+  }
+]

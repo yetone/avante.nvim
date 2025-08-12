@@ -7,16 +7,36 @@ local Selector = require("avante.ui.selector")
 ---@class avante.HistorySelector
 local M = {}
 
----@param history avante.ChatHistory
+-- 📋 Enhanced selector item creation with unified format support
+---@param history avante.ChatHistory | avante.UnifiedChatHistory
 ---@return table?
 local function to_selector_item(history)
+  -- 🔄 Get messages using enhanced format-aware function
   local messages = History.get_history_messages(history)
   local timestamp = #messages > 0 and messages[#messages].timestamp or history.timestamp
-  local name = history.title .. " - " .. timestamp .. " (" .. #messages .. ")"
+  
+  -- 📊 Enhanced display with format information
+  local format_indicator = ""
+  if history.version and history.version >= 2 then
+    format_indicator = "✅ "  -- Unified format
+  elseif history.entries and not history.messages then
+    format_indicator = "🔄 "  -- Legacy format (will be auto-migrated)
+  elseif history.entries and history.messages then
+    format_indicator = "🔀 "  -- Hybrid format
+  end
+  
+  local name = format_indicator .. history.title .. " - " .. timestamp .. " (" .. #messages .. ")"
   name = name:gsub("\n", "\\n")
+  
   return {
     name = name,
     filename = history.filename,
+    format_info = {
+      is_legacy = history.entries and not history.messages,
+      is_unified = history.version and history.version >= 2,
+      is_hybrid = history.entries and history.messages,
+      message_count = #messages,
+    }
   }
 end
 
