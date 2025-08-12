@@ -7,10 +7,16 @@ local M = {}
 M.Helpers = Helpers
 M.Message = Message
 
----@param history avante.ChatHistory
+-- 🔄 Enhanced history message retrieval with unified format support
+---@param history avante.ChatHistory | UnifiedChatHistory
 ---@return avante.HistoryMessage[]
 function M.get_history_messages(history)
-  if history.messages then return history.messages end
+  -- ✅ Modern unified format - return messages directly
+  if history.messages then 
+    return history.messages 
+  end
+  
+  -- 🔄 Legacy format fallback - convert entries to messages
   local messages = {}
   for _, entry in ipairs(history.entries or {}) do
     if entry.request and entry.request ~= "" then
@@ -20,6 +26,8 @@ function M.get_history_messages(history)
         visible = entry.visible,
         selected_filepaths = entry.selected_filepaths,
         selected_code = entry.selected_code,
+        provider = entry.provider,
+        model = entry.model,
       })
       table.insert(messages, message)
     end
@@ -27,10 +35,15 @@ function M.get_history_messages(history)
       local message = Message:new("assistant", entry.response, {
         timestamp = entry.timestamp,
         visible = entry.visible,
+        provider = entry.provider,
+        model = entry.model,
+        original_content = entry.original_response,
       })
       table.insert(messages, message)
     end
   end
+  
+  -- 📝 Cache converted messages in the history object for performance
   history.messages = messages
   return messages
 end
@@ -51,7 +64,7 @@ end
 ---@param messages avante.HistoryMessage[]
 ---@return table<string, HistoryToolInfo>
 ---@return table<string, HistoryFileInfo>
-local function collect_tool_info(messages)
+function M.collect_tool_info(messages)
   ---@type table<string, HistoryToolInfo> Maps tool ID to tool information
   local tools = {}
   ---@type table<string, HistoryFileInfo> Maps file path to file information
@@ -294,7 +307,7 @@ end
 ---@param add_diagnostic boolean Mix in LSP diagnostic info for affected files
 ---@return avante.HistoryMessage[]
 M.update_tool_invocation_history = function(messages, max_tool_use, add_diagnostic)
-  local tools, files = collect_tool_info(messages)
+  local tools, files = M.collect_tool_info(messages)
 
   -- Figure number of tool invocations that should be converted to simple "text"
   -- messages to reduce prompt costs.

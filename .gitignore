@@ -50,3 +50,6 @@ doc/
 config.personal.lua
 
 target
+
+# Knowledge management directory (contains user configurations)
+.something

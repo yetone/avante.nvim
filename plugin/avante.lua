@@ -167,3 +167,77 @@ cmd("ShowRepoMap", function() require("avante.repo_map").show() end, { desc = "a
 cmd("Models", function() require("avante.model_selector").open() end, { desc = "avante: show models" })
 cmd("History", function() require("avante.api").select_history() end, { desc = "avante: show histories" })
 cmd("Stop", function() require("avante.api").stop() end, { desc = "avante: stop current AI request" })
+
+-- 🔄 History Migration Commands
+cmd("MigrateHistory", function(opts)
+  local bufnr = vim.api.nvim_get_current_buf()
+  local Migration = require("avante.commands.migration")
+  local filename = vim.trim(opts.args or "")
+  
+  if filename ~= "" then
+    -- 📄 Migrate specific file
+    Migration.migrate_file(bufnr, filename)
+  else
+    Utils.error("Please specify a history filename. Use :AvanteMigrateAll to migrate all histories.")
+  end
+end, { 
+  desc = "avante: migrate specific history file to unified format", 
+  nargs = 1,
+  complete = function()
+    local bufnr = vim.api.nvim_get_current_buf()
+    local Path = require("avante.path")
+    local histories = Path.history.list(bufnr)
+    local Migration = require("avante.history.migration")
+    
+    -- 🔄 Only show legacy format files for completion
+    local legacy_files = {}
+    for _, history in ipairs(histories) do
+      if Migration.is_legacy_format(history) then
+        table.insert(legacy_files, history.filename)
+      end
+    end
+    return legacy_files
+  end
+})
+
+cmd("MigrateAll", function()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local Migration = require("avante.commands.migration")
+  Migration.migrate_all_for_buffer(bufnr)
+end, { desc = "avante: migrate all history files to unified format" })
+
+cmd("MigrationStatus", function()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local Migration = require("avante.commands.migration")
+  Migration.show_migration_status(bufnr)
+end, { desc = "avante: show migration status of history files" })
+
+cmd("ValidateHistory", function(opts)
+  local bufnr = vim.api.nvim_get_current_buf()
+  local Migration = require("avante.commands.migration")
+  local filename = vim.trim(opts.args or "")
+  
+  if filename ~= "" then
+    Migration.validate_integrity(bufnr, filename)
+  else
+    Migration.validate_integrity(bufnr)
+  end
+end, { 
+  desc = "avante: validate integrity of migrated history files", 
+  nargs = "?",
+  complete = function()
+    local bufnr = vim.api.nvim_get_current_buf()
+    local Path = require("avante.path")
+    local histories = Path.history.list(bufnr)
+    local Migration = require("avante.history.migration")
+    
+    -- 🔍 Only show unified format files for validation
+    local unified_files = {}
+    for _, history in ipairs(histories) do
+      if Migration.is_unified_format(history) then
+        table.insert(unified_files, history.filename)
+      end
+    end
+    return unified_files
+  end
+})

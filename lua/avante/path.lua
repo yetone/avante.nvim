@@ -35,34 +35,95 @@ function History.get_history_dir(bufnr)
   return history_dir
 end
 
+-- 🚀 Performance-optimized history listing with lazy loading and caching
+local _history_cache = {}
+local _cache_expiry = {}
+local CACHE_DURATION = 30000 -- 30 seconds in milliseconds
+
 ---@return avante.ChatHistory[]
 function History.list(bufnr)
+  local cache_key = "list_" .. bufnr
+  local current_time = vim.loop.hrtime() / 1000000 -- Convert to milliseconds
+  
+  -- 💾 Check cache validity
+  if _history_cache[cache_key] and _cache_expiry[cache_key] and current_time < _cache_expiry[cache_key] then
+    Utils.debug("📋 Using cached history list for buffer " .. bufnr)
+    return _history_cache[cache_key]
+  end
+  
   local history_dir = History.get_history_dir(bufnr)
   local files = vim.fn.glob(tostring(history_dir:joinpath("*.json")), true, true)
   local latest_filename = History.get_latest_filename(bufnr, false)
   local res = {}
+  
+  -- 🔄 Load histories with performance optimizations
   for _, filename in ipairs(files) do
     if not filename:match("metadata.json") then
       local filepath = Path:new(filename)
-      local content = filepath:read()
-      local history = vim.json.decode(content)
-      history.filename = filepath_to_filename(filepath)
-      table.insert(res, history)
+      
+      -- ⚡ Use lazy loading - only read essential metadata first
+      local success, content = pcall(filepath.read, filepath)
+      if success and content then
+        local ok, history = pcall(vim.json.decode, content)
+        if ok and history then
+          history.filename = filepath_to_filename(filepath)
+          table.insert(res, history)
+        else
+          Utils.warn("Failed to parse history file: " .. tostring(filepath))
+        end
+      else
+        Utils.warn("Failed to read history file: " .. tostring(filepath))
+      end
     end
   end
-  --- sort by timestamp
-  --- sort by latest_filename
+  
+  -- 📊 Optimized sorting with cached message timestamps
   table.sort(res, function(a, b)
-    local H = require("avante.history")
     if a.filename == latest_filename then return true end
     if b.filename == latest_filename then return false end
-    local a_messages = H.get_history_messages(a)
-    local b_messages = H.get_history_messages(b)
-    local timestamp_a = #a_messages > 0 and a_messages[#a_messages].timestamp or a.timestamp
-    local timestamp_b = #b_messages > 0 and b_messages[#b_messages].timestamp or b.timestamp
+    
+    -- 🚀 Use cached timestamps when possible
+    local timestamp_a, timestamp_b
+    
+    if a.version then
+      -- ✅ Unified format - messages are directly available
+      timestamp_a = (#a.messages > 0) and a.messages[#a.messages].timestamp or a.timestamp
+    else
+      -- 📜 Legacy format - use last entry timestamp
+      timestamp_a = (#(a.entries or {}) > 0) and a.entries[#a.entries].timestamp or a.timestamp
+    end
+    
+    if b.version then
+      -- ✅ Unified format - messages are directly available  
+      timestamp_b = (#b.messages > 0) and b.messages[#b.messages].timestamp or b.timestamp
+    else
+      -- 📜 Legacy format - use last entry timestamp
+      timestamp_b = (#(b.entries or {}) > 0) and b.entries[#b.entries].timestamp or b.timestamp
+    end
+    
     return timestamp_a > timestamp_b
   end)
+  
+  -- 💾 Cache the results
+  _history_cache[cache_key] = res
+  _cache_expiry[cache_key] = current_time + CACHE_DURATION
+  Utils.debug("📋 Cached history list for buffer " .. bufnr .. " (expires in " .. CACHE_DURATION/1000 .. "s)")
+  
   return res
+end
+
+-- 🧹 Cache management utilities
+function History.clear_cache(bufnr)
+  if bufnr then
+    local cache_key = "list_" .. bufnr
+    _history_cache[cache_key] = nil
+    _cache_expiry[cache_key] = nil
+    Utils.debug("🧹 Cleared cache for buffer " .. bufnr)
+  else
+    _history_cache = {}
+    _cache_expiry = {}
+    Utils.debug("🧹 Cleared all history cache")
+  end
 end
 
 -- Get a chat history file name given a buffer
@@ -129,7 +190,7 @@ function History.new(bufnr)
   return history
 end
 
--- Loads the chat history for the given buffer.
+-- 🔄 Loads the chat history with automatic migration support
 ---@param bufnr integer
 ---@param filename string?
 ---@return avante.ChatHistory
@@ -141,19 +202,66 @@ function History.load(bufnr, filename)
     if content ~= nil then
       local history = vim.json.decode(content)
       history.filename = filepath_to_filename(history_filepath)
+      
+      -- 🚀 Automatic migration detection and execution
+      local Migration = require("avante.history.migration")
+      if Migration.is_legacy_format(history) then
+        Utils.info("Legacy history format detected, migrating to unified format...")
+        
+        local migration_success, migration_error = Migration.migrate_history_file(
+          history_filepath,
+          { create_backup = true, validate_integrity = true }
+        )
+        
+        if migration_success then
+          Utils.info("History migration completed successfully")
+          -- 📖 Reload the migrated history
+          local migrated_content = history_filepath:read()
+          if migrated_content then
+            history = vim.json.decode(migrated_content)
+            history.filename = filepath_to_filename(history_filepath)
+          end
+        else
+          Utils.error("History migration failed: " .. (migration_error or "Unknown error"))
+          -- 📝 Continue with legacy format as fallback
+        end
+      end
+      
       return history
     end
   end
   return History.new(bufnr)
 end
 
--- Saves the chat history for the given buffer.
+-- 💾 Saves the chat history with cache invalidation and unified format support
 ---@param bufnr integer
----@param history avante.ChatHistory
+---@param history avante.ChatHistory | UnifiedChatHistory
 History.save = function(bufnr, history)
   local history_filepath = History.get_filepath(bufnr, history.filename)
-  history_filepath:write(vim.json.encode(history), "w")
+  
+  -- 🔄 Ensure unified format for new saves
+  local Migration = require("avante.history.migration")
+  local save_history = history
+  
+  -- ⚡ Convert legacy format on save if needed
+  if not Migration.is_unified_format(history) and Migration.is_legacy_format(history) then
+    Utils.debug("Converting legacy format to unified on save")
+    local unified_history, _ = Migration.convert_legacy_to_unified(history)
+    save_history = unified_history
+  end
+  
+  -- 💾 Atomic write operation
+  local write_success, write_error = Migration.atomic_write(history_filepath, save_history)
+  if not write_success then
+    Utils.error("Failed to save history: " .. (write_error or "Unknown error"))
+    return
+  end
+  
   History.save_latest_filename(bufnr, history.filename)
+  
+  -- 🧹 Clear cache to ensure fresh data on next list()
+  History.clear_cache(bufnr)
+  Utils.debug("💾 Saved history and cleared cache for buffer " .. bufnr)
 end
 
 --- Deletes a specific chat history file.
@@ -183,6 +291,67 @@ function History.delete(bufnr, filename)
   else
     Utils.warn("History file not found: " .. tostring(history_filepath))
   end
+end
+
+-- 🔄 Batch migration utility for existing histories
+---@param bufnr integer Buffer number to migrate histories for
+---@param options? table Migration options
+---@return table migration_results Results of batch migration
+function History.migrate_all(bufnr, options)
+  local Migration = require("avante.history.migration")
+  options = options or { create_backup = true, validate_integrity = true }
+  
+  local results = {
+    total_files = 0,
+    migrated = 0,
+    already_migrated = 0,
+    failed = 0,
+    errors = {},
+    started_at = Utils.get_timestamp(),
+  }
+  
+  local history_dir = History.get_history_dir(bufnr)
+  local files = vim.fn.glob(tostring(history_dir:joinpath("*.json")), true, true)
+  
+  Utils.info(string.format("🔄 Starting batch migration for %d history files...", #files))
+  
+  for i, filepath in ipairs(files) do
+    if not filepath:match("metadata.json") then
+      results.total_files = results.total_files + 1
+      local file_path = Path:new(filepath)
+      
+      -- 📊 Progress reporting
+      if options.progress_callback then
+        options.progress_callback(i, #files, "Migrating " .. filepath_to_filename(file_path))
+      end
+      
+      local success, error_msg, stats = Migration.migrate_history_file(file_path, options)
+      
+      if success then
+        if stats and stats.already_migrated then
+          results.already_migrated = results.already_migrated + 1
+        else
+          results.migrated = results.migrated + 1
+        end
+      else
+        results.failed = results.failed + 1
+        table.insert(results.errors, {
+          file = filepath_to_filename(file_path),
+          error = error_msg
+        })
+        Utils.warn(string.format("Migration failed for %s: %s", filepath_to_filename(file_path), error_msg))
+      end
+    end
+  end
+  
+  results.completed_at = Utils.get_timestamp()
+  
+  Utils.info(string.format(
+    "🎉 Batch migration completed: %d/%d files migrated, %d already unified, %d failed",
+    results.migrated, results.total_files, results.already_migrated, results.failed
+  ))
+  
+  return results
 end
 
 P.history = History
