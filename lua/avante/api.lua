@@ -137,6 +137,7 @@ function M.ask(opts)
       sidebar:close({ goto_code_win = false })
     end
     require("avante").open_sidebar(opts)
+    sidebar = require("avante").get()
     if new_chat then sidebar:new_chat() end
     if opts.without_selection then
       sidebar.code.selection = nil
