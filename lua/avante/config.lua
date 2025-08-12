@@ -271,7 +271,7 @@ M._defaults = {
       timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
       extra_request_body = {
         temperature = 0.75,
-        max_completion_tokens = 20480, -- Increase this to include reasoning tokens (for reasoning models)
+        max_completion_tokens = 16384, -- Increase this toinclude reasoning tokens (for reasoning models); but too large default value will not fit for some models (e.g. gpt-5-chat supports at most 16384 completion tokens)
         reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
       },
     },
