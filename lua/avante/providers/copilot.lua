@@ -214,7 +214,7 @@ function M:is_disable_stream() return false end
 
 setmetatable(M, { __index = OpenAI })
 
-function M:models_list()
+function M:list_models()
   if M._model_list_cache then return M._model_list_cache end
   if not M._is_setup then M.setup() end
   -- refresh token synchronously, only if it has expired

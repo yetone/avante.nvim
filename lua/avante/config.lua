@@ -762,6 +762,12 @@ local function apply_model_selection(config, model_name, provider_name)
   if target_provider_name ~= current_provider_name or model_name ~= current_model_name then
     config.provider = target_provider_name
     target_provider.model = model_name
+    if not target_provider.model_names then target_provider.model_names = {} end
+    for _, model_name_ in ipairs({ model_name, current_model_name }) do
+      if not vim.tbl_contains(target_provider.model_names, model_name_) then
+        table.insert(target_provider.model_names, model_name_)
+      end
+    end
     Utils.info(string.format("Using previously selected model: %s/%s", target_provider_name, model_name))
   end
 end
