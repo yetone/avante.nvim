@@ -1,0 +1,72 @@
+[
+  {
+    "title": "Avante.nvim History Storage Architecture Documentation",
+    "content": "Reference to the existing dual-format history storage system understanding including ChatHistoryEntry (legacy) and HistoryMessage (modern) data models, project-based directory structure, and JSON file organization patterns.",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [1, 50],
+    "url": "https://github.com/yetone/avante.nvim/tree/main/lua/avante/history"
+  },
+  {
+    "title": "Lua JSON Encoding/Decoding Best Practices",
+    "content": "Reference for vim.json.encode and vim.json.decode usage patterns, error handling strategies, and validation techniques used throughout the migration system for safe JSON processing.",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [435, 487],
+    "url": "https://neovim.io/doc/user/lua-guide.html#lua-guide-vim-json"
+  },
+  {
+    "title": "Plenary.nvim Path Library Documentation",
+    "content": "Reference for Path:new(), file operations, atomic file writes, and directory manipulation used in backup creation, migration processing, and file management throughout the system.",
+    "path": "lua/avante/history/auto_migration.lua",
+    "line_range": [45, 75],
+    "url": "https://github.com/nvim-lua/plenary.nvim/blob/master/doc/plenary.txt"
+  },
+  {
+    "title": "Neovim Lua API - vim.deepcopy and Table Operations",
+    "content": "Reference for deep copying history objects during migration to prevent mutation of original data structures and ensure safe conversion operations.",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [412, 432],
+    "url": "https://neovim.io/doc/user/lua.html#vim.deepcopy()"
+  },
+  {
+    "title": "Atomic File Operations Pattern",
+    "content": "Reference implementation of atomic file writes using temporary files and rename operations to ensure data integrity during critical operations like migration and backup creation.",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [435, 487],
+    "url": "https://en.wikipedia.org/wiki/Atomic_operation"
+  },
+  {
+    "title": "Lua Pattern Matching for Version Detection",
+    "content": "Reference for string pattern matching techniques used in format detection, file filtering, and migration status checking throughout the auto-migration system.",
+    "path": "lua/avante/history/auto_migration.lua",
+    "line_range": [129, 142],
+    "url": "https://www.lua.org/manual/5.4/manual.html#6.4.1"
+  },
+  {
+    "title": "Neovim Lua Performance Monitoring",
+    "content": "Reference for vim.loop.hrtime() usage for performance monitoring, memory tracking with collectgarbage(), and implementing performance targets for migration operations.",
+    "path": "lua/avante/history/auto_migration.lua",
+    "line_range": [80, 120],
+    "url": "https://neovim.io/doc/user/lua.html#vim.loop"
+  },
+  {
+    "title": "Error Handling and Logging Patterns in Neovim",
+    "content": "Reference for pcall usage, error propagation strategies, and logging patterns using Utils.info, Utils.warn, Utils.error for comprehensive error handling throughout the migration system.",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [89, 148],
+    "url": "https://neovim.io/doc/user/lua.html#lua-error"
+  },
+  {
+    "title": "Tool Processing and State Preservation Architecture",
+    "content": "Reference to the existing collect_tool_info function architecture, HistoryToolInfo/HistoryFileInfo data structures, and synthetic message generation patterns for preserving tool interaction chains.",
+    "path": "lua/avante/history/init.lua",
+    "line_range": [137, 362],
+    "url": "https://github.com/yetone/avante.nvim/blob/main/lua/avante/history/init.lua"
+  },
+  {
+    "title": "Migration Progress Tracking and Statistics",
+    "content": "Reference implementation for progress tracking patterns, statistics collection, and reporting mechanisms used to provide visibility into large-scale migration operations.",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [488, 531],
+    "url": "https://github.com/yetone/avante.nvim/tree/main/lua/avante"
+  }
+]

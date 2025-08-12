@@ -7,32 +7,132 @@ local M = {}
 M.Helpers = Helpers
 M.Message = Message
 
+-- 🔄 Enhanced history message retrieval with unified format handling
 ---@param history avante.ChatHistory
+---@param bufnr integer | nil Buffer number for auto-migration context
 ---@return avante.HistoryMessage[]
-function M.get_history_messages(history)
-  if history.messages then return history.messages end
+function M.get_history_messages(history, bufnr)
+  -- ✅ If already in modern format, return messages directly
+  if history.messages and #history.messages > 0 then
+    Utils.debug("History already in modern format with " .. #history.messages .. " messages")
+    return history.messages
+  end
+  
+  -- 🔍 Check for legacy format and trigger auto-migration if available
+  if history.entries and #history.entries > 0 then
+    Utils.debug("Legacy format detected with " .. #history.entries .. " entries, converting...")
+    
+    -- 🚀 Try auto-migration first if enabled
+    local AutoMigration = require("avante.history.auto_migration")
+    if bufnr and AutoMigration.is_enabled() then
+      local migration_occurred = AutoMigration.auto_migrate_on_load(bufnr, history.filename)
+      
+      if migration_occurred then
+        -- 🔄 Reload history after migration
+        local Path = require("avante.path")
+        local reloaded_history = Path.history.load(bufnr, history.filename)
+        if reloaded_history.messages then
+          Utils.info("Successfully auto-migrated and reloaded history")
+          return reloaded_history.messages
+        end
+      end
+    end
+    
+    -- 💥 Fallback: In-memory conversion using migration engine
+    Utils.debug("Falling back to in-memory migration")
+    local Migration = require("avante.history.migration")
+    local migration_engine = Migration.new()
+    
+    local migrated_history, migration_result = migration_engine:convert_legacy_to_modern(history)
+    
+    if migration_result.success then
+      -- 🔧 Apply tool state preservation
+      migrated_history = Migration.migrate_tool_state_tracking(migrated_history, migration_result)
+      
+      -- 📝 Update the original history object (in-memory only)
+      history.messages = migrated_history.messages
+      history.entries = nil
+      history.version = Migration.CURRENT_VERSION
+      history.migration_metadata = migrated_history.migration_metadata
+      
+      Utils.info(string.format(
+        "In-memory migration completed: %d entries → %d messages",
+        migration_result.entries_count,
+        migration_result.messages_count
+      ))
+      
+      return history.messages
+    else
+      Utils.error("Migration failed: " .. (migration_result.error or "unknown error"))
+      -- 🚨 Fallback to legacy conversion
+    end
+  end
+  
+  -- 🔄 Legacy fallback conversion (original behavior)
+  Utils.debug("Using legacy fallback conversion")
   local messages = {}
+  
   for _, entry in ipairs(history.entries or {}) do
     if entry.request and entry.request ~= "" then
-      local message = Message:new("user", entry.request, {
+      local user_opts = {
         timestamp = entry.timestamp,
         is_user_submission = true,
-        visible = entry.visible,
-        selected_filepaths = entry.selected_filepaths,
-        selected_code = entry.selected_code,
-      })
+        visible = entry.visible ~= false,  -- Default to true if not specified
+      }
+      
+      -- 📁 Preserve file selection information  
+      if entry.selected_filepaths then
+        user_opts.selected_filepaths = entry.selected_filepaths
+      end
+      
+      if entry.selected_code then
+        user_opts.selected_code = entry.selected_code
+      end
+      
+      -- 🔗 Handle legacy selected_file format
+      if entry.selected_file and entry.selected_file.filepath then
+        if not user_opts.selected_filepaths then
+          user_opts.selected_filepaths = { entry.selected_file.filepath }
+        end
+      end
+      
+      local message = Message:new("user", entry.request, user_opts)
       table.insert(messages, message)
     end
+    
     if entry.response and entry.response ~= "" then
-      local message = Message:new("assistant", entry.response, {
+      local assistant_opts = {
         timestamp = entry.timestamp,
-        visible = entry.visible,
-      })
+        visible = entry.visible ~= false,  -- Default to true if not specified
+      }
+      
+      -- 🏷️ Preserve provider and model information
+      if entry.provider then
+        assistant_opts.provider = entry.provider  
+      end
+      
+      if entry.model then
+        assistant_opts.model = entry.model
+      end
+      
+      local message = Message:new("assistant", entry.response, assistant_opts)
       table.insert(messages, message)
     end
   end
+  
+  -- 📝 Cache converted messages in history object
   history.messages = messages
+  
+  Utils.debug(string.format("Legacy fallback conversion: %d entries → %d messages", #(history.entries or {}), #messages))
+  
   return messages
+end
+
+-- 🔄 Backward compatibility wrapper (preserves original function signature)
+---@param history avante.ChatHistory
+---@return avante.HistoryMessage[]
+function M.get_history_messages_legacy(history)
+  return M.get_history_messages(history, nil)
 end
 
 ---Represents information about tool use: invocation, result, affected file (for "view" or "edit" tools).

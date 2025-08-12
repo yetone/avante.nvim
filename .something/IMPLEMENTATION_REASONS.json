@@ -1,0 +1,62 @@
+[
+  {
+    "title": "🚀 Migration Engine Architecture with Emoji Comments",
+    "content": "All code comments start with emojis to maintain project consistency as required by company rules. This ensures visual clarity and follows established conventions throughout the Avante.nvim codebase.",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [1, 724]
+  },
+  {
+    "title": "🔄 Dual Format Architecture Preservation",
+    "content": "Maintained the existing project-based directory structure (~/.local/state/avante/projects/{project_name}/history/) and JSON file organization. This preserves compatibility with existing installations while enabling seamless migration.",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [28, 148]
+  },
+  {
+    "title": "⚡ Atomic File Operations with Backup Strategy",
+    "content": "Implemented atomic file writes using temporary files and rename operations to ensure data integrity during migration. Backup creation prevents data loss and enables rollback on migration failures.",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [435, 487]
+  },
+  {
+    "title": "🔍 Format Detection and Version Management",
+    "content": "Created sophisticated format detection that identifies legacy ChatHistoryEntry[] vs modern HistoryMessage[] formats. Version tracking enables future migrations and maintains backward compatibility.",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [55, 88]
+  },
+  {
+    "title": "🔧 Enhanced Tool Processing Preservation",
+    "content": "Extended collect_tool_info functionality to handle migrated data while preserving HistoryToolInfo and HistoryFileInfo mappings. Maintains synthetic message generation and tool chain continuity across format conversion.",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [533, 719]
+  },
+  {
+    "title": "📊 Comprehensive Error Handling and Statistics",
+    "content": "Implemented detailed conversion statistics, error tracking, and validation mechanisms. Each conversion is validated and errors are logged with context, ensuring migration reliability and debugging capabilities.",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [262, 325]
+  },
+  {
+    "title": "🚨 State Management and Duplicate Prevention",
+    "content": "Added migration state tracking to prevent concurrent migrations and avoid callback loops. This follows the pattern from ReAct prompts fix to prevent double invocations and maintain system stability.",
+    "path": "lua/avante/history/auto_migration.lua",
+    "line_range": [10, 29]
+  },
+  {
+    "title": "📈 Performance Monitoring and Targets",
+    "content": "Implemented performance targets (<500ms per file, <100MB memory usage) with monitoring and alerting. Ensures migration completes within acceptable performance parameters for production use.",
+    "path": "lua/avante/history/auto_migration.lua",
+    "line_range": [182, 212]
+  },
+  {
+    "title": "🔄 Unified Format Handling with Fallback Strategy",
+    "content": "Enhanced get_history_messages() to work directly with unified format while maintaining multiple fallback strategies: auto-migration, in-memory conversion, and legacy conversion. This ensures system reliability during transition.",
+    "path": "lua/avante/history/init.lua",
+    "line_range": [10, 136]
+  },
+  {
+    "title": "🏗️ Migration Metadata and Audit Trail",
+    "content": "Added comprehensive migration metadata tracking including source/target versions, conversion statistics, tool chain preservation stats, and error logs. Provides complete audit trail for troubleshooting and validation.",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [416, 427]
+  }
+]

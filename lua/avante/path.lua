@@ -56,8 +56,8 @@ function History.list(bufnr)
     local H = require("avante.history")
     if a.filename == latest_filename then return true end
     if b.filename == latest_filename then return false end
-    local a_messages = H.get_history_messages(a)
-    local b_messages = H.get_history_messages(b)
+    local a_messages = H.get_history_messages(a, bufnr)
+    local b_messages = H.get_history_messages(b, bufnr)
     local timestamp_a = #a_messages > 0 and a_messages[#a_messages].timestamp or a.timestamp
     local timestamp_b = #b_messages > 0 and b_messages[#b_messages].timestamp or b.timestamp
     return timestamp_a > timestamp_b
