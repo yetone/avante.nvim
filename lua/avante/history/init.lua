@@ -1,38 +1,49 @@
 local Helpers = require("avante.history.helpers")
 local Message = require("avante.history.message")
+local Migration = require("avante.history.migration")
 local Utils = require("avante.utils")
 
 local M = {}
 
 M.Helpers = Helpers
 M.Message = Message
+M.Migration = Migration
 
+---🔄 Enhanced get_history_messages with automatic migration support
 ---@param history avante.ChatHistory
 ---@return avante.HistoryMessage[]
 function M.get_history_messages(history)
-  if history.messages then return history.messages end
-  local messages = {}
-  for _, entry in ipairs(history.entries or {}) do
-    if entry.request and entry.request ~= "" then
-      local message = Message:new("user", entry.request, {
-        timestamp = entry.timestamp,
-        is_user_submission = true,
-        visible = entry.visible,
-        selected_filepaths = entry.selected_filepaths,
-        selected_code = entry.selected_code,
-      })
-      table.insert(messages, message)
-    end
-    if entry.response and entry.response ~= "" then
-      local message = Message:new("assistant", entry.response, {
-        timestamp = entry.timestamp,
-        visible = entry.visible,
-      })
-      table.insert(messages, message)
-    end
+  -- 🚀 Fast path: already have messages in unified format
+  if history.messages and history.format_version == Migration.CURRENT_FORMAT_VERSION then 
+    return history.messages 
   end
-  history.messages = messages
-  return messages
+  
+  -- 🔍 Detect format and handle migration
+  local format = Migration.detect_format(history)
+  
+  if format == "unified" then
+    -- ✅ Already in unified format
+    return history.messages or {}
+  elseif format == "legacy" then
+    -- 🔄 Legacy format - perform in-memory migration for immediate use
+    Utils.debug("Performing in-memory migration from legacy format")
+    local messages, err = Migration.convert_entries_to_messages(history.entries or {})
+    if err then
+      Utils.warn("Failed to migrate legacy history: " .. err)
+      return {}
+    end
+    
+    -- 📊 Cache converted messages in the history object
+    history.messages = messages
+    return messages
+  elseif format == "modern" then
+    -- 🔧 Modern format but not unified - return existing messages
+    return history.messages or {}
+  else
+    -- 🆕 New/empty history
+    history.messages = history.messages or {}
+    return history.messages
+  end
 end
 
 ---Represents information about tool use: invocation, result, affected file (for "view" or "edit" tools).
@@ -316,6 +327,20 @@ M.update_tool_invocation_history = function(messages, max_tool_use, add_diagnost
   end
 
   return refresh_history(messages, tools, files, add_diagnostic, tools_to_text)
+end
+
+---🔧 Enhanced tool processing for migrated histories - ensures tool functionality is preserved
+---Handles both legacy-converted and native HistoryMessage formats seamlessly
+---@param history avante.ChatHistory
+---@param max_tool_use integer | nil Maximum number of tool invocations to keep  
+---@param add_diagnostic boolean Mix in LSP diagnostic info for affected files
+---@return avante.HistoryMessage[]
+function M.get_processed_history_messages(history, max_tool_use, add_diagnostic)
+  -- 🔄 Get messages through migration-aware getter
+  local messages = M.get_history_messages(history)
+  
+  -- 🔧 Apply tool processing to ensure all tool chains work correctly
+  return M.update_tool_invocation_history(messages, max_tool_use, add_diagnostic)
 end
 
 ---Scans message history backwards, looking for tool invocations that have not been executed yet

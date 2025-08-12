@@ -1,0 +1,74 @@
+[
+  {
+    "title": "🔄 Migration Engine Architecture",
+    "content": "Implemented a comprehensive migration system to convert legacy ChatHistoryEntry[] format to unified HistoryMessage[] format. This eliminates dual-format complexity while preserving all existing functionality including tool processing, metadata tracking, and UI compatibility.",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [1, 738]
+  },
+  {
+    "title": "🚀 Performance Optimizations with Caching",
+    "content": "Added LRU caching mechanism to avoid repeated conversion work for frequently accessed history files. Implements memory-efficient processing with garbage collection monitoring for large files and batch operations with yield control to prevent UI blocking.",
+    "path": "lua/avante/history/migration.lua", 
+    "line_range": [311, 475]
+  },
+  {
+    "title": "💾 Atomic Storage Operations",
+    "content": "Implemented atomic write operations using temporary files and rename patterns to ensure data integrity during migration. Includes automatic backup creation and rollback capability to prevent data loss during failed migrations.",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [172, 230]
+  },
+  {
+    "title": "🔍 Format Detection and Auto-Migration",
+    "content": "Created intelligent format detection that automatically identifies legacy, modern, and unified history formats. Integrates seamless auto-migration on load operations to ensure backward compatibility without user intervention.",
+    "path": "lua/avante/history/init.lua",
+    "line_range": [15, 47]
+  },
+  {
+    "title": "🔧 Tool Processing Preservation",
+    "content": "Enhanced the collect_tool_info() function and tool processing logic to work seamlessly with migrated data. Ensures that sophisticated tool invocation tracking, synthetic message generation, and tool chain optimization continue to function correctly after migration.",
+    "path": "lua/avante/history/init.lua", 
+    "line_range": [332, 344]
+  },
+  {
+    "title": "📊 Comprehensive Validation Suite",
+    "content": "Implemented multi-layered validation including format validation, metadata integrity checks, message structure validation, tool integrity verification, and auto-repair functionality for common migration issues.",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [477, 661]
+  },
+  {
+    "title": "🏷️ Unified Format Versioning",
+    "content": "Added format_version field to track data structure evolution and migration_metadata to preserve migration history. This enables future format upgrades and provides audit trail for migration operations.",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [11, 25]
+  },
+  {
+    "title": "🎨 UI Component Compatibility",
+    "content": "Updated sidebar.lua clear_history function to work with unified format and ensure all UI components use migration-aware history getter functions. This maintains seamless user experience during the transition.",
+    "path": "lua/avante/sidebar.lua",
+    "line_range": [1891, 1906]
+  },
+  {
+    "title": "💾 Enhanced Storage Layer",
+    "content": "Upgraded Path.history.load() and Path.history.save() functions to automatically handle migration on load and ensure all saves use unified format. Includes robust error handling and fallback mechanisms.",
+    "path": "lua/avante/path.lua",
+    "line_range": [132, 223]
+  },
+  {
+    "title": "🧪 Comprehensive Test Coverage",
+    "content": "Created extensive test suite covering format detection, legacy conversion, full migration process, validation, performance optimizations, and auto-repair functionality. Ensures reliability and correctness of migration operations.",
+    "path": "lua/avante/history/tests/migration_test.lua",
+    "line_range": [1, 500]
+  },
+  {
+    "title": "🚨 Error Handling and Recovery",
+    "content": "Implemented graceful degradation patterns where migration failures don't break existing functionality. Includes comprehensive logging, error reporting, and fallback to original data when migration encounters issues.",
+    "path": "lua/avante/path.lua",
+    "line_range": [159, 178]
+  },
+  {
+    "title": "📈 Migration Progress and Monitoring",
+    "content": "Added batch migration utilities with progress callbacks, migration status checking for project directories, cache statistics monitoring, and performance metrics collection to provide visibility into migration operations.",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [391, 736]
+  }
+]

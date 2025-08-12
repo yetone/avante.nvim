@@ -1891,8 +1891,14 @@ end
 function Sidebar:clear_history(args, cb)
   self.current_state = nil
   if next(self.chat_history) ~= nil then
+    -- 🧹 Clear messages and ensure unified format
     self.chat_history.messages = {}
-    self.chat_history.entries = {}
+    -- 🗑️ Remove legacy format if present
+    self.chat_history.entries = nil
+    -- 🏷️ Ensure format version is set for unified format
+    local Migration = require("avante.history.migration")
+    self.chat_history.format_version = Migration.CURRENT_FORMAT_VERSION
+    
     Path.history.save(self.code.bufnr, self.chat_history)
     self._history_cache_invalidated = true
     self:reload_chat_history()

@@ -1,0 +1,93 @@
+[
+  {
+    "title": "Avante.nvim History Storage Architecture",
+    "content": "Reference to existing dual-format history storage system with ChatHistoryEntry (legacy) and HistoryMessage (modern) formats, project-based directory structure, JSON file storage, and metadata tracking patterns.",
+    "path": "lua/avante/history/init.lua",
+    "line_range": [1, 362],
+    "url": "https://github.com/yetone/avante.nvim/blob/main/lua/avante/history/init.lua"
+  },
+  {
+    "title": "Avante.nvim Path Management System", 
+    "content": "Reference to existing path utilities for history file management including project directory generation, file organization, and storage path configuration used as foundation for migration system.",
+    "path": "lua/avante/path.lua", 
+    "line_range": [28, 187],
+    "url": "https://github.com/yetone/avante.nvim/blob/main/lua/avante/path.lua"
+  },
+  {
+    "title": "Avante.nvim Message Data Structure",
+    "content": "Reference to HistoryMessage class implementation with support for synthetic messages, tool processing, and metadata handling that serves as target format for migration.",
+    "path": "lua/avante/history/message.lua",
+    "line_range": [1, 64],
+    "url": "https://github.com/yetone/avante.nvim/blob/main/lua/avante/history/message.lua"
+  },
+  {
+    "title": "Avante.nvim Tool Processing System",
+    "content": "Reference to sophisticated tool invocation tracking with HistoryToolInfo mapping, HistoryFileInfo tracking, collect_tool_info() processing, and synthetic message generation that must be preserved during migration.",
+    "path": "lua/avante/history/init.lua",
+    "line_range": [38, 319], 
+    "url": "https://github.com/yetone/avante.nvim/blob/main/lua/avante/history/init.lua"
+  },
+  {
+    "title": "Avante.nvim Type Definitions",
+    "content": "Reference to TypeScript-style type annotations for ChatHistoryEntry, HistoryMessage, ChatHistory, and related data structures that define the migration source and target formats.",
+    "path": "lua/avante/types.lua",
+    "line_range": [475, 531],
+    "url": "https://github.com/yetone/avante.nvim/blob/main/lua/avante/types.lua"
+  },
+  {
+    "title": "Avante.nvim Sidebar UI Integration",
+    "content": "Reference to sidebar implementation that uses History.get_history_messages() for displaying chat history and must maintain compatibility with unified format after migration.",
+    "path": "lua/avante/sidebar.lua",
+    "line_range": [1752, 1825],
+    "url": "https://github.com/yetone/avante.nvim/blob/main/lua/avante/sidebar.lua"
+  },
+  {
+    "title": "Avante.nvim History Selector Component", 
+    "content": "Reference to history selector UI that loads and displays history files and must work seamlessly with migrated unified format for history selection and preview.",
+    "path": "lua/avante/history_selector.lua",
+    "line_range": [1, 84],
+    "url": "https://github.com/yetone/avante.nvim/blob/main/lua/avante/history_selector.lua"
+  },
+  {
+    "title": "Lua JSON Encoding/Decoding",
+    "content": "Reference to Neovim's built-in vim.json.encode() and vim.json.decode() functions used for serializing and deserializing history data during migration operations.",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [200, 220],
+    "url": "https://neovim.io/doc/user/lua.html#vim.json"
+  },
+  {
+    "title": "Plenary.nvim Path Utilities",
+    "content": "Reference to plenary.nvim Path class for file system operations including atomic writes, file existence checks, and directory creation used in migration storage layer.",
+    "path": "lua/avante/path.lua",
+    "line_range": [1, 10],
+    "url": "https://github.com/nvim-lua/plenary.nvim/blob/master/lua/plenary/path.lua"
+  },
+  {
+    "title": "Neovim UUID Generation",
+    "content": "Reference to Utils.uuid() function for generating unique identifiers for migration operations, cache keys, and temporary file naming during atomic operations.",
+    "path": "lua/avante/history/migration.lua", 
+    "line_range": [180, 190],
+    "url": "https://github.com/yetone/avante.nvim/blob/main/lua/avante/utils/init.lua"
+  },
+  {
+    "title": "Lua Memory Management and Garbage Collection",
+    "content": "Reference to Lua's collectgarbage() function and memory monitoring patterns used for optimizing performance during large migration operations and preventing memory issues.",
+    "path": "lua/avante/history/migration.lua",
+    "line_range": [459, 475], 
+    "url": "https://www.lua.org/manual/5.1/manual.html#pdf-collectgarbage"
+  },
+  {
+    "title": "Avante.nvim ReAct Prompts State Management",
+    "content": "Reference to ReAct prompts implementation patterns for state management and duplicate prevention that influenced the migration system's state tracking and callback management design.",
+    "path": "lua/avante/libs/ReAct_parser.lua",
+    "line_range": [1, 50],
+    "url": "https://github.com/yetone/avante.nvim/blob/main/lua/avante/libs/ReAct_parser.lua"
+  },
+  {
+    "title": "Avante.nvim Utility Functions",
+    "content": "Reference to utility functions for debugging, logging, timestamp generation, and error handling that provide infrastructure support for migration operations and validation.",
+    "path": "lua/avante/utils/init.lua",
+    "line_range": [1, 100],
+    "url": "https://github.com/yetone/avante.nvim/blob/main/lua/avante/utils/init.lua"
+  }
+]

@@ -119,41 +119,110 @@ end
 ---@param bufnr integer
 function History.new(bufnr)
   local filepath = History.get_latest_filepath(bufnr, true)
-  ---@type avante.ChatHistory
+  local Migration = require("avante.history.migration")
+  
+  ---@type avante.UnifiedChatHistory
   local history = {
     title = "untitled",
     timestamp = Utils.get_timestamp(),
     messages = {},
     filename = filepath_to_filename(filepath),
+    format_version = Migration.CURRENT_FORMAT_VERSION, -- 🏷️ Mark as unified format
   }
   return history
 end
 
--- Loads the chat history for the given buffer.
+-- 🔄 Loads the chat history for the given buffer with automatic migration support
 ---@param bufnr integer
 ---@param filename string?
 ---@return avante.ChatHistory
 function History.load(bufnr, filename)
   local history_filepath = filename and History.get_filepath(bufnr, filename)
     or History.get_latest_filepath(bufnr, false)
+    
   if history_filepath:exists() then
     local content = history_filepath:read()
     if content ~= nil then
-      local history = vim.json.decode(content)
+      local ok, history = pcall(vim.json.decode, content)
+      if not ok then
+        Utils.warn("Failed to parse history file: " .. tostring(history_filepath))
+        return History.new(bufnr)
+      end
+      
       history.filename = filepath_to_filename(history_filepath)
+      
+      -- 🔍 Check if migration is needed and auto-migrate on load
+      local Migration = require("avante.history.migration")
+      local format = Migration.detect_format(history)
+      
+      if format == "legacy" or format == "modern" then
+        Utils.debug("Auto-migrating history file on load:", tostring(history_filepath))
+        local migrated_history, migration_err = Migration.migrate_history(history)
+        
+        if migration_err then
+          Utils.warn("Failed to migrate history: " .. migration_err)
+          return history -- Return original if migration fails
+        end
+        
+        -- 💾 Save migrated version atomically
+        local write_success, write_err = Migration.atomic_write(
+          tostring(history_filepath), 
+          vim.json.encode(migrated_history), 
+          true -- Create backup
+        )
+        
+        if write_success then
+          Utils.info("Successfully migrated and saved history:", tostring(history_filepath))
+          migrated_history.filename = filepath_to_filename(history_filepath)
+          return migrated_history
+        else
+          Utils.warn("Failed to save migrated history: " .. (write_err or "unknown error"))
+          return history -- Return original if save fails
+        end
+      end
+      
       return history
     end
   end
   return History.new(bufnr)
 end
 
--- Saves the chat history for the given buffer.
----@param bufnr integer
+-- 💾 Saves the chat history for the given buffer with unified format
+---@param bufnr integer  
 ---@param history avante.ChatHistory
 History.save = function(bufnr, history)
+  -- 🔧 Ensure history is in unified format before saving
+  local Migration = require("avante.history.migration")
+  local format = Migration.detect_format(history)
+  
+  if format ~= "unified" then
+    Utils.debug("Converting history to unified format before save")
+    local migrated_history, migration_err = Migration.migrate_history(history)
+    
+    if migration_err then
+      Utils.warn("Failed to migrate history before save: " .. migration_err)
+      -- Continue with original history if migration fails
+    else
+      history = migrated_history
+    end
+  end
+  
   local history_filepath = History.get_filepath(bufnr, history.filename)
-  history_filepath:write(vim.json.encode(history), "w")
+  
+  -- 💾 Use atomic write for safety
+  local write_success, write_err = Migration.atomic_write(
+    tostring(history_filepath),
+    vim.json.encode(history),
+    false -- Don't create backup for regular saves
+  )
+  
+  if not write_success then
+    Utils.error("Failed to save history: " .. (write_err or "unknown error"))
+    return false
+  end
+  
   History.save_latest_filename(bufnr, history.filename)
+  return true
 end
 
 --- Deletes a specific chat history file.
