@@ -1,11 +1,15 @@
 local Helpers = require("avante.history.helpers")
 local Message = require("avante.history.message")
 local Utils = require("avante.utils")
+local Storage = require("avante.history.storage")
+local Migration = require("avante.history.migration")
 
 local M = {}
 
 M.Helpers = Helpers
 M.Message = Message
+M.Storage = Storage
+M.Migration = Migration
 
 ---@param history avante.ChatHistory
 ---@return avante.HistoryMessage[]
@@ -42,6 +46,12 @@ end
 ---@field result? AvanteLLMToolResult
 ---@field result_message? avante.HistoryMessage Complete result message
 ---@field path? string Uniform (normalized) path of the affected file
+
+---Enhanced tool information tracking with migration compatibility
+---@class HistoryToolInfoV2 : HistoryToolInfo
+---@field migration_source "legacy" | "native" Track data origin
+---@field legacy_entry_id? string Reference to original entry
+---@field conversion_metadata? table Conversion tracking
 
 ---@class HistoryFileInfo
 ---@field last_tool_id? string ID of the tool with most up-to-date state of the file
@@ -357,6 +367,143 @@ function M.get_pending_tools(messages)
   end
 
   return pending_tool_uses, pending_tool_uses_messages
+end
+
+---Enhanced tool information collection with migration awareness
+---@param messages avante.HistoryMessage[]
+---@param migration_context? table Migration tracking data
+---@return table<string, HistoryToolInfoV2>
+---@return table<string, HistoryFileInfo>
+function M.collect_tool_info_v2(messages, migration_context)
+  ---@type table<string, HistoryToolInfoV2> Maps tool ID to tool information
+  local tools = {}
+  ---@type table<string, HistoryFileInfo> Maps file path to file information
+  local files = {}
+
+  -- Enhanced tool collection with migration awareness
+  for _, message in ipairs(messages) do
+    local use = Helpers.get_tool_use_data(message)
+    if use then
+      local tool_info = {
+        kind = use.name == "view" and "view" or (Utils.is_edit_tool_use(use) and "edit" or "other"),
+        use = use,
+        path = use.input and use.input.path and Utils.uniform_path(use.input.path) or nil,
+        migration_source = migration_context and "legacy" or "native",
+        legacy_entry_id = message.migration_metadata and message.migration_metadata.legacy_entry_id or nil,
+        conversion_metadata = message.migration_metadata or nil
+      }
+      
+      if use.id then
+        tools[use.id] = tool_info
+      end
+      goto continue
+    end
+    
+    local result = Helpers.get_tool_result_data(message)
+    if result then
+      -- We assume that "result" entries always come after corresponding "use" entries.
+      local info = tools[result.tool_use_id]
+      if info then
+        info.result = result
+        info.result_message = message
+        if info.path then
+          local f = files[info.path]
+          if not f then
+            f = {}
+            files[info.path] = f
+          end
+          f.last_tool_id = result.tool_use_id
+          if info.kind == "edit" and not (result.is_error or result.is_user_declined) then
+            f.edit_tool_id = result.tool_use_id
+          end
+        end
+      end
+    end
+
+    ::continue::
+  end
+
+  return tools, files
+end
+
+---Load history with automatic migration support
+---@param bufnr integer
+---@param filename? string
+---@param options? table Load options
+---@return avante.UnifiedChatHistory, boolean is_migrated, string? error
+function M.load_unified_history(bufnr, filename, options)
+  return Storage.load_with_migration(bufnr, filename, options)
+end
+
+---Save history in unified format
+---@param bufnr integer
+---@param history avante.UnifiedChatHistory
+---@param options? table Save options
+---@return boolean success, string? error
+function M.save_unified_history(bufnr, history, options)
+  return Storage.save_with_options(bufnr, history, options)
+end
+
+---Migrate all legacy files in a project to unified format
+---@param bufnr integer
+---@param progress_callback? fun(current: integer, total: integer, file: string)
+---@return boolean success, table results
+function M.migrate_project_history(bufnr, progress_callback)
+  return Migration.migrate_project(bufnr, progress_callback)
+end
+
+---Get unified history messages from either legacy or modern format
+---@param history avante.ChatHistory | avante.UnifiedChatHistory
+---@return avante.HistoryMessage[]
+function M.get_unified_history_messages(history)
+  -- If already in unified format, return messages directly
+  if history.version == "2.0" and history.messages then
+    return history.messages
+  end
+  
+  -- If in legacy format, use the existing conversion function
+  if history.entries then
+    return M.get_history_messages(history)
+  end
+  
+  -- If has messages but no version, assume modern HistoryMessage format
+  if history.messages then
+    return history.messages
+  end
+  
+  -- Empty or invalid history
+  return {}
+end
+
+---Enhanced tool processing that maintains backward compatibility
+---@param messages avante.HistoryMessage[]
+---@param max_tool_use? integer Maximum number of tool invocations to keep
+---@param add_diagnostic? boolean Mix in LSP diagnostic info for affected files
+---@param migration_context? table Migration tracking data
+---@return avante.HistoryMessage[]
+function M.update_tool_invocation_history_v2(messages, max_tool_use, add_diagnostic, migration_context)
+  local tools, files = M.collect_tool_info_v2(messages, migration_context)
+
+  -- Figure number of tool invocations that should be converted to simple "text"
+  -- messages to reduce prompt costs.
+  local tools_to_text = 0
+  if max_tool_use then
+    local n_edits = vim.iter(files):fold(
+      0,
+      ---@param count integer
+      ---@param file_info HistoryFileInfo
+      function(count, file_info)
+        if file_info.edit_tool_id then count = count + 1 end
+        return count
+      end
+    )
+    -- Each valid "edit" invocation will result in synthetic "view" and also
+    -- in "diagnostic" if it is requested by the caller.
+    local expected = #tools + n_edits + (add_diagnostic and n_edits or 0)
+    tools_to_text = expected - max_tool_use
+  end
+
+  return refresh_history(messages, tools, files, add_diagnostic or false, tools_to_text)
 end
 
 return M

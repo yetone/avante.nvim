@@ -25,6 +25,9 @@ end
 
 local function filepath_to_filename(filepath) return tostring(filepath):sub(tostring(filepath:parent()):len() + 2) end
 
+-- Make filepath_to_filename available to other modules
+function P.filepath_to_filename(filepath) return filepath_to_filename(filepath) end
+
 -- History path
 local History = {}
 
@@ -147,6 +150,16 @@ function History.load(bufnr, filename)
   return History.new(bufnr)
 end
 
+-- Enhanced load function with migration support
+---@param bufnr integer
+---@param filename? string
+---@param options? table Load options
+---@return avante.UnifiedChatHistory, boolean is_migrated, string? error
+function History.load_with_migration(bufnr, filename, options)
+  local Storage = require("avante.history.storage")
+  return Storage.load_with_migration(bufnr, filename, options)
+end
+
 -- Saves the chat history for the given buffer.
 ---@param bufnr integer
 ---@param history avante.ChatHistory
@@ -154,6 +167,16 @@ History.save = function(bufnr, history)
   local history_filepath = History.get_filepath(bufnr, history.filename)
   history_filepath:write(vim.json.encode(history), "w")
   History.save_latest_filename(bufnr, history.filename)
+end
+
+-- Enhanced save function with atomic operations and validation
+---@param bufnr integer
+---@param history avante.UnifiedChatHistory
+---@param options? table Save options
+---@return boolean success, string? error
+function History.save_with_options(bufnr, history, options)
+  local Storage = require("avante.history.storage")
+  return Storage.save_with_options(bufnr, history, options)
 end
 
 --- Deletes a specific chat history file.
