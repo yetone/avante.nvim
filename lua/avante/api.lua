@@ -172,6 +172,8 @@ end
 ---@param line2? integer
 function M.edit(request, line1, line2)
   local _, selection = require("avante").get()
+  if not selection then require("avante")._init(vim.api.nvim_get_current_tabpage()) end
+  _, selection = require("avante").get()
   if not selection then return end
   selection:create_editing_input(request, line1, line2)
   if request ~= nil and request ~= "" then
