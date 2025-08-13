@@ -1,38 +1,44 @@
 local Helpers = require("avante.history.helpers")
 local Message = require("avante.history.message")
+local Migration = require("avante.history.migration")
 local Utils = require("avante.utils")
 
 local M = {}
 
 M.Helpers = Helpers
 M.Message = Message
+M.Migration = Migration
 
+---🔄 Get history messages with automatic migration support
 ---@param history avante.ChatHistory
 ---@return avante.HistoryMessage[]
 function M.get_history_messages(history)
-  if history.messages then return history.messages end
-  local messages = {}
-  for _, entry in ipairs(history.entries or {}) do
-    if entry.request and entry.request ~= "" then
-      local message = Message:new("user", entry.request, {
-        timestamp = entry.timestamp,
-        is_user_submission = true,
-        visible = entry.visible,
-        selected_filepaths = entry.selected_filepaths,
-        selected_code = entry.selected_code,
-      })
-      table.insert(messages, message)
-    end
-    if entry.response and entry.response ~= "" then
-      local message = Message:new("assistant", entry.response, {
-        timestamp = entry.timestamp,
-        visible = entry.visible,
-      })
-      table.insert(messages, message)
-    end
+  -- ✅ Already has messages in unified format
+  if history.messages then 
+    return history.messages 
   end
-  history.messages = messages
-  return messages
+  
+  -- 🔄 Detect format and migrate if needed
+  local format = Migration.detect_format(history)
+  
+  if format == Migration.FORMAT.LEGACY then
+    -- 🔄 Convert legacy entries to messages (in-memory migration)
+    local messages = Migration.convert_entries_to_messages(history.entries, true)
+    
+    -- 💾 Update history object to unified format
+    history.messages = messages
+    history.version = Migration.CURRENT_VERSION
+    
+    -- 🗑️ Clean up legacy entries to avoid confusion
+    history.entries = nil
+    
+    return messages
+  end
+  
+  -- 🆕 Empty history - initialize with empty messages
+  history.messages = {}
+  history.version = Migration.CURRENT_VERSION
+  return history.messages
 end
 
 ---Represents information about tool use: invocation, result, affected file (for "view" or "edit" tools).

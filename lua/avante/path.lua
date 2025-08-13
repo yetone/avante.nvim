@@ -129,30 +129,80 @@ function History.new(bufnr)
   return history
 end
 
--- Loads the chat history for the given buffer.
+-- 🔄 Loads the chat history for the given buffer with automatic migration support
 ---@param bufnr integer
 ---@param filename string?
 ---@return avante.ChatHistory
 function History.load(bufnr, filename)
   local history_filepath = filename and History.get_filepath(bufnr, filename)
     or History.get_latest_filepath(bufnr, false)
+  
   if history_filepath:exists() then
     local content = history_filepath:read()
     if content ~= nil then
       local history = vim.json.decode(content)
       history.filename = filepath_to_filename(history_filepath)
+      
+      -- 🔄 Check if migration is needed
+      local Migration = require("avante.history.migration")
+      local format = Migration.detect_format(history)
+      
+      if format == Migration.FORMAT.LEGACY then
+        Utils.info("🔄 Migrating history file to unified format: " .. history.filename)
+        
+        -- 🔄 Perform file migration with backup
+        local success, error_msg, migrated_history = Migration.migrate_file(history_filepath)
+        
+        if success and migrated_history then
+          Utils.info("✅ Migration completed successfully for: " .. history.filename)
+          return migrated_history
+        else
+          Utils.warn("❌ Migration failed for " .. history.filename .. ": " .. (error_msg or "unknown error"))
+          -- 🔄 Fall back to in-memory migration for this session
+          return history
+        end
+      end
+      
       return history
     end
   end
+  
   return History.new(bufnr)
 end
 
--- Saves the chat history for the given buffer.
+-- 💾 Saves the chat history for the given buffer in unified format
 ---@param bufnr integer
 ---@param history avante.ChatHistory
 History.save = function(bufnr, history)
   local history_filepath = History.get_filepath(bufnr, history.filename)
-  history_filepath:write(vim.json.encode(history), "w")
+  
+  -- 🔄 Ensure history is in unified format before saving
+  local Migration = require("avante.history.migration")
+  local format = Migration.detect_format(history)
+  
+  if format == Migration.FORMAT.LEGACY then
+    -- 🔄 Convert to unified format before saving
+    local migrated_history, err = Migration.migrate_to_unified(history)
+    if migrated_history then
+      history = migrated_history
+    else
+      Utils.warn("Failed to migrate history before saving: " .. (err or "unknown error"))
+    end
+  elseif not history.version then
+    -- ✅ Ensure version is set for unified format
+    history.version = Migration.CURRENT_VERSION
+  end
+  
+  -- 💾 Use atomic write for safety
+  local json_data = vim.json.encode(history)
+  local success, write_err = Migration.atomic_write(history_filepath, json_data)
+  
+  if not success then
+    Utils.warn("Failed to save history atomically, falling back to standard write: " .. (write_err or "unknown error"))
+    -- 🔄 Fallback to standard write
+    history_filepath:write(json_data, "w")
+  end
+  
   History.save_latest_filename(bufnr, history.filename)
 end
 
