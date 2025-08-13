@@ -50,3 +50,6 @@ doc/
 config.personal.lua
 
 target
+
+# Project-specific directories
+.something/

@@ -7,10 +7,16 @@ local M = {}
 M.Helpers = Helpers
 M.Message = Message
 
----@param history avante.ChatHistory
+---Enhanced function that works with both legacy and unified formats
+---@param history avante.ChatHistory | avante.UnifiedChatHistory
 ---@return avante.HistoryMessage[]
 function M.get_history_messages(history)
-  if history.messages then return history.messages end
+  -- If messages already exist, return them (unified format or already converted)
+  if history.messages then 
+    return history.messages 
+  end
+  
+  -- Legacy format conversion - maintain backward compatibility
   local messages = {}
   for _, entry in ipairs(history.entries or {}) do
     if entry.request and entry.request ~= "" then
@@ -27,12 +33,43 @@ function M.get_history_messages(history)
       local message = Message:new("assistant", entry.response, {
         timestamp = entry.timestamp,
         visible = entry.visible,
+        provider = entry.provider,
+        model = entry.model,
       })
       table.insert(messages, message)
     end
   end
+  
+  -- Cache converted messages to avoid repeated conversion
   history.messages = messages
   return messages
+end
+
+---Enhanced function to get history messages with migration awareness
+---@param history avante.ChatHistory | avante.UnifiedChatHistory
+---@param force_migration boolean | nil Force migration of legacy format
+---@return avante.HistoryMessage[]
+---@return boolean was_migrated
+function M.get_history_messages_v2(history, force_migration)
+  -- Check if this is a legacy format that should be migrated
+  if force_migration and history.entries and not history.version then
+    local Migration = require("avante.history.migration")
+    local unified_history, errors = Migration.convert_legacy_format(history)
+    
+    if #errors > 0 then
+      Utils.warn("Migration warnings: " .. table.concat(errors, ", "))
+    end
+    
+    -- Update the history object in-place with unified format
+    history.version = unified_history.version
+    history.messages = unified_history.messages
+    history.migration_metadata = unified_history.migration_metadata
+    
+    return history.messages, true
+  end
+  
+  -- Use standard function for normal cases
+  return M.get_history_messages(history), false
 end
 
 ---Represents information about tool use: invocation, result, affected file (for "view" or "edit" tools).
@@ -42,6 +79,12 @@ end
 ---@field result? AvanteLLMToolResult
 ---@field result_message? avante.HistoryMessage Complete result message
 ---@field path? string Uniform (normalized) path of the affected file
+
+---Enhanced tool information tracking with migration compatibility
+---@class HistoryToolInfoV2 : HistoryToolInfo
+---@field migration_source "legacy" | "native" Track data origin
+---@field legacy_entry_id string | nil Reference to original entry
+---@field conversion_metadata table | nil Conversion tracking
 
 ---@class HistoryFileInfo
 ---@field last_tool_id? string ID of the tool with most up-to-date state of the file
@@ -79,6 +122,73 @@ local function collect_tool_info(messages)
       if info then
         info.result = result
         info.result_message = message
+        if info.path then
+          local f = files[info.path]
+          if not f then
+            f = {}
+            files[info.path] = f
+          end
+          f.last_tool_id = result.tool_use_id
+          if info.kind == "edit" and not (result.is_error or result.is_user_declined) then
+            f.edit_tool_id = result.tool_use_id
+          end
+        end
+      end
+    end
+
+    ::continue::
+  end
+
+  return tools, files
+end
+
+---Enhanced tool collection with migration awareness and backward compatibility
+---@param messages avante.HistoryMessage[]
+---@param migration_context table | nil Migration tracking data
+---@return table<string, HistoryToolInfoV2>
+---@return table<string, HistoryFileInfo>
+local function collect_tool_info_v2(messages, migration_context)
+  ---@type table<string, HistoryToolInfoV2> Maps tool ID to tool information
+  local tools = {}
+  ---@type table<string, HistoryFileInfo> Maps file path to file information
+  local files = {}
+
+  -- Enhanced tool collection with migration awareness
+  for _, message in ipairs(messages) do
+    local use = Helpers.get_tool_use_data(message)
+    if use then
+      local tool_info = {
+        kind = "other", -- Default value
+        use = use,
+        migration_source = migration_context and "legacy" or "native"
+      }
+      
+      -- Determine tool kind
+      if use.name == "view" or Utils.is_edit_tool_use(use) then
+        if use.input.path then
+          local path = Utils.uniform_path(use.input.path)
+          tool_info.kind = use.name == "view" and "view" or "edit"
+          tool_info.path = path
+        end
+      else
+        tool_info.kind = "other"
+      end
+      
+      if use.id then 
+        tools[use.id] = tool_info 
+      end
+      goto continue
+    end
+
+    local result = Helpers.get_tool_result_data(message)
+    if result then
+      -- We assume that "result" entries always come after corresponding "use" entries.
+      local info = tools[result.tool_use_id]
+      if info then
+        info.result = result
+        info.result_message = message
+        
+        -- Update file tracking with migration compatibility
         if info.path then
           local f = files[info.path]
           if not f then
@@ -313,6 +423,37 @@ M.update_tool_invocation_history = function(messages, max_tool_use, add_diagnost
     -- in "diagnostic" if it is requested by the caller.
     local expected = #tools + n_edits + (add_diagnostic and n_edits or 0)
     tools_to_text = expected - max_tool_use
+  end
+
+  return refresh_history(messages, tools, files, add_diagnostic, tools_to_text)
+end
+
+---Enhanced tool invocation history update with unified format support
+---@param messages avante.HistoryMessage[]
+---@param max_tool_use integer | nil Maximum number of tool invocations to keep
+---@param add_diagnostic boolean Mix in LSP diagnostic info for affected files
+---@param migration_context table | nil Migration context for tracking
+---@return avante.HistoryMessage[]
+M.update_tool_invocation_history_v2 = function(messages, max_tool_use, add_diagnostic, migration_context)
+  local tools, files = collect_tool_info_v2(messages, migration_context)
+
+  -- Figure number of tool invocations that should be converted to simple "text"
+  -- messages to reduce prompt costs.
+  local tools_to_text = 0
+  if max_tool_use then
+    local n_edits = vim.iter(files):fold(
+      0,
+      ---@param count integer
+      ---@param file_info HistoryFileInfo
+      function(count, file_info)
+        if file_info.edit_tool_id then count = count + 1 end
+        return count
+      end
+    )
+    -- Each valid "edit" invocation will result in synthetic "view" and also
+    -- in "diagnostic" if it is requested by the caller.
+    local expected = vim.tbl_count(tools) + n_edits + (add_diagnostic and n_edits or 0)
+    tools_to_text = math.max(0, expected - max_tool_use)
   end
 
   return refresh_history(messages, tools, files, add_diagnostic, tools_to_text)

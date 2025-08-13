@@ -129,31 +129,181 @@ function History.new(bufnr)
   return history
 end
 
+---Atomic write operation with rollback capability
+---@param filepath Path
+---@param data table
+---@param backup_path Path | nil
+---@return boolean success
+---@return string | nil error
+function History.atomic_write(filepath, data, backup_path)
+  local temp_path = Path:new(tostring(filepath) .. ".tmp")
+  local json_content = vim.json.encode(data)
+  
+  -- Validate JSON before writing
+  local parse_test = pcall(vim.json.decode, json_content)
+  if not parse_test then
+    return false, "JSON serialization validation failed"
+  end
+  
+  -- Create backup if requested
+  if backup_path and filepath:exists() then
+    local backup_success, backup_err = pcall(function()
+      filepath:copy({ destination = backup_path })
+    end)
+    if not backup_success then
+      return false, "Failed to create backup: " .. tostring(backup_err)
+    end
+  end
+  
+  -- Write to temporary file first
+  local success, err = pcall(function()
+    temp_path:write(json_content, "w")
+  end)
+  
+  if not success then
+    return false, "Failed to write temporary file: " .. tostring(err)
+  end
+  
+  -- Atomic move to final location
+  local move_success, move_err = pcall(function()
+    temp_path:rename(tostring(filepath))
+  end)
+  
+  if not move_success then
+    pcall(function() temp_path:rm() end) -- Cleanup
+    return false, "Failed to move temporary file: " .. tostring(move_err)
+  end
+  
+  return true, nil
+end
+
+---Load with format detection and automatic migration
+---@param bufnr integer
+---@param filename string | nil
+---@return avante.ChatHistory | avante.UnifiedChatHistory
+---@return boolean is_migrated
+function History.load_with_migration(bufnr, filename)
+  local history_filepath = filename and History.get_filepath(bufnr, filename)
+    or History.get_latest_filepath(bufnr, false)
+    
+  if not history_filepath:exists() then
+    return History.new(bufnr), false
+  end
+  
+  local content = history_filepath:read()
+  if not content then
+    return History.new(bufnr), false
+  end
+  
+  local ok, raw_history = pcall(vim.json.decode, content)
+  if not ok then
+    Utils.warn("Failed to parse history file: " .. tostring(history_filepath))
+    return History.new(bufnr), false
+  end
+  
+  local Migration = require("avante.history.migration")
+  
+  -- Detect format and migrate if necessary
+  local is_legacy, detected_format = Migration.detect_legacy_format(raw_history)
+  if is_legacy then
+    Utils.info("Migrating legacy format (" .. detected_format .. "): " .. tostring(history_filepath))
+    local unified_history, errors = Migration.convert_legacy_format(raw_history)
+    
+    if #errors > 0 then
+      Utils.warn("Migration warnings for " .. tostring(history_filepath) .. ": " .. table.concat(errors, ", "))
+    end
+    
+    -- Save migrated format using atomic write
+    local backup_path = Path:new(tostring(history_filepath) .. ".legacy_backup")
+    local write_success, write_error = History.atomic_write(history_filepath, unified_history, backup_path)
+    
+    if not write_success then
+      Utils.error("Failed to save migrated history: " .. (write_error or "unknown error"))
+      -- Fall back to original data
+      raw_history.filename = filepath_to_filename(history_filepath)
+      return raw_history, false
+    end
+    
+    unified_history.filename = filepath_to_filename(history_filepath)
+    return unified_history, true
+  end
+  
+  -- Already in unified format or compatible format
+  raw_history.filename = filepath_to_filename(history_filepath)
+  return raw_history, false
+end
+
 -- Loads the chat history for the given buffer.
 ---@param bufnr integer
 ---@param filename string?
 ---@return avante.ChatHistory
 function History.load(bufnr, filename)
-  local history_filepath = filename and History.get_filepath(bufnr, filename)
-    or History.get_latest_filepath(bufnr, false)
-  if history_filepath:exists() then
-    local content = history_filepath:read()
-    if content ~= nil then
-      local history = vim.json.decode(content)
-      history.filename = filepath_to_filename(history_filepath)
-      return history
+  local history, _ = History.load_with_migration(bufnr, filename)
+  return history
+end
+
+-- Saves the chat history for the given buffer with enhanced safety.
+---@param bufnr integer
+---@param history avante.ChatHistory | avante.UnifiedChatHistory
+---@param options? {atomic: boolean, backup: boolean, validate: boolean}
+---@return boolean success
+---@return string? error
+function History.save_v2(bufnr, history, options)
+  options = options or {}
+  local use_atomic = options.atomic ~= false -- Default to true
+  local create_backup = options.backup == true
+  local validate = options.validate ~= false -- Default to true
+  
+  local history_filepath = History.get_filepath(bufnr, history.filename)
+  
+  if validate then
+    -- Basic validation
+    if not history.title or not history.timestamp then
+      return false, "Invalid history: missing required fields (title, timestamp)"
+    end
+    
+    -- Ensure version is set for new format
+    if not history.entries and not history.version then
+      history.version = "2.0"
     end
   end
-  return History.new(bufnr)
+  
+  local backup_path = create_backup and Path:new(tostring(history_filepath) .. ".backup_" .. os.time()) or nil
+  
+  local success, error
+  if use_atomic then
+    success, error = History.atomic_write(history_filepath, history, backup_path)
+  else
+    success, error = pcall(function()
+      if backup_path and history_filepath:exists() then
+        history_filepath:copy({ destination = backup_path })
+      end
+      history_filepath:write(vim.json.encode(history), "w")
+    end)
+    if not success then
+      error = "Failed to write history file: " .. tostring(error)
+    end
+  end
+  
+  if success then
+    History.save_latest_filename(bufnr, history.filename)
+  end
+  
+  return success, error
 end
 
 -- Saves the chat history for the given buffer.
 ---@param bufnr integer
 ---@param history avante.ChatHistory
 History.save = function(bufnr, history)
-  local history_filepath = History.get_filepath(bufnr, history.filename)
-  history_filepath:write(vim.json.encode(history), "w")
-  History.save_latest_filename(bufnr, history.filename)
+  local success, error = History.save_v2(bufnr, history, {atomic = true, validate = true})
+  if not success then
+    Utils.error("Failed to save history: " .. (error or "unknown error"))
+    -- Fallback to simple write for compatibility
+    local history_filepath = History.get_filepath(bufnr, history.filename)
+    history_filepath:write(vim.json.encode(history), "w")
+    History.save_latest_filename(bufnr, history.filename)
+  end
 end
 
 --- Deletes a specific chat history file.
@@ -183,6 +333,76 @@ function History.delete(bufnr, filename)
   else
     Utils.warn("History file not found: " .. tostring(history_filepath))
   end
+end
+
+---Migrates a single file from legacy to unified format
+---@param filepath Path
+---@return boolean success
+---@return string[] errors
+---@return string[] warnings
+function History.migrate_file(filepath, backup_path)
+  local Migration = require("avante.history.migration")
+  return Migration.migrate_file(filepath)
+end
+
+---Performs batch migration for all files in a project
+---@param bufnr integer
+---@param progress_callback? fun(current: integer, total: integer, filepath: Path)
+---@return boolean success
+---@return table migration_report
+function History.batch_migrate(bufnr, progress_callback)
+  local Migration = require("avante.history.migration")
+  return Migration.migrate_project(bufnr, progress_callback)
+end
+
+---Scans for legacy files that need migration
+---@param bufnr integer
+---@return Path[] legacy_files
+---@return table stats
+function History.scan_legacy_files(bufnr)
+  local Migration = require("avante.history.migration")
+  local history_dir = History.get_history_dir(bufnr)
+  return Migration.scan_for_legacy_files(history_dir)
+end
+
+---Validates storage integrity for all history files
+---@param bufnr integer
+---@return boolean all_valid
+---@return table validation_results
+function History.validate_all_files(bufnr)
+  local history_dir = History.get_history_dir(bufnr)
+  local Migration = require("avante.history.migration")
+  
+  local results = {
+    total_files = 0,
+    valid_files = 0,
+    corrupted_files = 0,
+    issues = {},
+  }
+  
+  if not history_dir:exists() then
+    return true, results
+  end
+  
+  local pattern = tostring(history_dir:joinpath("*.json"))
+  local files = vim.fn.glob(pattern, true, true)
+  
+  for _, filename in ipairs(files) do
+    if not filename:match("metadata%.json") and not filename:match("%..*_backup") then
+      results.total_files = results.total_files + 1
+      local filepath = Path:new(filename)
+      local debug_info = Migration.get_debug_info(filepath)
+      
+      if #debug_info.errors > 0 then
+        results.corrupted_files = results.corrupted_files + 1
+        results.issues[tostring(filepath)] = debug_info.errors
+      else
+        results.valid_files = results.valid_files + 1
+      end
+    end
+  end
+  
+  return results.corrupted_files == 0, results
 end
 
 P.history = History

@@ -494,6 +494,18 @@ vim.g.avante_login = vim.g.avante_login
 ---@field filename string
 ---@field system_prompt string | nil
 ---@field tokens_usage avante.LLMTokenUsage | nil
+
+---@class avante.UnifiedChatHistory
+---@field version string Schema version for future migrations
+---@field title string Conversation title
+---@field timestamp string Last modified timestamp
+---@field messages avante.HistoryMessage[] Unified message array
+---@field todos avante.TODO[] | nil Task tracking
+---@field memory avante.ChatMemory | nil Conversation memory
+---@field filename string File identifier
+---@field system_prompt string | nil Custom system prompt
+---@field tokens_usage avante.LLMTokenUsage | nil Token consumption tracking
+---@field migration_metadata table | nil Migration tracking information
 ---
 ---@class avante.ChatMemory
 ---@field content string
