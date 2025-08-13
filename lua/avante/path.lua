@@ -129,6 +129,14 @@ function History.new(bufnr)
   return history
 end
 
+---Create new unified history structure
+---@param bufnr integer
+---@return avante.UnifiedChatHistory
+function History.new_unified(bufnr)
+  local H = require("avante.history")
+  return H.new_unified(bufnr)
+end
+
 -- Loads the chat history for the given buffer.
 ---@param bufnr integer
 ---@param filename string?
@@ -147,6 +155,16 @@ function History.load(bufnr, filename)
   return History.new(bufnr)
 end
 
+-- Load with format detection and automatic migration
+---@param bufnr integer
+---@param filename string | nil
+---@param options table | nil Options: { auto_migrate: boolean, backup: boolean, validate: boolean }
+---@return avante.UnifiedChatHistory | avante.ChatHistory history, boolean is_migrated
+function History.load_v2(bufnr, filename, options)
+  local Storage = require("avante.history.storage")
+  return Storage.load_with_migration(bufnr, filename, options)
+end
+
 -- Saves the chat history for the given buffer.
 ---@param bufnr integer
 ---@param history avante.ChatHistory
@@ -154,6 +172,34 @@ History.save = function(bufnr, history)
   local history_filepath = History.get_filepath(bufnr, history.filename)
   history_filepath:write(vim.json.encode(history), "w")
   History.save_latest_filename(bufnr, history.filename)
+end
+
+-- Enhanced save function with unified format support
+---@param bufnr integer
+---@param history avante.UnifiedChatHistory | avante.ChatHistory
+---@param options table | nil Options: { atomic: boolean, compress: boolean, validate: boolean }
+---@return boolean success, string | nil error_message
+function History.save_v2(bufnr, history, options)
+  local Storage = require("avante.history.storage")
+  return Storage.save_v2(bufnr, history, options)
+end
+
+-- Migrate a single file
+---@param filepath Path Path to the history file
+---@param backup_path Path | nil Optional backup path
+---@return boolean success, string | nil error_message
+function History.migrate_file(filepath, backup_path)
+  local Migration = require("avante.history.migration")
+  return Migration.migrate_file(filepath, backup_path)
+end
+
+-- Batch migration for project
+---@param bufnr integer
+---@param progress_callback function | nil
+---@return table migration_results
+function History.batch_migrate(bufnr, progress_callback)
+  local Storage = require("avante.history.storage")
+  return Storage.migrate_project(bufnr, progress_callback)
 end
 
 --- Deletes a specific chat history file.
