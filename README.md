@@ -1379,6 +1379,43 @@ Avante.nvim can be extended to work with other plugins by using its extension mo
 - **Enhanced AI Interactions**: Improve the depth of AI analysis and recommendations for more complex coding scenarios.
 - **LSP + Tree-sitter + LLM Integration**: Integrate with LSP and Tree-sitter and LLM to provide more accurate and powerful code suggestions and analysis.
 
+## FAQ
+
+### How to disable agentic mode?
+
+Avante.nvim provides two interaction modes:
+- **`agentic`** (default): Uses AI tools to automatically generate and apply code changes
+- **`legacy`**: Uses the traditional planning method without automatic tool execution
+
+To disable agentic mode and switch to legacy mode, update your configuration:
+
+```lua
+{
+  mode = "legacy", -- Switch from "agentic" to "legacy"
+  -- ... your other configuration options
+}
+```
+
+**What's the difference?**
+- **Agentic mode**: AI can automatically execute tools like file operations, bash commands, web searches, etc. to complete complex tasks
+- **Legacy mode**: AI provides suggestions and plans but requires manual approval for all actions
+
+**When should you use legacy mode?**
+- If you prefer more control over what actions the AI takes
+- If you're concerned about security with automatic tool execution
+- If you want to manually review each step before applying changes
+- If you're working in a sensitive environment where automatic code changes aren't desired
+
+You can also disable specific tools while keeping agentic mode enabled by configuring `disabled_tools`:
+
+```lua
+{
+  mode = "agentic",
+  disabled_tools = { "bash", "python" }, -- Disable specific tools
+  -- ... your other configuration options
+}
+```
+
 ## Contributing
 
 Contributions to avante.nvim are welcome! If you're interested in helping out, please feel free to submit pull requests or open issues. Before contributing, ensure that your code has been thoroughly tested.
