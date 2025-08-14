@@ -989,7 +989,7 @@ function M._stream(opts)
 
             if retry_count <= 0 then
               timer:stop()
-              timer:close()
+              pcall(function() timer:close() end)
 
               Utils.info("Restarting stream after rate limit pause")
               M._stream(opts)
