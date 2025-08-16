@@ -75,11 +75,6 @@ function StreamParser:getStatus()
   }
 end
 
--- 辅助函数：去除字符串首尾空白（保留以备后用）
--- local function trim(s)
---   return s:match("^%s*(.-)%s*$")
--- end
-
 -- 辅助函数：检查字符是否为空白字符
 local function isWhitespace(char) return char == " " or char == "\t" or char == "\n" or char == "\r" end
 

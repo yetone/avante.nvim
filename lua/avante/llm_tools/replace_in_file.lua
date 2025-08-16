@@ -589,7 +589,6 @@ For example:
           return { { line_, Highlights.TO_BE_DELETED_WITHOUT_STRIKETHROUGH } }
         end)
         :totable()
-      -- local extmark_line = math.max(0, start_line - 2)
       local end_row = start_line + #diff_block.new_lines - 1
       local delete_extmark_id =
         vim.api.nvim_buf_set_extmark(bufnr, NAMESPACE, math.min(math.max(end_row - 1, 0), line_count - 1), 0, {

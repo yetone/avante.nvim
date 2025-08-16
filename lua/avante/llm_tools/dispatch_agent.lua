@@ -238,7 +238,6 @@ When you're done, provide a clear and concise summary of what you found.]]):gsub
           end
         end
       end
-      -- if session_ctx.on_messages_add then session_ctx.on_messages_add(msgs) end
     end,
     session_ctx = session_ctx,
     on_start = session_ctx.on_start,
