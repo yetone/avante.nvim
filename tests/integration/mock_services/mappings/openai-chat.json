@@ -1,0 +1,128 @@
+{
+  "mappings": [
+    {
+      "id": "openai-chat-success",
+      "name": "OpenAI Chat Completion - Success",
+      "request": {
+        "method": "POST",
+        "urlPath": "/v1/chat/completions",
+        "headers": {
+          "Authorization": {
+            "matches": "Bearer .*"
+          },
+          "Content-Type": {
+            "equalTo": "application/json"
+          }
+        },
+        "bodyPatterns": [
+          {
+            "matchesJsonPath": "$.model"
+          },
+          {
+            "matchesJsonPath": "$.messages"
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "bodyFileName": "openai-chat-response.json",
+        "transformers": ["response-template"],
+        "fixedDelayMilliseconds": 100
+      }
+    },
+    {
+      "id": "openai-chat-streaming",
+      "name": "OpenAI Chat Completion - Streaming",
+      "request": {
+        "method": "POST",
+        "urlPath": "/v1/chat/completions",
+        "headers": {
+          "Authorization": {
+            "matches": "Bearer .*"
+          }
+        },
+        "bodyPatterns": [
+          {
+            "matchesJsonPath": "$.stream",
+            "equalToJson": "true"
+          }
+        ]
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache",
+          "Connection": "keep-alive"
+        },
+        "bodyFileName": "openai-streaming-response.txt",
+        "fixedDelayMilliseconds": 50
+      }
+    },
+    {
+      "id": "openai-auth-error",
+      "name": "OpenAI Auth Error",
+      "request": {
+        "method": "POST",
+        "urlPath": "/v1/chat/completions",
+        "headers": {
+          "Authorization": {
+            "equalTo": "Bearer invalid-key"
+          }
+        }
+      },
+      "response": {
+        "status": 401,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "bodyFileName": "openai-auth-error.json"
+      }
+    },
+    {
+      "id": "openai-rate-limit",
+      "name": "OpenAI Rate Limit",
+      "request": {
+        "method": "POST",
+        "urlPath": "/v1/chat/completions",
+        "headers": {
+          "Authorization": {
+            "equalTo": "Bearer rate-limit-key"
+          }
+        }
+      },
+      "response": {
+        "status": 429,
+        "headers": {
+          "Content-Type": "application/json",
+          "Retry-After": "60"
+        },
+        "bodyFileName": "openai-rate-limit-error.json"
+      }
+    },
+    {
+      "id": "openai-model-error",
+      "name": "OpenAI Model Not Found",
+      "request": {
+        "method": "POST",
+        "urlPath": "/v1/chat/completions",
+        "bodyPatterns": [
+          {
+            "matchesJsonPath": "$.model",
+            "equalToJson": "\"invalid-model\""
+          }
+        ]
+      },
+      "response": {
+        "status": 404,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "bodyFileName": "openai-model-error.json"
+      }
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "type": "error",
+  "error": {
+    "type": "rate_limit_error",
+    "message": "Number of requests per minute has been exceeded. Please wait before making another request."
+  }
+}
