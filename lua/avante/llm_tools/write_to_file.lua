@@ -70,6 +70,8 @@ function M.func(input, opts)
     Utils.debug("Trimming escapes from content")
     input.the_content = Utils.trim_escapes(input.the_content)
   end
+  -- Remove trailing spaces from each line
+  input.the_content = Utils.remove_trailing_spaces(input.the_content)
   local old_lines = Utils.read_file_from_buf_or_disk(abs_path)
   local old_content = table.concat(old_lines or {}, "\n")
   local str_replace = require("avante.llm_tools.str_replace")

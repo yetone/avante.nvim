@@ -56,6 +56,11 @@ M.returns = {
 ---@type AvanteLLMToolFunc<{ path: string, old_str: string, new_str: string }>
 function M.func(input, opts)
   local replace_in_file = require("avante.llm_tools.replace_in_file")
+  local Utils = require("avante.utils")
+
+  -- Remove trailing spaces from the new string
+  input.new_str = Utils.remove_trailing_spaces(input.new_str)
+
   local diff = "------- SEARCH\n" .. input.old_str .. "\n=======\n" .. input.new_str
   if not opts.streaming then diff = diff .. "\n+++++++ REPLACE" end
   local new_input = {

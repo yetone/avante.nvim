@@ -163,7 +163,8 @@ function M.func(input, opts)
     elseif is_searching then
       table.insert(current_old_lines, line)
     elseif is_replacing then
-      table.insert(current_new_lines, line)
+      -- Remove trailing spaces from each line before adding to new_lines
+      table.insert(current_new_lines, (line:gsub("%s+$", "")))
     end
   end
 

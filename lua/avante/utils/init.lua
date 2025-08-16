@@ -554,6 +554,18 @@ end
 
 function M.trim_spaces(s) return s:match("^%s*(.-)%s*$") end
 
+---Remove trailing spaces from each line in a string
+---@param content string The content to process
+---@return string The content with trailing spaces removed from each line
+function M.remove_trailing_spaces(content)
+  if not content then return content end
+  local lines = vim.split(content, "\n")
+  for i, line in ipairs(lines) do
+    lines[i] = line:gsub("%s+$", "")
+  end
+  return table.concat(lines, "\n")
+end
+
 function M.fallback(v, default_value) return type(v) == "nil" and default_value or v end
 
 ---Join URL parts together, handling slashes correctly
