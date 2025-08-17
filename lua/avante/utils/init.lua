@@ -736,7 +736,7 @@ end
 ---@return string[] A new list of strings with line numbers prepended.
 function M.prepend_line_numbers(lines, start_line)
   start_line = start_line or 1
-  return vim.iter(lines):map(function(line, i) return string.format("L%d: %s", i + start_line, line) end):totable()
+  return vim.iter(lines):enumerate():map(function(i, line) return string.format("L%d: %s", i + start_line, line) end):totable()
 end
 
 ---Iterates through a list of strings and removes prefixes in form of "L<number>: " from them
@@ -756,7 +756,7 @@ function M.debounce(func, delay)
   return function(...)
     local args = { ... }
 
-    if timer then
+    if timer and not timer:is_closing() then
       timer:stop()
       timer:close()
     end
