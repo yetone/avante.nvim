@@ -61,6 +61,7 @@ If you like this project, please consider supporting me on Patreon, as it helps 
 
 - **AI-Powered Code Assistance**: Interact with AI to ask questions about your current code file and receive intelligent suggestions for improvement or modification.
 - **One-Click Application**: Quickly apply the AI's suggested changes to your source code with a single command, streamlining the editing process and saving time.
+- **Project-Specific Instruction Files**: Customize AI behavior by adding a markdown file (`avante.md` by default) in the project root. This file is automatically referenced during workspace changes. You can also configure a custom file name for tailored project instructions.
 
 ## Installation
 
@@ -84,6 +85,8 @@ For building binary if you wish to build from source, then `cargo` is required. 
   ---@type avante.Config
   opts = {
     -- add any opts here
+    -- this file can containe specific instructions for your project
+    instructions_file = "avante.md"
     -- for example
     provider = "claude",
     providers = {
@@ -656,6 +659,7 @@ For other users just add a custom provider
 Avante.nvim provides several completion sources that can be integrated with blink.cmp:
 
 #### Mentions (`@` trigger)
+
 Mentions allow you to quickly reference specific features or add files to the chat context:
 
 - `@codebase` - Enable project context and repository mapping
@@ -665,6 +669,7 @@ Mentions allow you to quickly reference specific features or add files to the ch
 - `@buffers` - Add open buffers to chat context
 
 #### Slash Commands (`/` trigger)
+
 Built-in slash commands for common operations:
 
 - `/help` - Show help message with available commands
@@ -676,6 +681,7 @@ Built-in slash commands for common operations:
 - `/commit` - Generate commit message for changes
 
 #### Shortcuts (`#` trigger)
+
 Shortcuts provide quick access to predefined prompt templates. You can customize these in your config:
 
 ```lua
@@ -983,6 +989,7 @@ Fast Apply is a feature that enables instant code edits with high accuracy by le
 Fast Apply addresses the common pain point of slow code application in AI-assisted development. Instead of waiting for a full language model to process and apply changes, Fast Apply uses a specialized "apply model" that can quickly and accurately merge code edits with 96-98% accuracy at speeds of 2500-4500+ tokens per second.
 
 Key benefits:
+
 - **Instant application**: Code changes are applied immediately without noticeable delays
 - **High accuracy**: Specialized models achieve 96-98% accuracy for code edits
 - **Seamless workflow**: Maintains the natural flow of development without interruptions
@@ -993,6 +1000,7 @@ Key benefits:
 To enable Fast Apply, you need to:
 
 1. **Enable Fast Apply in your configuration**:
+
    ```lua
      behaviour = {
        enable_fastapply = true,  -- Enable Fast Apply feature
@@ -1004,6 +1012,7 @@ To enable Fast Apply, you need to:
    Go to [morphllm.com](https://morphllm.com/api-keys) and create an account and get the API key.
 
 3. **Set your Morph API key**:
+
    ```bash
    export MORPH_API_KEY="your-api-key"
    ```
@@ -1021,11 +1030,11 @@ To enable Fast Apply, you need to:
 
 Morph provides different models optimized for different use cases:
 
-| Model | Speed | Accuracy | Context Limit |
-|-------|-------|----------|---------------|
-| `morph-v3-fast` | 4500+ tok/sec | 96% | 16k tokens |
-| `morph-v3-large` | 2500+ tok/sec | 98% | 16k tokens |
-| `auto` | 2500-4500 tok/sec | 98% | 16k tokens |
+| Model            | Speed             | Accuracy | Context Limit |
+| ---------------- | ----------------- | -------- | ------------- |
+| `morph-v3-fast`  | 4500+ tok/sec     | 96%      | 16k tokens    |
+| `morph-v3-large` | 2500+ tok/sec     | 98%      | 16k tokens    |
+| `auto`           | 2500-4500 tok/sec | 98%      | 16k tokens    |
 
 ### How It Works
 
@@ -1037,6 +1046,7 @@ When Fast Apply is enabled and a Morph provider is configured, avante.nvim will:
 4. Apply the changes directly to your files with high accuracy
 
 The process uses a specialized prompt format that includes:
+
 - `<instructions>`: Clear description of what changes to make
 - `<code>`: The original code content
 - `<update>`: The specific changes using truncation markers (`// ... existing code ...`)
@@ -1387,6 +1397,7 @@ Avante.nvim can be extended to work with other plugins by using its extension mo
 ### How to disable agentic mode?
 
 Avante.nvim provides two interaction modes:
+
 - **`agentic`** (default): Uses AI tools to automatically generate and apply code changes
 - **`legacy`**: Uses the traditional planning method without automatic tool execution
 
@@ -1400,10 +1411,12 @@ To disable agentic mode and switch to legacy mode, update your configuration:
 ```
 
 **What's the difference?**
+
 - **Agentic mode**: AI can automatically execute tools like file operations, bash commands, web searches, etc. to complete complex tasks
 - **Legacy mode**: AI provides suggestions and plans but requires manual approval for all actions
 
 **When should you use legacy mode?**
+
 - If you prefer more control over what actions the AI takes
 - If you're concerned about security with automatic tool execution
 - If you want to manually review each step before applying changes

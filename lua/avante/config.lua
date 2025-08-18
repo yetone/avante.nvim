@@ -17,6 +17,9 @@ local Utils = require("avante.utils")
 
 ---@class avante.CoreConfig: avante.Config
 local M = {}
+
+--- Default configuration for project-specific instruction file
+M.instructions_file = "avante.md"
 ---@class avante.Config
 M._defaults = {
   debug = false,
