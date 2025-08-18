@@ -8,6 +8,7 @@ local Utils = require("avante.utils")
 local Prompts = require("avante.utils.prompts")
 local Config = require("avante.config")
 local Path = require("avante.path")
+local PPath = require("plenary.path")
 local Providers = require("avante.providers")
 local LLMToolHelpers = require("avante.llm_tools.helpers")
 local LLMTools = require("avante.llm_tools")
@@ -255,6 +256,17 @@ end
 ---@param opts AvanteGeneratePromptsOptions
 ---@return AvantePromptOptions
 function M.generate_prompts(opts)
+  local project_instruction_file = Config.instructions_file or "avante.md"
+  local project_root = Utils.root.get()
+  local instruction_file_path = PPath:new(project_root, project_instruction_file)
+
+  if instruction_file_path:exists() then
+    local lines = Utils.read_file_from_buf_or_disk(instruction_file_path:absolute())
+    local instruction_content = lines and table.concat(lines, "\n") or ""
+
+    if instruction_content then opts.instructions = (opts.instructions or "") .. "\n" .. instruction_content end
+  end
+
   local provider = opts.provider or Providers[Config.provider]
   local mode = opts.mode or Config.mode
 
@@ -264,7 +276,6 @@ function M.generate_prompts(opts)
     image_paths = vim.list_extend(image_paths, opts.prompt_opts.image_paths)
   end
 
-  local project_root = Utils.root.get()
   Path.prompts.initialize(Path.prompts.get_templates_dir(project_root), project_root)
 
   local system_info = Utils.get_system_info()
