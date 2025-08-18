@@ -47,8 +47,7 @@ M.parse_response_without_stream = function(self, data, _, opts)
   -- vim.api.nvim_notify(vim.inspect(data_stream) .. "\n\n\n\n", 1, {})
   local json = vim.json.decode(data)
   if json.error ~= vim.NIL then
-    Snacks.notifier.notify(json.error.code, "warn")
-    Snacks.notifier.notify(json.error.message, "warn")
+    Utils.warn("WCA Error " .. tostring(json.error.code) .. ": " .. tostring(json.error.message))
   end
   if json.response and json.response.message then
     opts.on_chunk(json.response.message.content)
@@ -162,9 +161,9 @@ local function get_iam_bearer_token(provider)
     M.iam_bearer_token = (token:gsub("^%p(.*)%p$", "%1"))
     M.last_iam_token_time = os.time(os.date("!*t"))
   else
-    Snacks.notifier.notify(
+    Utils.error(
       "Failed to retrieve IAM token: " .. response.status .. ": " .. vim.inspect(response.body),
-      "error"
+      { title = "Avante WCA" }
     )
     M.iam_bearer_token = ""
   end
@@ -200,13 +199,17 @@ M.parse_curl_args = function(provider, code_opts)
     ["Request-ID"] = uuid(),
   }
 
-  local body = vim.tbl_deep_extend(
-    "force",
-    { message_payload = {
-      messages = M.parse_messages(code_opts),
-    } },
-    {}
-  )
+  local message_payload = {
+    messages = M.parse_messages(code_opts),
+  }
+
+  -- Base64 encode the message payload as required by watsonx API
+  local json_content = vim.json.encode(message_payload)
+  local encoded_json_content = vim.base64.encode(json_content)
+
+  local body = {
+    message = encoded_json_content
+  }
 
   return {
     url = Utils.trim(base.endpoint, { suffix = "/" }) .. "/v2/wca/core/chat/text/generation",

@@ -554,8 +554,32 @@ function M.curl(opts)
   local curl_body_file = temp_file .. "-request-body.json"
   local resp_body_file = temp_file .. "-response-body.txt"
   local headers_file = temp_file .. "-response-headers.txt"
-  local json_content = vim.json.encode(spec.body)
-  fn.writefile(vim.split(json_content, "\n"), curl_body_file)
+
+  -- Check if this is a multipart form request (specifically for watsonx)
+  local is_multipart_form = spec.headers and spec.headers["Content-Type"] == "multipart/form-data"
+  local curl_options = {}
+
+  if is_multipart_form then
+    -- For multipart form data, use the form parameter
+    curl_options = {
+      headers = spec.headers,
+      proxy = spec.proxy,
+      insecure = spec.insecure,
+      form = spec.body,
+      raw = spec.rawArgs,
+    }
+  else
+    -- For regular JSON requests, encode as JSON and write to file
+    local json_content = vim.json.encode(spec.body)
+    fn.writefile(vim.split(json_content, "\n"), curl_body_file)
+    curl_options = {
+      headers = spec.headers,
+      proxy = spec.proxy,
+      insecure = spec.insecure,
+      body = curl_body_file,
+      raw = spec.rawArgs,
+    }
+  end
 
   Utils.debug("curl request body file:", curl_body_file)
   Utils.debug("curl response body file:", resp_body_file)
@@ -572,13 +596,10 @@ function M.curl(opts)
 
   local headers_reported = false
 
-  local started_job, new_active_job = pcall(curl.post, spec.url, {
-    headers = spec.headers,
-    proxy = spec.proxy,
-    insecure = spec.insecure,
-    body = curl_body_file,
-    raw = spec.rawArgs,
-    dump = { "-D", headers_file },
+  -- Add dump parameter to curl_options
+  curl_options.dump = { "-D", headers_file }
+
+  local started_job, new_active_job = pcall(curl.post, spec.url, vim.tbl_extend("force", curl_options, {
     stream = function(err, data, _)
       if not headers_reported and opts.on_response_headers then
         headers_reported = true
