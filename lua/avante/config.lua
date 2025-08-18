@@ -23,7 +23,7 @@ M._defaults = {
   ---@alias avante.Mode "agentic" | "legacy"
   ---@type avante.Mode
   mode = "agentic",
-  ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | "watsonx" | string
+  ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | "watsonx_code_assistant" | string
   ---@type avante.ProviderName
   provider = "claude",
   -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
@@ -380,6 +380,10 @@ M._defaults = {
       endpoint = "https://api.dataplatform.cloud.ibm.com",
       model = "granite-8b-code-instruct",
       timeout = 30000, -- Timeout in milliseconds
+      api_key_name = "WCA_API_KEY", -- IBM Cloud API key for watsonx Code Assistant
+      extra_request_body = {
+        -- Additional watsonx-specific parameters can be added here
+      },
     },
     ["openai-gpt-4o-mini"] = {
       __inherited_from = "openai",
