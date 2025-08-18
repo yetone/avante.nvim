@@ -95,14 +95,14 @@ rusttest:
 
 .PHONY: luatest
 luatest:
-	nvim --headless -c "PlenaryBustedDirectory tests/"
+	@./scripts/run-luatest.sh
 
 .PHONY: lint
 lint: luacheck luastylecheck ruststylecheck rustlint
 
 .PHONY: lua-typecheck
 lua-typecheck:
-	bash ./scripts/lua-typecheck.sh
+	@./scripts/lua-typecheck.sh
 
 .PHONY: build-image
 build-image:

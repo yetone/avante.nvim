@@ -44,6 +44,8 @@ struct TemplateContext {
     model_name: Option<String>,
     memory: Option<String>,
     todos: Option<String>,
+    enable_fastapply: Option<bool>,
+    use_react_prompt: Option<bool>,
 }
 
 // Given the file name registered after add, the context table in Lua, resulted in a formatted
@@ -72,6 +74,8 @@ fn render(state: &State, template: &str, context: TemplateContext) -> LuaResult<
                   model_name => context.model_name,
                   memory => context.memory,
                   todos => context.todos,
+                  enable_fastapply => context.enable_fastapply,
+                  use_react_prompt => context.use_react_prompt,
                 })
                 .map_err(LuaError::external)
                 .unwrap())

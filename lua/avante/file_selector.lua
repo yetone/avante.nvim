@@ -9,14 +9,14 @@ local FileSelector = {}
 
 --- @class FileSelector
 --- @field id integer
---- @field selected_filepaths string[]
+--- @field selected_filepaths string[] Absolute paths
 --- @field event_handlers table<string, function[]>
 
 ---@alias FileSelectorHandler fun(self: FileSelector, on_select: fun(filepaths: string[] | nil)): nil
 
 local function has_scheme(path) return path:find("^(?!term://)%w+://") ~= nil end
 
-function FileSelector:process_directory(absolute_path, project_root)
+function FileSelector:process_directory(absolute_path)
   if absolute_path:sub(-1) == Utils.path_sep then absolute_path = absolute_path:sub(1, -2) end
   local files = Utils.scan_directory({ directory = absolute_path, add_dirs = false })
 
@@ -31,13 +31,11 @@ end
 ---@return nil
 function FileSelector:handle_path_selection(selected_paths)
   if not selected_paths then return end
-  local project_root = Utils.get_project_root()
 
   for _, selected_path in ipairs(selected_paths) do
     local absolute_path = Utils.to_absolute_path(selected_path)
-    local stat = vim.loop.fs_stat(absolute_path)
-    if stat and stat.type == "directory" then
-      self.process_directory(self, absolute_path, project_root)
+    if vim.fn.isdirectory(absolute_path) == 1 then
+      self:process_directory(absolute_path)
     else
       local abs_path = Utils.to_absolute_path(selected_path)
       if Config.file_selector.provider == "native" then
@@ -52,17 +50,21 @@ function FileSelector:handle_path_selection(selected_paths)
   self:emit("update")
 end
 
-local function get_project_filepaths()
+---Scans a given directory and produces a list of files/directories with absolute paths
+---@param excluded_paths_set? table<string, boolean> Optional set of absolute paths to exclude
+---@return { path: string, is_dir: boolean }[]
+local function get_project_filepaths(excluded_paths_set)
+  excluded_paths_set = excluded_paths_set or {}
   local project_root = Utils.get_project_root()
   local files = Utils.scan_directory({ directory = project_root, add_dirs = true })
-  files = vim.iter(files):map(function(filepath) return Utils.make_relative_path(filepath, project_root) end):totable()
-
-  return vim.tbl_map(function(path)
-    local rel_path = Utils.make_relative_path(path, project_root)
-    local stat = vim.loop.fs_stat(path)
-    if stat and stat.type == "directory" then rel_path = rel_path .. "/" end
-    return rel_path
-  end, files)
+  return vim
+    .iter(files)
+    :filter(function(path) return not excluded_paths_set[path] end)
+    :map(function(path)
+      local is_dir = vim.fn.isdirectory(path) == 1
+      return { path = path, is_dir = is_dir }
+    end)
+    :totable()
 end
 
 ---@param id integer
@@ -85,9 +87,8 @@ function FileSelector:add_selected_file(filepath)
   if not filepath or filepath == "" or has_scheme(filepath) then return end
   if filepath:match("^oil:") then filepath = filepath:gsub("^oil:", "") end
   local absolute_path = Utils.to_absolute_path(filepath)
-  local stat = vim.loop.fs_stat(absolute_path)
-  if stat and stat.type == "directory" then
-    self.process_directory(self, absolute_path, Utils.get_project_root())
+  if vim.fn.isdirectory(absolute_path) == 1 then
+    self:process_directory(absolute_path)
     return
   end
   -- Avoid duplicates
@@ -162,26 +163,32 @@ function FileSelector:get_filepaths()
     return Config.file_selector.provider_opts.get_filepaths(params)
   end
 
-  local filepaths = get_project_filepaths()
+  local selected_filepaths_set = {}
+  for _, abs_path in ipairs(self.selected_filepaths) do
+    selected_filepaths_set[abs_path] = true
+  end
 
-  table.sort(filepaths, function(a, b)
-    local a_stat = vim.loop.fs_stat(a)
-    local b_stat = vim.loop.fs_stat(b)
-    local a_is_dir = a_stat and a_stat.type == "directory"
-    local b_is_dir = b_stat and b_stat.type == "directory"
+  local project_root = Utils.get_project_root()
+  local file_info = get_project_filepaths(selected_filepaths_set)
 
-    if a_is_dir and not b_is_dir then
+  table.sort(file_info, function(a, b)
+    -- Sort alphabetically with directories being first
+    if a.is_dir and not b.is_dir then
       return true
-    elseif not a_is_dir and b_is_dir then
+    elseif not a.is_dir and b.is_dir then
       return false
     else
-      return a < b
+      return a.path < b.path
     end
   end)
 
   return vim
-    .iter(filepaths)
-    :filter(function(filepath) return not vim.tbl_contains(self.selected_filepaths, filepath) end)
+    .iter(file_info)
+    :map(function(info)
+      local rel_path = Utils.make_relative_path(info.path, project_root)
+      if info.is_dir then rel_path = rel_path .. "/" end
+      return rel_path
+    end)
     :totable()
 end
 

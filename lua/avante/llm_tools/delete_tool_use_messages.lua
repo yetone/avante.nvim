@@ -1,5 +1,5 @@
 local Base = require("avante.llm_tools.base")
-local Utils = require("avante.utils")
+local History = require("avante.history")
 
 ---@class AvanteLLMTool
 local M = setmetatable({}, Base)
@@ -40,20 +40,22 @@ M.returns = {
 }
 
 ---@type AvanteLLMToolFunc<{ tool_use_id: string }>
-function M.func(opts, on_log, on_complete, session_ctx)
+function M.func(input, opts)
   local sidebar = require("avante").get()
   if not sidebar then return false, "Avante sidebar not found" end
-  local history_messages = Utils.get_history_messages(sidebar.chat_history)
+  local history_messages = History.get_history_messages(sidebar.chat_history)
   local the_deleted_message_uuids = {}
   for _, msg in ipairs(history_messages) do
-    if Utils.is_tool_use_message(msg) then
-      local content = msg.message.content
-      if type(content) == "table" then
-        for _, item in ipairs(content) do
-          if item.id == opts.tool_use_id then table.insert(the_deleted_message_uuids, msg.uuid) end
-        end
-      end
+    local use = History.Helpers.get_tool_use_data(msg)
+    if use then
+      if use.id == input.tool_use_id then table.insert(the_deleted_message_uuids, msg.uuid) end
+      goto continue
     end
+    local result = History.Helpers.get_tool_result_data(msg)
+    if result then
+      if result.tool_use_id == input.tool_use_id then table.insert(the_deleted_message_uuids, msg.uuid) end
+    end
+    ::continue::
   end
   sidebar:delete_history_messages(the_deleted_message_uuids)
   return true, nil

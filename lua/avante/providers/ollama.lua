@@ -2,7 +2,7 @@ local Utils = require("avante.utils")
 local Providers = require("avante.providers")
 local Config = require("avante.config")
 local Clipboard = require("avante.clipboard")
-local HistoryMessage = require("avante.history_message")
+local HistoryMessage = require("avante.history.message")
 local Prompts = require("avante.utils.prompts")
 
 ---@class AvanteProviderFunctor
@@ -135,27 +135,24 @@ function M:is_disable_stream() return false end
 ---@param tool_calls avante.OllamaToolCall[]
 ---@param opts AvanteLLMStreamOptions
 function M:add_tool_use_messages(tool_calls, opts)
-  local msgs = {}
-  for _, tool_call in ipairs(tool_calls) do
-    local id = Utils.uuid()
-    local func = tool_call["function"]
-    local msg = HistoryMessage:new({
-      role = "assistant",
-      content = {
-        {
-          type = "tool_use",
-          name = func.name,
-          id = id,
-          input = func.arguments,
-        },
-      },
-    }, {
-      state = "generated",
-      uuid = id,
-    })
-    table.insert(msgs, msg)
+  if opts.on_messages_add then
+    local msgs = {}
+    for _, tool_call in ipairs(tool_calls) do
+      local id = Utils.uuid()
+      local func = tool_call["function"]
+      local msg = HistoryMessage:new("assistant", {
+        type = "tool_use",
+        name = func.name,
+        id = id,
+        input = func.arguments,
+      }, {
+        state = "generated",
+        uuid = id,
+      })
+      table.insert(msgs, msg)
+    end
+    opts.on_messages_add(msgs)
   end
-  if opts.on_messages_add then opts.on_messages_add(msgs) end
 end
 
 function M:parse_stream_data(ctx, data, opts)
@@ -236,7 +233,7 @@ M.on_error = function(result)
 end
 
 -- List available models using Ollama's tags API
-function M:models_list()
+function M:list_models()
   -- Return cached models if available
   if self._model_list_cache then return self._model_list_cache end
 

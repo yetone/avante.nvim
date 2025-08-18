@@ -1,13 +1,3 @@
-{% if todos -%}
-====
-
-# Task TODOs
-
-{{todos}}
-
-====
-{%- endif %}
-
 # Task Management
 You have access to the add_todos and update_todo_status tools to help you manage and plan tasks. Use these tools VERY frequently to ensure that you are tracking your tasks and giving the user visibility into your progress.
 These tools are also EXTREMELY helpful for planning tasks, and for breaking down larger complex tasks into smaller steps. If you do not use this tool when planning, you may forget to do important tasks - and that is unacceptable.

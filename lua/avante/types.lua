@@ -79,7 +79,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field on_state_change? fun(state: avante.GenerateState): nil
 ---@field update_tokens_usage? fun(usage: avante.LLMTokenUsage): nil
 ---
----@alias AvanteLLMMessageContentItem string | { type: "text", text: string, cache_control: { type: string } | nil } | { type: "image", source: { type: "base64", media_type: string, data: string } } | { type: "tool_use", name: string, id: string, input: any } | { type: "tool_result", tool_use_id: string, content: string, is_error?: boolean } | { type: "thinking", thinking: string, signature: string } | { type: "redacted_thinking", data: string }
+---@alias AvanteLLMMessageContentItem string | { type: "text", text: string, cache_control: { type: string } | nil } | { type: "image", source: { type: "base64", media_type: string, data: string } } | { type: "tool_use", name: string, id: string, input: any } | { type: "tool_result", tool_use_id: string, content: string, is_error?: boolean, is_user_declined?: boolean } | { type: "thinking", thinking: string, signature: string } | { type: "redacted_thinking", data: string }
 
 ---@alias AvanteLLMMessageContent AvanteLLMMessageContentItem[] | string
 
@@ -107,12 +107,14 @@ vim.g.avante_login = vim.g.avante_login
 ---@field selected_code AvanteSelectedCode | nil
 ---@field selected_filepaths string[] | nil
 ---@field tool_use_logs string[] | nil
+---@field tool_use_store table | nil
 ---@field just_for_display boolean | nil
 ---@field is_dummy boolean | nil
 ---@field is_compacted boolean | nil
 ---@field is_deleted boolean | nil
 ---@field turn_id string | nil
 ---@field is_calling boolean | nil
+---@field original_content AvanteLLMMessageContent | nil
 ---
 ---@class AvanteLLMToolResult
 ---@field tool_name string
@@ -233,6 +235,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field endpoint? string
 ---@field extra_request_body? table<string, any>
 ---@field model? string
+---@field model_names? string[]
 ---@field local? boolean
 ---@field proxy? string
 ---@field keep_alive? string
@@ -342,7 +345,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field on_error? fun(result: table<string, any>): nil
 ---@field transform_tool? fun(self: AvanteProviderFunctor, tool: AvanteLLMTool): AvanteOpenAITool | AvanteClaudeTool
 ---@field get_rate_limit_sleep_time? fun(self: AvanteProviderFunctor, headers: table<string, string>): integer | nil
----@field models_list? fun(self): AvanteProviderModelList | nil
+---@field list_models? fun(self): AvanteProviderModelList | nil
 ---
 ---@alias AvanteBedrockPayloadBuilder fun(self: AvanteBedrockModelHandler | AvanteBedrockProviderFunctor, prompt_opts: AvantePromptOptions, request_body: table<string, any>): table<string, any>
 ---
@@ -407,19 +410,32 @@ vim.g.avante_login = vim.g.avante_login
 ---@field on_stop AvanteLLMStopCallback
 ---@field on_memory_summarize? AvanteLLMMemorySummarizeCallback
 ---@field on_tool_log? fun(tool_id: string, tool_name: string, log: string, state: AvanteLLMToolUseState): nil
+---@field set_tool_use_store? fun(tool_id: string, key: string, value: any): nil
 ---@field get_history_messages? fun(opts?: { all?: boolean }): avante.HistoryMessage[]
 ---@field on_messages_add? fun(messages: avante.HistoryMessage[]): nil
 ---@field on_state_change? fun(state: avante.GenerateState): nil
 ---@field update_tokens_usage? fun(usage: avante.LLMTokenUsage): nil
 ---
+---@class AvanteLLMToolFuncOpts
+---@field session_ctx table
+---@field on_complete? fun(result: boolean | string | nil, error: string | nil): nil
+---@field on_log? fun(log: string): nil
+---@field set_store? fun(key: string, value: any): nil
+---@field tool_use_id? string
+---@field streaming? boolean
+---
 ---@alias AvanteLLMToolFunc<T> fun(
 ---  input: T,
----  on_log?: (fun(log: string): nil),
----  on_complete?: (fun(result: boolean | string | nil, error: string | nil): nil),
----  session_ctx?: table)
+---  opts: AvanteLLMToolFuncOpts)
 ---  : (boolean | string | nil, string | nil)
 ---
---- @alias avante.LLMToolOnRender<T> fun(input: T, logs: string[], state: avante.HistoryMessageState | nil): avante.ui.Line[]
+---@class avante.LLMToolOnRenderOpts
+---@field logs string[]
+---@field state avante.HistoryMessageState
+---@field store table | nil
+---@field result_message avante.HistoryMessage | nil
+---
+--- @alias avante.LLMToolOnRender<T> fun(input: T, opts: avante.LLMToolOnRenderOpts): avante.ui.Line[]
 ---
 ---@class AvanteLLMTool
 ---@field name string
@@ -506,3 +522,9 @@ vim.g.avante_login = vim.g.avante_login
 ---@alias AvanteMentions "codebase" | "diagnostics" | "file" | "quickfix" | "buffers"
 ---@alias AvanteMentionCallback fun(args: string, cb?: fun(args: string): nil): nil
 ---@alias AvanteMention {description: string, command: AvanteMentions, details: string, shorthelp?: string, callback?: AvanteMentionCallback}
+
+---@class AvanteShortcut
+---@field name string
+---@field details string
+---@field description string
+---@field prompt string

@@ -137,11 +137,12 @@ function M.ask(opts)
       sidebar:close({ goto_code_win = false })
     end
     require("avante").open_sidebar(opts)
+    sidebar = require("avante").get()
     if new_chat then sidebar:new_chat() end
     if opts.without_selection then
       sidebar.code.selection = nil
       sidebar.file_selector:reset()
-      if sidebar.selected_files_container then sidebar.selected_files_container:unmount() end
+      if sidebar.containers.selected_files then sidebar.containers.selected_files:unmount() end
     end
     if input == nil or input == "" then return true end
     vim.api.nvim_exec_autocmds("User", { pattern = "AvanteInputSubmitted", data = { request = input } })
@@ -171,6 +172,8 @@ end
 ---@param line2? integer
 function M.edit(request, line1, line2)
   local _, selection = require("avante").get()
+  if not selection then require("avante")._init(vim.api.nvim_get_current_tabpage()) end
+  _, selection = require("avante").get()
   if not selection then return end
   selection:create_editing_input(request, line1, line2)
   if request ~= nil and request ~= "" then
@@ -192,7 +195,7 @@ function M.refresh(opts)
   if not sidebar:is_open() then return end
   local curbuf = vim.api.nvim_get_current_buf()
 
-  local focused = sidebar.result_container.bufnr == curbuf or sidebar.input_container.bufnr == curbuf
+  local focused = sidebar.containers.result.bufnr == curbuf or sidebar.containers.input.bufnr == curbuf
   if focused or not sidebar:is_open() then return end
   local listed = vim.api.nvim_get_option_value("buflisted", { buf = curbuf })
 
@@ -216,20 +219,20 @@ function M.focus(opts)
   local curwin = vim.api.nvim_get_current_win()
 
   if sidebar:is_open() then
-    if curbuf == sidebar.input_container.bufnr then
+    if curbuf == sidebar.containers.input.bufnr then
       if sidebar.code.winid and sidebar.code.winid ~= curwin then vim.api.nvim_set_current_win(sidebar.code.winid) end
-    elseif curbuf == sidebar.result_container.bufnr then
+    elseif curbuf == sidebar.containers.result.bufnr then
       if sidebar.code.winid and sidebar.code.winid ~= curwin then vim.api.nvim_set_current_win(sidebar.code.winid) end
     else
-      if sidebar.input_container.winid and sidebar.input_container.winid ~= curwin then
-        vim.api.nvim_set_current_win(sidebar.input_container.winid)
+      if sidebar.containers.input.winid and sidebar.containers.input.winid ~= curwin then
+        vim.api.nvim_set_current_win(sidebar.containers.input.winid)
       end
     end
   else
     if sidebar.code.winid then vim.api.nvim_set_current_win(sidebar.code.winid) end
     ---@cast opts SidebarOpenOptions
     sidebar:open(opts)
-    if sidebar.input_container.winid then vim.api.nvim_set_current_win(sidebar.input_container.winid) end
+    if sidebar.containers.input.winid then vim.api.nvim_set_current_win(sidebar.containers.input.winid) end
   end
 end
 

@@ -75,14 +75,9 @@ For building binary if you wish to build from source, then `cargo` is required. 
   "yetone/avante.nvim",
   -- if you want to build from source then do `make BUILD_FROM_SOURCE=true`
   -- ⚠️ must add this setting! ! !
-  build = function()
-    -- conditionally use the correct build system for the current OS
-    if vim.fn.has("win32") == 1 then
-      return "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false"
-    else
-      return "make"
-    end
-  end,
+  build = vim.fn.has("win32") ~= 0
+      and "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource false"
+      or "make",
   event = "VeryLazy",
   version = false, -- Never set this value to "*"! Never!
   ---@module 'avante'
@@ -100,6 +95,15 @@ For building binary if you wish to build from source, then `cargo` is required. 
             temperature = 0.75,
             max_tokens = 20480,
           },
+      },
+      moonshot = {
+        endpoint = "https://api.moonshot.ai/v1",
+        model = "kimi-k2-0711-preview",
+        timeout = 30000, -- Timeout in milliseconds
+        extra_request_body = {
+          temperature = 0.75,
+          max_tokens = 32768,
+        },
       },
     },
   },
@@ -152,6 +156,8 @@ For building binary if you wish to build from source, then `cargo` is required. 
 
 ```vim
 
+call plug#begin()
+
 " Deps
 Plug 'nvim-lua/plenary.nvim'
 Plug 'MunifTanjim/nui.nvim'
@@ -167,8 +173,12 @@ Plug 'folke/snacks.nvim' " for modern input UI
 
 " Yay, pass source=true if you want to build from source
 Plug 'yetone/avante.nvim', { 'branch': 'main', 'do': 'make' }
-autocmd! User avante.nvim lua << EOF
-require('avante').setup()
+
+call plug#end()
+
+autocmd! User avante.nvim
+lua << EOF
+require('avante').setup({})
 EOF
 ```
 
@@ -442,7 +452,10 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
       close_from_input = nil, -- e.g., { normal = "<Esc>", insert = "<C-d>" }
     },
   },
-  hints = { enabled = true },
+  selection = {
+    enabled = true,
+    hint_display = "delayed",
+  },
   windows = {
     ---@type "right" | "left" | "top" | "bottom"
     position = "right", -- the position of the sidebar
@@ -638,11 +651,65 @@ For lazyvim users copy the full config for blink.cmp from the website or extend 
 
 For other users just add a custom provider
 
+### Available Completion Sources
+
+Avante.nvim provides several completion sources that can be integrated with blink.cmp:
+
+#### Mentions (`@` trigger)
+Mentions allow you to quickly reference specific features or add files to the chat context:
+
+- `@codebase` - Enable project context and repository mapping
+- `@diagnostics` - Enable diagnostics information
+- `@file` - Open file selector to add files to chat context
+- `@quickfix` - Add files from quickfix list to chat context
+- `@buffers` - Add open buffers to chat context
+
+#### Slash Commands (`/` trigger)
+Built-in slash commands for common operations:
+
+- `/help` - Show help message with available commands
+- `/init` - Initialize AGENTS.md based on current project
+- `/clear` - Clear chat history
+- `/new` - Start a new chat
+- `/compact` - Compact history messages to save tokens
+- `/lines <start>-<end> <question>` - Ask about specific lines
+- `/commit` - Generate commit message for changes
+
+#### Shortcuts (`#` trigger)
+Shortcuts provide quick access to predefined prompt templates. You can customize these in your config:
+
+```lua
+{
+  shortcuts = {
+    {
+      name = "refactor",
+      description = "Refactor code with best practices",
+      details = "Automatically refactor code to improve readability, maintainability, and follow best practices while preserving functionality",
+      prompt = "Please refactor this code following best practices, improving readability and maintainability while preserving functionality."
+    },
+    {
+      name = "test",
+      description = "Generate unit tests",
+      details = "Create comprehensive unit tests covering edge cases, error scenarios, and various input conditions",
+      prompt = "Please generate comprehensive unit tests for this code, covering edge cases and error scenarios."
+    },
+    -- Add more custom shortcuts...
+  }
+}
+```
+
+When you type `#refactor` in the input, it will automatically be replaced with the corresponding prompt text.
+
+### Configuration Example
+
+Here's a complete blink.cmp configuration example with all Avante sources:
+
 ```lua
       default = {
         ...
         "avante_commands",
         "avante_mentions",
+        "avante_shortcuts",
         "avante_files",
       }
 ```
@@ -666,6 +733,12 @@ For other users just add a custom provider
           module = "blink.compat.source",
           score_offset = 1000, -- show at a higher priority than lsp
           opts = {},
+        },
+        avante_shortcuts = {
+          name = "avante_shortcuts",
+          module = "blink.compat.source",
+          score_offset = 1000, -- show at a higher priority than lsp
+          opts = {},
         }
         ...
     }
@@ -675,40 +748,9 @@ For other users just add a custom provider
 
 ## Usage
 
-### @mentions
-
-avante.nvim supports the following @mentions to help you reference different parts of your codebase:
-
-| Mention        | Description                         |
-| -------------- | ----------------------------------- |
-| `@codebase`    | Include the entire codebase context |
-| `@diagnostics` | Include current diagnostic issues   |
-| `@file`        | Include the current file            |
-| `@quickfix`    | Include the quickfix list           |
-| `@buffers`     | Include all open buffers            |
-
-You can use these mentions in your conversations with avante.nvim to provide relevant context. For example:
-
-- `@file what are the issues in this code?` - analyzes the current file
-- `@codebase explain the project structure` - looks at the entire codebase
-- `@diagnostics how do I fix these errors?` - helps resolve diagnostic issues
-
 ### Basic Functionality
 
 Given its early stage, `avante.nvim` currently supports the following basic functionalities:
-
-> [!IMPORTANT]
->
-> Avante will only support Claude, and OpenAI (and its variants including azure)out-of-the-box due to its high code quality generation.
-> For all OpenAI-compatible providers, see [wiki](https://github.com/yetone/avante.nvim/wiki/Custom-providers) for more details.
-
-> [!IMPORTANT]
->
-> ~~Due to the poor performance of other models, avante.nvim only recommends using the claude-3.5-sonnet model.~~ > ~~All features can only be guaranteed to work properly on the claude-3.5-sonnet model.~~ > ~~We do not accept changes to the code or prompts to accommodate other models. Otherwise, it will greatly increase our maintenance costs.~~ > ~~We hope everyone can understand. Thank you!~~
-
-> [!IMPORTANT]
->
-> Since avante.nvim now supports [cursor planning mode](./cursor-planning-mode.md), the above statement is no longer valid! avante.nvim now supports most models! If you encounter issues with normal usage, please try enabling [cursor planning mode](./cursor-planning-mode.md).
 
 > [!IMPORTANT]
 >
@@ -727,6 +769,7 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 > export AVANTE_GEMINI_API_KEY=your-gemini-api-key
 > export AVANTE_CO_API_KEY=your-cohere-api-key
 > export AVANTE_AIHUBMIX_API_KEY=your-aihubmix-api-key
+> export AVANTE_MOONSHOT_API_KEY=your-moonshot-api-key
 > ```
 >
 > **Global API Keys (Legacy)**
@@ -930,6 +973,75 @@ return {
 | AvantePromptInputBorder     | The border highlight of the prompt input      | Default to `NormalFloat`                     |
 
 See [highlights.lua](./lua/avante/highlights.lua) for more information
+
+## Fast Apply
+
+Fast Apply is a feature that enables instant code edits with high accuracy by leveraging specialized models. It replicates Cursor's instant apply functionality, allowing for seamless code modifications without the typical delays associated with traditional code generation.
+
+### Purpose and Benefits
+
+Fast Apply addresses the common pain point of slow code application in AI-assisted development. Instead of waiting for a full language model to process and apply changes, Fast Apply uses a specialized "apply model" that can quickly and accurately merge code edits with 96-98% accuracy at speeds of 2500-4500+ tokens per second.
+
+Key benefits:
+- **Instant application**: Code changes are applied immediately without noticeable delays
+- **High accuracy**: Specialized models achieve 96-98% accuracy for code edits
+- **Seamless workflow**: Maintains the natural flow of development without interruptions
+- **Large context support**: Handles up to 16k tokens for both input and output
+
+### Configuration
+
+To enable Fast Apply, you need to:
+
+1. **Enable Fast Apply in your configuration**:
+   ```lua
+     behaviour = {
+       enable_fastapply = true,  -- Enable Fast Apply feature
+     },
+     -- ... other configuration
+   ```
+
+2. **Get your Morph API key**:
+   Go to [morphllm.com](https://morphllm.com/api-keys) and create an account and get the API key.
+
+3. **Set your Morph API key**:
+   ```bash
+   export MORPH_API_KEY="your-api-key"
+   ```
+
+4. **Change Morph model**:
+   ```lua
+   providers = {
+     morph = {
+       model = "morph-v3-large",
+     },
+   }
+   ```
+
+### Model Options
+
+Morph provides different models optimized for different use cases:
+
+| Model | Speed | Accuracy | Context Limit |
+|-------|-------|----------|---------------|
+| `morph-v3-fast` | 4500+ tok/sec | 96% | 16k tokens |
+| `morph-v3-large` | 2500+ tok/sec | 98% | 16k tokens |
+| `auto` | 2500-4500 tok/sec | 98% | 16k tokens |
+
+### How It Works
+
+When Fast Apply is enabled and a Morph provider is configured, avante.nvim will:
+
+1. Use the `edit_file` tool for code modifications instead of traditional tools
+2. Send the original code, edit instructions, and update snippet to the Morph API
+3. Receive the fully merged code back from the specialized apply model
+4. Apply the changes directly to your files with high accuracy
+
+The process uses a specialized prompt format that includes:
+- `<instructions>`: Clear description of what changes to make
+- `<code>`: The original code content
+- `<update>`: The specific changes using truncation markers (`// ... existing code ...`)
+
+This approach ensures that the apply model can quickly and accurately merge your changes without the overhead of full code generation.
 
 ## Ollama
 
@@ -1269,6 +1381,43 @@ Avante.nvim can be extended to work with other plugins by using its extension mo
 
 - **Enhanced AI Interactions**: Improve the depth of AI analysis and recommendations for more complex coding scenarios.
 - **LSP + Tree-sitter + LLM Integration**: Integrate with LSP and Tree-sitter and LLM to provide more accurate and powerful code suggestions and analysis.
+
+## FAQ
+
+### How to disable agentic mode?
+
+Avante.nvim provides two interaction modes:
+- **`agentic`** (default): Uses AI tools to automatically generate and apply code changes
+- **`legacy`**: Uses the traditional planning method without automatic tool execution
+
+To disable agentic mode and switch to legacy mode, update your configuration:
+
+```lua
+{
+  mode = "legacy", -- Switch from "agentic" to "legacy"
+  -- ... your other configuration options
+}
+```
+
+**What's the difference?**
+- **Agentic mode**: AI can automatically execute tools like file operations, bash commands, web searches, etc. to complete complex tasks
+- **Legacy mode**: AI provides suggestions and plans but requires manual approval for all actions
+
+**When should you use legacy mode?**
+- If you prefer more control over what actions the AI takes
+- If you're concerned about security with automatic tool execution
+- If you want to manually review each step before applying changes
+- If you're working in a sensitive environment where automatic code changes aren't desired
+
+You can also disable specific tools while keeping agentic mode enabled by configuring `disabled_tools`:
+
+```lua
+{
+  mode = "agentic",
+  disabled_tools = { "bash", "python" }, -- Disable specific tools
+  -- ... your other configuration options
+}
+```
 
 ## Contributing
 

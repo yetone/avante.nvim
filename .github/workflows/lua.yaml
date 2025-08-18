@@ -48,8 +48,6 @@ jobs:
         run: |
           export PATH="${PWD}/_neovim/bin:${PATH}"
           export VIM="${PWD}/_neovim/share/nvim/runtime"
-          # install nvim-lua/plenary.nvim
-          git clone --depth 1 https://github.com/nvim-lua/plenary.nvim ~/.local/share/nvim/site/pack/vendor/start/plenary.nvim
           nvim --version
           make luatest
 
@@ -69,39 +67,8 @@ jobs:
           neovim: true
           version: ${{ matrix.nvim_version }}
 
-      - name: Install luals
-        run: |
-          mkdir -p luals
-          curl -L "https://github.com/LuaLS/lua-language-server/releases/download/${{ matrix.luals_version }}/lua-language-server-${{ matrix.luals_version }}-linux-x64.tar.gz" | tar zx --directory luals
-
-      - run: echo "luals/bin" >> "$GITHUB_PATH"
-
-      - name: Checkout dependencies
-        run: |
-          mkdir -p deps
-          DEPS=(
-            "folke/neodev.nvim"
-            "nvim-lua/plenary.nvim"
-            "MunifTanjim/nui.nvim"
-            "stevearc/dressing.nvim"
-            "folke/snacks.nvim"
-            "echasnovski/mini.nvim"
-            "nvim-telescope/telescope.nvim"
-            "hrsh7th/nvim-cmp"
-            "ibhagwan/fzf-lua"
-            "nvim-tree/nvim-web-devicons"
-            "zbirenbaum/copilot.lua"
-            "Bilal2453/luvit-meta"
-            "folke/lazy.nvim"
-          )
-          for dep in "${DEPS[@]}"; do
-            repo_name=$(echo $dep | cut -d'/' -f2)
-            git clone --depth 1 "https://github.com/${dep}.git" "deps/${repo_name}"
-          done
-
       - name: Typecheck
         env:
           VIMRUNTIME: /home/runner/nvim-${{ matrix.nvim_version }}/share/nvim/runtime
-          DEPS_PATH: /home/runner/work/avante.nvim/avante.nvim/deps/
         run: |
           make lua-typecheck

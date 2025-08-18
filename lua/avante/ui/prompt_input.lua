@@ -15,7 +15,7 @@ local Utils = require("avante.utils")
 ---@field close_on_submit boolean
 ---@field spinner_chars table
 ---@field spinner_index integer
----@field spinner_timer uv_timer_t | nil
+---@field spinner_timer uv.uv_timer_t | nil
 ---@field spinner_active boolean
 ---@field default_value string | nil
 ---@field popup_hint_id integer | nil

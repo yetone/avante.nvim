@@ -17,7 +17,10 @@ M.description =
   "Request to replace sections of content in an existing file using SEARCH/REPLACE blocks that define exact changes to specific parts of the file. This tool should be used when you need to make targeted changes to specific parts of a file."
 
 M.support_streaming = true
--- function M.enabled() return Config.provider:match("ollama") == nil end
+
+function M.enabled()
+  return require("avante.config").mode == "agentic" and not require("avante.config").behaviour.enable_fastapply
+end
 
 ---@type AvanteLLMToolParam
 M.param = {
@@ -33,16 +36,16 @@ M.param = {
       name = "the_diff",
       description = [[
 One or more SEARCH/REPLACE blocks following this exact format:
-  \`\`\`
+  ```
   ------- SEARCH
   [exact content to find]
   =======
   [new content to replace with]
   +++++++ REPLACE
-  \`\`\`
+  ```
 
 Example:
-  \`\`\`
+  ```
   ------- SEARCH
   func my_function(param1, param2) {
     // This is a comment
@@ -54,7 +57,7 @@ Example:
     console.log(param2);
   }
   +++++++ REPLACE
-  \`\`\`
+  ```
 
   Critical rules:
   1. SEARCH content must match the associated file section to find EXACTLY:
@@ -98,37 +101,19 @@ M.returns = {
   },
 }
 
---- Some models (e.g., gpt-4o) cannot correctly return diff content and often miss the SEARCH line, so this needs to be manually fixed in such cases.
----@param diff string
----@return string
-local function fix_diff(diff)
-  local has_search_line = diff:match("^%s*-------* SEARCH") ~= nil
-  if has_search_line then return diff end
-
-  local fixed_diff_lines = {}
-  local lines = vim.split(diff, "\n")
-  local first_line = lines[1]
-  if first_line and first_line:match("^%s*```") then
-    table.insert(fixed_diff_lines, first_line)
-    table.insert(fixed_diff_lines, "------- SEARCH")
-    fixed_diff_lines = vim.list_extend(fixed_diff_lines, lines, 2)
-  else
-    table.insert(fixed_diff_lines, "------- SEARCH")
-    fixed_diff_lines = vim.list_extend(fixed_diff_lines, lines, 1)
-  end
-  return table.concat(fixed_diff_lines, "\n")
-end
-
 --- IMPORTANT: Using "the_diff" instead of "diff" is to avoid LLM streaming generating function parameters in alphabetical order, which would result in generating "path" after "diff", making it impossible to achieve a streaming diff view.
----@type AvanteLLMToolFunc<{ path: string, diff: string, the_diff?: string, streaming?: boolean, tool_use_id?: string }>
-function M.func(opts, on_log, on_complete, session_ctx)
-  if opts.the_diff ~= nil then
-    opts.diff = opts.the_diff
-    opts.the_diff = nil
+---@type AvanteLLMToolFunc<{ path: string, the_diff?: string }>
+function M.func(input, opts)
+  local on_log = opts.on_log
+  local on_complete = opts.on_complete
+  local session_ctx = opts.session_ctx
+  if not on_complete then return false, "on_complete not provided" end
+
+  if not input.path or not input.the_diff then
+    return false, "path and the_diff are required " .. vim.inspect(input)
   end
-  if not opts.path or not opts.diff then return false, "path and diff are required " .. vim.inspect(opts) end
-  if on_log then on_log("path: " .. opts.path) end
-  local abs_path = Helpers.get_abs_path(opts.path)
+  if on_log then on_log("path: " .. input.path) end
+  local abs_path = Helpers.get_abs_path(input.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
 
   local is_streaming = opts.streaming or false
@@ -142,7 +127,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
         return false, "Diff hasn't changed in the last 2 seconds"
       end
     end
-    local streaming_diff_lines_count = Utils.count_lines(opts.diff)
+    local streaming_diff_lines_count = Utils.count_lines(input.the_diff)
     session_ctx.streaming_diff_lines_count_history = session_ctx.streaming_diff_lines_count_history or {}
     local prev_streaming_diff_lines_count = session_ctx.streaming_diff_lines_count_history[opts.tool_use_id]
     if streaming_diff_lines_count == prev_streaming_diff_lines_count then
@@ -151,9 +136,9 @@ function M.func(opts, on_log, on_complete, session_ctx)
     session_ctx.streaming_diff_lines_count_history[opts.tool_use_id] = streaming_diff_lines_count
   end
 
-  local diff = fix_diff(opts.diff)
+  local diff = Utils.fix_diff(input.the_diff)
 
-  if on_log and diff ~= opts.diff then on_log("diff fixed") end
+  if on_log and diff ~= input.the_diff then on_log("diff fixed") end
 
   local diff_lines = vim.split(diff, "\n")
 
@@ -178,7 +163,8 @@ function M.func(opts, on_log, on_complete, session_ctx)
     elseif is_searching then
       table.insert(current_old_lines, line)
     elseif is_replacing then
-      table.insert(current_new_lines, line)
+      -- Remove trailing spaces from each line before adding to new_lines
+      table.insert(current_new_lines, (line:gsub("%s+$", "")))
     end
   end
 
@@ -196,7 +182,20 @@ function M.func(opts, on_log, on_complete, session_ctx)
   if #rough_diff_blocks == 0 then
     -- Utils.debug("opts.diff", opts.diff)
     -- Utils.debug("diff", diff)
-    return false, "No diff blocks found"
+    local err = [[No diff blocks found.
+
+Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE blocks are in the correct order.
+
+For example:
+  ```
+  ------- SEARCH
+  [exact content to find]
+  =======
+  [new content to replace with]
+  +++++++ REPLACE
+  ```
+]]
+    return false, err
   end
 
   session_ctx.prev_streaming_diff_timestamp_map[opts.tool_use_id] = current_timestamp
@@ -468,7 +467,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
           on_complete(false, "User canceled")
           return
         end
-        if session_ctx then Helpers.mark_as_not_viewed(opts.path, session_ctx) end
+        if session_ctx then Helpers.mark_as_not_viewed(input.path, session_ctx) end
         on_complete(true, nil)
       end,
     })
@@ -590,7 +589,6 @@ function M.func(opts, on_log, on_complete, session_ctx)
           return { { line_, Highlights.TO_BE_DELETED_WITHOUT_STRIKETHROUGH } }
         end)
         :totable()
-      -- local extmark_line = math.max(0, start_line - 2)
       local end_row = start_line + #diff_block.new_lines - 1
       local delete_extmark_id =
         vim.api.nvim_buf_set_extmark(bufnr, NAMESPACE, math.min(math.max(end_row - 1, 0), line_count - 1), 0, {
@@ -711,6 +709,7 @@ function M.func(opts, on_log, on_complete, session_ctx)
   end
 
   if diff_blocks[1] then
+    if not vim.api.nvim_buf_is_valid(bufnr) then return false, "Code buffer is not valid" end
     local line_count = vim.api.nvim_buf_line_count(bufnr)
     local winnr = Utils.get_winid(bufnr)
     if is_streaming then
@@ -742,8 +741,12 @@ function M.func(opts, on_log, on_complete, session_ctx)
     local parent_dir = vim.fn.fnamemodify(abs_path, ":h")
     --- check if the parent dir is exists, if not, create it
     if vim.fn.isdirectory(parent_dir) == 0 then vim.fn.mkdir(parent_dir, "p") end
-    vim.api.nvim_buf_call(bufnr, function() vim.cmd("noautocmd write") end)
-    if session_ctx then Helpers.mark_as_not_viewed(opts.path, session_ctx) end
+    if not vim.api.nvim_buf_is_valid(bufnr) then
+      on_complete(false, "Code buffer is not valid")
+      return
+    end
+    vim.api.nvim_buf_call(bufnr, function() vim.cmd("noautocmd write!") end)
+    if session_ctx then Helpers.mark_as_not_viewed(input.path, session_ctx) end
     on_complete(true, nil)
   end, { focus = not Config.behaviour.auto_focus_on_diff_view }, session_ctx, M.name)
 end
