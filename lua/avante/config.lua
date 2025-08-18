@@ -346,6 +346,16 @@ M._defaults = {
       },
     },
     ---@type AvanteSupportedProvider
+    watsonx_code_assistant = {
+      endpoint = "https://api.dataplatform.cloud.ibm.com/v2/wca/core/chat/text/generation",
+      model = "granite-8b-code-instruct",
+      timeout = 30000, -- Timeout in milliseconds
+      extra_request_body = {
+        -- Additional watsonx-specific parameters can be added here
+      },
+    },
+
+    ---@type AvanteSupportedProvider
     vertex_claude = {
       endpoint = "https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/antrhopic/models",
       model = "claude-3-5-sonnet-v2@20241022",
@@ -373,16 +383,6 @@ M._defaults = {
       extra_request_body = {
         temperature = 0.75,
         max_tokens = 20480,
-      },
-    },
-    ---@type AvanteSupportedProvider
-    ["watsonx_code_assistant"] = {
-      endpoint = "https://api.dataplatform.cloud.ibm.com",
-      model = "granite-8b-code-instruct",
-      timeout = 30000, -- Timeout in milliseconds
-      api_key_name = "WCA_API_KEY", -- IBM Cloud API key for watsonx Code Assistant
-      extra_request_body = {
-        -- Additional watsonx-specific parameters can be added here
       },
     },
     ["openai-gpt-4o-mini"] = {

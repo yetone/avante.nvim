@@ -5,7 +5,10 @@ local Utils = require("avante.utils")
 local curl = require("plenary.curl")
 local Config = require("avante.config")
 local Llm = require("avante.llm")
-local ts_utils = require("nvim-treesitter.ts_utils")
+local ts_utils = pcall(require, "nvim-treesitter.ts_utils") and require("nvim-treesitter.ts_utils") or {
+  get_node_at_cursor = function() return nil end
+}
+local OpenAI = require("avante.providers.openai")
 
 ---@class AvanteProviderFunctor
 local M = {}
@@ -44,14 +47,63 @@ end
 --- - on_chunk: (fun(chunk: string): any) this is invoked on parsing correct delta chunk
 --- - on_complete: (fun(err: string|nil): any) this is invoked on either complete call or error chunk
 M.parse_response_without_stream = function(self, data, _, opts)
-  -- vim.api.nvim_notify(vim.inspect(data_stream) .. "\n\n\n\n", 1, {})
+  if Utils.debug then Utils.debug("WCA parse_response_without_stream called with opts: " .. vim.inspect(opts)) end
+
   local json = vim.json.decode(data)
-  if json.error ~= vim.NIL then
+  if Utils.debug then Utils.debug("WCA Response: " .. vim.inspect(json)) end
+  if json.error ~= nil and json.error ~= vim.NIL then
     Utils.warn("WCA Error " .. tostring(json.error.code) .. ": " .. tostring(json.error.message))
   end
-  if json.response and json.response.message then
-    opts.on_chunk(json.response.message.content)
-    vim.schedule(function() opts.on_stop({ reason = "complete" }) end)
+  if json.response and json.response.message and json.response.message.content then
+    local content = json.response.message.content
+
+    if Utils.debug then Utils.debug("WCA Original Content: " .. tostring(content)) end
+
+    -- Clean up the content by removing XML-like tags that are not part of the actual response
+    -- These tags appear to be internal formatting from watsonx that should not be shown to users
+    -- Use more careful patterns to avoid removing too much content
+    content = content:gsub("<file>\n?", "")
+    content = content:gsub("\n?</file>", "")
+    content = content:gsub("\n?<memory>.-</memory>\n?", "")
+    content = content:gsub("\n?<update_todo_status>.-</update_todo_status>\n?", "")
+    content = content:gsub("\n?<attempt_completion>.-</attempt_completion>\n?", "")
+
+    -- Trim excessive whitespace but preserve structure
+    content = content:gsub("^\n+", ""):gsub("\n+$", "")
+
+    if Utils.debug then Utils.debug("WCA Cleaned Content: " .. tostring(content)) end
+
+    -- Ensure we still have content after cleaning
+    if content and content ~= "" then
+      if opts.on_chunk then opts.on_chunk(content) end
+      -- Add the text message for UI display (similar to OpenAI provider)
+      OpenAI:add_text_message({}, content, "generated", opts)
+    else
+      Utils.warn("WCA: Content became empty after cleaning")
+      if opts.on_chunk then
+        opts.on_chunk(json.response.message.content) -- Fallback to original content
+      end
+      -- Add the original content as fallback
+      OpenAI:add_text_message({}, json.response.message.content, "generated", opts)
+    end
+    vim.schedule(function() 
+      if opts.on_stop then opts.on_stop({ reason = "complete" }) end 
+    end)
+  elseif json.error and json.error ~= vim.NIL then
+    vim.schedule(function()
+      if opts.on_stop then
+        opts.on_stop({
+          reason = "error",
+          error = "WCA Error " .. tostring(json.error.code) .. ": " .. tostring(json.error.message),
+        })
+      end
+    end)
+  else
+    -- Handle case where there's no response content and no explicit error
+    if Utils.debug then Utils.debug("WCA: No content found in response, treating as empty response") end
+    vim.schedule(function() 
+      if opts.on_stop then opts.on_stop({ reason = "complete" }) end 
+    end)
   end
 end
 
@@ -199,20 +251,25 @@ M.parse_curl_args = function(provider, code_opts)
     ["Request-ID"] = uuid(),
   }
 
+  -- Create the message_payload structure as required by WCA API
   local message_payload = {
-    messages = M.parse_messages(code_opts),
+    message_payload = {
+      chat_session_id = uuid(), -- Required for granite-3-8b-instruct model
+      messages = M.parse_messages(code_opts),
+    },
   }
 
   -- Base64 encode the message payload as required by watsonx API
   local json_content = vim.json.encode(message_payload)
   local encoded_json_content = vim.base64.encode(json_content)
 
+  -- Return form data structure - the message field contains the base64-encoded JSON
   local body = {
-    message = encoded_json_content
+    message = encoded_json_content,
   }
 
   return {
-    url = Utils.trim(base.endpoint, { suffix = "/" }) .. "/v2/wca/core/chat/text/generation",
+    url = base.endpoint,
     timeout = base.timeout,
     insecure = false,
     headers = headers,
@@ -222,7 +279,5 @@ end
 
 --- The following function SHOULD only be used when providers doesn't follow SSE spec [ADVANCED]
 --- this is mutually exclusive with parse_response_data
-
-M.on_error = function() end
 
 return M
