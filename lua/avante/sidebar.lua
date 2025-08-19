@@ -2963,7 +2963,7 @@ end
 
 function Sidebar:get_selected_files_container_height()
   local selected_filepaths_ = self.file_selector:get_selected_filepaths()
-  return math.min(vim.o.lines - 2, #selected_filepaths_ + 1)
+  return math.min(Config.windows.selected_files.height, #selected_filepaths_ + 1)
 end
 
 function Sidebar:adjust_selected_files_container_layout()
