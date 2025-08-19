@@ -63,6 +63,83 @@ If you like this project, please consider supporting me on Patreon, as it helps 
 - **One-Click Application**: Quickly apply the AI's suggested changes to your source code with a single command, streamlining the editing process and saving time.
 - **Project-Specific Instruction Files**: Customize AI behavior by adding a markdown file (`avante.md` by default) in the project root. This file is automatically referenced during workspace changes. You can also configure a custom file name for tailored project instructions.
 
+## Project Instructions with avante.md
+
+The `avante.md` file allows you to provide project-specific context and instructions to the AI. This file should be placed in your project root and will be automatically referenced during all interactions with Avante.
+
+### Best Practices for avante.md
+
+To get the most out of your project instruction file, consider following this structure:
+
+#### Your Role
+
+Define the AI's persona and expertise level for your project:
+
+```markdown
+### Your Role
+
+You are an expert senior software engineer specializing in [technology stack]. You have deep knowledge of [specific frameworks/tools] and understand best practices for [domain/industry]. You write clean, maintainable, and well-documented code. You prioritize code quality, performance, and security in all your recommendations.
+```
+
+#### Your Mission
+
+Clearly describe what the AI should focus on and how it should help:
+
+```markdown
+### Your Mission
+
+Your primary goal is to help build and maintain [project description]. You should:
+
+- Provide code suggestions that follow our established patterns and conventions
+- Help debug issues by analyzing code and suggesting solutions
+- Assist with refactoring to improve code quality and maintainability
+- Suggest optimizations for performance and scalability
+- Ensure all code follows our security guidelines
+- Help write comprehensive tests for new features
+```
+
+#### Additional Sections to Consider
+
+- **Project Context**: Brief description of the project, its goals, and target users
+- **Technology Stack**: List of technologies, frameworks, and tools used
+- **Coding Standards**: Specific conventions, style guides, and patterns to follow
+- **Architecture Guidelines**: How components should interact and be organized
+- **Testing Requirements**: Testing strategies and coverage expectations
+- **Security Considerations**: Specific security requirements or constraints
+
+### Example avante.md
+
+```markdown
+# Project Instructions for MyApp
+
+## Your Role
+You are an expert full-stack developer specializing in React, Node.js, and TypeScript. You understand modern web development practices and have experience with our tech stack.
+
+## Your Mission
+Help build a scalable e-commerce platform by:
+- Writing type-safe TypeScript code
+- Following React best practices and hooks patterns
+- Implementing RESTful APIs with proper error handling
+- Ensuring responsive design with Tailwind CSS
+- Writing comprehensive unit and integration tests
+
+## Project Context
+MyApp is a modern e-commerce platform targeting small businesses. We prioritize performance, accessibility, and user experience.
+
+## Technology Stack
+- Frontend: React 18, TypeScript, Tailwind CSS, Vite
+- Backend: Node.js, Express, Prisma, PostgreSQL
+- Testing: Jest, React Testing Library, Playwright
+- Deployment: Docker, AWS
+
+## Coding Standards
+- Use functional components with hooks
+- Prefer composition over inheritance
+- Write self-documenting code with clear variable names
+- Add JSDoc comments for complex functions
+- Follow the existing folder structure and naming conventions
+```
+
 ## Installation
 
 For building binary if you wish to build from source, then `cargo` is required. Otherwise `curl` and `tar` will be used to get prebuilt binary from GitHub.
