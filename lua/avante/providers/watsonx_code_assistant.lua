@@ -5,9 +5,10 @@ local Utils = require("avante.utils")
 local curl = require("plenary.curl")
 local Config = require("avante.config")
 local Llm = require("avante.llm")
-local ts_utils = pcall(require, "nvim-treesitter.ts_utils") and require("nvim-treesitter.ts_utils") or {
-  get_node_at_cursor = function() return nil end
-}
+local ts_utils = pcall(require, "nvim-treesitter.ts_utils") and require("nvim-treesitter.ts_utils")
+  or {
+    get_node_at_cursor = function() return nil end,
+  }
 local OpenAI = require("avante.providers.openai")
 
 ---@class AvanteProviderFunctor
