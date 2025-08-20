@@ -24,8 +24,8 @@ M.iam_bearer_token = ""
 
 function M:is_disable_stream() return true end
 
----@type fun(opts: AvantePromptOptions): table
-M.parse_messages = function(opts)
+---@type fun(self: AvanteProviderFunctor, opts: AvantePromptOptions): table
+function M:parse_messages(opts)
   local messages
   if opts.system_prompt == "WCA_COMMAND" then
     messages = {}
@@ -86,8 +86,8 @@ M.parse_response_without_stream = function(self, data, _, opts)
       -- Add the original content as fallback
       OpenAI:add_text_message({}, json.response.message.content, "generated", opts)
     end
-    vim.schedule(function() 
-      if opts.on_stop then opts.on_stop({ reason = "complete" }) end 
+    vim.schedule(function()
+      if opts.on_stop then opts.on_stop({ reason = "complete" }) end
     end)
   elseif json.error and json.error ~= vim.NIL then
     vim.schedule(function()
@@ -101,8 +101,8 @@ M.parse_response_without_stream = function(self, data, _, opts)
   else
     -- Handle case where there's no response content and no explicit error
     if Utils.debug then Utils.debug("WCA: No content found in response, treating as empty response") end
-    vim.schedule(function() 
-      if opts.on_stop then opts.on_stop({ reason = "complete" }) end 
+    vim.schedule(function()
+      if opts.on_stop then opts.on_stop({ reason = "complete" }) end
     end)
   end
 end
@@ -189,7 +189,7 @@ M.method_command = function(command_name)
 end
 
 local function get_iam_bearer_token(provider)
-  if M.last_iam_token_time ~= nil and os.time(os.date("!*t")) - M.last_iam_token_time <= 3550 then
+  if M.last_iam_token_time ~= nil and os.time() - M.last_iam_token_time <= 3550 then
     return M.iam_bearer_token
   end
 
@@ -211,7 +211,7 @@ local function get_iam_bearer_token(provider)
     local token = vim.split(access_token_field, ":")[2]
     -- remove quotes
     M.iam_bearer_token = (token:gsub("^%p(.*)%p$", "%1"))
-    M.last_iam_token_time = os.time(os.date("!*t"))
+    M.last_iam_token_time = os.time()
   else
     Utils.error(
       "Failed to retrieve IAM token: " .. response.status .. ": " .. vim.inspect(response.body),
@@ -255,7 +255,7 @@ M.parse_curl_args = function(provider, code_opts)
   local message_payload = {
     message_payload = {
       chat_session_id = uuid(), -- Required for granite-3-8b-instruct model
-      messages = M.parse_messages(code_opts),
+      messages = M:parse_messages(code_opts),
     },
   }
 
