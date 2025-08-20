@@ -5,9 +5,10 @@ local Utils = require("avante.utils")
 local curl = require("plenary.curl")
 local Config = require("avante.config")
 local Llm = require("avante.llm")
-local ts_utils = pcall(require, "nvim-treesitter.ts_utils") and require("nvim-treesitter.ts_utils") or {
-  get_node_at_cursor = function() return nil end
-}
+local ts_utils = pcall(require, "nvim-treesitter.ts_utils") and require("nvim-treesitter.ts_utils")
+  or {
+    get_node_at_cursor = function() return nil end,
+  }
 local OpenAI = require("avante.providers.openai")
 
 ---@class AvanteProviderFunctor
@@ -86,8 +87,8 @@ M.parse_response_without_stream = function(self, data, _, opts)
       -- Add the original content as fallback
       OpenAI:add_text_message({}, json.response.message.content, "generated", opts)
     end
-    vim.schedule(function() 
-      if opts.on_stop then opts.on_stop({ reason = "complete" }) end 
+    vim.schedule(function()
+      if opts.on_stop then opts.on_stop({ reason = "complete" }) end
     end)
   elseif json.error and json.error ~= vim.NIL then
     vim.schedule(function()
@@ -101,8 +102,8 @@ M.parse_response_without_stream = function(self, data, _, opts)
   else
     -- Handle case where there's no response content and no explicit error
     if Utils.debug then Utils.debug("WCA: No content found in response, treating as empty response") end
-    vim.schedule(function() 
-      if opts.on_stop then opts.on_stop({ reason = "complete" }) end 
+    vim.schedule(function()
+      if opts.on_stop then opts.on_stop({ reason = "complete" }) end
     end)
   end
 end
