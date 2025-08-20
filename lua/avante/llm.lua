@@ -557,7 +557,7 @@ function M.curl(opts)
 
   -- Check if this is a multipart form request (specifically for watsonx)
   local is_multipart_form = spec.headers and spec.headers["Content-Type"] == "multipart/form-data"
-  local curl_options = {}
+  local curl_options
 
   if is_multipart_form then
     -- For multipart form data, use the form parameter
