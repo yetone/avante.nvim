@@ -27,6 +27,7 @@ function M:is_disable_stream() return true end
 
 ---@type fun(self: AvanteProviderFunctor, opts: AvantePromptOptions): table
 function M:parse_messages(opts)
+  if opts == nil then return {} end
   local messages
   if opts.system_prompt == "WCA_COMMAND" then
     messages = {}
@@ -47,7 +48,7 @@ end
 --- This opts include:
 --- - on_chunk: (fun(chunk: string): any) this is invoked on parsing correct delta chunk
 --- - on_complete: (fun(err: string|nil): any) this is invoked on either complete call or error chunk
-M.parse_response_without_stream = function(self, data, _, opts)
+local function parse_response_wo_stream(self, data, _, opts)
   if Utils.debug then Utils.debug("WCA parse_response_without_stream called with opts: " .. vim.inspect(opts)) end
 
   local json = vim.json.decode(data)
@@ -107,6 +108,8 @@ M.parse_response_without_stream = function(self, data, _, opts)
     end)
   end
 end
+
+M.parse_response_without_stream = parse_response_wo_stream
 
 -- Needs to be language specific for each function and methods.
 local get_function_name_under_cursor = function()
