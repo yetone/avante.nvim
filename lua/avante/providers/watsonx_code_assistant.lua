@@ -190,9 +190,7 @@ M.method_command = function(command_name)
 end
 
 local function get_iam_bearer_token(provider)
-  if M.last_iam_token_time ~= nil and os.time() - M.last_iam_token_time <= 3550 then
-    return M.iam_bearer_token
-  end
+  if M.last_iam_token_time ~= nil and os.time() - M.last_iam_token_time <= 3550 then return M.iam_bearer_token end
 
   local api_key = provider.parse_api_key()
   if api_key == nil then
