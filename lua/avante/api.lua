@@ -110,6 +110,8 @@ end
 ---@field floating? boolean whether to open a floating input to enter the question
 ---@field new_chat? boolean whether to open a new chat
 ---@field without_selection? boolean whether to open a new chat without selection
+---@field sidebar_pre_render? fun(sidebar: avante.Sidebar)
+---@field sidebar_post_render? fun(sidebar: avante.Sidebar)
 
 ---@param opts? AskOptions
 function M.ask(opts)
