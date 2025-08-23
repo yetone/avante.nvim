@@ -94,6 +94,15 @@ function H.keymaps()
       function() require("avante.api").ask() end,
       { desc = "avante: ask" }
     )
+    Utils.safe_keymap_set({ "n", "v" }, Config.mappings.full_view_ask, function()
+      require("avante.api").ask({
+        sidebar_post_render = function(sidebar)
+          sidebar:toggle_code_window()
+          vim.wo[sidebar.containers.result.winid].number = true
+          vim.wo[sidebar.containers.result.winid].relativenumber = true
+        end,
+      })
+    end, { desc = "avante: ask with full result view" })
     Utils.safe_keymap_set(
       { "n", "v" },
       Config.mappings.new_ask,
