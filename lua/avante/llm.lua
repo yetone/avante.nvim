@@ -753,9 +753,7 @@ local function stop_retry_timer(is_abort)
     retry_timer:stop()
     pcall(function() retry_timer:close() end)
     retry_timer = nil
-    if is_abort then
-      Utils.info("Retry aborted due to user requested cancellation.")
-    end
+    if is_abort then Utils.info("Retry aborted due to user requested cancellation.") end
   end
 end
 
@@ -1022,9 +1020,7 @@ function M._stream(opts)
 
         stop_retry_timer(false)
         retry_timer = uv.new_timer()
-        if retry_timer then
-          retry_timer:start(0, 1000, vim.schedule_wrap(function() countdown() end))
-        end
+        if retry_timer then retry_timer:start(0, 1000, vim.schedule_wrap(function() countdown() end)) end
         return
       end
       return opts.on_stop(stop_opts)
