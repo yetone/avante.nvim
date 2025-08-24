@@ -1716,7 +1716,7 @@ mod tests {
 
     #[test]
     fn test_c() {
-      let source = r#"
+        let source = r#"
         #include <stdio.h>
 
         int test_var = 2;
