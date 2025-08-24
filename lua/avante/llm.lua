@@ -404,16 +404,18 @@ function M.generate_prompts(opts)
     if msg.is_user_submission then
       message = vim.deepcopy(message)
       local content = message.content
-      if type(content) == "string" then
-        message.content = "<task>" .. content .. "</task>"
-      elseif type(content) == "table" then
-        for idx, item in ipairs(content) do
-          if type(item) == "string" then
-            item = "<task>" .. item .. "</task>"
-            content[idx] = item
-          elseif type(item) == "table" and item.type == "text" then
-            item.content = "<task>" .. item.content .. "</task>"
-            content[idx] = item
+      if Config.mode == "agentic" then
+        if type(content) == "string" then
+          message.content = "<task>" .. content .. "</task>"
+        elseif type(content) == "table" then
+          for idx, item in ipairs(content) do
+            if type(item) == "string" then
+              item = "<task>" .. item .. "</task>"
+              content[idx] = item
+            elseif type(item) == "table" and item.type == "text" then
+              item.content = "<task>" .. item.content .. "</task>"
+              content[idx] = item
+            end
           end
         end
       end
