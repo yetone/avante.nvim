@@ -169,7 +169,7 @@ For building binary if you wish to build from source, then `cargo` is required. 
   opts = {
     -- add any opts here
     -- this file can contain specific instructions for your project
-    instructions_file = "avante.md"
+    instructions_file = "avante.md",
     -- for example
     provider = "claude",
     providers = {
