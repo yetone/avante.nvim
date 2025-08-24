@@ -747,6 +747,18 @@ function M.curl(opts)
   return active_job
 end
 
+local retry_timer = nil
+local function stop_retry_timer(is_abort)
+  if retry_timer then
+    retry_timer:stop()
+    pcall(function() retry_timer:close() end)
+    retry_timer = nil
+    if is_abort then
+      Utils.info("Retry aborted due to user requested cancellation.")
+    end
+  end
+end
+
 ---@param opts AvanteLLMStreamOptions
 function M._stream(opts)
   -- Reset the cancellation flag at the start of a new request
@@ -982,36 +994,36 @@ function M._stream(opts)
             }
           )
 
-        local timer = vim.loop.new_timer()
-        if timer then
-          local retry_count = stop_opts.retry_after
-          Utils.info("Rate limit reached. Retrying in " .. retry_count .. " seconds", { title = "Avante" })
+        local retry_count = stop_opts.retry_after
+        Utils.info("Rate limit reached. Retrying in " .. retry_count .. " seconds", { title = "Avante" })
 
-          local function countdown()
-            local msg_content = "*[Rate limit reached. Retrying in " .. retry_count .. " seconds ...]*"
-            if opts.on_chunk then
-              -- Use ANSI escape codes to clear line and move cursor up only for subsequent updates
-              local prefix = ""
-              if retry_count < stop_opts.retry_after then prefix = [[\033[1A\033[K]] end
-              opts.on_chunk(prefix .. "\n" .. msg_content .. "\n")
-            end
-            if opts.on_messages_add and message then
-              message:update_content("\n\n" .. msg_content)
-              opts.on_messages_add({ message })
-            end
-
-            if retry_count <= 0 then
-              timer:stop()
-              pcall(function() timer:close() end)
-
-              Utils.info("Restarting stream after rate limit pause")
-              M._stream(opts)
-            else
-              retry_count = retry_count - 1
-            end
+        local function countdown()
+          local msg_content = "*[Rate limit reached. Retrying in " .. retry_count .. " seconds ...]*"
+          if opts.on_chunk then
+            -- Use ANSI escape codes to clear line and move cursor up only for subsequent updates
+            local prefix = ""
+            if retry_count < stop_opts.retry_after then prefix = [[\033[1A\033[K]] end
+            opts.on_chunk(prefix .. "\n" .. msg_content .. "\n")
+          end
+          if opts.on_messages_add and message then
+            message:update_content("\n\n" .. msg_content)
+            opts.on_messages_add({ message })
           end
 
-          timer:start(0, 1000, vim.schedule_wrap(function() countdown() end))
+          if retry_count <= 0 then
+            stop_retry_timer(false)
+
+            Utils.info("Restarting stream after rate limit pause")
+            M._stream(opts)
+          else
+            retry_count = retry_count - 1
+          end
+        end
+
+        stop_retry_timer(false)
+        retry_timer = uv.new_timer()
+        if retry_timer then
+          retry_timer:start(0, 1000, vim.schedule_wrap(function() countdown() end))
         end
         return
       end
@@ -1173,6 +1185,7 @@ function M.cancel_inflight_request()
     LLMToolHelpers.confirm_popup:cancel()
     LLMToolHelpers.confirm_popup = nil
   end
+  stop_retry_timer(true)
 
   api.nvim_exec_autocmds("User", { pattern = M.CANCEL_PATTERN })
 end
