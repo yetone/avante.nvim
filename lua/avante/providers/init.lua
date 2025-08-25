@@ -13,6 +13,7 @@ local Utils = require("avante.utils")
 ---@field bedrock AvanteBedrockProviderFunctor
 ---@field ollama AvanteProviderFunctor
 ---@field vertex_claude AvanteProviderFunctor
+---@field watsonx_code_assistant AvanteProviderFunctor
 local M = {}
 
 ---@class EnvironmentHandler
