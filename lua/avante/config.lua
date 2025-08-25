@@ -415,8 +415,10 @@ M._defaults = {
     },
     ---@type AvanteSupportedProvider
     openrouter = {
+      __inherited_from = "openai",
       endpoint = "https://api.openrouter.ai/api/v1",
       model = "openai/gpt-4o-mini",
+      api_key_name = "OPENROUTER_API_KEY",
       timeout = 30000,
       context_window = 128000,
       extra_request_body = {
