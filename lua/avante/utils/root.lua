@@ -127,6 +127,7 @@ end
 
 ---@type table<number, string>
 M.cache = {}
+local buf_names = {}
 
 -- returns the root directory based on:
 -- * lsp workspace folders
@@ -142,10 +143,12 @@ function M.get(opts)
   end
   opts = opts or {}
   local buf = opts.buf or vim.api.nvim_get_current_buf()
-  local ret = M.cache[buf]
+  local buf_name = vim.api.nvim_buf_get_name(buf)
+  local ret = buf_names[buf] == buf_name and M.cache[buf] or nil
   if not ret then
     local roots = M.detect({ all = false, buf = buf })
     ret = roots[1] and roots[1].paths[1] or vim.uv.cwd()
+    buf_names[buf] = buf_name
     M.cache[buf] = ret
   end
   if cwd ~= nil and #ret > #cwd then ret = cwd end
