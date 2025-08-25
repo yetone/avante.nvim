@@ -150,6 +150,8 @@ myapp is a modern e-commerce platform targeting small businesses. we prioritize 
 
 For building binary if you wish to build from source, then `cargo` is required. Otherwise `curl` and `tar` will be used to get prebuilt binary from GitHub.
 
+If you have `nix` then you can use `nix run .#plugin` to build all relevant extensions
+
 <details open>
 
   <summary><a href="https://github.com/folke/lazy.nvim">lazy.nvim</a> (recommended)</summary>
