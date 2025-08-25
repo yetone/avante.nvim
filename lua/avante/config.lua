@@ -413,6 +413,17 @@ M._defaults = {
       model = "kimi-k2-0711-preview",
       api_key_name = "MOONSHOT_API_KEY",
     },
+    ---@type AvanteSupportedProvider
+    openrouter = {
+      endpoint = "https://api.openrouter.ai/api/v1",
+      model = "openai/gpt-4o-mini",
+      timeout = 30000,
+      context_window = 128000,
+      extra_request_body = {
+        temperature = 0.75,
+        max_tokens = 16384,
+      },
+    },
   },
   ---Specify the special dual_boost mode
   ---1. enabled: Whether to enable dual_boost mode. Default to false.

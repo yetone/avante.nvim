@@ -434,7 +434,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
 
 ```lua
 {
-  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | string
+  ---@alias Provider "claude" | "openai" | "azure" | "gemini" | "cohere" | "copilot" | "openrouter" | string
   ---@type Provider
   provider = "claude", -- The provider used in Aider mode or in the planning phase of Cursor Planning Mode
   ---@alias Mode "agentic" | "legacy"
@@ -857,6 +857,7 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 > export AVANTE_AZURE_OPENAI_API_KEY=your-azure-api-key
 > export AVANTE_GEMINI_API_KEY=your-gemini-api-key
 > export AVANTE_CO_API_KEY=your-cohere-api-key
+> export AVANTE_OPENROUTER_API_KEY=your-openrouter-api-key
 > export AVANTE_AIHUBMIX_API_KEY=your-aihubmix-api-key
 > export AVANTE_MOONSHOT_API_KEY=your-moonshot-api-key
 > ```
@@ -881,6 +882,12 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 >
 > ```sh
 > export AZURE_OPENAI_API_KEY=your-api-key
+> ```
+>
+> For OpenRouter:
+>
+> ```sh
+> export OPENROUTER_API_KEY=your-api-key
 > ```
 >
 > For Amazon Bedrock:
