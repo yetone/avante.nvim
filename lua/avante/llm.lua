@@ -954,9 +954,7 @@ function M._stream(opts)
         })
         if result ~= nil or error ~= nil then return handle_tool_result(result, error) end
       end
-      if stop_opts.reason == "cancelled" then
-        dispatch_cancel_message()
-      end
+      if stop_opts.reason == "cancelled" then dispatch_cancel_message() end
       local history_messages = opts.get_history_messages and opts.get_history_messages({ all = true }) or {}
       local pending_tools, pending_tool_use_messages = History.get_pending_tools(history_messages)
       if stop_opts.reason == "complete" and Config.mode == "agentic" then
