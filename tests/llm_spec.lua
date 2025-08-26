@@ -112,4 +112,42 @@ describe("generate_prompts", function()
     llm.generate_prompts(opts)
     assert.are.same(opts.instructions, nil)
   end)
+
+  it("should set tools to nil when no tools are provided", function()
+    local opts = {}
+    local result = llm.generate_prompts(opts)
+    assert.are.same(result.tools, nil)
+  end)
+
+  it("should set tools to nil when empty tools array is provided", function()
+    local opts = {
+      tools = {},
+    }
+    local result = llm.generate_prompts(opts)
+    assert.are.same(result.tools, nil)
+  end)
+
+  it("should set tools to nil when empty prompt_opts.tools array is provided", function()
+    local opts = {
+      prompt_opts = {
+        tools = {},
+      },
+    }
+    local result = llm.generate_prompts(opts)
+    assert.are.same(result.tools, nil)
+  end)
+
+  it("should include tools when non-empty tools are provided", function()
+    local mock_tool = {
+      name = "test_tool",
+      description = "A test tool",
+      func = function() end,
+    }
+    local opts = {
+      tools = { mock_tool },
+    }
+    local result = llm.generate_prompts(opts)
+    assert.are.same(#result.tools, 1)
+    assert.are.same(result.tools[1].name, "test_tool")
+  end)
 end)
