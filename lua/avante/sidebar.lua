@@ -1911,7 +1911,7 @@ function Sidebar:clear_history(args, cb)
 end
 
 function Sidebar:clear_state()
-  if self.state_extmark_id then
+  if self.state_extmark_id and self.containers.result then
     pcall(api.nvim_buf_del_extmark, self.containers.result.bufnr, STATE_NAMESPACE, self.state_extmark_id)
   end
   self.state_extmark_id = nil
