@@ -1715,6 +1715,31 @@ mod tests {
     }
 
     #[test]
+    fn test_c() {
+        let source = r#"
+        #include <stdio.h>
+
+        int test_var = 2;
+        extern int extern_test_var;
+
+        int TestFunc(bool b) { return b ? 42 : -1; }
+        extern void ExternTestFunc();
+
+        struct Foo {
+            int a;
+            int b;
+        };
+
+        typedef int my_int;
+        "#;
+        let definitions = extract_definitions("c", source).unwrap();
+        let stringified = stringify_definitions(&definitions);
+        println!("{stringified}");
+        let expected = "var extern int extern_test_var;:int;var extern void ExternTestFunc();:void;class Foo{var int a;:int;var int b;:int;};";
+        assert_eq!(stringified, expected);
+    }
+
+    #[test]
     fn test_cpp() {
         let source = r#"
         // This is a test comment
