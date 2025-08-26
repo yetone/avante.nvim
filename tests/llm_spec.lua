@@ -121,7 +121,7 @@ describe("generate_prompts", function()
 
   it("should set tools to nil when empty tools array is provided", function()
     local opts = {
-      tools = {}
+      tools = {},
     }
     local result = llm.generate_prompts(opts)
     assert.are.same(result.tools, nil)
@@ -130,8 +130,8 @@ describe("generate_prompts", function()
   it("should set tools to nil when empty prompt_opts.tools array is provided", function()
     local opts = {
       prompt_opts = {
-        tools = {}
-      }
+        tools = {},
+      },
     }
     local result = llm.generate_prompts(opts)
     assert.are.same(result.tools, nil)
@@ -141,10 +141,10 @@ describe("generate_prompts", function()
     local mock_tool = {
       name = "test_tool",
       description = "A test tool",
-      func = function() end
+      func = function() end,
     }
     local opts = {
-      tools = {mock_tool}
+      tools = { mock_tool },
     }
     local result = llm.generate_prompts(opts)
     assert.are.same(#result.tools, 1)
