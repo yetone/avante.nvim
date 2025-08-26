@@ -499,6 +499,18 @@ local parse_headers = function(headers_file)
       local key, value = line:match("^%s*(.-)%s*:%s*(.*)$")
       if key and value then headers[key] = value end
     end
+    if Config.debug then
+      -- Original header file was deleted by plenary.nvim
+      -- see https://github.com/nvim-lua/plenary.nvim/blob/b9fd5226c2f76c951fc8ed5923d85e4de065e509/lua/plenary/curl.lua#L268
+      local debug_headers_file = headers_file .. ".log"
+      Utils.debug("curl response headers file:", debug_headers_file)
+      local debug_file = io.open(debug_headers_file, "a")
+      if debug_file then
+        file:seek("set")
+        debug_file:write(file:read("*all"))
+        debug_file:close()
+      end
+    end
     file:close()
   end
   return headers
@@ -572,14 +584,12 @@ function M.curl(opts)
 
   Utils.debug("curl request body file:", curl_body_file)
   Utils.debug("curl response body file:", resp_body_file)
-  Utils.debug("curl headers file:", headers_file)
 
   local function cleanup()
     if Config.debug then return end
     vim.schedule(function()
       fn.delete(curl_body_file)
       pcall(fn.delete, resp_body_file)
-      fn.delete(headers_file)
     end)
   end
 
