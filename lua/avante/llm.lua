@@ -464,6 +464,10 @@ function M.generate_prompts(opts)
   if opts.tools then tools = vim.list_extend(tools, opts.tools) end
   if opts.prompt_opts and opts.prompt_opts.tools then tools = vim.list_extend(tools, opts.prompt_opts.tools) end
 
+  -- Set tools to nil if empty to avoid sending empty arrays to APIs that require
+  -- tools to be either non-existent or have at least one item
+  if #tools == 0 then tools = nil end
+
   local agents_rules = Prompts.get_agents_rules_prompt()
   if agents_rules then system_prompt = system_prompt .. "\n\n" .. agents_rules end
   local cursor_rules = Prompts.get_cursor_rules_prompt(selected_files)
