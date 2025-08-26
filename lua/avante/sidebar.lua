@@ -2543,7 +2543,7 @@ function Sidebar:create_input_container()
         vim.keymap.del("n", "G", { buffer = self.containers.result.bufnr })
       end)
 
-      if stop_opts.error ~= nil then
+      if stop_opts.error ~= nil and stop_opts.error ~= vim.NIL then
         local msg_content = stop_opts.error
         if type(msg_content) ~= "string" then msg_content = vim.inspect(msg_content) end
         self:add_history_messages({

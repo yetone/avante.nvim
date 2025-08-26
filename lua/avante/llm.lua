@@ -583,8 +583,33 @@ function M.curl(opts)
   local curl_body_file = temp_file .. "-request-body.json"
   local resp_body_file = temp_file .. "-response-body.txt"
   local headers_file = temp_file .. "-response-headers.txt"
-  local json_content = vim.json.encode(spec.body)
-  fn.writefile(vim.split(json_content, "\n"), curl_body_file)
+
+  -- Check if this is a multipart form request (specifically for watsonx)
+  local is_multipart_form = spec.headers and spec.headers["Content-Type"] == "multipart/form-data"
+  local curl_options
+
+  if is_multipart_form then
+    -- For multipart form data, use the form parameter
+    -- spec.body should be a table with form field data
+    curl_options = {
+      headers = spec.headers,
+      proxy = spec.proxy,
+      insecure = spec.insecure,
+      form = spec.body,
+      raw = spec.rawArgs,
+    }
+  else
+    -- For regular JSON requests, encode as JSON and write to file
+    local json_content = vim.json.encode(spec.body)
+    fn.writefile(vim.split(json_content, "\n"), curl_body_file)
+    curl_options = {
+      headers = spec.headers,
+      proxy = spec.proxy,
+      insecure = spec.insecure,
+      body = curl_body_file,
+      raw = spec.rawArgs,
+    }
+  end
 
   Utils.debug("curl request body file:", curl_body_file)
   Utils.debug("curl response body file:", resp_body_file)
@@ -599,122 +624,121 @@ function M.curl(opts)
 
   local headers_reported = false
 
-  local started_job, new_active_job = pcall(curl.post, spec.url, {
-    headers = spec.headers,
-    proxy = spec.proxy,
-    insecure = spec.insecure,
-    body = curl_body_file,
-    raw = spec.rawArgs,
-    dump = { "-D", headers_file },
-    stream = function(err, data, _)
-      if not headers_reported and opts.on_response_headers then
-        headers_reported = true
-        opts.on_response_headers(parse_headers(headers_file))
-      end
-      if err then
-        completed = true
-        handler_opts.on_stop({ reason = "error", error = err })
-        return
-      end
-      if not data then return end
-      if Config.debug then
-        if type(data) == "string" then
-          local file = io.open(resp_body_file, "a")
-          if file then
-            file:write(data .. "\n")
-            file:close()
-          end
+  local started_job, new_active_job = pcall(
+    curl.post,
+    spec.url,
+    vim.tbl_extend("force", curl_options, {
+      dump = { "-D", headers_file },
+      stream = function(err, data, _)
+        if not headers_reported and opts.on_response_headers then
+          headers_reported = true
+          opts.on_response_headers(parse_headers(headers_file))
         end
-      end
-      vim.schedule(function()
-        if provider.parse_stream_data ~= nil then
-          provider:parse_stream_data(turn_ctx, data, handler_opts)
-        else
-          parse_stream_data(data)
-        end
-      end)
-    end,
-    on_error = function(err)
-      if err.exit == 23 then
-        local xdg_runtime_dir = os.getenv("XDG_RUNTIME_DIR")
-        if not xdg_runtime_dir or fn.isdirectory(xdg_runtime_dir) == 0 then
-          Utils.error(
-            "$XDG_RUNTIME_DIR="
-              .. xdg_runtime_dir
-              .. " is set but does not exist. curl could not write output. Please make sure it exists, or unset.",
-            { title = "Avante" }
-          )
-        elseif not uv.fs_access(xdg_runtime_dir, "w") then
-          Utils.error(
-            "$XDG_RUNTIME_DIR="
-              .. xdg_runtime_dir
-              .. " exists but is not writable. curl could not write output. Please make sure it is writable, or unset.",
-            { title = "Avante" }
-          )
-        end
-      end
-
-      active_job = nil
-      if not completed then
-        completed = true
-        cleanup()
-        handler_opts.on_stop({ reason = "error", error = err })
-      end
-    end,
-    callback = function(result)
-      active_job = nil
-      cleanup()
-      local headers_map = vim.iter(result.headers):fold({}, function(acc, value)
-        local pieces = vim.split(value, ":")
-        local key = pieces[1]
-        local remain = vim.list_slice(pieces, 2)
-        if not remain then return acc end
-        local val = Utils.trim_spaces(table.concat(remain, ":"))
-        acc[key] = val
-        return acc
-      end)
-      if result.status >= 400 then
-        if provider.on_error then
-          provider.on_error(result)
-        else
-          Utils.error("API request failed with status " .. result.status, { once = true, title = "Avante" })
-        end
-        local retry_after = 10
-        if headers_map["retry-after"] then retry_after = tonumber(headers_map["retry-after"]) or 10 end
-        if result.status == 429 then
-          handler_opts.on_stop({ reason = "rate_limit", retry_after = retry_after })
+        if err then
+          completed = true
+          handler_opts.on_stop({ reason = "error", error = err })
           return
         end
+        if not data then return end
+        if Config.debug then
+          if type(data) == "string" then
+            local file = io.open(resp_body_file, "a")
+            if file then
+              file:write(data .. "\n")
+              file:close()
+            end
+          end
+        end
         vim.schedule(function()
-          if not completed then
-            completed = true
-            handler_opts.on_stop({
-              reason = "error",
-              error = "API request failed with status " .. result.status .. ". Body: " .. vim.inspect(result.body),
-            })
+          if provider.parse_stream_data ~= nil then
+            provider:parse_stream_data(turn_ctx, data, handler_opts)
+          else
+            parse_stream_data(data)
           end
         end)
-      end
-
-      -- If stream is not enabled, then handle the response here
-      if provider:is_disable_stream() and result.status == 200 then
-        vim.schedule(function()
-          completed = true
-          parse_response_without_stream(result.body)
-        end)
-      end
-
-      if result.status == 200 and spec.url:match("https://openrouter.ai") then
-        local content_type = headers_map["content-type"]
-        if content_type and content_type:match("text/html") then
-          handler_opts.on_stop({
-            reason = "error",
-            error = "Your openrouter endpoint setting is incorrect, please set it to https://openrouter.ai/api/v1",
-          })
+      end,
+      on_error = function(err)
+        if err.exit == 23 then
+          local xdg_runtime_dir = os.getenv("XDG_RUNTIME_DIR")
+          if not xdg_runtime_dir or fn.isdirectory(xdg_runtime_dir) == 0 then
+            Utils.error(
+              "$XDG_RUNTIME_DIR="
+                .. xdg_runtime_dir
+                .. " is set but does not exist. curl could not write output. Please make sure it exists, or unset.",
+              { title = "Avante" }
+            )
+          elseif not uv.fs_access(xdg_runtime_dir, "w") then
+            Utils.error(
+              "$XDG_RUNTIME_DIR="
+                .. xdg_runtime_dir
+                .. " exists but is not writable. curl could not write output. Please make sure it is writable, or unset.",
+              { title = "Avante" }
+            )
+          end
         end
-      end
-    end,
-  })
+
+        active_job = nil
+        if not completed then
+          completed = true
+          cleanup()
+          handler_opts.on_stop({ reason = "error", error = err })
+        end
+      end,
+      callback = function(result)
+        active_job = nil
+        cleanup()
+        local headers_map = vim.iter(result.headers):fold({}, function(acc, value)
+          local pieces = vim.split(value, ":")
+          local key = pieces[1]
+          local remain = vim.list_slice(pieces, 2)
+          if not remain then return acc end
+          local val = Utils.trim_spaces(table.concat(remain, ":"))
+          acc[key] = val
+          return acc
+        end)
+        if result.status >= 400 then
+          if provider.on_error then
+            provider.on_error(result)
+          else
+            Utils.error("API request failed with status " .. result.status, { once = true, title = "Avante" })
+          end
+          local retry_after = 10
+          if headers_map["retry-after"] then retry_after = tonumber(headers_map["retry-after"]) or 10 end
+          if result.status == 429 then
+            handler_opts.on_stop({ reason = "rate_limit", retry_after = retry_after })
+            return
+          end
+          vim.schedule(function()
+            if not completed then
+              completed = true
+              handler_opts.on_stop({
+                reason = "error",
+                error = "API request failed with status " .. result.status .. ". Body: " .. vim.inspect(result.body),
+              })
+            end
+          end)
+        end
+
+        -- If stream is not enabled, then handle the response here
+        if provider:is_disable_stream() and result.status == 200 then
+          vim.schedule(function()
+            completed = true
+            parse_response_without_stream(result.body)
+          end)
+        end
+
+        if result.status == 200 and spec.url:match("https://openrouter.ai") then
+          local content_type = headers_map["content-type"]
+          if content_type and content_type:match("text/html") then
+            handler_opts.on_stop({
+              reason = "error",
+              error = "Your openrouter endpoint setting is incorrect, please set it to https://openrouter.ai/api/v1",
+            })
+          end
+        end
+      end,
+    })
+  )
 
   if not started_job then
     local error_msg = vim.inspect(new_active_job)
