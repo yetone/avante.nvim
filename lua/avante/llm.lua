@@ -786,12 +786,12 @@ function M.curl(opts)
 end
 
 local retry_timer = nil
-local function stop_retry_timer(is_abort)
+local abort_retry_timer = false
+local function stop_retry_timer()
   if retry_timer then
     retry_timer:stop()
     pcall(function() retry_timer:close() end)
     retry_timer = nil
-    if is_abort then Utils.info("Retry aborted due to user requested cancellation.") end
   end
 end
 
@@ -827,6 +827,18 @@ function M._stream(opts)
   end
 
   local resp_headers = {}
+
+  local function dispatch_cancel_message()
+    local cancelled_text = "\n*[Request cancelled by user.]*\n"
+    if opts.on_chunk then opts.on_chunk(cancelled_text) end
+    if opts.on_messages_add then
+      local message = History.Message:new("assistant", cancelled_text, {
+        just_for_display = true,
+      })
+      opts.on_messages_add({ message })
+    end
+    return opts.on_stop({ reason = "cancelled" })
+  end
 
   ---@type AvanteHandlerOptions
   local handler_opts = {
@@ -942,17 +954,7 @@ function M._stream(opts)
         })
         if result ~= nil or error ~= nil then return handle_tool_result(result, error) end
       end
-      if stop_opts.reason == "cancelled" then
-        local cancelled_text = "\n*[Request cancelled by user.]*\n"
-        if opts.on_chunk then opts.on_chunk(cancelled_text) end
-        if opts.on_messages_add then
-          local message = History.Message:new("assistant", cancelled_text, {
-            just_for_display = true,
-          })
-          opts.on_messages_add({ message })
-        end
-        return opts.on_stop({ reason = "cancelled" })
-      end
+      if stop_opts.reason == "cancelled" then dispatch_cancel_message() end
       local history_messages = opts.get_history_messages and opts.get_history_messages({ all = true }) or {}
       local pending_tools, pending_tool_use_messages = History.get_pending_tools(history_messages)
       if stop_opts.reason == "complete" and Config.mode == "agentic" then
@@ -1034,6 +1036,13 @@ function M._stream(opts)
         Utils.info("Rate limit reached. Retrying in " .. retry_count .. " seconds", { title = "Avante" })
 
         local function countdown()
+          if abort_retry_timer then
+            Utils.info("Retry aborted due to user requested cancellation.")
+            stop_retry_timer()
+            dispatch_cancel_message()
+            return
+          end
+
           local msg_content = "*[Rate limit reached. Retrying in " .. retry_count .. " seconds ...]*"
           if opts.on_chunk then
             -- Use ANSI escape codes to clear line and move cursor up only for subsequent updates
@@ -1047,7 +1056,7 @@ function M._stream(opts)
           end
 
           if retry_count <= 0 then
-            stop_retry_timer(false)
+            stop_retry_timer()
 
             Utils.info("Restarting stream after rate limit pause")
             M._stream(opts)
@@ -1056,7 +1065,7 @@ function M._stream(opts)
           end
         end
 
-        stop_retry_timer(false)
+        stop_retry_timer()
         retry_timer = uv.new_timer()
         if retry_timer then retry_timer:start(0, 1000, vim.schedule_wrap(function() countdown() end)) end
         return
@@ -1202,6 +1211,7 @@ function M.stream(opts)
 
   opts.mode = opts.mode or Config.mode
 
+  abort_retry_timer = false
   if Config.dual_boost.enabled and valid_dual_boost_modes[opts.mode] then
     M._dual_boost_stream(
       opts,
@@ -1219,7 +1229,7 @@ function M.cancel_inflight_request()
     LLMToolHelpers.confirm_popup:cancel()
     LLMToolHelpers.confirm_popup = nil
   end
-  stop_retry_timer(true)
+  abort_retry_timer = true
 
   api.nvim_exec_autocmds("User", { pattern = M.CANCEL_PATTERN })
 end
