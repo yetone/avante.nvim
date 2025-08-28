@@ -704,6 +704,8 @@ M._defaults = {
   slash_commands = {},
   ---@type AvanteShortcut[]
   shortcuts = {},
+  ---@type AskOptions
+  ask_opts = {},
 }
 
 ---@type avante.Config
