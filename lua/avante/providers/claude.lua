@@ -139,9 +139,12 @@ function M.transform_anthropic_usage(usage)
   if not usage then return nil end
   ---@type avante.LLMTokenUsage
   local res = {
-    prompt_tokens = usage.input_tokens + usage.cache_creation_input_tokens,
-    completion_tokens = usage.output_tokens + usage.cache_read_input_tokens,
+    prompt_tokens = usage.cache_creation_input_tokens and (usage.input_tokens + usage.cache_creation_input_tokens)
+      or usage.input_tokens,
+    completion_tokens = usage.cache_read_input_tokens and (usage.output_tokens + usage.cache_read_input_tokens)
+      or usage.output_tokens,
   }
+
   return res
 end
 
