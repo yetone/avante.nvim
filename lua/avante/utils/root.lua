@@ -17,7 +17,63 @@ local M = setmetatable({}, {
 ---@alias AvanteRootSpec string|string[]|AvanteRootFn
 
 ---@type AvanteRootSpec[]
-M.spec = { "lsp", { ".git", "lua" }, "cwd" }
+M.spec = {
+  "lsp",
+  {
+    -- Version Control
+    ".git", -- Git repository folder
+    ".svn", -- Subversion repository folder
+    ".hg", -- Mercurial repository folder
+    ".bzr", -- Bazaar repository folder
+
+    -- Package Management
+    "package.json", -- Node.js/JavaScript projects
+    "composer.json", -- PHP projects
+    "Gemfile", -- Ruby projects
+    "requirements.txt", -- Python projects
+    "setup.py", -- Python projects
+    "pom.xml", -- Maven (Java) projects
+    "build.gradle", -- Gradle (Java) projects
+    "Cargo.toml", -- Rust projects
+    "go.mod", -- Go projects
+    "*.csproj", -- .NET projects
+    "*.sln", -- .NET solution files
+
+    -- Build Configuration
+    "Makefile", -- Make build system
+    "CMakeLists.txt", -- CMake build system
+    "build.xml", -- Ant build system
+    "Rakefile", -- Ruby build tasks
+    "gulpfile.js", -- Gulp build system
+    "Gruntfile.js", -- Grunt build system
+    "webpack.config.js", -- Webpack configuration
+
+    -- Project Configuration
+    ".editorconfig", -- Editor configuration
+    ".eslintrc", -- ESLint configuration
+    ".prettierrc", -- Prettier configuration
+    "tsconfig.json", -- TypeScript configuration
+    "tox.ini", -- Python testing configuration
+    "pyproject.toml", -- Python project configuration
+    ".gitlab-ci.yml", -- GitLab CI configuration
+    ".github", -- GitHub configuration folder
+    ".travis.yml", -- Travis CI configuration
+    "Jenkinsfile", -- Jenkins pipeline configuration
+    "docker-compose.yml", -- Docker Compose configuration
+    "Dockerfile", -- Docker configuration
+
+    -- Framework-specific
+    "angular.json", -- Angular projects
+    "ionic.config.json", -- Ionic projects
+    "config.xml", -- Cordova projects
+    "pubspec.yaml", -- Flutter/Dart projects
+    "mix.exs", -- Elixir projects
+    "project.clj", -- Clojure projects
+    "build.sbt", -- Scala projects
+    "stack.yaml", -- Haskell projects
+  },
+  "cwd",
+}
 
 M.detectors = {}
 
