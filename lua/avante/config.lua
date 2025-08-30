@@ -237,6 +237,28 @@ M._defaults = {
       },
     },
   },
+  acp_providers = {
+    ["gemini-cli"] = {
+      command = "gemini",
+      args = { "--experimental-acp" },
+      env = {
+        NODE_NO_WARNINGS = "1",
+        GEMINI_API_KEY = os.getenv("GEMINI_API_KEY"),
+      },
+      auth_method = "gemini-api-key",
+    },
+    ["claude-code"] = {
+      command = "npx",
+      args = { "acp-claude-code" },
+      env = {
+        NODE_NO_WARNINGS = "1",
+        ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY"),
+        ANTHROPIC_BASE_URL = os.getenv("ANTHROPIC_BASE_URL"),
+        ACP_PATH_TO_CLAUDE_CODE_EXECUTABLE = vim.fn.exepath("claude"),
+        ACP_PERMISSION_MODE = "bypassPermissions",
+      },
+    },
+  },
   ---To add support for custom provider, follow the format below
   ---See https://github.com/yetone/avante.nvim/wiki#custom-providers for more details
   ---@type {[string]: AvanteProvider}
@@ -466,7 +488,7 @@ M._defaults = {
     use_cwd_as_project_root = false,
     auto_focus_on_diff_view = false,
     ---@type boolean | string[] -- true: auto-approve all tools, false: normal prompts, string[]: auto-approve specific tools by name
-    auto_approve_tool_permissions = false, -- Default: show permission prompts for all tools
+    auto_approve_tool_permissions = true, -- Default: show permission prompts for all tools
     auto_check_diagnostics = true,
     enable_fastapply = false,
   },
@@ -774,6 +796,7 @@ end
 local function apply_model_selection(config, model_name, provider_name)
   local provider_list = config.providers or {}
   local current_provider_name = config.provider
+  if config.acp_providers[current_provider_name] then return end
 
   local target_provider_name = provider_name or current_provider_name
   local target_provider = provider_list[target_provider_name]
