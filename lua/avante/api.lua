@@ -112,10 +112,12 @@ end
 ---@field without_selection? boolean whether to open a new chat without selection
 ---@field sidebar_pre_render? fun(sidebar: avante.Sidebar)
 ---@field sidebar_post_render? fun(sidebar: avante.Sidebar)
+---@field project_root? string optional project root
 
 ---@param opts? AskOptions
 function M.ask(opts)
   opts = opts or {}
+  Config.ask_opts = opts
   if type(opts) == "string" then
     Utils.warn("passing 'ask' as string is deprecated, do {question = '...'} instead", { once = true })
     opts = { question = opts }

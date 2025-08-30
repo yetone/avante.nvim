@@ -71,7 +71,6 @@ Sidebar.__index = Sidebar
 ---@field state_extmark_id integer | nil
 ---@field scroll boolean
 ---@field input_hint_window integer | nil
----@field ask_opts AskOptions
 ---@field old_result_lines avante.ui.Line[]
 ---@field token_count integer | nil
 
@@ -99,7 +98,6 @@ function Sidebar:new(id)
     state_extmark_id = nil,
     scroll = true,
     input_hint_window = nil,
-    ask_opts = {},
     old_result_lines = {},
     token_count = nil,
     -- Cache-related fields
@@ -2358,7 +2356,7 @@ function Sidebar:get_generate_prompts_options(request, cb)
 
   local selected_filepaths = self.file_selector.selected_filepaths or {}
 
-  local ask = self.ask_opts.ask
+  local ask = Config.ask_opts.ask
   if ask == nil then ask = true end
 
   ---@type AvanteGeneratePromptsOptions
@@ -2891,7 +2889,6 @@ end
 
 ---@param opts AskOptions
 function Sidebar:render(opts)
-  self.ask_opts = opts
   if opts.sidebar_pre_render then opts.sidebar_pre_render(self) end
 
   local function get_position()
