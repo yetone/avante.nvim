@@ -1169,18 +1169,18 @@ To use ACP-compatible agents with Avante.nvim, you need to configure an ACP prov
 
 #### Gemini CLI with ACP
 ```lua
-require('avante').setup({
+{
   provider = "gemini-cli",
   -- other configuration options...
-})
+}
 ```
 
 #### Claude Code with ACP
 ```lua
-require('avante').setup({
+{
   provider = "claude-code",
   -- other configuration options...
-})
+}
 ```
 
 ### ACP Configuration
@@ -1188,7 +1188,7 @@ require('avante').setup({
 ACP providers are configured in the `acp_providers` section of your configuration:
 
 ```lua
-require('avante').setup({
+{
   acp_providers = {
     ["gemini-cli"] = {
       command = "gemini",
@@ -1207,7 +1207,8 @@ require('avante').setup({
       },
     },
   },
-})
+  -- other configuration options...
+}
 ```
 
 ### Prerequisites
