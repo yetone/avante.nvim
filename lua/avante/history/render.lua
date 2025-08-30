@@ -1,17 +1,26 @@
 local Helpers = require("avante.history.helpers")
 local Line = require("avante.ui.line")
 local Utils = require("avante.utils")
+local Highlights = require("avante.highlights")
 
 local M = {}
 
+---@diagnostic disable-next-line: deprecated
+local islist = vim.islist or vim.tbl_islist
+
 ---Converts text into format suitable for UI
 ---@param text string
+---@param decoration string | nil
 ---@return avante.ui.Line[]
-local function text_to_lines(text)
+local function text_to_lines(text, decoration)
   local text_lines = vim.split(text, "\n")
   local lines = {}
   for _, text_line in ipairs(text_lines) do
-    table.insert(lines, Line:new({ { text_line } }))
+    if decoration then
+      table.insert(lines, Line:new({ { decoration }, { text_line } }))
+    else
+      table.insert(lines, Line:new({ { text_line } }))
+    end
   end
   return lines
 end
@@ -22,6 +31,10 @@ end
 local function thinking_to_lines(item)
   local text = item.thinking or item.data or ""
   local text_lines = vim.split(text, "\n")
+  --- trime suffix empty lines
+  while #text_lines > 0 and text_lines[#text_lines] == "" do
+    table.remove(text_lines, #text_lines)
+  end
   local ui_lines = {}
   table.insert(ui_lines, Line:new({ { Utils.icon("🤔 ") .. "Thought content:" } }))
   table.insert(ui_lines, Line:new({ { "" } }))
@@ -35,7 +48,7 @@ end
 ---@param tool_name string
 ---@param logs string[]
 ---@return avante.ui.Line[]
-local function tool_logs_to_lines(tool_name, logs)
+function M.tool_logs_to_lines(tool_name, logs)
   local ui_lines = {}
   local num_logs = #logs
 
@@ -44,7 +57,7 @@ local function tool_logs_to_lines(tool_name, logs)
     local num_lines = #log_lines
 
     for line_idx = 1, num_lines do
-      local decoration = (log_idx == num_logs and line_idx == num_lines) and "╰─ " or "│  "
+      local decoration = "│  "
       table.insert(ui_lines, Line:new({ { decoration }, { " " .. log_lines[line_idx] } }))
     end
   end
@@ -57,13 +70,200 @@ local STATE_TO_HL = {
   succeeded = "AvanteStateSpinnerSucceeded",
 }
 
+function M.get_diff_lines(old_str, new_str, decoration, truncate)
+  local lines = {}
+  local line_count = 0
+  local old_lines = vim.split(old_str, "\n")
+  local new_lines = vim.split(new_str, "\n")
+  ---@diagnostic disable-next-line: assign-type-mismatch, missing-fields
+  local patch = vim.diff(old_str, new_str, { ---@type integer[][]
+    algorithm = "histogram",
+    result_type = "indices",
+    ctxlen = vim.o.scrolloff,
+  })
+  local prev_start_a = 0
+  for idx, hunk in ipairs(patch) do
+    if truncate and line_count > 10 then
+      table.insert(
+        lines,
+        Line:new({
+          { decoration },
+          { string.format("... (Result truncated, remaining %d hunks not shown)", #patch - idx + 1) },
+        })
+      )
+      break
+    end
+    local start_a, count_a, start_b, count_b = unpack(hunk)
+    local no_change_lines = vim.list_slice(old_lines, prev_start_a, start_a - 1)
+    local last_tree_no_change_lines = vim.list_slice(no_change_lines, #no_change_lines - 3)
+    if #no_change_lines > 3 then table.insert(lines, Line:new({ { decoration }, { "..." } })) end
+    for _, line in ipairs(last_tree_no_change_lines) do
+      line_count = line_count + 1
+      table.insert(lines, Line:new({ { decoration }, { line } }))
+    end
+    prev_start_a = start_a + count_a
+    if count_a > 0 then
+      local delete_lines = vim.list_slice(old_lines, start_a, start_a + count_a - 1)
+      for _, line in ipairs(delete_lines) do
+        line_count = line_count + 1
+        table.insert(lines, Line:new({ { decoration }, { line, Highlights.TO_BE_DELETED_WITHOUT_STRIKETHROUGH } }))
+      end
+    end
+    if count_b > 0 then
+      local create_lines = vim.list_slice(new_lines, start_b, start_b + count_b - 1)
+      for _, line in ipairs(create_lines) do
+        line_count = line_count + 1
+        table.insert(lines, Line:new({ { decoration }, { line, Highlights.INCOMING } }))
+      end
+    end
+  end
+  if prev_start_a < #old_lines then
+    -- Append remaining old_lines
+    local no_change_lines = vim.list_slice(old_lines, prev_start_a, #old_lines)
+    local first_tree_no_change_lines = vim.list_slice(no_change_lines, 1, 3)
+    for _, line in ipairs(first_tree_no_change_lines) do
+      line_count = line_count + 1
+      table.insert(lines, Line:new({ { decoration }, { line } }))
+    end
+    if #no_change_lines > 3 then table.insert(lines, Line:new({ { decoration }, { "..." } })) end
+  end
+  return lines
+end
+
+---@param content any
+---@param decoration string | nil
+---@param truncate boolean | nil
+function M.get_content_lines(content, decoration, truncate)
+  local lines = {}
+  local content_obj = content
+  if type(content) == "string" then
+    local ok, content_obj_ = pcall(vim.json.decode, content)
+    if ok then content_obj = content_obj_ end
+  end
+  if type(content_obj) == "table" then
+    if islist(content_obj) then
+      local line_count = 0
+      local all_lines = {}
+      for _, content_item in ipairs(content_obj) do
+        if type(content_item) == "string" then
+          local lines_ = text_to_lines(content_item, decoration)
+          all_lines = vim.list_extend(all_lines, lines_)
+        end
+      end
+      for idx, line in ipairs(all_lines) do
+        if truncate and line_count > 3 then
+          table.insert(
+            lines,
+            Line:new({
+              { decoration },
+              { string.format("... (Result truncated, remaining %d lines not shown)", #all_lines - idx + 1) },
+            })
+          )
+          break
+        end
+        line_count = line_count + 1
+        table.insert(lines, line)
+      end
+    end
+    if type(content_obj.content) == "string" then
+      local line_count = 0
+      local lines_ = text_to_lines(content_obj.content, decoration)
+      for idx, line in ipairs(lines_) do
+        if truncate and line_count > 3 then
+          table.insert(
+            lines,
+            Line:new({
+              { decoration },
+              { string.format("... (Result truncated, remaining %d lines not shown)", #lines_ - idx + 1) },
+            })
+          )
+          break
+        end
+        line_count = line_count + 1
+        table.insert(lines, line)
+      end
+    end
+  end
+  if type(content_obj) == "string" then
+    local lines_ = text_to_lines(content_obj, decoration)
+    local line_count = 0
+    for idx, line in ipairs(lines_) do
+      if truncate and line_count > 3 then
+        table.insert(
+          lines,
+          Line:new({
+            { decoration },
+            { string.format("... (Result truncated, remaining %d lines not shown)", #lines_ - idx + 1) },
+          })
+        )
+        break
+      end
+      line_count = line_count + 1
+      table.insert(lines, line)
+    end
+  end
+  if islist(content) then
+    for _, content_item in ipairs(content) do
+      local line_count = 0
+      if content_item.type == "content" then
+        if content_item.content.type == "text" then
+          local lines_ = text_to_lines(content_item.content.text, decoration)
+          for idx, line in ipairs(lines_) do
+            if truncate and line_count > 3 then
+              table.insert(
+                lines,
+                Line:new({
+                  { decoration },
+                  { string.format("... (Result truncated, remaining %d lines not shown)", #lines_ - idx + 1) },
+                })
+              )
+              break
+            end
+            line_count = line_count + 1
+            table.insert(lines, line)
+          end
+        end
+      elseif content_item.type == "diff" then
+        table.insert(lines, Line:new({ { decoration }, { "Path: " .. content_item.path } }))
+        local lines_ = M.get_diff_lines(content_item.oldText, content_item.newText, decoration, truncate)
+        lines = vim.list_extend(lines, lines_)
+      end
+    end
+  end
+  return lines
+end
+
 ---Converts a tool invocation into format suitable for UI
 ---@param item AvanteLLMMessageContentItem
+---@param message avante.HistoryMessage
 ---@param messages avante.HistoryMessage[]
----@param logs string[]|nil
 ---@return avante.ui.Line[]
-local function tool_to_lines(item, messages, logs)
+local function tool_to_lines(item, message, messages)
+  -- local logs = message.tool_use_logs
   local lines = {}
+
+  local tool_name = item.name
+
+  local rest_input_text_lines = {}
+
+  if message.displayed_tool_name then
+    tool_name = message.displayed_tool_name
+  else
+    if item.input and type(item.input) == "table" then
+      local param
+      if type(item.input.path) == "string" then param = item.input.path end
+      if type(item.input.rel_path) == "string" then param = item.input.rel_path end
+      if type(item.input.filepath) == "string" then param = item.input.filepath end
+      if type(item.input.query) == "string" then param = item.input.query end
+      if type(item.input.pattern) == "string" then param = item.input.pattern end
+      if type(item.input.command) == "string" then
+        param = item.input.command
+        local pieces = vim.split(param, "\n")
+        if #pieces > 1 then param = pieces[1] .. "..." end
+      end
+      if param then tool_name = item.name .. "(" .. param .. ")" end
+    end
+  end
 
   local result = Helpers.get_tool_result(item.id, messages)
   local state
@@ -78,11 +278,47 @@ local function tool_to_lines(item, messages, logs)
     lines,
     Line:new({
       { "╭─ " },
-      { " " .. item.name .. " ", STATE_TO_HL[state] },
+      { " " .. tool_name .. " ", STATE_TO_HL[state] },
       { " " .. state },
     })
   )
-  if logs then vim.list_extend(lines, tool_logs_to_lines(item.name, logs)) end
+  -- if logs then vim.list_extend(lines, tool_logs_to_lines(item.name, logs)) end
+  local decoration = "│   "
+  if rest_input_text_lines and #rest_input_text_lines > 0 then
+    local lines_ = text_to_lines(table.concat(rest_input_text_lines, "\n"), decoration)
+    local line_count = 0
+    for idx, line in ipairs(lines_) do
+      if line_count > 3 then
+        table.insert(
+          lines,
+          Line:new({
+            { decoration },
+            { string.format("... (Input truncated, remaining %d lines not shown)", #lines_ - idx + 1) },
+          })
+        )
+        break
+      end
+      line_count = line_count + 1
+      table.insert(lines, line)
+    end
+    table.insert(lines, Line:new({ { decoration }, { "" } }))
+  end
+  if item.input and type(item.input) == "table" then
+    if type(item.input.old_str) == "string" and type(item.input.new_str) == "string" then
+      local diff_lines = M.get_diff_lines(item.input.old_str, item.input.new_str, decoration, true)
+      vim.list_extend(lines, diff_lines)
+    end
+  end
+  if result and result.content then
+    local result_content = result.content
+    if result_content then
+      local content_lines = M.get_content_lines(result_content, decoration, true)
+      vim.list_extend(lines, content_lines)
+    end
+  end
+  if #lines <= 1 then table.insert(lines, Line:new({ { decoration }, { "completed" } })) end
+  local last_line = lines[#lines]
+  last_line.sections[1][1] = "╰─  "
   return lines
 end
 
@@ -96,7 +332,7 @@ local function message_content_item_to_lines(item, message, messages)
     return text_to_lines(item)
   elseif type(item) == "table" then
     if item.type == "thinking" or item.type == "redacted_thinking" then
-      return thinking_to_lines(item.thinking or item.data or "")
+      return thinking_to_lines(item)
     elseif item.type == "text" then
       return text_to_lines(item.text)
     elseif item.type == "image" then
@@ -116,7 +352,9 @@ local function message_content_item_to_lines(item, message, messages)
         end
       end
 
-      return tool_to_lines(item, messages, message.tool_use_logs)
+      local lines = tool_to_lines(item, message, messages)
+      if message.tool_use_log_lines then lines = vim.list_extend(lines, message.tool_use_log_lines) end
+      return lines
     end
   end
   return {}

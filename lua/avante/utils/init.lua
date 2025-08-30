@@ -1700,4 +1700,12 @@ function M.fix_diff(diff)
   return table.concat(the_final_diff_lines, "\n")
 end
 
+function M.get_unified_diff(text1, text2, opts)
+  opts = opts or {}
+  opts.result_type = "unified"
+  opts.ctxlen = opts.ctxlen or 3
+
+  return vim.diff(text1, text2, opts)
+end
+
 return M

@@ -1150,6 +1150,82 @@ providers = {
 }
 ```
 
+## ACP Support
+
+Avante.nvim now supports the [Agent Client Protocol (ACP)](https://agentclientprotocol.com/overview/introduction), enabling seamless integration with AI agents that follow this standardized communication protocol. ACP provides a unified way for AI agents to interact with development environments, offering enhanced capabilities for code editing, file operations, and tool execution.
+
+### What is ACP?
+
+The Agent Client Protocol (ACP) is a standardized protocol that enables AI agents to communicate with development tools and environments. It provides:
+
+- **Standardized Communication**: A unified JSON-RPC based protocol for agent-client interactions
+- **Tool Integration**: Support for various development tools like file operations, code execution, and search
+- **Session Management**: Persistent sessions that maintain context across interactions
+- **Permission System**: Granular control over what agents can access and modify
+
+### Enabling ACP
+
+To use ACP-compatible agents with Avante.nvim, you need to configure an ACP provider. Here are the currently supported ACP agents:
+
+#### Gemini CLI with ACP
+```lua
+require('avante').setup({
+  provider = "gemini-cli",
+  -- other configuration options...
+})
+```
+
+#### Claude Code with ACP
+```lua
+require('avante').setup({
+  provider = "claude-code",
+  -- other configuration options...
+})
+```
+
+### ACP Configuration
+
+ACP providers are configured in the `acp_providers` section of your configuration:
+
+```lua
+require('avante').setup({
+  acp_providers = {
+    ["gemini-cli"] = {
+      command = "gemini",
+      args = { "--experimental-acp" },
+      env = {
+        NODE_NO_WARNINGS = "1",
+        GEMINI_API_KEY = os.getenv("GEMINI_API_KEY"),
+      },
+    },
+    ["claude-code"] = {
+      command = "npx",
+      args = { "acp-claude-code" },
+      env = {
+        NODE_NO_WARNINGS = "1",
+        ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY"),
+      },
+    },
+  },
+})
+```
+
+### Prerequisites
+
+Before using ACP agents, ensure you have the required tools installed:
+
+- **For Gemini CLI**: Install the `gemini` CLI tool and set your `GEMINI_API_KEY`
+- **For Claude Code**: Install the `acp-claude-code` package via npm and set your `ANTHROPIC_API_KEY`
+
+### ACP vs Traditional Providers
+
+ACP providers offer several advantages over traditional API-based providers:
+
+- **Enhanced Tool Access**: Agents can directly interact with your file system, run commands, and access development tools
+- **Persistent Context**: Sessions maintain state across multiple interactions
+- **Fine-grained Permissions**: Control exactly what agents can access and modify
+- **Standardized Protocol**: Compatible with any ACP-compliant agent
+
 ## Custom providers
 
 Avante provides a set of default providers, but users can also create their own providers.

@@ -73,6 +73,8 @@ Sidebar.__index = Sidebar
 ---@field input_hint_window integer | nil
 ---@field old_result_lines avante.ui.Line[]
 ---@field token_count integer | nil
+---@field acp_client ACPClient | nil
+---@field acp_session_id string | nil
 
 ---@param id integer the tabpage id retrieved from api.nvim_get_current_tabpage()
 function Sidebar:new(id)
@@ -199,7 +201,6 @@ function Sidebar:set_code_winhl()
   if not Utils.is_valid_container(self.containers.result, true) then return end
 
   if Utils.should_hidden_border(self.code.winid, self.containers.result.winid) then
-    Utils.debug("setting winhl")
     local old_winhl = vim.wo[self.code.winid].winhl
     if self.code.old_winhl == nil then
       self.code.old_winhl = old_winhl
@@ -1638,9 +1639,15 @@ end
 ---@param selected_code AvanteSelectedCode?
 ---@return string
 local function render_chat_record_prefix(timestamp, provider, model, request, selected_filepaths, selected_code)
-  provider = provider or "unknown"
-  model = model or "unknown"
-  local res = "- Datetime: " .. timestamp .. "\n" .. "- Model:    " .. provider .. "/" .. model
+  local res
+  local acp_provider = Config.acp_providers[provider]
+  if acp_provider then
+    res = "- Datetime: " .. timestamp .. "\n" .. "- ACP:      " .. provider
+  else
+    provider = provider or "unknown"
+    model = model or "unknown"
+    res = "- Datetime: " .. timestamp .. "\n" .. "- Model:    " .. provider .. "/" .. model
+  end
   if selected_filepaths ~= nil and #selected_filepaths > 0 then
     res = res .. "\n- Selected files:"
     for _, path in ipairs(selected_filepaths) do
@@ -1740,10 +1747,26 @@ local _message_to_lines_lru_cache = LRUCache:new(100)
 ---@return avante.ui.Line[]
 local function get_message_lines(message, messages, ctx)
   if message.state == "generating" or message.is_calling then return _get_message_lines(message, messages, ctx) end
-  local cached_lines = _message_to_lines_lru_cache:get(message.uuid)
+  local text_len = 0
+  local content = message.message.content
+  if type(content) == "table" then
+    for _, item in ipairs(content) do
+      if type(item) == "string" then
+        text_len = text_len + #item
+      else
+        for _, subitem in ipairs(item) do
+          if type(subitem) == "string" then text_len = text_len + #subitem end
+        end
+      end
+    end
+  elseif type(content) == "string" then
+    text_len = #content
+  end
+  local cache_key = message.uuid .. ":" .. tostring(text_len)
+  local cached_lines = _message_to_lines_lru_cache:get(cache_key)
   if cached_lines then return cached_lines end
   local lines = _get_message_lines(message, messages, ctx)
-  _message_to_lines_lru_cache:set(message.uuid, lines)
+  _message_to_lines_lru_cache:set(cache_key, lines)
   return lines
 end
 
@@ -1934,6 +1957,7 @@ function Sidebar:render_state()
   if self.current_state == "thinking" then hl = "AvanteStateSpinnerThinking" end
   if self.current_state == "compacting" then hl = "AvanteStateSpinnerCompacting" end
   local spinner_char = spinner_chars[self.state_spinner_idx]
+  if not spinner_char then spinner_char = spinner_chars[1] end
   self.state_spinner_idx = (self.state_spinner_idx % #spinner_chars) + 1
   if
     self.current_state ~= "generating"
@@ -2004,6 +2028,7 @@ function Sidebar:new_chat(args, cb)
   Path.history.save(self.code.bufnr, history)
   self:reload_chat_history()
   self.current_state = nil
+  self.acp_session_id = nil
   self:update_content("New chat", { focus = false, scroll = false, callback = function() self:focus_input() end })
   if cb then cb(args) end
   vim.schedule(function() self:create_todos_container() end)
@@ -2035,13 +2060,16 @@ function Sidebar:update_todos(todos)
 end
 
 ---@param messages avante.HistoryMessage | avante.HistoryMessage[]
-function Sidebar:add_history_messages(messages)
+---@param opts? {eager_update?: boolean}
+function Sidebar:add_history_messages(messages, opts)
   local history_messages = History.get_history_messages(self.chat_history)
   messages = vim.islist(messages) and messages or { messages }
   for _, message in ipairs(messages) do
     if message.is_user_submission then
       message.provider = Config.provider
-      message.model = Config.get_provider_config(Config.provider).model
+      if not Config.acp_providers[Config.provider] then
+        message.model = Config.get_provider_config(Config.provider).model
+      end
     end
     local idx = nil
     for idx_, message_ in ipairs(history_messages) do
@@ -2081,6 +2109,10 @@ function Sidebar:add_history_messages(messages)
     else
       self.current_state = "generating"
     end
+  end
+  if opts and opts.eager_update then
+    pcall(function() self:update_content("") end)
+    return
   end
   xpcall(function() self:throttled_update_content("") end, function(err)
     Utils.debug("Failed to update content:", err)
@@ -2275,13 +2307,15 @@ function Sidebar:get_history_messages_for_api(opts)
         :totable()
     end
 
-    local tool_limit
-    if Providers[Config.provider].use_ReAct_prompt then
-      tool_limit = nil
-    else
-      tool_limit = 25
+    if not Config.acp_providers[Config.provider] then
+      local tool_limit
+      if Providers[Config.provider].use_ReAct_prompt then
+        tool_limit = nil
+      else
+        tool_limit = 25
+      end
+      messages = History.update_tool_invocation_history(messages, tool_limit, Config.behaviour.auto_check_diagnostics)
     end
-    messages = History.update_tool_invocation_history(messages, tool_limit, Config.behaviour.auto_check_diagnostics)
   end
 
   return messages
@@ -2590,12 +2624,17 @@ function Sidebar:create_input_container()
         on_tool_log = on_tool_log,
         on_messages_add = on_messages_add,
         on_state_change = on_state_change,
+        acp_client = self.acp_client,
+        on_save_acp_client = function(client) self.acp_client = client end,
+        acp_session_id = self.acp_session_id,
+        on_save_acp_session_id = function(session_id) self.acp_session_id = session_id end,
         set_tool_use_store = set_tool_use_store,
         get_history_messages = function(opts) return self:get_history_messages_for_api(opts) end,
         get_todos = function()
           local history = Path.history.load(self.code.bufnr)
           return history and history.todos or {}
         end,
+        update_todos = function(todos) self:update_todos(todos) end,
         session_ctx = {},
         ---@param usage avante.LLMTokenUsage
         update_tokens_usage = function(usage)

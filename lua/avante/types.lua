@@ -98,6 +98,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field timestamp string
 ---@field state avante.HistoryMessageState
 ---@field uuid string | nil
+---@field displayed_tool_name string | nil
 ---@field displayed_content string | nil
 ---@field visible boolean | nil
 ---@field is_context boolean | nil
@@ -107,6 +108,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field selected_code AvanteSelectedCode | nil
 ---@field selected_filepaths string[] | nil
 ---@field tool_use_logs string[] | nil
+---@field tool_use_log_lines avante.ui.Line[] | nil
 ---@field tool_use_store table | nil
 ---@field just_for_display boolean | nil
 ---@field is_dummy boolean | nil
@@ -327,7 +329,7 @@ vim.g.avante_login = vim.g.avante_login
 ---
 ---@class AvanteProviderFunctor
 ---@field _model_list_cache table
----@field extra_headers function(table) -> table | table | nil
+---@field extra_headers fun(table): table | table | nil
 ---@field support_prompt_caching boolean | nil
 ---@field role_map table<"user" | "assistant", string>
 ---@field parse_messages AvanteMessagesParser
@@ -359,6 +361,12 @@ vim.g.avante_login = vim.g.avante_login
 ---@field parse_response AvanteResponseParser
 ---@field build_bedrock_payload AvanteBedrockPayloadBuilder
 ---
+---@class AvanteACPProvider
+---@field command string
+---@field args string[]
+---@field env table<string, string>
+---@field auth_method string
+---
 ---@alias AvanteLlmMode avante.Mode | "editing" | "suggesting"
 ---
 ---@class AvanteSelectedCode
@@ -382,6 +390,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field diagnostics string | nil
 ---@field history_messages avante.HistoryMessage[] | nil
 ---@field get_todos? fun(): avante.TODO[]
+---@field update_todos? fun(todos: avante.TODO[]): nil
 ---@field memory string | nil
 ---@field get_tokens_usage? fun(): avante.LLMTokenUsage | nil
 ---
@@ -405,6 +414,10 @@ vim.g.avante_login = vim.g.avante_login
 ---@alias avante.GenerateState "generating" | "tool calling" | "failed" | "succeeded" | "cancelled" | "searching" | "thinking" | "compacting" | "compacted" | "initializing" | "initialized"
 ---
 ---@class AvanteLLMStreamOptions: AvanteGeneratePromptsOptions
+---@field acp_client? ACPClient
+---@field on_save_acp_client? fun(client: ACPClient): nil
+---@field acp_session_id? string
+---@field on_save_acp_session_id? fun(session_id: string): nil
 ---@field on_start AvanteLLMStartCallback
 ---@field on_chunk? AvanteLLMChunkCallback
 ---@field on_stop AvanteLLMStopCallback

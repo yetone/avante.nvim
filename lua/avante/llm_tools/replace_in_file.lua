@@ -18,9 +18,7 @@ M.description =
 
 M.support_streaming = true
 
-function M.enabled()
-  return require("avante.config").mode == "agentic" and not require("avante.config").behaviour.enable_fastapply
-end
+function M.enabled() return false end
 
 ---@type AvanteLLMToolParam
 M.param = {
@@ -184,17 +182,7 @@ function M.func(input, opts)
     -- Utils.debug("diff", diff)
     local err = [[No diff blocks found.
 
-Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE blocks are in the correct order.
-
-For example:
-  ```
-  ------- SEARCH
-  [exact content to find]
-  =======
-  [new content to replace with]
-  +++++++ REPLACE
-  ```
-]]
+Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE blocks are in the correct order.]]
     return false, err
   end
 

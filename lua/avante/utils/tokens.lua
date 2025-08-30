@@ -26,7 +26,7 @@ function Tokens.calculate_tokens(content)
       elseif type(item) == "table" and item.type == "image" then
         text = text .. item.source.data
       elseif type(item) == "table" and item.type == "tool_result" then
-        text = text .. item.content
+        if type(item.content) == "string" then text = text .. item.content end
       end
     end
   end

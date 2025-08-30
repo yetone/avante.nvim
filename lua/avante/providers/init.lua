@@ -203,6 +203,8 @@ M = setmetatable(M, {
 function M.setup()
   vim.g.avante_login = false
 
+  if Config.acp_providers[Config.provider] then return end
+
   ---@type AvanteProviderFunctor | AvanteBedrockProviderFunctor
   local provider = M[Config.provider]
 

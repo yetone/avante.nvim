@@ -8,7 +8,9 @@ M.name = "str_replace"
 M.description =
   "The str_replace tool allows you to replace a specific string in a file with a new string. This is used for making precise edits."
 
-function M.enabled() return false end
+function M.enabled()
+  return require("avante.config").mode == "agentic" and not require("avante.config").behaviour.enable_fastapply
+end
 
 ---@type AvanteLLMToolParam
 M.param = {
