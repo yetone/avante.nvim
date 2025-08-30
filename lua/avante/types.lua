@@ -115,6 +115,37 @@ vim.g.avante_login = vim.g.avante_login
 ---@field turn_id string | nil
 ---@field is_calling boolean | nil
 ---@field original_content AvanteLLMMessageContent | nil
+
+---@class avante.ModelMessage
+---@field message AvanteLLMMessage Core LLM message (role, content)
+---@field timestamp string ISO8601 timestamp
+---@field uuid string Unique identifier
+---@field provider string | nil LLM provider name
+---@field model string | nil Model identifier
+---@field tool_use_logs string[] | nil Tool execution logs
+---@field tool_use_store table | nil Tool state storage
+---@field turn_id string | nil Conversation turn identifier
+---@field original_content AvanteLLMMessageContent | nil Original unprocessed content
+---@field selected_code AvanteSelectedCode | nil Code context
+---@field selected_filepaths string[] | nil File context
+---@field is_user_submission boolean | nil User-initiated message flag
+---@field is_context boolean | nil Context message flag
+---@field is_compacted boolean | nil Compaction status
+---@field is_deleted boolean | nil Soft deletion flag
+---@field state avante.HistoryMessageState Current message state
+
+---@class avante.UIMessage
+---@field uuid string Reference to ModelMessage
+---@field displayed_content string | nil Processed display text
+---@field visible boolean Visibility state
+---@field is_dummy boolean Synthetic message flag
+---@field just_for_display boolean Display-only flag
+---@field is_calling boolean Active generation state
+---@field state avante.HistoryMessageState UI state (generating/generated)
+---@field ui_cache table Rendering optimization cache
+---@field rendering_metadata table Display-specific metadata
+---@field last_rendered_at number Cache timestamp
+---@field computed_lines avante.ui.Line[] | nil Cached line data
 ---
 ---@class AvanteLLMToolResult
 ---@field tool_name string

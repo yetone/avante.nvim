@@ -4,6 +4,74 @@ local Utils = require("avante.utils")
 
 local M = {}
 
+---Render messages using the new separated architecture
+---@param ui_messages avante.UIMessage[]
+---@param model_store table<string, avante.ModelMessage>
+---@return avante.ui.Line[]
+function M.render_separated_messages(ui_messages, model_store)
+  local lines = {}
+  for _, ui_msg in ipairs(ui_messages) do
+    if ui_msg.visible then
+      -- Check if we have cached lines that are still valid
+      local model_msg = model_store[ui_msg.uuid]
+      if model_msg then
+        local cached_lines = ui_msg:get_cached_lines(model_msg.timestamp)
+        if cached_lines then
+          vim.list_extend(lines, cached_lines)
+        else
+          -- Render and cache the lines
+          local message_lines = M.render_single_message(ui_msg, model_msg, model_store)
+          ui_msg:update_cache(message_lines)
+          vim.list_extend(lines, message_lines)
+        end
+      end
+    end
+  end
+  return lines
+end
+
+---Render a single message using separated architecture
+---@param ui_msg avante.UIMessage
+---@param model_msg avante.ModelMessage
+---@param model_store table<string, avante.ModelMessage>
+---@return avante.ui.Line[]
+function M.render_single_message(ui_msg, model_msg, model_store)
+  -- If we have cached displayed content, use that
+  if ui_msg.displayed_content then
+    return text_to_lines(ui_msg.displayed_content)
+  end
+  
+  -- Otherwise render from model message content
+  local content = model_msg.message.content
+  if type(content) == "string" then 
+    return text_to_lines(content) 
+  end
+  
+  if vim.islist(content) then
+    local lines = {}
+    for _, item in ipairs(content) do
+      -- Convert model store to legacy format for compatibility with existing helpers
+      local legacy_messages = {}
+      for _, msg in pairs(model_store) do
+        local legacy_msg = {
+          message = msg.message,
+          uuid = msg.uuid,
+          tool_use_logs = msg.tool_use_logs,
+          tool_use_store = msg.tool_use_store,
+          state = msg.state,
+        }
+        table.insert(legacy_messages, legacy_msg)
+      end
+      
+      local item_lines = message_content_item_to_lines(item, model_msg, legacy_messages)
+      lines = vim.list_extend(lines, item_lines)
+    end
+    return lines
+  end
+  
+  return {}
+end
+
 ---Converts text into format suitable for UI
 ---@param text string
 ---@return avante.ui.Line[]
@@ -88,7 +156,7 @@ end
 
 ---Converts a message item into representation suitable for UI
 ---@param item AvanteLLMMessageContentItem
----@param message avante.HistoryMessage
+---@param message avante.HistoryMessage | avante.ModelMessage
 ---@param messages avante.HistoryMessage[]
 ---@return avante.ui.Line[]
 local function message_content_item_to_lines(item, message, messages)

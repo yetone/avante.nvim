@@ -1,11 +1,23 @@
 local Helpers = require("avante.history.helpers")
 local Message = require("avante.history.message")
+local ModelMessage = require("avante.model_message")
+local UIMessage = require("avante.ui_message")
+local MessageConverter = require("avante.message_converter")
 local Utils = require("avante.utils")
 
 local M = {}
 
 M.Helpers = Helpers
 M.Message = Message
+M.ModelMessage = ModelMessage
+M.UIMessage = UIMessage
+M.MessageConverter = MessageConverter
+
+---@type table<string, avante.ModelMessage> Global model message store
+M._model_store = {}
+
+---@type table<string, avante.UIMessage> Global UI message store  
+M._ui_store = {}
 
 ---@param history avante.ChatHistory
 ---@return avante.HistoryMessage[]
@@ -357,6 +369,111 @@ function M.get_pending_tools(messages)
   end
 
   return pending_tool_uses, pending_tool_uses_messages
+end
+
+---Add a ModelMessage to the store
+---@param model_msg avante.ModelMessage
+function M.add_model_message(model_msg)
+  M._model_store[model_msg.uuid] = model_msg
+end
+
+---Get ModelMessage by UUID
+---@param uuid string
+---@return avante.ModelMessage | nil
+function M.get_model_message(uuid)
+  return M._model_store[uuid]
+end
+
+---Get all ModelMessages
+---@return avante.ModelMessage[]
+function M.get_all_model_messages()
+  local messages = {}
+  for _, msg in pairs(M._model_store) do
+    table.insert(messages, msg)
+  end
+  -- Sort by timestamp
+  table.sort(messages, function(a, b)
+    return a.timestamp < b.timestamp
+  end)
+  return messages
+end
+
+---Add a UIMessage to the store
+---@param ui_msg avante.UIMessage
+function M.add_ui_message(ui_msg)
+  M._ui_store[ui_msg.uuid] = ui_msg
+end
+
+---Get UIMessage by UUID
+---@param uuid string
+---@return avante.UIMessage | nil
+function M.get_ui_message(uuid)
+  return M._ui_store[uuid]
+end
+
+---Get all UIMessages that are visible
+---@return avante.UIMessage[]
+function M.get_visible_ui_messages()
+  local messages = {}
+  local model_messages = M.get_all_model_messages()
+  
+  for _, model_msg in ipairs(model_messages) do
+    local ui_msg = M._ui_store[model_msg.uuid]
+    if ui_msg and ui_msg.visible then
+      table.insert(messages, ui_msg)
+    end
+  end
+  return messages
+end
+
+---Convert HistoryMessages to separated ModelMessage and UIMessage stores
+---@param history_messages avante.HistoryMessage[]
+function M.load_from_history_messages(history_messages)
+  M._model_store = {}
+  M._ui_store = {}
+  
+  for _, hist_msg in ipairs(history_messages) do
+    local model_msg = MessageConverter.history_to_model_message(hist_msg)
+    local ui_msg = MessageConverter.history_to_ui_message(hist_msg)
+    
+    M.add_model_message(model_msg)
+    M.add_ui_message(ui_msg)
+  end
+end
+
+---Convert separated stores back to HistoryMessages for compatibility
+---@return avante.HistoryMessage[]
+function M.to_history_messages()
+  local history_messages = {}
+  local model_messages = M.get_all_model_messages()
+  
+  for _, model_msg in ipairs(model_messages) do
+    local ui_msg = M._ui_store[model_msg.uuid]
+    if ui_msg then
+      local hist_msg = MessageConverter.to_history_message(model_msg, ui_msg)
+      table.insert(history_messages, hist_msg)
+    end
+  end
+  
+  return history_messages
+end
+
+---Clear both stores
+function M.clear_stores()
+  M._model_store = {}
+  M._ui_store = {}
+end
+
+---Get ModelMessage store reference for providers
+---@return table<string, avante.ModelMessage>
+function M.get_model_store()
+  return M._model_store
+end
+
+---Get UIMessage store reference for rendering
+---@return table<string, avante.UIMessage>
+function M.get_ui_store()
+  return M._ui_store
 end
 
 return M
