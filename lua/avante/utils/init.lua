@@ -1607,6 +1607,44 @@ function M.uuid()
   end)
 end
 
+---Parse command arguments (fargs) into a structured format
+---@param fargs string[] Command arguments
+---@param options? {collect_remaining?: boolean, boolean_keys?: string[]} Options for parsing
+---@return table parsed_args Key-value pairs from arguments
+---@return string|nil remaining_text Concatenated remaining arguments (if collect_remaining is true)
+function M.parse_args(fargs, options)
+  options = options or {}
+  local parsed_args = {}
+  local remaining_parts = {}
+  local boolean_keys = options.boolean_keys or {}
+
+  -- Create a lookup table for boolean keys for faster access
+  local boolean_keys_lookup = {}
+  for _, key in ipairs(boolean_keys) do
+    boolean_keys_lookup[key] = true
+  end
+
+  for _, arg in ipairs(fargs) do
+    local key, value = arg:match("([%w_]+)=(.+)")
+
+    if key and value then
+      -- Convert "true"/"false" string values to boolean for specified keys
+      if boolean_keys_lookup[key] or value == "true" or value == "false" then
+        parsed_args[key] = (value == "true")
+      else
+        parsed_args[key] = value
+      end
+    elseif options.collect_remaining then
+      table.insert(remaining_parts, arg)
+    end
+  end
+
+  -- Return the parsed arguments and optionally the concatenated remaining text
+  if options.collect_remaining and #remaining_parts > 0 then return parsed_args, table.concat(remaining_parts, " ") end
+
+  return parsed_args
+end
+
 ---@param tool_use AvanteLLMToolUse
 function M.tool_use_to_xml(tool_use)
   local tool_use_json = vim.json.encode({
