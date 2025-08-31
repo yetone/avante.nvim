@@ -246,6 +246,7 @@ function H.autocmds()
       local sidebar = M.get()
       if not sidebar then return end
       if not sidebar:is_open() then return end
+      if sidebar.is_in_full_view then return end
       sidebar:resize()
     end,
   })
