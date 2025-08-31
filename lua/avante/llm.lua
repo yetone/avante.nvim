@@ -1114,6 +1114,17 @@ function M._stream_acp(opts)
       end
     end
   end
+  if opts.selected_code then
+    local prompt_item = {
+      type = "text",
+      text = string.format(
+        "<selected_code>\n<path>%s</path>\n<snippet>%s</snippet>\n</selected_code>",
+        opts.selected_code.path,
+        opts.selected_code.content
+      ),
+    }
+    table.insert(prompt, prompt_item)
+  end
   acp_client:send_prompt(session_id, prompt, function(_, err_)
     if err_ then
       opts.on_stop({ reason = "error", error = err_ })
