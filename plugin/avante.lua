@@ -16,6 +16,7 @@ vim.g.avante = 1
 local Clipboard = require("avante.clipboard")
 local Config = require("avante.config")
 local Utils = require("avante.utils")
+local P = require("avante.path")
 local api = vim.api
 
 if Config.support_paste_image() then
@@ -51,52 +52,62 @@ local function cmd(n, c, o)
   api.nvim_create_user_command("Avante" .. n, c, o)
 end
 
+local function ask_complete(prefix, _, _)
+  local candidates = {} ---@type string[]
+  vim.list_extend(
+    candidates,
+    ---@param x string
+    vim.tbl_map(function(x) return "position=" .. x end, { "left", "right", "top", "bottom" })
+  )
+  vim.list_extend(
+    candidates,
+    ---@param x string
+    vim.tbl_map(function(x) return "project_root=" .. x.root end, P.list_projects())
+  )
+  return vim.tbl_filter(function(candidate) return vim.startswith(candidate, prefix) end, candidates)
+end
+
 cmd("Ask", function(opts)
   ---@type AskOptions
   local args = { question = nil, win = {} }
-  local q_parts = {}
-  local q_ask = nil
-  for _, arg in ipairs(opts.fargs) do
-    local value = arg:match("position=(%w+)")
-    local ask = arg:match("ask=(%w+)")
-    if ask ~= nil then
-      q_ask = ask == "true"
-    elseif value then
-      args.win.position = value
-    else
-      table.insert(q_parts, arg)
-    end
-  end
-  require("avante.api").ask(
-    vim.tbl_deep_extend("force", args, { ask = q_ask, question = #q_parts > 0 and table.concat(q_parts, " ") or nil })
-  )
+
+  local parsed_args, question = Utils.parse_args(opts.fargs, {
+    collect_remaining = true,
+    boolean_keys = { "ask" },
+  })
+
+  if parsed_args.position then args.win.position = parsed_args.position end
+
+  require("avante.api").ask(vim.tbl_deep_extend("force", args, {
+    ask = parsed_args.ask,
+    project_root = parsed_args.project_root,
+    question = question or nil,
+  }))
 end, {
   desc = "avante: ask AI for code suggestions",
   nargs = "*",
-  complete = function(_, _, _)
-    local candidates = {} ---@type string[]
-    vim.list_extend(
-      candidates,
-      ---@param x string
-      vim.tbl_map(function(x) return "position=" .. x end, { "left", "right", "top", "bottom" })
-    )
-    vim.list_extend(candidates, vim.tbl_map(function(x) return "ask=" .. x end, { "true", "false" }))
-    return candidates
-  end,
+  complete = ask_complete,
 })
-cmd("Chat", function() require("avante.api").ask({ ask = false }) end, { desc = "avante: chat with the codebase" })
-cmd(
-  "ChatNew",
-  function() require("avante.api").ask({ ask = false, new_chat = true }) end,
-  { desc = "avante: create new chat" }
-)
+cmd("Chat", function(opts)
+  local args = Utils.parse_args(opts.fargs)
+  args.ask = false
+
+  require("avante.api").ask(args)
+end, {
+  desc = "avante: chat with the codebase",
+  nargs = "*",
+  complete = ask_complete,
+})
+cmd("ChatNew", function(opts)
+  local args = Utils.parse_args(opts.fargs)
+  args.ask = false
+  args.new_chat = true
+  require("avante.api").ask(args)
+end, { desc = "avante: create new chat", nargs = "*", complete = ask_complete })
 cmd("Toggle", function() require("avante").toggle() end, { desc = "avante: toggle AI panel" })
 cmd("Build", function(opts)
-  local args = {}
-  for _, arg in ipairs(opts.fargs) do
-    local key, value = arg:match("(%w+)=(%w+)")
-    if key and value then args[key] = value == "true" end
-  end
+  local args = Utils.parse_args(opts.fargs)
+
   if args.source == nil then args.source = false end
 
   require("avante.api").build(args)
@@ -149,11 +160,10 @@ cmd("Clear", function(opts)
     end
     sidebar:clear_history()
   elseif arg == "cache" then
-    local P = require("avante.path")
     local history_path = P.history_path:absolute()
     local cache_path = P.cache_path:absolute()
     local prompt = string.format("Recursively delete %s and %s?", history_path, cache_path)
-    if vim.fn.confirm(prompt, "&Yes\n&No", 2) == 1 then require("avante.path").clear() end
+    if vim.fn.confirm(prompt, "&Yes\n&No", 2) == 1 then P.clear() end
   else
     Utils.error("Invalid argument. Valid arguments: 'history', 'memory', 'cache'")
     return

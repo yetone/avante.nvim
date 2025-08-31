@@ -31,7 +31,17 @@ local History = {}
 function History.get_history_dir(bufnr)
   local dirname = generate_project_dirname_in_storage(bufnr)
   local history_dir = Path:new(Config.history.storage_path):joinpath(dirname):joinpath("history")
-  if not history_dir:exists() then history_dir:mkdir({ parents = true }) end
+  if not history_dir:exists() then
+    history_dir:mkdir({ parents = true })
+
+    local metadata_filepath = history_dir:joinpath("metadata.json")
+    local metadata = {
+      project_root = Utils.root.get({
+        buf = bufnr,
+      }),
+    }
+    metadata_filepath:write(vim.json.encode(metadata), "w")
+  end
   return history_dir
 end
 
@@ -105,13 +115,14 @@ end
 
 function History.save_latest_filename(bufnr, filename)
   local metadata_filepath = History.get_metadata_filepath(bufnr)
-  local metadata
-  if not metadata_filepath:exists() then
-    metadata = {}
-  else
+  local metadata = {}
+  if metadata_filepath:exists() then
     local metadata_content = metadata_filepath:read()
     metadata = vim.json.decode(metadata_content)
   end
+  if metadata.project_root == nil then metadata.project_root = Utils.root.get({
+    buf = bufnr,
+  }) end
   metadata.latest_filename = filename
   metadata_filepath:write(vim.json.encode(metadata), "w")
 end
@@ -186,6 +197,56 @@ function History.delete(bufnr, filename)
 end
 
 P.history = History
+
+---@return table[] List of projects with their information
+function P.list_projects()
+  local projects_dir = Path:new(Config.history.storage_path):joinpath("projects")
+  if not projects_dir:exists() then return {} end
+
+  local projects = {}
+  local dirs = Scan.scan_dir(tostring(projects_dir), { depth = 1, add_dirs = true, only_dirs = true })
+
+  for _, dir_path in ipairs(dirs) do
+    local project_dir = Path:new(dir_path)
+    local history_dir = project_dir:joinpath("history")
+
+    local metadata_file = history_dir:joinpath("metadata.json")
+    local project_root = ""
+    if metadata_file:exists() then
+      local content = metadata_file:read()
+      if content then
+        local metadata = vim.json.decode(content)
+        if metadata and metadata.project_root then project_root = metadata.project_root end
+      end
+    end
+
+    -- Skip if project_root is empty
+    if project_root == "" then goto continue end
+
+    -- Count history files
+    local history_count = 0
+    if history_dir:exists() then
+      local history_files = vim.fn.glob(tostring(history_dir:joinpath("*.json")), true, true)
+      for _, file in ipairs(history_files) do
+        if not file:match("metadata.json") then history_count = history_count + 1 end
+      end
+    end
+
+    table.insert(projects, {
+      name = filepath_to_filename(project_dir),
+      root = project_root,
+      history_count = history_count,
+      directory = tostring(project_dir),
+    })
+
+    ::continue::
+  end
+
+  -- Sort by history count (most active projects first)
+  table.sort(projects, function(a, b) return a.history_count > b.history_count end)
+
+  return projects
+end
 
 -- Prompt path
 local Prompt = {}
