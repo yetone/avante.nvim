@@ -1514,6 +1514,7 @@ function Sidebar:toggle_code_window()
   local container_winids = vim.tbl_map(function(container) return container.winid end, self.containers)
   local win_width = api.nvim_win_get_width(self.code.winid)
   if win_width == 0 then
+    self.is_in_full_view = false
     for _, winid in ipairs(winids) do
       if not vim.tbl_contains(container_winids, winid) and api.nvim_win_is_valid(winid) then
         local old_width = self.win_width_store[winid]
@@ -1521,6 +1522,7 @@ function Sidebar:toggle_code_window()
       end
     end
   else
+    self.is_in_full_view = true
     for _, winid in ipairs(winids) do
       if not vim.tbl_contains(container_winids, winid) and api.nvim_win_is_valid(winid) then
         if Utils.is_floating_window(winid) then
