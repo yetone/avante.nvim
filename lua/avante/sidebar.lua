@@ -1850,7 +1850,7 @@ function Sidebar.get_history_lines(history, ignore_record_prefix)
   for idx, item in ipairs(group) do
     if idx ~= 1 then
       if ignore_record_prefix then
-        res = vim.list_extend(res, { Line:new({ { "" } }) })
+        res = vim.list_extend(res, { Line:new({ { "" } }), Line:new({ { "" } }) })
       else
         res = vim.list_extend(res, { Line:new({ { "" } }), Line:new({ { RESP_SEPARATOR } }), Line:new({ { "" } }) })
       end
