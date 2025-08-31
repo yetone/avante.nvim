@@ -113,6 +113,18 @@ end
 ---@field sidebar_pre_render? fun(sidebar: avante.Sidebar)
 ---@field sidebar_post_render? fun(sidebar: avante.Sidebar)
 ---@field project_root? string optional project root
+---@field show_logo? boolean whether to show the logo
+
+function M.full_view_ask()
+  M.ask({
+    show_logo = true,
+    sidebar_post_render = function(sidebar)
+      sidebar:toggle_code_window()
+      -- vim.wo[sidebar.containers.result.winid].number = true
+      -- vim.wo[sidebar.containers.result.winid].relativenumber = true
+    end,
+  })
+end
 
 ---@param opts? AskOptions
 function M.ask(opts)

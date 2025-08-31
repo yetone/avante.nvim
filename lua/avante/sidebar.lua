@@ -20,6 +20,7 @@ local History = require("avante.history")
 local Render = require("avante.history.render")
 local Line = require("avante.ui.line")
 local LRUCache = require("avante.utils.lru_cache")
+local logo = require("avante.utils.logo")
 
 local RESULT_BUF_NAME = "AVANTE_RESULT"
 local VIEW_BUFFER_UPDATED_PATTERN = "AvanteViewBufferUpdated"
@@ -75,6 +76,7 @@ Sidebar.__index = Sidebar
 ---@field token_count integer | nil
 ---@field acp_client ACPClient | nil
 ---@field acp_session_id string | nil
+---@field post_render? fun(sidebar: avante.Sidebar)
 
 ---@param id integer the tabpage id retrieved from api.nvim_get_current_tabpage()
 function Sidebar:new(id)
@@ -105,6 +107,7 @@ function Sidebar:new(id)
     -- Cache-related fields
     _cached_history_lines = nil,
     _history_cache_invalidated = true,
+    post_render = nil,
   }, Sidebar)
 end
 
@@ -148,6 +151,7 @@ end
 ---@param opts SidebarOpenOptions
 function Sidebar:open(opts)
   opts = opts or {}
+  self.show_logo = opts.show_logo
   local in_visual_mode = Utils.in_visual_mode() and self:in_code_win()
   if not self:is_open() then
     self:reset()
@@ -1478,6 +1482,30 @@ function Sidebar:resize()
   vim.defer_fn(function() vim.cmd("AvanteRefresh") end, 200)
 end
 
+function Sidebar:render_logo()
+  local logo_lines = vim.split(logo, "\n")
+  local max_width = 30
+  --- get editor width
+  local editor_width = vim.api.nvim_win_get_width(self.containers.result.winid)
+  local padding = math.floor((editor_width - max_width) / 2)
+  Utils.unlock_buf(self.containers.result.bufnr)
+  for i, line in ipairs(logo_lines) do
+    --- center logo
+    line = vim.trim(line)
+    vim.api.nvim_buf_set_lines(self.containers.result.bufnr, i - 1, i, false, { string.rep(" ", padding) .. line })
+    --- apply gradient color
+    if line ~= "" then
+      local hl_group = "AvanteLogoLine" .. i
+      vim.api.nvim_buf_set_extmark(self.containers.result.bufnr, RESULT_BUF_HL_NAMESPACE, i - 1, padding, {
+        end_col = padding + #line,
+        hl_group = hl_group,
+      })
+    end
+  end
+  Utils.lock_buf(self.containers.result.bufnr)
+  return #logo_lines
+end
+
 function Sidebar:toggle_code_window()
   local win_width = api.nvim_win_get_width(self.code.winid)
   if win_width == 0 then
@@ -1559,9 +1587,6 @@ end, 50)
 ---@param content string concatenated content of the buffer
 ---@param opts? {focus?: boolean, scroll?: boolean, backspace?: integer, callback?: fun(): nil} whether to focus the result view
 function Sidebar:update_content(content, opts)
-  if not self.containers.result or not self.containers.result.bufnr then return end
-
-  -- 提前验证容器有效性，避免后续无效操作
   if not Utils.is_valid_container(self.containers.result) then return end
 
   local should_auto_scroll = self:should_auto_scroll()
@@ -1572,10 +1597,9 @@ function Sidebar:update_content(content, opts)
     opts or {}
   )
 
-  -- 缓存历史行，避免重复计算
   local history_lines
   if not self._cached_history_lines or self._history_cache_invalidated then
-    history_lines = self.get_history_lines(self.chat_history)
+    history_lines = self.get_history_lines(self.chat_history, self.show_logo)
     self._cached_history_lines = history_lines
     self._history_cache_invalidated = false
   else
@@ -1589,26 +1613,23 @@ function Sidebar:update_content(content, opts)
     end
   end
 
-  -- 使用 vim.schedule 而不是 vim.defer_fn(0)，性能更好
-  -- 再次检查容器有效性
   if not Utils.is_valid_container(self.containers.result) then return end
 
   self:clear_state()
 
-  -- 批量更新操作
+  local skip_line_count = 0
+  if self.show_logo then skip_line_count = self:render_logo() end
+
   local bufnr = self.containers.result.bufnr
   Utils.unlock_buf(bufnr)
 
-  Utils.update_buffer_lines(RESULT_BUF_HL_NAMESPACE, bufnr, self.old_result_lines, history_lines)
+  Utils.update_buffer_lines(RESULT_BUF_HL_NAMESPACE, bufnr, self.old_result_lines, history_lines, skip_line_count)
 
-  -- 缓存结果行
   self.old_result_lines = history_lines
 
-  -- 批量设置选项
   api.nvim_set_option_value("filetype", "Avante", { buf = bufnr })
   Utils.lock_buf(bufnr)
 
-  -- 处理焦点和滚动
   if opts.focus and not self:is_focused_on_result() then
     xpcall(function() api.nvim_set_current_win(self.containers.result.winid) end, function(err)
       Utils.debug("Failed to set current win:", err)
@@ -1694,11 +1715,12 @@ end
 ---@param message avante.HistoryMessage
 ---@param messages avante.HistoryMessage[]
 ---@param ctx table
+---@param ignore_record_prefix boolean | nil
 ---@return avante.ui.Line[]
-local function _get_message_lines(message, messages, ctx)
+local function _get_message_lines(message, messages, ctx, ignore_record_prefix)
   if message.visible == false then return {} end
   local lines = Render.message_to_lines(message, messages)
-  if message.is_user_submission then
+  if message.is_user_submission and not ignore_record_prefix then
     ctx.selected_filepaths = message.selected_filepaths
     local text = table.concat(vim.tbl_map(function(line) return tostring(line) end, lines), "\n")
     local prefix = render_chat_record_prefix(
@@ -1744,9 +1766,12 @@ local _message_to_lines_lru_cache = LRUCache:new(100)
 ---@param message avante.HistoryMessage
 ---@param messages avante.HistoryMessage[]
 ---@param ctx table
+---@param ignore_record_prefix boolean | nil
 ---@return avante.ui.Line[]
-local function get_message_lines(message, messages, ctx)
-  if message.state == "generating" or message.is_calling then return _get_message_lines(message, messages, ctx) end
+local function get_message_lines(message, messages, ctx, ignore_record_prefix)
+  if message.state == "generating" or message.is_calling then
+    return _get_message_lines(message, messages, ctx, ignore_record_prefix)
+  end
   local text_len = 0
   local content = message.message.content
   if type(content) == "table" then
@@ -1765,20 +1790,21 @@ local function get_message_lines(message, messages, ctx)
   local cache_key = message.uuid .. ":" .. tostring(text_len)
   local cached_lines = _message_to_lines_lru_cache:get(cache_key)
   if cached_lines then return cached_lines end
-  local lines = _get_message_lines(message, messages, ctx)
+  local lines = _get_message_lines(message, messages, ctx, ignore_record_prefix)
   _message_to_lines_lru_cache:set(cache_key, lines)
   return lines
 end
 
 ---@param history avante.ChatHistory
+---@param ignore_record_prefix boolean | nil
 ---@return avante.ui.Line[]
-function Sidebar.get_history_lines(history)
+function Sidebar.get_history_lines(history, ignore_record_prefix)
   local history_messages = History.get_history_messages(history)
   local ctx = {}
   ---@type avante.ui.Line[][]
   local group = {}
   for _, message in ipairs(history_messages) do
-    local lines = get_message_lines(message, history_messages, ctx)
+    local lines = get_message_lines(message, history_messages, ctx, ignore_record_prefix)
     if #lines == 0 then goto continue end
     if message.is_user_submission then table.insert(group, {}) end
     local last_item = group[#group]
@@ -2030,8 +2056,13 @@ function Sidebar:new_chat(args, cb)
   self.current_state = nil
   self.acp_session_id = nil
   self:update_content("New chat", { focus = false, scroll = false, callback = function() self:focus_input() end })
+  --- goto first line then go to last line
+  vim.schedule(function()
+    vim.api.nvim_win_call(self.containers.result.winid, function() vim.cmd("normal! ggG") end)
+  end)
   if cb then cb(args) end
   vim.schedule(function() self:create_todos_container() end)
+  if self.post_render then vim.defer_fn(function() self.post_render(self) end, 100) end
 end
 
 local debounced_save_history = Utils.debounce(
@@ -2971,8 +3002,6 @@ function Sidebar:render(opts)
 
   self:create_selected_files_container()
 
-  self:update_content_with_history()
-
   if self.code.bufnr and api.nvim_buf_is_valid(self.code.bufnr) then
     -- reset states when buffer is closed
     api.nvim_buf_attach(self.code.bufnr, false, {
@@ -2995,7 +3024,16 @@ function Sidebar:render(opts)
 
   self:setup_colors()
 
-  if opts.sidebar_post_render then vim.defer_fn(function() opts.sidebar_post_render(self) end, 100) end
+  if opts.sidebar_post_render then
+    self.post_render = opts.sidebar_post_render
+    vim.defer_fn(function()
+      opts.sidebar_post_render(self)
+      self:update_content_with_history()
+    end, 100)
+  else
+    self:update_content_with_history()
+  end
+
   return self
 end
 

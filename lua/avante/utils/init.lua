@@ -1297,7 +1297,9 @@ end
 ---@param bufnr integer
 ---@param old_lines avante.ui.Line[]
 ---@param new_lines avante.ui.Line[]
-function M.update_buffer_lines(ns_id, bufnr, old_lines, new_lines)
+---@param skip_line_count? integer
+function M.update_buffer_lines(ns_id, bufnr, old_lines, new_lines, skip_line_count)
+  skip_line_count = skip_line_count or 0
   local diffs = get_lines_diff(old_lines, new_lines)
   if #diffs == 0 then return end
   for _, diff in ipairs(diffs) do
@@ -1309,9 +1311,15 @@ function M.update_buffer_lines(ns_id, bufnr, old_lines, new_lines)
       local lines_ = vim.split(line, "\n")
       cleaned_lines = vim.list_extend(cleaned_lines, lines_)
     end
-    vim.api.nvim_buf_set_lines(bufnr, diff.start_line - 1, diff.end_line - 1, false, cleaned_lines)
+    vim.api.nvim_buf_set_lines(
+      bufnr,
+      skip_line_count + diff.start_line - 1,
+      skip_line_count + diff.end_line - 1,
+      false,
+      cleaned_lines
+    )
     for i, line in ipairs(lines) do
-      line:set_highlights(ns_id, bufnr, diff.start_line + i - 2)
+      line:set_highlights(ns_id, bufnr, skip_line_count + diff.start_line + i - 2)
     end
     vim.cmd("redraw")
   end

@@ -51,6 +51,21 @@ local Highlights = {
   AVANTE_TASK_COMPLETED = { name = "AvanteTaskCompleted", fg = "#98c379", bg_link = "Normal" },
   AVANTE_TASK_FAILED = { name = "AvanteTaskFailed", fg = "#e06c75", bg_link = "Normal" },
   AVANTE_THINKING = { name = "AvanteThinking", fg = "#c678dd", bg_link = "Normal" },
+  -- Gradient logo highlights
+  AVANTE_LOGO_LINE_1 = { name = "AvanteLogoLine1", fg = "#f5f5f5" },
+  AVANTE_LOGO_LINE_2 = { name = "AvanteLogoLine2", fg = "#e8e8e8" },
+  AVANTE_LOGO_LINE_3 = { name = "AvanteLogoLine3", fg = "#dbdbdb" },
+  AVANTE_LOGO_LINE_4 = { name = "AvanteLogoLine4", fg = "#cfcfcf" },
+  AVANTE_LOGO_LINE_5 = { name = "AvanteLogoLine5", fg = "#c2c2c2" },
+  AVANTE_LOGO_LINE_6 = { name = "AvanteLogoLine6", fg = "#b5b5b5" },
+  AVANTE_LOGO_LINE_7 = { name = "AvanteLogoLine7", fg = "#a8a8a8" },
+  AVANTE_LOGO_LINE_8 = { name = "AvanteLogoLine8", fg = "#9b9b9b" },
+  AVANTE_LOGO_LINE_9 = { name = "AvanteLogoLine9", fg = "#8e8e8e" },
+  AVANTE_LOGO_LINE_10 = { name = "AvanteLogoLine10", fg = "#818181" },
+  AVANTE_LOGO_LINE_11 = { name = "AvanteLogoLine11", fg = "#747474" },
+  AVANTE_LOGO_LINE_12 = { name = "AvanteLogoLine12", fg = "#676767" },
+  AVANTE_LOGO_LINE_13 = { name = "AvanteLogoLine13", fg = "#5a5a5a" },
+  AVANTE_LOGO_LINE_14 = { name = "AvanteLogoLine14", fg = "#4d4d4d" },
 }
 
 Highlights.conflict = {
