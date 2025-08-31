@@ -2092,7 +2092,6 @@ function Sidebar:new_chat(args, cb)
   end)
   if cb then cb(args) end
   vim.schedule(function() self:create_todos_container() end)
-  if self.post_render then vim.defer_fn(function() self.post_render(self) end, 100) end
 end
 
 local debounced_save_history = Utils.debounce(
