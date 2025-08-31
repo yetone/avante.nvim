@@ -186,8 +186,12 @@ function Sidebar:setup_colors()
   self:set_code_winhl()
   vim.api.nvim_create_autocmd("WinNew", {
     group = self.augroup,
-    callback = function()
-      for _, winid in ipairs(vim.api.nvim_list_wins()) do
+    callback = function(env)
+      if Utils.is_floating_window(env.id) then
+        Utils.debug("WinNew ignore floating window")
+        return
+      end
+      for _, winid in ipairs(vim.api.nvim_tabpage_list_wins(self.id)) do
         if not vim.api.nvim_win_is_valid(winid) or self:is_sidebar_winid(winid) then goto continue end
         local winhl = vim.wo[winid].winhl
         if
@@ -1476,7 +1480,11 @@ end
 function Sidebar:resize()
   for _, container in pairs(self.containers) do
     if container.winid and api.nvim_win_is_valid(container.winid) then
-      api.nvim_win_set_width(container.winid, Config.get_window_width())
+      if self.is_in_full_view then
+        api.nvim_win_set_width(container.winid, vim.o.columns - 1)
+      else
+        api.nvim_win_set_width(container.winid, Config.get_window_width())
+      end
     end
   end
   self:render_result()
@@ -1516,7 +1524,7 @@ function Sidebar:toggle_code_window()
   if win_width == 0 then
     self.is_in_full_view = false
     for _, winid in ipairs(winids) do
-      if not vim.tbl_contains(container_winids, winid) and api.nvim_win_is_valid(winid) then
+      if api.nvim_win_is_valid(winid) and not vim.tbl_contains(container_winids, winid) then
         local old_width = self.win_width_store[winid]
         if old_width ~= nil then api.nvim_win_set_width(winid, old_width) end
       end
@@ -1524,7 +1532,7 @@ function Sidebar:toggle_code_window()
   else
     self.is_in_full_view = true
     for _, winid in ipairs(winids) do
-      if not vim.tbl_contains(container_winids, winid) and api.nvim_win_is_valid(winid) then
+      if api.nvim_win_is_valid(winid) and not vim.tbl_contains(container_winids, winid) then
         if Utils.is_floating_window(winid) then
           api.nvim_win_close(winid, true)
         else
@@ -1660,13 +1668,10 @@ function Sidebar:update_content(content, opts)
 
   if opts.scroll then Utils.buf_scroll_to_end(bufnr) end
 
-  -- 延迟执行回调和状态渲染
   if opts.callback then vim.schedule(opts.callback) end
 
-  -- 最后渲染状态
   vim.schedule(function()
     self:render_state()
-    -- 延迟重绘，避免阻塞
     vim.defer_fn(function() vim.cmd("redraw") end, 10)
   end)
 
@@ -1844,7 +1849,11 @@ function Sidebar.get_history_lines(history, ignore_record_prefix)
   local res = {}
   for idx, item in ipairs(group) do
     if idx ~= 1 then
-      res = vim.list_extend(res, { Line:new({ { "" } }), Line:new({ { RESP_SEPARATOR } }), Line:new({ { "" } }) })
+      if ignore_record_prefix then
+        res = vim.list_extend(res, { Line:new({ { "" } }) })
+      else
+        res = vim.list_extend(res, { Line:new({ { "" } }), Line:new({ { RESP_SEPARATOR } }), Line:new({ { "" } }) })
+      end
     end
     res = vim.list_extend(res, item)
   end
@@ -2973,6 +2982,8 @@ end
 function Sidebar:adjust_result_container_layout()
   local width = self:get_result_container_width()
   local height = self:get_result_container_height()
+
+  if self.is_in_full_view then width = vim.o.columns - 1 end
 
   api.nvim_win_set_width(self.containers.result.winid, width)
   api.nvim_win_set_height(self.containers.result.winid, height)

@@ -1755,7 +1755,9 @@ function M.get_unified_diff(text1, text2, opts)
 end
 
 function M.is_floating_window(win_id)
-  local config = vim.api.nvim_win_get_config(win_id or 0)
+  win_id = win_id or 0
+  if not vim.api.nvim_win_is_valid(win_id) then return false end
+  local config = vim.api.nvim_win_get_config(win_id)
   return config.relative ~= ""
 end
 
