@@ -61,6 +61,7 @@ Sidebar.__index = Sidebar
 ---@field id integer
 ---@field augroup integer
 ---@field code avante.CodeState
+---@field win_width_store table
 ---@field containers { result?: NuiSplit, todos?: NuiSplit, selected_code?: NuiSplit, selected_files?: NuiSplit, input?: NuiSplit }
 ---@field file_selector FileSelector
 ---@field chat_history avante.ChatHistory | nil
@@ -83,6 +84,7 @@ function Sidebar:new(id)
   return setmetatable({
     id = id,
     code = { bufnr = 0, winid = 0, selection = nil, old_winhl = nil },
+    win_width_store = {},
     winids = {
       result_container = 0,
       todos_container = 0,
@@ -139,6 +141,7 @@ function Sidebar:reset()
 
   self:delete_containers()
 
+  self.win_width_store = {}
   self.code = { bufnr = 0, winid = 0, selection = nil }
   self.scroll = true
   self.old_result_lines = {}
@@ -1507,12 +1510,28 @@ function Sidebar:render_logo()
 end
 
 function Sidebar:toggle_code_window()
+  local winids = api.nvim_tabpage_list_wins(self.id)
+  local container_winids = vim.tbl_map(function(container) return container.winid end, self.containers)
   local win_width = api.nvim_win_get_width(self.code.winid)
   if win_width == 0 then
-    api.nvim_win_set_width(self.code.winid, self.code.win_width)
+    for _, winid in ipairs(winids) do
+      if not vim.tbl_contains(container_winids, winid) and api.nvim_win_is_valid(winid) then
+        local old_width = self.win_width_store[winid]
+        if old_width ~= nil then api.nvim_win_set_width(winid, old_width) end
+      end
+    end
   else
-    self.code.win_width = win_width
-    api.nvim_win_set_width(self.code.winid, 0)
+    for _, winid in ipairs(winids) do
+      if not vim.tbl_contains(container_winids, winid) and api.nvim_win_is_valid(winid) then
+        if Utils.is_floating_window(winid) then
+          api.nvim_win_close(winid, true)
+        else
+          local width = api.nvim_win_get_width(winid)
+          self.win_width_store[winid] = width
+          api.nvim_win_set_width(winid, 0)
+        end
+      end
+    end
   end
 end
 
