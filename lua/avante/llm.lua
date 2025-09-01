@@ -800,6 +800,7 @@ end
 
 ---@param opts AvanteLLMStreamOptions
 function M._stream_acp(opts)
+  local Render = require("avante.history.render")
   ---@type table<string, avante.HistoryMessage>
   local tool_call_messages = {}
   local acp_provider = Config.acp_providers[Config.provider]
@@ -811,20 +812,13 @@ function M._stream_acp(opts)
     local message = History.Message:new("assistant", {
       type = "tool_use",
       id = update.toolCallId,
-      name = update.kind .. "(" .. update.title .. ")",
+      name = update.kind,
+      input = update.rawInput or {},
     })
+    message.acp_tool_call = update
     if update.status == "pending" or update.status == "in_progress" then message.is_calling = true end
     tool_call_messages[update.toolCallId] = message
     if update.rawInput then
-      local path = update.rawInput.path or update.rawInput.file_path
-      if path then
-        local relative_path = Utils.relative_path(path)
-        message.displayed_tool_name = update.title .. "(" .. relative_path .. ")"
-      end
-      local pattern = update.rawInput.pattern or update.rawInput.search
-      if pattern then message.displayed_tool_name = update.title .. "(" .. pattern .. ")" end
-      local command = update.rawInput.command or update.rawInput.command_line
-      if command then message.displayed_tool_name = update.title .. "(" .. command .. ")" end
       local description = update.rawInput.description
       if description then
         message.tool_use_logs = message.tool_use_logs or {}
@@ -909,19 +903,7 @@ function M._stream_acp(opts)
                 id = update.toolCallId,
                 name = "",
               })
-              local update_content = update.content
-              if type(update_content) == "table" then
-                for _, item in ipairs(update_content) do
-                  if item.path then
-                    local relative_path = Utils.relative_path(item.path)
-                    tool_call_message.displayed_tool_name = "Edit(" .. relative_path .. ")"
-                    break
-                  end
-                end
-              end
-              if not tool_call_message.displayed_tool_name then
-                tool_call_message.displayed_tool_name = update.toolCallId
-              end
+              tool_call_message.acp_tool_call = update
             end
             tool_call_message.tool_use_logs = tool_call_message.tool_use_logs or {}
             tool_call_message.tool_use_log_lines = tool_call_message.tool_use_log_lines or {}
@@ -968,8 +950,14 @@ function M._stream_acp(opts)
             callback(choice.id)
           end
 
+          local tool_name, error = Render.get_tool_display_name(message)
+          if error then
+            Utils.error(error)
+            tool_name = message.message.content[1].name
+          end
+
           local selector = Selector:new({
-            title = message.displayed_tool_name or message.message.content[1].name,
+            title = tool_name,
             items = items,
             default_item_id = default_item and default_item.name or nil,
             provider = Config.selector.provider,
