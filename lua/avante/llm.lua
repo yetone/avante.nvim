@@ -1018,6 +1018,17 @@ function M._stream_acp(opts)
             if file then
               file:write(content)
               file:close()
+              local buffers = vim.tbl_filter(
+                function(bufnr)
+                  return vim.api.nvim_buf_is_valid(bufnr)
+                    and vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":p")
+                      == vim.fn.fnamemodify(abs_path, ":p")
+                end,
+                vim.api.nvim_list_bufs()
+              )
+              for _, buf in ipairs(buffers) do
+                vim.api.nvim_buf_call(buf, function() vim.cmd("edit") end)
+              end
               callback(nil)
               return
             end
