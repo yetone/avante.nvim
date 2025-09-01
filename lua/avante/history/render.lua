@@ -25,6 +25,52 @@ local function text_to_lines(text, decoration)
   return lines
 end
 
+---Converts text into format suitable for UI
+---@param text string
+---@param decoration string | nil
+---@param truncate boolean | nil
+---@return avante.ui.Line[]
+local function text_to_truncated_lines(text, decoration, truncate)
+  local text_lines = vim.split(text, "\n")
+  local lines = {}
+  for _, text_line in ipairs(text_lines) do
+    if truncate and #lines > 3 then
+      table.insert(
+        lines,
+        Line:new({
+          { decoration },
+          { string.format("... (Result truncated, remaining %d lines not shown)", #text_lines - #lines + 1) },
+        })
+      )
+      break
+    end
+    table.insert(lines, Line:new({ { decoration }, { text_line } }))
+  end
+  return lines
+end
+
+---@param lines avante.ui.Line[]
+---@param decoration string | nil
+---@param truncate boolean | nil
+---@return avante.ui.Line[]
+local function lines_to_truncated_lines(lines, decoration, truncate)
+  local truncated_lines = {}
+  for idx, line in ipairs(lines) do
+    if truncate and #truncated_lines > 3 then
+      table.insert(
+        truncated_lines,
+        Line:new({
+          { decoration },
+          { string.format("... (Result truncated, remaining %d lines not shown)", #lines - idx + 1) },
+        })
+      )
+      break
+    end
+    table.insert(truncated_lines, line)
+  end
+  return truncated_lines
+end
+
 ---Converts "thinking" item into format suitable for UI
 ---@param item AvanteLLMMessageContentItem
 ---@return avante.ui.Line[]
@@ -142,7 +188,6 @@ function M.get_content_lines(content, decoration, truncate)
   end
   if type(content_obj) == "table" then
     if islist(content_obj) then
-      local line_count = 0
       local all_lines = {}
       for _, content_item in ipairs(content_obj) do
         if type(content_item) == "string" then
@@ -150,38 +195,34 @@ function M.get_content_lines(content, decoration, truncate)
           all_lines = vim.list_extend(all_lines, lines_)
         end
       end
-      for idx, line in ipairs(all_lines) do
-        if truncate and line_count > 3 then
-          table.insert(
-            lines,
-            Line:new({
-              { decoration },
-              { string.format("... (Result truncated, remaining %d lines not shown)", #all_lines - idx + 1) },
-            })
-          )
-          break
-        end
-        line_count = line_count + 1
-        table.insert(lines, line)
-      end
+      local lines_ = lines_to_truncated_lines(all_lines, decoration, truncate)
+      lines = vim.list_extend(lines, lines_)
     end
     if type(content_obj.content) == "string" then
-      local line_count = 0
-      local lines_ = text_to_lines(content_obj.content, decoration)
-      for idx, line in ipairs(lines_) do
-        if truncate and line_count > 3 then
-          table.insert(
-            lines,
-            Line:new({
-              { decoration },
-              { string.format("... (Result truncated, remaining %d lines not shown)", #lines_ - idx + 1) },
-            })
-          )
-          break
+      local lines_ = text_to_truncated_lines(content_obj.content, decoration, truncate)
+      lines = vim.list_extend(lines, lines_)
+    end
+    if islist(content_obj.content) then
+      local all_lines = {}
+      for _, content_item in ipairs(content_obj.content) do
+        if type(content_item) == "string" then
+          local lines_ = text_to_lines(content_item, decoration)
+          all_lines = vim.list_extend(all_lines, lines_)
         end
-        line_count = line_count + 1
-        table.insert(lines, line)
       end
+      local lines_ = lines_to_truncated_lines(all_lines, decoration, truncate)
+      lines = vim.list_extend(lines, lines_)
+    end
+    if islist(content_obj.matches) then
+      local all_lines = {}
+      for _, content_item in ipairs(content_obj.matches) do
+        if type(content_item) == "string" then
+          local lines_ = text_to_lines(content_item, decoration)
+          all_lines = vim.list_extend(all_lines, lines_)
+        end
+      end
+      local lines_ = lines_to_truncated_lines(all_lines, decoration, truncate)
+      lines = vim.list_extend(lines, lines_)
     end
   end
   if type(content_obj) == "string" then
@@ -201,6 +242,9 @@ function M.get_content_lines(content, decoration, truncate)
       line_count = line_count + 1
       table.insert(lines, line)
     end
+  end
+  if type(content_obj) == "number" then
+    table.insert(lines, Line:new({ { decoration }, { tostring(content_obj) } }))
   end
   if islist(content) then
     for _, content_item in ipairs(content) do
@@ -265,7 +309,7 @@ function M.get_tool_display_name(message)
         local pieces = vim.split(param, "\n")
         if #pieces > 1 then param = pieces[1] .. "..." end
       end
-      if path then
+      if not param and path then
         local relative_path = Utils.relative_path(path)
         param = relative_path
       end
@@ -409,7 +453,7 @@ function M.message_to_lines(message, messages)
   if message.displayed_content then return text_to_lines(message.displayed_content) end
   local content = message.message.content
   if type(content) == "string" then return text_to_lines(content) end
-  if vim.islist(content) then
+  if islist(content) then
     local lines = {}
     for _, item in ipairs(content) do
       local item_lines = message_content_item_to_lines(item, message, messages)
@@ -437,7 +481,7 @@ end
 function M.message_to_text(message, messages)
   local content = message.message.content
   if type(content) == "string" then return content end
-  if vim.islist(content) then
+  if islist(content) then
     return vim
       .iter(content)
       :map(function(item) return message_content_item_to_text(item, message, messages) end)
