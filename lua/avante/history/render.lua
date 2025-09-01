@@ -224,13 +224,69 @@ function M.get_content_lines(content, decoration, truncate)
           end
         end
       elseif content_item.type == "diff" then
-        table.insert(lines, Line:new({ { decoration }, { "Path: " .. content_item.path } }))
+        local relative_path = Utils.relative_path(content_item.path)
+        table.insert(lines, Line:new({ { decoration }, { "Path: " .. relative_path } }))
         local lines_ = M.get_diff_lines(content_item.oldText, content_item.newText, decoration, truncate)
         lines = vim.list_extend(lines, lines_)
       end
     end
   end
   return lines
+end
+
+---@param message avante.HistoryMessage
+---@return string tool_name
+---@return string | nil error
+function M.get_tool_display_name(message)
+  local content = message.message.content
+  if type(content) ~= "table" then return "", "expected message content to be a table" end
+
+  ---@cast content AvanteLLMMessageContentItem[]
+
+  if not islist(content) then return "", "expected message content to be a list" end
+
+  local item = message.message.content[1]
+
+  local tool_name = item.name
+  if message.displayed_tool_name then
+    tool_name = message.displayed_tool_name
+  else
+    local param
+    if item.input and type(item.input) == "table" then
+      local path
+      if type(item.input.path) == "string" then path = item.input.path end
+      if type(item.input.rel_path) == "string" then path = item.input.rel_path end
+      if type(item.input.filepath) == "string" then path = item.input.filepath end
+      if type(item.input.file_path) == "string" then path = item.input.file_path end
+      if type(item.input.query) == "string" then param = item.input.query end
+      if type(item.input.pattern) == "string" then param = item.input.pattern end
+      if type(item.input.command) == "string" then
+        param = item.input.command
+        local pieces = vim.split(param, "\n")
+        if #pieces > 1 then param = pieces[1] .. "..." end
+      end
+      if path then
+        local relative_path = Utils.relative_path(path)
+        param = relative_path
+      end
+    end
+    if not param and message.acp_tool_call then
+      if message.acp_tool_call.locations then
+        for _, location in ipairs(message.acp_tool_call.locations) do
+          if location.path then
+            local relative_path = Utils.relative_path(location.path)
+            param = relative_path
+            break
+          end
+        end
+      end
+    end
+    if param then tool_name = item.name .. "(" .. param .. ")" end
+  end
+
+  ---@cast tool_name string
+
+  return tool_name, nil
 end
 
 ---Converts a tool invocation into format suitable for UI
@@ -242,28 +298,13 @@ local function tool_to_lines(item, message, messages)
   -- local logs = message.tool_use_logs
   local lines = {}
 
-  local tool_name = item.name
+  local tool_name, error = M.get_tool_display_name(message)
+  if error then
+    table.insert(lines, Line:new({ { "❌ " }, { error } }))
+    return lines
+  end
 
   local rest_input_text_lines = {}
-
-  if message.displayed_tool_name then
-    tool_name = message.displayed_tool_name
-  else
-    if item.input and type(item.input) == "table" then
-      local param
-      if type(item.input.path) == "string" then param = item.input.path end
-      if type(item.input.rel_path) == "string" then param = item.input.rel_path end
-      if type(item.input.filepath) == "string" then param = item.input.filepath end
-      if type(item.input.query) == "string" then param = item.input.query end
-      if type(item.input.pattern) == "string" then param = item.input.pattern end
-      if type(item.input.command) == "string" then
-        param = item.input.command
-        local pieces = vim.split(param, "\n")
-        if #pieces > 1 then param = pieces[1] .. "..." end
-      end
-      if param then tool_name = item.name .. "(" .. param .. ")" end
-    end
-  end
 
   local result = Helpers.get_tool_result(item.id, messages)
   local state
