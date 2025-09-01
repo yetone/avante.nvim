@@ -1,64 +1,64 @@
----@class ClientCapabilities
----@field fs FileSystemCapability
+---@class avante.acp.ClientCapabilities
+---@field fs avante.acp.FileSystemCapability
 
----@class FileSystemCapability
+---@class avante.acp.FileSystemCapability
 ---@field readTextFile boolean
 ---@field writeTextFile boolean
 
----@class AgentCapabilities
+---@class avante.acp.AgentCapabilities
 ---@field loadSession boolean
----@field promptCapabilities PromptCapabilities
+---@field promptCapabilities avante.acp.PromptCapabilities
 
----@class PromptCapabilities
+---@class avante.acp.PromptCapabilities
 ---@field image boolean
 ---@field audio boolean
 ---@field embeddedContext boolean
 
----@class AuthMethod
+---@class avante.acp.AuthMethod
 ---@field id string
 ---@field name string
 ---@field description string|nil
 
----@class McpServer
+---@class avante.acp.McpServer
 ---@field name string
 ---@field command string
 ---@field args string[]
----@field env EnvVariable[]
+---@field env avante.acp.EnvVariable[]
 
----@class EnvVariable
+---@class avante.acp.EnvVariable
 ---@field name string
 ---@field value string
 
----@alias StopReason "end_turn" | "max_tokens" | "max_turn_requests" | "refusal" | "cancelled"
+---@alias ACPStopReason "end_turn" | "max_tokens" | "max_turn_requests" | "refusal" | "cancelled"
 
----@alias ToolKind "read" | "edit" | "delete" | "move" | "search" | "execute" | "think" | "fetch" | "other"
+---@alias ACPToolKind "read" | "edit" | "delete" | "move" | "search" | "execute" | "think" | "fetch" | "other"
 
----@alias ToolCallStatus "pending" | "in_progress" | "completed" | "failed"
+---@alias ACPToolCallStatus "pending" | "in_progress" | "completed" | "failed"
 
----@alias PlanEntryStatus "pending" | "in_progress" | "completed"
+---@alias ACPPlanEntryStatus "pending" | "in_progress" | "completed"
 
----@alias PlanEntryPriority "high" | "medium" | "low"
+---@alias ACPPlanEntryPriority "high" | "medium" | "low"
 
----@class ContentBlock
+---@class avante.acp.BaseContent
 ---@field type "text" | "image" | "audio" | "resource_link" | "resource"
----@field annotations Annotations|nil
+---@field annotations avante.acp.Annotations|nil
 
----@class TextContent : ContentBlock
+---@class avante.acp.TextContent : avante.acp.BaseContent
 ---@field type "text"
 ---@field text string
 
----@class ImageContent : ContentBlock
+---@class avante.acp.ImageContent : avante.acp.BaseContent
 ---@field type "image"
 ---@field data string
 ---@field mimeType string
 ---@field uri string|nil
 
----@class AudioContent : ContentBlock
+---@class avante.acp.AudioContent : avante.acp.BaseContent
 ---@field type "audio"
 ---@field data string
 ---@field mimeType string
 
----@class ResourceLinkContent : ContentBlock
+---@class avante.acp.ResourceLinkContent : avante.acp.BaseContent
 ---@field type "resource_link"
 ---@field uri string
 ---@field name string
@@ -67,113 +67,117 @@
 ---@field size number|nil
 ---@field title string|nil
 
----@class ResourceContent : ContentBlock
+---@class avante.acp.ResourceContent : avante.acp.BaseContent
 ---@field type "resource"
----@field resource EmbeddedResource
+---@field resource avante.acp.EmbeddedResource
 
----@class EmbeddedResource
+---@class avante.acp.EmbeddedResource
 ---@field uri string
 ---@field text string|nil
 ---@field blob string|nil
 ---@field mimeType string|nil
 
----@class Annotations
+---@class avante.acp.Annotations
 ---@field audience any[]|nil
 ---@field lastModified string|nil
 ---@field priority number|nil
 
----@class ToolCall
+---@alias ACPContent avante.acp.TextContent | avante.acp.ImageContent | avante.acp.AudioContent | avante.acp.ResourceLinkContent | avante.acp.ResourceContent
+
+---@class avante.acp.ToolCall
 ---@field toolCallId string
 ---@field title string
----@field kind ToolKind
----@field status ToolCallStatus
----@field content ToolCallContent[]
----@field locations ToolCallLocation[]
+---@field kind ACPToolKind
+---@field status ACPToolCallStatus
+---@field content ACPToolCallContent[]
+---@field locations avante.acp.ToolCallLocation[]
 ---@field rawInput table
 ---@field rawOutput table
 
----@class ToolCallContent
+---@class avante.acp.BaseToolCallContent
 ---@field type "content" | "diff"
 
----@class ToolCallContentBlock : ToolCallContent
+---@class avante.acp.ToolCallContentBlock : avante.acp.BaseToolCallContent
 ---@field type "content"
----@field content ContentBlock
+---@field content ACPContent
 
----@class ToolCallDiff : ToolCallContent
+---@class avante.acp.ToolCallDiff : avante.acp.BaseToolCallContent
 ---@field type "diff"
 ---@field path string
 ---@field oldText string|nil
 ---@field newText string
 
----@class ToolCallLocation
+---@alias ACPToolCallContent avante.acp.ToolCallContentBlock | avante.acp.ToolCallDiff
+
+---@class avante.acp.ToolCallLocation
 ---@field path string
 ---@field line number|nil
 
----@class PlanEntry
+---@class avante.acp.PlanEntry
 ---@field content string
----@field priority PlanEntryPriority
----@field status PlanEntryStatus
+---@field priority ACPPlanEntryPriority
+---@field status ACPPlanEntryStatus
 
----@class Plan
----@field entries PlanEntry[]
+---@class avante.acp.Plan
+---@field entries avante.acp.PlanEntry[]
 
----@class SessionUpdate
+---@class avante.acp.BaseSessionUpdate
 ---@field sessionUpdate "user_message_chunk" | "agent_message_chunk" | "agent_thought_chunk" | "tool_call" | "tool_call_update" | "plan"
 
----@class UserMessageChunk : SessionUpdate
+---@class avante.acp.UserMessageChunk : avante.acp.BaseSessionUpdate
 ---@field sessionUpdate "user_message_chunk"
----@field content ContentBlock
+---@field content ACPContent
 
----@class AgentMessageChunk : SessionUpdate
+---@class avante.acp.AgentMessageChunk : avante.acp.BaseSessionUpdate
 ---@field sessionUpdate "agent_message_chunk"
----@field content ContentBlock
+---@field content ACPContent
 
----@class AgentThoughtChunk : SessionUpdate
+---@class avante.acp.AgentThoughtChunk : avante.acp.BaseSessionUpdate
 ---@field sessionUpdate "agent_thought_chunk"
----@field content ContentBlock
+---@field content ACPContent
 
----@class ToolCallUpdate : SessionUpdate
+---@class avante.acp.ToolCallUpdate : avante.acp.BaseSessionUpdate
 ---@field sessionUpdate "tool_call" | "tool_call_update"
 ---@field toolCallId string
 ---@field title string|nil
----@field kind ToolKind|nil
----@field status ToolCallStatus|nil
----@field content ToolCallContent[]|nil
----@field locations ToolCallLocation[]|nil
+---@field kind ACPToolKind|nil
+---@field status ACPToolCallStatus|nil
+---@field content ACPToolCallContent[]|nil
+---@field locations avante.acp.ToolCallLocation[]|nil
 ---@field rawInput table|nil
 ---@field rawOutput table|nil
 
----@class PlanUpdate : SessionUpdate
+---@class avante.acp.PlanUpdate : avante.acp.BaseSessionUpdate
 ---@field sessionUpdate "plan"
----@field entries PlanEntry[]
+---@field entries avante.acp.PlanEntry[]
 
----@class PermissionOption
+---@class avante.acp.PermissionOption
 ---@field optionId string
 ---@field name string
 ---@field kind "allow_once" | "allow_always" | "reject_once" | "reject_always"
 
----@class RequestPermissionOutcome
+---@class avante.acp.RequestPermissionOutcome
 ---@field outcome "cancelled" | "selected"
 ---@field optionId string|nil
 
----@class ACPTransport
+---@class avante.acp.ACPTransport
 ---@field send function
 ---@field start function
 ---@field stop function
 
 ---@alias ACPConnectionState "disconnected" | "connecting" | "connected" | "initializing" | "ready" | "error"
 
----@class ACPError
+---@class avante.acp.ACPError
 ---@field code number
 ---@field message string
 ---@field data any|nil
 
----@class ACPClient
+---@class avante.acp.ACPClient
 ---@field protocol_version number
----@field capabilities ClientCapabilities
----@field agent_capabilities AgentCapabilities|nil
+---@field capabilities avante.acp.ClientCapabilities
+---@field agent_capabilities avante.acp.AgentCapabilities|nil
 ---@field config ACPConfig
----@field callbacks table<number, fun(result: table|nil, err: ACPError|nil)>
+---@field callbacks table<number, fun(result: table|nil, err: avante.acp.ACPError|nil)>
 local ACPClient = {}
 
 -- ACP Error codes
@@ -188,11 +192,11 @@ ACPClient.ERROR_CODES = {
 }
 
 ---@class ACPHandlers
----@field on_session_update? function
----@field on_request_permission? function
----@field on_read_file? function
----@field on_write_file? function
----@field on_error? function
+---@field on_session_update? fun(update: avante.acp.UserMessageChunk | avante.acp.AgentMessageChunk | avante.acp.AgentThoughtChunk | avante.acp.ToolCallUpdate | avante.acp.PlanUpdate)
+---@field on_request_permission? fun(tool_call: table, options: table[], callback: fun(option_id: string | nil)): nil
+---@field on_read_file? fun(path: string, line: integer | nil, limit: integer | nil, callback: fun(content: string)): nil
+---@field on_write_file? fun(path: string, content: string, callback: fun(error: string|nil)): nil
+---@field on_error? fun(error: table)
 
 ---@class ACPConfig
 ---@field transport_type "stdio" | "websocket" | "tcp"
@@ -211,7 +215,7 @@ ACPClient.ERROR_CODES = {
 
 ---Create a new ACP client instance
 ---@param config ACPConfig
----@return ACPClient
+---@return avante.acp.ACPClient
 function ACPClient:new(config)
   local client = setmetatable({
     id_counter = 0,
@@ -263,7 +267,7 @@ end
 ---@param code number
 ---@param message string
 ---@param data any?
----@return ACPError
+---@return avante.acp.ACPError
 function ACPClient:_create_error(code, message, data)
   return {
     code = code,
@@ -424,9 +428,9 @@ end
 ---Send JSON-RPC request
 ---@param method string
 ---@param params table?
----@param callback? fun(result: table|nil, err: ACPError|nil)
+---@param callback? fun(result: table|nil, err: avante.acp.ACPError|nil)
 ---@return table|nil result
----@return ACPError|nil err
+---@return avante.acp.ACPError|nil err
 function ACPClient:_send_request(method, params, callback)
   local id = self:_next_id()
   local message = {
@@ -477,7 +481,7 @@ end
 
 ---Send JSON-RPC result
 ---@param id number
----@param result table
+---@param result table | string | vim.NIL | nil
 ---@return nil
 function ACPClient:_send_result(id, result)
   local message = { jsonrpc = "2.0", id = id, result = result }
@@ -596,8 +600,12 @@ function ACPClient:_handle_read_text_file(message_id, params)
   if not session_id or not path then return end
 
   if self.config.handlers and self.config.handlers.on_read_file then
-    local content = self.config.handlers.on_read_file(path)
-    self:_send_result(message_id, { content = content })
+    self.config.handlers.on_read_file(
+      path,
+      params.line ~= vim.NIL and params.line or nil,
+      params.limit ~= vim.NIL and params.limit or nil,
+      function(content) self:_send_result(message_id, { content = content }) end
+    )
   end
 end
 
@@ -612,8 +620,11 @@ function ACPClient:_handle_write_text_file(message_id, params)
   if not session_id or not path or not content then return end
 
   if self.config.handlers and self.config.handlers.on_write_file then
-    local error = self.config.handlers.on_write_file(path, content)
-    self:_send_result(message_id, error == nil and vim.NIL or error)
+    self.config.handlers.on_write_file(
+      path,
+      content,
+      function(error) self:_send_result(message_id, error == nil and vim.NIL or error) end
+    )
   end
 end
 
@@ -684,7 +695,7 @@ end
 ---@param cwd string
 ---@param mcp_servers table[]?
 ---@return string|nil session_id
----@return ACPError|nil err
+---@return avante.acp.ACPError|nil err
 function ACPClient:create_session(cwd, mcp_servers)
   local result, err = self:_send_request("session/new", {
     cwd = cwd,
@@ -722,7 +733,7 @@ end
 ---Send prompt
 ---@param session_id string
 ---@param prompt table[]
----@param callback? fun(result: table|nil, err: ACPError|nil)
+---@param callback? fun(result: table|nil, err: avante.acp.ACPError|nil)
 function ACPClient:send_prompt(session_id, prompt, callback)
   local params = {
     sessionId = session_id,
