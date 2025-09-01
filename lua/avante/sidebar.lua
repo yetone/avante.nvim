@@ -75,7 +75,7 @@ Sidebar.__index = Sidebar
 ---@field input_hint_window integer | nil
 ---@field old_result_lines avante.ui.Line[]
 ---@field token_count integer | nil
----@field acp_client ACPClient | nil
+---@field acp_client avante.acp.ACPClient | nil
 ---@field acp_session_id string | nil
 ---@field post_render? fun(sidebar: avante.Sidebar)
 
