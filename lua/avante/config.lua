@@ -745,9 +745,15 @@ function M.save_last_model(model_name, provider_name)
 
   if not Utils.path_exists(config_dir) then vim.fn.mkdir(config_dir, "p") end
 
+  local Providers = require("avante.providers")
+  local provider = Providers[provider_name]
+  local provider_model = provider and provider.model
+
   local file = io.open(storage_path, "w")
   if file then
-    file:write(vim.json.encode({ last_model = model_name, last_provider = provider_name }))
+    file:write(
+      vim.json.encode({ last_model = model_name, last_provider = provider_name, provider_model = provider_model })
+    )
     file:close()
   end
 end
@@ -777,12 +783,18 @@ function M.get_last_used_model(known_providers)
       return
     end
 
-    if data.last_provider and not known_providers[data.last_provider] then
-      Utils.warn(
-        "Provider " .. data.last_provider .. " is no longer a valid provider, falling back to default configuration"
-      )
-      os.remove(storage_path)
-      return
+    if data.last_provider then
+      local provider = known_providers[data.last_provider]
+      if not provider then
+        Utils.warn(
+          "Provider " .. data.last_provider .. " is no longer a valid provider, falling back to default configuration"
+        )
+        os.remove(storage_path)
+        return
+      end
+      if data.provider_model and provider.model and provider.model ~= data.provider_model then
+        return provider.model, data.last_provider
+      end
     end
 
     return data.last_model, data.last_provider
