@@ -97,17 +97,17 @@
 ---@class avante.acp.BaseToolCallContent
 ---@field type "content" | "diff"
 
----@class avante.acp.ToolCallContentBlock : avante.acp.BaseToolCallContent
+---@class avante.acp.ToolCallRegularContent : avante.acp.BaseToolCallContent
 ---@field type "content"
 ---@field content ACPContent
 
----@class avante.acp.ToolCallDiff : avante.acp.BaseToolCallContent
+---@class avante.acp.ToolCallDiffContent : avante.acp.BaseToolCallContent
 ---@field type "diff"
 ---@field path string
 ---@field oldText string|nil
 ---@field newText string
 
----@alias ACPToolCallContent avante.acp.ToolCallContentBlock | avante.acp.ToolCallDiff
+---@alias ACPToolCallContent avante.acp.ToolCallRegularContent | avante.acp.ToolCallDiffContent
 
 ---@class avante.acp.ToolCallLocation
 ---@field path string
@@ -530,6 +530,12 @@ end
 ---@param method string
 ---@param params table
 function ACPClient:_handle_notification(message_id, method, params)
+  -- local f = io.open("/tmp/session.txt", "a")
+  -- if f then
+  --   f:write("method: " .. method .. "\n")
+  --   f:write(vim.inspect(params) .. "\n" .. string.rep("=", 100) .. "\n")
+  --   f:close()
+  -- end
   if method == "session/update" then
     self:_handle_session_update(params)
   elseif method == "session/request_permission" then
