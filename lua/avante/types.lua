@@ -414,8 +414,8 @@ vim.g.avante_login = vim.g.avante_login
 ---@alias avante.GenerateState "generating" | "tool calling" | "failed" | "succeeded" | "cancelled" | "searching" | "thinking" | "compacting" | "compacted" | "initializing" | "initialized"
 ---
 ---@class AvanteLLMStreamOptions: AvanteGeneratePromptsOptions
----@field acp_client? ACPClient
----@field on_save_acp_client? fun(client: ACPClient): nil
+---@field acp_client? avante.acp.ACPClient
+---@field on_save_acp_client? fun(client: avante.acp.ACPClient): nil
 ---@field acp_session_id? string
 ---@field on_save_acp_session_id? fun(session_id: string): nil
 ---@field on_start AvanteLLMStartCallback

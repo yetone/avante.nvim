@@ -837,6 +837,7 @@ function M._stream_acp(opts)
   local acp_client = opts.acp_client
   if not acp_client then
     local acp_config = vim.tbl_deep_extend("force", acp_provider, {
+      ---@type ACPHandlers
       handlers = {
         on_session_update = function(update)
           if update.sessionUpdate == "plan" then
@@ -1001,22 +1002,27 @@ function M._stream_acp(opts)
 
           vim.schedule(function() selector:open() end)
         end,
-        on_read_file = function(path, line, limit)
-          local abs_path = Utils.to_absolute_path(path)
-          local lines = Utils.read_file_from_buf_or_disk(abs_path)
-          lines = lines or {}
-          if line ~= nil and limit ~= nil then lines = vim.list_slice(lines, line, line + limit) end
-          return table.concat(lines, "\n")
+        on_read_file = function(path, line, limit, callback)
+          vim.schedule(function()
+            local abs_path = Utils.to_absolute_path(path)
+            local lines = Utils.read_file_from_buf_or_disk(abs_path)
+            lines = lines or {}
+            if line ~= nil and limit ~= nil then lines = vim.list_slice(lines, line, line + limit) end
+            callback(table.concat(lines, "\n"))
+          end)
         end,
-        on_write_file = function(path, content)
-          local abs_path = Utils.to_absolute_path(path)
-          local file = io.open(abs_path, "w")
-          if file then
-            file:write(content)
-            file:close()
-            return nil
-          end
-          return "Failed to write file: " .. abs_path
+        on_write_file = function(path, content, callback)
+          vim.schedule(function()
+            local abs_path = Utils.to_absolute_path(path)
+            local file = io.open(abs_path, "w")
+            if file then
+              file:write(content)
+              file:close()
+              callback(nil)
+              return
+            end
+            callback("Failed to write file: " .. abs_path)
+          end)
         end,
       },
     })
