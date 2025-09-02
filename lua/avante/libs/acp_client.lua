@@ -566,7 +566,7 @@ function ACPClient:_handle_session_update(params)
   end
 
   if self.config.handlers and self.config.handlers.on_session_update then
-    self.config.handlers.on_session_update(update)
+    vim.schedule(function() self.config.handlers.on_session_update(update) end)
   end
 end
 
@@ -581,18 +581,20 @@ function ACPClient:_handle_request_permission(message_id, params)
   if not session_id or not tool_call then return end
 
   if self.config.handlers and self.config.handlers.on_request_permission then
-    self.config.handlers.on_request_permission(
-      tool_call,
-      options,
-      function(option_id)
-        self:_send_result(message_id, {
-          outcome = {
-            outcome = "selected",
-            optionId = option_id,
-          },
-        })
-      end
-    )
+    vim.schedule(function()
+      self.config.handlers.on_request_permission(
+        tool_call,
+        options,
+        function(option_id)
+          self:_send_result(message_id, {
+            outcome = {
+              outcome = "selected",
+              optionId = option_id,
+            },
+          })
+        end
+      )
+    end)
   end
 end
 
@@ -606,12 +608,14 @@ function ACPClient:_handle_read_text_file(message_id, params)
   if not session_id or not path then return end
 
   if self.config.handlers and self.config.handlers.on_read_file then
-    self.config.handlers.on_read_file(
-      path,
-      params.line ~= vim.NIL and params.line or nil,
-      params.limit ~= vim.NIL and params.limit or nil,
-      function(content) self:_send_result(message_id, { content = content }) end
-    )
+    vim.schedule(function()
+      self.config.handlers.on_read_file(
+        path,
+        params.line ~= vim.NIL and params.line or nil,
+        params.limit ~= vim.NIL and params.limit or nil,
+        function(content) self:_send_result(message_id, { content = content }) end
+      )
+    end)
   end
 end
 
@@ -626,11 +630,13 @@ function ACPClient:_handle_write_text_file(message_id, params)
   if not session_id or not path or not content then return end
 
   if self.config.handlers and self.config.handlers.on_write_file then
-    self.config.handlers.on_write_file(
-      path,
-      content,
-      function(error) self:_send_result(message_id, error == nil and vim.NIL or error) end
-    )
+    vim.schedule(function()
+      self.config.handlers.on_write_file(
+        path,
+        content,
+        function(error) self:_send_result(message_id, error == nil and vim.NIL or error) end
+      )
+    end)
   end
 end
 

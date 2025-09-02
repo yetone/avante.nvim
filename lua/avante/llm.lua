@@ -988,40 +988,36 @@ function M._stream_acp(opts)
             end,
           })
 
-          vim.schedule(function() selector:open() end)
+          selector:open()
         end,
         on_read_file = function(path, line, limit, callback)
-          vim.schedule(function()
-            local abs_path = Utils.to_absolute_path(path)
-            local lines = Utils.read_file_from_buf_or_disk(abs_path)
-            lines = lines or {}
-            if line ~= nil and limit ~= nil then lines = vim.list_slice(lines, line, line + limit) end
-            callback(table.concat(lines, "\n"))
-          end)
+          local abs_path = Utils.to_absolute_path(path)
+          local lines = Utils.read_file_from_buf_or_disk(abs_path)
+          lines = lines or {}
+          if line ~= nil and limit ~= nil then lines = vim.list_slice(lines, line, line + limit) end
+          callback(table.concat(lines, "\n"))
         end,
         on_write_file = function(path, content, callback)
-          vim.schedule(function()
-            local abs_path = Utils.to_absolute_path(path)
-            local file = io.open(abs_path, "w")
-            if file then
-              file:write(content)
-              file:close()
-              local buffers = vim.tbl_filter(
-                function(bufnr)
-                  return vim.api.nvim_buf_is_valid(bufnr)
-                    and vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":p")
-                      == vim.fn.fnamemodify(abs_path, ":p")
-                end,
-                vim.api.nvim_list_bufs()
-              )
-              for _, buf in ipairs(buffers) do
-                vim.api.nvim_buf_call(buf, function() vim.cmd("edit") end)
-              end
-              callback(nil)
-              return
+          local abs_path = Utils.to_absolute_path(path)
+          local file = io.open(abs_path, "w")
+          if file then
+            file:write(content)
+            file:close()
+            local buffers = vim.tbl_filter(
+              function(bufnr)
+                return vim.api.nvim_buf_is_valid(bufnr)
+                  and vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":p")
+                    == vim.fn.fnamemodify(abs_path, ":p")
+              end,
+              vim.api.nvim_list_bufs()
+            )
+            for _, buf in ipairs(buffers) do
+              vim.api.nvim_buf_call(buf, function() vim.cmd("edit") end)
             end
-            callback("Failed to write file: " .. abs_path)
-          end)
+            callback(nil)
+            return
+          end
+          callback("Failed to write file: " .. abs_path)
         end,
       },
     })
