@@ -39,7 +39,10 @@ local function text_to_truncated_lines(text, decoration, truncate)
         lines,
         Line:new({
           { decoration },
-          { string.format("... (Result truncated, remaining %d lines not shown)", #text_lines - #lines + 1) },
+          {
+            string.format("... (Result truncated, remaining %d lines not shown)", #text_lines - #lines + 1),
+            Highlights.AVANTE_COMMENT_FG,
+          },
         })
       )
       break
@@ -61,7 +64,10 @@ local function lines_to_truncated_lines(lines, decoration, truncate)
         truncated_lines,
         Line:new({
           { decoration },
-          { string.format("... (Result truncated, remaining %d lines not shown)", #lines - idx + 1) },
+          {
+            string.format("... (Result truncated, remaining %d lines not shown)", #lines - idx + 1),
+            Highlights.AVANTE_COMMENT_FG,
+          },
         })
       )
       break
@@ -134,7 +140,10 @@ function M.get_diff_lines(old_str, new_str, decoration, truncate)
         lines,
         Line:new({
           { decoration },
-          { string.format("... (Result truncated, remaining %d hunks not shown)", #patch - idx + 1) },
+          {
+            string.format("... (Result truncated, remaining %d hunks not shown)", #patch - idx + 1),
+            Highlights.AVANTE_COMMENT_FG,
+          },
         })
       )
       break
@@ -234,7 +243,10 @@ function M.get_content_lines(content, decoration, truncate)
           lines,
           Line:new({
             { decoration },
-            { string.format("... (Result truncated, remaining %d lines not shown)", #lines_ - idx + 1) },
+            {
+              string.format("... (Result truncated, remaining %d lines not shown)", #lines_ - idx + 1),
+              Highlights.AVANTE_COMMENT_FG,
+            },
           })
         )
         break
@@ -258,7 +270,10 @@ function M.get_content_lines(content, decoration, truncate)
                 lines,
                 Line:new({
                   { decoration },
-                  { string.format("... (Result truncated, remaining %d lines not shown)", #lines_ - idx + 1) },
+                  {
+                    string.format("... (Result truncated, remaining %d lines not shown)", #lines_ - idx + 1),
+                    Highlights.AVANTE_COMMENT_FG,
+                  },
                 })
               )
               break
@@ -382,7 +397,10 @@ local function tool_to_lines(item, message, messages)
           lines,
           Line:new({
             { decoration },
-            { string.format("... (Input truncated, remaining %d lines not shown)", #lines_ - idx + 1) },
+            {
+              string.format("... (Input truncated, remaining %d lines not shown)", #lines_ - idx + 1),
+              Highlights.AVANTE_COMMENT_FG,
+            },
           })
         )
         break
