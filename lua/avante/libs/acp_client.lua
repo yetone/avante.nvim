@@ -532,7 +532,7 @@ function ACPClient:_handle_message(message)
     self:_handle_notification(message.id, message.method, message.params)
   elseif message.id and (message.result or message.error) then
     if self.debug_log_file then
-      self.debug_log_file:write("response: " .. vim.inspect(message) .. string.rep("=", 100) .. "\n")
+      self.debug_log_file:write("response: " .. vim.inspect(message) .. "\n" .. string.rep("=", 100) .. "\n")
       self.debug_log_file:flush()
     end
     local callback = self.callbacks[message.id]
