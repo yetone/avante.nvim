@@ -1041,6 +1041,25 @@ function M._stream_acp(opts)
     opts.on_save_acp_session_id(session_id)
   end
   local prompt = {}
+  if opts.selected_filepaths then
+    for _, filepath in ipairs(opts.selected_filepaths) do
+      local abs_path = Utils.to_absolute_path(filepath)
+      local file_name = vim.fn.fnamemodify(abs_path, ":t")
+      local prompt_item = acp_client:create_resource_link_content("file://" .. abs_path, file_name)
+      table.insert(prompt, prompt_item)
+    end
+  end
+  if opts.selected_code then
+    local prompt_item = {
+      type = "text",
+      text = string.format(
+        "<selected_code>\n<path>%s</path>\n<snippet>%s</snippet>\n</selected_code>",
+        opts.selected_code.path,
+        opts.selected_code.content
+      ),
+    }
+    table.insert(prompt, prompt_item)
+  end
   local history_messages = opts.history_messages or {}
   if opts.acp_session_id then
     for i = #history_messages, 1, -1 do
@@ -1096,35 +1115,6 @@ function M._stream_acp(opts)
         end
       end
     end
-  end
-  if opts.selected_filepaths then
-    for _, filepath in ipairs(opts.selected_filepaths) do
-      local lines, error = Utils.read_file_from_buf_or_disk(filepath)
-      if error ~= nil then
-        Utils.error("error reading file: " .. error)
-      else
-        local abs_path = Utils.to_absolute_path(filepath)
-        local content = table.concat(lines or {}, "\n")
-        local filetype = Utils.get_filetype(filepath)
-        local prompt_item = acp_client:create_resource_content({
-          uri = "file://" .. abs_path,
-          mimeType = "text/x-" .. filetype,
-          text = content,
-        }, nil)
-        table.insert(prompt, prompt_item)
-      end
-    end
-  end
-  if opts.selected_code then
-    local prompt_item = {
-      type = "text",
-      text = string.format(
-        "<selected_code>\n<path>%s</path>\n<snippet>%s</snippet>\n</selected_code>",
-        opts.selected_code.path,
-        opts.selected_code.content
-      ),
-    }
-    table.insert(prompt, prompt_item)
   end
   acp_client:send_prompt(session_id, prompt, function(_, err_)
     if err_ then
