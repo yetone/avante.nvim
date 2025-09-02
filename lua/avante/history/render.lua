@@ -11,16 +11,19 @@ local islist = vim.islist or vim.tbl_islist
 ---Converts text into format suitable for UI
 ---@param text string
 ---@param decoration string | nil
+---@param filter? fun(text_line: string, idx: integer, len: integer): boolean
 ---@return avante.ui.Line[]
-local function text_to_lines(text, decoration)
+local function text_to_lines(text, decoration, filter)
   local text_lines = vim.split(text, "\n")
   local lines = {}
-  for _, text_line in ipairs(text_lines) do
+  for idx, text_line in ipairs(text_lines) do
+    if filter and not filter(text_line, idx, #text_lines) then goto continue end
     if decoration then
       table.insert(lines, Line:new({ { decoration }, { text_line } }))
     else
       table.insert(lines, Line:new({ { text_line } }))
     end
+    ::continue::
   end
   return lines
 end
@@ -263,7 +266,11 @@ function M.get_content_lines(content, decoration, truncate)
       local line_count = 0
       if content_item.type == "content" then
         if content_item.content.type == "text" then
-          local lines_ = text_to_lines(content_item.content.text, decoration)
+          local lines_ = text_to_lines(content_item.content.text, decoration, function(text_line, idx, len)
+            if idx == 1 and text_line:match("^%s*```%s*$") then return false end
+            if idx == len and text_line:match("^%s*```%s*$") then return false end
+            return true
+          end)
           for idx, line in ipairs(lines_) do
             if truncate and line_count > 3 then
               table.insert(
@@ -416,11 +423,19 @@ local function tool_to_lines(item, message, messages)
       vim.list_extend(lines, diff_lines)
     end
   end
-  if result and result.content then
-    local result_content = result.content
-    if result_content then
-      local content_lines = M.get_content_lines(result_content, decoration, true)
+  if message.acp_tool_call and message.acp_tool_call.content then
+    local content = message.acp_tool_call.content
+    if content then
+      local content_lines = M.get_content_lines(content, decoration, true)
       vim.list_extend(lines, content_lines)
+    end
+  else
+    if result and result.content then
+      local result_content = result.content
+      if result_content then
+        local content_lines = M.get_content_lines(result_content, decoration, true)
+        vim.list_extend(lines, content_lines)
+      end
     end
   end
   if #lines <= 1 then table.insert(lines, Line:new({ { decoration }, { "completed" } })) end

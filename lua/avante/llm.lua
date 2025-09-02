@@ -800,6 +800,7 @@ end
 
 ---@param opts AvanteLLMStreamOptions
 function M._stream_acp(opts)
+  Utils.debug("use ACP", Config.provider)
   local Render = require("avante.history.render")
   ---@type table<string, avante.HistoryMessage>
   local tool_call_messages = {}
@@ -903,7 +904,11 @@ function M._stream_acp(opts)
                 id = update.toolCallId,
                 name = "",
               })
+              tool_call_messages[update.toolCallId] = tool_call_message
               tool_call_message.acp_tool_call = update
+            end
+            if tool_call_message.acp_tool_call then
+              tool_call_message.acp_tool_call = vim.tbl_deep_extend("force", tool_call_message.acp_tool_call, update)
             end
             tool_call_message.tool_use_logs = tool_call_message.tool_use_logs or {}
             tool_call_message.tool_use_log_lines = tool_call_message.tool_use_log_lines or {}
@@ -917,7 +922,7 @@ function M._stream_acp(opts)
               tool_result_message = History.Message:new("assistant", {
                 type = "tool_result",
                 tool_use_id = update.toolCallId,
-                content = update.content,
+                content = nil,
                 is_error = update.status == "failed",
                 is_user_declined = update.status == "cancelled",
               })
@@ -928,7 +933,16 @@ function M._stream_acp(opts)
           end
         end,
         on_request_permission = function(tool_call, options, callback)
-          local message = add_tool_call_message(tool_call)
+          local message = tool_call_messages[tool_call.toolCallId]
+          if not message then
+            add_tool_call_message(tool_call)
+          else
+            if message.acp_tool_call then
+              message.acp_tool_call = vim.tbl_deep_extend("force", message.acp_tool_call, tool_call)
+              tool_call = message.acp_tool_call
+            end
+          end
+          ---@cast tool_call avante.acp.ToolCall
           local items = vim
             .iter(options)
             :map(
