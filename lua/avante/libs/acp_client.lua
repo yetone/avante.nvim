@@ -1,3 +1,6 @@
+local Config = require("avante.config")
+local Utils = require("avante.utils")
+
 ---@class avante.acp.ClientCapabilities
 ---@field fs avante.acp.FileSystemCapability
 
@@ -178,6 +181,7 @@
 ---@field agent_capabilities avante.acp.AgentCapabilities|nil
 ---@field config ACPConfig
 ---@field callbacks table<number, fun(result: table|nil, err: avante.acp.ACPError|nil)>
+---@field debug_log_file file*|nil
 local ACPClient = {}
 
 -- ACP Error codes
@@ -217,6 +221,8 @@ ACPClient.ERROR_CODES = {
 ---@param config ACPConfig
 ---@return avante.acp.ACPClient
 function ACPClient:new(config)
+  local debug_log_file
+  if Config.debug then debug_log_file = io.open("/tmp/avante-acp-session.log", "a") end
   local client = setmetatable({
     id_counter = 0,
     protocol_version = 1,
@@ -226,6 +232,7 @@ function ACPClient:new(config)
         writeTextFile = true,
       },
     },
+    debug_log_file = debug_log_file,
     pending_responses = {},
     callbacks = {},
     transport = nil,
@@ -321,12 +328,12 @@ function ACPClient:_create_stdio_transport()
     end
 
     ---@diagnostic disable-next-line: missing-fields
-    local handle = uv.spawn(self.config.command, {
+    local handle, pid = uv.spawn(self.config.command, {
       args = args,
       env = final_env,
       stdio = { stdin, stdout, stderr },
     }, function(code, signal)
-      vim.print("ACP agent exited with code " .. code .. " and signal " .. signal)
+      Utils.debug("ACP agent exited with code " .. code .. " and signal " .. signal)
       self:_set_state("disconnected")
 
       if transport_self.process then
@@ -343,6 +350,8 @@ function ACPClient:_create_stdio_transport()
       end
     end)
 
+    Utils.debug("Spawned ACP agent process with PID " .. tostring(pid))
+
     if not handle then
       self:_set_state("error")
       error("Failed to spawn ACP agent process")
@@ -357,7 +366,6 @@ function ACPClient:_create_stdio_transport()
     -- Read stdout
     local buffer = ""
     stdout:read_start(function(err, data)
-      -- if data then vim.print("ACP stdout: " .. vim.inspect(data)) end
       if err then
         vim.notify("ACP stdout error: " .. err, vim.log.levels.ERROR)
         self:_set_state("error")
@@ -443,6 +451,10 @@ function ACPClient:_send_request(method, params, callback)
   if callback then self.callbacks[id] = callback end
 
   local data = vim.json.encode(message) .. "\n"
+  if self.debug_log_file then
+    self.debug_log_file:write("request: " .. data .. string.rep("=", 100) .. "\n")
+    self.debug_log_file:flush()
+  end
   if not self.transport:send(data) then return nil end
 
   if not callback then return self:_wait_response(id) end
@@ -476,6 +488,10 @@ function ACPClient:_send_notification(method, params)
   }
 
   local data = vim.json.encode(message) .. "\n"
+  if self.debug_log_file then
+    self.debug_log_file:write("notification: " .. data .. string.rep("=", 100) .. "\n")
+    self.debug_log_file:flush()
+  end
   self.transport:send(data)
 end
 
@@ -487,7 +503,10 @@ function ACPClient:_send_result(id, result)
   local message = { jsonrpc = "2.0", id = id, result = result }
 
   local data = vim.json.encode(message) .. "\n"
-  -- vim.print("Sending result: " .. data)
+  if self.debug_log_file then
+    self.debug_log_file:write("request: " .. data .. string.rep("=", 100) .. "\n")
+    self.debug_log_file:flush()
+  end
   self.transport:send(data)
 end
 
@@ -507,12 +526,15 @@ end
 ---Handle received message
 ---@param message table
 function ACPClient:_handle_message(message)
-  -- vim.print("Received message: " .. vim.inspect(message))
   -- Check if this is a notification (has method but no id, or has both method and id for notifications)
   if message.method and not message.result and not message.error then
     -- This is a notification
     self:_handle_notification(message.id, message.method, message.params)
   elseif message.id and (message.result or message.error) then
+    if self.debug_log_file then
+      self.debug_log_file:write("response: " .. vim.inspect(message) .. string.rep("=", 100) .. "\n")
+      self.debug_log_file:flush()
+    end
     local callback = self.callbacks[message.id]
     if callback then
       callback(message.result, message.error)
@@ -530,12 +552,11 @@ end
 ---@param method string
 ---@param params table
 function ACPClient:_handle_notification(message_id, method, params)
-  -- local f = io.open("/tmp/session.txt", "a")
-  -- if f then
-  --   f:write("method: " .. method .. "\n")
-  --   f:write(vim.inspect(params) .. "\n" .. string.rep("=", 100) .. "\n")
-  --   f:close()
-  -- end
+  if self.debug_log_file then
+    self.debug_log_file:write("method: " .. method .. "\n")
+    self.debug_log_file:write(vim.inspect(params) .. "\n" .. string.rep("=", 100) .. "\n")
+    self.debug_log_file:flush()
+  end
   if method == "session/update" then
     self:_handle_session_update(params)
   elseif method == "session/request_permission" then
@@ -686,11 +707,11 @@ function ACPClient:initialize()
   local auth_method = self.config.auth_method
 
   if auth_method then
-    vim.print("Authenticating with method " .. auth_method)
+    Utils.debug("Authenticating with method " .. auth_method)
     self:authenticate(auth_method)
     self:_set_state("ready")
   else
-    vim.print("No authentication method found or specified")
+    Utils.debug("No authentication method found or specified")
     self:_set_state("ready")
   end
 end
