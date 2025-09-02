@@ -291,7 +291,11 @@ function M.get_tool_display_name(message)
 
   local item = message.message.content[1]
 
-  local tool_name = item.name
+  local native_tool_name = item.name
+  if native_tool_name == "other" and message.acp_tool_call then
+    native_tool_name = message.acp_tool_call.title or "Other"
+  end
+  local tool_name = native_tool_name
   if message.displayed_tool_name then
     tool_name = message.displayed_tool_name
   else
@@ -325,7 +329,7 @@ function M.get_tool_display_name(message)
         end
       end
     end
-    if param then tool_name = item.name .. "(" .. param .. ")" end
+    if param then tool_name = native_tool_name .. "(" .. param .. ")" end
   end
 
   ---@cast tool_name string
