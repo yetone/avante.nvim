@@ -126,6 +126,8 @@ function M.full_view_ask()
   })
 end
 
+M.zen_mode = M.full_view_ask
+
 ---@param opts? AskOptions
 function M.ask(opts)
   opts = opts or {}

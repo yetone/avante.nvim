@@ -96,9 +96,9 @@ function H.keymaps()
     )
     Utils.safe_keymap_set(
       { "n", "v" },
-      Config.mappings.full_view_ask,
-      function() require("avante.api").full_view_ask() end,
-      { desc = "avante: ask with full result view" }
+      Config.mappings.zen_mode,
+      function() require("avante.api").zen_mode() end,
+      { desc = "avante: toggle Zen Mode" }
     )
     Utils.safe_keymap_set(
       { "n", "v" },
