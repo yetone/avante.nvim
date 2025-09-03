@@ -39,10 +39,13 @@ function M:get_section_pos(section_index, offset)
   for i = 1, section_index - 1 do
     if i == section_index then break end
     local section = self.sections[i]
-    col_start = col_start + #section
+    local text = type(section) == "table" and section[1] or section
+    col_start = col_start + #text
   end
 
-  return { offset + col_start, offset + col_start + #self.sections[section_index] }
+  local current = self.sections[section_index]
+  local text = type(current) == "table" and current[1] or current
+  return { offset + col_start, offset + col_start + #text }
 end
 
 function M:__tostring()
@@ -58,5 +61,9 @@ function M:__eq(other)
   if not other or type(other) ~= "table" or not other.sections then return false end
   return vim.deep_equal(self.sections, other.sections)
 end
+
+function M:bind_events(ns_id, bufnr, line) end
+
+function M:unbind_events(bufnr, line) end
 
 return M

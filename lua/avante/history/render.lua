@@ -362,6 +362,9 @@ function M.get_tool_display_name(message)
         local pieces = vim.split(param, "\n")
         if #pieces > 1 then param = pieces[1] .. "..." end
       end
+      if native_tool_name == "execute" and not param then
+        if message.acp_tool_call and message.acp_tool_call.title then param = message.acp_tool_call.title end
+      end
       if not param and path then
         local relative_path = Utils.relative_path(path)
         param = relative_path
@@ -466,7 +469,13 @@ local function tool_to_lines(item, message, messages, expanded)
       end
     end
   end
-  if #lines <= 1 then table.insert(lines, Line:new({ { decoration }, { "completed" } })) end
+  if #lines <= 1 then
+    if state == "generating" then
+      table.insert(lines, Line:new({ { decoration }, { "...", Highlights.AVANTE_COMMENT_FG } }))
+    else
+      table.insert(lines, Line:new({ { decoration }, { "completed" } }))
+    end
+  end
   local last_line = lines[#lines]
   last_line.sections[1][1] = "╰─  "
   return lines
