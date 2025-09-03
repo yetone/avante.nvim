@@ -63,15 +63,35 @@ If you like this project, please consider supporting me on Patreon, as it helps 
 - **One-Click Application**: Quickly apply the AI's suggested changes to your source code with a single command, streamlining the editing process and saving time.
 - **Project-Specific Instruction Files**: Customize AI behavior by adding a markdown file (`avante.md` by default) in the project root. This file is automatically referenced during workspace changes. You can also configure a custom file name for tailored project instructions.
 
-## project instructions with avante.md
+## Zen Mode
 
-the `avante.md` file allows you to provide project-specific context and instructions to the ai. this file should be placed in your project root and will be automatically referenced during all interactions with avante.
+Due to the prevalence of claude code, it is clear that this is an era of Coding Agent CLIs. As a result, there are many arguments like: in the Vibe Coding era, editors are no longer needed; you only need to use the CLI in the terminal. But have people realized that for more than half a century, Terminal-based Editors have solved and standardized the biggest problem with Terminal-based applications — that is, the awkward TUI interactions! No matter how much these Coding Agent CLIs optimize their UI/UX, their UI/UX will always be a subset of Terminal-based Editors (Vim, Emacs)! They cannot achieve Vim’s elegant action + text objects abstraction (imagine how you usually edit large multi-line prompts in an Agent CLI), nor can they leverage thousands of mature Vim/Neovim plugins to help optimize TUI UI/UX—such as easymotions and so on. Moreover, when they want to view or modify code, they often have to jump into other applications which forcibly interrupts the UI/UX experience.
 
-### best practices for avante.md
+Therefore, Avante’s Zen Mode was born! It looks like a Vibe Coding Agent CLI but it is completely Neovim underneath. So you can use your muscle-memory Vim operations and those rich and mature Neovim plugins on it. At the same time, by leveraging ACP it has all capabilities of claude code / gemini-cli / codex! Why not enjoy both?
+
+Now all you need to do is alias this command to avante; then every time you simply type avante just like using claude code and enter Avante’s Zen Mode!
+
+```bash
+alias avante='nvim -c "lua vim.defer_fn(function()require(\"avante.api\").zen_mode()end, 100)"'
+```
+
+The effect is as follows:
+
+<img alt="Avante Zen Mode" src="https://github.com/user-attachments/assets/60880f65-af55-4e4c-a565-23bb63e19251" />
+
+## Project instructions with avante.md
+
+<details>
+
+<summary>
+The `avante.md` file allows you to provide project-specific context and instructions to the ai. this file should be placed in your project root and will be automatically referenced during all interactions with avante.
+</summary>
+
+### Best practices for avante.md
 
 to get the most out of your project instruction file, consider following this structure:
 
-#### your role
+#### Your role
 
 define the ai's persona and expertise level for your project:
 
@@ -81,7 +101,7 @@ define the ai's persona and expertise level for your project:
 you are an expert senior software engineer specializing in [technology stack]. you have deep knowledge of [specific frameworks/tools] and understand best practices for [domain/industry]. you write clean, maintainable, and well-documented code. you prioritize code quality, performance, and security in all your recommendations.
 ```
 
-#### your mission
+#### Your mission
 
 clearly describe what the ai should focus on and how it should help:
 
@@ -98,7 +118,7 @@ your primary goal is to help build and maintain [project description]. you shoul
 - help write comprehensive tests for new features
 ```
 
-#### additional sections to consider
+#### Additional sections to consider
 
 - **project context**: brief description of the project, its goals, and target users
 - **technology stack**: list of technologies, frameworks, and tools used
@@ -145,6 +165,8 @@ myapp is a modern e-commerce platform targeting small businesses. we prioritize 
 - add jsdoc comments for complex functions
 - follow the existing folder structure and naming conventions
 ```
+
+</details>
 
 ## Installation
 
