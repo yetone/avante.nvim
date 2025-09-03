@@ -49,3 +49,6 @@ doc/
 config.personal.lua
 
 target
+
+# Claude Code Task Management
+.something
