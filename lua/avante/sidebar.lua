@@ -994,11 +994,12 @@ function Sidebar:render_input(ask)
 
   if self.code.selection ~= nil then
     header_text = string.format(
-      "%s%s (%d:%d) (<Tab>: switch focus)",
+      "%s%s (%d:%d) (%s: switch focus)",
       Utils.icon("󱜸 "),
       ask and "Ask" or "Chat with",
       self.code.selection.range.start.lnum,
-      self.code.selection.range.finish.lnum
+      self.code.selection.range.finish.lnum,
+      Config.mappings.sidebar.switch_windows
     )
   end
 
