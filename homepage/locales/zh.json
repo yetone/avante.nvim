@@ -1,0 +1,119 @@
+{
+  "nav": {
+    "home": "首页",
+    "features": "功能",
+    "installation": "安装",
+    "community": "社区",
+    "docs": "文档"
+  },
+  "hero": {
+    "title": "Neovim 的 AI 驱动编程",
+    "subtitle": "在你最喜爱的终端编辑器中体验 Cursor IDE 的智能。使用 AI 驱动的代码建议和无缝集成来转换你的 Neovim 工作流程。",
+    "cta_primary": "立即安装",
+    "cta_secondary": "观看演示",
+    "github_stars": "GitHub 星标",
+    "discord_members": "Discord 成员"
+  },
+  "features": {
+    "title": "为什么选择 avante.nvim？",
+    "subtitle": "为世界上最可定制的编辑器带来 AI 辅助编程的强大功能",
+    "ai_completion": {
+      "title": "智能代码补全",
+      "description": "上下文感知的 AI 建议，理解你的代码库和编程模式"
+    },
+    "cursor_like": {
+      "title": "Cursor IDE 体验",
+      "description": "在 Neovim 中直接享受你喜爱的 Cursor AI 驱动功能"
+    },
+    "terminal_native": {
+      "title": "终端原生",
+      "description": "保持你的终端工作流程，无需切换到单独的 GUI 应用程序"
+    },
+    "open_source": {
+      "title": "完全开源",
+      "description": "MIT 许可证，完全透明和社区驱动的开发"
+    }
+  },
+  "comparison": {
+    "title": "功能对比",
+    "feature": "功能",
+    "avante": "avante.nvim",
+    "cursor": "Cursor IDE",
+    "traditional": "传统 IDE",
+    "terminal_integration": "终端集成",
+    "neovim_compatibility": "Neovim 兼容性",
+    "open_source": "开源",
+    "customization": "可定制性",
+    "native": "✅ 原生",
+    "separate": "❌ 独立",
+    "none": "❌ 无",
+    "limited": "❌ 有限",
+    "proprietary": "❌ 专有",
+    "mixed": "❌ 混合",
+    "unlimited": "✅ 无限制",
+    "mit": "✅ MIT"
+  },
+  "installation": {
+    "title": "快速安装",
+    "subtitle": "几分钟内开始使用 avante.nvim",
+    "prerequisites": "前置要求",
+    "prerequisites_text": "确保你已安装 Neovim 0.10+",
+    "choose_manager": "选择你的插件管理器：",
+    "lazy_nvim": "lazy.nvim",
+    "packer_nvim": "packer.nvim",
+    "vim_plug": "vim-plug",
+    "manual": "手动",
+    "copy_success": "已复制到剪贴板！",
+    "copy_button": "复制",
+    "step1": "1. 添加到你的插件配置",
+    "step2": "2. 重启 Neovim 并运行 :Lazy install",
+    "step3": "3. 配置你的 AI 提供商设置",
+    "troubleshooting": "需要帮助？查看我们的故障排除指南。"
+  },
+  "community": {
+    "title": "加入我们的社区",
+    "subtitle": "与使用 AI 驱动 Neovim 工作流程的开发者联系",
+    "discord": {
+      "title": "Discord 社区",
+      "description": "获得帮助，分享配置，并了解最新功能",
+      "members": "成员",
+      "join": "加入 Discord"
+    },
+    "github": {
+      "title": "GitHub 仓库",
+      "description": "为项目贡献代码，报告问题，并探索源代码",
+      "stars": "星标",
+      "view": "在 GitHub 查看"
+    },
+    "sponsor": {
+      "title": "支持开发",
+      "description": "通过赞助帮助我们维护和改进 avante.nvim",
+      "sponsor": "在 Patreon 赞助"
+    }
+  },
+  "testimonials": {
+    "title": "开发者怎么说",
+    "user1": {
+      "quote": "avante.nvim 完全改变了我的编程工作流程。AI 建议非常准确且符合上下文。",
+      "author": "开发者"
+    },
+    "user2": {
+      "quote": "终于，我可以在不离开我心爱的 Neovim 设置的情况下享受类似 Cursor 的 AI 辅助。这是一个游戏规则改变者！",
+      "author": "Neovim 用户"
+    },
+    "user3": {
+      "quote": "与我现有 Neovim 配置的无缝集成使这个插件成为我日常开发中不可或缺的工具。",
+      "author": "软件工程师"
+    }
+  },
+  "footer": {
+    "description": "avante.nvim 为 Neovim 带来了 AI 驱动的编程辅助，结合了现代 AI 工具的智能与世界上最可定制编辑器的灵活性。",
+    "links": {
+      "product": "产品",
+      "community": "社区",
+      "resources": "资源"
+    },
+    "copyright": "© 2024 avante.nvim. 保留所有权利。",
+    "license": "在 MIT 许可证下发布。"
+  }
+}

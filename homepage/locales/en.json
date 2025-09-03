@@ -1,0 +1,119 @@
+{
+  "nav": {
+    "home": "Home",
+    "features": "Features",
+    "installation": "Installation",
+    "community": "Community",
+    "docs": "Documentation"
+  },
+  "hero": {
+    "title": "AI-Powered Coding for Neovim",
+    "subtitle": "Experience Cursor IDE's intelligence in your favorite terminal editor. Transform your Neovim workflow with AI-driven code suggestions and seamless integration.",
+    "cta_primary": "Install Now",
+    "cta_secondary": "Watch Demo",
+    "github_stars": "GitHub Stars",
+    "discord_members": "Discord Members"
+  },
+  "features": {
+    "title": "Why Choose avante.nvim?",
+    "subtitle": "Bringing the power of AI-assisted coding to the world's most customizable editor",
+    "ai_completion": {
+      "title": "Intelligent Code Completion",
+      "description": "Context-aware AI suggestions that understand your codebase and coding patterns"
+    },
+    "cursor_like": {
+      "title": "Cursor IDE Experience",
+      "description": "Enjoy the same AI-powered features you love from Cursor, directly in Neovim"
+    },
+    "terminal_native": {
+      "title": "Terminal Native",
+      "description": "Stay in your terminal workflow without switching to separate GUI applications"
+    },
+    "open_source": {
+      "title": "Fully Open Source",
+      "description": "MIT licensed with full transparency and community-driven development"
+    }
+  },
+  "comparison": {
+    "title": "Feature Comparison",
+    "feature": "Feature",
+    "avante": "avante.nvim",
+    "cursor": "Cursor IDE",
+    "traditional": "Traditional IDEs",
+    "terminal_integration": "Terminal Integration",
+    "neovim_compatibility": "Neovim Compatibility",
+    "open_source": "Open Source",
+    "customization": "Customization",
+    "native": "✅ Native",
+    "separate": "❌ Separate",
+    "none": "❌ None",
+    "limited": "❌ Limited",
+    "proprietary": "❌ Proprietary",
+    "mixed": "❌ Mixed",
+    "unlimited": "✅ Unlimited",
+    "mit": "✅ MIT"
+  },
+  "installation": {
+    "title": "Quick Installation",
+    "subtitle": "Get started with avante.nvim in minutes",
+    "prerequisites": "Prerequisites",
+    "prerequisites_text": "Make sure you have Neovim 0.10+ installed",
+    "choose_manager": "Choose your plugin manager:",
+    "lazy_nvim": "lazy.nvim",
+    "packer_nvim": "packer.nvim",
+    "vim_plug": "vim-plug",
+    "manual": "Manual",
+    "copy_success": "Copied to clipboard!",
+    "copy_button": "Copy",
+    "step1": "1. Add to your plugin configuration",
+    "step2": "2. Restart Neovim and run :Lazy install",
+    "step3": "3. Configure your AI provider settings",
+    "troubleshooting": "Need help? Check our troubleshooting guide."
+  },
+  "community": {
+    "title": "Join Our Community",
+    "subtitle": "Connect with developers using AI-powered Neovim workflows",
+    "discord": {
+      "title": "Discord Community",
+      "description": "Get help, share configurations, and stay updated on the latest features",
+      "members": "members",
+      "join": "Join Discord"
+    },
+    "github": {
+      "title": "GitHub Repository",
+      "description": "Contribute to the project, report issues, and explore the source code",
+      "stars": "stars",
+      "view": "View on GitHub"
+    },
+    "sponsor": {
+      "title": "Support Development",
+      "description": "Help us maintain and improve avante.nvim with your sponsorship",
+      "sponsor": "Sponsor on Patreon"
+    }
+  },
+  "testimonials": {
+    "title": "What Developers Say",
+    "user1": {
+      "quote": "avante.nvim has completely transformed my coding workflow. The AI suggestions are incredibly accurate and contextually relevant.",
+      "author": "Developer"
+    },
+    "user2": {
+      "quote": "Finally, I can enjoy Cursor-like AI assistance without leaving my beloved Neovim setup. This is a game changer!",
+      "author": "Neovim User"
+    },
+    "user3": {
+      "quote": "The seamless integration with my existing Neovim configuration makes this plugin indispensable for my daily development.",
+      "author": "Software Engineer"
+    }
+  },
+  "footer": {
+    "description": "avante.nvim brings AI-powered coding assistance to Neovim, combining the intelligence of modern AI tools with the flexibility of the world's most customizable editor.",
+    "links": {
+      "product": "Product",
+      "community": "Community",
+      "resources": "Resources"
+    },
+    "copyright": "© 2024 avante.nvim. All rights reserved.",
+    "license": "Released under the MIT License."
+  }
+}
