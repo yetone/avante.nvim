@@ -63,7 +63,7 @@ If you like this project, please consider supporting me on Patreon, as it helps 
 - **One-Click Application**: Quickly apply the AI's suggested changes to your source code with a single command, streamlining the editing process and saving time.
 - **Project-Specific Instruction Files**: Customize AI behavior by adding a markdown file (`avante.md` by default) in the project root. This file is automatically referenced during workspace changes. You can also configure a custom file name for tailored project instructions.
 
-## Zen Mode
+## Avante Zen Mode
 
 Due to the prevalence of claude code, it is clear that this is an era of Coding Agent CLIs. As a result, there are many arguments like: in the Vibe Coding era, editors are no longer needed; you only need to use the CLI in the terminal. But have people realized that for more than half a century, Terminal-based Editors have solved and standardized the biggest problem with Terminal-based applications — that is, the awkward TUI interactions! No matter how much these Coding Agent CLIs optimize their UI/UX, their UI/UX will always be a subset of Terminal-based Editors (Vim, Emacs)! They cannot achieve Vim’s elegant action + text objects abstraction (imagine how you usually edit large multi-line prompts in an Agent CLI), nor can they leverage thousands of mature Vim/Neovim plugins to help optimize TUI UI/UX—such as easymotions and so on. Moreover, when they want to view or modify code, they often have to jump into other applications which forcibly interrupts the UI/UX experience.
 
