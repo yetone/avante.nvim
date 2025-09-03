@@ -7,11 +7,11 @@ local rshift, band = bit.rshift, bit.band
 
 local Highlights = {
   TITLE = { name = "AvanteTitle", fg = "#1e222a", bg = "#98c379" },
-  REVERSED_TITLE = { name = "AvanteReversedTitle", fg = "#98c379" },
+  REVERSED_TITLE = { name = "AvanteReversedTitle", fg = "#98c379", bg_link = "NormalFloat" },
   SUBTITLE = { name = "AvanteSubtitle", fg = "#1e222a", bg = "#56b6c2" },
-  REVERSED_SUBTITLE = { name = "AvanteReversedSubtitle", fg = "#56b6c2" },
+  REVERSED_SUBTITLE = { name = "AvanteReversedSubtitle", fg = "#56b6c2", bg_link = "NormalFloat" },
   THIRD_TITLE = { name = "AvanteThirdTitle", fg = "#ABB2BF", bg = "#353B45" },
-  REVERSED_THIRD_TITLE = { name = "AvanteReversedThirdTitle", fg = "#353B45" },
+  REVERSED_THIRD_TITLE = { name = "AvanteReversedThirdTitle", fg = "#353B45", bg_link = "NormalFloat" },
   SUGGESTION = { name = "AvanteSuggestion", link = "Comment" },
   ANNOTATION = { name = "AvanteAnnotation", link = "Comment" },
   POPUP_HINT = { name = "AvantePopupHint", link = "NormalFloat" },

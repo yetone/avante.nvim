@@ -118,14 +118,16 @@ vim.g.avante_login = vim.g.avante_login
 ---@field is_calling boolean | nil
 ---@field original_content AvanteLLMMessageContent | nil
 ---@field acp_tool_call? avante.acp.ToolCall
----
+---@field permission_options? avante.acp.PermissionOption[]
+---@field is_permission_confirming? boolean
+
 ---@class AvanteLLMToolResult
 ---@field tool_name string
 ---@field tool_use_id string
 ---@field content string
 ---@field is_error? boolean
 ---@field is_user_declined? boolean
----
+
 ---@class AvantePromptOptions: table<[string], string>
 ---@field system_prompt string
 ---@field messages AvanteLLMMessage[]
