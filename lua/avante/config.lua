@@ -569,6 +569,7 @@ M._defaults = {
       repomap = "<leader>aR",
     },
     sidebar = {
+      expand_tool_use = "<S-Tab>",
       next_prompt = "]p",
       prev_prompt = "[p",
       apply_all = "A",

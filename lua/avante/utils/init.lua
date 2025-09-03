@@ -1300,29 +1300,55 @@ end
 ---@param skip_line_count? integer
 function M.update_buffer_lines(ns_id, bufnr, old_lines, new_lines, skip_line_count)
   skip_line_count = skip_line_count or 0
-  local diffs = get_lines_diff(old_lines, new_lines)
-  if #diffs == 0 then return end
-  for _, diff in ipairs(diffs) do
-    local lines = diff.content
-    local text_lines = vim.tbl_map(function(line) return tostring(line) end, lines)
-    --- rmeove newlines from text_lines
-    local cleaned_lines = {}
-    for _, line in ipairs(text_lines) do
-      local lines_ = vim.split(line, "\n")
-      cleaned_lines = vim.list_extend(cleaned_lines, lines_)
+  local diff_start_idx = 0
+  for i, line in ipairs(new_lines) do
+    local old_line = old_lines[i]
+    if not old_line or old_line ~= line then
+      diff_start_idx = i
+      break
     end
+  end
+  if diff_start_idx > 0 then
+    local changed_lines = vim.list_slice(new_lines, diff_start_idx)
+    local text_lines = vim.tbl_map(function(line) return tostring(line) end, changed_lines)
     vim.api.nvim_buf_set_lines(
       bufnr,
-      skip_line_count + diff.start_line - 1,
-      skip_line_count + diff.end_line - 1,
+      skip_line_count + diff_start_idx - 1,
+      skip_line_count + diff_start_idx + #changed_lines,
       false,
-      cleaned_lines
+      text_lines
     )
-    for i, line in ipairs(lines) do
-      line:set_highlights(ns_id, bufnr, skip_line_count + diff.start_line + i - 2)
+    for i, line in ipairs(changed_lines) do
+      line:set_highlights(ns_id, bufnr, skip_line_count + diff_start_idx + i - 2)
     end
-    vim.cmd("redraw")
   end
+  if #old_lines > #new_lines then
+    vim.api.nvim_buf_set_lines(bufnr, skip_line_count + #new_lines, skip_line_count + #old_lines, false, {})
+  end
+  vim.cmd("redraw")
+  -- local diffs = get_lines_diff(old_lines, new_lines)
+  -- if #diffs == 0 then return end
+  -- for _, diff in ipairs(diffs) do
+  --   local lines = diff.content
+  --   local text_lines = vim.tbl_map(function(line) return tostring(line) end, lines)
+  --   --- remove newlines from text_lines
+  --   local cleaned_lines = {}
+  --   for _, line in ipairs(text_lines) do
+  --     local lines_ = vim.split(line, "\n")
+  --     cleaned_lines = vim.list_extend(cleaned_lines, lines_)
+  --   end
+  --   vim.api.nvim_buf_set_lines(
+  --     bufnr,
+  --     skip_line_count + diff.start_line - 1,
+  --     skip_line_count + diff.end_line - 1,
+  --     false,
+  --     cleaned_lines
+  --   )
+  --   for i, line in ipairs(lines) do
+  --     line:set_highlights(ns_id, bufnr, skip_line_count + diff.start_line + i - 2)
+  --   end
+  --   vim.cmd("redraw")
+  -- end
 end
 
 function M.uniform_path(path)
