@@ -137,39 +137,45 @@ function M.get_diff_lines(old_str, new_str, decoration, truncate)
     ctxlen = vim.o.scrolloff,
   })
   local prev_start_a = 0
-  for idx, hunk in ipairs(patch) do
-    if truncate and line_count > 10 then
-      table.insert(
-        lines,
-        Line:new({
-          { decoration },
-          {
-            string.format("... (Result truncated, remaining %d hunks not shown)", #patch - idx + 1),
-            Highlights.AVANTE_COMMENT_FG,
-          },
-        })
-      )
-      break
-    end
+  local truncated_lines = 0
+  for _, hunk in ipairs(patch) do
     local start_a, count_a, start_b, count_b = unpack(hunk)
     local no_change_lines = vim.list_slice(old_lines, prev_start_a, start_a - 1)
-    local last_tree_no_change_lines = vim.list_slice(no_change_lines, #no_change_lines - 3)
-    if #no_change_lines > 3 then table.insert(lines, Line:new({ { decoration }, { "..." } })) end
-    for _, line in ipairs(last_tree_no_change_lines) do
+    if truncate then
+      local last_three_no_change_lines = vim.list_slice(no_change_lines, #no_change_lines - 3)
+      truncated_lines = truncated_lines + #no_change_lines - #last_three_no_change_lines
+      if #no_change_lines > 4 then
+        table.insert(lines, Line:new({ { decoration }, { "...", Highlights.AVANTE_COMMENT_FG } }))
+      end
+      no_change_lines = last_three_no_change_lines
+    end
+    for idx, line in ipairs(no_change_lines) do
+      if truncate and line_count > 10 then
+        truncated_lines = truncated_lines + #no_change_lines - idx
+        break
+      end
       line_count = line_count + 1
       table.insert(lines, Line:new({ { decoration }, { line } }))
     end
     prev_start_a = start_a + count_a
     if count_a > 0 then
       local delete_lines = vim.list_slice(old_lines, start_a, start_a + count_a - 1)
-      for _, line in ipairs(delete_lines) do
+      for idx, line in ipairs(delete_lines) do
+        if truncate and line_count > 10 then
+          truncated_lines = truncated_lines + #delete_lines - idx
+          break
+        end
         line_count = line_count + 1
         table.insert(lines, Line:new({ { decoration }, { line, Highlights.TO_BE_DELETED_WITHOUT_STRIKETHROUGH } }))
       end
     end
     if count_b > 0 then
       local create_lines = vim.list_slice(new_lines, start_b, start_b + count_b - 1)
-      for _, line in ipairs(create_lines) do
+      for idx, line in ipairs(create_lines) do
+        if truncate and line_count > 10 then
+          truncated_lines = truncated_lines + #create_lines - idx
+          break
+        end
         line_count = line_count + 1
         table.insert(lines, Line:new({ { decoration }, { line, Highlights.INCOMING } }))
       end
@@ -178,12 +184,27 @@ function M.get_diff_lines(old_str, new_str, decoration, truncate)
   if prev_start_a < #old_lines then
     -- Append remaining old_lines
     local no_change_lines = vim.list_slice(old_lines, prev_start_a, #old_lines)
-    local first_tree_no_change_lines = vim.list_slice(no_change_lines, 1, 3)
-    for _, line in ipairs(first_tree_no_change_lines) do
+    local first_three_no_change_lines = vim.list_slice(no_change_lines, 1, 3)
+    for idx, line in ipairs(first_three_no_change_lines) do
+      if truncate and line_count > 10 then
+        truncated_lines = truncated_lines + #first_three_no_change_lines - idx
+        break
+      end
       line_count = line_count + 1
       table.insert(lines, Line:new({ { decoration }, { line } }))
     end
-    if #no_change_lines > 3 then table.insert(lines, Line:new({ { decoration }, { "..." } })) end
+  end
+  if truncate and truncated_lines > 0 then
+    table.insert(
+      lines,
+      Line:new({
+        { decoration },
+        {
+          string.format("... (Result truncated, remaining %d lines not shown)", truncated_lines),
+          Highlights.AVANTE_COMMENT_FG,
+        },
+      })
+    )
   end
   return lines
 end
@@ -369,8 +390,9 @@ end
 ---@param item AvanteLLMMessageContentItem
 ---@param message avante.HistoryMessage
 ---@param messages avante.HistoryMessage[]
+---@param expanded boolean | nil
 ---@return avante.ui.Line[]
-local function tool_to_lines(item, message, messages)
+local function tool_to_lines(item, message, messages, expanded)
   -- local logs = message.tool_use_logs
   local lines = {}
 
@@ -405,7 +427,7 @@ local function tool_to_lines(item, message, messages)
     local lines_ = text_to_lines(table.concat(rest_input_text_lines, "\n"), decoration)
     local line_count = 0
     for idx, line in ipairs(lines_) do
-      if line_count > 3 then
+      if not expanded and line_count > 3 then
         table.insert(
           lines,
           Line:new({
@@ -425,21 +447,21 @@ local function tool_to_lines(item, message, messages)
   end
   if item.input and type(item.input) == "table" then
     if type(item.input.old_str) == "string" and type(item.input.new_str) == "string" then
-      local diff_lines = M.get_diff_lines(item.input.old_str, item.input.new_str, decoration, true)
+      local diff_lines = M.get_diff_lines(item.input.old_str, item.input.new_str, decoration, not expanded)
       vim.list_extend(lines, diff_lines)
     end
   end
   if message.acp_tool_call and message.acp_tool_call.content then
     local content = message.acp_tool_call.content
     if content then
-      local content_lines = M.get_content_lines(content, decoration, true)
+      local content_lines = M.get_content_lines(content, decoration, not expanded)
       vim.list_extend(lines, content_lines)
     end
   else
     if result and result.content then
       local result_content = result.content
       if result_content then
-        local content_lines = M.get_content_lines(result_content, decoration, true)
+        local content_lines = M.get_content_lines(result_content, decoration, not expanded)
         vim.list_extend(lines, content_lines)
       end
     end
@@ -454,8 +476,9 @@ end
 ---@param item AvanteLLMMessageContentItem
 ---@param message avante.HistoryMessage
 ---@param messages avante.HistoryMessage[]
+---@param expanded boolean | nil
 ---@return avante.ui.Line[]
-local function message_content_item_to_lines(item, message, messages)
+local function message_content_item_to_lines(item, message, messages, expanded)
   if type(item) == "string" then
     return text_to_lines(item)
   elseif type(item) == "table" then
@@ -480,7 +503,7 @@ local function message_content_item_to_lines(item, message, messages)
         end
       end
 
-      local lines = tool_to_lines(item, message, messages)
+      local lines = tool_to_lines(item, message, messages, expanded)
       if message.tool_use_log_lines then lines = vim.list_extend(lines, message.tool_use_log_lines) end
       return lines
     end
@@ -491,15 +514,16 @@ end
 ---Converts a message into representation suitable for UI
 ---@param message avante.HistoryMessage
 ---@param messages avante.HistoryMessage[]
+---@param expanded boolean | nil
 ---@return avante.ui.Line[]
-function M.message_to_lines(message, messages)
+function M.message_to_lines(message, messages, expanded)
   if message.displayed_content then return text_to_lines(message.displayed_content) end
   local content = message.message.content
   if type(content) == "string" then return text_to_lines(content) end
   if islist(content) then
     local lines = {}
     for _, item in ipairs(content) do
-      local item_lines = message_content_item_to_lines(item, message, messages)
+      local item_lines = message_content_item_to_lines(item, message, messages, expanded)
       lines = vim.list_extend(lines, item_lines)
     end
     return lines
