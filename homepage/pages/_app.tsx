@@ -7,7 +7,7 @@ import Analytics from '@/components/Analytics';
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const measurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID;
-  
+
   return (
     <ErrorBoundary>
       <Analytics measurementId={measurementId} />

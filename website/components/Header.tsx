@@ -37,15 +37,15 @@ export function Header() {
 
           {/* CTA Buttons */}
           <div className="hidden md:flex items-center space-x-4">
-            <Link 
-              href="https://discord.gg/QfnEFEdSjz" 
+            <Link
+              href="https://discord.gg/QfnEFEdSjz"
               className="flex items-center space-x-2 text-gray-600 hover:text-primary-600 dark:text-gray-300 dark:hover:text-primary-400 transition-colors"
             >
               <MessageCircle className="w-5 h-5" />
               <span>Discord</span>
             </Link>
-            <Link 
-              href="https://github.com/yetone/avante.nvim" 
+            <Link
+              href="https://github.com/yetone/avante.nvim"
               className="flex items-center space-x-2 btn-primary"
             >
               <Github className="w-5 h-5" />
@@ -80,15 +80,15 @@ export function Header() {
                 Docs
               </Link>
               <div className="flex items-center space-x-4 pt-4">
-                <Link 
-                  href="https://discord.gg/QfnEFEdSjz" 
+                <Link
+                  href="https://discord.gg/QfnEFEdSjz"
                   className="flex items-center space-x-2 btn-secondary flex-1 justify-center"
                 >
                   <MessageCircle className="w-5 h-5" />
                   <span>Discord</span>
                 </Link>
-                <Link 
-                  href="https://github.com/yetone/avante.nvim" 
+                <Link
+                  href="https://github.com/yetone/avante.nvim"
                   className="flex items-center space-x-2 btn-primary flex-1 justify-center"
                 >
                   <Github className="w-5 h-5" />

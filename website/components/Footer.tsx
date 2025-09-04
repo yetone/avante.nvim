@@ -82,7 +82,7 @@ export function Footer() {
             <ul className="space-y-3">
               {footerLinks.product.map((link, index) => (
                 <li key={index}>
-                  <Link 
+                  <Link
                     href={link.href}
                     className="text-gray-400 hover:text-white transition-colors flex items-center"
                   >
@@ -102,7 +102,7 @@ export function Footer() {
             <ul className="space-y-3">
               {footerLinks.community.map((link, index) => (
                 <li key={index}>
-                  <a 
+                  <a
                     href={link.href}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -122,7 +122,7 @@ export function Footer() {
             <ul className="space-y-3">
               {footerLinks.support.map((link, index) => (
                 <li key={index}>
-                  <a 
+                  <a
                     href={link.href}
                     target="_blank"
                     rel="noopener noreferrer"
@@ -144,7 +144,7 @@ export function Footer() {
             <p className="text-gray-400 mb-6 max-w-2xl mx-auto">
               avante.nvim is free and open source. Your support helps us maintain and improve the project for the entire community.
             </p>
-            <a 
+            <a
               href="https://patreon.com/yetone"
               target="_blank"
               rel="noopener noreferrer"
@@ -161,8 +161,8 @@ export function Footer() {
           <div className="text-gray-400 text-sm">
             <p>
               © {new Date().getFullYear()} avante.nvim. Released under the{' '}
-              <a 
-                href="https://github.com/yetone/avante.nvim/blob/main/LICENSE" 
+              <a
+                href="https://github.com/yetone/avante.nvim/blob/main/LICENSE"
                 className="text-primary-400 hover:underline"
                 target="_blank"
                 rel="noopener noreferrer"
@@ -172,11 +172,11 @@ export function Footer() {
               .
             </p>
           </div>
-          
+
           <div className="text-gray-400 text-sm">
             <p>
               Made with ❤️ by the{' '}
-              <a 
+              <a
                 href="https://github.com/yetone/avante.nvim/graphs/contributors"
                 className="text-primary-400 hover:underline"
                 target="_blank"

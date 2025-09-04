@@ -119,7 +119,7 @@ export function InstallationSection() {
         {/* Section Header */}
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 dark:text-white">
-            Get Started in 
+            Get Started in
             <span className="text-primary-600 dark:text-primary-400"> Minutes</span>
           </h2>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
@@ -137,7 +137,7 @@ export function InstallationSection() {
                 </span>
                 Prerequisites
               </h3>
-              
+
               <div className="space-y-4">
                 {prerequisites.map((prereq, index) => (
                   <div key={index} className="border-l-4 border-primary-600 pl-4">
@@ -214,7 +214,7 @@ export function InstallationSection() {
                         )}
                       </button>
                     </div>
-                    
+
                     <div className="code-block">
                       <pre className="overflow-x-auto">
                         <code>{activeMethod.code}</code>
@@ -258,9 +258,9 @@ export function InstallationSection() {
                   </div>
                 </div>
               </div>
-              
+
               <div className="mt-6 flex items-center justify-center">
-                <a 
+                <a
                   href="https://github.com/yetone/avante.nvim#installation"
                   className="flex items-center space-x-2 text-primary-600 dark:text-primary-400 hover:underline"
                   target="_blank"

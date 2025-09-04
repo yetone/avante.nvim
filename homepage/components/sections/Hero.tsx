@@ -26,7 +26,7 @@ const Hero: React.FC<HeroProps> = ({ translations, githubStats, discordStats }) 
   useEffect(() => {
     const timeout = setTimeout(() => {
       const current = texts[currentIndex];
-      
+
       if (isDeleting) {
         setCurrentText(current.substring(0, currentText.length - 1));
       } else {
@@ -61,7 +61,7 @@ const Hero: React.FC<HeroProps> = ({ translations, githubStats, discordStats }) 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
         <div className="text-center">
           {/* Main Title */}
-          <motion.h1 
+          <motion.h1
             className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 dark:text-white mb-6"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -71,7 +71,7 @@ const Hero: React.FC<HeroProps> = ({ translations, githubStats, discordStats }) 
           </motion.h1>
 
           {/* Animated Subtitle */}
-          <motion.div 
+          <motion.div
             className="text-xl sm:text-2xl md:text-3xl text-primary-600 dark:text-primary-400 mb-8 h-10"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -83,7 +83,7 @@ const Hero: React.FC<HeroProps> = ({ translations, githubStats, discordStats }) 
           </motion.div>
 
           {/* Description */}
-          <motion.p 
+          <motion.p
             className="text-lg sm:text-xl text-gray-600 dark:text-gray-300 mb-12 max-w-4xl mx-auto leading-relaxed"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -93,7 +93,7 @@ const Hero: React.FC<HeroProps> = ({ translations, githubStats, discordStats }) 
           </motion.p>
 
           {/* CTA Buttons */}
-          <motion.div 
+          <motion.div
             className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -118,7 +118,7 @@ const Hero: React.FC<HeroProps> = ({ translations, githubStats, discordStats }) 
           </motion.div>
 
           {/* Stats */}
-          <motion.div 
+          <motion.div
             className="grid grid-cols-1 sm:grid-cols-2 gap-8 max-w-lg mx-auto"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -154,7 +154,7 @@ const Hero: React.FC<HeroProps> = ({ translations, githubStats, discordStats }) 
           </motion.div>
 
           {/* Scroll Indicator */}
-          <motion.div 
+          <motion.div
             className="absolute bottom-8 left-1/2 transform -translate-x-1/2"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

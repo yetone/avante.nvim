@@ -88,7 +88,7 @@ export function HeroSection() {
                 </div>
               </div>
             </div>
-            
+
             {/* Floating stats */}
             <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2">
               <div className="bg-white dark:bg-gray-800 rounded-full px-6 py-3 shadow-lg border border-gray-200 dark:border-gray-700">

@@ -1,9 +1,9 @@
-import { 
-  Zap, 
-  Brain, 
-  Code2, 
-  Terminal, 
-  Sparkles, 
+import {
+  Zap,
+  Brain,
+  Code2,
+  Terminal,
+  Sparkles,
   GitBranch,
   MessageSquare,
   Settings
@@ -101,11 +101,11 @@ export function FeaturesSection() {
         {/* Section Header */}
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 dark:text-white">
-            Powerful Features for 
+            Powerful Features for
             <span className="text-primary-600 dark:text-primary-400"> Modern Development</span>
           </h2>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
-            avante.nvim brings the power of AI-assisted coding to your terminal, 
+            avante.nvim brings the power of AI-assisted coding to your terminal,
             combining the flexibility of Neovim with intelligent code suggestions.
           </p>
         </div>

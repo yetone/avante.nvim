@@ -55,11 +55,11 @@ body {
   ::-webkit-scrollbar-track {
     background: #2d2d2d;
   }
-  
+
   ::-webkit-scrollbar-thumb {
     background: #666;
   }
-  
+
   ::-webkit-scrollbar-thumb:hover {
     background: #888;
   }

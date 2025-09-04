@@ -1,12 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { 
-  MessageCircle, 
-  Github, 
-  Heart, 
-  Star, 
-  Users, 
+import {
+  MessageCircle,
+  Github,
+  Heart,
+  Star,
+  Users,
   ExternalLink,
   GitFork,
   Eye
@@ -33,7 +33,7 @@ const testimonials = [
     rating: 5
   },
   {
-    name: "Marcus Rodriguez", 
+    name: "Marcus Rodriguez",
     role: "Full Stack Engineer",
     avatar: "MR",
     content: "Finally, AI-powered coding in my favorite editor! The context awareness is impressive and it actually understands what I'm trying to build.",
@@ -42,7 +42,7 @@ const testimonials = [
   {
     name: "Yuki Tanaka",
     role: "Open Source Contributor",
-    avatar: "YT", 
+    avatar: "YT",
     content: "The project-specific instructions feature is a game changer. I can customize the AI behavior for each of my projects perfectly.",
     rating: 5
   }
@@ -59,7 +59,7 @@ const communityLinks = [
   },
   {
     icon: MessageCircle,
-    title: "Discord Community", 
+    title: "Discord Community",
     description: "Get help, share tips, and connect with other users",
     link: "https://discord.gg/QfnEFEdSjz",
     stats: `${mockStats.discord.members.toLocaleString()} members`,
@@ -91,7 +91,7 @@ export function CommunitySection() {
         {/* Section Header */}
         <div className="text-center mb-16">
           <h2 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900 dark:text-white">
-            Join Our 
+            Join Our
             <span className="text-primary-600 dark:text-primary-400"> Community</span>
           </h2>
           <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto">
@@ -154,8 +154,8 @@ export function CommunitySection() {
                 <div
                   key={index}
                   className={`transition-all duration-500 ${
-                    index === currentTestimonial 
-                      ? 'opacity-100 translate-x-0' 
+                    index === currentTestimonial
+                      ? 'opacity-100 translate-x-0'
                       : 'opacity-0 absolute top-0 left-0 right-0 translate-x-4'
                   }`}
                 >
@@ -175,11 +175,11 @@ export function CommunitySection() {
                         </p>
                       </div>
                     </div>
-                    
+
                     <p className="text-lg text-gray-700 dark:text-gray-300 mb-4 italic">
                       &quot;{testimonial.content}&quot;
                     </p>
-                    
+
                     <div className="flex items-center">
                       {[...Array(testimonial.rating)].map((_, i) => (
                         <Star key={i} className="w-5 h-5 text-yellow-400 fill-current" />
@@ -189,7 +189,7 @@ export function CommunitySection() {
                 </div>
               ))}
             </div>
-            
+
             {/* Testimonial dots */}
             <div className="flex justify-center mt-6 space-x-2">
               {testimonials.map((_, index) => (
@@ -197,8 +197,8 @@ export function CommunitySection() {
                   key={index}
                   onClick={() => setCurrentTestimonial(index)}
                   className={`w-3 h-3 rounded-full transition-colors ${
-                    index === currentTestimonial 
-                      ? 'bg-primary-600' 
+                    index === currentTestimonial
+                      ? 'bg-primary-600'
                       : 'bg-gray-300 dark:bg-gray-600'
                   }`}
                 />
@@ -215,7 +215,7 @@ export function CommunitySection() {
               Join thousands of developers contributing to the future of AI-powered coding
             </p>
           </div>
-          
+
           <div className="grid md:grid-cols-3 gap-8 text-center">
             <div className="flex flex-col items-center">
               <div className="w-16 h-16 bg-yellow-600 rounded-full flex items-center justify-center mb-4">
@@ -224,7 +224,7 @@ export function CommunitySection() {
               <div className="text-3xl font-bold mb-2">{mockStats.github.stars.toLocaleString()}</div>
               <div className="text-gray-300">GitHub Stars</div>
             </div>
-            
+
             <div className="flex flex-col items-center">
               <div className="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-4">
                 <GitFork className="w-8 h-8" />
@@ -232,7 +232,7 @@ export function CommunitySection() {
               <div className="text-3xl font-bold mb-2">{mockStats.github.forks.toLocaleString()}</div>
               <div className="text-gray-300">Forks</div>
             </div>
-            
+
             <div className="flex flex-col items-center">
               <div className="w-16 h-16 bg-green-600 rounded-full flex items-center justify-center mb-4">
                 <Users className="w-8 h-8" />
@@ -241,10 +241,10 @@ export function CommunitySection() {
               <div className="text-gray-300">Community Members</div>
             </div>
           </div>
-          
+
           <div className="text-center mt-8">
-            <a 
-              href="https://github.com/yetone/avante.nvim" 
+            <a
+              href="https://github.com/yetone/avante.nvim"
               className="btn-primary inline-flex items-center space-x-2"
               target="_blank"
               rel="noopener noreferrer"

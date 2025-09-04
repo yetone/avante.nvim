@@ -22,7 +22,7 @@ export default function Document() {
             `,
           }}
         />
-        
+
         {/* Preload fonts */}
         <link
           rel="preload"
@@ -33,7 +33,7 @@ export default function Document() {
           href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
           rel="stylesheet"
         />
-        
+
         {/* Preload critical resources */}
         <link rel="dns-prefetch" href="//api.github.com" />
         <link rel="dns-prefetch" href="//discord.com" />

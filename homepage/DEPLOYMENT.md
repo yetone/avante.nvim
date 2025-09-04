@@ -89,24 +89,24 @@ Vercel provides the best integration for Next.js applications.
        runs-on: ubuntu-latest
        steps:
          - uses: actions/checkout@v4
-         
+
          - name: Setup Node.js
            uses: actions/setup-node@v4
            with:
              node-version: '18'
              cache: 'npm'
              cache-dependency-path: homepage/package-lock.json
-         
+
          - name: Install dependencies
            run: |
              cd homepage
              npm ci
-         
+
          - name: Build
            run: |
              cd homepage
              npm run build
-         
+
          - name: Deploy
            uses: peaceiris/actions-gh-pages@v3
            with:
