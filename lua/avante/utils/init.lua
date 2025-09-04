@@ -397,7 +397,7 @@ function M.notify(msg, opts)
   local n = opts.once and vim.notify_once or vim.notify
   n(msg, opts.level or vim.log.levels.INFO, {
     on_open = function(win)
-      local ok = pcall(function() vim.treesitter.language.add("markdown") end)
+      pcall(function() vim.treesitter.language.add("markdown") end)
       vim.wo[win].conceallevel = 3
       vim.wo[win].concealcursor = ""
       vim.wo[win].spell = false
@@ -1210,47 +1210,6 @@ function M.open_buffer(path, set_current_buf)
   return bufnr
 end
 
----@param old_lines avante.ui.Line[]
----@param new_lines avante.ui.Line[]
----@return { start_line: integer, end_line: integer, content: avante.ui.Line[] }[]
-local function get_lines_diff(old_lines, new_lines)
-  local remaining_lines = 100
-  local start_line = 0
-  if #new_lines >= #old_lines then
-    start_line = math.max(#old_lines - remaining_lines, 0)
-    old_lines = vim.list_slice(old_lines, start_line + 1)
-    new_lines = vim.list_slice(new_lines, start_line + 1)
-  end
-  local diffs = {}
-  local prev_diff_idx = nil
-  for i, line in ipairs(new_lines) do
-    if line ~= old_lines[i] then
-      if prev_diff_idx == nil then prev_diff_idx = i end
-    else
-      if prev_diff_idx ~= nil then
-        local content = vim.list_slice(new_lines, prev_diff_idx, i - 1)
-        table.insert(diffs, { start_line = start_line + prev_diff_idx, end_line = start_line + i, content = content })
-        prev_diff_idx = nil
-      end
-    end
-  end
-  if prev_diff_idx ~= nil then
-    table.insert(diffs, {
-      start_line = start_line + prev_diff_idx,
-      end_line = start_line + #new_lines + 1,
-      content = vim.list_slice(new_lines, prev_diff_idx),
-    })
-  end
-  if #new_lines < #old_lines then
-    table.insert(
-      diffs,
-      { start_line = start_line + #new_lines + 1, end_line = start_line + #old_lines + 1, content = {} }
-    )
-  end
-  table.sort(diffs, function(a, b) return a.start_line > b.start_line end)
-  return diffs
-end
-
 ---@param bufnr integer
 ---@param new_lines string[]
 ---@return { start_line: integer, end_line: integer, content: string[] }[]
@@ -1309,6 +1268,15 @@ function M.update_buffer_lines(ns_id, bufnr, old_lines, new_lines, skip_line_cou
     end
   end
   if diff_start_idx > 0 then
+    -- Unbind events on old lines that will be replaced/moved
+    for i = diff_start_idx, #old_lines do
+      local old_line = old_lines[i]
+      if old_line and type(old_line.unbind_events) == "function" then
+        local line_1b = skip_line_count + i
+        pcall(old_line.unbind_events, old_line, bufnr, line_1b)
+      end
+    end
+
     local changed_lines = vim.list_slice(new_lines, diff_start_idx)
     local text_lines = vim.tbl_map(function(line) return tostring(line) end, changed_lines)
     vim.api.nvim_buf_set_lines(
@@ -1319,10 +1287,26 @@ function M.update_buffer_lines(ns_id, bufnr, old_lines, new_lines, skip_line_cou
       text_lines
     )
     for i, line in ipairs(changed_lines) do
-      line:set_highlights(ns_id, bufnr, skip_line_count + diff_start_idx + i - 2)
+      -- Apply highlights
+      if type(line.set_highlights) == "function" then
+        line:set_highlights(ns_id, bufnr, skip_line_count + diff_start_idx + i - 2)
+      end
+      -- Bind events if provided by the line
+      if type(line.bind_events) == "function" then
+        local line_1b = skip_line_count + diff_start_idx + i - 1
+        pcall(line.bind_events, line, ns_id, bufnr, line_1b)
+      end
     end
   end
   if #old_lines > #new_lines then
+    -- Unbind events on removed trailing lines
+    for i = #new_lines + 1, #old_lines do
+      local old_line = old_lines[i]
+      if old_line and type(old_line.unbind_events) == "function" then
+        local line_1b = skip_line_count + i
+        pcall(old_line.unbind_events, old_line, bufnr, line_1b)
+      end
+    end
     vim.api.nvim_buf_set_lines(bufnr, skip_line_count + #new_lines, skip_line_count + #old_lines, false, {})
   end
   vim.cmd("redraw")

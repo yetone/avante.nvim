@@ -21,6 +21,7 @@ local Render = require("avante.history.render")
 local Line = require("avante.ui.line")
 local LRUCache = require("avante.utils.lru_cache")
 local logo = require("avante.utils.logo")
+local ButtonGroupLine = require("avante.ui.button_group_line")
 
 local RESULT_BUF_NAME = "AVANTE_RESULT"
 local VIEW_BUFFER_UPDATED_PATTERN = "AvanteViewBufferUpdated"
@@ -79,7 +80,8 @@ Sidebar.__index = Sidebar
 ---@field acp_client avante.acp.ACPClient | nil
 ---@field acp_session_id string | nil
 ---@field post_render? fun(sidebar: avante.Sidebar)
----@field message_button_handlers table<string, table<string, fun(arg: any)>>
+---@field permission_handler fun(id: string) | nil
+---@field permission_button_options ({ id: string, icon: string|nil, name: string }[]) | nil
 ---@field expanded_message_uuids table<string, boolean>
 ---@field tool_message_positions table<string, [integer, integer]>
 ---@field skip_line_count integer | nil
@@ -116,7 +118,6 @@ function Sidebar:new(id)
     _cached_history_lines = nil,
     _history_cache_invalidated = true,
     post_render = nil,
-    message_handlers = {},
     tool_message_positions = {},
     expanded_message_ids = {},
     current_tool_use_extmark_id = nil,
@@ -156,7 +157,6 @@ function Sidebar:reset()
   self.scroll = true
   self.old_result_lines = {}
   self.token_count = nil
-  self.message_button_handlers = {}
   self.tool_message_positions = {}
   self.expanded_message_uuids = {}
   self.current_tool_use_extmark_id = nil
@@ -868,7 +868,20 @@ function Sidebar:handle_expand_message(message_uuid, expanded)
   Utils.debug("handle_expand_message", message_uuid, expanded)
   self.expanded_message_uuids[message_uuid] = expanded
   self._history_cache_invalidated = true
+  local old_scroll = self.scroll
+  self.scroll = false
   self:update_content("")
+  self.scroll = old_scroll
+  vim.defer_fn(function()
+    local cursor_line = api.nvim_win_get_cursor(self.containers.result.winid)[1]
+    local positions = self.tool_message_positions[message_uuid]
+    if positions then
+      local skip_line_count = self.skip_line_count or 0
+      if cursor_line > positions[2] + skip_line_count then
+        api.nvim_win_set_cursor(self.containers.result.winid, { positions[2] + skip_line_count, 0 })
+      end
+    end
+  end, 100)
 end
 
 function Sidebar:edit_user_request()
@@ -1760,6 +1773,16 @@ function Sidebar:update_content(content, opts)
   api.nvim_set_option_value("filetype", "Avante", { buf = bufnr })
   Utils.lock_buf(bufnr)
 
+  vim.defer_fn(function()
+    if self.permission_button_options and self.permission_handler then
+      local cur_winid = api.nvim_get_current_win()
+      if cur_winid == self.containers.result.winid then
+        local line_count = api.nvim_buf_line_count(bufnr)
+        api.nvim_win_set_cursor(cur_winid, { line_count - 3, 0 })
+      end
+    end
+  end, 100)
+
   if opts.focus and not self:is_focused_on_result() then
     xpcall(function() api.nvim_set_current_win(self.containers.result.winid) end, function(err)
       Utils.debug("Failed to set current win:", err)
@@ -1840,13 +1863,13 @@ function Sidebar:get_layout()
   return vim.tbl_contains({ "left", "right" }, calculate_config_window_position()) and "vertical" or "horizontal"
 end
 
+---@param ctx table
 ---@param message avante.HistoryMessage
 ---@param messages avante.HistoryMessage[]
----@param ctx table
 ---@param ignore_record_prefix boolean | nil
----@param expanded boolean | nil
 ---@return avante.ui.Line[]
-local function _get_message_lines(message, messages, ctx, ignore_record_prefix, expanded)
+function Sidebar:_get_message_lines(ctx, message, messages, ignore_record_prefix)
+  local expanded = self.expanded_message_uuids[message.uuid]
   if message.visible == false then return {} end
   local lines = Render.message_to_lines(message, messages, expanded)
   if message.is_user_submission and not ignore_record_prefix then
@@ -1892,15 +1915,24 @@ end
 
 local _message_to_lines_lru_cache = LRUCache:new(100)
 
+---@param ctx table
 ---@param message avante.HistoryMessage
 ---@param messages avante.HistoryMessage[]
----@param ctx table
 ---@param ignore_record_prefix boolean | nil
----@param expanded boolean | nil
 ---@return avante.ui.Line[]
-local function get_message_lines(message, messages, ctx, ignore_record_prefix, expanded)
+function Sidebar:get_message_lines(ctx, message, messages, ignore_record_prefix)
+  local expanded = self.expanded_message_uuids[message.uuid]
   if message.state == "generating" or message.is_calling then
-    return _get_message_lines(message, messages, ctx, ignore_record_prefix, expanded)
+    local lines = self:_get_message_lines(ctx, message, messages, ignore_record_prefix)
+    if self.permission_handler and self.permission_button_options then
+      local button_group_line = ButtonGroupLine:new(self.permission_button_options, {
+        on_click = self.permission_handler,
+        group_label = "Waiting for Confirmation... ",
+      })
+      table.insert(lines, Line:new({ { "" } }))
+      table.insert(lines, button_group_line)
+    end
+    return lines
   end
   local text_len = 0
   local content = message.message.content
@@ -1920,7 +1952,7 @@ local function get_message_lines(message, messages, ctx, ignore_record_prefix, e
   local cache_key = message.uuid .. ":" .. tostring(text_len) .. ":" .. tostring(expanded == true)
   local cached_lines = _message_to_lines_lru_cache:get(cache_key)
   if cached_lines then return cached_lines end
-  local lines = _get_message_lines(message, messages, ctx, ignore_record_prefix, expanded)
+  local lines = self:_get_message_lines(ctx, message, messages, ignore_record_prefix)
   _message_to_lines_lru_cache:set(cache_key, lines)
   return lines
 end
@@ -1937,8 +1969,7 @@ function Sidebar:get_history_lines(history, ignore_record_prefix)
   local tool_message_positions = {}
   local is_first_user_submission = true
   for _, message in ipairs(history_messages) do
-    local expanded = self.expanded_message_uuids[message.uuid]
-    local lines = get_message_lines(message, history_messages, ctx, ignore_record_prefix, expanded)
+    local lines = self:get_message_lines(ctx, message, history_messages, ignore_record_prefix)
     if #lines == 0 then goto continue end
     if message.is_user_submission then
       if not is_first_user_submission then
@@ -1960,6 +1991,8 @@ function Sidebar:get_history_lines(history, ignore_record_prefix)
     res = vim.list_extend(res, lines)
     ::continue::
   end
+  table.insert(res, Line:new({ { "" } }))
+  table.insert(res, Line:new({ { "" } }))
   table.insert(res, Line:new({ { "" } }))
   return res, tool_message_positions
 end
@@ -2188,7 +2221,6 @@ function Sidebar:new_chat(args, cb)
   self:reload_chat_history()
   self.current_state = nil
   self.acp_session_id = nil
-  self.message_button_handlers = {}
   self.expanded_message_uuids = {}
   self.tool_message_positions = {}
   self.current_tool_use_extmark_id = nil
