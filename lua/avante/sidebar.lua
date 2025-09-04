@@ -78,7 +78,6 @@ Sidebar.__index = Sidebar
 ---@field old_result_lines avante.ui.Line[]
 ---@field token_count integer | nil
 ---@field acp_client avante.acp.ACPClient | nil
----@field acp_session_id string | nil
 ---@field post_render? fun(sidebar: avante.Sidebar)
 ---@field permission_handler fun(id: string) | nil
 ---@field permission_button_options ({ id: string, icon: string|nil, name: string }[]) | nil
@@ -2220,7 +2219,6 @@ function Sidebar:new_chat(args, cb)
   Path.history.save(self.code.bufnr, history)
   self:reload_chat_history()
   self.current_state = nil
-  self.acp_session_id = nil
   self.expanded_message_uuids = {}
   self.tool_message_positions = {}
   self.current_tool_use_extmark_id = nil
@@ -2825,8 +2823,11 @@ function Sidebar:create_input_container()
         on_state_change = on_state_change,
         acp_client = self.acp_client,
         on_save_acp_client = function(client) self.acp_client = client end,
-        acp_session_id = self.acp_session_id,
-        on_save_acp_session_id = function(session_id) self.acp_session_id = session_id end,
+        acp_session_id = self.chat_history.acp_session_id,
+        on_save_acp_session_id = function(session_id)
+          self.chat_history.acp_session_id = session_id
+          Path.history.save(self.code.bufnr, self.chat_history)
+        end,
         set_tool_use_store = set_tool_use_store,
         get_history_messages = function(opts) return self:get_history_messages_for_api(opts) end,
         get_todos = function()
