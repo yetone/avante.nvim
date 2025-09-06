@@ -63,7 +63,6 @@ Sidebar.__index = Sidebar
 ---@field id integer
 ---@field augroup integer
 ---@field code avante.CodeState
----@field win_width_store table
 ---@field containers { result?: NuiSplit, todos?: NuiSplit, selected_code?: NuiSplit, selected_files?: NuiSplit, input?: NuiSplit }
 ---@field file_selector FileSelector
 ---@field chat_history avante.ChatHistory | nil
@@ -78,7 +77,6 @@ Sidebar.__index = Sidebar
 ---@field old_result_lines avante.ui.Line[]
 ---@field token_count integer | nil
 ---@field acp_client avante.acp.ACPClient | nil
----@field post_render? fun(sidebar: avante.Sidebar)
 ---@field permission_handler fun(id: string) | nil
 ---@field permission_button_options ({ id: string, icon: string|nil, name: string }[]) | nil
 ---@field expanded_message_uuids table<string, boolean>
@@ -91,14 +89,6 @@ function Sidebar:new(id)
   return setmetatable({
     id = id,
     code = { bufnr = 0, winid = 0, selection = nil, old_winhl = nil },
-    win_width_store = {},
-    winids = {
-      result_container = 0,
-      todos_container = 0,
-      selected_files_container = 0,
-      selected_code_container = 0,
-      input_container = 0,
-    },
     containers = {},
     file_selector = FileSelector:new(id),
     is_generating = false,
@@ -116,7 +106,6 @@ function Sidebar:new(id)
     -- Cache-related fields
     _cached_history_lines = nil,
     _history_cache_invalidated = true,
-    post_render = nil,
     tool_message_positions = {},
     expanded_message_ids = {},
     current_tool_use_extmark_id = nil,
@@ -151,7 +140,6 @@ function Sidebar:reset()
 
   self:delete_containers()
 
-  self.win_width_store = {}
   self.code = { bufnr = 0, winid = 0, selection = nil }
   self.scroll = true
   self.old_result_lines = {}
@@ -1588,11 +1576,7 @@ end
 function Sidebar:resize()
   for _, container in pairs(self.containers) do
     if container.winid and api.nvim_win_is_valid(container.winid) then
-      if self.is_in_full_view then
-        api.nvim_win_set_width(container.winid, vim.o.columns - 1)
-      else
-        api.nvim_win_set_width(container.winid, Config.get_window_width())
-      end
+      api.nvim_win_set_width(container.winid, Config.get_window_width())
     end
   end
   self:render_result()
@@ -1626,30 +1610,27 @@ function Sidebar:render_logo()
 end
 
 function Sidebar:toggle_code_window()
-  local winids = api.nvim_tabpage_list_wins(self.id)
-  local container_winids = vim.tbl_map(function(container) return container.winid end, self.containers)
+  -- Return early if there are multiple windows in the current tabpage
+  local wins = api.nvim_tabpage_list_wins(0)
+  local sidebar_win_count = 0
+  for _, container in pairs(self.containers) do
+    if container and container.winid and api.nvim_win_is_valid(container.winid) then
+      sidebar_win_count = sidebar_win_count + 1
+    end
+  end
+
+  -- If there are more windows than just code window + sidebar windows, return
+  if #wins > sidebar_win_count + 1 then
+    Utils.warn("Cannot toggle code window when multiple windows are open")
+    return
+  end
+
   local win_width = api.nvim_win_get_width(self.code.winid)
   if win_width == 0 then
-    self.is_in_full_view = false
-    for _, winid in ipairs(winids) do
-      if api.nvim_win_is_valid(winid) and not vim.tbl_contains(container_winids, winid) then
-        local old_width = self.win_width_store[winid]
-        if old_width ~= nil then api.nvim_win_set_width(winid, old_width) end
-      end
-    end
+    api.nvim_win_set_width(self.code.winid, self.code.win_width)
   else
-    self.is_in_full_view = true
-    for _, winid in ipairs(winids) do
-      if api.nvim_win_is_valid(winid) and not vim.tbl_contains(container_winids, winid) then
-        if Utils.is_floating_window(winid) then
-          api.nvim_win_close(winid, true)
-        else
-          local width = api.nvim_win_get_width(winid)
-          self.win_width_store[winid] = width
-          api.nvim_win_set_width(winid, 0)
-        end
-      end
-    end
+    self.code.win_width = win_width
+    api.nvim_win_set_width(self.code.winid, 0)
   end
 end
 
@@ -3122,8 +3103,6 @@ function Sidebar:adjust_result_container_layout()
   local width = self:get_result_container_width()
   local height = self:get_result_container_height()
 
-  if self.is_in_full_view then width = vim.o.columns - 1 end
-
   api.nvim_win_set_width(self.containers.result.winid, width)
   api.nvim_win_set_height(self.containers.result.winid, height)
 end
@@ -3173,6 +3152,8 @@ function Sidebar:render(opts)
 
   self:create_selected_files_container()
 
+  self:update_content_with_history()
+
   if self.code.bufnr and api.nvim_buf_is_valid(self.code.bufnr) then
     -- reset states when buffer is closed
     api.nvim_buf_attach(self.code.bufnr, false, {
@@ -3195,15 +3176,7 @@ function Sidebar:render(opts)
 
   self:setup_colors()
 
-  if opts.sidebar_post_render then
-    self.post_render = opts.sidebar_post_render
-    vim.defer_fn(function()
-      opts.sidebar_post_render(self)
-      self:update_content_with_history()
-    end, 100)
-  else
-    self:update_content_with_history()
-  end
+  if opts.sidebar_post_render then vim.defer_fn(function() opts.sidebar_post_render(self) end, 100) end
 
   return self
 end
