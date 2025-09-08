@@ -1222,7 +1222,7 @@ ACP providers are configured in the `acp_providers` section of your configuratio
     },
     ["claude-code"] = {
       command = "npx",
-      args = { "acp-claude-code" },
+      args = { "@zed-industries/claude-code-acp" },
       env = {
         NODE_NO_WARNINGS = "1",
         ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY"),
@@ -1567,6 +1567,7 @@ Avante.nvim can be extended to work with other plugins by using its extension mo
 - [x] Chat with selected files
 - [x] Tool use
 - [x] MCP
+- [x] ACP
 - [ ] Better codebase indexing
 
 ## Roadmap
