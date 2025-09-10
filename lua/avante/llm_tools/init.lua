@@ -606,9 +606,12 @@ end
 function M.get_tools(user_input, history_messages)
   local custom_tools = Config.custom_tools
   if type(custom_tools) == "function" then custom_tools = custom_tools() end
+
   ---@type AvanteLLMTool[]
   local unfiltered_tools = vim.list_extend(vim.list_extend({}, M._tools), custom_tools)
-  return vim
+
+  -- Filter enabled tools
+  local filtered_tools = vim
     .iter(unfiltered_tools)
     :filter(function(tool) ---@param tool AvanteLLMTool
       -- Always disable tools that are explicitly disabled
@@ -620,6 +623,31 @@ function M.get_tools(user_input, history_messages)
       end
     end)
     :totable()
+
+  -- Apply summarizer to built-in avante tools if lazy loading is enabled
+  if Config.lazy_loading and Config.lazy_loading.enabled then
+    local summarized_tools = {}
+    local always_eager = Config.lazy_loading.always_eager or {}
+
+    -- Lazy-load the summarizer module only when needed
+    local Summarizer = require("avante.mcp.summarizer")
+
+    for _, tool in ipairs(filtered_tools) do
+      -- Only summarize built-in avante tools that are not in the always_eager list
+      if vim.tbl_contains(always_eager, tool.name) then
+        -- Keep the tool as is (eagerly loaded)
+        table.insert(summarized_tools, tool)
+      else
+        -- Apply summarizer to the tool
+        local summarized_tool = Summarizer.summarize_tool(tool)
+        table.insert(summarized_tools, summarized_tool)
+      end
+    end
+
+    return summarized_tools
+  end
+
+  return filtered_tools
 end
 
 function M.get_tool_names()

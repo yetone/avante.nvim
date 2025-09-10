@@ -4,13 +4,13 @@ This document describes the lazy loading mechanism for MCP tools in avante.nvim.
 
 ## Overview
 
-The MCP (Model Context Protocol) integration in avante.nvim provides access to a wide range of tools from various MCP servers. However, including detailed descriptions of all these tools in the system prompt can consume a significant number of tokens, which may:
+The MCP (Model Context Protocol) integration in avante.nvim provides access to a wide range of tools from various MCP servers. Additionally, avante.nvim includes many built-in tools that provide core functionality. However, including detailed descriptions of all these tools in the system prompt can consume a significant number of tokens, which may:
 
 1. Reduce the context available for actual conversation
 2. Increase the cost of API calls to LLM providers
 3. Slow down the initial loading of the conversation
 
-To address these issues, avante.nvim implements a lazy loading mechanism for MCP tools. This mechanism provides summarized tool descriptions initially and allows the LLM to request detailed information about specific tools when needed.
+To address these issues, avante.nvim implements a lazy loading mechanism for both MCP server tools and built-in avante tools. This mechanism provides summarized tool descriptions initially and allows the LLM to request detailed information about specific tools when needed.
 
 ## How It Works
 
@@ -30,7 +30,7 @@ When the LLM needs more detailed information about a specific tool, it can use t
 {
   "name": "load_mcp_tool",
   "parameters": {
-    "server_name": "Name of the MCP server that provides the tool",
+    "server_name": "Name of the MCP server that provides the tool. Use \"avante\" for built-in avante tools.",
     "tool_name": "Name of the tool to load"
   }
 }
@@ -40,7 +40,8 @@ This function:
 
 - Validates the input parameters
 - Checks if the tool details are already cached
-- Requests detailed tool information from the specified MCP server
+- For MCP server tools: Requests detailed tool information from the specified MCP server
+- For built-in avante tools: Loads the tool module from avante.nvim when "avante" is specified as the server_name
 - Returns the complete tool description, including all parameters and usage examples
 
 ### 3. Caching
@@ -49,15 +50,45 @@ To avoid redundant requests, the `load_mcp_tool` function caches the detailed to
 
 ## Configuration
 
-The lazy loading mechanism is built into avante.nvim and is enabled by default. There's no additional configuration needed in avante.nvim to use this feature.
+The lazy loading mechanism is built into avante.nvim and is enabled by default for both MCP server tools and built-in avante tools.
+
+### Built-in Avante Tools Configuration
+
+For built-in avante tools, you can configure which tools should always be loaded eagerly (not lazily) using the `lazy_loading` configuration in your avante.nvim setup:
+
+```lua
+require("avante").setup({
+  -- Other configuration options...
+
+  lazy_loading = {
+    -- Whether to enable lazy loading for built-in avante MCP tools
+    enabled = true,
+    -- List of tools that should always be loaded eagerly (not lazily)
+    -- These tools are critical and should always be available without requiring a separate load
+    always_eager = {
+      "think",             -- Thinking tool should always be available
+      "attempt_completion", -- Completion tool should always be available
+      "load_mcp_tool",      -- The tool itself needs to be available to load other tools
+      "add_todos",          -- Task management tools should be always available
+      "update_todo_status", -- Task management tools should be always available
+      -- Add any other tools you want to always load eagerly
+    },
+  },
+})
+```
+
+By default, the following tools are always loaded eagerly:
+- `think`
+- `attempt_completion`
+- `load_mcp_tool`
+- `add_todos`
+- `update_todo_status`
+
+All other built-in tools will be summarized and lazily loaded when needed.
 
 ### Integration with mcphub.nvim
 
-The lazy loading mechanism in avante.nvim attempts to interact with mcphub.nvim by calling `mcphub.get_server_tool_details()` to retrieve detailed tool information. However, this function isn't part of mcphub.nvim's public API, so this integration may not work as expected.
-
-**Important Note:** Despite what was previously documented, mcphub.nvim does not have a `lazy_loading` configuration parameter. The lazy loading functionality is implemented entirely within avante.nvim, and no additional configuration in mcphub.nvim is needed or supported for this feature.
-
-The basic functionality of lazy loading will work with avante.nvim's internal implementation, regardless of how mcphub.nvim is configured.
+The lazy loading mechanism in avante.nvim attempts to interact with mcphub.nvim to retrieve detailed tool information from MCP servers. The basic functionality of lazy loading will work with avante.nvim's internal implementation, regardless of how mcphub.nvim is configured.
 
 ## Benefits
 

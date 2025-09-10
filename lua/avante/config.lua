@@ -694,6 +694,20 @@ M._defaults = {
   slash_commands = {},
   ---@type AvanteShortcut[]
   shortcuts = {},
+  ---@type table
+  lazy_loading = {
+    -- Whether to enable lazy loading for built-in avante MCP tools
+    enabled = true,
+    -- List of tools that should always be loaded eagerly (not lazily)
+    -- These tools are critical and should always be available without requiring a separate load
+    always_eager = {
+      "think",       -- Thinking tool should always be available
+      "attempt_completion", -- Completion tool should always be available
+      "load_mcp_tool",      -- The tool itself needs to be available to load other tools
+      "add_todos",          -- Task management tools should be always available
+      "update_todo_status", -- Task management tools should be always available
+    },
+  },
 }
 
 ---@type avante.Config

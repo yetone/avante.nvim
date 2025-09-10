@@ -1,19 +1,21 @@
 --[[
 Load MCP Tool
 This tool allows the LLM to request detailed information about specific MCP tools on demand.
+This includes both mcphub server tools and built-in avante tools.
 ]]
 
 local M = {}
+local Config = require("avante.config")
 
 M.name = "load_mcp_tool"
-M.description = "Load detailed information about a specific MCP tool. Use this tool when you need more details about a tool's functionality, parameters, or usage than what is provided in the summarized description."
+M.description = "Load detailed information about a specific MCP tool. Use this tool when you need more details about a tool's functionality, parameters, or usage than what is provided in the summarized description. To load built-in avante tools, use \"avante\" as the server_name."
 
 M.param = {
   type = "table",
   fields = {
     {
       name = "server_name",
-      description = "Name of the MCP server that provides the tool",
+      description = "Name of the MCP server that provides the tool. Use \"avante\" for built-in avante tools.",
       type = "string",
     },
     {
@@ -23,7 +25,7 @@ M.param = {
     },
   },
   usage = {
-    server_name = "Name of the MCP server that provides the tool",
+    server_name = "Name of the MCP server that provides the tool. Use \"avante\" for built-in avante tools.",
     tool_name = "Name of the tool to load",
   },
 }
@@ -49,7 +51,7 @@ local tool_cache = {}
 function M.func(input, opts)
   local on_log = opts.on_log
   local on_complete = opts.on_complete
-  
+
   -- Validate input parameters
   if not input.server_name then
     return nil, "server_name is required"
@@ -57,23 +59,68 @@ function M.func(input, opts)
   if not input.tool_name then
     return nil, "tool_name is required"
   end
-  
+
   if on_log then on_log("server_name: " .. input.server_name) end
   if on_log then on_log("tool_name: " .. input.tool_name) end
-  
+
   -- Check cache first
   local cache_key = input.server_name .. ":" .. input.tool_name
   if tool_cache[cache_key] then
     if on_log then on_log("Tool found in cache") end
     return tool_cache[cache_key], nil
   end
-  
-  -- Get mcphub instance
+
+  -- Special handling for built-in avante tools
+  if input.server_name == "avante" then
+    if on_log then on_log("Loading built-in avante tool: " .. input.tool_name) end
+
+    -- Handle asynchronous requests
+    if not on_complete then
+      return nil, "on_complete is required for this tool"
+    end
+
+    -- Find the tool in avante's built-in tools
+    local found = false
+    local tool_details = nil
+
+    -- Lazy-load the tool module
+    local ok, tool_module = pcall(require, "avante.llm_tools." .. input.tool_name)
+    if ok and tool_module then
+      found = true
+      tool_details = tool_module
+    else
+      -- If not found as a separate module, check in the _tools array
+      local llm_tools = require("avante.llm_tools")
+      for _, tool in ipairs(llm_tools._tools) do
+        if tool.name == input.tool_name then
+          found = true
+          tool_details = tool
+          break
+        end
+      end
+    end
+
+    if found and tool_details then
+      -- Format tool details into a readable format
+      local formatted_details = vim.json.encode(tool_details)
+
+      -- Store in cache for future requests
+      tool_cache[cache_key] = formatted_details
+
+      on_complete(formatted_details, nil)
+    else
+      on_complete(nil, "Built-in tool '" .. input.tool_name .. "' not found")
+    end
+
+    return nil, nil  -- Will be handled asynchronously
+  end
+
+  -- Handle mcphub tools
   local ok, mcphub = pcall(require, "mcphub")
   if not ok then
     return nil, "mcphub.nvim is not available"
   end
-  
+
   -- Verify server exists and is connected
   local servers = mcphub.get_active_servers()
   local server_exists = false
@@ -83,16 +130,16 @@ function M.func(input, opts)
       break
     end
   end
-  
+
   if not server_exists then
     return nil, "Server '" .. input.server_name .. "' is not available or not connected"
   end
-  
+
   -- Handle asynchronous requests
   if not on_complete then
     return nil, "on_complete is required for this tool"
   end
-  
+
   -- Get all tools and find the requested one
   local hub = mcphub.get_hub_instance()
   if not hub then
@@ -121,7 +168,7 @@ function M.func(input, opts)
   else
     on_complete(nil, "Tool '" .. input.tool_name .. "' not found on server '" .. input.server_name .. "'")
   end
-  
+
   return nil, nil  -- Will be handled asynchronously
 end
 
