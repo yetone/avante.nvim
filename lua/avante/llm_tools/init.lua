@@ -639,6 +639,7 @@ M._tools = {
   require("avante.llm_tools.replace_in_file"),
   require("avante.llm_tools.dispatch_agent"),
   require("avante.llm_tools.glob"),
+  require("avante.llm_tools.load_mcp_tool"),
   {
     name = "rag_search",
     enabled = function() return Config.rag_service.enabled and RagService.is_ready() end,
