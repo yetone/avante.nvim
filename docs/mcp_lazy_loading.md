@@ -49,16 +49,15 @@ To avoid redundant requests, the `load_mcp_tool` function caches the detailed to
 
 ## Configuration
 
-The lazy loading mechanism can be configured in the mcphub.nvim plugin:
+The lazy loading mechanism is built into avante.nvim and is enabled by default. There's no additional configuration needed in avante.nvim to use this feature.
 
-```lua
-require("mcphub").setup({
-  lazy_loading = {
-    enabled = true,  -- Enable or disable lazy loading
-    cache_size = 50, -- Maximum number of tools to cache
-  }
-})
-```
+### Integration with mcphub.nvim
+
+The lazy loading mechanism in avante.nvim attempts to interact with mcphub.nvim by calling `mcphub.get_server_tool_details()` to retrieve detailed tool information. However, this function isn't part of mcphub.nvim's public API, so this integration may not work as expected.
+
+**Important Note:** Despite what was previously documented, mcphub.nvim does not have a `lazy_loading` configuration parameter. The lazy loading functionality is implemented entirely within avante.nvim, and no additional configuration in mcphub.nvim is needed or supported for this feature.
+
+The basic functionality of lazy loading will work with avante.nvim's internal implementation, regardless of how mcphub.nvim is configured.
 
 ## Benefits
 
@@ -79,10 +78,10 @@ The LLM should request detailed tool information when:
 
 The lazy loading mechanism consists of several components:
 
-1. **Tool Summarizer** (`lua/avante/mcp/summarizer.lua`): Extracts concise information from MCP tool descriptions.
-2. **Load Tool Function** (`lua/avante/llm_tools/load_mcp_tool.lua`): Allows the LLM to request detailed tool information.
+1. **Tool Summarizer** (`lua/avante/mcp/summarizer.lua`): Extracts concise information from MCP tool descriptions to reduce token usage.
+2. **Load Tool Function** (`lua/avante/llm_tools/load_mcp_tool.lua`): Allows the LLM to request detailed tool information when needed.
 3. **System Prompt Update** (`lua/avante/templates/_mcp-lazy-loading.avanterules`): Explains the lazy loading mechanism to the LLM.
-4. **MCP Integration** (in mcphub.nvim): Updates the MCP integration to support lazy loading of tools.
+4. **MCP Integration**: The `load_mcp_tool` function communicates with mcphub.nvim to retrieve detailed tool information on demand.
 
 ## Future Improvements
 
