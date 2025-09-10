@@ -93,26 +93,34 @@ function M.func(input, opts)
     return nil, "on_complete is required for this tool"
   end
   
-  -- Request tool details from the server
-  mcphub.get_server_tool_details(input.server_name, input.tool_name, function(tool_details, err)
-    if err then
-      on_complete(nil, err)
-      return
+  -- Get all tools and find the requested one
+  local hub = mcphub.get_hub_instance()
+  if not hub then
+    on_complete(nil, "mcphub hub instance not available")
+    return
+  end
+
+  local tools = hub:get_tools()
+  local found_tool = nil
+
+  for _, tool in ipairs(tools) do
+    if tool.server_name == input.server_name and tool.name == input.tool_name then
+      found_tool = tool
+      break
     end
-    
-    if not tool_details then
-      on_complete(nil, "Tool '" .. input.tool_name .. "' not found on server '" .. input.server_name .. "'")
-      return
-    end
-    
+  end
+
+  if found_tool then
     -- Format tool details into a readable format
-    local formatted_details = vim.json.encode(tool_details)
-    
+    local formatted_details = vim.json.encode(found_tool)
+
     -- Store in cache for future requests
     tool_cache[cache_key] = formatted_details
-    
+
     on_complete(formatted_details, nil)
-  end)
+  else
+    on_complete(nil, "Tool '" .. input.tool_name .. "' not found on server '" .. input.server_name .. "'")
+  end
   
   return nil, nil  -- Will be handled asynchronously
 end
