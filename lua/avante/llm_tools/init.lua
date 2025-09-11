@@ -627,14 +627,37 @@ function M.get_tools(user_input, history_messages)
   -- Apply summarizer to built-in avante tools if lazy loading is enabled
   if Config.lazy_loading and Config.lazy_loading.enabled then
     local summarized_tools = {}
-    local always_eager = Config.lazy_loading.always_eager or {}
+
+    -- Define critical tools that should always be eagerly loaded regardless of user configuration
+    local critical_tools = {
+      "think",
+      "attempt_completion",
+      "load_mcp_tool",
+      "add_todos",
+      "update_todo_status",
+      "list_tools",
+    }
+
+    -- Merge user configuration with critical tools
+    local user_always_eager = Config.lazy_loading.always_eager or {}
+    local always_eager = {}
+
+    -- Add all critical tools to the always_eager list
+    for _, tool_name in ipairs(critical_tools) do
+      always_eager[tool_name] = true
+    end
+
+    -- Add user-configured always_eager tools
+    for _, tool_name in ipairs(user_always_eager) do
+      always_eager[tool_name] = true
+    end
 
     -- Lazy-load the summarizer module only when needed
     local Summarizer = require("avante.mcp.summarizer")
 
     for _, tool in ipairs(filtered_tools) do
       -- Only summarize built-in avante tools that are not in the always_eager list
-      if vim.tbl_contains(always_eager, tool.name) then
+      if always_eager[tool.name] then
         -- Keep the tool as is (eagerly loaded)
         table.insert(summarized_tools, tool)
       else
