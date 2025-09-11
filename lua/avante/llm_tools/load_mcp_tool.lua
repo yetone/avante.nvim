@@ -84,6 +84,38 @@ function M.func(input, opts)
   if input.server_name == "avante" then
     if on_log then on_log("Loading built-in avante tool: " .. input.tool_name) end
 
+        -- Special case for list_tools - this tool returns a list of all available tools
+        if input.tool_name == "list_tools" then
+          local llm_tools = require("avante.llm_tools")
+          local tool_names = llm_tools.get_tool_names()
+  
+          local list_tools_details = {
+            name = "list_tools",
+            description = "Returns a list of all available tools in avante.nvim",
+            returns = {
+              {
+                name = "tools",
+                description = "List of available tool names",
+                type = "string[]",
+              }
+            }
+          }
+  
+          -- Format tool details into a readable format
+          local formatted_details = vim.json.encode(list_tools_details)
+  
+          -- Store in cache for future requests
+          M._tool_cache[cache_key] = formatted_details
+  
+          -- Handle both synchronous and asynchronous modes
+          if on_complete then
+            on_complete(formatted_details, nil)
+            return nil, nil  -- Will be handled asynchronously
+          else
+            return formatted_details, nil
+          end
+        end
+  
     -- Find the tool in avante's built-in tools
     local found = false
     local tool_details = nil
@@ -106,8 +138,17 @@ function M.func(input, opts)
     end
 
     if found and tool_details then
+          -- Create a serializable copy of the tool details
+          local serializable_details = {}
+          for k, v in pairs(tool_details) do
+            -- Skip functions and other non-serializable types
+            if type(v) ~= "function" and type(v) ~= "thread" and type(v) ~= "userdata" then
+              serializable_details[k] = v
+            end
+          end
+  
       -- Format tool details into a readable format
-      local formatted_details = vim.json.encode(tool_details)
+          local formatted_details = vim.json.encode(serializable_details)
 
       -- Store in cache for future requests
       M._tool_cache[cache_key] = formatted_details
