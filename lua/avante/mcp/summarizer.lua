@@ -11,15 +11,39 @@ function M.extract_first_sentence(description)
   if not description or description == "" then
     return ""
   end
-  
+
+  -- Special case: if the description contains a code block followed by a period
+  -- e.g. "A description with code. `code block here`. Second sentence."
+  -- We want to include the code block in the first sentence
+  local code_block_pattern = "(`[^`]+`)"
+  local with_code_blocks = description:match("^(.-%.)%s" .. code_block_pattern .. "%.")
+  if with_code_blocks then
+    local first_part = description:match("^(.-%.)%s")
+    local code_block = description:match(code_block_pattern)
+    if first_part and code_block then
+      return first_part .. " " .. code_block .. "."
+    end
+  end
+
   -- Handle common abbreviations to avoid false sentence endings
   local desc = description:gsub("([Ee]%.g%.)", "%1___ABBR___")
                          :gsub("([Ii]%.e%.)", "%1___ABBR___")
                          :gsub("([Ee]tc%.)", "%1___ABBR___")
-  
-  -- Find the first sentence end
+
+  -- Special handling for code blocks to ensure they don't get split
+  -- First, extract code blocks to ensure they're preserved intact
+  local code_blocks = {}
+  local code_block_count = 0
+  desc = desc:gsub("(`[^`]+`)", function(match)
+    code_block_count = code_block_count + 1
+    local placeholder = "___CODE_BLOCK_" .. code_block_count .. "___"
+    code_blocks[placeholder] = match
+    return placeholder
+  end)
+
+  -- Find the first sentence end, but make sure it's not within a code block
   local sentence_end = desc:find("[%.%?%!]%s")
-  
+
   -- If no sentence end is found, take first 100 characters and add ellipsis
   if not sentence_end then
     if #description > 100 then
@@ -28,10 +52,19 @@ function M.extract_first_sentence(description)
       return description
     end
   end
-  
-  -- Extract the first sentence and restore abbreviations
+
+  -- Extract the first sentence including the punctuation mark
   local first_sentence = desc:sub(1, sentence_end)
-  return first_sentence:gsub("___ABBR___", "")
+
+  -- Restore abbreviations
+  first_sentence = first_sentence:gsub("___ABBR___", "")
+
+  -- Restore code blocks
+  for placeholder, code_block in pairs(code_blocks) do
+    first_sentence = first_sentence:gsub(placeholder, code_block)
+  end
+
+  return first_sentence
 end
 
 ---@param tool table The tool to summarize
@@ -40,15 +73,15 @@ function M.summarize_tool(tool)
   if not tool then
     return nil
   end
-  
+
   -- Create a deep copy of the tool to avoid modifying the original
   local summarized_tool = vim.deepcopy(tool)
-  
+
   -- Summarize the description
   if summarized_tool.description then
     summarized_tool.description = M.extract_first_sentence(summarized_tool.description)
   end
-  
+
   -- Summarize parameter descriptions
   if summarized_tool.param and summarized_tool.param.fields then
     for _, field in ipairs(summarized_tool.param.fields) do
@@ -57,7 +90,7 @@ function M.summarize_tool(tool)
       end
     end
   end
-  
+
   -- Summarize return descriptions
   if summarized_tool.returns then
     for _, ret in ipairs(summarized_tool.returns) do
@@ -66,7 +99,7 @@ function M.summarize_tool(tool)
       end
     end
   end
-  
+
   return summarized_tool
 end
 
@@ -76,12 +109,12 @@ function M.summarize_tools(tools)
   if not tools or type(tools) ~= "table" then
     return {}
   end
-  
+
   local summarized_tools = {}
   for _, tool in ipairs(tools) do
     table.insert(summarized_tools, M.summarize_tool(tool))
   end
-  
+
   return summarized_tools
 end
 

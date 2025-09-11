@@ -27,7 +27,14 @@ function M.get_system_prompt()
     local Summarizer = require("avante.mcp.summarizer")
 
     -- Get all MCP servers
-    local servers = hub:get_active_servers()
+    local servers = {}
+    -- Handle both method-style and function-style calls
+        local get_active_servers = hub.get_active_servers
+        if type(get_active_servers) == "function" then
+          servers = get_active_servers(hub)
+        elseif type(get_active_servers) == "table" then
+          servers = get_active_servers
+    end
     local summarized_prompt = "\n# MCP SERVERS\n\n"
 
     -- Add description of the MCP system
@@ -81,7 +88,14 @@ Note: Server names are case sensitive and you should always use the exact full n
     end
 
     -- Add information about disabled servers if any
-    local disabled_servers = hub:get_disabled_servers()
+    local disabled_servers = {}
+    -- Handle both method-style and function-style calls
+    local get_disabled_servers = hub.get_disabled_servers
+    if type(get_disabled_servers) == "function" then
+      disabled_servers = get_disabled_servers(hub)
+    elseif type(get_disabled_servers) == "table" then
+      disabled_servers = get_disabled_servers
+    end
     if #disabled_servers > 0 then
       summarized_prompt = summarized_prompt .. "## Disabled MCP Servers\n\n"
       summarized_prompt = summarized_prompt .. "When a server is disabled, it will not be able to provide tools or resources. "
@@ -136,7 +150,15 @@ use_mcp_tool
   end
 
   -- If lazy loading is disabled, return the original prompt
-  return hub:get_active_servers_prompt() or ""
+  -- Handle both method-style and function-style calls
+  local get_active_servers_prompt = hub.get_active_servers_prompt
+  if type(get_active_servers_prompt) == "function" then
+    return get_active_servers_prompt(hub)
+  elseif type(get_active_servers_prompt) == "table" then
+    return get_active_servers_prompt
+  else
+    return ""
+  end
 end
 
 -- Function to get custom tools for MCPHub
@@ -145,6 +167,22 @@ function M.get_custom_tools()
   local ok, mcphub_ext = pcall(require, "mcphub.extensions.avante")
   if not ok then
     return {}
+  end
+
+  -- If lazy loading is enabled, summarize the tools
+  if Config.lazy_loading and Config.lazy_loading.enabled then
+    local Summarizer = require("avante.mcp.summarizer")
+    local tool = mcphub_ext.mcp_tool()
+
+    -- Summarize the tool
+    local summarized_tool = Summarizer.summarize_tool(tool)
+
+    -- Add server information to the description
+    if summarized_tool.description then
+      summarized_tool.description = summarized_tool.description .. " (Server: avante, use load_mcp_tool to get full details)"
+    end
+
+    return {summarized_tool}
   end
 
   return {mcphub_ext.mcp_tool()}
