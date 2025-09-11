@@ -896,21 +896,43 @@ function M.scan_directory(options)
   local cmd_supports_max_depth = true
   local cmd = (function()
     if vim.fn.executable("rg") == 1 then
-      local cmd = { "rg", "--files", "--color", "never", "--no-require-git", "--no-ignore-parent" }
+      local cmd = {
+        "rg",
+        "--files",
+        "--color",
+        "never",
+        "--no-require-git",
+        "--no-ignore-parent",
+        "--hidden",
+        "--glob",
+        "!.git/",
+      }
+
       if options.max_depth ~= nil then vim.list_extend(cmd, { "--max-depth", options.max_depth }) end
       table.insert(cmd, options.directory)
+
       return cmd
     end
-    if vim.fn.executable("fd") == 1 then
-      local cmd = { "fd", "--type", "f", "--color", "never", "--no-require-git" }
+
+    -- fd is called 'fdfind' on Debian/Ubuntu due to naming conflicts
+    local fd_executable = vim.fn.executable("fd") == 1 and "fd"
+      or (vim.fn.executable("fdfind") == 1 and "fdfind" or nil)
+    if fd_executable then
+      local cmd = {
+        fd_executable,
+        "--type",
+        "f",
+        "--color",
+        "never",
+        "--no-require-git",
+        "--hidden",
+        "--exclude",
+        ".git",
+      }
+
       if options.max_depth ~= nil then vim.list_extend(cmd, { "--max-depth", options.max_depth }) end
       vim.list_extend(cmd, { "--base-directory", options.directory })
-      return cmd
-    end
-    if vim.fn.executable("fdfind") == 1 then
-      local cmd = { "fdfind", "--type", "f", "--color", "never", "--no-require-git" }
-      if options.max_depth ~= nil then vim.list_extend(cmd, { "--max-depth", options.max_depth }) end
-      vim.list_extend(cmd, { "--base-directory", options.directory })
+
       return cmd
     end
   end)()
