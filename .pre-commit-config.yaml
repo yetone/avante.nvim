@@ -1,14 +1,17 @@
+fail_fast: true # 一旦检测到错误,则停止检测 <-- Stop on first error
+
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: v5.0.0
+  rev: v6.1.0 # Updated from v5.0.0
   hooks:
     - id: check-yaml
     - id: end-of-file-fixer
     - id: trailing-whitespace
-    - id: check-ast  # 检查Python语法错误
-    - id: debug-statements  # 检查是否有debug语句
+    - id: check-ast  # 检查Python语法错误 Checking python errors
+    - id: debug-statements  # 检查是否有debug语句 Debug statements
     - id: check-added-large-files
     - id: check-merge-conflict
+    - id: check-case-conflict # <-- Improve code portability and consistency
 - repo: https://github.com/JohnnyMorganz/StyLua
   rev: v2.0.2
   hooks:
@@ -27,7 +30,7 @@ repos:
     args: ['--features', 'luajit']
     files: \.rs$
 - repo: https://github.com/astral-sh/ruff-pre-commit
-  rev: v0.9.9
+  rev: v0.12.0 updated from v0.9.9
   hooks:
     # 运行 Ruff linter
     - id: ruff
