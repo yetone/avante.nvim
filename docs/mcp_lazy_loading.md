@@ -1,4 +1,72 @@
 # MCP Tools Lazy Loading
+# MCP Lazy Loading
+
+This document describes the lazy loading feature for MCP tools in avante.nvim, which optimizes token usage and improves performance.
+
+## Overview
+
+The MCP (Model Context Protocol) Lazy Loading feature provides summarized tool descriptions initially and allows the LLM to request detailed information about specific tools when needed. This approach:
+
+1. Reduces token usage in system prompts
+2. Provides more context for actual conversation
+3. Improves performance by loading tool details on demand
+
+## How It Works
+
+When lazy loading is enabled:
+
+1. Each tool description is summarized to include only the essential information
+2. Server information is added to each tool description to help the LLM identify which server provides the tool
+3. The LLM can request detailed information about a specific tool using the `load_mcp_tool` function
+
+## Configuration
+
+Lazy loading is enabled by default. You can configure it in your avante.nvim setup:
+
+```lua
+require('avante').setup({
+  lazy_loading = {
+    -- Whether to enable lazy loading for built-in avante MCP tools
+    enabled = true,
+    -- List of tools that should always be loaded eagerly (not lazily)
+    -- These tools are critical and should always be available without requiring a separate load
+    always_eager = {
+      "think",       -- Thinking tool should always be available
+      "attempt_completion", -- Completion tool should always be available
+      "load_mcp_tool",      -- The tool itself needs to be available to load other tools
+      "add_todos",          -- Task management tools should be always available
+      "update_todo_status", -- Task management tools should be always available
+    },
+  },
+})
+```
+
+## Using the `load_mcp_tool` Function
+
+The LLM can request detailed information about a specific tool using the `load_mcp_tool` function:
+
+```json
+{
+  "name": "load_mcp_tool",
+  "parameters": {
+    "server_name": "Name of the MCP server that provides the tool (e.g., \"neovim\", \"mcphub\", or \"avante\" for built-in tools)",
+    "tool_name": "Name of the tool to load"
+  }
+}
+```
+
+This will return the complete tool description, including full parameter details and usage examples.
+
+## MCPHub Integration
+
+avante.nvim integrates with MCPHub to provide summarized tool descriptions for all connected MCP servers. The integration:
+
+1. Gets all active MCP servers from MCPHub
+2. Summarizes the tools for each server
+3. Adds server information to each tool description
+4. Provides a structured system prompt with all the summarized tools
+
+This integration ensures that the LLM has access to all the tools provided by MCPHub while minimizing token usage.
 
 This document describes the lazy loading mechanism for MCP tools in avante.nvim.
 

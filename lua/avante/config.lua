@@ -43,6 +43,8 @@ M._defaults = {
   tokenizer = "tiktoken",
   ---@type string | fun(): string | nil
   system_prompt = nil,
+  ---@type function[] | nil
+  system_prompt_providers = {},
   ---@type string | fun(): string | nil
   override_prompt_dir = nil,
   rules = {
@@ -689,7 +691,14 @@ M._defaults = {
   },
   disabled_tools = {}, ---@type string[]
   ---@type AvanteLLMToolPublic[] | fun(): AvanteLLMToolPublic[]
-  custom_tools = {},
+  custom_tools = function()
+    -- Try to load MCPHub custom tools if available
+    local ok, mcphub = pcall(require, "avante.mcp.mcphub")
+    if ok then
+      return mcphub.get_custom_tools()
+    end
+    return {}
+  end,
   ---@type AvanteSlashCommand[]
   slash_commands = {},
   ---@type AvanteShortcut[]

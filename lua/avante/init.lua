@@ -446,6 +446,11 @@ function M.setup(opts)
   ---but most of the other functionality will only be called once from lazy.nvim
   Config.setup(opts)
 
+  -- Add MCPHub system prompt provider if not already added
+  if not vim.tbl_contains(Config.system_prompt_providers, require("avante.mcp.mcphub").get_system_prompt) then
+    table.insert(Config.system_prompt_providers, require("avante.mcp.mcphub").get_system_prompt)
+  end
+
   if M.did_setup then return end
 
   H.load_path()

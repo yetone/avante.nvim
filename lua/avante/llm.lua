@@ -342,6 +342,18 @@ function M.generate_prompts(opts)
     end
   end
 
+  -- Apply system_prompt_providers if available
+  if Config.system_prompt_providers and #Config.system_prompt_providers > 0 then
+    for _, provider_fn in ipairs(Config.system_prompt_providers) do
+      if type(provider_fn) == "function" then
+        local provider_prompt = provider_fn()
+        if provider_prompt and provider_prompt ~= "" then
+          system_prompt = system_prompt .. "\n\n" .. provider_prompt
+        end
+      end
+    end
+  end
+
   ---@type AvanteLLMMessage[]
   local context_messages = {}
   if opts.prompt_opts and opts.prompt_opts.messages then

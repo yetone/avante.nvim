@@ -638,8 +638,13 @@ function M.get_tools(user_input, history_messages)
         -- Keep the tool as is (eagerly loaded)
         table.insert(summarized_tools, tool)
       else
-        -- Apply summarizer to the tool
+        -- Apply summarizer to the tool and add server information
         local summarized_tool = Summarizer.summarize_tool(tool)
+        -- Add server information to the tool description
+        if summarized_tool.description then
+          summarized_tool.description = summarized_tool.description ..
+            " (Server: avante, use load_mcp_tool to get full details)"
+        end
         table.insert(summarized_tools, summarized_tool)
       end
     end
