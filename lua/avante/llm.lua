@@ -536,6 +536,17 @@ function M.curl(opts)
   ---@type AvanteCurlOutput
   local spec = provider:parse_curl_args(prompt_opts)
 
+  local timestamp = os.time(os.date("!*t"))
+  local filename  = '/tmp/llm_log/' .. tostring(timestamp) .. '.lua'
+
+  local file,err = io.open(filename,'w')
+  if file then
+      file:write(tostring(vim.inspect(spec)))
+      file:close()
+  else
+      print("error:", err) -- not so hard?
+  end
+
   ---@type string
   local current_event_state = nil
   local turn_ctx = {}
