@@ -213,6 +213,8 @@ function Selection:submit_input(input)
     }
   end
 
+  local instructions = "Do not call any tools and just response the request: " .. input
+
   Llm.stream({
     ask = true,
     project_context = vim.json.encode(project_context),
@@ -220,7 +222,7 @@ function Selection:submit_input(input)
     selected_files = { { content = code_content, file_type = filetype, path = "" } },
     code_lang = filetype,
     selected_code = selected_code,
-    instructions = input,
+    instructions = instructions,
     mode = "editing",
     on_start = on_start,
     on_chunk = on_chunk,

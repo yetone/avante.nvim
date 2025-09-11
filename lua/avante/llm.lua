@@ -269,7 +269,6 @@ function M.generate_prompts(opts)
     if instruction_content then opts.instructions = (opts.instructions or "") .. "\n" .. instruction_content end
   end
 
-  local provider = opts.provider or Providers[Config.provider]
   local mode = opts.mode or Config.mode
 
   -- Check if the instructions contains an image path
@@ -309,7 +308,18 @@ function M.generate_prompts(opts)
 
   selected_files = vim.iter(selected_files):filter(function(file) return viewed_files[file.path] == nil end):totable()
 
-  local provider_conf = Providers.parse_config(provider)
+  local is_acp_provider = false
+  if not opts.provider then is_acp_provider = Config.acp_providers[Config.provider] ~= nil end
+  local model_name = "unknown"
+  local context_window = nil
+  local use_react_prompt = false
+  if not is_acp_provider then
+    local provider = opts.provider or Providers[Config.provider]
+    model_name = provider.model or "unknown"
+    local provider_conf = Providers.parse_config(provider)
+    use_react_prompt = provider_conf.use_ReAct_prompt
+    context_window = provider.context_window
+  end
 
   local template_opts = {
     ask = opts.ask, -- TODO: add mode without ask instruction
@@ -320,10 +330,10 @@ function M.generate_prompts(opts)
     project_context = opts.project_context,
     diagnostics = opts.diagnostics,
     system_info = system_info,
-    model_name = provider.model or "unknown",
+    model_name = model_name,
     memory = opts.memory,
     enable_fastapply = Config.behaviour.enable_fastapply,
-    use_react_prompt = provider_conf.use_ReAct_prompt,
+    use_react_prompt = use_react_prompt,
   }
 
   -- Removed the original todos processing logic, now handled in context_messages
@@ -383,8 +393,6 @@ function M.generate_prompts(opts)
     pending_compaction_history_messages =
       vim.list_extend(pending_compaction_history_messages, opts.prompt_opts.pending_compaction_history_messages)
   end
-
-  local context_window = provider.context_window
 
   if context_window and context_window > 0 then
     Utils.debug("Context window", context_window)
@@ -806,9 +814,21 @@ function M._stream_acp(opts)
   ---@type avante.HistoryMessage
   local last_tool_call_message = nil
   local acp_provider = Config.acp_providers[Config.provider]
+  local prev_text_message_content = ""
   local on_messages_add = function(messages)
-    if opts.on_messages_add then opts.on_messages_add(messages) end
-    vim.schedule(function() vim.cmd("redraw") end)
+    if opts.on_chunk then
+      for _, message in ipairs(messages) do
+        if message.message.role == "assistant" and type(message.message.content) == "string" then
+          local chunk = message.message.content:sub(#prev_text_message_content + 1)
+          opts.on_chunk(chunk)
+          prev_text_message_content = message.message.content
+        end
+      end
+    end
+    if opts.on_messages_add then
+      opts.on_messages_add(messages)
+      vim.schedule(function() vim.cmd("redraw") end)
+    end
   end
   local function add_tool_call_message(update)
     local message = History.Message:new("assistant", {
@@ -859,29 +879,31 @@ function M._stream_acp(opts)
           end
           if update.sessionUpdate == "agent_message_chunk" then
             if update.content.type == "text" then
-              local messages = opts.get_history_messages()
-              local last_message = messages[#messages]
-              if last_message and last_message.message.role == "assistant" then
-                local has_text = false
-                local content = last_message.message.content
-                if type(content) == "string" then
-                  last_message.message.content = last_message.message.content .. update.content.text
-                  has_text = true
-                elseif type(content) == "table" then
-                  for idx, item in ipairs(content) do
-                    if type(item) == "string" then
-                      content[idx] = item .. update.content.text
-                      has_text = true
-                    end
-                    if type(item) == "table" and item.type == "text" then
-                      item.text = item.text .. update.content.text
-                      has_text = true
+              if opts.get_history_messages then
+                local messages = opts.get_history_messages()
+                local last_message = messages[#messages]
+                if last_message and last_message.message.role == "assistant" then
+                  local has_text = false
+                  local content = last_message.message.content
+                  if type(content) == "string" then
+                    last_message.message.content = last_message.message.content .. update.content.text
+                    has_text = true
+                  elseif type(content) == "table" then
+                    for idx, item in ipairs(content) do
+                      if type(item) == "string" then
+                        content[idx] = item .. update.content.text
+                        has_text = true
+                      end
+                      if type(item) == "table" and item.type == "text" then
+                        item.text = item.text .. update.content.text
+                        has_text = true
+                      end
                     end
                   end
-                end
-                if has_text then
-                  on_messages_add({ last_message })
-                  return
+                  if has_text then
+                    on_messages_add({ last_message })
+                    return
+                  end
                 end
               end
               local message = History.Message:new("assistant", update.content.text)
@@ -1033,7 +1055,7 @@ function M._stream_acp(opts)
     })
     acp_client = ACPClient:new(acp_config)
     acp_client:connect()
-    opts.on_save_acp_client(acp_client)
+    if opts.on_save_acp_client then opts.on_save_acp_client(acp_client) end
   end
   local session_id = opts.acp_session_id
   if not session_id then
@@ -1048,27 +1070,30 @@ function M._stream_acp(opts)
       return
     end
     session_id = session_id_
-    opts.on_save_acp_session_id(session_id)
+    if opts.on_save_acp_session_id then opts.on_save_acp_session_id(session_id) end
   end
   local prompt = {}
-  if opts.selected_filepaths then
-    for _, filepath in ipairs(opts.selected_filepaths) do
-      local abs_path = Utils.to_absolute_path(filepath)
-      local file_name = vim.fn.fnamemodify(abs_path, ":t")
-      local prompt_item = acp_client:create_resource_link_content("file://" .. abs_path, file_name)
+  local donot_use_builtin_system_prompt = opts.history_messages ~= nil and #opts.history_messages > 0
+  if donot_use_builtin_system_prompt then
+    if opts.selected_filepaths then
+      for _, filepath in ipairs(opts.selected_filepaths) do
+        local abs_path = Utils.to_absolute_path(filepath)
+        local file_name = vim.fn.fnamemodify(abs_path, ":t")
+        local prompt_item = acp_client:create_resource_link_content("file://" .. abs_path, file_name)
+        table.insert(prompt, prompt_item)
+      end
+    end
+    if opts.selected_code then
+      local prompt_item = {
+        type = "text",
+        text = string.format(
+          "<selected_code>\n<path>%s</path>\n<snippet>%s</snippet>\n</selected_code>",
+          opts.selected_code.path,
+          opts.selected_code.content
+        ),
+      }
       table.insert(prompt, prompt_item)
     end
-  end
-  if opts.selected_code then
-    local prompt_item = {
-      type = "text",
-      text = string.format(
-        "<selected_code>\n<path>%s</path>\n<snippet>%s</snippet>\n</selected_code>",
-        opts.selected_code.path,
-        opts.selected_code.content
-      ),
-    }
-    table.insert(prompt, prompt_item)
   end
   local history_messages = opts.history_messages or {}
   if opts.acp_session_id then
@@ -1100,27 +1125,43 @@ function M._stream_acp(opts)
       end
     end
   else
-    for _, message in ipairs(history_messages) do
-      if message.message.role == "user" then
-        local content = message.message.content
-        if type(content) == "table" then
-          for _, item in ipairs(content) do
-            if type(item) == "string" then
-              table.insert(prompt, {
-                type = "text",
-                text = item,
-              })
-            elseif type(item) == "table" and item.type == "text" then
-              table.insert(prompt, {
-                type = "text",
-                text = item.text,
-              })
+    if donot_use_builtin_system_prompt then
+      for _, message in ipairs(history_messages) do
+        if message.message.role == "user" then
+          local content = message.message.content
+          if type(content) == "table" then
+            for _, item in ipairs(content) do
+              if type(item) == "string" then
+                table.insert(prompt, {
+                  type = "text",
+                  text = item,
+                })
+              elseif type(item) == "table" and item.type == "text" then
+                table.insert(prompt, {
+                  type = "text",
+                  text = item.text,
+                })
+              end
             end
+          else
+            table.insert(prompt, {
+              type = "text",
+              text = content,
+            })
           end
-        else
+        end
+      end
+    else
+      local prompt_opts = M.generate_prompts(opts)
+      table.insert(prompt, {
+        type = "text",
+        text = prompt_opts.system_prompt,
+      })
+      for _, message in ipairs(prompt_opts.messages) do
+        if message.role == "user" then
           table.insert(prompt, {
             type = "text",
-            text = content,
+            text = message.content,
           })
         end
       end
