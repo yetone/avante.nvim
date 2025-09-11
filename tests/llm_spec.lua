@@ -21,6 +21,7 @@ describe("generate_prompts", function()
     local Config = require("avante.config")
     Config.instructions_file = "avante.md"
     Config.provider = "openai"
+    Config.acp_providers = {}
     Config.providers = {
       openai = {
         endpoint = "https://api.mock.com/v1",
