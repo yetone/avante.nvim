@@ -41,7 +41,7 @@ function M.get_system_prompt()
 
     -- Add built-in tools section to the prompt
     local summarized_prompt =  "## Additional tools that can be requested using load_mcp_tool. \n\n"
-    for _, tool in ipairs(built_in_tools) do
+    for _, tool in ipairs(tools) do
       summarized_prompt = summarized_prompt .. "- **" .. tool.name .. "**: " ..
         (tool.description or "No description") .. "\n\n"
     end
