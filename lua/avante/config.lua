@@ -461,6 +461,7 @@ M._defaults = {
     auto_approve_tool_permissions = false, -- Default: show permission prompts for all tools
     auto_check_diagnostics = true,
     enable_fastapply = false,
+    mcp_extra_concise = true, -- When true, and lazy_loading is on, MCP tool summarizer will only include name and description (no input/output schema)
   },
   prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
     enabled = true, -- toggle logging entirely

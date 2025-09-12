@@ -142,6 +142,14 @@ require("avante").setup({
       -- Add any other tools you want to always load eagerly
     },
   },
+
+  behaviour = {
+    -- Other behaviour options...
+
+    -- When true, MCP tool summarizer will only include name and description (no input/output schema)
+    -- This provides an even more concise representation of tools to further reduce token usage
+    mcp_extra_concise = false,
+  },
 })
 ```
 

@@ -4,6 +4,7 @@ This module extracts concise information from MCP tool descriptions to reduce to
 ]]
 
 local M = {}
+local config = require("avante.config")
 
 ---@param description string The description to extract the first sentence from
 ---@return string The first sentence or a truncated version if no sentence end is found
@@ -67,6 +68,41 @@ function M.extract_first_sentence(description)
   return first_sentence
 end
 
+---Recursively process schema descriptions in a JSON schema object
+---@param schema table The schema object to process
+---@param process_fn function The function to apply to descriptions
+local function process_schema_descriptions(schema, process_fn)
+  if not schema or type(schema) ~= "table" then
+    return
+  end
+
+  -- Process description if present
+  if schema.description and type(schema.description) == "string" then
+    schema.description = process_fn(schema.description)
+  end
+
+  -- Process properties recursively
+  if schema.properties and type(schema.properties) == "table" then
+    for _, prop in pairs(schema.properties) do
+      process_schema_descriptions(prop, process_fn)
+    end
+  end
+
+  -- Process items in arrays
+  if schema.items and type(schema.items) == "table" then
+    process_schema_descriptions(schema.items, process_fn)
+  end
+
+  -- Process oneOf, anyOf, allOf arrays
+  for _, key in ipairs({"oneOf", "anyOf", "allOf"}) do
+    if schema[key] and type(schema[key]) == "table" then
+      for _, subschema in ipairs(schema[key]) do
+        process_schema_descriptions(subschema, process_fn)
+      end
+    end
+  end
+end
+
 ---@param tool table The tool to summarize
 ---@return table The summarized tool
 function M.summarize_tool(tool)
@@ -77,12 +113,30 @@ function M.summarize_tool(tool)
   -- Create a deep copy of the tool to avoid modifying the original
   local summarized_tool = vim.deepcopy(tool)
 
+  -- Check if we should use extra concise mode
+  local extra_concise = config.behaviour and config.behaviour.mcp_extra_concise
+
+  -- If extra_concise is enabled, create a minimal version of the tool
+  if extra_concise then
+    local minimal_tool = {
+      name = summarized_tool.name
+    }
+
+    -- Include only the name and summarized description
+    if summarized_tool.description then
+      minimal_tool.description = M.extract_first_sentence(summarized_tool.description)
+    end
+
+    return minimal_tool
+  end
+
+  -- Regular summarization mode
   -- Summarize the description
   if summarized_tool.description then
     summarized_tool.description = M.extract_first_sentence(summarized_tool.description)
   end
 
-  -- Summarize parameter descriptions
+  -- Summarize parameter descriptions in traditional format
   if summarized_tool.param and summarized_tool.param.fields then
     for _, field in ipairs(summarized_tool.param.fields) do
       if field.description then
@@ -98,6 +152,11 @@ function M.summarize_tool(tool)
         ret.description = M.extract_first_sentence(ret.description)
       end
     end
+  end
+
+  -- Process JSON schema format parameters if present
+  if summarized_tool.parameters and type(summarized_tool.parameters) == "table" then
+    process_schema_descriptions(summarized_tool.parameters, M.extract_first_sentence)
   end
 
   return summarized_tool
