@@ -625,13 +625,8 @@ function M.get_tools(user_input, history_messages, for_system_prompt)
     end)
     :totable()
 
-  -- Apply summarizer to built-in avante tools ONLY if:
-  -- 1. Lazy loading is enabled
-  -- 2. for_system_prompt is explicitly true (not nil or false)
-  -- 3. We're generating the system prompt, not the API request tools
-  if Config.lazy_loading and Config.lazy_loading.enabled and for_system_prompt == true then
-    local summarized_tools = {}
-
+  -- Handle lazy loading configurations
+  if Config.lazy_loading and Config.lazy_loading.enabled then
     -- Define critical tools that should always be eagerly loaded regardless of user configuration
     local critical_tools = {
       "think",
@@ -656,32 +651,57 @@ function M.get_tools(user_input, history_messages, for_system_prompt)
       always_eager[tool_name] = true
     end
 
-    -- Lazy-load the summarizer module only when needed
-    local Summarizer = require("avante.mcp.summarizer")
+    -- Lazy-load the MCPHub module to check for requested tools
+    local MCPHub = require("avante.mcp.mcphub")
 
-    for _, tool in ipairs(filtered_tools) do
-      -- Only summarize built-in avante tools that are not in the always_eager list
-      if always_eager[tool.name] then
-        -- Keep the tool as is (eagerly loaded)
-        table.insert(summarized_tools, tool)
-      else
-        -- Apply summarizer to the tool and add server information
-        local summarized_tool = Summarizer.summarize_tool(tool)
-        -- Add server information to the tool description
-        if summarized_tool.description then
-          summarized_tool.description = summarized_tool.description ..
-            " (Server: avante, use load_mcp_tool to get full details)"
+    if for_system_prompt == true then
+      -- For system prompt generation, return summarized versions of all tools
+      local summarized_tools = {}
+      local Summarizer = require("avante.mcp.summarizer")
+
+      for _, tool in ipairs(filtered_tools) do
+        -- Only summarize built-in avante tools that are not in the always_eager list
+        if always_eager[tool.name] then
+          -- Keep the tool as is (eagerly loaded)
+          table.insert(summarized_tools, tool)
+        else
+          -- Apply summarizer to the tool and add server information
+          local summarized_tool = Summarizer.summarize_tool(tool)
+          -- Add server information to the tool description
+          if summarized_tool.description then
+            summarized_tool.description = summarized_tool.description ..
+              " (Server: avante, use load_mcp_tool to get full details)"
+          end
+          table.insert(summarized_tools, summarized_tool)
         end
-        table.insert(summarized_tools, summarized_tool)
       end
-    end
 
-    -- Add server_name to all tools for proper tracking
-    for _, tool in ipairs(summarized_tools) do
-      tool.server_name = tool.server_name or "avante"
-    end
+      -- Add server_name to all tools for proper tracking
+      for _, tool in ipairs(summarized_tools) do
+        tool.server_name = tool.server_name or "avante"
+      end
 
-    return summarized_tools
+      return summarized_tools
+    else
+      -- For API requests, only return tools that have been requested or are in always_eager
+      local api_tools = {}
+      for _, tool in ipairs(filtered_tools) do
+        local server_name = tool.server_name or "avante"
+        local tool_name = tool.name
+
+        -- Include the tool if it's in the always_eager list or has been explicitly requested
+        if always_eager[tool_name] or MCPHub.is_tool_requested(server_name, tool_name) then
+          table.insert(api_tools, tool)
+        end
+      end
+
+      -- Add server_name to all tools for proper tracking
+      for _, tool in ipairs(api_tools) do
+        tool.server_name = tool.server_name or "avante"
+      end
+
+      return api_tools
+    end
   end
 
   -- Add server_name to all tools even when lazy loading is disabled
