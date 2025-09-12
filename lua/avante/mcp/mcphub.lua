@@ -40,7 +40,7 @@ function M.get_system_prompt()
     local tools = LLMTools.get_tools("", {}, true)
 
     -- Add built-in tools section to the prompt
-    summarized_prompt = summarized_prompt .. "## Additional tools that can be requested using load_mcp_tool. \n\n"
+    local summarized_prompt =  "## Additional tools that can be requested using load_mcp_tool. \n\n"
     for _, tool in ipairs(built_in_tools) do
       summarized_prompt = summarized_prompt .. "- **" .. tool.name .. "**: " ..
         (tool.description or "No description") .. "\n\n"
