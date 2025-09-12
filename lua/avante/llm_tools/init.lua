@@ -661,10 +661,8 @@ function M.get_tools(user_input, history_messages, for_system_prompt)
 
       for _, tool in ipairs(filtered_tools) do
         -- Only summarize built-in avante tools that are not in the always_eager list
-        if always_eager[tool.name] then
+        if not always_eager[tool.name] then
           -- Keep the tool as is (eagerly loaded)
-          table.insert(summarized_tools, tool)
-        else
           -- Apply summarizer to the tool and add server information
           local summarized_tool = Summarizer.summarize_tool(tool)
           -- Add server information to the tool description
