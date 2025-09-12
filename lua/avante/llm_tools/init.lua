@@ -602,8 +602,9 @@ end
 
 ---@param user_input string
 ---@param history_messages AvanteLLMMessage[]
+---@param for_system_prompt boolean? When true, return summarized tools for system prompt. When false or nil, return full tools for API requests
 ---@return AvanteLLMTool[]
-function M.get_tools(user_input, history_messages)
+function M.get_tools(user_input, history_messages, for_system_prompt)
   local custom_tools = Config.custom_tools
   if type(custom_tools) == "function" then custom_tools = custom_tools() end
 
@@ -624,8 +625,8 @@ function M.get_tools(user_input, history_messages)
     end)
     :totable()
 
-  -- Apply summarizer to built-in avante tools if lazy loading is enabled
-  if Config.lazy_loading and Config.lazy_loading.enabled then
+  -- Apply summarizer to built-in avante tools if lazy loading is enabled AND for_system_prompt is true
+  if Config.lazy_loading and Config.lazy_loading.enabled and for_system_prompt then
     local summarized_tools = {}
 
     -- Define critical tools that should always be eagerly loaded regardless of user configuration
