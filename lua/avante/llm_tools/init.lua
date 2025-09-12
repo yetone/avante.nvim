@@ -625,8 +625,11 @@ function M.get_tools(user_input, history_messages, for_system_prompt)
     end)
     :totable()
 
-  -- Apply summarizer to built-in avante tools if lazy loading is enabled AND for_system_prompt is true
-  if Config.lazy_loading and Config.lazy_loading.enabled and for_system_prompt then
+  -- Apply summarizer to built-in avante tools ONLY if:
+  -- 1. Lazy loading is enabled
+  -- 2. for_system_prompt is explicitly true (not nil or false)
+  -- 3. We're generating the system prompt, not the API request tools
+  if Config.lazy_loading and Config.lazy_loading.enabled and for_system_prompt == true then
     local summarized_tools = {}
 
     -- Define critical tools that should always be eagerly loaded regardless of user configuration
