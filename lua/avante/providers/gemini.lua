@@ -192,7 +192,15 @@ function M.prepare_request_body(provider_instance, prompt_opts, provider_conf, r
   if not use_ReAct_prompt and not disable_tools and prompt_opts.tools then
     local function_declarations = {}
     for _, tool in ipairs(prompt_opts.tools) do
-      table.insert(function_declarations, provider_instance:transform_to_function_declaration(tool))
+      -- Only include tool if lazy loading is disabled, or if it's always eager, or if it's been requested
+      local should_include = not require("avante.config").lazy_loading.enabled or
+                            vim.tbl_contains(require("avante.config").lazy_loading.always_eager or {}, tool.name) or
+                            (tool.server_name and require("avante.mcp.mcphub").is_tool_requested(tool.server_name, tool.name)) or
+                            (not tool.server_name and require("avante.mcp.mcphub").is_tool_requested("avante", tool.name))
+
+      if should_include then
+        table.insert(function_declarations, provider_instance:transform_to_function_declaration(tool))
+      end
     end
 
     if #function_declarations > 0 then

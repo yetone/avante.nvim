@@ -406,4 +406,73 @@ describe("MCP Lazy Loading", function()
       _G.vim.tbl_contains = original_tbl_contains
     end)
   end)
+
+  describe("tool filtering with lazy loading", function()
+    it("only includes critical tools and requested tools when lazy loading is enabled", function()
+      -- Setup mock environment with lazy loading enabled
+      Config.lazy_loading.enabled = true
+      Config.lazy_loading.always_eager = { "think", "attempt_completion" }
+
+      -- Create mock tools
+      local mock_tools = {
+        { name = "think", description = "Critical tool", server_name = "avante" },
+        { name = "attempt_completion", description = "Critical tool", server_name = "avante" },
+        { name = "non_critical_tool", description = "Non-critical tool", server_name = "avante" },
+        { name = "another_tool", description = "Another non-critical tool", server_name = "avante" }
+      }
+
+      -- Mock the get_tools function to return our mock tools
+      local original_get_tools = llm_tools.get_tools
+      llm_tools.get_tools = function() return mock_tools end
+
+      -- Reset the requested tools registry
+      mcphub.reset_requested_tools()
+
+      -- Mock a request for a specific tool
+      mcphub.register_requested_tool("avante", "non_critical_tool")
+
+      -- Mock a provider to capture the tools that would be included
+      local mock_provider = {
+        transform_tool = function(_, tool)
+          return { name = tool.name, description = tool.description }
+        end
+      }
+
+      -- Mock prompt options
+      local prompt_opts = {
+        system_prompt = "Test prompt",
+        tools = llm_tools.get_tools()
+      }
+
+      -- Capture the tools that would be included
+      local captured_tools = {}
+      for _, tool in ipairs(prompt_opts.tools) do
+        -- Only include tool if lazy loading is disabled, or if it's always eager, or if it's been requested
+        local should_include = not Config.lazy_loading.enabled or
+                              vim.tbl_contains(Config.lazy_loading.always_eager, tool.name) or
+                              (tool.server_name and mcphub.is_tool_requested(tool.server_name, tool.name)) or
+                              (not tool.server_name and mcphub.is_tool_requested("avante", tool.name))
+
+        if should_include then
+          table.insert(captured_tools, mock_provider:transform_tool(tool))
+        end
+      end
+
+      -- Verify that only critical tools and requested tools are included
+      assert.equals(3, #captured_tools)
+
+      local tool_names = {}
+      for _, tool in ipairs(captured_tools) do
+        table.insert(tool_names, tool.name)
+      end
+
+      assert.truthy(vim.tbl_contains(tool_names, "think"))
+      assert.truthy(vim.tbl_contains(tool_names, "attempt_completion"))
+      assert.truthy(vim.tbl_contains(tool_names, "non_critical_tool"))
+      assert.falsy(vim.tbl_contains(tool_names, "another_tool"))
+
+      -- Restore original function
+      llm_tools.get_tools = original_get_tools
+    end)
+  end)
 end)

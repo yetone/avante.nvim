@@ -6,6 +6,7 @@ This includes both mcphub server tools and built-in avante tools.
 
 local M = {}
 local Config = require("avante.config")
+local MCPHub = require("avante.mcp.mcphub")
 
 M.name = "load_mcp_tool"
 M.description = "Load detailed information about a specific MCP tool. Use this tool when you need more details about a tool's functionality, parameters, or usage than what is provided in the summarized description. To load built-in avante tools, use \"avante\" as the server_name."
@@ -60,6 +61,9 @@ function M.func(input, opts)
   if not input.tool_name then
     return nil, "tool_name is required"
   end
+
+  -- Register this tool as requested
+  MCPHub.register_requested_tool(input.server_name, input.tool_name)
 
   if on_log then on_log("server_name: " .. input.server_name) end
   if on_log then on_log("tool_name: " .. input.tool_name) end

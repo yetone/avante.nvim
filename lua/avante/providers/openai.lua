@@ -530,7 +530,15 @@ function M:parse_curl_args(prompt_opts)
   if not disable_tools and prompt_opts.tools and not use_ReAct_prompt then
     tools = {}
     for _, tool in ipairs(prompt_opts.tools) do
-      table.insert(tools, self:transform_tool(tool))
+      -- Only include tool if lazy loading is disabled, or if it's always eager, or if it's been requested
+      local should_include = not Config.lazy_loading.enabled or
+                            vim.tbl_contains(Config.lazy_loading.always_eager or {}, tool.name) or
+                            (tool.server_name and require("avante.mcp.mcphub").is_tool_requested(tool.server_name, tool.name)) or
+                            (not tool.server_name and require("avante.mcp.mcphub").is_tool_requested("avante", tool.name))
+
+      if should_include then
+        table.insert(tools, self:transform_tool(tool))
+      end
     end
   end
 

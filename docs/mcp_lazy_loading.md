@@ -15,9 +15,13 @@ The MCP (Model Context Protocol) Lazy Loading feature provides summarized tool d
 
 When lazy loading is enabled:
 
-1. Each tool description is summarized to include only the essential information
-2. Server information is added to each tool description to help the LLM identify which server provides the tool
-3. The LLM can request detailed information about a specific tool using the `load_mcp_tool` function
+1. Each tool description is summarized to include only the essential information in the system prompt
+2. Only critical tools (configured in `lazy_loading.always_eager`) are included in the tools section of the prompt by default
+3. Other tools are only included in the tools section if they've been specifically requested via `load_mcp_tool`
+4. When the LLM requests detailed information about a specific tool using the `load_mcp_tool` function, that tool is:
+   - Added to the registry of requested tools
+   - Included in the tools section of subsequent prompts
+   - Provided with its full description
 
 ## Configuration
 
@@ -156,9 +160,10 @@ The lazy loading mechanism in avante.nvim attempts to interact with mcphub.nvim 
 
 ## Benefits
 
-- **Reduced Token Usage**: By providing summarized tool descriptions initially, the token count of the system prompt is significantly reduced.
-- **Improved Performance**: The LLM can load detailed information only for the tools it actually needs to use.
+- **Reduced Token Usage**: By providing summarized tool descriptions initially and only including critical tools in the tools section by default, the token count of the prompt is significantly reduced.
+- **Improved Performance**: The LLM can load detailed information and access only the tools it actually needs to use.
 - **Better Context Utilization**: More context is available for the actual conversation, improving the quality of responses.
+- **Optimized Tool Management**: Tools are only included in the tools section of the prompt when they're either critical or specifically requested, preventing tool overload.
 
 ## When to Use Detailed Tool Information
 

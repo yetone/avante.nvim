@@ -6,6 +6,26 @@ Provides integration between avante.nvim and mcphub.nvim with lazy loading suppo
 local M = {}
 local Config = require("avante.config")
 
+-- Add a registry to track which tools have been requested
+M._requested_tools = M._requested_tools or {}
+
+-- Function to register a tool as requested
+function M.register_requested_tool(server_name, tool_name)
+  local key = server_name .. ":" .. tool_name
+  M._requested_tools[key] = true
+end
+
+-- Function to check if a tool has been requested
+function M.is_tool_requested(server_name, tool_name)
+  local key = server_name .. ":" .. tool_name
+  return M._requested_tools[key] == true
+end
+
+-- Function to reset requested tools (useful for testing)
+function M.reset_requested_tools()
+  M._requested_tools = {}
+end
+
 -- Function to get MCPHub prompt with lazy loading support
 ---@return string
 function M.get_system_prompt()

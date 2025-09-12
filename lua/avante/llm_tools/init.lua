@@ -672,7 +672,17 @@ function M.get_tools(user_input, history_messages)
       end
     end
 
+    -- Add server_name to all tools for proper tracking
+    for _, tool in ipairs(summarized_tools) do
+      tool.server_name = tool.server_name or "avante"
+    end
+
     return summarized_tools
+  end
+
+  -- Add server_name to all tools even when lazy loading is disabled
+  for _, tool in ipairs(filtered_tools) do
+    tool.server_name = tool.server_name or "avante"
   end
 
   return filtered_tools
