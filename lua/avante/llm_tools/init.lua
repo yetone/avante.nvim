@@ -689,6 +689,21 @@ function M.get_tools(user_input, history_messages, for_system_prompt)
     tool.server_name = tool.server_name or "avante"
   end
 
+  -- Debug check to find tools without param field
+  for _, tool in ipairs(filtered_tools) do
+    if not tool.param then
+      print("WARNING: Tool without param field: " .. tool.name)
+      -- Ensure all tools have at least an empty param field to avoid errors in transform_tool
+      tool.param = {
+        fields = {},
+        type = "table",
+        usage = {}
+      }
+    elseif not tool.param.fields then
+      tool.param.fields = {}
+    end
+  end
+
   return filtered_tools
 end
 
