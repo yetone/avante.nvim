@@ -208,4 +208,14 @@ function M.get_custom_tools()
   return {mcphub_ext.mcp_tool()}
 end
 
+
+-- Function to determine if a tool should be included based on lazy loading configuration
+---@param tool AvanteLLMTool The tool to check
+---@return boolean True if the tool should be included, false otherwise
+function M.should_include_tool(tool)
+  return not Config.lazy_loading.enabled or
+         vim.tbl_contains(Config.lazy_loading.always_eager or {}, tool.name) or
+         (tool.server_name and M.is_tool_requested(tool.server_name, tool.name)) or
+         (not tool.server_name and M.is_tool_requested("avante", tool.name))
+end
 return M
