@@ -462,6 +462,13 @@ function M.git_commit(input, opts)
     commit_msg_lines[#commit_msg_lines + 1] = line:gsub('"', '\\"')
   end
   commit_msg_lines[#commit_msg_lines + 1] = ""
+  -- add Generated-by line using provider and model name
+  if Config.behaviour and Config.behaviour.include_generated_by_commit_line then
+    local provider_name = Config.provider or "unknown"
+    local model_name = (Config.providers and Config.providers[provider_name] and Config.providers[provider_name].model)
+      or "unknown"
+    commit_msg_lines[#commit_msg_lines + 1] = string.format("Generated-by: %s/%s", provider_name, model_name)
+  end
   if git_user ~= "" and git_email ~= "" then
     commit_msg_lines[#commit_msg_lines + 1] = string.format("Signed-off-by: %s <%s>", git_user, git_email)
   end
