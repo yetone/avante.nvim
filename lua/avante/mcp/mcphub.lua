@@ -314,7 +314,6 @@ end
 ---@return boolean True if the tool should be included, false otherwise
 function M.should_include_tool(server_name, tool_name)
   return not Config.lazy_loading.enabled or
-  vim.tbl_contains(M.always_eager() or {}, tool_name) or
-  M.is_tool_requested(server_name, tool_name)
+  M.always_eager()[tool_name] or M.is_tool_requested(server_name, tool_name)
 end
 return M
