@@ -40,6 +40,34 @@ function M.reset_requested_tools()
   M._requested_tools = {}
 end
 
+function M.always_eager()
+    -- Define critical tools that should always be eagerly loaded regardless of user configuration
+    local critical_tools = {
+      "think",
+      "attempt_completion",
+      "load_mcp_tool",
+      "use_mcp_tool",
+      "add_todos",
+      "update_todo_status",
+      "list_tools",
+    }
+
+    -- Merge user configuration with critical tools
+    local user_always_eager = Config.lazy_loading.always_eager or {}
+    local always_eager = {}
+
+    -- Add all critical tools to the always_eager list
+    for _, tool_name in ipairs(critical_tools) do
+      always_eager[tool_name] = true
+    end
+
+    -- Add user-configured always_eager tools
+    for _, tool_name in ipairs(user_always_eager) do
+      always_eager[tool_name] = true
+    end
+    return always_eager
+end
+
 -- Function to get MCPHub prompt with lazy loading support
 ---@return string
 function M.get_system_prompt()
@@ -284,10 +312,9 @@ end
 -- Function to determine if a tool should be included based on lazy loading configuration
 ---@param tool AvanteLLMTool The tool to check
 ---@return boolean True if the tool should be included, false otherwise
-function M.should_include_tool(tool)
+function M.should_include_tool(server_name, tool_name)
   return not Config.lazy_loading.enabled or
-  vim.tbl_contains(Config.lazy_loading.always_eager or {}, tool.name) or
-  (tool.server_name and M.is_tool_requested(tool.server_name, tool.name)) or
-  (not tool.server_name and M.is_tool_requested("avante", tool.name))
+  vim.tbl_contains(M.always_eager() or {}, tool_name) or
+  (tool.server_name and M.is_tool_requested(server_name, tool_name))
 end
 return M

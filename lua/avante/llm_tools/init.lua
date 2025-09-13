@@ -627,32 +627,11 @@ function M.get_tools(user_input, history_messages, for_system_prompt)
 
   -- Handle lazy loading configurations
   if Config.lazy_loading and Config.lazy_loading.enabled then
-    -- Define critical tools that should always be eagerly loaded regardless of user configuration
-    local critical_tools = {
-      "think",
-      "attempt_completion",
-      "load_mcp_tool",
-      "add_todos",
-      "update_todo_status",
-      "list_tools",
-    }
-
-    -- Merge user configuration with critical tools
-    local user_always_eager = Config.lazy_loading.always_eager or {}
-    local always_eager = {}
-
-    -- Add all critical tools to the always_eager list
-    for _, tool_name in ipairs(critical_tools) do
-      always_eager[tool_name] = true
-    end
-
-    -- Add user-configured always_eager tools
-    for _, tool_name in ipairs(user_always_eager) do
-      always_eager[tool_name] = true
-    end
 
     -- Lazy-load the MCPHub module to check for requested tools
     local MCPHub = require("avante.mcp.mcphub")
+
+    local always_eager = MCPHub.always_eager()
 
     if for_system_prompt == true then
       -- For system prompt generation, return summarized versions of all tools
@@ -688,7 +667,7 @@ function M.get_tools(user_input, history_messages, for_system_prompt)
         local tool_name = tool.name
 
         -- Include the tool if it's in the always_eager list or has been explicitly requested
-        if always_eager[tool_name] or MCPHub.is_tool_requested(server_name, tool_name) then
+        if MCPHub.should_include_tool(server_name, tool_name) then
           table.insert(api_tools, tool)
         end
       end
