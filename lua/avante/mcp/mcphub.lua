@@ -78,11 +78,27 @@ Note: Server names are case sensitive and you should always use the exact full n
 
     summarized_prompt = summarized_prompt .. "## MCP Server Details\n\n"
 
-    -- For each server, get its tools and summarize them
+    -- Get all tools from the hub
+    local all_tools = {}
+    if hub.get_tools and type(hub.get_tools) == "function" then
+      all_tools = hub:get_tools()
+    end
+
+    -- Group tools by server
+    local server_tools_map = {}
+    for _, tool in ipairs(all_tools) do
+      local server_name = tool.server_name
+      if server_name then
+        server_tools_map[server_name] = server_tools_map[server_name] or {}
+        table.insert(server_tools_map[server_name], tool)
+      end
+    end
+
+    -- For each server, summarize its information and tools
     for _, server in ipairs(servers) do
       local server_name = server.name
-      local server_tools = server.tools or {}
-      local server_resources = server.resources or {}
+      local server_resources = server.capabilities and server.capabilities.resources or {}
+      local server_tools = server_tools_map[server_name] or {}
 
       -- Add server information to the prompt
       summarized_prompt = summarized_prompt .. "### " .. server_name .. "\n\n"
@@ -97,7 +113,7 @@ Note: Server names are case sensitive and you should always use the exact full n
           -- Add server_name to the tool description
           if summarized_tool.description then
             summarized_tool.description = summarized_tool.description ..
-              " (Server: " .. server_name .. ", use load_mcp_tool to get full details)"
+              " (Server: " .. server_name .. ")"
           end
 
           summarized_prompt = summarized_prompt .. "- **" .. tool.name .. "**: " ..
