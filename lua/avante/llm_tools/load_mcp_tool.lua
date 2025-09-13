@@ -33,6 +33,11 @@ M.param = {
 
 M.returns = {
   {
+    name = "success",
+    description = "True if loading the tool was successful, false otherwise",
+    type = "boolean",
+  },
+  {
     name = "error",
     description = "Error message if the tool could not be loaded",
     type = "string",
@@ -58,18 +63,18 @@ function M.func(input, opts)
 
   if found_tool then
     if on_complete then
-      on_complete(nil)
-      return nil  -- Will be handled asynchronously
+      on_complete(true, nil)
+      return true, nil  -- Will be handled asynchronously
     else
-      return nil
+      return true, nil
     end
   else
     local err_msg = "Tool '" .. input.tool_name .. "' on server '" .. input.server_name .. "' does not exist."
     if on_complete then
-      on_complete(err_msg)
-      return nil  -- Will be handled asynchronously
+      on_complete(false, err_msg)
+      return false, nil  -- Will be handled asynchronously
     else
-      return err_msg
+      return false, err_msg
     end
   end
 end
