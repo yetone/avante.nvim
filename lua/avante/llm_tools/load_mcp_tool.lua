@@ -32,8 +32,13 @@ M.param = {
 }
 
 M.returns = {
+  {
+    name = "error",
+    description = "Error message if the tool could not be loaded",
+    type = "string",
+    optional = true,
+  },
 }
-
 
 ---@type AvanteLLMToolFunc<{ server_name: string, tool_name: string }>
 function M.func(input, opts)
@@ -49,13 +54,23 @@ function M.func(input, opts)
   end
 
   -- Register this tool as requested
-  MCPHub.register_requested_tool(input.server_name, input.tool_name)
+  found_tool = MCPHub.register_requested_tool(input.server_name, input.tool_name)
 
-  if on_complete then
-    on_complete(nil)
-    return nil  -- Will be handled asynchronously
+  if found_tool then
+    if on_complete then
+      on_complete(nil)
+      return nil  -- Will be handled asynchronously
+    else
+      return nil
+    end
   else
-    return nil
+    local err_msg = "Tool '" .. input.tool_name .. "' on server '" .. input.server_name .. "' does not exist."
+    if on_complete then
+      on_complete(err_msg)
+      return nil  -- Will be handled asynchronously
+    else
+      return err_msg
+    end
   end
 end
 

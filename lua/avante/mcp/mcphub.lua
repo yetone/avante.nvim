@@ -9,11 +9,25 @@ local Config = require("avante.config")
 -- Add a registry to track which tools have been requested
 M._requested_tools = M._requested_tools or {}
 
+M._available_to_request = M._available_to_request or {}
+
 -- Function to register a tool as requested
+-- Returns true if successful, false if not
 function M.register_requested_tool(server_name, tool_name)
   local key = server_name .. ":" .. tool_name
-  M._requested_tools[key] = true
+  if M._available_to_request[key] then
+    M._requested_tools[key] = true
+    return true
+  end
+  return false
 end
+
+-- Function to register a tool as availale
+function M.register_available_tool(server_name, tool_name)
+  local key = server_name .. ":" .. tool_name
+  M._available_to_request[key] = true
+end
+
 
 -- Function to check if a tool has been requested
 function M.is_tool_requested(server_name, tool_name)
@@ -79,10 +93,12 @@ function M.get_system_prompt()
         if summarized_tool.description then
           summarized_tool.description = summarized_tool.description ..
           " (Server: avante)"
+          summarized_prompt = summarized_prompt .. "- **" .. tool.name .. "**: " ..
+          (summarized_tool.description or "No description") .. "\n\n"
+          M.register_available_tool("avante", tool.name)
+
         end
 
-        summarized_prompt = summarized_prompt .. "- **" .. tool.name .. "**: " ..
-        (summarized_tool.description or "No description") .. "\n\n"
       end
     end
 
@@ -128,10 +144,11 @@ function M.get_system_prompt()
               if summarized_tool.description then
                 summarized_tool.description = summarized_tool.description ..
                 " (Server: " .. server_name .. ")"
+                summarized_prompt = summarized_prompt .. "- **" .. tool.name .. "**: " ..
+                summarized_tool.description .. "\n\n"
+                M.register_available_tool(server.name, tool.name)
               end
 
-              summarized_prompt = summarized_prompt .. "- **" .. tool.name .. "**: " ..
-              (summarized_tool.description or "No description") .. "\n\n"
             end
           end
         end
