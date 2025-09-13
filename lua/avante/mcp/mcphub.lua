@@ -49,12 +49,10 @@ function M.get_system_prompt()
 
     -- Get all MCP servers
     local servers = {}
-    -- Handle both method-style and function-style calls
-        local get_active_servers = hub.get_active_servers
-        if type(get_active_servers) == "function" then
-          servers = get_active_servers(hub)
-        elseif type(get_active_servers) == "table" then
-          servers = get_active_servers
+    -- Use the correct API method as per mcphub documentation
+    if hub.get_servers and type(hub.get_servers) == "function" then
+      -- Use method-style call to get non-disabled servers
+      servers = hub:get_servers(false)
     end
     local summarized_prompt = "\n# MCP SERVERS\n\n"
 
@@ -122,12 +120,16 @@ Note: Server names are case sensitive and you should always use the exact full n
 
     -- Add information about disabled servers if any
     local disabled_servers = {}
-    -- Handle both method-style and function-style calls
-    local get_disabled_servers = hub.get_disabled_servers
-    if type(get_disabled_servers) == "function" then
-      disabled_servers = get_disabled_servers(hub)
-    elseif type(get_disabled_servers) == "table" then
-      disabled_servers = get_disabled_servers
+    -- Use the correct API method as per mcphub documentation
+    if hub.get_servers and type(hub.get_servers) == "function" then
+      -- Get all servers including disabled ones
+      local all_servers = hub:get_servers(true)
+      -- Filter out active servers to get only disabled ones
+      for _, server in ipairs(all_servers) do
+        if server.disabled then
+          table.insert(disabled_servers, server)
+        end
+      end
     end
     if #disabled_servers > 0 then
       summarized_prompt = summarized_prompt .. "## Disabled MCP Servers\n\n"
