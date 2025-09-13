@@ -20,15 +20,6 @@ M = setmetatable(M, {
 })
 
 function M.setup()
-  -- Check if AWS CLI is installed
-  if not M.check_aws_cli_installed() then
-    Utils.error(
-      "AWS CLI not found. Please install it to use the Bedrock provider: https://aws.amazon.com/cli/",
-      { once = true, title = "Avante Bedrock" }
-    )
-    return false
-  end
-
   -- Check if curl supports AWS signature v4
   if not M.check_curl_supports_aws_sig() then
     Utils.error(
@@ -56,7 +47,19 @@ function M.is_env_set()
   local provider_conf, _ = P.parse_config(P["bedrock"])
   ---@diagnostic disable-next-line: undefined-field
   local profile = provider_conf.aws_profile
-  return profile ~= nil and profile ~= ""
+  if profile ~= nil and profile ~= "" then
+    -- AWS CLI is only needed if aws_profile is used for authoriztion
+    if not M.check_aws_cli_installed() then
+      Utils.error(
+        "AWS CLI not found. Please install it to use the Bedrock provider: https://aws.amazon.com/cli/",
+        { once = true, title = "Avante Bedrock" }
+      )
+      return false
+    end
+    return true
+  end
+  local value = Utils.environment.parse(M.api_key_name)
+  return value ~= nil
 end
 
 function M:parse_messages(prompt_opts)
