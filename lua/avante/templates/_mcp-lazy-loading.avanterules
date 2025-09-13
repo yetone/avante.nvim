@@ -22,6 +22,15 @@ This will return the complete tool description, including full parameter details
 - When you need to see examples of how to use a complex tool
 - When a tool has advanced options that aren't clear from the summary
 
+## Important Rules
+
+ - YOU MUST CALL load_mcp_tool IF you see a short summary of a tool but don't see its
+spec in the tool specifications.
+- DO NOT USE use_mcp_tool to use tools with server "avante": call the tools directly.
+   - Tools that have the server "avante" have been given that for convenience when using load_mcp_tool.
+   - THERE IS NO avante MCP server.
+   - These are BUILT-IN tools that can be called directly, once they have been loaded using load_mcp_tool (if necessary).
+
 ## Example Usage
 
 ```
