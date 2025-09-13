@@ -35,4 +35,3 @@ load_mcp_tool(server_name="neovim", tool_name="execute_lua")
 // Returns detailed information including all parameters, examples, etc.
 ```
 
-Remember that most simple tools can be used effectively with just the summarized description. Only use `load_mcp_tool` when you genuinely need more details to use a tool correctly.
