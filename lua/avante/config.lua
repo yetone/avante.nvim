@@ -491,6 +491,7 @@ M._defaults = {
     auto_approve_tool_permissions = true, -- Default: show permission prompts for all tools
     auto_check_diagnostics = true,
     enable_fastapply = false,
+    include_generated_by_commit_line = false, -- Controls if 'Generated-by: <provider/model>' line is added to git commit message
   },
   prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
     enabled = true, -- toggle logging entirely
