@@ -29,7 +29,7 @@ describe("openrouter_provider", function()
     it("should have correct extra request body", function()
       assert.are.same({
         temperature = 0.75,
-        max_tokens = 16384,
+        max_tokens = 4096,
       }, openrouter_provider.extra_request_body)
     end)
   end)

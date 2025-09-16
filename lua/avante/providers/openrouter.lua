@@ -14,7 +14,7 @@ M.timeout = 30000 -- 30 seconds
 M.context_window = 128000
 M.extra_request_body = {
   temperature = 0.75,
-  max_tokens = 16384,
+  max_tokens = 4096,
 }
 
 return M

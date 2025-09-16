@@ -46,7 +46,9 @@ function M:transform_tool(tool)
   return res
 end
 
-function M.is_openrouter(url) return url:match("^https://openrouter%.ai/") end
+function M.is_openrouter(url)
+  return url:match("^https://api%.openrouter%.ai/") or url:match("^https://openrouter%.ai/")
+end
 
 function M.is_mistral(url) return url:match("^https://api%.mistral%.ai/") end
 
