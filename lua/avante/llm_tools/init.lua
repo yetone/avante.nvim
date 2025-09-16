@@ -1407,6 +1407,16 @@ function M.process_tool_use(tools, tool_use, opts)
     else
       if on_log then on_log(tool_use.id, tool_use.name, "tool finished", "succeeded") end
     end
+    if err == nil and tool_use.name == "load_mcp_tool" then
+      local tool_to_add = vim.iter(M.get_tools("", {}, false)):find(function(tool)
+        return tool.name == input_json.tool_name and tool.server_name == input_json.server_name end) ---@param tool AvanteLLMTool
+      if tool_to_add == nil then
+        err = "Internal error: could not load tool " .. input_json.tool_name
+        result = nil
+      else
+        vim.list_extend(tools, tool_to_add)
+      end
+    end
     local result_str ---@type string?
     if type(result) == "string" then
       result_str = result
