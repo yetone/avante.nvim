@@ -37,10 +37,27 @@ function M.register_tool_to_collect(tool)
   -- print("\n\n Registering \n" .. vim.inspect(tool) .. "\n\n" .. vim.inspect(M._tools_to_collect) .. "\n")
 end
 
-function M.collect_tools()
+--Append any tools to collect to the provided tools list.
+--If they are already in the provided tools list, remove
+--them from the list of tools to collect, to avoid unnecessary
+--effort.
+--Returns the extended list of tools
+function M.add_loaded_tools(tools)
   local tools_to_collect = M._tools_to_collect
+  local tools_that_are_needed = {}
   M._tools_to_collect = {}
-  return tools_to_collect
+  for _, tool in ipairs(tools_to_collect) do
+    local matching_tool = vim.iter(tools):find(function(tl)
+      return tl.name == tool.name
+    end)
+    if matching_tool == nil then
+      -- In this case, we need to add it to tools *and* save it
+      -- for later
+      M.register_tool_to_collect(tool)
+      tools_that_are_needed[#tools_that_are_needed+1] = tool
+    end
+  end
+  return vim.list_extend(tools, tools_that_are_needed)
 end
 
 
