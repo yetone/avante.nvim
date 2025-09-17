@@ -445,6 +445,24 @@ M._defaults = {
       model = "kimi-k2-0711-preview",
       api_key_name = "MOONSHOT_API_KEY",
     },
+    xai = {
+      __inherited_from = "openai",
+      endpoint = "https://api.x.ai/v1",
+      model = "grok-code-fast-1",
+      api_key_name = "XAI_API_KEY",
+    },
+    glm = {
+      __inherited_from = "openai",
+      endpoint = "https://open.bigmodel.cn/api/coding/paas/v4",
+      model = "glm-4.5",
+      api_key_name = "GLM_API_KEY",
+    },
+    qwen = {
+      __inherited_from = "openai",
+      endpoint = "https://dashscope.aliyuncs.com/compatible-mode/v1",
+      model = "qwen3-coder-plus",
+      api_key_name = "DASHSCOPE_API_KEY",
+    },
   },
   ---Specify the special dual_boost mode
   ---1. enabled: Whether to enable dual_boost mode. Default to false.
