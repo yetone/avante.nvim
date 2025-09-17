@@ -633,75 +633,26 @@ function M.get_tools(user_input, history_messages, for_system_prompt)
 
     local always_eager = MCPHub.always_eager()
 
-    if for_system_prompt == true then
-      -- For system prompt generation, return summarized versions of all tools
-      local summarized_tools = {}
-      local Summarizer = require("avante.mcp.summarizer")
+    -- For API requests, only return tools that have been requested or are in always_eager
+    local api_tools = {}
+    for _, tool in ipairs(filtered_tools) do
+      local server_name = tool.server_name or "avante"
+      local tool_name = tool.name
 
-      for _, tool in ipairs(filtered_tools) do
-        -- Only summarize built-in avante tools that are not in the always_eager list
-        if not always_eager[tool.name] then
-          -- Keep the tool as is (eagerly loaded)
-          -- Apply summarizer to the tool and add server information
-          local summarized_tool = Summarizer.summarize_tool(tool)
-          -- Add server information to the tool description
-          if summarized_tool.description then
-            summarized_tool.description = summarized_tool.description ..
-              " (Server: avante, use load_mcp_tool to get full details)"
-          end
-          table.insert(summarized_tools, summarized_tool)
-        end
+      -- Include the tool if it's in the always_eager list or has been explicitly requested
+      if MCPHub.should_include_tool(server_name, tool_name) then
+        table.insert(api_tools, tool)
       end
-
-      -- Add server_name to all tools for proper tracking
-      for _, tool in ipairs(summarized_tools) do
-        tool.server_name = tool.server_name or "avante"
-      end
-
-      return summarized_tools
-    else
-      -- For API requests, only return tools that have been requested or are in always_eager
-      local api_tools = {}
-      for _, tool in ipairs(filtered_tools) do
-        local server_name = tool.server_name or "avante"
-        local tool_name = tool.name
-
-        -- Include the tool if it's in the always_eager list or has been explicitly requested
-        if MCPHub.should_include_tool(server_name, tool_name) then
-          table.insert(api_tools, tool)
-        end
-      end
-
-      -- Add server_name to all tools for proper tracking
-      for _, tool in ipairs(api_tools) do
-        tool.server_name = tool.server_name or "avante"
-      end
-
-      return api_tools
     end
-  end
 
-  -- Add server_name to all tools even when lazy loading is disabled
-  for _, tool in ipairs(filtered_tools) do
-    tool.server_name = tool.server_name or "avante"
-  end
-
-  -- Debug check to find tools without param field
-  for _, tool in ipairs(filtered_tools) do
-    if not tool.param then
-      print("WARNING: Tool without param field: " .. tool.name)
-      -- Ensure all tools have at least an empty param field to avoid errors in transform_tool
-      tool.param = {
-        fields = {},
-        type = "table",
-        usage = {}
-      }
-    elseif not tool.param.fields then
-      tool.param.fields = {}
+    -- Add server_name to all tools for proper tracking
+    for _, tool in ipairs(api_tools) do
+      tool.server_name = tool.server_name or "avante"
     end
+
+    return api_tools
   end
 
-  return filtered_tools
 end
 
 function M.get_tool_names()
