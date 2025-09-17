@@ -11,6 +11,8 @@ M._requested_tools = M._requested_tools or {}
 
 M._available_to_request = M._available_to_request or {}
 
+M._tools_to_collect = M._tools_to_collect or {}
+
 -- Function to register a tool as requested
 -- Returns true if successful, false if not
 function M.register_requested_tool(server_name, tool_name)
@@ -26,6 +28,19 @@ end
 function M.register_available_tool(server_name, tool_name)
   local key = server_name .. ":" .. tool_name
   M._available_to_request[key] = true
+end
+
+-- Add a tool to be collected by `generate_prompts`
+-- to add to the list of tools in the middle of an LLM action
+function M.register_tool_to_collect(tool)
+  M._tools_to_collect[#M._tools_to_collect+1] = tool
+  -- print("\n\n Registering \n" .. vim.inspect(tool) .. "\n\n" .. vim.inspect(M._tools_to_collect) .. "\n")
+end
+
+function M.collect_tools()
+  local tools_to_collect = M._tools_to_collect
+  M._tools_to_collect = {}
+  return tools_to_collect
 end
 
 

@@ -534,6 +534,20 @@ function M.curl(opts)
   end
 
   ---@type AvanteCurlOutput
+  if Config.lazy_loading and Config.lazy_loading.enabled then
+    -- print("\\nn\nLAZY LOADING IS GO!!!!\n\n" .. vim.inspect(require('avante.mcp.mcphub')._tools_to_collect))
+    prompt_opts.tools = vim.list_extend(prompt_opts.tools, require('avante.mcp.mcphub').collect_tools())
+    Utils.debug("Extended tool list")
+    -- print(vim.inspect("LAZY LOADING IS DONE!!!!"))
+    -- print(vim.inspect(prompt_opts.tools))
+  else
+
+    -- print(vim.inspect("LAZY LOADING IS CAPUT!!!!"))
+    -- print(vim.inspect(Config))
+    Utils.debug("Did not extend tool list")
+    -- print(vim.inspect(prompt_opts.tools))
+  end
+
   local spec = provider:parse_curl_args(prompt_opts)
 
   local timestamp = os.time(os.date("!*t"))
@@ -546,6 +560,8 @@ function M.curl(opts)
   else
       print("error:", err) -- not so hard?
   end
+
+
 
   ---@type string
   local current_event_state = nil

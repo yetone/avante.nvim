@@ -69,7 +69,18 @@ function M.func(input, opts)
 
   if found_tool then
     if input.server_name == "avante" then
-      message = "The tool " .. input.tool_name .. " has now been added to the tools section of the prompt."
+      local tool_to_add = vim.iter(require('avante.llm_tools').get_tools("", {}, false)):find(function(tool)
+        return tool.name == input.tool_name end) ---@param tool AvanteLLMTool
+      if tool_to_add == nil then
+        err_msg = "Internal error: could not load tool " .. input.tool_name
+        -- print(vim.inspect(input))
+        -- print(vim.inspect(M.get_tools("", {}, false)))
+        found_tool = false
+      else
+        MCPHub.register_tool_to_collect(tool_to_add)
+        -- vim.list_extend(tools, tool_to_add)
+        message = "The tool " .. input.tool_name .. " has now been added to the tools section of the prompt."
+      end
     else
       tool = MCPHub.get_mcphub_tool(input.server_name, input.tool_name)
       if tool then
