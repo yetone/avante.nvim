@@ -33,9 +33,9 @@ M.param = {
 
 M.returns = {
   {
-    name = "success",
-    description = "True if loading the tool was successful, false otherwise",
-    type = "boolean",
+    name = "tool_spec",
+    description = "If loading the tool was successful, returns the tool specification, unless the tool is a built-in avante tool, in which case the tool will be added to the tools section of the prompt.",
+    type = "string",
   },
   {
     name = "error",
@@ -50,32 +50,55 @@ function M.func(input, opts)
   local on_log = opts.on_log
   local on_complete = opts.on_complete
 
+  local message = nil
+  local err_msg = nil
+  local found_tool = false
+
   -- Validate input parameters
   if not input.server_name then
-    return nil, "server_name is required"
+    err_msg = "server_name is required"
   end
   if not input.tool_name then
-    return nil, "tool_name is required"
+    err_msg = "tool_name is required"
   end
 
   -- Register this tool as requested
-  found_tool = MCPHub.register_requested_tool(input.server_name, input.tool_name)
+  if err_msg == nil then
+    found_tool = MCPHub.register_requested_tool(input.server_name, input.tool_name)
+  end
 
   if found_tool then
-    if on_complete then
-      on_complete(true, nil)
-      return true, nil  -- Will be handled asynchronously
+    if input.server_name == "avante" then
+      message = "The tool " .. input.tool_name .. " has now been added to the tools section of the prompt."
     else
-      return true, nil
+      tool = MCPHub.get_mcphub_tool(input.server_name, input.tool_name)
+      if tool then
+        local MCPHubPrompt = require('mcphub.utils.prompt')
+        local utils = require("mcphub.utils")
+        local result = "This is is the input schema for the tool " .. input.tool_name .. " from the server " .. input.server_name
+        result = result .. "\n **YOU WILL NEED THIS SCHEMA TO CALL THE TOOL***"
+        result = result .. string.format("\n\n- %s: %s", tool.name, MCPHubPrompt.get_description(tool):gsub("\n", "\n  "))
+        local inputSchema = MCPHubPrompt.get_inputSchema(tool)
+        result = result
+            .. "\n\n  Input Schema:\n\n  ```json\n  "
+            .. utils.pretty_json(vim.json.encode(inputSchema)):gsub("\n", "\n  ")
+            .. "\n  ```"
+        message = result .. "\n Use this tool indirectly by using the 'use_mcp_tool' tool \n"
+      else
+        found_tool = false
+      end
+
     end
   else
-    local err_msg = "Tool '" .. input.tool_name .. "' on server '" .. input.server_name .. "' does not exist."
-    if on_complete then
-      on_complete(false, err_msg)
-      return false, nil  -- Will be handled asynchronously
-    else
-      return false, err_msg
+    if err_msg == nil then
+      err_msg = "Tool '" .. input.tool_name .. "' on server '" .. input.server_name .. "' does not exist."
     end
+  end
+  if on_complete then
+    on_complete(message, err_msg)
+    return nil, nil  -- Will be handled asynchronously
+  else
+    return message, err_msg
   end
 end
 

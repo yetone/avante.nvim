@@ -68,6 +68,71 @@ function M.always_eager()
     return always_eager
 end
 
+function M.get_mcphub_server_hub()
+  local ok, mcphub = pcall(require, "mcphub")
+  if not ok then
+    return nil
+  end
+  local hub = mcphub.get_hub_instance()
+  if not hub then
+    return nil
+  end
+  return hub
+end
+
+function M.get_mcphub_tools()
+  local hub = M.get_mcphub_server_hub()
+  if not hub then
+    return nil
+  end
+
+  -- Get all tools from the hub
+  local all_tools = {}
+  if hub.get_tools and type(hub.get_tools) == "function" then
+    all_tools = hub:get_tools()
+  else
+    return nil
+  end
+
+  return all_tools
+end
+
+function M.get_mcphub_server_map()
+  local hub = M.get_mcphub_server_hub()
+  if not hub then
+    return nil
+  end
+
+  -- Get all tools from the hub
+  local all_tools = M.get_mcphub_tools()
+  if not all_tools then
+    return nil
+  end
+
+  -- Group tools by server
+  local server_tools_map = {}
+  for _, tool in ipairs(all_tools) do
+    local server_name = tool.server_name
+    if server_name then
+      server_tools_map[server_name] = server_tools_map[server_name] or {}
+      table.insert(server_tools_map[server_name], tool)
+    end
+  end
+  return server_tools_map
+end
+
+function M.get_mcphub_tool(server_name, tool_name)
+  -- Get all tools from the hub
+  local all_tools = M.get_mcphub_tools()
+  if not all_tools then
+    return nil
+  end
+  local tool = vim.iter(all_tools):find(function(tl)
+    return tl.name == tool_name and tl.server_name == server_name
+  end)
+  return tool
+end
+
 -- Function to get MCPHub prompt with lazy loading support
 ---@return string
 function M.get_system_prompt()
@@ -109,10 +174,13 @@ function M.get_system_prompt()
     ]]
 
     -- Get the built-in tools using get_tools function with for_system_prompt=true
-    local built_in_tools = LLMTools.get_tools("", {}, true)
+    local built_in_tools = LLMTools._tools
 
     -- Add built-in tools section to the prompt
     summarized_prompt = summarized_prompt .. "## Built-in Tools\n\n"
+    summarized_prompt = summarized_prompt .. "To use all the tools in this section, YOU MUST LOAD THEM USING load_mcp_tool "
+    summarized_prompt = summarized_prompt .. "if you cannot see their spec in the tools section of the prompt. YOU CANNOT "
+    summarized_prompt = summarized_prompt .. "access them by running use_mcp_tool. \n\n"
     for _, tool in ipairs(built_in_tools) do
       -- Skip tools that don't have a name
       if tool.name then
@@ -131,22 +199,8 @@ function M.get_system_prompt()
     end
 
     summarized_prompt = summarized_prompt .. "## MCP Server Details\n\n"
+    local server_tools_map = M.get_mcphub_server_map()
 
-    -- Get all tools from the hub
-    local all_tools = {}
-    if hub.get_tools and type(hub.get_tools) == "function" then
-      all_tools = hub:get_tools()
-    end
-
-    -- Group tools by server
-    local server_tools_map = {}
-    for _, tool in ipairs(all_tools) do
-      local server_name = tool.server_name
-      if server_name then
-        server_tools_map[server_name] = server_tools_map[server_name] or {}
-        table.insert(server_tools_map[server_name], tool)
-      end
-    end
 
     -- For each server, summarize its information and tools
     for _, server in ipairs(servers) do
@@ -255,6 +309,9 @@ function M.get_system_prompt()
     When you need to start a disabled MCP Server or vice-versa, use the `toggle_mcp_server` tool on `mcphub` MCP Server using `use_mcp_tool`:
 
     CRITICAL: You need to use the `use_mcp_tool` tool to call the `toggle_mcp_server` tool on `mcphub` MCP Server when `mcphub` server is "Connected" else ask the user to enable `mcphub` server.
+
+    CRITICAL: You must NOT use `use_mcp_tool` when the server is "avante". You must call the tool directly. If the tool
+    spec is not available, load it with `load_mcp_tool`
 
     Pseudocode:
 
