@@ -692,14 +692,7 @@ M._defaults = {
   },
   disabled_tools = {}, ---@type string[]
   ---@type AvanteLLMToolPublic[] | fun(): AvanteLLMToolPublic[]
-  custom_tools = function()
-    -- Try to load MCPHub custom tools if available
-    local ok, mcphub = pcall(require, "avante.mcp.mcphub")
-    if ok then
-      return mcphub.get_custom_tools()
-    end
-    return {}
-  end,
+  custom_tools = nil,
   ---@type AvanteSlashCommand[]
   slash_commands = {},
   ---@type AvanteShortcut[]

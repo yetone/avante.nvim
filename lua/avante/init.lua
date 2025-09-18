@@ -447,8 +447,8 @@ function M.setup(opts)
   Config.setup(opts)
 
   -- Add MCPHub system prompt provider if not already added
-  if not vim.tbl_contains(Config.system_prompt_providers, require("avante.mcp.mcphub").get_system_prompt) then
-    table.insert(Config.system_prompt_providers, require("avante.mcp.mcphub").get_system_prompt)
+  if not vim.tbl_contains(Config.system_prompt_providers, require("avante.llm_tools.lazy_loading").get_system_prompt) then
+    table.insert(Config.system_prompt_providers, require("avante.llm_tools.lazy_loading").get_system_prompt)
   end
 
   if M.did_setup then return end

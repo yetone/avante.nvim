@@ -531,9 +531,9 @@ function M:parse_curl_args(prompt_opts)
     tools = {}
     for _, tool in ipairs(prompt_opts.tools) do
       -- Only include tool if lazy loading is disabled, or if it's always eager, or if it's been requested
-      local MCPHub = require("avante.mcp.mcphub")
+      local LazyLoading = require("avante.llm_tools.lazy_loading")
 
-      if MCPHub.should_include_tool(tool.name, tool.server_name) then
+      if LazyLoading.should_include_tool(tool.name, tool.server_name) then
         table.insert(tools, self:transform_tool(tool))
       end
     end

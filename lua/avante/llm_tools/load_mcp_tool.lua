@@ -6,7 +6,7 @@ This includes both mcphub server tools and built-in avante tools.
 
 local M = {}
 local Config = require("avante.config")
-local MCPHub = require("avante.mcp.mcphub")
+local LazyLoading = require("avante.llm_tools.lazy_loading")
 
 M.name = "load_mcp_tool"
 M.description = "Load detailed information about a specific MCP tool. Use this tool when you need more details about a tool's functionality, parameters, or usage than what is provided in the summarized description. To load built-in avante tools, use \"avante\" as the server_name."
@@ -64,7 +64,7 @@ function M.func(input, opts)
 
   -- Register this tool as requested
   if err_msg == nil then
-    found_tool = MCPHub.register_requested_tool(input.server_name, input.tool_name)
+    found_tool = LazyLoading.register_requested_tool(input.server_name, input.tool_name)
   end
 
   if found_tool then
@@ -77,12 +77,12 @@ function M.func(input, opts)
         -- print(vim.inspect(M.get_tools("", {}, false)))
         found_tool = false
       else
-        MCPHub.register_tool_to_collect(tool_to_add)
+        LazyLoading.register_tool_to_collect(tool_to_add)
         -- vim.list_extend(tools, tool_to_add)
         message = "The tool " .. input.tool_name .. " has now been added to the tools section of the prompt."
       end
     else
-      tool = MCPHub.get_mcphub_tool(input.server_name, input.tool_name)
+      tool = LazyLoading.get_mcphub_tool(input.server_name, input.tool_name)
       if tool then
         local MCPHubPrompt = require('mcphub.utils.prompt')
         local utils = require("mcphub.utils")

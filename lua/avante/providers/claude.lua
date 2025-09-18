@@ -331,9 +331,9 @@ function M:parse_curl_args(prompt_opts)
   if not disable_tools and prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
       -- Only include tool if lazy loading is disabled, or if it's always eager, or if it's been requested
-      local MCPHub = require("avante.mcp.mcphub")
+      local LazyLoading = require("avante.llm_tools.lazy_loading")
 
-      if MCPHub.should_include_tool(tool.name, tool.server_name) then
+      if LazyLoading.should_include_tool(tool.name, tool.server_name) then
         if Config.mode == "agentic" then
           if tool.name == "create_file" then goto continue end
           if tool.name == "view" then goto continue end

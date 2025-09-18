@@ -628,10 +628,10 @@ function M.get_tools(user_input, history_messages, for_system_prompt)
   -- Handle lazy loading configurations
   if Config.lazy_loading and Config.lazy_loading.enabled then
 
-    -- Lazy-load the MCPHub module to check for requested tools
-    local MCPHub = require("avante.mcp.mcphub")
+    -- Lazy-load the LazyLoading module to check for requested tools
+    local LazyLoading = require("avante.llm_tools.lazy_loading")
 
-    local always_eager = MCPHub.always_eager()
+    local always_eager = LazyLoading.always_eager()
 
     -- For API requests, only return tools that have been requested or are in always_eager
     local api_tools = {}
@@ -640,7 +640,7 @@ function M.get_tools(user_input, history_messages, for_system_prompt)
       local tool_name = tool.name
 
       -- Include the tool if it's in the always_eager list or has been explicitly requested
-      if MCPHub.should_include_tool(server_name, tool_name) then
+      if LazyLoading.should_include_tool(server_name, tool_name) then
         table.insert(api_tools, tool)
       end
     end
@@ -1358,8 +1358,6 @@ function M.process_tool_use(tools, tool_use, opts)
     else
       if on_log then on_log(tool_use.id, tool_use.name, "tool finished", "succeeded") end
     end
-    -- For internal tools we need to actually load the tool spec. For mcphub tools we have already
-    -- got use_mcp_tool which is what we use to call other tools from the hub.
     local result_str ---@type string?
     if type(result) == "string" then
       result_str = result

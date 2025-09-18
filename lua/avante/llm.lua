@@ -535,8 +535,8 @@ function M.curl(opts)
 
   ---@type AvanteCurlOutput
   if Config.lazy_loading and Config.lazy_loading.enabled then
-    -- print("\\nn\nLAZY LOADING IS GO!!!!\n\n" .. vim.inspect(require('avante.mcp.mcphub')._tools_to_collect))
-    prompt_opts.tools = require('avante.mcp.mcphub').add_loaded_tools(prompt_opts.tools)
+    -- print("\\nn\nLAZY LOADING IS GO!!!!\n\n" .. vim.inspect(require('avante.llm_tools.lazy_loading')._tools_to_collect))
+    prompt_opts.tools = require('avante.llm_tools.lazy_loading').add_loaded_tools(prompt_opts.tools)
     Utils.debug("Extended tool list")
     -- print(vim.inspect("LAZY LOADING IS DONE!!!!"))
     -- print(vim.inspect(prompt_opts.tools))
