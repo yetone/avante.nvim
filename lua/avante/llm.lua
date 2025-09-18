@@ -806,6 +806,83 @@ local function stop_retry_timer()
   end
 end
 
+-- Intelligently truncate chat history for session recovery to avoid token limits
+---@param history_messages table[]
+---@return table[]
+local function truncate_history_for_recovery(history_messages)
+  if not history_messages or #history_messages == 0 then return {} end
+
+  -- Get configuration parameters with validation and sensible defaults
+  local recovery_config = Config.session_recovery or {}
+  local MAX_RECOVERY_MESSAGES = math.max(1, math.min(recovery_config.max_history_messages or 10, 50))
+  local MAX_MESSAGE_LENGTH = math.max(100, math.min(recovery_config.max_message_length or 1000, 10000))
+
+  -- Keep recent messages starting from the newest
+  local truncated = {}
+  local count = 0
+
+  for i = #history_messages, 1, -1 do
+    if count >= MAX_RECOVERY_MESSAGES then break end
+
+    local message = history_messages[i]
+    if message and message.message and message.message.content then
+      -- Prioritize user messages and important assistant replies, skip verbose tool call results
+      local content = message.message.content
+      local role = message.message.role
+
+      -- Skip overly verbose tool call results with multiple code blocks
+      if
+        role == "assistant"
+        and type(content) == "string"
+        and content:match("```.*```.*```")
+        and #content > MAX_MESSAGE_LENGTH * 2
+      then
+        goto continue
+      end
+
+      -- Handle string content
+      if type(content) == "string" then
+        if #content > MAX_MESSAGE_LENGTH then
+          -- Truncate overly long messages
+          local truncated_message = vim.deepcopy(message)
+          truncated_message.message.content = content:sub(1, MAX_MESSAGE_LENGTH) .. "...[truncated]"
+          table.insert(truncated, 1, truncated_message)
+        else
+          table.insert(truncated, 1, message)
+        end
+      -- Handle table content (multimodal messages)
+      elseif type(content) == "table" then
+        local truncated_message = vim.deepcopy(message)
+        -- Safely handle table content
+        if truncated_message.message.content and type(truncated_message.message.content) == "table" then
+          for j, item in ipairs(truncated_message.message.content) do
+            -- Handle various content item types
+            if type(item) == "string" and #item > MAX_MESSAGE_LENGTH then
+              truncated_message.message.content[j] = item:sub(1, MAX_MESSAGE_LENGTH) .. "...[truncated]"
+            elseif
+              type(item) == "table"
+              and item.text
+              and type(item.text) == "string"
+              and #item.text > MAX_MESSAGE_LENGTH
+            then
+              -- Handle {type="text", text="..."} format
+              item.text = item.text:sub(1, MAX_MESSAGE_LENGTH) .. "...[truncated]"
+            end
+          end
+        end
+        table.insert(truncated, 1, truncated_message)
+      else
+        table.insert(truncated, 1, message)
+      end
+
+      count = count + 1
+    end
+
+    ::continue::
+  end
+
+  return truncated
+end
 ---@param opts AvanteLLMStreamOptions
 function M._stream_acp(opts)
   Utils.debug("use ACP", Config.provider)
@@ -1169,6 +1246,51 @@ function M._stream_acp(opts)
   end
   acp_client:send_prompt(session_id, prompt, function(_, err_)
     if err_ then
+      -- ACP-specific session recovery: Check for session not found error
+      local recovery_config = Config.session_recovery or {}
+      local recovery_enabled = recovery_config.enabled ~= false -- Default enabled unless explicitly disabled
+
+      if
+        recovery_enabled
+        and err_.code == -32603
+        and err_.data
+        and err_.data.details == "Session not found"
+        and not rawget(opts, "_session_recovery_attempted")
+      then
+        -- Mark recovery attempt to prevent infinite loops
+        rawset(opts, "_session_recovery_attempted", true)
+
+        -- Clear invalid session ID
+        if opts.on_save_acp_session_id then
+          opts.on_save_acp_session_id("") -- Use empty string instead of nil
+        end
+
+        -- Intelligently truncate history messages to avoid token limits
+        local original_history = opts.history_messages or {}
+        local truncated_history
+
+        -- Safely call truncation function
+        local ok, result = pcall(truncate_history_for_recovery, original_history)
+        if ok then
+          truncated_history = result
+        else
+          Utils.warn("Failed to truncate history for recovery: " .. tostring(result))
+          truncated_history = {} -- Use empty history as fallback
+        end
+
+        opts.history_messages = truncated_history
+
+        Utils.info(
+          string.format(
+            "Session expired, recovering with %d recent messages (from %d total)...",
+            #truncated_history,
+            #original_history
+          )
+        )
+
+        -- Retry with truncated history to rebuild context in new session
+        return M._stream_acp(opts)
+      end
       opts.on_stop({ reason = "error", error = err_ })
       return
     end
