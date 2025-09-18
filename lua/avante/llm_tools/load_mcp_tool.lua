@@ -10,7 +10,7 @@ local LazyLoading = require("avante.llm_tools.lazy_loading")
 
 M.name = "load_mcp_tool"
 M.description = "Load detailed information about a specific MCP tool. Use this tool when you need more details about a tool's functionality, parameters, or usage than what is provided in the summarized description. To load built-in avante tools, use \"avante\" as the server_name."
-
+M.enabled = function() return Config.lazy_loading and Config.lazy_loading.enabled  end
 M.param = {
   type = "table",
   fields = {
