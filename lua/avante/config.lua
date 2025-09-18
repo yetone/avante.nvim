@@ -759,20 +759,17 @@ local function get_config_file_path() return Utils.join_paths(get_config_dir_pat
 
 --- Function to save the last used model
 ---@param model_name string
+---@param provider_name string
 function M.save_last_model(model_name, provider_name)
   local config_dir = get_config_dir_path()
   local storage_path = get_config_file_path()
 
   if not Utils.path_exists(config_dir) then vim.fn.mkdir(config_dir, "p") end
 
-  local Providers = require("avante.providers")
-  local provider = Providers[provider_name]
-  local provider_model = provider and provider.model
-
   local file = io.open(storage_path, "w")
   if file then
     file:write(
-      vim.json.encode({ last_model = model_name, last_provider = provider_name, provider_model = provider_model })
+      vim.json.encode({ last_model = model_name, last_provider = provider_name })
     )
     file:close()
   end
@@ -793,27 +790,33 @@ function M.get_last_used_model(known_providers)
       Utils.warn("Last used model file is empty: " .. storage_path)
       -- Remove to not have repeated warnings
       os.remove(storage_path)
+      return
     end
 
     local success, data = pcall(vim.json.decode, content)
-    if not success or not data or not data.last_model or data.last_model == "" or data.last_provider == "" then
+    if not success or not data then
       Utils.warn("Invalid or corrupt JSON in last used model file: " .. storage_path)
       -- Rename instead of deleting so user can examine contents
       os.rename(storage_path, storage_path .. ".bad")
       return
     end
 
+    -- 检查必要字段是否存在且有效
+    if not data.last_model or data.last_model == "" or not data.last_provider or data.last_provider == "" then
+      Utils.warn("Missing required fields in last used model file: " .. storage_path)
+      os.rename(storage_path, storage_path .. ".bad")
+      return
+    end
+
+    -- 检查provider是否仍然有效
     if data.last_provider then
       local provider = known_providers[data.last_provider]
       if not provider then
         Utils.warn(
           "Provider " .. data.last_provider .. " is no longer a valid provider, falling back to default configuration"
         )
-        os.remove(storage_path)
+        -- 不删除配置文件，只是不使用它，这样用户可以切换到其他有效的provider
         return
-      end
-      if data.provider_model and provider.model and provider.model ~= data.provider_model then
-        return provider.model, data.last_provider
       end
     end
 
