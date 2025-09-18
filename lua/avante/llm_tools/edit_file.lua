@@ -63,8 +63,6 @@ M.func = vim.schedule_wrap(function(input, opts)
   if not provider then return false, "morph provider not found" end
   if not provider.is_env_set() then return false, "morph provider not set" end
 
-  if not input.path then return false, "path not provided" end
-
   --- if input.path is a directory, return false
   if vim.fn.isdirectory(input.path) == 1 then return false, "path is a directory" end
 
@@ -106,7 +104,7 @@ M.func = vim.schedule_wrap(function(input, opts)
   local json_content = vim.json.encode(body)
   vim.fn.writefile(vim.split(json_content, "\n"), curl_body_file)
 
-  -- Construct curl command with additional debugging and error handling
+  -- Construct curl command with proper error handling
   local curl_cmd = {
     "curl",
     "-X",
@@ -117,7 +115,7 @@ M.func = vim.schedule_wrap(function(input, opts)
     "@" .. curl_body_file,
     "--fail", -- Return error for HTTP status codes >= 400
     "--show-error", -- Show error messages
-    "--verbose", -- Enable verbose output for better debugging
+    "--silent", -- Suppress progress meter but show errors
     "--connect-timeout",
     "30", -- Connection timeout in seconds
     "--max-time",
@@ -142,39 +140,28 @@ M.func = vim.schedule_wrap(function(input, opts)
       vim.fn.delete(curl_body_file)
 
       if result.code ~= 0 then
-        local error_msg = result.stderr
-        if not error_msg or error_msg == "" then error_msg = result.stdout end
-        if not error_msg or error_msg == "" then error_msg = "No detailed error message available" end
+        local error_msg = result.stderr or result.stdout or "No detailed error message available"
 
         -- 检查curl常见的错误码
         local curl_error_map = {
-          [1] = "Unsupported protocol (curl error 1)",
-          [2] = "Failed to initialize (curl error 2)",
-          [3] = "URL malformed (curl error 3)",
-          [4] = "Requested FTP action not supported (curl error 4)",
-          [5] = "Failed to resolve proxy (curl error 5)",
+          [1] = "Unsupported protocol",
+          [2] = "Failed to initialize",
+          [3] = "URL malformed",
+          [5] = "Failed to resolve proxy",
           [6] = "Could not resolve host (DNS resolution failed)",
           [7] = "Failed to connect to host (connection refused)",
+          [22] = "HTTP page not retrieved (HTTP error 400+)",
           [28] = "Operation timeout (connection timed out)",
           [35] = "SSL connection error (handshake failed)",
           [52] = "Empty reply from server",
           [56] = "Failure in receiving network data",
           [60] = "SSL certificate problem (certificate verification failed)",
-          [77] = "Problem with reading SSL CA certificate",
         }
 
-        local curl_cmd_str = table.concat(curl_cmd, " ")
         local error_hint = curl_error_map[result.code] or ("curl exited with code " .. result.code)
-        local full_error = "curl command failed: "
-          .. error_hint
-          .. "\n"
-          .. "Command: "
-          .. curl_cmd_str
-          .. "\n"
-          .. "Exit code: "
-          .. result.code
+        local full_error = "edit_file tool failed: " .. error_hint
 
-        if error_msg and error_msg ~= "" then full_error = full_error .. "\nError details: " .. error_msg end
+        if error_msg and error_msg ~= "" then full_error = full_error .. "\nDetails: " .. error_msg end
 
         if provider_conf.endpoint and provider_conf.model then
           full_error = full_error
