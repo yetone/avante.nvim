@@ -651,6 +651,8 @@ function M.get_tools(user_input, history_messages, for_system_prompt)
     end
 
     return api_tools
+  else
+    return filtered_tools
   end
 
 end
