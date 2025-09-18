@@ -461,7 +461,6 @@ M._defaults = {
     auto_approve_tool_permissions = false, -- Default: show permission prompts for all tools
     auto_check_diagnostics = true,
     enable_fastapply = false,
-    mcp_extra_concise = true, -- When true, and lazy_loading is on, MCP tool summarizer will only include name and description (no input/output schema)
   },
   prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
     enabled = true, -- toggle logging entirely
@@ -692,7 +691,7 @@ M._defaults = {
   },
   disabled_tools = {}, ---@type string[]
   ---@type AvanteLLMToolPublic[] | fun(): AvanteLLMToolPublic[]
-  custom_tools = nil,
+  custom_tools = {},
   ---@type AvanteSlashCommand[]
   slash_commands = {},
   ---@type AvanteShortcut[]
@@ -704,6 +703,7 @@ M._defaults = {
     -- List of tools that should always be loaded eagerly (not lazily)
     -- These tools are critical and should always be available without requiring a separate load
     always_eager = {},
+    mcp_extra_concise = true, -- When true, and lazy_loading is on, MCP tool summarizer will only include name and description (no input/output schema)
   },
 }
 

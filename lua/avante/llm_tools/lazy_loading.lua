@@ -513,7 +513,7 @@ function M.summarize_tool(tool)
   local summarized_tool = vim.deepcopy(tool)
 
   -- Check if we should use extra concise mode
-  local extra_concise = Config.behaviour and Config.behaviour.mcp_extra_concise
+  local extra_concise = Config.lazy_loading and Config.lazy_loading.mcp_extra_concise
 
   -- If extra_concise is enabled, create a minimal version of the tool
   if extra_concise then
