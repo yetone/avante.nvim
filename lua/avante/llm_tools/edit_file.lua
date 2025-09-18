@@ -161,9 +161,7 @@ M.func = vim.schedule_wrap(function(input, opts)
         local error_hint = curl_error_map[result.code] or ("curl exited with code " .. result.code)
         local full_error = "edit_file tool failed: " .. error_hint
 
-        if error_msg and error_msg ~= "" then 
-          full_error = full_error .. "\nDetails: " .. error_msg 
-        end
+        if error_msg and error_msg ~= "" then full_error = full_error .. "\nDetails: " .. error_msg end
 
         if provider_conf.endpoint and provider_conf.model then
           full_error = full_error

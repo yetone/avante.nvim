@@ -13,10 +13,10 @@
 在原始的`save_last_model`函数中，保存了一个`provider_model`字段：
 ```lua
 local provider_model = provider and provider.model
-file:write(vim.json.encode({ 
-  last_model = model_name, 
-  last_provider = provider_name, 
-  provider_model = provider_model 
+file:write(vim.json.encode({
+  last_model = model_name,
+  last_provider = provider_name,
+  provider_model = provider_model
 }))
 ```
 
@@ -52,10 +52,10 @@ end
 移除有问题的`provider_model`字段，只保存必要的信息：
 ```lua
 function M.save_last_model(model_name, provider_name)
-  -- ... 
-  file:write(vim.json.encode({ 
-    last_model = model_name, 
-    last_provider = provider_name 
+  -- ...
+  file:write(vim.json.encode({
+    last_model = model_name,
+    last_provider = provider_name
   }))
   -- ...
 end
@@ -68,7 +68,7 @@ end
 function M.get_last_used_model(known_providers)
   -- ...
   -- 检查必要字段是否存在且有效
-  if not data.last_model or data.last_model == "" or 
+  if not data.last_model or data.last_model == "" or
      not data.last_provider or data.last_provider == "" then
     Utils.warn("Missing required fields in last used model file: " .. storage_path)
     os.rename(storage_path, storage_path .. ".bad")
@@ -113,7 +113,7 @@ end
 测试1: 正常保存和读取
 ✓ 测试1通过: 正确读取了保存的模型
 
-测试2: 切换到不同provider  
+测试2: 切换到不同provider
 ✓ 测试2通过: 成功切换到claude provider
 
 测试3: 无效provider处理

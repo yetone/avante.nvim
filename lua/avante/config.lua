@@ -768,9 +768,7 @@ function M.save_last_model(model_name, provider_name)
 
   local file = io.open(storage_path, "w")
   if file then
-    file:write(
-      vim.json.encode({ last_model = model_name, last_provider = provider_name })
-    )
+    file:write(vim.json.encode({ last_model = model_name, last_provider = provider_name }))
     file:close()
   end
 end
