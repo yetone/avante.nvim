@@ -1717,3 +1717,43 @@ Benefits:
 - Improved performance by loading tool details on demand
 
 The LLM can request detailed tool information using the `load_mcp_tool` function when needed. For more information, see [MCP Lazy Loading](./docs/mcp_lazy_loading.md).
+
+### Prompt Caching
+
+Avante.nvim supports prompt caching for Claude models (both direct and via AWS Bedrock), which can significantly reduce latency (up to 85%) and costs (up to 90%) for repeated prompt patterns.
+
+#### Supported Providers
+
+- Claude Direct (`claude`)
+- AWS Bedrock Claude (`bedrock` with Claude models)
+
+Note OpenAI models manage caching automatically themselves
+
+#### Configuration
+
+```lua
+require('avante').setup({
+  prompt_caching = {
+    enabled = true,  -- Global enable/disable
+    providers = {
+      claude = true,
+      bedrock = true
+    }
+  }
+})
+```
+
+#### How It Works
+
+Prompt caching works by marking specific portions of prompts to be cached. When a request is made with a marked prompt prefix, the model processes the input and caches the internal state. On subsequent requests with a matching prompt prefix, the model reads from the cache and skips the computation steps required to process the input tokens.
+
+The cache has a five-minute Time To Live (TTL), which resets with each successful cache hit. If no cache hits occur within the TTL window, your cache expires.
+
+#### Use Cases
+
+Prompt caching is particularly beneficial for:
+
+1. **Chat with document** – By caching the document as input context on the first request, each user query becomes more efficient.
+2. **Coding assistants** – Reusing long code files in prompts enables near real-time inline suggestions.
+3. **Agentic workflows** – Longer system prompts can be used to refine agent behavior without degrading the end-user experience.
+4. **Few-shot learning** – Including numerous high-quality examples and complex instructions can benefit from prompt caching.

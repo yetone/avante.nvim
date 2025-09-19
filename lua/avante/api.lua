@@ -319,6 +319,29 @@ end
 
 function M.stop() require("avante.llm").cancel_inflight_request() end
 
+function M.cache_stats()
+  local Claude = require("avante.providers.claude")
+  local stats = Claude.analyze_cache_performance()
+  if type(stats) == "string" then
+    Utils.info(stats)
+  else
+    local message = string.format(
+      "Cache Performance Stats:\n" ..
+      "- Average hit rate: %.2f%%\n" ..
+      "- Total hit tokens: %d\n" ..
+      "- Total write tokens: %d\n" ..
+      "- Total input tokens: %d\n" ..
+      "- Sample count: %d",
+      stats.average_hit_rate * 100,
+      stats.total_hit_tokens,
+      stats.total_write_tokens,
+      stats.total_input_tokens,
+      stats.sample_count
+    )
+    Utils.info(message)
+  end
+end
+
 return setmetatable(M, {
   __index = function(t, k)
     local module = require("avante")

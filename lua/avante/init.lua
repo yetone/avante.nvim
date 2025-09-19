@@ -117,6 +117,28 @@ function H.keymaps()
   vim.keymap.set("n", "<Plug>(AvanteConflictNextConflict)", function() Diff.find_next("ours") end)
   vim.keymap.set("n", "<Plug>(AvanteConflictPrevConflict)", function() Diff.find_prev("ours") end)
   vim.keymap.set("n", "<Plug>(AvanteSelectModel)", function() require("avante.api").select_model() end)
+  vim.keymap.set("n", "<Plug>(AvanteCacheStats)", function()
+    local Claude = require("avante.providers.claude")
+    local stats = Claude.analyze_cache_performance()
+    if type(stats) == "string" then
+      Utils.info(stats)
+    else
+      local message = string.format(
+        "Cache Performance Stats:\n" ..
+        "- Average hit rate: %.2f%%\n" ..
+        "- Total hit tokens: %d\n" ..
+        "- Total write tokens: %d\n" ..
+        "- Total input tokens: %d\n" ..
+        "- Sample count: %d",
+        stats.average_hit_rate * 100,
+        stats.total_hit_tokens,
+        stats.total_write_tokens,
+        stats.total_input_tokens,
+        stats.sample_count
+      )
+      Utils.info(message)
+    end
+  end)
 
   if Config.behaviour.auto_set_keymaps then
     Utils.safe_keymap_set(
