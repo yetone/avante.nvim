@@ -436,7 +436,7 @@ function M.validate_mcp_tool(tool_use_input, on_complete)
 
   if not tool_exists then
     local error_msg = string.format(
-      "Tool '%s' does not exist on server '%s'. Please check the tool name and server. A full list of tools with their servers is in your system prompt.",
+      "Tool '%s' is not on server '%s'. Please check the tool name and server. A full list of tools with their servers is in your system prompt.",
       tool_use_input.tool_name,
       server_name
     )
@@ -476,7 +476,7 @@ function M.check_tool_loading(tools, tool_use, Config)
   -- Sanity check to make sure the tool exists.
   local key = server_name .. ":" .. tool_use.name
   if not M._available_to_request[key] then
-    local error_msg = "Tool '" .. tool_use.name .. "' on server '" .. server_name .. "' does not exist." ..
+    local error_msg = "Tool '" .. tool_use.name .. "' is not on server '" .. server_name .. "'. " ..
       "Check your system prompt for available tools. Maybe the tool is on another server."
     return false, error_msg
   end
