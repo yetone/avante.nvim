@@ -472,7 +472,7 @@ function M.check_tool_loading(tools, tool_use, Config)
 
   -- Special handling for use_mcp_tool
   if tool_use.name == "use_mcp_tool" then
-    if not tool_use.tool_input and tool_use.tool_input.server_name and tool_use.tool_input.tool_name then
+    if not (tool_use.tool_input and tool_use.tool_input.server_name and tool_use.tool_input.tool_name) then
       local error_msg = "Please check the spec of use_mcp_tool and provide the right input."
       return false, error_msg
     end
