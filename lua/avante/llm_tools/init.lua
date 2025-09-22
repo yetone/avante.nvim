@@ -609,9 +609,8 @@ end
 
 ---@param user_input string
 ---@param history_messages AvanteLLMMessage[]
----@param for_system_prompt boolean? When true, return summarized tools for system prompt. When false or nil, return full tools for API requests
 ---@return AvanteLLMTool[]
-function M.get_tools(user_input, history_messages, for_system_prompt)
+function M.get_tools(user_input, history_messages)
   local custom_tools = Config.custom_tools
   if type(custom_tools) == "function" then custom_tools = custom_tools() end
 
@@ -1298,6 +1297,23 @@ M.run_python = M.python
 function M.process_tool_use(tools, tool_use, opts)
   local on_log = opts.on_log
   local on_complete = opts.on_complete
+
+  -- Use the new function in lazy_loading.lua to check tool loading
+  local Config = require("avante.config")
+  local LazyLoading = require("avante.llm_tools.lazy_loading")
+
+  -- Only perform lazy loading check if lazy loading is enabled
+  if Config.lazy_loading and Config.lazy_loading.enabled then
+    local result, err = LazyLoading.check_tool_loading(tools, tool_use, Config)
+    if not result then
+      if on_complete then
+        on_complete(nil, err)
+        return
+      end
+      return nil, err
+    end
+  end
+
   -- Check if execution is already cancelled
   if Helpers.is_cancelled then
     Utils.debug("Tool execution cancelled before starting: " .. tool_use.name)

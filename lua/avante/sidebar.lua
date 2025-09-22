@@ -2579,8 +2579,7 @@ function Sidebar:get_generate_prompts_options(request, cb)
 
   local history_messages = self:get_history_messages_for_api()
 
-  -- Get full tools (not summarized) for API requests
-  local tools = vim.deepcopy(LLMTools.get_tools(request, history_messages, false))
+  local tools = vim.deepcopy(LLMTools.get_tools(request, history_messages))
   table.insert(tools, {
     name = "add_file_to_context",
     description = "Add a file to the context",

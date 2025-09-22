@@ -538,17 +538,7 @@ function M.curl(opts)
 
   ---@type AvanteCurlOutput
   if Config.lazy_loading and Config.lazy_loading.enabled then
-    -- print("\\nn\nLAZY LOADING IS GO!!!!\n\n" .. vim.inspect(require('avante.llm_tools.lazy_loading')._tools_to_collect))
     prompt_opts.tools = require('avante.llm_tools.lazy_loading').add_loaded_tools(prompt_opts.tools)
-    Utils.debug("Extended tool list")
-    -- print(vim.inspect("LAZY LOADING IS DONE!!!!"))
-    -- print(vim.inspect(prompt_opts.tools))
-  else
-
-    -- print(vim.inspect("LAZY LOADING IS CAPUT!!!!"))
-    -- print(vim.inspect(Config))
-    Utils.debug("Did not extend tool list")
-    -- print(vim.inspect(prompt_opts.tools))
   end
 
   local spec = provider:parse_curl_args(prompt_opts)
@@ -556,18 +546,6 @@ function M.curl(opts)
     handler_opts.on_stop({ reason = "error", error = "Provider configuration error" })
     return
   end
-
-  local timestamp = os.time(os.date("!*t"))
-  local filename  = '/tmp/llm_log/' .. tostring(timestamp) .. '.lua'
-
-  local file,err = io.open(filename,'w')
-  if file then
-      file:write(tostring(vim.inspect(spec)))
-      file:close()
-  else
-      print("error:", err) -- not so hard?
-  end
-
 
   ---@type string
   local current_event_state = nil

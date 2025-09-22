@@ -797,10 +797,9 @@ M._defaults = {
   ask_opts = {},
   ---@type table
   lazy_loading = {
-    -- Whether to enable lazy loading for built-in avante MCP tools
+    -- Whether to enable lazy loading for MCP tool descriptions
     enabled = false,
     -- List of tools that should always be loaded eagerly (not lazily)
-    -- These tools are critical and should always be available without requiring a separate load
     always_eager = {},
     mcp_extra_concise = true, -- When true, and lazy_loading is on, MCP tool summarizer will only include name and description (no input/output schema)
   },
