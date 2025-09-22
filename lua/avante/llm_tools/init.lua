@@ -1305,19 +1305,52 @@ function M.process_tool_use(tools, tool_use, opts)
 
   if Config.lazy_loading and Config.lazy_loading.enabled then
     local server_name = tool_use.server_name or "avante"
-    if not LazyLoading.should_include_tool(server_name, tool_use.name) then
-      local error_msg = string.format(
-        "Tool '%s' has not been loaded. Please use load_mcp_tool to load this tool first. " ..
-        "Server: %s, Lazy Loading: %s",
-        tool_use.name,
-        server_name,
-        vim.inspect(Config.lazy_loading)
-      )
-      if on_complete then
-        on_complete(nil, error_msg)
-        return
+
+    -- Special handling for use_mcp_tool
+    if tool_use.name == "use_mcp_tool" then
+      -- Validate the server is available
+      local server_tools_map = LazyLoading.get_mcphub_server_map()
+      if not server_tools_map or not server_tools_map[server_name] then
+        local error_msg = string.format(
+          "MCP server '%s' is not available. Please enable the server first.",
+          server_name
+        )
+        if on_complete then
+          on_complete(nil, error_msg)
+          return
+        end
+        return nil, error_msg
       end
-      return nil, error_msg
+
+      -- Validate the target tool has been loaded/requested
+      if not LazyLoading.should_include_tool(server_name, tool_use.tool_input.tool_name) then
+        local error_msg = string.format(
+          "Tool '%s' on server '%s' has not been loaded. Please use load_mcp_tool to load this tool first.",
+          tool_use.tool_input.tool_name,
+          server_name
+        )
+        if on_complete then
+          on_complete(nil, error_msg)
+          return
+        end
+        return nil, error_msg
+      end
+    else
+      -- Regular tool loading check
+      if not LazyLoading.should_include_tool(server_name, tool_use.name) then
+        local error_msg = string.format(
+          "Tool '%s' has not been loaded. Please use load_mcp_tool to load this tool first. " ..
+          "Server: %s, Lazy Loading: %s",
+          tool_use.name,
+          server_name,
+          vim.inspect(Config.lazy_loading)
+        )
+        if on_complete then
+          on_complete(nil, error_msg)
+          return
+        end
+        return nil, error_msg
+      end
     end
   end
 
