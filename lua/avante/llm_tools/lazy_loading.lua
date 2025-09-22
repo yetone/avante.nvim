@@ -228,6 +228,8 @@ function M.get_system_prompt()
 
       end
     end
+    -- The in-built tool for mcphub
+    M.register_available_tool("avante", "use_mcp_tool")
 
     summarized_prompt = summarized_prompt .. "## MCP Server Details\n\n"
     local server_tools_map = M.get_mcphub_server_map()
