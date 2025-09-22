@@ -465,27 +465,32 @@ end
 ---@param tools AvanteLLMTool[]
 ---@param tool_use AvanteLLMToolUse
 ---@param Config table
----@return boolean
+---@return boolean, string|nil
 function M.check_tool_loading(tools, tool_use, Config)
-  -- Check for lazy loading and tool loading
-  if Config.lazy_loading and Config.lazy_loading.enabled then
-    local server_name = tool_use.server_name or "avante"
+  local server_name = tool_use.server_name or "avante"
 
-    -- Special handling for use_mcp_tool
-    if tool_use.name == "use_mcp_tool" then
-      -- Validate the MCP tool
-      local result, err = M.validate_mcp_tool(server_name, tool_use.tool_input, nil)
-      if not result then
-        return false
-      end
-    else
-      -- Regular tool loading check
-      if not M.should_include_tool(server_name, tool_use.name) then
-        return false
-      end
+  -- Special handling for use_mcp_tool
+  if tool_use.name == "use_mcp_tool" then
+    -- Validate the MCP tool
+    local result, err = M.validate_mcp_tool(server_name, tool_use.tool_input, nil)
+    if not result then
+      return false, err
+    end
+  else
+    -- Regular tool loading check
+    if not M.should_include_tool(server_name, tool_use.name) then
+      local error_msg = string.format(
+        "Tool '%s' has not been loaded. Please use load_mcp_tool to load this tool first. " ..
+        "Server: %s, Lazy Loading: %s",
+        tool_use.name,
+        server_name,
+        vim.inspect(Config.lazy_loading)
+      )
+      return false, error_msg
     end
   end
-  return true
+
+  return true, nil
 end
 
 ---@param description string The description to extract the first sentence from
