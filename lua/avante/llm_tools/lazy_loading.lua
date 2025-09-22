@@ -474,11 +474,9 @@ function M.check_tool_loading(tools, tool_use, Config)
   -- Sanity check to make sure the tool exists.
   local key = server_name .. ":" .. tool_use.name
   if not M._available_to_request[key] then
-      local err_msg = "Tool '" .. input.tool_name .. "' on server '" .. input.server_name .. "' does not exist." ..
-        "Check your system prompt for available tools. Maybe the tool is on another server."
+    local err_msg = "Tool '" .. input.tool_name .. "' on server '" .. input.server_name .. "' does not exist." .. "Check your system prompt for available tools. Maybe the tool is on another server."
 
-      return false, error_msg
-    end
+    return false, error_msg
   end
   -- Special handling for use_mcp_tool
   if tool_use.name == "use_mcp_tool" then
