@@ -1305,7 +1305,6 @@ function M.process_tool_use(tools, tool_use, opts)
 
   if Config.lazy_loading and Config.lazy_loading.enabled then
     local server_name = tool_use.server_name or "avante"
-
     -- Special handling for use_mcp_tool
     if tool_use.name == "use_mcp_tool" then
       -- Validate the server is available
