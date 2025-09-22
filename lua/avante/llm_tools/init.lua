@@ -1322,6 +1322,28 @@ function M.process_tool_use(tools, tool_use, opts)
         return nil, error_msg
       end
 
+      -- Check if the tool exists on the server
+      local tool_exists = false
+      for _, server_tool in ipairs(server_tools_map[server_name]) do
+        if server_tool.name == tool_use.tool_input.tool_name then
+          tool_exists = true
+          break
+        end
+      end
+
+      if not tool_exists then
+        local error_msg = string.format(
+          "Tool '%s' does not exist on server '%s'. Please check the tool name and server.",
+          tool_use.tool_input.tool_name,
+          server_name
+        )
+        if on_complete then
+          on_complete(nil, error_msg)
+          return
+        end
+        return nil, error_msg
+      end
+
       -- Validate the target tool has been loaded/requested
       if not LazyLoading.should_include_tool(server_name, tool_use.tool_input.tool_name) then
         local error_msg = string.format(
