@@ -1307,54 +1307,10 @@ function M.process_tool_use(tools, tool_use, opts)
     local server_name = tool_use.server_name or "avante"
     -- Special handling for use_mcp_tool
     if tool_use.name == "use_mcp_tool" then
-      -- Validate the server is available
-      local server_tools_map = LazyLoading.get_mcphub_server_map()
-      if not server_tools_map or not server_tools_map[server_name] then
-        local error_msg = string.format(
-          "MCP server '%s' is not available. Please enable the server first.",
-          server_name
-        )
-        if on_complete then
-          on_complete(nil, error_msg)
-          return
-        end
-        return nil, error_msg
-      end
-
-      -- Check if the tool exists on the server
-      local tool_exists = false
-      for _, server_tool in ipairs(server_tools_map[server_name]) do
-        if server_tool.name == tool_use.tool_input.tool_name then
-          tool_exists = true
-          break
-        end
-      end
-
-      if not tool_exists then
-        local error_msg = string.format(
-          "Tool '%s' does not exist on server '%s'. Please check the tool name and server.",
-          tool_use.tool_input.tool_name,
-          server_name
-        )
-        if on_complete then
-          on_complete(nil, error_msg)
-          return
-        end
-        return nil, error_msg
-      end
-
-      -- Validate the target tool has been loaded/requested
-      if not LazyLoading.should_include_tool(server_name, tool_use.tool_input.tool_name) then
-        local error_msg = string.format(
-          "Tool '%s' on server '%s' has not been loaded. Please use load_mcp_tool to load this tool first.",
-          tool_use.tool_input.tool_name,
-          server_name
-        )
-        if on_complete then
-          on_complete(nil, error_msg)
-          return
-        end
-        return nil, error_msg
+      -- Validate the MCP tool
+      local result, err = LazyLoading.validate_mcp_tool(server_name, tool_use.tool_input, on_complete)
+      if not result then
+        return nil, err
       end
     else
       -- Regular tool loading check

@@ -404,6 +404,63 @@ function M.should_include_tool(server_name, tool_name)
   M.always_eager()[tool_name] or M.is_tool_requested(server_name, tool_name)
 end
 
+---@param server_name string The name of the MCP server
+---@param tool_use_input table The tool input containing the tool name to validate
+---@param on_complete function The callback function to call with result or error
+---@return boolean, string|nil Whether the tool is valid, and an optional error message
+function M.validate_mcp_tool(server_name, tool_use_input, on_complete)
+  -- Validate the server is available
+  local server_tools_map = M.get_mcphub_server_map()
+  if not server_tools_map or not server_tools_map[server_name] then
+    local error_msg = string.format(
+      "MCP server '%s' is not available. Please enable the server first.",
+      server_name
+    )
+    if on_complete then
+      on_complete(false, error_msg)
+    end
+    return false, error_msg
+  end
+
+  -- Check if the tool exists on the server
+  local tool_exists = false
+  for _, server_tool in ipairs(server_tools_map[server_name]) do
+    if server_tool.name == tool_use_input.tool_name then
+      tool_exists = true
+      break
+    end
+  end
+
+  if not tool_exists then
+    local error_msg = string.format(
+      "Tool '%s' does not exist on server '%s'. Please check the tool name and server.",
+      tool_use_input.tool_name,
+      server_name
+    )
+    if on_complete then
+      on_complete(false, error_msg)
+    end
+    return false, error_msg
+  end
+
+  -- Validate the target tool has been loaded/requested
+  if not M.should_include_tool(server_name, tool_use_input.tool_name) then
+    local error_msg = string.format(
+      "Tool '%s' on server '%s' has not been loaded. Please use load_mcp_tool to load this tool first.",
+      tool_use_input.tool_name,
+      server_name
+    )
+    if on_complete then
+      on_complete(false, error_msg)
+    end
+    return false, error_msg
+  end
+
+  if on_complete then
+    on_complete(true, nil)
+  end
+  return true, nil
+end
 
 ---@param description string The description to extract the first sentence from
 ---@return string The first sentence or a truncated version if no sentence end is found
