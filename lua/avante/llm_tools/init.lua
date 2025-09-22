@@ -1298,6 +1298,29 @@ M.run_python = M.python
 function M.process_tool_use(tools, tool_use, opts)
   local on_log = opts.on_log
   local on_complete = opts.on_complete
+
+  -- Check for lazy loading and tool loading
+  local Config = require("avante.config")
+  local LazyLoading = require("avante.llm_tools.lazy_loading")
+
+  if Config.lazy_loading and Config.lazy_loading.enabled then
+    local server_name = tool_use.server_name or "avante"
+    if not LazyLoading.should_include_tool(server_name, tool_use.name) then
+      local error_msg = string.format(
+        "Tool '%s' has not been loaded. Please use load_mcp_tool to load this tool first. " ..
+        "Server: %s, Lazy Loading: %s",
+        tool_use.name,
+        server_name,
+        vim.inspect(Config.lazy_loading)
+      )
+      if on_complete then
+        on_complete(nil, error_msg)
+        return
+      end
+      return nil, error_msg
+    end
+  end
+
   -- Check if execution is already cancelled
   if Helpers.is_cancelled then
     Utils.debug("Tool execution cancelled before starting: " .. tool_use.name)
