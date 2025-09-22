@@ -500,7 +500,7 @@ function M.check_tool_loading(tools, tool_use, Config)
   local key = server_name .. ":" .. tool_use.name
   if not M._available_to_request[key] then
     local error_msg = "Tool '" .. tool_use.name .. "' is not on server '" .. server_name .. "'. " ..
-      "Did you mean one of these servers: " .. M.servers_with_available_tools_with_name_as_string(tool_use_input.tool_name) .. " ?"
+      "Did you mean one of these servers: " .. M.servers_with_available_tools_with_name_as_string(tool_use.name) .. " ?"
     return false, error_msg
   end
   -- Special handling for use_mcp_tool
