@@ -27,7 +27,29 @@ end
 -- Function to register a tool as availale
 function M.register_available_tool(server_name, tool_name)
   local key = server_name .. ":" .. tool_name
-  M._available_to_request[key] = true
+  M._available_to_request[key] = {server_name=server_name, name=tool_name}
+end
+
+function M.available_tools_with_name(tool_name)
+  available_tools = {}
+  for _, tool in ipairs(M._available_to_request) do
+    if tool.name == tool_name then
+      available_tools[#available_tools+1] = tool
+    end
+  end
+  return available_tools
+end
+
+function M.servers_with_available_tools_with_name_as_string(tool_name)
+  available_tools = M.available_tools_with_name(tool_name)
+  servers = ""
+  for i in 1, #available_tools do
+    servers = servers .. tool.name
+    if i < #available_tools then
+      servers = servers .. ", "
+    end
+  end
+  return servers
 end
 
 -- Add a tool to be collected by `generate_prompts`
@@ -436,7 +458,8 @@ function M.validate_mcp_tool(tool_use_input, on_complete)
 
   if not tool_exists then
     local error_msg = string.format(
-      "Tool '%s' is not on server '%s'. Please check the tool name and server. A full list of tools with their servers is in your system prompt.",
+      "Tool '%s' is not on server '%s'. Did you mean one of these servers: "
+        .. M.servers_with_available_tools_with_name_as_string(tool_use_input.tool_name) .. " ?",
       tool_use_input.tool_name,
       server_name
     )
@@ -477,7 +500,7 @@ function M.check_tool_loading(tools, tool_use, Config)
   local key = server_name .. ":" .. tool_use.name
   if not M._available_to_request[key] then
     local error_msg = "Tool '" .. tool_use.name .. "' is not on server '" .. server_name .. "'. " ..
-      "Check your system prompt for available tools. Maybe the tool is on another server."
+      "Did you mean one of these servers: " .. M.servers_with_available_tools_with_name_as_string(tool_use_input.tool_name) .. " ?"
     return false, error_msg
   end
   -- Special handling for use_mcp_tool
