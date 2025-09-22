@@ -470,6 +470,16 @@ end
 function M.check_tool_loading(tools, tool_use, Config)
   local server_name = tool_use.server_name or "avante"
 
+
+  -- Sanity check to make sure the tool exists.
+  local key = server_name .. ":" .. tool_use.name
+  if not M._available_to_request[key] then
+      local err_msg = "Tool '" .. input.tool_name .. "' on server '" .. input.server_name .. "' does not exist." ..
+        "Check your system prompt for available tools. Maybe the tool is on another server."
+
+      return false, error_msg
+    end
+  end
   -- Special handling for use_mcp_tool
   if tool_use.name == "use_mcp_tool" then
     if not (tool_use.input and tool_use.input.server_name and tool_use.input.tool_name) then
@@ -493,11 +503,10 @@ function M.check_tool_loading(tools, tool_use, Config)
     -- Regular tool loading check
     if not M.should_include_tool(server_name, tool_use.name) then
       local error_msg = string.format(
-        "Tool '%s' has not been loaded. Please use load_mcp_tool to load this tool first. " ..
-        "Server: %s, Lazy Loading: %s",
+        "Tool '%s' has not been loaded. Please use load_mcp_tool to load this tool first and then retry. " ..
+        "Server: %s.",
         tool_use.name,
-        server_name,
-        vim.inspect(Config.lazy_loading)
+        server_name
       )
       return false, error_msg
     end
