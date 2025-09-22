@@ -408,7 +408,8 @@ end
 ---@param tool_use_input table The tool input containing the tool name to validate
 ---@param on_complete function The callback function to call with result or error
 ---@return boolean, string|nil Whether the tool is valid, and an optional error message
-function M.validate_mcp_tool(server_name, tool_use_input, on_complete)
+function M.validate_mcp_tool(tool_use_input, on_complete)
+  server_name = tool_use_input.server_name
   -- Validate the server is available
   local server_tools_map = M.get_mcphub_server_map()
   if not server_tools_map or not server_tools_map[server_name] then
@@ -471,15 +472,20 @@ function M.check_tool_loading(tools, tool_use, Config)
 
   -- Special handling for use_mcp_tool
   if tool_use.name == "use_mcp_tool" then
-    if server_name == "avante" then
+    if not tool_use.tool_input and tool_use.tool_input.server_name and tool_use.tool_input.tool_name then
+      local error_msg = "Please check the spec of use_mcp_tool and provide the right input."
+      return false, error_msg
+    end
+    tool_input_server_name = tool_use.tool_input.server_name
+    if tool_input_server_name == "avante" then
       local error_msg = string.format(
         "Do not use 'use_mcp_tool' for any tool with the 'avante' server.  '%s' is a built-in tool and can be called directly.",
-        tool_use.name
+        tool_use.tool_input.tool_name
       )
       return false, error_msg
     end
     -- Validate the MCP tool
-    local result, err = M.validate_mcp_tool(server_name, tool_use.tool_input, nil)
+    local result, err = M.validate_mcp_tool(tool_use.tool_input, nil)
     if not result then
       return false, err
     end
