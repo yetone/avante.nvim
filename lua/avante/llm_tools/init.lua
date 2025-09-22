@@ -1299,36 +1299,23 @@ function M.process_tool_use(tools, tool_use, opts)
   local on_log = opts.on_log
   local on_complete = opts.on_complete
 
-  -- Check for lazy loading and tool loading
+  -- Use the new function in lazy_loading.lua to check tool loading
   local Config = require("avante.config")
   local LazyLoading = require("avante.llm_tools.lazy_loading")
-
-  if Config.lazy_loading and Config.lazy_loading.enabled then
+  if not LazyLoading.check_tool_loading(tools, tool_use, Config) then
     local server_name = tool_use.server_name or "avante"
-    -- Special handling for use_mcp_tool
-    if tool_use.name == "use_mcp_tool" then
-      -- Validate the MCP tool
-      local result, err = LazyLoading.validate_mcp_tool(server_name, tool_use.tool_input, on_complete)
-      if not result then
-        return nil, err
-      end
-    else
-      -- Regular tool loading check
-      if not LazyLoading.should_include_tool(server_name, tool_use.name) then
-        local error_msg = string.format(
-          "Tool '%s' has not been loaded. Please use load_mcp_tool to load this tool first. " ..
-          "Server: %s, Lazy Loading: %s",
-          tool_use.name,
-          server_name,
-          vim.inspect(Config.lazy_loading)
-        )
-        if on_complete then
-          on_complete(nil, error_msg)
-          return
-        end
-        return nil, error_msg
-      end
+    local error_msg = string.format(
+      "Tool '%s' has not been loaded. Please use load_mcp_tool to load this tool first. " ..
+      "Server: %s, Lazy Loading: %s",
+      tool_use.name,
+      server_name,
+      vim.inspect(Config.lazy_loading)
+    )
+    if on_complete then
+      on_complete(nil, error_msg)
+      return
     end
+    return nil, error_msg
   end
 
   -- Check if execution is already cancelled

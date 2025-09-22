@@ -462,6 +462,32 @@ function M.validate_mcp_tool(server_name, tool_use_input, on_complete)
   return true, nil
 end
 
+---@param tools AvanteLLMTool[]
+---@param tool_use AvanteLLMToolUse
+---@param Config table
+---@return boolean
+function M.check_tool_loading(tools, tool_use, Config)
+  -- Check for lazy loading and tool loading
+  if Config.lazy_loading and Config.lazy_loading.enabled then
+    local server_name = tool_use.server_name or "avante"
+
+    -- Special handling for use_mcp_tool
+    if tool_use.name == "use_mcp_tool" then
+      -- Validate the MCP tool
+      local result, err = M.validate_mcp_tool(server_name, tool_use.tool_input, nil)
+      if not result then
+        return false
+      end
+    else
+      -- Regular tool loading check
+      if not M.should_include_tool(server_name, tool_use.name) then
+        return false
+      end
+    end
+  end
+  return true
+end
+
 ---@param description string The description to extract the first sentence from
 ---@return string The first sentence or a truncated version if no sentence end is found
 function M.extract_first_sentence(description)
