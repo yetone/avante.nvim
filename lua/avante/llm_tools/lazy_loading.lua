@@ -43,7 +43,7 @@ end
 function M.servers_with_available_tools_with_name_as_string(tool_name)
   available_tools = M.available_tools_with_name(tool_name)
   servers = ""
-  for i in 1, #available_tools do
+  for i = 1, #available_tools do
     servers = servers .. tool.name
     if i < #available_tools then
       servers = servers .. ", "
