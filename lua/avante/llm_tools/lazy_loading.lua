@@ -433,7 +433,7 @@ function M.validate_mcp_tool(server_name, tool_use_input, on_complete)
 
   if not tool_exists then
     local error_msg = string.format(
-      "Tool '%s' does not exist on server '%s'. Please check the tool name and server.",
+      "Tool '%s' does not exist on server '%s'. Please check the tool name and server. A full list of tools with their servers is in your system prompt.",
       tool_use_input.tool_name,
       server_name
     )
@@ -473,7 +473,7 @@ function M.check_tool_loading(tools, tool_use, Config)
   if tool_use.name == "use_mcp_tool" then
     if server_name == "avante" then
       local error_msg = string.format(
-        "Do not use 'use_mcp_tool' with the 'avante' server.  '%s' is a built-in tool and can be called directly.",
+        "Do not use 'use_mcp_tool' for any tool with the 'avante' server.  '%s' is a built-in tool and can be called directly.",
         tool_use.name
       )
       return false, error_msg
