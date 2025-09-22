@@ -410,6 +410,16 @@ end
 ---@return boolean, string|nil Whether the tool is valid, and an optional error message
 function M.validate_mcp_tool(server_name, tool_use_input, on_complete)
   -- Validate the server is available
+  if server_name == "avante" then
+    local error_msg = string.format(
+      "Do not use 'use_mcp_tool' with the 'avante' server.  '%s' is a built-in tool and can be called directly.",
+      tool_use_input.tool_name
+    )
+    if on_complete then
+      on_complete(false, error_msg)
+    end
+    return false, error_msg
+  end
   local server_tools_map = M.get_mcphub_server_map()
   if not server_tools_map or not server_tools_map[server_name] then
     local error_msg = string.format(
