@@ -1417,9 +1417,9 @@ function M._stream_acp(opts)
         and not rawget(opts, "_session_recovery_attempted")
       then
         -- Mark recovery attempt to prevent infinite loops
-            rawset(opts, "_session_recovery_attempted", true)
-        
-            -- DEBUG: Log recovery attempt
+        rawset(opts, "_session_recovery_attempted", true)
+
+        -- DEBUG: Log recovery attempt
             Utils.debug("Session recovery attempt detected, setting _session_recovery_attempted flag")
 
         -- Clear invalid session ID
@@ -1444,7 +1444,6 @@ function M._stream_acp(opts)
         local truncated_history
 
         -- Check if history truncation is explicitly enabled
-        local recovery_config = Config.session_recovery or {}
         local should_truncate = recovery_config.truncate_history ~= false -- Default to true for backward compatibility
 
         -- DEBUG: Log original history details
@@ -1507,8 +1506,8 @@ function M._stream_acp(opts)
 
           -- CRITICAL: Ensure history messages are preserved in recovery
               Utils.info("Session recovery retry with " .. #(opts.history_messages or {}) .. " history messages")
-          
-              -- DEBUG: Log recovery history details
+
+          -- DEBUG: Log recovery history details
               local recovery_history = opts.history_messages or {}
               Utils.debug("Recovery history messages: " .. #recovery_history)
               for i, msg in ipairs(recovery_history) do
