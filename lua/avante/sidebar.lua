@@ -2724,6 +2724,14 @@ function Sidebar:create_input_container()
     local function on_state_change(state)
       self:clear_state()
       self.current_state = state
+      
+      -- Synchronize is_generating flag with state changes to prevent conflicts
+      if state == "generating" or state == "tool calling" then
+        self.is_generating = true
+      elseif state == "succeeded" or state == "failed" then
+        self.is_generating = false
+      end
+      
       self:render_state()
     end
 
@@ -2825,8 +2833,10 @@ function Sidebar:create_input_container()
         on_save_acp_client = function(client) self.acp_client = client end,
         acp_session_id = self.chat_history.acp_session_id,
         on_save_acp_session_id = function(session_id)
-          self.chat_history.acp_session_id = session_id
-          Path.history.save(self.code.bufnr, self.chat_history)
+          vim.schedule(function()
+            self.chat_history.acp_session_id = session_id
+            Path.history.save(self.code.bufnr, self.chat_history)
+          end)
         end,
         set_tool_use_store = set_tool_use_store,
         get_history_messages = function(opts) return self:get_history_messages_for_api(opts) end,
