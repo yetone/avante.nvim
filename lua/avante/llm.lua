@@ -814,7 +814,7 @@ local function truncate_history_for_recovery(history_messages)
 
   -- Get configuration parameters with validation and sensible defaults
   local recovery_config = Config.session_recovery or {}
-  local MAX_RECOVERY_MESSAGES = math.max(1, math.min(recovery_config.max_history_messages or 20, 50))  -- Increased from 10 to 20
+  local MAX_RECOVERY_MESSAGES = math.max(1, math.min(recovery_config.max_history_messages or 20, 50)) -- Increased from 10 to 20
   local MAX_MESSAGE_LENGTH = math.max(100, math.min(recovery_config.max_message_length or 1000, 10000))
 
   -- Keep recent messages starting from the newest
@@ -1226,7 +1226,14 @@ function M._stream_acp(opts)
   Utils.debug("ACP history messages count: " .. #history_messages)
   for i, msg in ipairs(history_messages) do
     if msg and msg.message then
-      Utils.debug("History msg " .. i .. ": role=" .. (msg.message.role or "unknown") .. ", has_content=" .. tostring(msg.message.content ~= nil))
+      Utils.debug(
+        "History msg "
+          .. i
+          .. ": role="
+          .. (msg.message.role or "unknown")
+          .. ", has_content="
+          .. tostring(msg.message.content ~= nil)
+      )
       if msg.message.role == "assistant" then
         Utils.debug("Found assistant message " .. i .. ": " .. tostring(msg.message.content):sub(1, 100))
       end
@@ -1234,7 +1241,12 @@ function M._stream_acp(opts)
   end
 
   -- DEBUG: Log session recovery state
-  Utils.debug("Session recovery state: _is_session_recovery=" .. tostring(rawget(opts, "_is_session_recovery")) .. ", acp_session_id=" .. tostring(opts.acp_session_id))
+  Utils.debug(
+    "Session recovery state: _is_session_recovery="
+      .. tostring(rawget(opts, "_is_session_recovery"))
+      .. ", acp_session_id="
+      .. tostring(opts.acp_session_id)
+  )
 
   -- CRITICAL: Enhanced session recovery with full context preservation
   if rawget(opts, "_is_session_recovery") and opts.acp_session_id then
@@ -1244,7 +1256,7 @@ function M._stream_acp(opts)
     -- Add all recent messages (both user and assistant) for better context
     local recent_messages = {}
     local recovery_config = Config.session_recovery or {}
-    local include_history_count = recovery_config.include_history_count or 15  -- Default to 15 for better context
+    local include_history_count = recovery_config.include_history_count or 15 -- Default to 15 for better context
 
     -- Get recent messages from truncated history
     local start_idx = math.max(1, #history_messages - include_history_count + 1)
@@ -1308,10 +1320,11 @@ function M._stream_acp(opts)
     if #recent_messages > 0 then
       table.insert(prompt, {
         type = "text",
-        text = "<system_context>Continuing from previous ACP session with " .. #recent_messages .. " recent messages preserved for context</system_context>",
+        text = "<system_context>Continuing from previous ACP session with "
+          .. #recent_messages
+          .. " recent messages preserved for context</system_context>",
       })
     end
-
   elseif opts.acp_session_id then
     -- Original logic for non-recovery session continuation
     local recovery_config = Config.session_recovery or {}
@@ -1350,7 +1363,9 @@ function M._stream_acp(opts)
     if user_messages_added > 0 then
       table.insert(prompt, {
         type = "text",
-        text = "<system_context>Continuing from previous session with " .. user_messages_added .. " recent user messages</system_context>",
+        text = "<system_context>Continuing from previous session with "
+          .. user_messages_added
+          .. " recent user messages</system_context>",
       })
     end
   else
@@ -1411,16 +1426,12 @@ function M._stream_acp(opts)
         is_session_not_found = details == "Session not found" or details:match("^Session not found:")
       end
 
-      if
-        recovery_enabled
-        and is_session_not_found
-        and not rawget(opts, "_session_recovery_attempted")
-      then
+      if recovery_enabled and is_session_not_found and not rawget(opts, "_session_recovery_attempted") then
         -- Mark recovery attempt to prevent infinite loops
         rawset(opts, "_session_recovery_attempted", true)
 
         -- DEBUG: Log recovery attempt
-            Utils.debug("Session recovery attempt detected, setting _session_recovery_attempted flag")
+        Utils.debug("Session recovery attempt detected, setting _session_recovery_attempted flag")
 
         -- Clear invalid session ID
         if opts.on_save_acp_session_id then
@@ -1459,7 +1470,13 @@ function M._stream_acp(opts)
           local ok, result = pcall(truncate_history_for_recovery, original_history)
           if ok then
             truncated_history = result
-            Utils.info("History truncated from " .. #original_history .. " to " .. #truncated_history .. " messages for recovery")
+            Utils.info(
+              "History truncated from "
+                .. #original_history
+                .. " to "
+                .. #truncated_history
+                .. " messages for recovery"
+            )
           else
             Utils.warn("Failed to truncate history for recovery: " .. tostring(result))
             truncated_history = original_history -- Use full history as fallback
@@ -1500,24 +1517,22 @@ function M._stream_acp(opts)
           rawset(opts, "_is_session_recovery", true)
 
           -- Update UI state if available
-          if opts.on_state_change then
-            opts.on_state_change("generating")
-          end
+          if opts.on_state_change then opts.on_state_change("generating") end
 
           -- CRITICAL: Ensure history messages are preserved in recovery
-              Utils.info("Session recovery retry with " .. #(opts.history_messages or {}) .. " history messages")
+          Utils.info("Session recovery retry with " .. #(opts.history_messages or {}) .. " history messages")
 
           -- DEBUG: Log recovery history details
-              local recovery_history = opts.history_messages or {}
-              Utils.debug("Recovery history messages: " .. #recovery_history)
-              for i, msg in ipairs(recovery_history) do
-                if msg and msg.message then
-                  Utils.debug("Recovery msg " .. i .. ": role=" .. (msg.message.role or "unknown"))
-                  if msg.message.role == "assistant" then
-                    Utils.debug("Recovery assistant content: " .. tostring(msg.message.content):sub(1, 100))
-                  end
-                end
+          local recovery_history = opts.history_messages or {}
+          Utils.debug("Recovery history messages: " .. #recovery_history)
+          for i, msg in ipairs(recovery_history) do
+            if msg and msg.message then
+              Utils.debug("Recovery msg " .. i .. ": role=" .. (msg.message.role or "unknown"))
+              if msg.message.role == "assistant" then
+                Utils.debug("Recovery assistant content: " .. tostring(msg.message.content):sub(1, 100))
               end
+            end
+          end
 
           -- Retry with truncated history to rebuild context in new session
           M._stream_acp(opts)

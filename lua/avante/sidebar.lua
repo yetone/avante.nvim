@@ -2724,14 +2724,14 @@ function Sidebar:create_input_container()
     local function on_state_change(state)
       self:clear_state()
       self.current_state = state
-      
+
       -- Synchronize is_generating flag with state changes to prevent conflicts
       if state == "generating" or state == "tool calling" then
         self.is_generating = true
       elseif state == "succeeded" or state == "failed" then
         self.is_generating = false
       end
-      
+
       self:render_state()
     end
 
