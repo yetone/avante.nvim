@@ -3131,10 +3131,7 @@ end
 function Sidebar:render(opts)
   if opts.sidebar_pre_render then opts.sidebar_pre_render(self) end
 
-  if opts.full_view == true then
-    -- Only set `is_in_full_view` if explicitly requested, since most of time the option is nil
-    self.is_in_full_view = true
-  end
+  self.is_in_full_view = opts.full_view or false
 
   local function get_position()
     return (opts and opts.win and opts.win.position) and opts.win.position or calculate_config_window_position()
