@@ -118,9 +118,7 @@ end
 function M.full_view_ask()
   M.ask({
     show_logo = true,
-    sidebar_pre_render = function(sidebar)
-      sidebar:store_code_window_stats()
-    end,
+    sidebar_pre_render = function(sidebar) sidebar:store_code_window_stats() end,
     sidebar_post_render = function(sidebar)
       sidebar:toggle_code_window()
       -- vim.wo[sidebar.containers.result.winid].number = true
