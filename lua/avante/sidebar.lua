@@ -153,7 +153,7 @@ function Sidebar:reset()
   self:delete_containers()
 
   self.win_width_store = {}
-  self.code = { bufnr = 0, winid = 0, selection = nil }
+  self.code = { bufnr = 0, winid = 0, selection = nil, visible = false }
   self.scroll = true
   self.old_result_lines = {}
   self.token_count = nil
@@ -1594,10 +1594,8 @@ function Sidebar:resize()
   for _, container in pairs(self.containers) do
     if container.winid and api.nvim_win_is_valid(container.winid) then
       if self.is_in_full_view then
-        print("resize width for winid", container.winid, "width:", vim.o.columns - 1)
         api.nvim_win_set_width(container.winid, vim.o.columns - 1)
       else
-        print("resize width for winid", container.winid, "width:", Config.get_window_width())
         api.nvim_win_set_width(container.winid, Config.get_window_width())
       end
     end
@@ -1632,20 +1630,25 @@ function Sidebar:render_logo()
   return #logo_lines
 end
 
+function Sidebar:store_code_window_stats()
+  self.win_width_store = {}
+  local winids = api.nvim_tabpage_list_wins(self.id)
+  for _, winid in ipairs(winids) do
+    local width = api.nvim_win_get_width(winid)
+    self.win_width_store[winid] = width
+  end
+end
+
 function Sidebar:toggle_code_window()
   local winids = api.nvim_tabpage_list_wins(self.id)
   local container_winids = vim.tbl_map(function(container) return container.winid end, self.containers)
   local win_width = api.nvim_win_get_width(self.code.winid)
-  print("toggling code window:", self.code.winid, "current width:", win_width)
-  print("non-container winids:", vim.inspect(winids))
-  print("self.code.visible:", self.code.visible)
   if not self.code.visible then
     self.is_in_full_view = false
     for _, winid in ipairs(winids) do
       if api.nvim_win_is_valid(winid) and not vim.tbl_contains(container_winids, winid) then
         local old_width = self.win_width_store[winid]
         if old_width ~= nil then
-          print("toggling code window width for winid", winid, "width:", old_width)
           api.nvim_win_set_width(winid, old_width)
         end
       end
@@ -1658,16 +1661,11 @@ function Sidebar:toggle_code_window()
         if Utils.is_floating_window(winid) then
           api.nvim_win_close(winid, true)
         else
-          local width = api.nvim_win_get_width(winid)
-          self.win_width_store[winid] = width
-          print("saved width for winid", winid, "width:", width)
           api.nvim_win_set_width(winid, 0)
         end
       end
     end
     self.code.visible = false
-    print("After toggling code window:", vim.inspect(self.win_width_store))
-    print("After toggling code window:", self.code.winid, "current width:", api.nvim_win_get_width(self.code.winid))
   end
 end
 
@@ -3143,7 +3141,6 @@ function Sidebar:adjust_result_container_layout()
 
   if self.is_in_full_view then width = vim.o.columns - 1 end
 
-  print("adjust result container for winid", self.containers.result.winid, "width:", width)
   api.nvim_win_set_width(self.containers.result.winid, width)
   api.nvim_win_set_height(self.containers.result.winid, height)
 end
