@@ -270,8 +270,8 @@ function Sidebar:close(opts)
   self:recover_code_winhl()
   self:close_input_hint()
 
-  if self.post_render then
-    self:post_render()
+  if self.is_in_full_view then
+    self:toggle_code_window()
   end
 end
 
@@ -1642,7 +1642,6 @@ end
 function Sidebar:toggle_code_window()
   local winids = api.nvim_tabpage_list_wins(self.id)
   local container_winids = vim.tbl_map(function(container) return container.winid end, self.containers)
-  local win_width = api.nvim_win_get_width(self.code.winid)
   if not self.code.visible then
     self.is_in_full_view = false
     for _, winid in ipairs(winids) do
