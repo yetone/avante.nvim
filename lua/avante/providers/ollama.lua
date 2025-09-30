@@ -19,9 +19,7 @@ M.role_map = {
 
 function M.is_env_set()
   local provider_conf = Providers.parse_config(M)
-  if not provider_conf.endpoint then
-    provider_conf.endpoint = "http://localhost:11434"
-  end
+  if not provider_conf.endpoint then provider_conf.endpoint = "http://localhost:11434" end
 
   local curl = require("plenary.curl")
   local base_headers = {
@@ -31,7 +29,7 @@ function M.is_env_set()
   local headers = Utils.tbl_override(base_headers, M.extra_headers)
   local response = curl.get(provider_conf.endpoint .. "/api/tags", {
     headers = headers,
-    timeout = 2000
+    timeout = 2000,
   })
   return response and (response.status and response.status == 200) or false
 end
