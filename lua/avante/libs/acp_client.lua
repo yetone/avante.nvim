@@ -455,7 +455,7 @@ function ACPClient:_send_request(method, params, callback)
 
   if callback then self.callbacks[id] = callback end
 
-  local data = vim.json.encode(message) .. "\n"
+  local data = vim.json.encode(message)
   if self.debug_log_file then
     self.debug_log_file:write("request: " .. data .. string.rep("=", 100) .. "\n")
     self.debug_log_file:flush()
@@ -492,7 +492,7 @@ function ACPClient:_send_notification(method, params)
     params = params or {},
   }
 
-  local data = vim.json.encode(message) .. "\n"
+  local data = vim.json.encode(message)
   if self.debug_log_file then
     self.debug_log_file:write("notification: " .. data .. string.rep("=", 100) .. "\n")
     self.debug_log_file:flush()
@@ -507,7 +507,7 @@ end
 function ACPClient:_send_result(id, result)
   local message = { jsonrpc = "2.0", id = id, result = result }
 
-  local data = vim.json.encode(message) .. "\n"
+  local data = vim.json.encode(message)
   if self.debug_log_file then
     self.debug_log_file:write("request: " .. data .. string.rep("=", 100) .. "\n")
     self.debug_log_file:flush()
@@ -524,7 +524,7 @@ function ACPClient:_send_error(id, message, code)
   code = code or self.ERROR_CODES.TRANSPORT_ERROR
   local msg = { jsonrpc = "2.0", id = id, error = { code = code, message = message } }
 
-  local data = vim.json.encode(msg) .. "\n"
+  local data = vim.json.encode(msg)
   self.transport:send(data)
 end
 
