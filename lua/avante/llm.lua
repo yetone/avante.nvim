@@ -321,6 +321,14 @@ function M.generate_prompts(opts)
     context_window = provider.context_window
   end
 
+  local tools = {}
+  if opts.tools then tools = vim.list_extend(tools, opts.tools) end
+  if opts.prompt_opts and opts.prompt_opts.tools then tools = vim.list_extend(tools, opts.prompt_opts.tools) end
+
+  -- Set tools to nil if empty to avoid sending empty arrays to APIs that require
+  -- tools to be either non-existent or have at least one item
+  if #tools == 0 then tools = nil end
+
   local template_opts = {
     ask = opts.ask, -- TODO: add mode without ask instruction
     code_lang = opts.code_lang,
@@ -334,6 +342,7 @@ function M.generate_prompts(opts)
     memory = opts.memory,
     enable_fastapply = Config.behaviour.enable_fastapply,
     use_react_prompt = use_react_prompt,
+    use_tool = tools ~= nil,
   }
 
   -- Removed the original todos processing logic, now handled in context_messages
@@ -469,14 +478,6 @@ function M.generate_prompts(opts)
   opts.session_ctx = opts.session_ctx or {}
   opts.session_ctx.system_prompt = system_prompt
   opts.session_ctx.messages = messages
-
-  local tools = {}
-  if opts.tools then tools = vim.list_extend(tools, opts.tools) end
-  if opts.prompt_opts and opts.prompt_opts.tools then tools = vim.list_extend(tools, opts.prompt_opts.tools) end
-
-  -- Set tools to nil if empty to avoid sending empty arrays to APIs that require
-  -- tools to be either non-existent or have at least one item
-  if #tools == 0 then tools = nil end
 
   local agents_rules = Prompts.get_agents_rules_prompt()
   if agents_rules then system_prompt = system_prompt .. "\n\n" .. agents_rules end
