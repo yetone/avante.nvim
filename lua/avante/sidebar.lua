@@ -58,6 +58,7 @@ Sidebar.__index = Sidebar
 ---@field selection avante.SelectionResult | nil
 ---@field old_winhl string | nil
 ---@field win_width integer | nil
+---@field visible boolean
 
 ---@class avante.Sidebar
 ---@field id integer
@@ -152,7 +153,7 @@ function Sidebar:reset()
   self:delete_containers()
 
   self.win_width_store = {}
-  self.code = { bufnr = 0, winid = 0, selection = nil }
+  self.code = { bufnr = 0, winid = 0, selection = nil, visible = false }
   self.scroll = true
   self.old_result_lines = {}
   self.token_count = nil
@@ -268,6 +269,8 @@ function Sidebar:close(opts)
 
   self:recover_code_winhl()
   self:close_input_hint()
+
+  if self.is_in_full_view then self:toggle_code_window() end
 end
 
 function Sidebar:shutdown()
@@ -1625,11 +1628,19 @@ function Sidebar:render_logo()
   return #logo_lines
 end
 
+function Sidebar:store_code_window_stats()
+  self.win_width_store = {}
+  local winids = api.nvim_tabpage_list_wins(self.id)
+  for _, winid in ipairs(winids) do
+    local width = api.nvim_win_get_width(winid)
+    self.win_width_store[winid] = width
+  end
+end
+
 function Sidebar:toggle_code_window()
   local winids = api.nvim_tabpage_list_wins(self.id)
   local container_winids = vim.tbl_map(function(container) return container.winid end, self.containers)
-  local win_width = api.nvim_win_get_width(self.code.winid)
-  if win_width == 0 then
+  if not self.code.visible then
     self.is_in_full_view = false
     for _, winid in ipairs(winids) do
       if api.nvim_win_is_valid(winid) and not vim.tbl_contains(container_winids, winid) then
@@ -1637,6 +1648,7 @@ function Sidebar:toggle_code_window()
         if old_width ~= nil then api.nvim_win_set_width(winid, old_width) end
       end
     end
+    self.code.visible = true
   else
     self.is_in_full_view = true
     for _, winid in ipairs(winids) do
@@ -1644,12 +1656,11 @@ function Sidebar:toggle_code_window()
         if Utils.is_floating_window(winid) then
           api.nvim_win_close(winid, true)
         else
-          local width = api.nvim_win_get_width(winid)
-          self.win_width_store[winid] = width
           api.nvim_win_set_width(winid, 0)
         end
       end
     end
+    self.code.visible = false
   end
 end
 
@@ -1659,6 +1670,7 @@ function Sidebar:initialize()
   self.code.winid = api.nvim_get_current_win()
   self.code.bufnr = api.nvim_get_current_buf()
   self.code.selection = Utils.get_visual_selection_and_range()
+  self.code.visible = true
 
   if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then return self end
 
