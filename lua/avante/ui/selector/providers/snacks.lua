@@ -34,7 +34,7 @@ function M.show(selector)
     source = "select",
     items = finder_items,
     ---@diagnostic disable-next-line: undefined-global
-    format = Snacks.picker.format.ui_select(nil, #finder_items),
+    format = Snacks.picker.format.ui_select({}),
     title = selector.title,
     preview = selector.get_preview_content and "preview" or nil,
     layout = {
