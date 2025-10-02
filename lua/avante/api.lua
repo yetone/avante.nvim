@@ -114,6 +114,7 @@ end
 ---@field sidebar_post_render? fun(sidebar: avante.Sidebar)
 ---@field project_root? string optional project root
 ---@field show_logo? boolean whether to show the logo
+---@field full_view? boolean whether to show in full view mode
 
 function M.full_view_ask()
   M.ask({
@@ -123,6 +124,7 @@ function M.full_view_ask()
       -- vim.wo[sidebar.containers.result.winid].number = true
       -- vim.wo[sidebar.containers.result.winid].relativenumber = true
     end,
+    full_view = true,
   })
 end
 
