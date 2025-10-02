@@ -10,7 +10,9 @@ Memory is crucial, you must follow the instructions in <memory>!
 
 ====
 
+{%- if use_tool -%}
 {% include "_tools-guidelines.avanterules" %}
+{%- endif %}
 
 ====
 
