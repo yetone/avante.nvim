@@ -2928,15 +2928,7 @@ function Sidebar:create_input_container()
     local group = "avante_input_prompt_group"
 
     fn.sign_unplace(group, { buffer = bufnr })
-
     fn.sign_place(0, group, "AvanteInputPromptSign", bufnr, { lnum = 1 })
-    vim.api.nvim_set_hl(0, "AvantePromptInputHL", {
-      fg = "#ff7700",
-      bg = "#333333",
-      bold = true,
-      italic = true,
-      underline = true,
-    })
   end
 
   place_sign_at_first_line(self.containers.input.bufnr)
