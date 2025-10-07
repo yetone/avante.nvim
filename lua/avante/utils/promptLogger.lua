@@ -1,6 +1,8 @@
 local Config = require("avante.config")
 local Utils = require("avante.utils")
 
+local AVANTE_PROMPT_INPUT_HL = "AvantePromptInputHL"
+
 -- last one in entries is always to hold current input
 local entries, idx = {}, 0
 local filtered_entries = {}
@@ -9,6 +11,14 @@ local filtered_entries = {}
 local M = {}
 
 function M.init()
+  vim.api.nvim_set_hl(0, AVANTE_PROMPT_INPUT_HL, {
+    fg = "#ff7700",
+    bg = "#333333",
+    bold = true,
+    italic = true,
+    underline = true,
+  })
+
   entries = {}
   local dir = Config.prompt_logger.log_dir
   local log_file = Utils.join_paths(dir, "avante_prompts.log")
@@ -102,7 +112,7 @@ local function update_current_input()
       -- Add the current input as the last entry
       table.insert(filtered_entries, entries[#entries])
 
-      vim.fn.matchadd("AvantePromptInputHL", user_input)
+      vim.fn.matchadd(AVANTE_PROMPT_INPUT_HL, user_input)
     else
       filtered_entries = entries
     end
