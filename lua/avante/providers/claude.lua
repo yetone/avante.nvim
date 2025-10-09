@@ -348,7 +348,12 @@ function M:parse_curl_args(prompt_opts)
   end
 
   if prompt_opts.tools and #prompt_opts.tools > 0 and Config.mode == "agentic" then
-    if provider_conf.model:match("claude%-sonnet%-4") then
+    if provider_conf.model:match("claude%-sonnet%-4%-5") then
+      table.insert(tools, {
+        type = "text_editor_20250728",
+        name = "str_replace_based_edit_tool",
+      })
+    elseif provider_conf.model:match("claude%-sonnet%-4") then
       table.insert(tools, {
         type = "text_editor_20250429",
         name = "str_replace_based_edit_tool",
