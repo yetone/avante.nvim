@@ -1499,6 +1499,12 @@ function Sidebar:on_mount(opts)
     callback = function(args)
       local closed_winid = tonumber(args.match)
       if closed_winid then
+        -- Check if the closed window is the code window
+        if closed_winid == self.code.winid then
+          self:close({ goto_code_win = false })
+          return
+        end
+        
         local container = self:get_sidebar_window(closed_winid)
         -- Ignore closing selected files and todos windows because they can disappear during normal operation
         if container and container ~= self.containers.selected_files and container ~= self.containers.todos then
