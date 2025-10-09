@@ -1041,32 +1041,14 @@ function M._stream_acp(opts)
             return
           end
           ---@cast tool_call avante.acp.ToolCall
-          local items = vim
-            .iter(options)
-            :map(function(item)
-              local icon = item.kind == "allow_once" and "" or ""
-              if item.kind == "allow_always" then icon = "" end
-              local hl = nil
-              if item.kind == "reject_once" or item.kind == "reject_always" then
-                hl = Highlights.BUTTON_DANGER_HOVER
-              end
-              return {
-                id = item.optionId,
-                name = item.name,
-                icon = icon,
-                hl = hl,
-              }
-            end)
-            :totable()
-          sidebar.permission_button_options = items
-          sidebar.permission_handler = function(id)
-            callback(id)
-            sidebar.scroll = true
-            sidebar.permission_button_options = nil
-            sidebar.permission_handler = nil
-            sidebar._history_cache_invalidated = true
-            sidebar:update_content("")
-          end
+          local ConfirmAdapter = require("avante.ui.confirm_adapter")
+          local Helpers = require("avante.llm_tools.helpers")
+
+          -- Map ACP options to popup button availability
+          local mapped = ConfirmAdapter.map_acp_options(options)
+          local message_text = ConfirmAdapter.get_acp_message(tool_call)
+
+          -- Update message to show tool call
           local message = tool_call_messages[tool_call.toolCallId]
           if not message then
             message = add_tool_call_message(tool_call)
@@ -1077,6 +1059,33 @@ function M._stream_acp(opts)
             end
           end
           on_messages_add({ message })
+
+          -- Create callback bridge that translates popup responses to ACP option IDs
+          -- For ACP: "no" → nil (cancelled), no rejection reason prompt, it doesn't support it
+          local bridged_callback = ConfirmAdapter.create_acp_callback_bridge(function(option_id)
+            callback(option_id)
+
+            -- Clean up sidebar state after confirmation
+            sidebar.scroll = true
+            sidebar._history_cache_invalidated = true
+            sidebar:update_content("")
+          end, mapped.option_map)
+
+          -- Show unified popup confirmation directly (not via Helpers.confirm)
+          -- Reason: Helpers.confirm converts types to boolean, breaking the adapter bridge
+          local Confirm = require("avante.ui.confirm")
+          local confirm_popup = Confirm:new(message_text, bridged_callback, {
+            focus = true,
+            container_winid = sidebar.containers.input and sidebar.containers.input.winid
+              or vim.api.nvim_get_current_win(),
+            button_availability = {
+              has_allow_once = mapped.has_allow_once,
+              has_allow_always = mapped.has_allow_always,
+              has_reject = mapped.has_reject,
+            },
+            skip_reject_prompt = true, -- ACP: no rejection reason prompt needed
+          })
+          confirm_popup:open()
         end,
         on_read_file = function(path, line, limit, callback)
           local abs_path = Utils.to_absolute_path(path)
