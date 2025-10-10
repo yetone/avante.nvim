@@ -510,7 +510,7 @@ M._defaults = {
     use_cwd_as_project_root = false,
     auto_focus_on_diff_view = false,
     ---@type boolean | string[] -- true: auto-approve all tools, false: normal prompts, string[]: auto-approve specific tools by name
-    auto_approve_tool_permissions = true, -- Default: show permission prompts for all tools
+    auto_approve_tool_permissions = false, -- Default: show permission prompts for all tools
     auto_check_diagnostics = true,
     enable_fastapply = false,
     include_generated_by_commit_line = false, -- Controls if 'Generated-by: <provider/model>' line is added to git commit message
