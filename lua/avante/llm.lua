@@ -14,7 +14,8 @@ local Providers = require("avante.providers")
 local LLMToolHelpers = require("avante.llm_tools.helpers")
 local LLMTools = require("avante.llm_tools")
 local History = require("avante.history")
-local Highlights = require("avante.highlights")
+local Helpers = require("avante.llm_tools.helpers")
+local ACPConfirmAdapter = require("avante.ui.acp_confirm_adapter")
 
 ---@class avante.LLM
 local M = {}
@@ -1040,15 +1041,11 @@ function M._stream_acp(opts)
             Utils.error("Avante sidebar not found")
             return
           end
+
           ---@cast tool_call avante.acp.ToolCall
-          local ConfirmAdapter = require("avante.ui.confirm_adapter")
-          local Helpers = require("avante.llm_tools.helpers")
 
-          -- Map ACP options to popup button availability
-          local mapped = ConfirmAdapter.map_acp_options(options)
-          local message_text = ConfirmAdapter.get_acp_message(tool_call)
+          local acp_mapped_options = ACPConfirmAdapter.map_acp_options(options)
 
-          -- Update message to show tool call
           local message = tool_call_messages[tool_call.toolCallId]
           if not message then
             message = add_tool_call_message(tool_call)
@@ -1058,34 +1055,27 @@ function M._stream_acp(opts)
               message.acp_tool_call = vim.tbl_deep_extend("force", message.acp_tool_call, tool_call)
             end
           end
+
           on_messages_add({ message })
 
-          -- Create callback bridge that translates popup responses to ACP option IDs
-          -- For ACP: "no" → nil (cancelled), no rejection reason prompt, it doesn't support it
-          local bridged_callback = ConfirmAdapter.create_acp_callback_bridge(function(option_id)
-            callback(option_id)
+          Helpers.confirm(message.acp_tool_call.rawInput.description, function(ok)
+            if ok and opts.session_ctx.always_yes then
+              callback(acp_mapped_options.all)
+              -- Reset always_yes to false, so the ACP provider can handle it again
+              opts.session_ctx.always_yes = false
+            elseif ok then
+              callback(acp_mapped_options.yes)
+            else
+              callback(acp_mapped_options.no)
+            end
 
-            -- Clean up sidebar state after confirmation
             sidebar.scroll = true
             sidebar._history_cache_invalidated = true
             sidebar:update_content("")
-          end, mapped.option_map)
-
-          -- Show unified popup confirmation directly (not via Helpers.confirm)
-          -- Reason: Helpers.confirm converts types to boolean, breaking the adapter bridge
-          local Confirm = require("avante.ui.confirm")
-          local confirm_popup = Confirm:new(message_text, bridged_callback, {
+          end, {
             focus = true,
-            container_winid = sidebar.containers.input and sidebar.containers.input.winid
-              or vim.api.nvim_get_current_win(),
-            button_availability = {
-              has_allow_once = mapped.has_allow_once,
-              has_allow_always = mapped.has_allow_always,
-              has_reject = mapped.has_reject,
-            },
-            skip_reject_prompt = true, -- ACP: no rejection reason prompt needed
-          })
-          confirm_popup:open()
+            skip_reject_prompt = true,
+          }, opts.session_ctx, tool_call.kind)
         end,
         on_read_file = function(path, line, limit, callback)
           local abs_path = Utils.to_absolute_path(path)

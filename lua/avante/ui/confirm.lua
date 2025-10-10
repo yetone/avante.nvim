@@ -19,9 +19,14 @@ local Config = require("avante.config")
 local M = {}
 M.__index = M
 
+---@class avante.ui.ConfirmOptions
+---@field container_winid? number
+---@field focus? boolean | nil
+---@field skip_reject_prompt? boolean ACP doesn't support reject reason
+
 ---@param message string
 ---@param callback fun(type: "yes" | "all" | "no", reason?: string)
----@param opts { container_winid: number, focus?: boolean, skip_reject_prompt?: boolean }
+---@param opts avante.ui.ConfirmOptions
 ---@return avante.ui.Confirm
 function M:new(message, callback, opts)
   local this = setmetatable({}, M)
@@ -167,17 +172,20 @@ function M:open()
       callback("yes")
       return
     end
+
     if focus_index == btn_all_index then
       self:close()
       Utils.notify("Accept all")
       callback("all")
       return
     end
+
     if self._skip_reject_prompt then
       self:close()
       callback("no")
       return
     end
+
     local prompt_input = PromptInput:new({
       submit_callback = function(input)
         self:close()

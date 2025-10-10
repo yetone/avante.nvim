@@ -21,7 +21,7 @@ end
 
 ---@param message string
 ---@param callback fun(yes: boolean, reason?: string)
----@param confirm_opts? { focus?: boolean }
+---@param confirm_opts? avante.ui.ConfirmOptions
 ---@param session_ctx? table
 ---@param tool_name? string -- Optional tool name to check against tool_permissions config
 ---@return avante.ui.Confirm | nil

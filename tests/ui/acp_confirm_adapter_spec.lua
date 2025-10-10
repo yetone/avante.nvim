@@ -1,4 +1,4 @@
-local ConfirmAdapter = require("avante.ui.confirm_adapter")
+local ConfirmAdapter = require("avante.ui.acp_confirm_adapter")
 
 describe("ConfirmAdapter (ACP)", function()
   describe("map_acp_options", function()
@@ -109,9 +109,7 @@ describe("ConfirmAdapter (ACP)", function()
   describe("create_acp_callback_bridge", function()
     it("should translate yes to allow_once option id", function()
       local called_option_id = nil
-      local acp_callback = function(id)
-        called_option_id = id
-      end
+      local acp_callback = function(id) called_option_id = id end
       local option_map = { yes = "opt1", all = "opt2", no = "opt3" }
 
       local bridge = ConfirmAdapter.create_acp_callback_bridge(acp_callback, option_map)
@@ -122,9 +120,7 @@ describe("ConfirmAdapter (ACP)", function()
 
     it("should translate all to allow_always option id", function()
       local called_option_id = nil
-      local acp_callback = function(id)
-        called_option_id = id
-      end
+      local acp_callback = function(id) called_option_id = id end
       local option_map = { yes = "opt1", all = "opt2", no = "opt3" }
 
       local bridge = ConfirmAdapter.create_acp_callback_bridge(acp_callback, option_map)
@@ -135,9 +131,7 @@ describe("ConfirmAdapter (ACP)", function()
 
     it("should translate no to nil (cancelled outcome)", function()
       local called_option_id = "not_nil"
-      local acp_callback = function(id)
-        called_option_id = id
-      end
+      local acp_callback = function(id) called_option_id = id end
       local option_map = { yes = "opt1", all = "opt2", no = "opt3" }
 
       local bridge = ConfirmAdapter.create_acp_callback_bridge(acp_callback, option_map)
@@ -148,9 +142,7 @@ describe("ConfirmAdapter (ACP)", function()
 
     it("should handle missing option with fallback to yes", function()
       local called_option_id = nil
-      local acp_callback = function(id)
-        called_option_id = id
-      end
+      local acp_callback = function(id) called_option_id = id end
       local option_map = { yes = "opt1", no = "opt3" } -- missing 'all'
 
       local bridge = ConfirmAdapter.create_acp_callback_bridge(acp_callback, option_map)
@@ -162,9 +154,7 @@ describe("ConfirmAdapter (ACP)", function()
 
     it("should handle missing yes option with fallback to cancel", function()
       local called_option_id = "not_nil"
-      local acp_callback = function(id)
-        called_option_id = id
-      end
+      local acp_callback = function(id) called_option_id = id end
       local option_map = { no = "opt3" } -- missing 'yes' and 'all'
 
       local bridge = ConfirmAdapter.create_acp_callback_bridge(acp_callback, option_map)
