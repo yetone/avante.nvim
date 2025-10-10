@@ -63,7 +63,6 @@ Sidebar.__index = Sidebar
 ---@field id integer
 ---@field augroup integer
 ---@field code avante.CodeState
----@field win_width_store table
 ---@field containers { result?: NuiSplit, todos?: NuiSplit, selected_code?: NuiSplit, selected_files?: NuiSplit, input?: NuiSplit }
 ---@field file_selector FileSelector
 ---@field chat_history avante.ChatHistory | nil
@@ -85,13 +84,14 @@ Sidebar.__index = Sidebar
 ---@field tool_message_positions table<string, [integer, integer]>
 ---@field skip_line_count integer | nil
 ---@field current_tool_use_extmark_id integer | nil
+---@field private win_size_store table<integer, {width: integer, height: integer}>
+---@field private is_in_full_view boolean
 
 ---@param id integer the tabpage id retrieved from api.nvim_get_current_tabpage()
 function Sidebar:new(id)
   return setmetatable({
     id = id,
     code = { bufnr = 0, winid = 0, selection = nil, old_winhl = nil },
-    win_width_store = {},
     winids = {
       result_container = 0,
       todos_container = 0,
@@ -120,6 +120,8 @@ function Sidebar:new(id)
     tool_message_positions = {},
     expanded_message_ids = {},
     current_tool_use_extmark_id = nil,
+    win_width_store = {},
+    is_in_full_view = false,
   }, Sidebar)
 end
 
@@ -151,7 +153,6 @@ function Sidebar:reset()
 
   self:delete_containers()
 
-  self.win_width_store = {}
   self.code = { bufnr = 0, winid = 0, selection = nil }
   self.scroll = true
   self.old_result_lines = {}
@@ -159,6 +160,8 @@ function Sidebar:reset()
   self.tool_message_positions = {}
   self.expanded_message_uuids = {}
   self.current_tool_use_extmark_id = nil
+  self.win_size_store = {}
+  self.is_in_full_view = false
 end
 
 ---@class SidebarOpenOptions: AskOptions
@@ -1626,31 +1629,44 @@ function Sidebar:render_logo()
 end
 
 function Sidebar:toggle_code_window()
-  local winids = api.nvim_tabpage_list_wins(self.id)
-  local container_winids = vim.tbl_map(function(container) return container.winid end, self.containers)
-  local win_width = api.nvim_win_get_width(self.code.winid)
-  if win_width == 0 then
-    self.is_in_full_view = false
+  -- Collect all windows that do not belong to the sidebar
+  local winids = vim
+    .iter(api.nvim_tabpage_list_wins(self.id))
+    :filter(function(winid) return not self:is_sidebar_winid(winid) end)
+    :totable()
+
+  if self.is_in_full_view then
+    -- Transitioning to normal view: restore sizes of all non-sidebar windows
     for _, winid in ipairs(winids) do
-      if api.nvim_win_is_valid(winid) and not vim.tbl_contains(container_winids, winid) then
-        local old_width = self.win_width_store[winid]
-        if old_width ~= nil then api.nvim_win_set_width(winid, old_width) end
+      local old_size = self.win_size_store[winid]
+      if old_size then
+        api.nvim_win_set_width(winid, old_size.width)
+        api.nvim_win_set_height(winid, old_size.height)
       end
     end
   else
-    self.is_in_full_view = true
+    -- Transitioning to full view: hide all non-sidebar windows
+    -- We need do this in 2 phases: first phase is to collect window sizes
+    -- and 2nd phase is to actually maximize the sidebar. If we attempt to do
+    -- everything is one pass sizes of windows may change in the process and
+    -- we'll end up with a mess.
+    self.win_size_store = {}
     for _, winid in ipairs(winids) do
-      if api.nvim_win_is_valid(winid) and not vim.tbl_contains(container_winids, winid) then
-        if Utils.is_floating_window(winid) then
-          api.nvim_win_close(winid, true)
-        else
-          local width = api.nvim_win_get_width(winid)
-          self.win_width_store[winid] = width
-          api.nvim_win_set_width(winid, 0)
-        end
+      if Utils.is_floating_window(winid) then
+        api.nvim_win_close(winid, true)
+      else
+        self.win_size_store[winid] = { width = api.nvim_win_get_width(winid), height = api.nvim_win_get_height(winid) }
       end
     end
+
+    if self:get_layout() == "vertical" then
+      api.nvim_win_set_width(self.containers.result.winid, vim.o.columns)
+    else
+      api.nvim_win_set_height(self.containers.result.winid, vim.o.lines)
+    end
   end
+
+  self.is_in_full_view = not self.is_in_full_view
 end
 
 --- Initialize the sidebar instance.
