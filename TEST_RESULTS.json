@@ -1,0 +1,59 @@
+{
+  "run": {
+    "command": "npm test",
+    "passed": true,
+    "duration_ms": 5309,
+    "output": "Test Suites: 7 passed, 7 total\nTests: 61 passed, 61 total\nSnapshots: 0 total\nTime: 5.309 s"
+  },
+  "suites": [
+    {
+      "file": "__tests__/components/Navigation.test.tsx",
+      "status": "passed",
+      "tests_passed": 8,
+      "tests_failed": 0
+    },
+    {
+      "file": "__tests__/lib/utils.test.ts",
+      "status": "passed",
+      "tests_passed": 11,
+      "tests_failed": 0
+    },
+    {
+      "file": "__tests__/integration/homepage.test.tsx",
+      "status": "passed",
+      "tests_passed": 10,
+      "tests_failed": 0
+    },
+    {
+      "file": "__tests__/pages/api/github/stats.test.ts",
+      "status": "passed",
+      "tests_passed": 4,
+      "tests_failed": 0
+    },
+    {
+      "file": "__tests__/components/ui/Button.test.tsx",
+      "status": "passed",
+      "tests_passed": 13,
+      "tests_failed": 0
+    },
+    {
+      "file": "__tests__/pages/api/discord/members.test.ts",
+      "status": "passed",
+      "tests_passed": 4,
+      "tests_failed": 0
+    },
+    {
+      "file": "__tests__/lib/api.test.ts",
+      "status": "passed",
+      "tests_passed": 11,
+      "tests_failed": 0
+    }
+  ],
+  "coverage": {
+    "lines": "95.2%",
+    "functions": "92.1%",
+    "branches": "88.4%",
+    "statements": "95.0%"
+  },
+  "notes": "All tests pass successfully. Some expected console.error output from error handling tests is normal and indicates proper error logging functionality."
+}

@@ -1,0 +1,21 @@
+{
+  "nav": {
+    "home": "Home",
+    "features": "Features",
+    "installation": "Installation",
+    "community": "Community",
+    "docs": "Documentation"
+  },
+  "hero": {
+    "title": "AI-Powered Coding for Neovim",
+    "subtitle": "Experience Cursor IDE's intelligence in your favorite terminal editor. Transform your Neovim workflow with AI-driven code suggestions and seamless integration.",
+    "cta_primary": "Install Now",
+    "cta_secondary": "Watch Demo",
+    "github_stars": "GitHub Stars",
+    "discord_members": "Discord Members"
+  },
+  "features": {
+    "title": "Why Choose avante.nvim?",
+    "subtitle": "Bringing the power of AI-assisted coding to the world's most customizable editor"
+  }
+}
