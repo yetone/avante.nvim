@@ -70,12 +70,13 @@ function M:open()
   })
 
   local buttons_line = Line:new({
-    { " [Y]es ", function() return focus_index == 1 and BUTTON_FOCUS or BUTTON_NORMAL end },
+    { "  [Y]es ", function() return focus_index == 1 and BUTTON_FOCUS or BUTTON_NORMAL end },
     { "   " },
-    { " [A]ll yes ", function() return focus_index == 2 and BUTTON_FOCUS or BUTTON_NORMAL end },
+    { "  [A]ll yes ", function() return focus_index == 2 and BUTTON_FOCUS or BUTTON_NORMAL end },
     { "    " },
-    { " [N]o ", function() return focus_index == 3 and BUTTON_FOCUS or BUTTON_NORMAL end },
+    { "  [N]o ", function() return focus_index == 3 and BUTTON_FOCUS or BUTTON_NORMAL end },
   })
+
   local buttons_content = tostring(buttons_line)
   local buttons_start_col = math.floor((win_width - #buttons_content) / 2)
 
