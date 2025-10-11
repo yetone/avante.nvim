@@ -50,6 +50,10 @@ local function create_model_entries(provider_name, provider_cfg)
         :totable()
     end
   end
+
+  -- Don't add default models for ollama because everyone has their own
+  if provider_name == "ollama" then return res end
+
   if provider_cfg.model then
     local seen = vim.iter(res):find(function(item) return item.model == provider_cfg.model end)
     if not seen then
