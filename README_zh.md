@@ -96,7 +96,7 @@
     "nvim-lua/plenary.nvim",
     "MunifTanjim/nui.nvim",
     --- 以下依赖项是可选的，
-    "echasnovski/mini.pick", -- 用于文件选择器提供者 mini.pick
+    "nvim-mini/mini.pick", -- 用于文件选择器提供者 mini.pick
     "nvim-telescope/telescope.nvim", -- 用于文件选择器提供者 telescope
     "hrsh7th/nvim-cmp", -- avante 命令和提及的自动完成
     "ibhagwan/fzf-lua", -- 用于文件选择器提供者 fzf
@@ -517,6 +517,7 @@ _请参见 [config.lua#L9](./lua/avante/config.lua) 以获取完整配置_
 Avante.nvim 提供了多个可以与 blink.cmp 集成的补全项：
 
 #### 提及功能 (`@` 触发器)
+
 提及功能允许您快速引用特定功能或将文件添加到聊天上下文：
 
 - `@codebase` - 启用项目上下文和仓库映射
@@ -526,6 +527,7 @@ Avante.nvim 提供了多个可以与 blink.cmp 集成的补全项：
 - `@buffers` - 将打开的缓冲区添加到聊天上下文
 
 #### 斜杠命令 (`/` 触发器)
+
 内置斜杠命令用于常见操作：
 
 - `/help` - 显示可用命令的帮助信息
@@ -537,6 +539,7 @@ Avante.nvim 提供了多个可以与 blink.cmp 集成的补全项：
 - `/commit` - 为更改生成提交消息
 
 #### 快捷方式 (`#` 触发器)
+
 快捷方式提供对预定义提示模板的快速访问。您可以在配置中自定义这些：
 
 ```lua
