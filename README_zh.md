@@ -362,6 +362,8 @@ _请参见 [config.lua#L9](./lua/avante/config.lua) 以获取完整配置_
     enable_token_counting = true, -- 是否启用令牌计数。默认为 true。
     enable_cursor_planning_mode = false, -- 是否启用 Cursor 规划模式。默认为 false。
     enable_claude_text_editor_tool_mode = false, -- 是否启用 Claude 文本编辑器工具模式。
+    ---@type "popup" | "inline_buttons"
+    confirmation_ui_style = "inline_buttons",
   },
   mappings = {
     --- @class AvanteConflictMappings
