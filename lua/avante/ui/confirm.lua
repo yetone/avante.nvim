@@ -23,6 +23,7 @@ M.__index = M
 ---@field container_winid? number
 ---@field focus? boolean | nil
 ---@field skip_reject_prompt? boolean ACP doesn't support reject reason
+---@field permission_options? avante.acp.PermissionOption[] ACP permission options to show in the confirm popup
 
 ---@param message string
 ---@param callback fun(type: "yes" | "all" | "no", reason?: string)
