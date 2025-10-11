@@ -14,6 +14,7 @@ local Providers = require("avante.providers")
 local LLMToolHelpers = require("avante.llm_tools.helpers")
 local LLMTools = require("avante.llm_tools")
 local History = require("avante.history")
+local Highlights = require("avante.highlights")
 local HistoryRender = require("avante.history.render")
 local ACPConfirmAdapter = require("avante.ui.acp_confirm_adapter")
 
@@ -1043,8 +1044,6 @@ function M._stream_acp(opts)
 
           ---@cast tool_call avante.acp.ToolCall
 
-          local acp_mapped_options = ACPConfirmAdapter.map_acp_options(options)
-
           local message = tool_call_messages[tool_call.toolCallId]
           if not message then
             message = add_tool_call_message(tool_call)
@@ -1057,26 +1056,56 @@ function M._stream_acp(opts)
 
           on_messages_add({ message })
 
-          local description = HistoryRender.get_tool_display_name(message)
+          if Config.behaviour.confirmation_ui_style == "inline_buttons" then
+            local items = vim
+              .iter(options)
+              :map(function(item)
+                local icon = item.kind == "allow_once" and "" or ""
+                if item.kind == "allow_always" then icon = "" end
+                local hl = nil
+                if item.kind == "reject_once" or item.kind == "reject_always" then
+                  hl = Highlights.BUTTON_DANGER_HOVER
+                end
+                return {
+                  id = item.optionId,
+                  name = item.name,
+                  icon = icon,
+                  hl = hl,
+                }
+              end)
+              :totable()
 
-          LLMToolHelpers.confirm(description, function(ok)
-            if ok and opts.session_ctx and opts.session_ctx.always_yes then
-              callback(acp_mapped_options.all)
-              -- Reset always_yes to false, so the ACP provider can handle it again
-              opts.session_ctx.always_yes = false
-            elseif ok then
-              callback(acp_mapped_options.yes)
-            else
-              callback(acp_mapped_options.no)
+            sidebar.permission_button_options = items
+            sidebar.permission_handler = function(id)
+              callback(id)
+              sidebar.scroll = true
+              sidebar.permission_button_options = nil
+              sidebar.permission_handler = nil
+              sidebar._history_cache_invalidated = true
+              sidebar:update_content("")
             end
+          else
+            local acp_mapped_options = ACPConfirmAdapter.map_acp_options(options)
+            local description = HistoryRender.get_tool_display_name(message)
+            LLMToolHelpers.confirm(description, function(ok)
+              if ok and opts.session_ctx and opts.session_ctx.always_yes then
+                callback(acp_mapped_options.all)
+                -- Reset always_yes to false, so the ACP provider can handle it again
+                opts.session_ctx.always_yes = false
+              elseif ok then
+                callback(acp_mapped_options.yes)
+              else
+                callback(acp_mapped_options.no)
+              end
 
-            sidebar.scroll = true
-            sidebar._history_cache_invalidated = true
-            sidebar:update_content("")
-          end, {
-            focus = true,
-            skip_reject_prompt = true,
-          }, opts.session_ctx, tool_call.kind)
+              sidebar.scroll = true
+              sidebar._history_cache_invalidated = true
+              sidebar:update_content("")
+            end, {
+              focus = true,
+              skip_reject_prompt = true,
+            }, opts.session_ctx, tool_call.kind)
+          end
         end,
         on_read_file = function(path, line, limit, callback)
           local abs_path = Utils.to_absolute_path(path)

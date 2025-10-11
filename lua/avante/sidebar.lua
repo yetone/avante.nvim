@@ -21,6 +21,7 @@ local Render = require("avante.history.render")
 local Line = require("avante.ui.line")
 local LRUCache = require("avante.utils.lru_cache")
 local logo = require("avante.utils.logo")
+local ButtonGroupLine = require("avante.ui.button_group_line")
 
 local RESULT_BUF_NAME = "AVANTE_RESULT"
 local VIEW_BUFFER_UPDATED_PATTERN = "AvanteViewBufferUpdated"
@@ -78,6 +79,8 @@ Sidebar.__index = Sidebar
 ---@field token_count integer | nil
 ---@field acp_client avante.acp.ACPClient | nil
 ---@field post_render? fun(sidebar: avante.Sidebar)
+---@field permission_handler fun(id: string) | nil
+---@field permission_button_options ({ id: string, icon: string|nil, name: string }[]) | nil
 ---@field expanded_message_uuids table<string, boolean>
 ---@field tool_message_positions table<string, [integer, integer]>
 ---@field skip_line_count integer | nil
@@ -1769,6 +1772,16 @@ function Sidebar:update_content(content, opts)
   api.nvim_set_option_value("filetype", "Avante", { buf = bufnr })
   Utils.lock_buf(bufnr)
 
+  vim.defer_fn(function()
+    if self.permission_button_options and self.permission_handler then
+      local cur_winid = api.nvim_get_current_win()
+      if cur_winid == self.containers.result.winid then
+        local line_count = api.nvim_buf_line_count(bufnr)
+        api.nvim_win_set_cursor(cur_winid, { line_count - 3, 0 })
+      end
+    end
+  end, 100)
+
   if opts.focus and not self:is_focused_on_result() then
     xpcall(function() api.nvim_set_current_win(self.containers.result.winid) end, function(err)
       Utils.debug("Failed to set current win:", err)
@@ -1910,6 +1923,14 @@ function Sidebar:get_message_lines(ctx, message, messages, ignore_record_prefix)
   local expanded = self.expanded_message_uuids[message.uuid]
   if message.state == "generating" or message.is_calling then
     local lines = self:_get_message_lines(ctx, message, messages, ignore_record_prefix)
+    if self.permission_handler and self.permission_button_options then
+      local button_group_line = ButtonGroupLine:new(self.permission_button_options, {
+        on_click = self.permission_handler,
+        group_label = "Waiting for Confirmation... ",
+      })
+      table.insert(lines, Line:new({ { "" } }))
+      table.insert(lines, button_group_line)
+    end
     return lines
   end
   local text_len = 0

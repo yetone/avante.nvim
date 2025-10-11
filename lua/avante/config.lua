@@ -514,6 +514,10 @@ M._defaults = {
     auto_check_diagnostics = true,
     enable_fastapply = false,
     include_generated_by_commit_line = false, -- Controls if 'Generated-by: <provider/model>' line is added to git commit message
+    --- popup is the original yes,all,no in a floating window
+    --- inline_buttons is the new inline buttons in the sidebar
+    ---@type "popup" | "inline_buttons"
+    confirmation_ui_style = "inline_buttons",
   },
   prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
     enabled = true, -- toggle logging entirely
