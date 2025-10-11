@@ -261,6 +261,10 @@ end
 function Sidebar:close(opts)
   opts = vim.tbl_extend("force", { goto_code_win = true }, opts or {})
 
+  -- If sidebar was maximized make it normal size so that other windows
+  -- will not be left minimized.
+  if self.is_in_full_view then self:toggle_code_window() end
+
   self:delete_autocmds()
   self:delete_containers()
 
