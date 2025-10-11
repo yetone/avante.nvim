@@ -19,8 +19,9 @@ function M.map_acp_options(options)
       option_map.all = opt.optionId
     elseif opt.kind == "reject_once" then
       option_map.no = opt.optionId
-    elseif opt.kind == "reject_always" then
-      -- ignore, no 4th option in the confirm popup
+
+      -- elseif opt.kind == "reject_always" then
+      -- ignore, no 4th option in the confirm popup yet
     end
   end
 
