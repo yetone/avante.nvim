@@ -1060,7 +1060,7 @@ function M._stream_acp(opts)
           local description = HistoryRender.get_tool_display_name(message)
 
           LLMToolHelpers.confirm(description, function(ok)
-            if ok and opts.session_ctx.always_yes then
+            if ok and opts.session_ctx and opts.session_ctx.always_yes then
               callback(acp_mapped_options.all)
               -- Reset always_yes to false, so the ACP provider can handle it again
               opts.session_ctx.always_yes = false
