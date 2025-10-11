@@ -15,7 +15,6 @@ local LLMToolHelpers = require("avante.llm_tools.helpers")
 local LLMTools = require("avante.llm_tools")
 local History = require("avante.history")
 local HistoryRender = require("avante.history.render")
-local Helpers = require("avante.llm_tools.helpers")
 local ACPConfirmAdapter = require("avante.ui.acp_confirm_adapter")
 
 ---@class avante.LLM
@@ -1060,7 +1059,7 @@ function M._stream_acp(opts)
 
           local description = HistoryRender.get_tool_display_name(message)
 
-          Helpers.confirm(description, function(ok)
+          LLMToolHelpers.confirm(description, function(ok)
             if ok and opts.session_ctx.always_yes then
               callback(acp_mapped_options.all)
               -- Reset always_yes to false, so the ACP provider can handle it again
