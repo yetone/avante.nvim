@@ -1494,20 +1494,6 @@ function Sidebar:on_mount(opts)
     end,
   })
 
-  api.nvim_create_autocmd("WinClosed", {
-    group = self.augroup,
-    callback = function(args)
-      local closed_winid = tonumber(args.match)
-      if closed_winid then
-        local container = self:get_sidebar_window(closed_winid)
-        -- Ignore closing selected files and todos windows because they can disappear during normal operation
-        if container and container ~= self.containers.selected_files and container ~= self.containers.todos then
-          self:close()
-        end
-      end
-    end,
-  })
-
   for _, container in pairs(self.containers) do
     if container.mount and container.bufnr and api.nvim_buf_is_valid(container.bufnr) then
       Utils.mark_as_sidebar_buffer(container.bufnr)
@@ -1690,7 +1676,7 @@ end
 ---@return NuiSplit|nil
 function Sidebar:get_sidebar_window(winid)
   for _, container in pairs(self.containers) do
-    if container and container.winid == winid then return container end
+    if container.winid == winid then return container end
   end
 end
 
@@ -3137,6 +3123,26 @@ end
 
 ---@param opts AskOptions
 function Sidebar:render(opts)
+  self.augroup = api.nvim_create_augroup("avante_sidebar_" .. self.id, { clear = true })
+
+  -- This autocommand needs to be registered first, before NuiSplit
+  -- registers their own handlers for WinClosed events that will set
+  -- container.winid to nil, which will cause Sidebar:get_sidebar_window()
+  -- to fail.
+  api.nvim_create_autocmd("WinClosed", {
+    group = self.augroup,
+    callback = function(args)
+      local closed_winid = tonumber(args.match)
+      if closed_winid then
+        local container = self:get_sidebar_window(closed_winid)
+        -- Ignore closing selected files and todos windows because they can disappear during normal operation
+        if container and container ~= self.containers.selected_files and container ~= self.containers.todos then
+          self:close()
+        end
+      end
+    end,
+  })
+
   if opts.sidebar_pre_render then opts.sidebar_pre_render(self) end
 
   local function get_position()
@@ -3165,9 +3171,6 @@ function Sidebar:render(opts)
   })
 
   self.containers.result:mount()
-
-  self.augroup =
-    api.nvim_create_augroup("avante_sidebar_" .. self.id .. self.containers.result.winid, { clear = true })
 
   self.containers.result:on(event.BufWinEnter, function()
     xpcall(function() api.nvim_buf_set_name(self.containers.result.bufnr, RESULT_BUF_NAME) end, function(_) end)
