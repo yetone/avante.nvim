@@ -48,7 +48,7 @@ function M:open()
 
   local win_width = 60
 
-  local focus_index = 3 -- 1 = Yes, 2 = All Yes, 3 = No
+  local focus_index = 1 -- 1 = Yes, 2 = All Yes, 3 = No
 
   local BUTTON_NORMAL = Highlights.BUTTON_DEFAULT
   local BUTTON_FOCUS = Highlights.BUTTON_DEFAULT_HOVER
@@ -173,7 +173,6 @@ function M:open()
 
     if focus_index == 2 then
       self:close()
-      Utils.notify("Accept all")
       callback("all")
       return
     end
