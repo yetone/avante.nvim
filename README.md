@@ -219,7 +219,7 @@ For building binary if you wish to build from source, then `cargo` is required. 
     "nvim-lua/plenary.nvim",
     "MunifTanjim/nui.nvim",
     --- The below dependencies are optional,
-    "echasnovski/mini.pick", -- for file_selector provider mini.pick
+    "nvim-mini/mini.pick", -- for file_selector provider mini.pick
     "nvim-telescope/telescope.nvim", -- for file_selector provider telescope
     "hrsh7th/nvim-cmp", -- autocompletion for avante commands and mentions
     "ibhagwan/fzf-lua", -- for file_selector provider fzf
@@ -500,9 +500,9 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     support_paste_from_clipboard = false,
     minimize_diff = true, -- Whether to remove unchanged lines when applying a code block
     enable_token_counting = true, -- Whether to enable token counting. Default to true.
-    auto_approve_tool_permissions = false, -- Default: show permission prompts for all tools
+    auto_approve_tool_permissions = true, -- Default: auto-approve all tools (no prompts)
     -- Examples:
-    -- auto_approve_tool_permissions = true,                -- Auto-approve all tools (no prompts)
+    -- auto_approve_tool_permissions = false,                -- Show permission prompts for all tools
     -- auto_approve_tool_permissions = {"bash", "replace_in_file"}, -- Auto-approve specific tools only
   },
   prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)

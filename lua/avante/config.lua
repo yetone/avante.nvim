@@ -258,6 +258,10 @@ M._defaults = {
         ACP_PERMISSION_MODE = "bypassPermissions",
       },
     },
+    ["goose"] = {
+      command = "goose",
+      args = { "acp" },
+    },
   },
   ---To add support for custom provider, follow the format below
   ---See https://github.com/yetone/avante.nvim/wiki#custom-providers for more details
@@ -506,7 +510,7 @@ M._defaults = {
     use_cwd_as_project_root = false,
     auto_focus_on_diff_view = false,
     ---@type boolean | string[] -- true: auto-approve all tools, false: normal prompts, string[]: auto-approve specific tools by name
-    auto_approve_tool_permissions = true, -- Default: show permission prompts for all tools
+    auto_approve_tool_permissions = true, -- Default: auto-approve all tools (no prompts)
     auto_check_diagnostics = true,
     enable_fastapply = false,
     include_generated_by_commit_line = false, -- Controls if 'Generated-by: <provider/model>' line is added to git commit message

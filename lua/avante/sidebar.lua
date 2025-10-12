@@ -63,7 +63,6 @@ Sidebar.__index = Sidebar
 ---@field id integer
 ---@field augroup integer
 ---@field code avante.CodeState
----@field win_width_store table
 ---@field containers { result?: NuiSplit, todos?: NuiSplit, selected_code?: NuiSplit, selected_files?: NuiSplit, input?: NuiSplit }
 ---@field file_selector FileSelector
 ---@field chat_history avante.ChatHistory | nil
@@ -85,13 +84,14 @@ Sidebar.__index = Sidebar
 ---@field tool_message_positions table<string, [integer, integer]>
 ---@field skip_line_count integer | nil
 ---@field current_tool_use_extmark_id integer | nil
+---@field private win_size_store table<integer, {width: integer, height: integer}>
+---@field private is_in_full_view boolean
 
 ---@param id integer the tabpage id retrieved from api.nvim_get_current_tabpage()
 function Sidebar:new(id)
   return setmetatable({
     id = id,
     code = { bufnr = 0, winid = 0, selection = nil, old_winhl = nil },
-    win_width_store = {},
     winids = {
       result_container = 0,
       todos_container = 0,
@@ -120,6 +120,8 @@ function Sidebar:new(id)
     tool_message_positions = {},
     expanded_message_ids = {},
     current_tool_use_extmark_id = nil,
+    win_width_store = {},
+    is_in_full_view = false,
   }, Sidebar)
 end
 
@@ -151,7 +153,6 @@ function Sidebar:reset()
 
   self:delete_containers()
 
-  self.win_width_store = {}
   self.code = { bufnr = 0, winid = 0, selection = nil }
   self.scroll = true
   self.old_result_lines = {}
@@ -159,6 +160,8 @@ function Sidebar:reset()
   self.tool_message_positions = {}
   self.expanded_message_uuids = {}
   self.current_tool_use_extmark_id = nil
+  self.win_size_store = {}
+  self.is_in_full_view = false
 end
 
 ---@class SidebarOpenOptions: AskOptions
@@ -257,6 +260,10 @@ end
 ---@param opts? SidebarCloseOptions
 function Sidebar:close(opts)
   opts = vim.tbl_extend("force", { goto_code_win = true }, opts or {})
+
+  -- If sidebar was maximized make it normal size so that other windows
+  -- will not be left minimized.
+  if self.is_in_full_view then self:toggle_code_window() end
 
   self:delete_autocmds()
   self:delete_containers()
@@ -860,7 +867,7 @@ end
 function Sidebar:retry_user_request()
   local block = self:get_current_user_request_block()
   if not block then return end
-  self.handle_submit(block.content)
+  self:handle_submit(block.content)
 end
 
 function Sidebar:handle_expand_message(message_uuid, expanded)
@@ -1494,20 +1501,6 @@ function Sidebar:on_mount(opts)
     end,
   })
 
-  api.nvim_create_autocmd("WinClosed", {
-    group = self.augroup,
-    callback = function(args)
-      local closed_winid = tonumber(args.match)
-      if closed_winid then
-        local container = self:get_sidebar_window(closed_winid)
-        -- Ignore closing selected files and todos windows because they can disappear during normal operation
-        if container and container ~= self.containers.selected_files and container ~= self.containers.todos then
-          self:close()
-        end
-      end
-    end,
-  })
-
   for _, container in pairs(self.containers) do
     if container.mount and container.bufnr and api.nvim_buf_is_valid(container.bufnr) then
       Utils.mark_as_sidebar_buffer(container.bufnr)
@@ -1626,31 +1619,44 @@ function Sidebar:render_logo()
 end
 
 function Sidebar:toggle_code_window()
-  local winids = api.nvim_tabpage_list_wins(self.id)
-  local container_winids = vim.tbl_map(function(container) return container.winid end, self.containers)
-  local win_width = api.nvim_win_get_width(self.code.winid)
-  if win_width == 0 then
-    self.is_in_full_view = false
+  -- Collect all windows that do not belong to the sidebar
+  local winids = vim
+    .iter(api.nvim_tabpage_list_wins(self.id))
+    :filter(function(winid) return not self:is_sidebar_winid(winid) end)
+    :totable()
+
+  if self.is_in_full_view then
+    -- Transitioning to normal view: restore sizes of all non-sidebar windows
     for _, winid in ipairs(winids) do
-      if api.nvim_win_is_valid(winid) and not vim.tbl_contains(container_winids, winid) then
-        local old_width = self.win_width_store[winid]
-        if old_width ~= nil then api.nvim_win_set_width(winid, old_width) end
+      local old_size = self.win_size_store[winid]
+      if old_size then
+        api.nvim_win_set_width(winid, old_size.width)
+        api.nvim_win_set_height(winid, old_size.height)
       end
     end
   else
-    self.is_in_full_view = true
+    -- Transitioning to full view: hide all non-sidebar windows
+    -- We need do this in 2 phases: first phase is to collect window sizes
+    -- and 2nd phase is to actually maximize the sidebar. If we attempt to do
+    -- everything is one pass sizes of windows may change in the process and
+    -- we'll end up with a mess.
+    self.win_size_store = {}
     for _, winid in ipairs(winids) do
-      if api.nvim_win_is_valid(winid) and not vim.tbl_contains(container_winids, winid) then
-        if Utils.is_floating_window(winid) then
-          api.nvim_win_close(winid, true)
-        else
-          local width = api.nvim_win_get_width(winid)
-          self.win_width_store[winid] = width
-          api.nvim_win_set_width(winid, 0)
-        end
+      if Utils.is_floating_window(winid) then
+        api.nvim_win_close(winid, true)
+      else
+        self.win_size_store[winid] = { width = api.nvim_win_get_width(winid), height = api.nvim_win_get_height(winid) }
       end
     end
+
+    if self:get_layout() == "vertical" then
+      api.nvim_win_set_width(self.containers.result.winid, vim.o.columns)
+    else
+      api.nvim_win_set_height(self.containers.result.winid, vim.o.lines)
+    end
   end
+
+  self.is_in_full_view = not self.is_in_full_view
 end
 
 --- Initialize the sidebar instance.
@@ -1690,7 +1696,7 @@ end
 ---@return NuiSplit|nil
 function Sidebar:get_sidebar_window(winid)
   for _, container in pairs(self.containers) do
-    if container and container.winid == winid then return container end
+    if container.winid == winid then return container end
   end
 end
 
@@ -2617,6 +2623,245 @@ function Sidebar:get_generate_prompts_options(request, cb)
   if cb then cb(prompts_opts) end
 end
 
+---@param request string
+function Sidebar:handle_submit(request)
+  if Config.prompt_logger.enabled then PromptLogger.log_prompt(request) end
+
+  if self.is_generating then
+    self:add_history_messages({ History.Message:new("user", request) })
+    return
+  end
+
+  if request:match("@codebase") and not vim.fn.expand("%:e") then
+    self:update_content("Please open a file first before using @codebase", { focus = false, scroll = false })
+    return
+  end
+
+  if request:sub(1, 1) == "/" then
+    local command, args = request:match("^/(%S+)%s*(.*)")
+    if command == nil then
+      self:update_content("Invalid command", { focus = false, scroll = false })
+      return
+    end
+    local cmds = Utils.get_commands()
+    ---@type AvanteSlashCommand
+    local cmd = vim.iter(cmds):filter(function(cmd) return cmd.name == command end):totable()[1]
+    if cmd then
+      if command == "lines" then
+        cmd.callback(self, args, function(args_)
+          local _, _, question = args_:match("(%d+)-(%d+)%s+(.*)")
+          request = question
+        end)
+      elseif command == "commit" then
+        cmd.callback(self, args, function(question) request = question end)
+      else
+        cmd.callback(self, args)
+        return
+      end
+    else
+      self:update_content("Unknown command: " .. command, { focus = false, scroll = false })
+      return
+    end
+  end
+
+  -- Process shortcut replacements
+  local new_content, has_shortcuts = Utils.extract_shortcuts(request)
+  if has_shortcuts then request = new_content end
+
+  local selected_filepaths = self.file_selector:get_selected_filepaths()
+
+  ---@type AvanteSelectedCode | nil
+  local selected_code = self.code.selection
+    and {
+      path = self.code.selection.filepath,
+      file_type = self.code.selection.filetype,
+      content = self.code.selection.content,
+    }
+
+  --- HACK: we need to set focus to true and scroll to false to
+  --- prevent the cursor from jumping to the bottom of the
+  --- buffer at the beginning
+  self:update_content("", { focus = true, scroll = false })
+
+  ---stop scroll when user presses j/k keys
+  local function on_j()
+    self.scroll = false
+    ---perform scroll
+    vim.cmd("normal! j")
+  end
+
+  local function on_k()
+    self.scroll = false
+    ---perform scroll
+    vim.cmd("normal! k")
+  end
+
+  local function on_G()
+    self.scroll = true
+    ---perform scroll
+    vim.cmd("normal! G")
+  end
+
+  vim.keymap.set("n", "j", on_j, { buffer = self.containers.result.bufnr })
+  vim.keymap.set("n", "k", on_k, { buffer = self.containers.result.bufnr })
+  vim.keymap.set("n", "G", on_G, { buffer = self.containers.result.bufnr })
+
+  ---@type AvanteLLMStartCallback
+  local function on_start(_) end
+
+  ---@param messages avante.HistoryMessage[]
+  local function on_messages_add(messages) self:add_history_messages(messages) end
+
+  ---@param state avante.GenerateState
+  local function on_state_change(state)
+    self:clear_state()
+    self.current_state = state
+    self:render_state()
+  end
+
+  ---@param tool_id string
+  ---@param tool_name string
+  ---@param log string
+  ---@param state AvanteLLMToolUseState
+  local function on_tool_log(tool_id, tool_name, log, state)
+    if state == "generating" then on_state_change("tool calling") end
+    local tool_use_message = History.Helpers.get_tool_use_message(tool_id, self.chat_history.messages)
+    if not tool_use_message then
+      -- Utils.debug("tool_use message not found", tool_id, tool_name)
+      return
+    end
+
+    local tool_use_logs = tool_use_message.tool_use_logs or {}
+    local content = string.format("[%s]: %s", tool_name, log)
+    table.insert(tool_use_logs, content)
+    tool_use_message.tool_use_logs = tool_use_logs
+
+    local orig_is_calling = tool_use_message.is_calling
+    tool_use_message.is_calling = true
+    self:update_content("")
+    tool_use_message.is_calling = orig_is_calling
+    self:save_history()
+  end
+
+  local function set_tool_use_store(tool_id, key, value)
+    local tool_use_message = History.Helpers.get_tool_use_message(tool_id, self.chat_history.messages)
+    if tool_use_message then
+      local tool_use_store = tool_use_message.tool_use_store or {}
+      tool_use_store[key] = value
+      tool_use_message.tool_use_store = tool_use_store
+      self:save_history()
+    end
+  end
+
+  ---@type AvanteLLMStopCallback
+  local function on_stop(stop_opts)
+    self.is_generating = false
+
+    pcall(function()
+      ---remove keymaps
+      vim.keymap.del("n", "j", { buffer = self.containers.result.bufnr })
+      vim.keymap.del("n", "k", { buffer = self.containers.result.bufnr })
+      vim.keymap.del("n", "G", { buffer = self.containers.result.bufnr })
+    end)
+
+    if stop_opts.error ~= nil and stop_opts.error ~= vim.NIL then
+      local msg_content = stop_opts.error
+      if type(msg_content) ~= "string" then msg_content = vim.inspect(msg_content) end
+      self:add_history_messages({
+        History.Message:new("assistant", "\n\nError: " .. msg_content, {
+          just_for_display = true,
+        }),
+      })
+      on_state_change("failed")
+      return
+    end
+
+    on_state_change("succeeded")
+
+    self:update_content("", {
+      callback = function() api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN }) end,
+    })
+
+    vim.defer_fn(function()
+      if Utils.is_valid_container(self.containers.result, true) and Config.behaviour.jump_result_buffer_on_finish then
+        api.nvim_set_current_win(self.containers.result.winid)
+      end
+      if Config.behaviour.auto_apply_diff_after_generation then self:apply(false) end
+    end, 0)
+
+    Path.history.save(self.code.bufnr, self.chat_history)
+  end
+
+  if request and request ~= "" then
+    self:add_history_messages({
+      History.Message:new("user", request, {
+        is_user_submission = true,
+        selected_filepaths = selected_filepaths,
+        selected_code = selected_code,
+      }),
+    })
+  end
+
+  self:get_generate_prompts_options(request, function(generate_prompts_options)
+    ---@type AvanteLLMStreamOptions
+    ---@diagnostic disable-next-line: assign-type-mismatch
+    local stream_options = vim.tbl_deep_extend("force", generate_prompts_options, {
+      on_start = on_start,
+      on_stop = on_stop,
+      on_tool_log = on_tool_log,
+      on_messages_add = on_messages_add,
+      on_state_change = on_state_change,
+      acp_client = self.acp_client,
+      on_save_acp_client = function(client) self.acp_client = client end,
+      acp_session_id = self.chat_history.acp_session_id,
+      on_save_acp_session_id = function(session_id)
+        self.chat_history.acp_session_id = session_id
+        Path.history.save(self.code.bufnr, self.chat_history)
+      end,
+      set_tool_use_store = set_tool_use_store,
+      get_history_messages = function(opts) return self:get_history_messages_for_api(opts) end,
+      get_todos = function()
+        local history = Path.history.load(self.code.bufnr)
+        return history.todos
+      end,
+      update_todos = function(todos) self:update_todos(todos) end,
+      session_ctx = {},
+      ---@param usage avante.LLMTokenUsage
+      update_tokens_usage = function(usage)
+        if not usage then return end
+        if usage.completion_tokens == nil then return end
+        if usage.prompt_tokens == nil then return end
+        self.chat_history.tokens_usage = usage
+        self:save_history()
+      end,
+      get_tokens_usage = function() return self.chat_history.tokens_usage end,
+    })
+
+    ---@param pending_compaction_history_messages avante.HistoryMessage[]
+    local function on_memory_summarize(pending_compaction_history_messages)
+      local history_memory = self.chat_history.memory
+      Llm.summarize_memory(
+        history_memory and history_memory.content,
+        pending_compaction_history_messages,
+        function(memory)
+          if memory then
+            self.chat_history.memory = memory
+            Path.history.save(self.code.bufnr, self.chat_history)
+            stream_options.memory = memory.content
+          end
+          stream_options.history_messages = self:get_history_messages_for_api()
+          Llm.stream(stream_options)
+        end
+      )
+    end
+
+    stream_options.on_memory_summarize = on_memory_summarize
+
+    on_state_change("generating")
+    Llm.stream(stream_options)
+  end)
+end
+
 function Sidebar:initialize_token_count()
   if Config.behaviour.enable_token_counting then self:get_generate_prompts_options("") end
 end
@@ -2627,260 +2872,6 @@ function Sidebar:create_input_container()
   if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then return end
 
   if self.chat_history == nil then self:reload_chat_history() end
-
-  ---@param request string
-  local function handle_submit(request)
-    if Config.prompt_logger.enabled then PromptLogger.log_prompt(request) end
-
-    if self.is_generating then
-      self:add_history_messages({
-        History.Message:new("user", request),
-      })
-      return
-    end
-    if request:match("@codebase") and not vim.fn.expand("%:e") then
-      self:update_content("Please open a file first before using @codebase", { focus = false, scroll = false })
-      return
-    end
-
-    if request:sub(1, 1) == "/" then
-      local command, args = request:match("^/(%S+)%s*(.*)")
-      if command == nil then
-        self:update_content("Invalid command", { focus = false, scroll = false })
-        return
-      end
-      local cmds = Utils.get_commands()
-      ---@type AvanteSlashCommand
-      local cmd = vim.iter(cmds):filter(function(cmd) return cmd.name == command end):totable()[1]
-      if cmd then
-        if command == "lines" then
-          cmd.callback(self, args, function(args_)
-            local _, _, question = args_:match("(%d+)-(%d+)%s+(.*)")
-            request = question
-          end)
-        elseif command == "commit" then
-          cmd.callback(self, args, function(question) request = question end)
-        else
-          cmd.callback(self, args)
-          return
-        end
-      else
-        self:update_content("Unknown command: " .. command, { focus = false, scroll = false })
-        return
-      end
-    end
-
-    -- Process shortcut replacements
-    local new_content, has_shortcuts = Utils.extract_shortcuts(request)
-    if has_shortcuts then request = new_content end
-
-    local selected_filepaths = self.file_selector:get_selected_filepaths()
-
-    ---@type AvanteSelectedCode | nil
-    local selected_code = nil
-    if self.code.selection ~= nil then
-      selected_code = {
-        path = self.code.selection.filepath,
-        file_type = self.code.selection.filetype,
-        content = self.code.selection.content,
-      }
-    end
-
-    --- HACK: we need to set focus to true and scroll to false to
-    --- prevent the cursor from jumping to the bottom of the
-    --- buffer at the beginning
-    self:update_content("", { focus = true, scroll = false })
-
-    ---stop scroll when user presses j/k keys
-    local function on_j()
-      self.scroll = false
-      ---perform scroll
-      vim.cmd("normal! j")
-    end
-
-    local function on_k()
-      self.scroll = false
-      ---perform scroll
-      vim.cmd("normal! k")
-    end
-
-    local function on_G()
-      self.scroll = true
-      ---perform scroll
-      vim.cmd("normal! G")
-    end
-
-    vim.keymap.set("n", "j", on_j, { buffer = self.containers.result.bufnr })
-    vim.keymap.set("n", "k", on_k, { buffer = self.containers.result.bufnr })
-    vim.keymap.set("n", "G", on_G, { buffer = self.containers.result.bufnr })
-
-    ---@type AvanteLLMStartCallback
-    local function on_start(_) end
-
-    ---@param messages avante.HistoryMessage[]
-    local function on_messages_add(messages) self:add_history_messages(messages) end
-
-    ---@param state avante.GenerateState
-    local function on_state_change(state)
-      self:clear_state()
-      self.current_state = state
-
-      -- Synchronize is_generating flag with state changes to prevent conflicts
-      if state == "generating" or state == "tool calling" then
-        self.is_generating = true
-      elseif state == "succeeded" or state == "failed" then
-        self.is_generating = false
-      end
-
-      self:render_state()
-    end
-
-    ---@param tool_id string
-    ---@param tool_name string
-    ---@param log string
-    ---@param state AvanteLLMToolUseState
-    local function on_tool_log(tool_id, tool_name, log, state)
-      if state == "generating" then on_state_change("tool calling") end
-      local tool_use_message = History.Helpers.get_tool_use_message(tool_id, self.chat_history.messages)
-      if not tool_use_message then
-        -- Utils.debug("tool_use message not found", tool_id, tool_name)
-        return
-      end
-
-      local tool_use_logs = tool_use_message.tool_use_logs or {}
-      local content = string.format("[%s]: %s", tool_name, log)
-      table.insert(tool_use_logs, content)
-      tool_use_message.tool_use_logs = tool_use_logs
-
-      local orig_is_calling = tool_use_message.is_calling
-      tool_use_message.is_calling = true
-      self:update_content("")
-      tool_use_message.is_calling = orig_is_calling
-      self:save_history()
-    end
-
-    local function set_tool_use_store(tool_id, key, value)
-      local tool_use_message = History.Helpers.get_tool_use_message(tool_id, self.chat_history.messages)
-      if tool_use_message then
-        local tool_use_store = tool_use_message.tool_use_store or {}
-        tool_use_store[key] = value
-        tool_use_message.tool_use_store = tool_use_store
-        self:save_history()
-      end
-    end
-
-    ---@type AvanteLLMStopCallback
-    local function on_stop(stop_opts)
-      self.is_generating = false
-
-      pcall(function()
-        ---remove keymaps
-        vim.keymap.del("n", "j", { buffer = self.containers.result.bufnr })
-        vim.keymap.del("n", "k", { buffer = self.containers.result.bufnr })
-        vim.keymap.del("n", "G", { buffer = self.containers.result.bufnr })
-      end)
-
-      if stop_opts.error ~= nil and stop_opts.error ~= vim.NIL then
-        local msg_content = stop_opts.error
-        if type(msg_content) ~= "string" then msg_content = vim.inspect(msg_content) end
-        self:add_history_messages({
-          History.Message:new("assistant", "\n\nError: " .. msg_content, {
-            just_for_display = true,
-          }),
-        })
-        on_state_change("failed")
-        return
-      end
-
-      on_state_change("succeeded")
-
-      self:update_content("", {
-        callback = function() api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN }) end,
-      })
-
-      vim.defer_fn(function()
-        if
-          Utils.is_valid_container(self.containers.result, true) and Config.behaviour.jump_result_buffer_on_finish
-        then
-          api.nvim_set_current_win(self.containers.result.winid)
-        end
-        if Config.behaviour.auto_apply_diff_after_generation then self:apply(false) end
-      end, 0)
-
-      Path.history.save(self.code.bufnr, self.chat_history)
-    end
-
-    if request and request ~= "" then
-      self:add_history_messages({
-        History.Message:new("user", request, {
-          is_user_submission = true,
-          selected_filepaths = selected_filepaths,
-          selected_code = selected_code,
-        }),
-      })
-    end
-
-    self:get_generate_prompts_options(request, function(generate_prompts_options)
-      ---@type AvanteLLMStreamOptions
-      ---@diagnostic disable-next-line: assign-type-mismatch
-      local stream_options = vim.tbl_deep_extend("force", generate_prompts_options, {
-        on_start = on_start,
-        on_stop = on_stop,
-        on_tool_log = on_tool_log,
-        on_messages_add = on_messages_add,
-        on_state_change = on_state_change,
-        acp_client = self.acp_client,
-        on_save_acp_client = function(client) self.acp_client = client end,
-        acp_session_id = self.chat_history.acp_session_id,
-        on_save_acp_session_id = function(session_id)
-          vim.schedule(function()
-            self.chat_history.acp_session_id = session_id
-            Path.history.save(self.code.bufnr, self.chat_history)
-          end)
-        end,
-        set_tool_use_store = set_tool_use_store,
-        get_history_messages = function(opts) return self:get_history_messages_for_api(opts) end,
-        get_todos = function()
-          local history = Path.history.load(self.code.bufnr)
-          return history and history.todos or {}
-        end,
-        update_todos = function(todos) self:update_todos(todos) end,
-        session_ctx = {},
-        ---@param usage avante.LLMTokenUsage
-        update_tokens_usage = function(usage)
-          if not usage then return end
-          if usage.completion_tokens == nil then return end
-          if usage.prompt_tokens == nil then return end
-          self.chat_history.tokens_usage = usage
-          self:save_history()
-        end,
-        get_tokens_usage = function() return self.chat_history.tokens_usage end,
-      })
-
-      ---@param pending_compaction_history_messages avante.HistoryMessage[]
-      local function on_memory_summarize(pending_compaction_history_messages)
-        local history_memory = self.chat_history.memory
-        Llm.summarize_memory(
-          history_memory and history_memory.content,
-          pending_compaction_history_messages,
-          function(memory)
-            if memory then
-              self.chat_history.memory = memory
-              Path.history.save(self.code.bufnr, self.chat_history)
-              stream_options.memory = memory.content
-            end
-            stream_options.history_messages = self:get_history_messages_for_api()
-            Llm.stream(stream_options)
-          end
-        )
-      end
-
-      stream_options.on_memory_summarize = on_memory_summarize
-
-      on_state_change("generating")
-      Llm.stream(stream_options)
-    end)
-  end
 
   local function get_position()
     if self:get_layout() == "vertical" then return "bottom" end
@@ -2926,10 +2917,8 @@ function Sidebar:create_input_container()
     if request == "" then return end
     api.nvim_buf_set_lines(self.containers.input.bufnr, 0, -1, false, {})
     api.nvim_win_set_cursor(self.containers.input.winid, { 1, 0 })
-    handle_submit(request)
+    self:handle_submit(request)
   end
-
-  self.handle_submit = handle_submit
 
   self.containers.input:mount()
   PromptLogger.init()
@@ -2938,7 +2927,6 @@ function Sidebar:create_input_container()
     local group = "avante_input_prompt_group"
 
     fn.sign_unplace(group, { buffer = bufnr })
-
     fn.sign_place(0, group, "AvanteInputPromptSign", bufnr, { lnum = 1 })
   end
 
@@ -3063,14 +3051,6 @@ function Sidebar:create_input_container()
       end
     end,
   })
-
-  api.nvim_create_autocmd("User", {
-    group = self.augroup,
-    pattern = "AvanteInputSubmitted",
-    callback = function(ev)
-      if ev.data and ev.data.request then handle_submit(ev.data.request) end
-    end,
-  })
 end
 
 -- FIXME: this is used by external plugin users
@@ -3101,7 +3081,7 @@ end
 
 function Sidebar:get_todos_container_height()
   local history = Path.history.load(self.code.bufnr)
-  if not history or not history.todos or #history.todos == 0 then return 0 end
+  if #history.todos == 0 then return 0 end
   return 3
 end
 
@@ -3140,6 +3120,26 @@ end
 
 ---@param opts AskOptions
 function Sidebar:render(opts)
+  self.augroup = api.nvim_create_augroup("avante_sidebar_" .. self.id, { clear = true })
+
+  -- This autocommand needs to be registered first, before NuiSplit
+  -- registers their own handlers for WinClosed events that will set
+  -- container.winid to nil, which will cause Sidebar:get_sidebar_window()
+  -- to fail.
+  api.nvim_create_autocmd("WinClosed", {
+    group = self.augroup,
+    callback = function(args)
+      local closed_winid = tonumber(args.match)
+      if closed_winid then
+        local container = self:get_sidebar_window(closed_winid)
+        -- Ignore closing selected files and todos windows because they can disappear during normal operation
+        if container and container ~= self.containers.selected_files and container ~= self.containers.todos then
+          self:close()
+        end
+      end
+    end,
+  })
+
   if opts.sidebar_pre_render then opts.sidebar_pre_render(self) end
 
   local function get_position()
@@ -3168,9 +3168,6 @@ function Sidebar:render(opts)
   })
 
   self.containers.result:mount()
-
-  self.augroup =
-    api.nvim_create_augroup("avante_sidebar_" .. self.id .. self.containers.result.winid, { clear = true })
 
   self.containers.result:on(event.BufWinEnter, function()
     xpcall(function() api.nvim_buf_set_name(self.containers.result.bufnr, RESULT_BUF_NAME) end, function(_) end)
@@ -3214,6 +3211,14 @@ function Sidebar:render(opts)
   else
     self:update_content_with_history()
   end
+
+  api.nvim_create_autocmd("User", {
+    group = self.augroup,
+    pattern = "AvanteInputSubmitted",
+    callback = function(ev)
+      if ev.data and ev.data.request then self:handle_submit(ev.data.request) end
+    end,
+  })
 
   return self
 end
@@ -3377,7 +3382,7 @@ end
 
 function Sidebar:create_todos_container()
   local history = Path.history.load(self.code.bufnr)
-  if not history or not history.todos or #history.todos == 0 then
+  if #history.todos == 0 then
     if self.containers.todos and Utils.is_valid_container(self.containers.todos) then
       self.containers.todos:unmount()
     end
@@ -3426,10 +3431,6 @@ function Sidebar:create_todos_container()
   local total_count = #history.todos
   local focused_idx = 1
   local todos_content_lines = {}
-  if type(history.todos) ~= "table" then
-    Utils.debug("Invalid todos type", history.todos)
-    history.todos = {}
-  end
   for idx, todo in ipairs(history.todos) do
     local status_content = "[ ]"
     if todo.status == "done" then

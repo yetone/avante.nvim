@@ -1188,6 +1188,9 @@ function M._stream_acp(opts)
       Avante.register_acp_client(client_id, acp_client)
     end
     
+    -- If we create a new client and it does not support sesion loading,
+    -- remove the old session
+    if not acp_client.agent_capabilities.loadSession then opts.acp_session_id = nil end
     if opts.on_save_acp_client then opts.on_save_acp_client(acp_client) end
   end
   local session_id = opts.acp_session_id

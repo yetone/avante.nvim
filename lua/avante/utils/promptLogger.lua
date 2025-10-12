@@ -1,13 +1,24 @@
 local Config = require("avante.config")
 local Utils = require("avante.utils")
 
+local AVANTE_PROMPT_INPUT_HL = "AvantePromptInputHL"
+
 -- last one in entries is always to hold current input
 local entries, idx = {}, 0
+local filtered_entries = {}
 
 ---@class avante.utils.promptLogger
 local M = {}
 
 function M.init()
+  vim.api.nvim_set_hl(0, AVANTE_PROMPT_INPUT_HL, {
+    fg = "#ff7700",
+    bg = "#333333",
+    bold = true,
+    italic = true,
+    underline = true,
+  })
+
   entries = {}
   local dir = Config.prompt_logger.log_dir
   local log_file = Utils.join_paths(dir, "avante_prompts.log")
@@ -24,6 +35,7 @@ function M.init()
   end
   table.insert(entries, { input = "" })
   idx = #entries - 1
+  filtered_entries = entries
 end
 
 function M.log_prompt(request)
@@ -46,6 +58,7 @@ function M.log_prompt(request)
   if #entries > 0 then
     table.insert(entries, #entries, entry)
     idx = #entries - 1
+    filtered_entries = entries
   else
     table.insert(entries, entry)
   end
@@ -77,15 +90,33 @@ end
 
 local function _read_log(delta)
   -- index of array starts from 1 in lua, while this idx starts from 0
-  idx = ((idx - delta) % #entries + #entries) % #entries
+  idx = ((idx - delta) % #filtered_entries + #filtered_entries) % #filtered_entries
 
-  return entries[idx + 1]
+  return filtered_entries[idx + 1]
 end
 
 local function update_current_input()
-  if idx == #entries - 1 then
-    local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
-    entries[#entries].input = table.concat(lines, "\n")
+  local user_input = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+  if idx == #filtered_entries - 1 or filtered_entries[idx + 1].input ~= user_input then
+    entries[#entries].input = user_input
+
+    vim.fn.clearmatches()
+    -- Apply filtering if there's user input
+    if user_input and user_input ~= "" then
+      filtered_entries = {}
+      for i = 1, #entries - 1 do
+        if entries[i].input:lower():find(user_input:lower(), 1, true) then
+          table.insert(filtered_entries, entries[i])
+        end
+      end
+      -- Add the current input as the last entry
+      table.insert(filtered_entries, entries[#entries])
+
+      vim.fn.matchadd(AVANTE_PROMPT_INPUT_HL, user_input)
+    else
+      filtered_entries = entries
+    end
+    idx = #filtered_entries - 1
   end
 end
 
