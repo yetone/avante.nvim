@@ -17,21 +17,30 @@ M.role_map = {
   assistant = "assistant",
 }
 
-function M.is_env_set()
-  local provider_conf = Providers.parse_config(M)
-  if not provider_conf.endpoint then provider_conf.endpoint = "http://localhost:11434" end
+function M:request_ollama_models(options)
+  local provider_conf = Providers.parse_config(self)
+  if not provider_conf.endpoint then
+    provider_conf.endpoint = "http://localhost:11434"
+  end
 
   local curl = require("plenary.curl")
   local base_headers = {
     ["Content-Type"] = "application/json",
     ["Accept"] = "application/json",
   }
-  local headers = Utils.tbl_override(base_headers, M.extra_headers)
-  local response = curl.get(provider_conf.endpoint .. "/api/tags", {
+  local headers = Utils.tbl_override(base_headers, self.extra_headers)
+
+  local url = Utils.url_join(provider_conf.endpoint, "/api/tags")
+  local request_options = Utils.tbl_override({
     headers = headers,
-    timeout = 2000,
-  })
-  return response and (response.status and response.status == 200) or false
+  }, options or {})
+
+  return curl.get(url, request_options)
+end
+
+function M.is_env_set()
+  local response = M:request_ollama_models({ timeout = 200 })
+  return response and response.status == 200 or false
 end
 
 function M:parse_messages(opts)
@@ -252,20 +261,8 @@ function M:list_models()
   -- Return cached models if available
   if self._model_list_cache then return self._model_list_cache end
 
-  -- Parse provider config and construct tags endpoint URL
-  local provider_conf = Providers.parse_config(self)
-  if not provider_conf.endpoint then error("Ollama requires endpoint configuration") end
-
-  local curl = require("plenary.curl")
-  local tags_url = Utils.url_join(provider_conf.endpoint, "/api/tags")
-  local base_headers = {
-    ["Content-Type"] = "application/json",
-    ["Accept"] = "application/json",
-  }
-  local headers = Utils.tbl_override(base_headers, self.extra_headers)
-
   -- Request the model tags from Ollama
-  local response = curl.get(tags_url, { headers = headers })
+  local response = self:request_ollama_models()
   if response.status ~= 200 then
     Utils.error("Failed to fetch Ollama models: " .. (response.body or response.status))
     return {}
