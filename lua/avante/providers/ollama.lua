@@ -36,7 +36,7 @@ function M:request_ollama_models(options)
 end
 
 function M.is_env_set()
-  local response = M:request_ollama_models({ timeout = 200 })
+  local response = M:request_ollama_models({ timeout = 1000 })
   return response and response.status == 200 or false
 end
 
