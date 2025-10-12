@@ -8,7 +8,13 @@ local Prompts = require("avante.utils.prompts")
 ---@class AvanteProviderFunctor
 local M = {}
 
-setmetatable(M, { __index = Providers.openai })
+setmetatable(M, {
+  __index = function(_, k)
+    -- Filter out OpenAI's default models because everyone uses their own ones with Ollama
+    if k == "model" or k == "model_names" then return nil end
+    return Providers.openai[k]
+  end,
+})
 
 M.api_key_name = "" -- Ollama typically doesn't require API keys for local use
 
