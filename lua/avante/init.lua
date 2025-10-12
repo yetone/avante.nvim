@@ -330,9 +330,7 @@ function H.autocmds()
       Utils.debug("VimLeavePre: Starting ACP cleanup...")
       -- Cancel any inflight requests first
       local ok, Llm = pcall(require, "avante.llm")
-      if ok then
-        pcall(function() Llm.cancel_inflight_request() end)
-      end
+      if ok then pcall(function() Llm.cancel_inflight_request() end) end
       -- Cleanup all registered ACP clients
       M.cleanup_all_acp_clients()
       Utils.debug("VimLeavePre: ACP cleanup completed")
