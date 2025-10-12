@@ -22,18 +22,17 @@ function M:request_ollama_models(options)
   if not provider_conf.endpoint then provider_conf.endpoint = "http://localhost:11434" end
 
   local curl = require("plenary.curl")
+  local tags_url = Utils.url_join(provider_conf.endpoint, "/api/tags")
   local base_headers = {
     ["Content-Type"] = "application/json",
     ["Accept"] = "application/json",
   }
   local headers = Utils.tbl_override(base_headers, self.extra_headers)
-
-  local url = Utils.url_join(provider_conf.endpoint, "/api/tags")
   local request_options = Utils.tbl_override({
     headers = headers,
   }, options or {})
 
-  return curl.get(url, request_options)
+  return curl.get(tags_url, request_options)
 end
 
 function M.is_env_set()
