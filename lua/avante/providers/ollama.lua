@@ -19,9 +19,7 @@ M.role_map = {
 
 function M:request_ollama_models(options)
   local provider_conf = Providers.parse_config(self)
-  if not provider_conf.endpoint then
-    provider_conf.endpoint = "http://localhost:11434"
-  end
+  if not provider_conf.endpoint then provider_conf.endpoint = "http://localhost:11434" end
 
   local curl = require("plenary.curl")
   local base_headers = {
