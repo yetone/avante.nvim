@@ -1,58 +1,107 @@
 [
   {
-    "title": "Neovim Lua Plugin Development Guide",
-    "content": "Reference for Neovim plugin development patterns, vim.notify usage, and Lua module structure. Used for implementing proper error handling, logging, and plugin initialization patterns consistent with Neovim ecosystem standards.",
+    "title": "Avante Plugin Test Implementation Knowledge",
+    "content": "Comprehensive knowledge base reference for test framework implementation patterns, error handling module design, performance benchmarking infrastructure, and graceful degradation strategies. Primary reference for implementing the complete test infrastructure following established Avante.nvim patterns.",
     "path": "lua/avante/errors.lua",
-    "line_range": [20, 35],
+    "line_range": [1, 154],
+    "knowledge_uuid": "7978fc18-115e-405a-8ec2-f0d041737cc0"
+  },
+  {
+    "title": "Avante Plugin Test Implementation Knowledge - Test Framework",
+    "content": "Knowledge base reference for test suite structure, including basic functionality tests, error handling tests, integration tests, performance tests, and configuration tests. Used as blueprint for implementing all 5 test scenarios with proper before/after hooks and assertion patterns.",
+    "path": "tests/basic_functionality_spec.lua",
+    "line_range": [1, 139],
+    "knowledge_uuid": "7978fc18-115e-405a-8ec2-f0d041737cc0"
+  },
+  {
+    "title": "Avante Plugin Test Implementation Knowledge - Performance",
+    "content": "Knowledge base reference for performance benchmarking patterns including startup time measurement, memory profiling, tokenization benchmarks, and fallback indicators (999.0s, 999999KB). Applied to ensure comprehensive performance monitoring meets technical design requirements.",
+    "path": "tests/performance/benchmark.lua",
+    "line_range": [1, 275],
+    "knowledge_uuid": "7978fc18-115e-405a-8ec2-f0d041737cc0"
+  },
+  {
+    "title": "Avante Plugin Test Implementation Knowledge - Configuration",
+    "content": "Knowledge base reference for configuration management with inheritance patterns, environment variable overrides, deep merging, and validation. Used to implement test framework configuration following established Avante.nvim provider configuration patterns.",
+    "path": "lua/avante/test/config.lua",
+    "line_range": [1, 129],
+    "knowledge_uuid": "7978fc18-115e-405a-8ec2-f0d041737cc0"
+  },
+  {
+    "title": "Neovim Lua Plugin Development Guide",
+    "content": "Official Neovim documentation for Lua plugin development patterns, vim.notify usage, and Lua module structure. Used for implementing proper error handling, logging, and plugin initialization patterns consistent with Neovim ecosystem standards.",
+    "path": "lua/avante/errors.lua",
+    "line_range": [20, 43],
     "url": "https://neovim.io/doc/user/lua-guide.html"
   },
   {
-    "title": "Vim.uv (libuv) High Resolution Timer Documentation",
-    "content": "Documentation for vim.uv.hrtime() function used for high-precision performance measurements. Essential for accurate benchmarking of startup times and operation durations to meet the <100ms and <10ms performance targets.",
+    "title": "Vim.uv (libuv) High Resolution Timer",
+    "content": "Documentation for vim.uv.hrtime() function (or vim.loop.hrtime() in older versions) used for high-precision performance measurements. Essential for accurate benchmarking of startup times and operation durations to meet the <100ms and <10ms performance targets from technical design.",
     "path": "tests/performance/benchmark.lua",
-    "line_range": [45, 55],
-    "url": "https://neovim.io/doc/user/lua.html#vim.uv.hrtime()"
+    "line_range": [45, 75],
+    "url": "https://neovim.io/doc/user/lua.html#vim.uv"
   },
   {
-    "title": "Lua Collectgarbage Documentation",
-    "content": "Reference for Lua garbage collection control and memory measurement functions. Used for accurate memory profiling and ensuring clean benchmarking conditions between test runs.",
+    "title": "Lua Collectgarbage Function",
+    "content": "Reference for Lua garbage collection control and memory measurement functions (collectgarbage('count'), collectgarbage('collect')). Used for accurate memory profiling and ensuring clean benchmarking conditions between test runs to meet <50MB memory target.",
     "path": "tests/performance/benchmark.lua",
-    "line_range": [85, 95],
+    "line_range": [110, 145],
     "url": "https://www.lua.org/manual/5.1/manual.html#pdf-collectgarbage"
   },
   {
-    "title": "mlua FFI Integration Patterns",
-    "content": "Documentation for mlua crate patterns used in Rust-Lua FFI integration. Referenced for understanding how the existing tokenizer module works and ensuring proper error handling for FFI calls.",
+    "title": "mlua Rust-Lua FFI Crate",
+    "content": "Documentation for mlua crate patterns used in Rust-Lua FFI integration. Referenced for understanding how the existing tokenizer module works, ensuring proper error handling for FFI calls, and implementing graceful degradation when Rust components unavailable.",
     "path": "tests/integration_spec.lua",
-    "line_range": [25, 65],
+    "line_range": [25, 85],
     "url": "https://docs.rs/mlua/latest/mlua/"
   },
   {
-    "title": "Busted Testing Framework",
-    "content": "Documentation for Busted testing framework used for Lua testing. Referenced for test structure, assertions, and pending/skipping test patterns used throughout the test suites.",
-    "path": "tests/basic_functionality_spec.lua",
-    "line_range": [1, 20],
-    "url": "https://olivinelabs.com/busted/"
+    "title": "Neovim vim.tbl_deep_extend Function",
+    "content": "Documentation for vim.tbl_deep_extend used for deep merging configuration tables. Critical for implementing configuration inheritance patterns where user config overrides defaults while preserving nested structure. Used extensively in test framework configuration.",
+    "path": "lua/avante/test/config.lua",
+    "line_range": [55, 72],
+    "url": "https://neovim.io/doc/user/lua.html#vim.tbl_deep_extend()"
   },
   {
-    "title": "Test-Driven Development Best Practices",
-    "content": "General TDD methodology reference for implementing red-green-refactor cycles. Applied throughout the test implementation to ensure comprehensive coverage and proper test structure for all simulation scenarios.",
-    "path": "tests/error_handling_spec.lua",
-    "line_range": [1, 10],
-    "url": "https://martinfowler.com/bliki/TestDrivenDevelopment.html"
-  },
-  {
-    "title": "Vim.inspect Utility Documentation",
-    "content": "Reference for vim.inspect function used for debugging and error logging. Used in error handling module for proper serialization of context data in error messages.",
+    "title": "Vim.notify Notification System",
+    "content": "Reference for vim.notify function used for user-facing notifications with log levels (ERROR, WARN, INFO, DEBUG). Used throughout error handling module for consistent user feedback and error reporting following Neovim best practices.",
     "path": "lua/avante/errors.lua",
-    "line_range": [26, 30],
+    "line_range": [34, 40],
+    "url": "https://neovim.io/doc/user/lua.html#vim.notify()"
+  },
+  {
+    "title": "Lua pcall Protected Call",
+    "content": "Documentation for pcall (protected call) function used for error handling without crashing. Essential pattern used in safe_execute, safe_require, and test execution to catch errors gracefully and continue operation. Core to graceful degradation strategy.",
+    "path": "lua/avante/errors.lua",
+    "line_range": [109, 152],
+    "url": "https://www.lua.org/manual/5.1/manual.html#pdf-pcall"
+  },
+  {
+    "title": "Vim.inspect Serialization",
+    "content": "Reference for vim.inspect function used for debugging and error logging. Serializes Lua tables and complex data structures into readable strings for error messages and debug logs. Used in error context logging and assertion failure messages.",
+    "path": "lua/avante/errors.lua",
+    "line_range": [26, 32],
     "url": "https://neovim.io/doc/user/lua.html#vim.inspect()"
   },
   {
-    "title": "Neovim Plugin Performance Optimization",
-    "content": "Best practices for Neovim plugin performance optimization, including startup time minimization and memory usage optimization. Applied to ensure the plugin meets the <100ms startup and <50MB memory targets.",
-    "path": "tests/performance/benchmark.lua",
-    "line_range": [110, 130],
-    "url": "https://github.com/neovim/neovim/blob/master/runtime/doc/lua.txt"
+    "title": "Technical Design Document - Test Framework Architecture",
+    "content": "Primary technical specification for test framework implementation including test runner module (Section 3.1), assertion engine (Section 3.3), reporter system (Section 3.4), configuration system (Section 3.5), error handling (Section 3.6), and performance monitoring (Section 3.7). Defines all requirements, data models, and API specifications.",
+    "path": "lua/avante/test/runner.lua",
+    "line_range": [1, 133],
+    "url": "file://.something/tech_design.md"
+  },
+  {
+    "title": "PRD - Functional and Non-Functional Requirements",
+    "content": "Product requirements document defining REQ-1 (basic test functionality), REQ-2 (verifiable implementation), REQ-3 (clear success/failure indicators), NFR-1 (follow coding standards), NFR-2 (maintainability), and NFR-3 (error handling). All implementation decisions traced back to these requirements.",
+    "path": "tests/basic_functionality_spec.lua",
+    "line_range": [1, 139],
+    "url": "file://.something/prd.md"
+  },
+  {
+    "title": "SCENARIOS_TO_BUILD.json - Simulation-Driven Requirements",
+    "content": "Authoritative list of 5 scenarios defining behaviors to implement: (1) Basic Plugin Functionality, (2) Rust Components Integration, (3) Error Handling and Edge Cases, (4) Performance and Resource Usage, (5) Configuration and Extensibility. Each test file maps directly to these scenarios.",
+    "path": "tests/configuration_spec.lua",
+    "line_range": [1, 278],
+    "url": "file://SCENARIOS_TO_BUILD.json"
   }
 ]
