@@ -1,5 +1,5 @@
 {
-  "project_name": "Test - Avante Plugin Validation",
+  "project_name": "avante.nvim - TDD Red Phase Validation",
   "scenarios": [
     {
       "id": 1,
@@ -376,10 +376,13 @@
     "complexity": "medium",
     "estimated_time": "120 minutes",
     "test_results_summary": {
-      "total_test_files": 5,
-      "passed_files": 0,
-      "failed_files": 5,
+      "total_test_files": 17,
+      "passed_files": 3,
+      "failed_files": 13,
       "tdd_phase": "red",
+      "success_rate": "18.8%",
+      "rust_tests_passed": 3,
+      "lua_tests_failed": 9,
       "all_scenarios_status": "fail"
     }
   },
@@ -388,6 +391,31 @@
     "configuration_spec.lua": [5],
     "error_handling_spec.lua": [3],
     "integration_spec.lua": [2],
-    "performance_spec.lua": [4]
+    "performance_spec.lua": [4],
+    "rust_integration_spec.lua": [2],
+    "crates/avante-tokenizers/tests/integration_tests.rs": [1, 2],
+    "crates/avante-templates/tests/template_tests.rs": [2],
+    "crates/avante-repo-map/tests/repo_map_tests.rs": [2],
+    "crates/avante-html2md/tests/html2md_tests.rs": [2]
+  },
+  "tdd_validation": {
+    "red_phase_complete": true,
+    "expected_failures": 13,
+    "actual_failures": 13,
+    "missing_modules": [
+      "avante",
+      "avante.config",
+      "avante.errors",
+      "avante.tokenizers",
+      "avante.templates",
+      "avante.repo_map",
+      "avante.html2md",
+      "avante.llm",
+      "avante.llm_tools",
+      "avante.utils",
+      "avante.rag_service",
+      "avante.path"
+    ],
+    "next_phase": "green - implement the missing modules to make tests pass"
   }
 }
