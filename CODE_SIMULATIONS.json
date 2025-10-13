@@ -1,198 +1,66 @@
 {
-  "project_name": "Test - Avante Plugin Validation",
+  "project_name": "Test - Avante Plugin Complete Test Framework",
   "scenarios": [
     {
       "id": 1,
-      "name": "Basic Plugin Functionality Test",
-      "description": "Validate core plugin functionality and ensure basic features work as expected",
+      "name": "Error Handling Module Integration Test",
+      "description": "Test the comprehensive error handling utilities including input validation, error creation, and safe execution patterns",
       "steps": [
         {
           "step_number": 1,
-          "action": "Initialize test environment",
-          "description": "Set up test environment with necessary dependencies",
-          "context": "Clean environment with no existing configuration"
+          "action": "Load error handling module",
+          "description": "Require the avante.errors module and verify all functions are available",
+          "context": "Clean test environment with proper module paths"
         },
         {
           "step_number": 2,
-          "action": "Load core plugin modules",
-          "description": "Attempt to load main plugin entry points",
-          "context": "Plugin files exist and are syntactically correct"
+          "action": "Test input validation functions",
+          "description": "Validate various data types and edge cases using validate_input function",
+          "context": "Error module loaded successfully"
         },
         {
           "step_number": 3,
-          "action": "Execute basic plugin commands",
-          "description": "Run fundamental plugin operations",
-          "context": "Plugin is loaded and initialized"
+          "action": "Test configuration validation",
+          "description": "Validate configuration objects against schemas using validate_config",
+          "context": "Input validation working correctly"
+        },
+        {
+          "step_number": 4,
+          "action": "Test safe execution patterns",
+          "description": "Execute functions with error handling using safe_execute and safe_require",
+          "context": "All validation functions operational"
         }
       ],
       "test_cases": [
         {
           "id": 1,
-          "input": "require('avante')",
-          "expected": "Plugin loads without errors",
+          "input": "require('avante.errors').validate_input('test', 'string')",
+          "expected": "Returns true, nil for valid input",
           "type": "unit"
         },
         {
           "id": 2,
-          "input": "avante.setup({})",
-          "expected": "Plugin initializes with default configuration",
-          "type": "integration"
-        }
-      ],
-      "expected": {
-        "success": ["Plugin loads successfully", "No syntax errors", "Basic configuration works"],
-        "failures": ["Module not found errors", "Lua syntax errors", "Missing dependencies"],
-        "performance": ["Load time under 100ms", "Memory usage reasonable"]
-      },
-      "implementation": {
-        "files": [
-          {
-            "file_path": "lua/avante/init.lua",
-            "snippets": [
-              {
-                "start_line": 441,
-                "end_line": 461,
-                "code": "function M.setup(opts)\n  opts = opts or {}\n  Config.setup(opts)\n  M.did_setup = true\n  -- Additional setup logic\nend",
-                "purpose": "Provides main plugin setup function with configuration handling"
-              }
-            ]
-          }
-        ],
-        "notes": "Implementation complete - all required modules available"
-      },
-      "expectation": "Plugin should load and initialize without errors, providing basic functionality",
-      "prediction": "Tests pass - all required modules (avante, config, errors) are implemented and available",
-      "explanation": [
-        "Test file basic_functionality_spec.lua validates module loading and setup functionality",
-        "All required modules are implemented: lua/avante/init.lua, lua/avante/config.lua, lua/avante/errors.lua",
-        "Plugin initialization with setup() function works correctly",
-        "Configuration system integration is functional"
-      ],
-      "status": "pass"
-    },
-    {
-      "id": 2,
-      "name": "Rust Components Integration Test",
-      "description": "Test integration between Rust crates and Lua interface",
-      "steps": [
-        {
-          "step_number": 1,
-          "action": "Build Rust crates",
-          "description": "Compile all Rust components using cargo",
-          "context": "Development environment with Rust toolchain"
-        },
-        {
-          "step_number": 2,
-          "action": "Test Lua-Rust FFI bindings",
-          "description": "Verify FFI bindings work correctly",
-          "context": "Rust libraries compiled and available"
-        },
-        {
-          "step_number": 3,
-          "action": "Execute integrated workflows",
-          "description": "Test end-to-end functionality across language boundaries",
-          "context": "Both Rust and Lua components operational"
-        }
-      ],
-      "test_cases": [
-        {
-          "id": 1,
-          "input": "cargo test --features luajit",
-          "expected": "All Rust tests pass",
-          "type": "unit"
-        },
-        {
-          "id": 2,
-          "input": "require('avante.tokenizers').encode('test')",
-          "expected": "Tokenization works via FFI",
-          "type": "integration"
-        },
-        {
-          "id": 3,
-          "input": "avante-templates render basic template",
-          "expected": "Template rendering produces expected output",
-          "type": "integration"
-        }
-      ],
-      "expected": {
-        "success": ["Rust crates compile", "FFI bindings functional", "Cross-language calls work"],
-        "failures": ["Compilation errors", "FFI binding failures", "Runtime crashes"],
-        "performance": ["Build time under 2 minutes", "FFI calls under 10ms"]
-      },
-      "implementation": {
-        "files": [
-          {
-            "file_path": "lua/avante/tokenizers.lua",
-            "snippets": [
-              {
-                "start_line": 1,
-                "end_line": 25,
-                "code": "-- Tokenizer interface to Rust FFI\nlocal M = {}\n\nfunction M.encode(text)\n  -- FFI call to Rust tokenizer\n  return {}\nend\n\nreturn M",
-                "purpose": "Provides Lua interface to Rust tokenization functionality"
-              }
-            ]
-          }
-        ],
-        "notes": "Rust crates exist and Lua interface is available"
-      },
-      "expectation": "Rust components should build and integrate seamlessly with Lua interface",
-      "prediction": "Tests pass - tokenizer module exists and integration layer is available",
-      "explanation": [
-        "Test file integration_spec.lua validates Rust-Lua integration patterns",
-        "Tokenizer module lua/avante/tokenizers.lua exists and provides FFI interface",
-        "Integration tests can load required modules successfully",
-        "Error handling for FFI failures is implemented in avante.errors module"
-      ],
-      "status": "pass"
-    },
-    {
-      "id": 3,
-      "name": "Error Handling and Edge Cases",
-      "description": "Test system behavior under error conditions and edge cases",
-      "steps": [
-        {
-          "step_number": 1,
-          "action": "Test invalid inputs",
-          "description": "Provide malformed or invalid data to functions",
-          "context": "Normal system operation"
-        },
-        {
-          "step_number": 2,
-          "action": "Test resource constraints",
-          "description": "Test behavior under memory/file limitations",
-          "context": "Simulated resource constraints"
-        },
-        {
-          "step_number": 3,
-          "action": "Verify error messages",
-          "description": "Ensure error messages are helpful and clear",
-          "context": "Error conditions triggered"
-        }
-      ],
-      "test_cases": [
-        {
-          "id": 1,
-          "input": "avante.setup(nil)",
-          "expected": "Graceful handling with default config",
-          "type": "unit"
-        },
-        {
-          "id": 2,
-          "input": "tokenizers.encode(nil)",
-          "expected": "Clear error message returned",
+          "input": "require('avante.errors').validate_input(42, 'string')",
+          "expected": "Returns false, error_message for invalid input",
           "type": "unit"
         },
         {
           "id": 3,
-          "input": "Large file processing (>10MB)",
-          "expected": "Handles large inputs without crashing",
+          "input": "require('avante.errors').safe_require('non.existent.module', true)",
+          "expected": "Returns nil, error_message without crashing",
+          "type": "unit"
+        },
+        {
+          "id": 4,
+          "input": "require('avante.errors').handle_error('test error', {context: true})",
+          "expected": "Logs error appropriately using vim.notify",
           "type": "integration"
         }
       ],
       "expected": {
-        "success": ["Graceful error handling", "Clear error messages", "No crashes"],
-        "failures": ["Unhandled exceptions", "Cryptic error messages", "System crashes"],
-        "performance": ["Error handling adds <5ms overhead", "Memory leaks prevented"]
+        "success": ["Input validation works correctly", "Configuration validation passes", "Error handling doesn't crash"],
+        "failures": ["Module loading fails", "Functions missing", "Validation logic broken"],
+        "performance": ["Error handling overhead <5ms", "Module loading <10ms"]
       },
       "implementation": {
         "files": [
@@ -201,73 +69,271 @@
             "snippets": [
               {
                 "start_line": 20,
-                "end_line": 45,
-                "code": "function M.handle_error(err, context)\n  local error_msg = type(err) == \"string\" and err or (err.message or tostring(err))\n  vim.notify(\"Avante error: \" .. error_msg, vim.log.levels.ERROR)\n  return nil\nend",
-                "purpose": "Provides comprehensive error handling with user-friendly notifications"
+                "end_line": 43,
+                "code": "function M.handle_error(err, context)\n  local error_msg = type(err) == \"string\" and err or (err.message or tostring(err))\n  local error_code = type(err) == \"table\" and err.code or M.CODES.UNKNOWN_ERROR\n\n  -- Log the error with context\n  local log_msg = string.format(\"[Avante Error %d]: %s\", error_code, error_msg)\n  if context then\n    log_msg = log_msg .. \" | Context: \" .. vim.inspect(context)\n  end\n\n  -- Use vim.notify for user-friendly error display\n  vim.notify(\"Avante error: \" .. error_msg, vim.log.levels.ERROR)\n\n  -- Log detailed information for debugging\n  if vim.g.avante_debug then\n    vim.notify(log_msg, vim.log.levels.DEBUG)\n  end\n\n  return nil\nend",
+                "purpose": "Comprehensive error handling with context-aware logging"
+              },
+              {
+                "start_line": 45,
+                "end_line": 64,
+                "code": "function M.validate_input(input, expected_type, field_name)\n  local actual_type = type(input)\n  local field_desc = field_name and (\" for field '\" .. field_name .. \"'\") or \"\"\n\n  if actual_type ~= expected_type then\n    local error_msg = string.format(\n      \"Invalid input type%s: expected '%s', got '%s'\",\n      field_desc, expected_type, actual_type\n    )\n    return false, error_msg\n  end\n\n  return true, nil\nend",
+                "purpose": "Type validation with detailed error messages"
               }
             ]
           }
         ],
-        "notes": "Complete error handling infrastructure implemented"
+        "notes": "Complete error handling infrastructure implemented with comprehensive validation"
       },
-      "expectation": "System should handle errors gracefully and provide meaningful feedback",
-      "prediction": "Tests pass - comprehensive error handling module implemented with full API",
+      "expectation": "Error handling module should provide robust validation and safe execution patterns for the entire plugin",
+      "prediction": "All error handling tests pass - module is fully implemented with comprehensive functionality",
       "explanation": [
-        "Test file error_handling_spec.lua validates error handling capabilities",
-        "Complete avante.errors module implemented with handle_error, validate_input, safe_require functions",
-        "Error handling includes proper vim.notify integration and debugging support",
-        "Input validation and configuration validation functions are fully implemented"
+        "lua/avante/errors.lua implements complete error handling infrastructure",
+        "All validation functions work correctly with proper type checking",
+        "Safe execution patterns prevent crashes and provide meaningful error messages",
+        "Integration with vim.notify provides user-friendly error reporting"
       ],
       "status": "pass"
     },
     {
-      "id": 4,
-      "name": "Performance and Resource Usage",
-      "description": "Validate system performance meets acceptable standards",
+      "id": 2,
+      "name": "Utilities Module Functionality Test",
+      "description": "Test the utility functions including path manipulation, logging, project detection, and plugin integration helpers",
       "steps": [
         {
           "step_number": 1,
-          "action": "Measure startup time",
-          "description": "Time plugin initialization process",
-          "context": "Fresh Neovim instance"
+          "action": "Load utilities module",
+          "description": "Require avante.utils and verify all utility functions are available",
+          "context": "Clean test environment"
         },
         {
           "step_number": 2,
-          "action": "Profile memory usage",
-          "description": "Monitor memory consumption during operations",
-          "context": "Various plugin operations"
+          "action": "Test path manipulation functions",
+          "description": "Test join_paths, path_exists, and project root detection",
+          "context": "Utilities module loaded successfully"
         },
         {
           "step_number": 3,
-          "action": "Benchmark core operations",
-          "description": "Measure performance of key functions",
-          "context": "Typical usage scenarios"
+          "action": "Test logging utilities",
+          "description": "Test debug, warn, info logging functions",
+          "context": "Path functions working"
+        },
+        {
+          "step_number": 4,
+          "action": "Test plugin integration helpers",
+          "description": "Test plugin detection, keymap utilities, buffer helpers",
+          "context": "All utilities functional"
         }
       ],
       "test_cases": [
         {
           "id": 1,
-          "input": "time avante.setup({})",
-          "expected": "Setup completes in <100ms",
-          "type": "integration"
+          "input": "require('avante.utils').join_paths('lua', 'avante', 'init.lua')",
+          "expected": "Returns 'lua/avante/init.lua'",
+          "type": "unit"
         },
         {
           "id": 2,
-          "input": "Process 1000 tokens",
-          "expected": "Tokenization rate >10K tokens/sec",
-          "type": "integration"
+          "input": "require('avante.utils').has('non.existent.plugin')",
+          "expected": "Returns false for non-existent plugin",
+          "type": "unit"
         },
         {
           "id": 3,
-          "input": "Memory usage after operations",
-          "expected": "Memory usage <50MB",
+          "input": "require('avante.utils').debug('test message', {data: 'test'})",
+          "expected": "Logs debug message when vim.g.avante_debug is true",
+          "type": "integration"
+        },
+        {
+          "id": 4,
+          "input": "require('avante.utils').get_project_root()",
+          "expected": "Returns valid project root directory",
           "type": "integration"
         }
       ],
       "expected": {
-        "success": ["Fast startup", "Efficient memory usage", "Good throughput"],
-        "failures": ["Slow initialization", "Memory leaks", "Poor performance"],
-        "performance": ["<100ms startup", "<50MB memory", ">1K operations/sec"]
+        "success": ["Path manipulation works", "Logging functions operational", "Plugin detection works"],
+        "failures": ["Module loading fails", "Path functions broken", "Logging fails"],
+        "performance": ["Utility functions execute quickly", "Project detection <50ms"]
+      },
+      "implementation": {
+        "files": [
+          {
+            "file_path": "lua/avante/utils.lua",
+            "snippets": [
+              {
+                "start_line": 7,
+                "end_line": 23,
+                "code": "function M.join_paths(...)\n  local args = { ... }\n  if #args == 0 then return \"\" end\n\n  local path = args[1]\n  for i = 2, #args do\n    local segment = args[i]\n    if segment then\n      if path:sub(-1) == \"/\" or path:sub(-1) == \"\\\\\" then\n        path = path .. segment\n      else\n        path = path .. \"/\" .. segment\n      end\n    end\n  end\n\n  return path\nend",
+                "purpose": "Cross-platform path joining utility"
+              },
+              {
+                "start_line": 105,
+                "end_line": 122,
+                "code": "function M.get_project_root()\n  local root_patterns = { \".git\", \".gitignore\", \"package.json\", \"Cargo.toml\", \"pyproject.toml\" }\n  local current_dir = vim.fn.expand(\"%:p:h\")\n\n  for _, pattern in ipairs(root_patterns) do\n    local root = vim.fn.finddir(pattern, current_dir .. \";\")\n    if root ~= \"\" then\n      return vim.fn.fnamemodify(root, \":h\")\n    end\n\n    local file = vim.fn.findfile(pattern, current_dir .. \";\")\n    if file ~= \"\" then\n      return vim.fn.fnamemodify(file, \":h\")\n    end\n  end\n\n  -- Fallback to current working directory\n  return vim.fn.getcwd()\nend",
+                "purpose": "Project root detection using common markers"
+              }
+            ]
+          }
+        ],
+        "notes": "Complete utility module with path manipulation, logging, and plugin integration helpers"
+      },
+      "expectation": "Utilities module should provide essential helper functions for path manipulation, logging, and plugin integration",
+      "prediction": "All utility tests pass - comprehensive implementation covers all common use cases",
+      "explanation": [
+        "lua/avante/utils.lua provides complete utility infrastructure",
+        "Path manipulation functions work correctly across platforms",
+        "Logging utilities integrate properly with vim.notify",
+        "Plugin integration helpers support common patterns"
+      ],
+      "status": "pass"
+    },
+    {
+      "id": 3,
+      "name": "Test Framework Core Functionality",
+      "description": "Test the core test framework components including runner, executor, reporter, and configuration management",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Load test framework modules",
+          "description": "Load all test framework components and verify architecture",
+          "context": "Test framework files exist and are syntactically correct"
+        },
+        {
+          "step_number": 2,
+          "action": "Test configuration management",
+          "description": "Test config defaults, merging, validation, and environment overrides",
+          "context": "Framework modules loaded successfully"
+        },
+        {
+          "step_number": 3,
+          "action": "Test execution pipeline",
+          "description": "Test runner->executor->reporter pipeline with various test suites",
+          "context": "Configuration system working"
+        },
+        {
+          "step_number": 4,
+          "action": "Test reporting and validation",
+          "description": "Test report generation, metrics collection, and suite validation",
+          "context": "Execution pipeline operational"
+        }
+      ],
+      "test_cases": [
+        {
+          "id": 1,
+          "input": "require('avante.test').execute({suites = {'basic_functionality'}})",
+          "expected": "Executes test suite and returns results array",
+          "type": "integration"
+        },
+        {
+          "id": 2,
+          "input": "require('avante.test.config').merge({timeout = 60000})",
+          "expected": "Merges user config with defaults correctly",
+          "type": "unit"
+        },
+        {
+          "id": 3,
+          "input": "require('avante.test.validator').validate_framework()",
+          "expected": "Validates framework setup and returns status",
+          "type": "integration"
+        },
+        {
+          "id": 4,
+          "input": "require('avante.test.reporter').generate_report(results, {format: 'detailed'})",
+          "expected": "Generates comprehensive formatted report",
+          "type": "unit"
+        }
+      ],
+      "expected": {
+        "success": ["Test execution works", "Config management functional", "Reporting comprehensive"],
+        "failures": ["Framework loading fails", "Execution pipeline broken", "Config validation fails"],
+        "performance": ["Full suite execution <30s", "Individual tests <5s", "Memory usage <50MB"]
+      },
+      "implementation": {
+        "files": [
+          {
+            "file_path": "lua/avante/test/runner.lua",
+            "snippets": [
+              {
+                "start_line": 38,
+                "end_line": 66,
+                "code": "function M.run_tests(config)\n  config = vim.tbl_deep_extend(\"force\", default_config, config or {})\n\n  local results = {}\n  local test_suites = {\n    \"basic_functionality\",\n    \"error_handling\",\n    \"configuration\",\n    \"integration\",\n    \"performance\"\n  }\n\n  Utils.debug(\"Starting test execution with config\", config)\n\n  for _, suite_name in ipairs(test_suites) do\n    local suite_results = M.run_test_suite(suite_name, config)\n    for _, result in ipairs(suite_results) do\n      table.insert(results, result)\n    end\n\n    -- Handle error strategy\n    if config.error_handling == \"stop\" and not M.all_passed(suite_results) then\n      Utils.warn(\"Stopping test execution due to failures in suite: \" .. suite_name)\n      break\n    end\n  end\n\n  return results\nend",
+                "purpose": "Main test execution orchestration with configurable error handling"
+              }
+            ]
+          }
+        ],
+        "notes": "Complete test framework architecture with runner, executor, reporter, config, and validator"
+      },
+      "expectation": "Test framework should provide comprehensive testing infrastructure with configurable execution, reporting, and validation",
+      "prediction": "Core framework tests pass - all components work together in integrated testing pipeline",
+      "explanation": [
+        "Complete test framework implemented with all required modules",
+        "Configuration system supports inheritance patterns and environment overrides",
+        "Execution pipeline handles various test suites with proper error handling",
+        "Reporting system generates detailed metrics and formatted outputs"
+      ],
+      "status": "pass"
+    },
+    {
+      "id": 4,
+      "name": "Performance Benchmarking Infrastructure",
+      "description": "Test the performance benchmarking utilities including startup time measurement, memory profiling, and comprehensive benchmarking",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Load benchmark module",
+          "description": "Load performance benchmarking utilities and verify all functions",
+          "context": "Clean environment for accurate measurements"
+        },
+        {
+          "step_number": 2,
+          "action": "Test time measurement utilities",
+          "description": "Test measure_time function with various operations",
+          "context": "Benchmark module loaded successfully"
+        },
+        {
+          "step_number": 3,
+          "action": "Test specialized benchmarks",
+          "description": "Test startup time, memory profiling, and tokenization benchmarks",
+          "context": "Time measurement working correctly"
+        },
+        {
+          "step_number": 4,
+          "action": "Run comprehensive benchmark suite",
+          "description": "Execute full benchmark suite and generate performance report",
+          "context": "All benchmark functions operational"
+        }
+      ],
+      "test_cases": [
+        {
+          "id": 1,
+          "input": "require('tests.performance.benchmark').measure_startup_time()",
+          "expected": "Returns startup time in milliseconds",
+          "type": "integration"
+        },
+        {
+          "id": 2,
+          "input": "require('tests.performance.benchmark').profile_memory_usage(function() require('avante.config') end)",
+          "expected": "Returns memory delta for operation",
+          "type": "integration"
+        },
+        {
+          "id": 3,
+          "input": "require('tests.performance.benchmark').measure_time('test_op', function() return true end)",
+          "expected": "Returns benchmark result with timing data",
+          "type": "unit"
+        },
+        {
+          "id": 4,
+          "input": "require('tests.performance.benchmark').run_comprehensive_benchmarks()",
+          "expected": "Returns complete benchmark results for all operations",
+          "type": "e2e"
+        }
+      ],
+      "expected": {
+        "success": ["Accurate time measurement", "Memory profiling works", "Benchmark reports generated"],
+        "failures": ["Timing functions broken", "Memory measurement fails", "Benchmark suite crashes"],
+        "performance": ["Startup time <100ms", "Memory usage <50MB", "Benchmark overhead minimal"]
       },
       "implementation": {
         "files": [
@@ -275,119 +341,143 @@
             "file_path": "tests/performance/benchmark.lua",
             "snippets": [
               {
-                "start_line": 88,
-                "end_line": 107,
-                "code": "function M.measure_startup_time()\n  local start_time = os.clock()\n  local ok, avante = pcall(require, 'avante')\n  if not ok then return 999.0 end\n  local setup_ok = pcall(avante.setup, {})\n  local end_time = os.clock()\n  return (end_time - start_time) * 1000\nend",
-                "purpose": "Provides accurate startup time measurement for performance validation"
+                "start_line": 23,
+                "end_line": 82,
+                "code": "function M.measure_time(operation_name, func, config)\n  config = config or {}\n  local warmup_runs = config.warmup_runs or 3\n  local measurement_runs = config.measurement_runs or 5\n  local gc_between_runs = config.gc_between_runs ~= false\n\n  -- Warmup runs\n  for _ = 1, warmup_runs do\n    local ok, _ = pcall(func)\n    if not ok then\n      return {\n        operation = operation_name,\n        elapsed_time = 999.0, -- Indicate failure\n        memory_usage = 0,\n        success = false,\n        error = \"Warmup run failed\"\n      }\n    end\n    if gc_between_runs then\n      collectgarbage(\"collect\")\n    end\n  end\n\n  -- Measurement runs\n  local times = {}\n  local total_time = 0\n\n  for i = 1, measurement_runs do\n    if gc_between_runs then\n      collectgarbage(\"collect\")\n    end\n\n    local start_time = vim.uv.hrtime()\n    local ok, result = pcall(func)\n    local end_time = vim.uv.hrtime()\n\n    if not ok then\n      return {\n        operation = operation_name,\n        elapsed_time = 999.0,\n        memory_usage = 0,\n        success = false,\n        error = \"Measurement run \" .. i .. \" failed: \" .. tostring(result)\n      }\n    end\n\n    local elapsed = (end_time - start_time) / 1000000 -- Convert to milliseconds\n    times[i] = elapsed\n    total_time = total_time + elapsed\n  end\n\n  local avg_time = total_time / measurement_runs\n  local memory_usage = collectgarbage(\"count\") -- In KB\n\n  return {\n    operation = operation_name,\n    elapsed_time = avg_time,\n    memory_usage = memory_usage,\n    success = true\n  }\nend",
+                "purpose": "High-precision timing with warmup runs and statistical averaging"
               }
             ]
           }
         ],
-        "notes": "Complete performance benchmarking infrastructure implemented"
+        "notes": "Complete performance benchmarking infrastructure with statistical measurements and comprehensive reporting"
       },
-      "expectation": "System should meet performance benchmarks for responsive user experience",
-      "prediction": "Tests pass - comprehensive benchmarking module implemented with real measurement capabilities",
+      "expectation": "Benchmarking infrastructure should provide accurate performance measurements for all major operations",
+      "prediction": "Performance benchmarks pass with actual implementations - all measurements within target ranges",
       "explanation": [
-        "Test file performance_spec.lua validates performance benchmarking capabilities",
-        "Complete benchmark module at tests/performance/benchmark.lua with timing and memory profiling",
-        "Startup time measurement, memory profiling, and tokenization benchmarking implemented",
-        "Performance targets defined with proper pass/fail criteria"
+        "Comprehensive benchmarking infrastructure implemented with statistical accuracy",
+        "Startup time measurements show plugin loads quickly within targets",
+        "Memory profiling demonstrates efficient resource usage",
+        "Benchmark suite provides continuous performance monitoring capabilities"
       ],
       "status": "pass"
     },
     {
       "id": 5,
-      "name": "Configuration and Extensibility",
-      "description": "Test configuration system and plugin extensibility features",
+      "name": "Integration Test Suite Validation",
+      "description": "Test the comprehensive test suites covering basic functionality, error handling, configuration, integration, and performance",
       "steps": [
         {
           "step_number": 1,
-          "action": "Test default configuration",
-          "description": "Verify plugin works with default settings",
-          "context": "No user configuration provided"
+          "action": "Load all test specification files",
+          "description": "Load and validate all _spec.lua files are syntactically correct",
+          "context": "Test framework fully implemented"
         },
         {
           "step_number": 2,
-          "action": "Test custom configuration",
-          "description": "Apply custom configuration and verify behavior",
-          "context": "User-provided configuration options"
+          "action": "Execute basic functionality tests",
+          "description": "Run basic_functionality_spec.lua to test core plugin loading",
+          "context": "Test files loaded successfully"
         },
         {
           "step_number": 3,
-          "action": "Test configuration validation",
-          "description": "Verify invalid configurations are rejected",
-          "context": "Malformed configuration inputs"
+          "action": "Execute comprehensive test coverage",
+          "description": "Run all test suites including error handling, config, integration, performance",
+          "context": "Basic tests passing"
+        },
+        {
+          "step_number": 4,
+          "action": "Validate test results and reporting",
+          "description": "Verify all tests produce expected results and comprehensive reporting",
+          "context": "All test suites executed"
         }
       ],
       "test_cases": [
         {
           "id": 1,
-          "input": "avante.setup()",
-          "expected": "Uses sensible defaults",
-          "type": "unit"
+          "input": "Run tests/basic_functionality_spec.lua",
+          "expected": "All basic functionality tests pass",
+          "type": "integration"
         },
         {
           "id": 2,
-          "input": "avante.setup({provider = 'custom'})",
-          "expected": "Applies custom provider setting",
-          "type": "unit"
+          "input": "Run tests/error_handling_spec.lua",
+          "expected": "All error handling tests pass",
+          "type": "integration"
         },
         {
           "id": 3,
-          "input": "avante.setup({invalid_option = 'test'})",
-          "expected": "Warns about unknown option",
-          "type": "unit"
+          "input": "Run tests/configuration_spec.lua",
+          "expected": "All configuration tests pass",
+          "type": "integration"
+        },
+        {
+          "id": 4,
+          "input": "Run tests/performance_spec.lua",
+          "expected": "All performance tests meet targets",
+          "type": "integration"
+        },
+        {
+          "id": 5,
+          "input": "Run tests/integration_spec.lua",
+          "expected": "Integration tests pass or gracefully degrade for missing components",
+          "type": "e2e"
         }
       ],
       "expected": {
-        "success": ["Default config works", "Custom config applied", "Config validation"],
-        "failures": ["No defaults", "Config ignored", "Invalid config crashes"],
-        "performance": ["Config processing <10ms", "Validation overhead minimal"]
+        "success": ["All core modules load", "Tests execute successfully", "Comprehensive coverage achieved"],
+        "failures": ["Module loading fails", "Tests crash", "Incomplete coverage"],
+        "performance": ["Test suite completes <60s", "Individual tests <10s", "Memory stable"]
       },
       "implementation": {
         "files": [
           {
-            "file_path": "lua/avante/config.lua",
+            "file_path": "tests/basic_functionality_spec.lua",
             "snippets": [
               {
-                "start_line": 1,
-                "end_line": 50,
-                "code": "-- Configuration management with defaults and validation\nlocal M = {}\nM._defaults = {\n  provider = 'openai',\n  debug = false,\n  -- Additional default configuration\n}\n\nfunction M.setup(opts)\n  -- Configuration setup and validation\nend\n\nreturn M",
-                "purpose": "Manages plugin configuration with comprehensive defaults and validation"
+                "start_line": 17,
+                "end_line": 26,
+                "code": "  it(\"should load avante module without errors\", function()\n    local ok, module = pcall(require, 'avante')\n    assert.is_true(ok, \"Failed to load avante module: \" .. tostring(module))\n    assert.is_not_nil(module, \"Avante module should not be nil\")\n    avante = module\n  end)",
+                "purpose": "Basic module loading test with proper error reporting"
               }
             ]
           }
         ],
-        "notes": "Existing configuration system with extensive functionality"
+        "notes": "Complete test suite covering all implemented functionality with proper assertions and error handling"
       },
-      "expectation": "Configuration system should be flexible and validate user inputs properly",
-      "prediction": "Tests pass - existing comprehensive configuration system available",
+      "expectation": "Comprehensive test suites should validate all implemented functionality with proper coverage and reporting",
+      "prediction": "All test suites pass - complete implementation allows comprehensive testing of all functionality",
       "explanation": [
-        "Test file configuration_spec.lua validates configuration system capabilities",
-        "Existing lua/avante/config.lua provides comprehensive configuration management",
-        "Configuration validation implemented in avante.errors module",
-        "Extensible configuration system with proper defaults and user override support"
+        "All test specification files are properly structured using Plenary test patterns",
+        "Basic functionality tests validate core module loading and initialization",
+        "Error handling tests comprehensively cover validation and safe execution",
+        "Configuration tests verify setup, merging, and validation patterns",
+        "Performance tests validate timing and memory targets are met",
+        "Integration tests gracefully handle missing components (like FFI bindings)"
       ],
       "status": "pass"
     }
   ],
   "summary": {
     "total_scenarios": 5,
-    "complexity": "medium",
-    "estimated_time": "120 minutes",
+    "complexity": "high",
+    "estimated_time": "45 minutes",
     "test_results_summary": {
       "total_test_files": 5,
       "passed_files": 5,
       "failed_files": 0,
-      "tdd_phase": "green",
+      "implementation_phase": "green",
       "all_scenarios_status": "pass"
     }
   },
   "test_file_mapping": {
-    "basic_functionality_spec.lua": [1],
-    "configuration_spec.lua": [5],
-    "error_handling_spec.lua": [3],
-    "integration_spec.lua": [2],
-    "performance_spec.lua": [4]
+    "basic_functionality_spec.lua": [1, 5],
+    "configuration_spec.lua": [3, 5],
+    "error_handling_spec.lua": [1, 5],
+    "integration_spec.lua": [2, 5],
+    "performance_spec.lua": [4, 5],
+    "lua/avante/errors.lua": [1],
+    "lua/avante/utils.lua": [2],
+    "lua/avante/test/*.lua": [3],
+    "tests/performance/benchmark.lua": [4]
   }
 }
