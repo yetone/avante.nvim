@@ -1163,14 +1163,17 @@ This approach ensures that the apply model can quickly and accurately merge your
 
 ## Ollama
 
-ollama is a first-class provider for avante.nvim. You can use it by setting `provider = "ollama"` in the configuration, and set the `model` field in `ollama` to the model you want to use. For example:
+Ollama is a first-class provider for avante.nvim. To start using it you need to set `provider = "ollama"`
+in the configuration, set the `model` field in `ollama` to the model you want to use. Ollama is disabled
+by default, you need to provide an implementation for its `is_env_set` method to properly enable it.
+For example:
 
 ```lua
 provider = "ollama",
 providers = {
   ollama = {
-    endpoint = "http://localhost:11434",
     model = "qwq:32b",
+    is_env_set = require("avante.providers.ollama").check_endpoint_alive,
   },
 }
 ```

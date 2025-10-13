@@ -23,6 +23,10 @@ M.role_map = {
   assistant = "assistant",
 }
 
+-- Ollama is disabled by default. Users should override is_env_set()
+-- implementation in their configs to enable it. There is a helper
+-- check_endpoint_alive() that can be used to test if configured
+-- endpoint is alive that can be used in place of is_env_set().
 function M.is_env_set() return false end
 
 function M:parse_messages(opts)
@@ -262,17 +266,15 @@ local curl_errors = {
   [60] = "Peer certificate cannot be authenticated with known CA certificates (SSL cert issue)",
 }
 
--- List available models using Ollama's tags API
-function M:list_models()
-  -- Return cached models if available
-  if self._model_list_cache then return self._model_list_cache end
-
+---Queries configured endpoint for the list of available models
+---@param opts AvanteProviderFunctor Provider settings
+---@param timeout? integer Timeout in milliseconds
+---@return table[]|nil models List of available models
+---@return string|nil error Error message in case of failure
+local function query_models(opts, timeout)
   -- Parse provider config and construct tags endpoint URL
-  local provider_conf = Providers.parse_config(self)
-  if not provider_conf.endpoint then
-    Utils.error("Ollama requires endpoint configuration")
-    return {}
-  end
+  local provider_conf = Providers.parse_config(opts)
+  if not provider_conf.endpoint then return nil, "Ollama requires endpoint configuration" end
 
   local curl = require("plenary.curl")
   local tags_url = Utils.url_join(provider_conf.endpoint, "/api/tags")
@@ -280,7 +282,7 @@ function M:list_models()
     ["Content-Type"] = "application/json",
     ["Accept"] = "application/json",
   }
-  local headers = Utils.tbl_override(base_headers, self.extra_headers)
+  local headers = Utils.tbl_override(base_headers, opts.extra_headers)
 
   -- Request the model tags from Ollama
   local response = {}
@@ -289,22 +291,33 @@ function M:list_models()
     callback = function(output) response = output end,
     on_error = function(err) response = { exit = err.exit } end,
   })
-  local job_ok, error = pcall(job.wait, job, 10000)
+  local job_ok, error = pcall(job.wait, job, timeout or 10000)
   if not job_ok then
-    Utils.error("Ollama: curl command invocation failed: " .. error)
-    return {}
+    return nil, "Ollama: curl command invocation failed: " .. error
   elseif response.exit ~= 0 then
     local err_msg = curl_errors[response.exit] or ("curl returned error: " .. response.exit)
-    Utils.error("Ollama: " .. err_msg)
-    return {}
+    return nil, "Ollama: " .. err_msg
   elseif response.status ~= 200 then
-    Utils.error("Failed to fetch Ollama models: " .. (response.body or response.status))
-    return {}
+    return nil, "Failed to fetch Ollama models: " .. (response.body or response.status)
   end
 
   -- Parse the response body
   local ok, res_body = pcall(vim.json.decode, response.body)
-  if not ok or not res_body.models then return {} end
+  if not ok then return nil, "Failed to parse model list query response" end
+  return res_body.models or {}
+end
+
+-- List available models using Ollama's tags API
+function M:list_models()
+  -- Return cached models if available
+  if self._model_list_cache then return self._model_list_cache end
+
+  local result, error = query_models(self)
+  if not result then
+    assert(error)
+    Utils.error(error)
+    return {}
+  end
 
   -- Helper to format model display string from its details
   local function format_display_name(details)
@@ -317,7 +330,7 @@ function M:list_models()
 
   -- Format the models list
   local models = {}
-  for _, model in ipairs(res_body.models) do
+  for _, model in ipairs(result) do
     local details = model.details or {}
     local display = format_display_name(details)
     table.insert(models, {
@@ -331,6 +344,11 @@ function M:list_models()
 
   self._model_list_cache = models
   return models
+end
+
+function M.check_endpoint_alive()
+  local result = query_models(Providers.ollama, 1000)
+  return result ~= nil
 end
 
 return M
