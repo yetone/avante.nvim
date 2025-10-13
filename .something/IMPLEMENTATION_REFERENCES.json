@@ -1,0 +1,58 @@
+[
+  {
+    "title": "Neovim Lua Plugin Development Guide",
+    "content": "Reference for Neovim plugin development patterns, vim.notify usage, and Lua module structure. Used for implementing proper error handling, logging, and plugin initialization patterns consistent with Neovim ecosystem standards.",
+    "path": "lua/avante/errors.lua",
+    "line_range": [20, 35],
+    "url": "https://neovim.io/doc/user/lua-guide.html"
+  },
+  {
+    "title": "Vim.uv (libuv) High Resolution Timer Documentation",
+    "content": "Documentation for vim.uv.hrtime() function used for high-precision performance measurements. Essential for accurate benchmarking of startup times and operation durations to meet the <100ms and <10ms performance targets.",
+    "path": "tests/performance/benchmark.lua",
+    "line_range": [45, 55],
+    "url": "https://neovim.io/doc/user/lua.html#vim.uv.hrtime()"
+  },
+  {
+    "title": "Lua Collectgarbage Documentation",
+    "content": "Reference for Lua garbage collection control and memory measurement functions. Used for accurate memory profiling and ensuring clean benchmarking conditions between test runs.",
+    "path": "tests/performance/benchmark.lua",
+    "line_range": [85, 95],
+    "url": "https://www.lua.org/manual/5.1/manual.html#pdf-collectgarbage"
+  },
+  {
+    "title": "mlua FFI Integration Patterns",
+    "content": "Documentation for mlua crate patterns used in Rust-Lua FFI integration. Referenced for understanding how the existing tokenizer module works and ensuring proper error handling for FFI calls.",
+    "path": "tests/integration_spec.lua",
+    "line_range": [25, 65],
+    "url": "https://docs.rs/mlua/latest/mlua/"
+  },
+  {
+    "title": "Busted Testing Framework",
+    "content": "Documentation for Busted testing framework used for Lua testing. Referenced for test structure, assertions, and pending/skipping test patterns used throughout the test suites.",
+    "path": "tests/basic_functionality_spec.lua",
+    "line_range": [1, 20],
+    "url": "https://olivinelabs.com/busted/"
+  },
+  {
+    "title": "Test-Driven Development Best Practices",
+    "content": "General TDD methodology reference for implementing red-green-refactor cycles. Applied throughout the test implementation to ensure comprehensive coverage and proper test structure for all simulation scenarios.",
+    "path": "tests/error_handling_spec.lua",
+    "line_range": [1, 10],
+    "url": "https://martinfowler.com/bliki/TestDrivenDevelopment.html"
+  },
+  {
+    "title": "Vim.inspect Utility Documentation",
+    "content": "Reference for vim.inspect function used for debugging and error logging. Used in error handling module for proper serialization of context data in error messages.",
+    "path": "lua/avante/errors.lua",
+    "line_range": [26, 30],
+    "url": "https://neovim.io/doc/user/lua.html#vim.inspect()"
+  },
+  {
+    "title": "Neovim Plugin Performance Optimization",
+    "content": "Best practices for Neovim plugin performance optimization, including startup time minimization and memory usage optimization. Applied to ensure the plugin meets the <100ms startup and <50MB memory targets.",
+    "path": "tests/performance/benchmark.lua",
+    "line_range": [110, 130],
+    "url": "https://github.com/neovim/neovim/blob/master/runtime/doc/lua.txt"
+  }
+]
