@@ -787,13 +787,14 @@ return {
 
 ## Ollama
 
-ollama 是 avante.nvim 的一流提供者。您可以通过在配置中设置 `provider = "ollama"` 来使用它，并在 `ollama` 中设置 `model` 字段为您想要使用的模型。例如：
+ollama 是 avante.nvim 的一流提供者。要开始使用它，您需要在配置中设置 `provider = "ollama"`，并将 `ollama` 中的 `model` 字段设置为您想要使用的模型。Ollama 默认是禁用的，您需要为其 `is_env_set` 方法提供一个实现来正确地启用它。例如：
 
 ```lua
 provider = "ollama",
 providers = {
   ollama = {
     model = "qwq:32b",
+    is_env_set = require("avante.providers.ollama").check_endpoint_alive,
   },
 }
 ```
