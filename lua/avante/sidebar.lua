@@ -1672,15 +1672,18 @@ function Sidebar:initialize()
   local buf_ft = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
   if vim.list_contains(Config.selector.exclude_auto_select, buf_ft) then return self end
 
-  local buf_path = api.nvim_buf_get_name(self.code.bufnr)
-  -- if the filepath is outside of the current working directory then we want the absolute path
-  local filepath = Utils.file.is_in_project(buf_path) and Utils.relative_path(buf_path) or buf_path
-  Utils.debug("Sidebar:initialize adding buffer to file selector", buf_path)
-
   self.file_selector:reset()
 
-  local stat = vim.uv.fs_stat(filepath)
-  if stat == nil or stat.type == "file" then self.file_selector:add_selected_file(filepath) end
+  -- Only auto-add current file if configured to do so
+  if Config.behaviour.auto_add_current_file then
+    local buf_path = api.nvim_buf_get_name(self.code.bufnr)
+    -- if the filepath is outside of the current working directory then we want the absolute path
+    local filepath = Utils.file.is_in_project(buf_path) and Utils.relative_path(buf_path) or buf_path
+    Utils.debug("Sidebar:initialize adding buffer to file selector", buf_path)
+
+    local stat = vim.uv.fs_stat(filepath)
+    if stat == nil or stat.type == "file" then self.file_selector:add_selected_file(filepath) end
+  end
 
   self:reload_chat_history()
 
