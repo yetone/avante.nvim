@@ -373,6 +373,7 @@ M._defaults = {
     ollama = {
       endpoint = "http://127.0.0.1:11434",
       timeout = 30000, -- Timeout in milliseconds
+      use_ReAct_prompt = true,
       extra_request_body = {
         options = {
           temperature = 0.75,
