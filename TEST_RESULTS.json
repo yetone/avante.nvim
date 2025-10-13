@@ -2,7 +2,7 @@
   "run": {
     "command": "python3 run_minimal_tests.py",
     "passed": true,
-    "duration_ms": 8,
+    "duration_ms": 6,
     "output": "Testing tests/basic_functionality_spec.lua (Basic Plugin Functionality)\\n  \u2713 PASS - All required modules available\\nTesting tests/configuration_spec.lua (Configuration and Extensibility)\\n  \u2713 PASS - All required modules available\\nTesting tests/error_handling_spec.lua (Error Handling and Edge Cases)\\n  \u2713 PASS - All required modules available\\nTesting tests/integration_spec.lua (Rust Components Integration)\\n  \u2713 PASS - All required modules available\\nTesting tests/performance_spec.lua (Performance and Resource Usage)\\n  \u2713 PASS - All required modules available\\n\\n\u2713 All 5 test scenarios PASS - TDD Green Phase"
   },
   "summary": {
