@@ -496,6 +496,7 @@ M._defaults = {
   ---7. support_paste_from_clipboard    : Whether to support pasting image from clipboard. This will be determined automatically based whether img-clip is available or not.
   ---8. minimize_diff                   : Whether to remove unchanged lines when applying a code block
   ---9. enable_token_counting           : Whether to enable token counting. Default to true.
+  ---10. auto_add_current_file          : Whether to automatically add the current file when opening a new chat. Default to true.
   behaviour = {
     auto_focus_sidebar = true,
     auto_suggestions = false, -- Experimental stage
@@ -514,6 +515,7 @@ M._defaults = {
     auto_check_diagnostics = true,
     enable_fastapply = false,
     include_generated_by_commit_line = false, -- Controls if 'Generated-by: <provider/model>' line is added to git commit message
+    auto_add_current_file = true, -- Whether to automatically add the current file when opening a new chat
   },
   prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
     enabled = true, -- toggle logging entirely
