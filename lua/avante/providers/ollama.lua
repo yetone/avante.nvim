@@ -247,6 +247,21 @@ M.on_error = function(result)
   Utils.error(error_msg, { title = "Ollama" })
 end
 
+local curl_errors = {
+  [1] = "Unsupported protocol",
+  [3] = "URL malformed",
+  [5] = "Could not resolve proxy",
+  [6] = "Could not resolve host",
+  [7] = "Failed to connect to host",
+  [23] = "Failed writing received data to disk",
+  [28] = "Operation timed out",
+  [35] = "SSL/TLS connection error",
+  [47] = "Too many redirects",
+  [52] = "Server returned empty response",
+  [56] = "Failure in receiving network data",
+  [60] = "Peer certificate cannot be authenticated with known CA certificates (SSL cert issue)",
+}
+
 -- List available models using Ollama's tags API
 function M:list_models()
   -- Return cached models if available
@@ -254,7 +269,10 @@ function M:list_models()
 
   -- Parse provider config and construct tags endpoint URL
   local provider_conf = Providers.parse_config(self)
-  if not provider_conf.endpoint then error("Ollama requires endpoint configuration") end
+  if not provider_conf.endpoint then
+    Utils.error("Ollama requires endpoint configuration")
+    return {}
+  end
 
   local curl = require("plenary.curl")
   local tags_url = Utils.url_join(provider_conf.endpoint, "/api/tags")
@@ -265,8 +283,21 @@ function M:list_models()
   local headers = Utils.tbl_override(base_headers, self.extra_headers)
 
   -- Request the model tags from Ollama
-  local response = curl.get(tags_url, { headers = headers })
-  if response.status ~= 200 then
+  local response = {}
+  local job = curl.get(tags_url, {
+    headers = headers,
+    callback = function(output) response = output end,
+    on_error = function(err) response = { exit = err.exit } end,
+  })
+  local job_ok, error = pcall(job.wait, job, 10000)
+  if not job_ok then
+    Utils.error("Ollama: curl command invocation failed: " .. error)
+    return {}
+  elseif response.exit ~= 0 then
+    local err_msg = curl_errors[response.exit] or ("curl returned error: " .. response.exit)
+    Utils.error("Ollama: " .. err_msg)
+    return {}
+  elseif response.status ~= 200 then
     Utils.error("Failed to fetch Ollama models: " .. (response.body or response.status))
     return {}
   end
