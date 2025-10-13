@@ -1,386 +1,343 @@
-# Technical Design: Test Framework for Avante.nvim
-**PRD Reference**: Test Project Requirements | **Revision**: 2.0
-**Owner**: Avante.nvim Development Team
+# Technical Design: Test Project
+**PRD Reference**: test | **Revision**: 1.0
+**Owner**: Development Team
 
 ## 1. Scope & Non-Goals
 
 ### ✅ In Scope
-- **REQ-1**: Basic test framework implementation following Avante.nvim patterns
-- **REQ-2**: Comprehensive test suite with verification capabilities
-- **REQ-3**: Clear success/failure indicators with detailed reporting
-- **NFR-1**: Code adherence to established project conventions
-- **NFR-2**: Maintainable and well-documented implementation
-- **NFR-3**: Graceful error handling following Avante.nvim patterns
+- **REQ-1**: Basic test functionality implementation with verification capabilities
+- **REQ-2**: Standard testing framework integration with clear success/failure indicators
+- **REQ-3**: Error handling and graceful degradation for edge cases
+- **NFR-1**: Code adherence to established project conventions and standards
+- **NFR-2**: Maintainable implementation with comprehensive documentation
+- **NFR-3**: Robust error handling for basic error conditions
 
 ### ❌ Out of Scope
-- Production deployment infrastructure
-- External system integrations (no specifications provided)
-- Complex feature implementation beyond test framework scope
-- Real-time collaborative testing features
+- Complex feature implementation (insufficient requirements provided)
+- External system integrations (no specifications available)
+- Production deployment infrastructure (test project scope)
+- Performance optimization beyond basic benchmarking
 
-❗**PRD GAP**: Specific test objectives and success criteria need clarification from stakeholders
+### ❗PRD GAPS Identified
+- Specific test objectives and success criteria not defined
+- Target performance benchmarks not specified
+- Integration requirements with existing systems unclear
+- Compliance requirements not documented
 
 ## 2. High-Level Architecture
 
 ```mermaid
 flowchart TB
-    subgraph "Test Framework Core"
-        A[Test Runner] --> B[Test Executor]
-        B --> C[Result Reporter]
-        C --> D[Output Formatter]
-        E[Error Handler] --> B
-        E --> C
-    end
+    A[Test Runner] --> B[Test Executor]
+    B --> C[Test Reporter]
+    A --> D[Configuration Manager]
+    D --> E[Error Handler]
+    B --> F[Performance Monitor]
 
     subgraph "Test Modules"
-        F[Basic Functionality Tests]
-        G[Error Handling Tests]
+        G[Basic Functionality Tests]
         H[Integration Tests]
         I[Performance Tests]
         J[Configuration Tests]
+        K[Error Handling Tests]
     end
 
-    subgraph "Performance Infrastructure"
-        K[Benchmark Runner]
-        L[Memory Profiler]
-        M[Startup Timer]
-        N[Performance Reporter]
-    end
+    B --> G
+    B --> H
+    B --> I
+    B --> J
+    B --> K
 
-    subgraph "Avante.nvim Integration"
-        O[Provider System]
-        P[Configuration Manager]
-        Q[Error Handler]
-        R[Utils Module]
-    end
+    C --> L[Console Output]
+    C --> M[JSON Reports]
+    C --> N[CI/CD Integration]
 
-    A --> F
-    A --> G
-    A --> H
-    A --> I
-    A --> J
-
-    B --> O
-    B --> P
-    B --> Q
-    B --> R
-
-    I --> K
-    I --> L
-    I --> M
-    K --> N
-
-    C --> S[Test Results]
-    D --> T[Formatted Output]
+    F --> O[Benchmark Results]
+    E --> P[Error Logs]
 ```
+
+### Architecture Rationale
+**Chosen**: Modular test architecture leveraging existing Avante.nvim patterns (addresses **REQ-1**, **REQ-2**)
+- **Alternative 1**: Standalone testing framework - Rejected due to integration complexity
+- **Alternative 2**: Simple script-based testing - Rejected due to scalability limitations
 
 ## 3. Detailed Design
 
-### 3.1. Error Handling Module (`lua/avante/errors.lua`)
-**Status**: Implementation exists - leverage existing patterns
-- **Responsibilities**: Comprehensive error handling utilities with context-aware logging
-- **Features**:
-  - Input validation with detailed error reporting
-  - Error wrapping functions for graceful failure handling
-  - Error object creation with stack traces and metadata
-  - Fallback mechanisms for nil values
-- **Integration**: Core dependency for all test modules
-
-### 3.2. Test Runner Module (`lua/avante/test/runner.lua`)
+### 3.1. Test Runner Core
 - **Responsibilities**: Orchestrate test execution, manage test lifecycle, coordinate reporting
-- **Scale**: Handle 100+ individual test cases | **Performance**: Sub-5s execution for full suite
-- **Failures**: Graceful degradation on individual test failures, complete suite reporting
+- **Scale**: Support 100+ test cases | **Data**: Minimal memory footprint < 50MB
+- **Failures**: Graceful degradation with partial test execution and detailed failure reporting
 
-**Configuration Structure**:
+### 3.2. Test Executor Engine
+- **Responsibilities**: Execute individual test cases, manage test isolation, handle timeouts
+- **Scale**: Execute tests within 30-second timeout | **Data**: Test result caching up to 1GB
+- **Failures**: Timeout handling, resource cleanup, state restoration
+
+### 3.3. Configuration Management System
+- **Responsibilities**: Load test configurations, manage environment variables, validate settings
+- **Scale**: Process configurations < 1s | **Data**: Configuration files up to 10MB
+- **Failures**: Default configuration fallback, validation error reporting
+
+## 4. Data Model
+
+### 4.1. Core Entities
+
 ```lua
----@type AvanteTestConfig
-test_config = {
-  __inherited_from = "base_test",
-  timeout = 30000,
-  parallel_execution = false,
-  output_format = "detailed",
-  error_handling = "continue",
-  performance_tracking = true,
-  graceful_degradation = true,
-  fallback_indicators = {
-    timeout = 999.0,
-    memory_limit = 999999
+-- Test Case Entity
+TestCase = {
+  id: string,           -- Unique identifier
+  name: string,         -- Human-readable name
+  description: string,  -- Test purpose
+  timeout: number,      -- Execution timeout (seconds)
+  setup: function,      -- Pre-test setup
+  execute: function,    -- Main test logic
+  teardown: function,   -- Post-test cleanup
+  dependencies: table   -- Required modules/configs
+}
+
+-- Test Result Entity
+TestResult = {
+  test_id: string,      -- Reference to TestCase.id
+  status: enum,         -- 'passed', 'failed', 'skipped', 'timeout'
+  execution_time: number, -- Milliseconds
+  memory_usage: number,   -- Bytes
+  error_message: string,  -- Failure details
+  stack_trace: string,    -- Error context
+  timestamp: number       -- Unix timestamp
+}
+
+-- Test Configuration Entity
+TestConfig = {
+  suite_name: string,     -- Test suite identifier
+  timeout_default: number, -- Default timeout (seconds)
+  output_format: enum,    -- 'console', 'json', 'ci'
+  performance_enabled: boolean,
+  error_handling: {
+    continue_on_failure: boolean,
+    max_failures: number,
+    retry_attempts: number
   }
 }
 ```
 
-### 3.3. Test Executor (`lua/avante/test/executor.lua`)
-- **Responsibilities**: Execute individual tests, capture results, handle timeouts
-- **Integration**: Leverage `lua/avante/errors.lua` for consistent error handling
-- **Patterns**: Follow provider inheritance system for test configuration
-- **Graceful Degradation**: Handle missing Rust libraries with fallback mechanisms
+### 4.2. Data Access Patterns
+- **Read Pattern**: Sequential test execution with result aggregation
+- **Write Pattern**: Append-only result logging with batch reporting
+- **Performance Pattern**: In-memory caching with periodic persistence
 
-### 3.4. Performance Benchmarking Infrastructure (`tests/performance/`)
-**Status**: Implementation pattern exists - adapt for framework
-- **Components**:
-  - Startup time measurement utilities
-  - Memory usage profiling for operations
-  - Tokenization performance benchmarking
-  - Configuration processing time measurement
-  - Comprehensive benchmark suite with result formatting
-- **Fallback Handling**: Fallback indicators for missing implementations (999.0s, 999999KB)
+## 5. API Specifications
 
-### 3.5. Result Reporter (`lua/avante/test/reporter.lua`)
-- **Responsibilities**: Aggregate test results, generate detailed reports, track performance metrics
-- **Output Modes**: Console, JSON, structured logs compatible with CI/CD
-- **Metrics**: Success/failure counts, execution times, memory usage
-- **Error Context**: Integration with error handling module for detailed failure reporting
+### 5.1. Core Test APIs
 
-## 4. APIs
+| Endpoint | Method | Parameters | Response | SLA |
+|----------|--------|------------|----------|-----|
+| `test.run()` | Function Call | Config Object | Test Results | < 30s |
+| `test.execute()` | Function Call | Test Case | Test Result | < 5s |
+| `test.configure()` | Function Call | Config Object | Validation Result | < 1s |
+| `test.benchmark()` | Function Call | Test Suite | Performance Report | < 10s |
 
-| Component | Method | Parameters | Return Type | SLA |
-|-----------|--------|------------|-------------|-----|
-| `test.execute()` | Function Call | Config Object | Test Result | < 5s |
-| `test.report()` | Function Call | Result Set | Formatted Report | < 1s |
-| `test.validate()` | Function Call | Test Suite | Validation Status | < 2s |
-| `test.benchmark()` | Function Call | Performance Suite | Benchmark Report | < 10s |
+### 5.2. API Contract Examples
 
-**API Example**:
 ```lua
-local test = require('avante.test')
-
--- Execute test suite with error handling
-local results = test.execute({
-  suites = {"basic", "integration", "performance"},
-  timeout = 30000,
-  parallel = false,
-  error_recovery = true,
-  performance_tracking = true
+-- Test Execution API
+local result = test.execute({
+  name = "basic_functionality",
+  timeout = 5,
+  execute = function()
+    -- Test implementation
+    assert(condition, "Test condition failed")
+    return { status = "passed", data = result_data }
+  end
 })
 
--- Generate comprehensive report
-local report = test.report(results, {
-  format = "detailed",
-  output = "console",
-  include_performance = true,
-  error_context = true
+-- Configuration API
+local config = test.configure({
+  suite_name = "integration_tests",
+  timeout_default = 10,
+  output_format = "json",
+  performance_enabled = true
+})
+
+-- Benchmark API
+local benchmark = test.benchmark({
+  tests = test_suite,
+  iterations = 10,
+  warmup_runs = 3
 })
 ```
 
-## 5. Security & Compliance
+## 6. Technology Stack
 
-### Data Protection
-- **File Access**: Read-only access to test files, no modification of source code during testing
-- **Environment Isolation**: Tests run in sandboxed environment preventing system modifications
-- **Sensitive Data**: No credential or API key testing in basic framework
+### 6.1. Primary Stack
+- **Language**: Lua (existing codebase pattern, addresses **NFR-1**)
+- **Runtime**: Neovim Lua runtime environment
+- **Dependencies**: Minimal external dependencies, leverage existing Avante.nvim infrastructure
 
-### Access Controls
-- **Permissions**: Standard file system permissions, no elevated access required
-- **Audit Trail**: Test execution logging via Neovim's built-in logging system
+### 6.2. Stack Justification
+**Chosen**: Lua-based implementation following Avante.nvim patterns (addresses **REQ-1**, **NFR-1**)
+- **Alternative 1**: External test framework (Jest, pytest) - Rejected due to integration complexity
+- **Alternative 2**: Shell script testing - Rejected due to limited error handling capabilities
 
-## 6. Failure Modes & Resilience
+## 7. Security & Compliance
 
-| Failure Scenario | Probability | Impact | Mitigation |
-|-----------------|-------------|---------|------------|
-| Individual test timeout | Medium | Low | Continue execution, mark as failed |
-| Memory exhaustion | Low | Medium | Resource limits, graceful cleanup |
-| Missing dependencies | Medium | High | Graceful degradation, clear error messages |
-| Configuration errors | High | Medium | Validation layer, fallback defaults |
-| Missing Rust libraries | High | Low | Fallback mechanisms with estimated values |
+### 7.1. Security Controls
+- **Data Protection**: Read-only access to test files, no source code modification during testing
+- **Access Control**: Local filesystem access only, no network operations
+- **Input Validation**: Comprehensive input sanitization for test configurations and parameters
+- **Error Handling**: Secure error reporting without sensitive information exposure
 
-### Recovery Strategies
-- **Test Isolation**: Each test runs independently, failures don't cascade
-- **Resource Cleanup**: Automatic cleanup after each test completion
-- **Error Reporting**: Detailed error context following `lua/avante/errors.lua` patterns
-- **Graceful Degradation**: All components handle missing Rust libraries gracefully
-- **State Recovery**: Recovery mechanisms after error conditions
+### 7.2. Compliance Considerations
+- **Code Standards**: Follow existing Avante.nvim coding conventions and patterns
+- **Documentation**: Comprehensive inline documentation and API specifications
+- **Audit Trail**: Test execution logging with timestamps and result tracking
 
-## 7. Performance & Scalability
+## 8. Performance & Scalability
 
-### Capacity Planning
-- **Test Suite Size**: Support up to 500 individual test cases
-- **Memory Usage**: Target <50MB peak memory consumption
-- **Execution Time**: Full suite completion within 30 seconds
+### 8.1. Performance Requirements
+- **Execution Time**: Full suite completion within 30 seconds (addresses **REQ-2**)
+- **Memory Usage**: Peak memory consumption < 100MB during test execution
+- **Startup Time**: Test runner initialization < 2 seconds
+- **Throughput**: Process 50+ test cases per execution cycle
 
-### Optimization Strategies
-- **Lazy Loading**: Load test modules only when executed
-- **Result Caching**: Cache expensive setup operations
-- **Progress Reporting**: Real-time progress updates for long-running suites
-- **Performance Monitoring**: Continuous performance monitoring with benchmarking utilities
-- **Memory Leak Prevention**: Active monitoring and prevention
+### 8.2. Scalability Design
+- **Modular Architecture**: Support for plugin-based test extension
+- **Resource Management**: Automatic cleanup and resource deallocation
+- **Caching Strategy**: Result caching for improved repeated execution performance
 
-## 8. Observability
+## 9. Observability & Monitoring
 
-### Metrics Collection
+### 9.1. Metrics Collection
 ```lua
--- Enhanced performance tracking
-local metrics = {
-  execution_time = 0,
-  memory_usage = 0,
-  success_rate = 0,
-  error_counts = {},
-  performance_baseline = {},
-  startup_time = 0,
-  tokenization_rate = 0,
-  configuration_processing_time = 0
+-- Performance Metrics
+metrics = {
+  test_execution_time = histogram,    -- Test duration distribution
+  test_success_rate = gauge,          -- Pass/fail ratio
+  memory_usage_peak = gauge,          -- Peak memory consumption
+  test_count_total = counter          -- Total tests executed
 }
 ```
 
-### Logging Strategy
-- **Test Execution**: Debug-level logging for test progress
-- **Error Details**: Error-level logging with full stack traces
-- **Performance**: Info-level logging for execution metrics
-- **Context-Aware Logging**: Integration with error handling module
+### 9.2. Logging Strategy
+- **Structured Logging**: JSON-formatted logs for automated parsing
+- **Log Levels**: DEBUG, INFO, WARN, ERROR with configurable verbosity
+- **Context Preservation**: Test context and stack trace information
+- **Output Modes**: Console, JSON, structured logs compatible with CI/CD
 
-## 9. Configuration & Deployment
+## 10. Failure Modes & Recovery
 
-### Configuration Management
-**Chosen**: Lua-based configuration following provider patterns
-- Leverage `lua/avante/config.lua` patterns for consistency
-- Support environment variable overrides via `E.parse_envvar()`
-- Deep merge user configuration with sensible defaults
-- **Configuration Validation**: Validation and error handling for invalid configurations
+### 10.1. Failure Analysis
 
-**Alternative Considered**: JSON/YAML configuration
-- **Pros**: Better tooling support, language-agnostic
-- **Cons**: Breaks consistency with Avante.nvim patterns
-- **Decision**: Stick with Lua for codebase consistency (addresses REQ-1, NFR-1)
+| Failure Mode | Probability | Impact | Recovery Strategy |
+|--------------|-------------|--------|------------------|
+| Test timeout | Medium | Medium | Automatic retry with extended timeout |
+| Memory exhaustion | Low | High | Graceful degradation with resource cleanup |
+| Configuration error | High | Low | Default configuration fallback |
+| Dependency missing | Low | High | Skip dependent tests with clear reporting |
+| Runtime error | Medium | Medium | Error isolation with continued execution |
 
-### Technology Stack
-- **Lua**: Primary language for Neovim plugin functionality (existing codebase pattern)
-- **Neovim Built-ins**: Leverage vim.fn, vim.api for file operations
-- **Avante Utils**: Reuse existing utility functions from `lua/avante/utils.lua`
+### 10.2. Disaster Recovery
+- **State Recovery**: Automatic cleanup of partial test execution state
+- **Data Persistence**: Critical test results saved before process termination
+- **Rollback Strategy**: Configuration rollback to last known good state
+- **Health Check**: Pre-execution environment validation
 
-## 10. Implementation Strategy
+## 11. Implementation Phases
 
-### Development Approach
-**Chosen**: Leverage existing Avante.nvim patterns and infrastructure
-- Inherit from established provider configuration system
-- Reuse error handling patterns from `lua/avante/errors.lua`
-- Follow modular design principles from existing codebase
-- **Leverage Existing Infrastructure**: Use existing provider patterns and configuration systems
+### Phase 1: Foundation (MVP)
+- Basic test runner implementation
+- Core test execution engine
+- Simple console output reporting
+- Basic error handling
 
-**Alternative Considered**: Standalone testing implementation
-- **Pros**: Complete independence, no coupling to Avante patterns
-- **Cons**: Code duplication, inconsistent with project architecture
-- **Decision**: Integrate with existing patterns for maintainability (addresses NFR-1, NFR-2)
+### Phase 2: Enhanced Features
+- Performance monitoring integration
+- JSON output format support
+- Configuration management system
+- Advanced error recovery
 
-### Module Structure
-```
-lua/avante/test/
-├── init.lua           -- Main test interface
-├── runner.lua         -- Test execution orchestration
-├── executor.lua       -- Individual test execution
-├── reporter.lua       -- Result reporting and formatting
-├── config.lua         -- Test configuration management
-└── suites/
-    ├── basic_functionality_spec.lua  -- Basic functionality tests
-    ├── error_handling_spec.lua       -- Error handling tests
-    ├── integration_spec.lua          -- Integration tests
-    ├── performance_spec.lua          -- Performance benchmarks
-    └── configuration_spec.lua        -- Configuration tests
+### Phase 3: Integration & Polish
+- CI/CD integration capabilities
+- Comprehensive documentation
+- Performance optimization
+- Extended test coverage
 
-tests/performance/
-├── startup_bench.lua   -- Startup time measurement
-├── memory_bench.lua    -- Memory usage profiling
-├── tokenizer_bench.lua -- Tokenization performance
-└── config_bench.lua    -- Configuration processing
-```
+## 12. Cost Analysis
 
-## 11. Migration & Rollout
+### 12.1. Development Resources
+- **Implementation Time**: 2-3 development cycles for MVP
+- **Maintenance Overhead**: Minimal due to simple architecture
+- **Infrastructure Cost**: None (local execution only)
 
-### Implementation Phases
-1. **Phase 1**: Core test framework implementation (runner, executor, reporter)
-2. **Phase 2**: Basic test suite development following established patterns
-3. **Phase 3**: Integration with existing Avante.nvim development workflow
-4. **Phase 4**: Performance optimization and comprehensive error handling
+### 12.2. Operational Costs
+- **Runtime Resources**: Minimal CPU and memory footprint
+- **Storage Requirements**: < 10MB for test artifacts and logs
+- **Network Usage**: None (local testing only)
 
-### Backwards Compatibility
-- No breaking changes to existing Avante.nvim functionality
-- Test framework operates as optional development tool
-- Graceful handling of missing test dependencies
+## 13. Risk Assessment & Mitigations
 
-## 12. Risk Assessment & Mitigations
+### 13.1. Technical Risks
+- **Risk**: Lua runtime limitations affecting test execution
+  - **Mitigation**: Leverage existing Avante.nvim Lua patterns and capabilities
+- **Risk**: Memory leaks during extended test execution
+  - **Mitigation**: Implement comprehensive resource cleanup and monitoring
 
-### Technical Risks
-| Risk | Probability | Impact | Mitigation |
-|------|-------------|---------|------------|
-| Performance regression | Low | Medium | Benchmark against baseline, resource limits |
-| Configuration conflicts | Medium | Low | Namespace isolation, validation layer |
-| Dependency issues | Medium | High | Graceful degradation, clear error messages |
-| Missing Rust libraries | High | Low | Fallback mechanisms with estimated values |
+### 13.2. Project Risks
+- **Risk**: Unclear requirements leading to scope creep
+  - **Mitigation**: Iterative development with stakeholder feedback loops
+- **Risk**: Integration complexity with existing codebase
+  - **Mitigation**: Follow established patterns and maintain backward compatibility
 
-### Business Risks
-- **Minimal Impact**: Test project scope limits business risk exposure
-- **Development Velocity**: Framework should accelerate rather than hinder development
+## 14. Open Issues
 
-## 13. Open Issues & Decisions Needed
+- [ ] **Pending**: Clarification needed on specific test objectives and success criteria
+- [ ] **Pending**: Performance benchmark targets require stakeholder input
+- [ ] **Pending**: Integration requirements with existing CI/CD pipeline
+- [ ] **Pending**: Long-term maintenance and ownership responsibilities
 
-### Pending Decisions
-- [ ] **Test Execution Environment**: Should tests run in isolated Neovim instance or current session?
-- [ ] **Performance Thresholds**: What constitutes acceptable performance for different test types?
-- [ ] **CI/CD Integration**: Integration requirements with existing development workflows?
+## 15. Trade-offs Analysis
 
-### Questions for Stakeholders
-1. **File Access Permissions**: Is read-only test file access acceptable, avoiding any source code modifications?
-2. **Execution SLA**: Is a sub-5-second SLA for test execution acceptable for your workflow?
-3. **Configuration Format**: Do you prefer Lua-based configuration, or JSON/YAML for portability and tooling?
-4. **Language Choice**: Is Lua the preferred language for this test tooling and configuration?
-5. **Implementation Strategy**: Do you prefer reusing Avante.nvim patterns or a standalone testing implementation?
+### 15.1. Architecture Decisions
 
-## 14. Trade-offs Analysis
+**Decision**: Modular runner-executor-reporter architecture
+- **Pro**: Clear separation of concerns, extensible design, testable components
+- **Con**: Slightly higher complexity than monolithic approach
+- **Rationale**: Supports **REQ-1** and **NFR-2** for maintainable implementation
 
-### Major Decision Points
+**Decision**: Lua-based implementation leveraging Avante.nvim patterns
+- **Pro**: Consistent with existing codebase, no external dependencies, fast execution
+- **Con**: Limited ecosystem compared to mainstream testing frameworks
+- **Rationale**: Addresses **NFR-1** for code standards compliance
 
-#### 1. Configuration System (REQ-1, NFR-1)
-**Options**:
-- **A**: Lua-based following Avante.nvim patterns
-- **B**: JSON/YAML for tooling compatibility
+**Decision**: In-memory result caching with optional persistence
+- **Pro**: Fast test execution, reduced I/O overhead
+- **Con**: Memory usage increases with large test suites
+- **Rationale**: Balances performance requirements with resource constraints
 
-**Trade-off**: Consistency vs. Tooling
-- **Chosen A**: Better integration with existing codebase patterns
-- **Rejected B**: Would break architectural consistency
+### 15.2. Technology Choices
 
-#### 2. Test Execution Model (REQ-2, REQ-3)
-**Options**:
-- **A**: Sequential execution with detailed reporting
-- **B**: Parallel execution with faster completion
+**Decision**: Console/JSON output over database persistence
+- **Pro**: Simple implementation, portable results, CI/CD compatible
+- **Con**: Limited historical analysis capabilities
+- **Rationale**: Matches test project scope and **REQ-2** verification requirements
 
-**Trade-off**: Speed vs. Reliability
-- **Chosen A**: Ensures predictable results and easier debugging
-- **Rejected B**: May introduce race conditions and harder error diagnosis
+## 16. Future Considerations
 
-#### 3. Integration Strategy (NFR-1, NFR-2)
-**Options**:
-- **A**: Deep integration with Avante.nvim patterns
-- **B**: Standalone implementation
+### 16.1. Extension Points
+- Plugin architecture for custom test types
+- Integration hooks for external reporting systems
+- Performance regression detection capabilities
+- Automated test generation from specifications
 
-**Trade-off**: Maintainability vs. Independence
-- **Chosen A**: Leverages existing infrastructure and maintains consistency
-- **Rejected B**: Would duplicate code and create maintenance burden
-
-#### 4. Error Handling Approach (NFR-3)
-**Options**:
-- **A**: Leverage existing `lua/avante/errors.lua` module
-- **B**: Implement custom error handling
-
-**Trade-off**: Consistency vs. Customization
-- **Chosen A**: Maintains consistency with existing error patterns
-- **Rejected B**: Would duplicate existing functionality
-
-## 15. Success Metrics
-
-### Quantitative Metrics
-- **Test Coverage**: >90% of core functionality covered by automated tests
-- **Execution Performance**: Full test suite completes within 30 seconds
-- **Error Detection**: 100% of test failures properly reported with actionable details
-- **Resource Usage**: Memory consumption remains below 50MB during execution
-- **Performance Baseline**: Maintain performance benchmarking infrastructure for regression detection
-
-### Qualitative Metrics
-- **Developer Experience**: Intuitive API following established Avante.nvim patterns
-- **Maintainability**: Clear code structure following project conventions
-- **Documentation**: Comprehensive inline documentation and usage examples
-- **Integration**: Seamless integration with existing development workflow
-- **Error Recovery**: Comprehensive error handling prevents plugin crashes
+### 16.2. Scalability Path
+- Distributed test execution for large suites
+- Integration with external CI/CD systems
+- Advanced analytics and reporting dashboard
+- Cross-platform compatibility expansion
 
 ---
 
-**Document Status**: Ready for review and stakeholder feedback
-**Next Review Date**: Upon stakeholder response to open questions
-**Implementation Target**: Following requirements clarification
+**Next Steps**:
+1. **Requirements Clarification**: Engage stakeholders to define specific test objectives
+2. **MVP Implementation**: Begin with core test runner and basic functionality
+3. **Iterative Development**: Regular feedback and feature refinement
+4. **Documentation**: Comprehensive user and developer documentation

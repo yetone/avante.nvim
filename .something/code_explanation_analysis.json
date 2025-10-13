@@ -1,0 +1,283 @@
+{
+  "modules": [
+    {
+      "id": "test_framework_infrastructure",
+      "type": "FUNCTIONAL",
+      "title": "Test Framework Infrastructure",
+      "description": "Core testing framework implementation with runner, executor, and configuration management",
+      "implementationStatus": "IMPLEMENTED",
+      "subModules": [
+        {
+          "id": "test_runner_core",
+          "title": "Test Runner Core",
+          "description": "Orchestrates test execution, manages test lifecycle, and coordinates reporting across multiple test suites",
+          "implementationStatus": "IMPLEMENTED",
+          "mermaidDiagram": "```mermaid\nflowchart TB\n    A[Test Runner] --> B[Load Config]\n    B --> C[Execute Suites]\n    C --> D[Basic Functionality]\n    C --> E[Error Handling]\n    C --> F[Configuration]\n    C --> G[Integration]\n    C --> H[Performance]\n    D --> I[Collect Results]\n    E --> I\n    F --> I\n    G --> I\n    H --> I\n```",
+          "implementationBlocks": [
+            {
+              "filePath": "lua/avante/test/runner.lua",
+              "functionName": "run_tests",
+              "startLine": 39,
+              "endLine": 67,
+              "language": "lua",
+              "code": "function M.run_tests(config)\n  config = vim.tbl_deep_extend(\"force\", default_config, config or {})\n\n  local results = {}\n  local test_suites = {\n    \"basic_functionality\",\n    \"error_handling\",\n    \"configuration\",\n    \"integration\",\n    \"performance\"\n  }\n\n  Utils.debug(\"Starting test execution with config\", config)\n\n  for _, suite_name in ipairs(test_suites) do\n    local suite_results = M.run_test_suite(suite_name, config)\n    for _, result in ipairs(suite_results) do\n      table.insert(results, result)\n    end\n\n    -- Handle error strategy\n    if config.error_handling == \"stop\" and not M.all_passed(suite_results) then\n      Utils.warn(\"Stopping test execution due to failures in suite: \" .. suite_name)\n      break\n    end\n  end\n\n  return results\nend",
+              "purpose": "Main orchestrator that runs all test suites with configurable error handling and result aggregation"
+            }
+          ]
+        },
+        {
+          "id": "test_executor_engine",
+          "title": "Test Executor Engine",
+          "description": "Executes individual test cases with timeout handling, resource cleanup, and performance tracking",
+          "implementationStatus": "IMPLEMENTED",
+          "mermaidDiagram": "```mermaid\nsequenceDiagram\n    participant Runner\n    participant Executor\n    participant TestFunc\n    participant Errors\n    Runner->>Executor: execute_suite(suite_name, config)\n    Executor->>Executor: run_suite_tests(suite_name, config)\n    loop Each Test\n        Executor->>TestFunc: execute_single_test()\n        TestFunc->>Errors: safe_execute()\n        Errors-->>TestFunc: result/error\n        TestFunc-->>Executor: test_result\n    end\n    Executor-->>Runner: aggregated_results\n```",
+          "implementationBlocks": [
+            {
+              "filePath": "lua/avante/test/executor.lua",
+              "functionName": "execute_single_test",
+              "startLine": 78,
+              "endLine": 101,
+              "language": "lua",
+              "code": "function M.execute_single_test(test_name, test_func, config)\n  local start_time = vim.uv.hrtime()\n\n  -- Test isolation - each test runs independently\n  local test_result, error_msg = Errors.safe_execute(test_func, test_name)\n\n  local end_time = vim.uv.hrtime()\n  local duration_ms = (end_time - start_time) / 1000000\n\n  local result = {\n    success = test_result ~= nil,\n    message = test_name,\n    duration_ms = duration_ms,\n    error = error_msg\n  }\n\n  if config.graceful_degradation and not result.success then\n    -- Apply fallback mechanisms\n    result.duration_ms = config.fallback_indicators.timeout\n    Utils.debug(\"Applied graceful degradation for test: \" .. test_name)\n  end\n\n  return result\nend",
+              "purpose": "Executes individual tests with precise timing, error handling, and graceful degradation support"
+            }
+          ]
+        },
+        {
+          "id": "configuration_management",
+          "title": "Configuration Management",
+          "description": "Handles test configurations with validation, default values, and schema enforcement",
+          "implementationStatus": "IMPLEMENTED",
+          "mermaidDiagram": "```mermaid\nflowchart LR\n    A[Default Config] --> B[User Config]\n    B --> C[Deep Extend]\n    C --> D[Validation]\n    D --> E[Schema Check]\n    E --> F[Final Config]\n    F --> G[Test Execution]\n```",
+          "implementationBlocks": [
+            {
+              "filePath": "lua/avante/test/runner.lua",
+              "functionName": "default_config",
+              "startLine": 22,
+              "endLine": 34,
+              "language": "lua",
+              "code": "local default_config = {\n  __inherited_from = \"base_test\",\n  timeout = 30000,\n  parallel_execution = false,\n  output_format = \"detailed\",\n  error_handling = \"continue\",\n  performance_tracking = true,\n  graceful_degradation = true,\n  fallback_indicators = {\n    timeout = 999.0,\n    memory_limit = 999999\n  }\n}",
+              "purpose": "Provides comprehensive default configuration with performance targets and fallback mechanisms"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "error_handling_system",
+      "type": "FUNCTIONAL",
+      "title": "Error Handling & Recovery System",
+      "description": "Comprehensive error handling with graceful degradation, input validation, and safe execution patterns",
+      "implementationStatus": "IMPLEMENTED",
+      "subModules": [
+        {
+          "id": "error_handling_core",
+          "title": "Error Handler Core",
+          "description": "Central error handling system with categorized error codes, context preservation, and user-friendly reporting",
+          "implementationStatus": "IMPLEMENTED",
+          "mermaidDiagram": "```mermaid\nflowchart TD\n    A[Error Occurs] --> B[Error Handler]\n    B --> C[Categorize Error]\n    C --> D[Log Error]\n    C --> E[User Notification]\n    C --> F[Debug Context]\n    D --> G[Return Gracefully]\n    E --> G\n    F --> G\n```",
+          "implementationBlocks": [
+            {
+              "filePath": "lua/avante/errors.lua",
+              "functionName": "handle_error",
+              "startLine": 24,
+              "endLine": 43,
+              "language": "lua",
+              "code": "function M.handle_error(err, context)\n  local error_msg = type(err) == \"string\" and err or (err.message or tostring(err))\n  local error_code = type(err) == \"table\" and err.code or M.CODES.UNKNOWN_ERROR\n\n  -- Log the error with context\n  local log_msg = string.format(\"[Avante Error %d]: %s\", error_code, error_msg)\n  if context then\n    log_msg = log_msg .. \" | Context: \" .. vim.inspect(context)\n  end\n\n  -- Use vim.notify for user-friendly error display\n  vim.notify(\"Avante error: \" .. error_msg, vim.log.levels.ERROR)\n\n  -- Log detailed information for debugging\n  if vim.g.avante_debug then\n    vim.notify(log_msg, vim.log.levels.DEBUG)\n  end\n\n  return nil\nend",
+              "purpose": "Central error handling with categorized logging, user notifications, and debug context preservation"
+            }
+          ]
+        },
+        {
+          "id": "input_validation_system",
+          "title": "Input Validation System",
+          "description": "Comprehensive input validation with type checking, configuration schema validation, and detailed error reporting",
+          "implementationStatus": "IMPLEMENTED",
+          "mermaidDiagram": "```mermaid\nflowchart LR\n    A[Input] --> B[Type Check]\n    B --> C[Schema Validation]\n    C --> D[Required Fields]\n    D --> E[Valid Config]\n    B --> F[Type Error]\n    C --> G[Schema Error]\n    D --> H[Missing Field Error]\n```",
+          "implementationBlocks": [
+            {
+              "filePath": "lua/avante/errors.lua",
+              "functionName": "validate_config",
+              "startLine": 71,
+              "endLine": 94,
+              "language": "lua",
+              "code": "function M.validate_config(config, schema)\n  if not M.validate_input(config, \"table\", \"config\") then\n    return false, \"Configuration must be a table\"\n  end\n\n  for field, field_schema in pairs(schema) do\n    local value = config[field]\n    local required = field_schema.required or false\n    local expected_type = field_schema.type\n\n    if required and value == nil then\n      return false, string.format(\"Required field '%s' is missing\", field)\n    end\n\n    if value ~= nil then\n      local is_valid, error_msg = M.validate_input(value, expected_type, field)\n      if not is_valid then\n        return false, error_msg\n      end\n    end\n  end\n\n  return true, nil\nend",
+              "purpose": "Validates configuration objects against schemas with detailed error reporting for missing or invalid fields"
+            }
+          ]
+        },
+        {
+          "id": "safe_execution_patterns",
+          "title": "Safe Execution Patterns",
+          "description": "Protected code execution with error recovery, module loading safety, and resource cleanup",
+          "implementationStatus": "IMPLEMENTED",
+          "mermaidDiagram": "```mermaid\nsequenceDiagram\n    participant Caller\n    participant SafeExecute\n    participant Function\n    participant ErrorHandler\n    Caller->>SafeExecute: safe_execute(func, context)\n    SafeExecute->>Function: pcall(func)\n    alt Success\n        Function-->>SafeExecute: result\n        SafeExecute-->>Caller: result, nil\n    else Error\n        Function-->>SafeExecute: error\n        SafeExecute->>ErrorHandler: handle_error()\n        SafeExecute-->>Caller: nil, error_msg\n    end\n```",
+          "implementationBlocks": [
+            {
+              "filePath": "lua/avante/errors.lua",
+              "functionName": "safe_execute",
+              "startLine": 114,
+              "endLine": 125,
+              "language": "lua",
+              "code": "function M.safe_execute(func, error_context)\n  local ok, result = pcall(func)\n\n  if not ok then\n    local context_msg = error_context and (\" in \" .. error_context) or \"\"\n    local error_msg = \"Execution failed\" .. context_msg .. \": \" .. tostring(result)\n    M.handle_error(error_msg)\n    return nil, error_msg\n  end\n\n  return result, nil\nend",
+              "purpose": "Safely executes functions with automatic error handling, context preservation, and clean error reporting"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "performance_monitoring",
+      "type": "FUNCTIONAL",
+      "title": "Performance Monitoring & Benchmarking",
+      "description": "Comprehensive performance measurement system with startup time tracking, memory profiling, and benchmark reporting",
+      "implementationStatus": "IMPLEMENTED",
+      "subModules": [
+        {
+          "id": "benchmark_engine",
+          "title": "Benchmark Engine",
+          "description": "High-precision benchmarking system with warmup runs, statistical analysis, and performance target validation",
+          "implementationStatus": "IMPLEMENTED",
+          "mermaidDiagram": "```mermaid\nflowchart TB\n    A[Benchmark Request] --> B[Warmup Runs]\n    B --> C[GC Collection]\n    C --> D[Measurement Runs]\n    D --> E[Statistical Analysis]\n    E --> F[Performance Report]\n    F --> G[Target Validation]\n```",
+          "implementationBlocks": [
+            {
+              "filePath": "tests/performance/benchmark.lua",
+              "functionName": "measure_time",
+              "startLine": 24,
+              "endLine": 84,
+              "language": "lua",
+              "code": "function M.measure_time(operation_name, func, config)\n  config = config or {}\n  local warmup_runs = config.warmup_runs or 3\n  local measurement_runs = config.measurement_runs or 5\n  local gc_between_runs = config.gc_between_runs ~= false\n\n  -- Warmup runs\n  for _ = 1, warmup_runs do\n    local ok, _ = pcall(func)\n    if not ok then\n      return {\n        operation = operation_name,\n        elapsed_time = 999.0, -- Indicate failure\n        memory_usage = 0,\n        success = false,\n        error = \"Warmup run failed\"\n      }\n    end\n    if gc_between_runs then\n      collectgarbage(\"collect\")\n    end\n  end\n\n  -- Measurement runs\n  local times = {}\n  local total_time = 0\n\n  for i = 1, measurement_runs do\n    if gc_between_runs then\n      collectgarbage(\"collect\")\n    end\n\n    local start_time = vim.uv.hrtime()\n    local ok, result = pcall(func)\n    local end_time = vim.uv.hrtime()\n\n    if not ok then\n      return {\n        operation = operation_name,\n        elapsed_time = 999.0,\n        memory_usage = 0,\n        success = false,\n        error = \"Measurement run \" .. i .. \" failed: \" .. tostring(result)\n      }\n    end\n\n    local elapsed = (end_time - start_time) / 1000000 -- Convert to milliseconds\n    times[i] = elapsed\n    total_time = total_time + elapsed\n  end\n\n  local avg_time = total_time / measurement_runs\n  local memory_usage = collectgarbage(\"count\") -- In KB\n\n  return {\n    operation = operation_name,\n    elapsed_time = avg_time,\n    memory_usage = memory_usage,\n    success = true\n  }\nend",
+              "purpose": "Provides high-precision benchmarking with warmup runs, statistical analysis, and comprehensive error handling"
+            }
+          ]
+        },
+        {
+          "id": "comprehensive_benchmarks",
+          "title": "Comprehensive Benchmarks",
+          "description": "Full system benchmarking suite covering startup time, memory usage, tokenization performance, and configuration loading",
+          "implementationStatus": "IMPLEMENTED",
+          "mermaidDiagram": "```mermaid\nflowchart LR\n    A[Benchmark Suite] --> B[Startup Time]\n    A --> C[Memory Usage]\n    A --> D[Tokenization]\n    A --> E[Config Loading]\n    A --> F[Error Handling]\n    B --> G[Report Generation]\n    C --> G\n    D --> G\n    E --> G\n    F --> G\n```",
+          "implementationBlocks": [
+            {
+              "filePath": "tests/performance/benchmark.lua",
+              "functionName": "run_comprehensive_benchmarks",
+              "startLine": 167,
+              "endLine": 207,
+              "language": "lua",
+              "code": "function M.run_comprehensive_benchmarks()\n  local results = {}\n\n  -- Startup time benchmark\n  results.startup_time = M.measure_startup_time()\n\n  -- Memory usage benchmark\n  results.memory_usage = M.profile_memory_usage(function()\n    local avante = require(\"avante\")\n    avante.setup({})\n  end)\n\n  -- Tokenization benchmark if available\n  local sample_text = \"This is a sample text for tokenization performance testing. \" ..\n                     \"It contains multiple sentences and should provide a good \" ..\n                     \"baseline for measuring tokenization speed and efficiency.\"\n\n  results.tokenization = M.benchmark_tokenization(sample_text, 10000) -- 10K chars/sec target\n\n  -- Configuration loading benchmark\n  results.config_loading = M.measure_time(\"config_loading\", function()\n    local Config = require(\"avante.config\")\n    local test_config = {\n      provider = \"openai\",\n      model = \"gpt-4\",\n      timeout = 30000,\n      max_tokens = 4096\n    }\n    -- Simulate config validation and loading\n    return Config\n  end)\n\n  -- Error handling benchmark\n  results.error_handling = M.measure_time(\"error_handling\", function()\n    local Errors = require(\"avante.errors\")\n    Errors.handle_error(\"Test error for benchmark\", { test = true })\n    return true\n  end)\n\n  return results\nend",
+              "purpose": "Runs comprehensive benchmarks across all system components with performance targets and detailed metrics"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "test_reporting_system",
+      "type": "FUNCTIONAL",
+      "title": "Test Reporting & Validation System",
+      "description": "Comprehensive test reporting with multiple output formats, test validation, and CI/CD integration support",
+      "implementationStatus": "IMPLEMENTED",
+      "subModules": [
+        {
+          "id": "test_reporter",
+          "title": "Test Reporter",
+          "description": "Generates detailed test reports with multiple output formats for console, JSON, and CI/CD integration",
+          "implementationStatus": "IMPLEMENTED",
+          "mermaidDiagram": "```mermaid\nflowchart TB\n    A[Test Results] --> B[Reporter]\n    B --> C[Console Format]\n    B --> D[JSON Format]\n    B --> E[CI Format]\n    C --> F[Console Output]\n    D --> G[JSON File]\n    E --> H[CI Integration]\n```",
+          "implementationBlocks": [
+            {
+              "filePath": "lua/avante/test/init.lua",
+              "functionName": "report",
+              "startLine": 34,
+              "endLine": 39,
+              "language": "lua",
+              "code": "function M.report(results, options)\n  options = options or {}\n\n  local reporter = require(\"avante.test.reporter\")\n  return reporter.generate_report(results, options)\nend",
+              "purpose": "Main interface for generating comprehensive test reports with customizable output formats"
+            }
+          ]
+        },
+        {
+          "id": "test_validator",
+          "title": "Test Validator",
+          "description": "Validates test suite integrity, configuration correctness, and ensures test environment readiness",
+          "implementationStatus": "IMPLEMENTED",
+          "mermaidDiagram": "```mermaid\nsequenceDiagram\n    participant Client\n    participant Validator\n    participant TestSuite\n    participant Config\n    Client->>Validator: validate_suite(suite_name)\n    Validator->>TestSuite: check_suite_exists\n    Validator->>Config: validate_dependencies\n    Validator->>Config: check_environment\n    Validator-->>Client: validation_result\n```",
+          "implementationBlocks": [
+            {
+              "filePath": "lua/avante/test/init.lua",
+              "functionName": "validate",
+              "startLine": 44,
+              "endLine": 47,
+              "language": "lua",
+              "code": "function M.validate(suite_name)\n  local validator = require(\"avante.test.validator\")\n  return validator.validate_suite(suite_name)\nend",
+              "purpose": "Validates test suite integrity and configuration before execution to ensure reliable test runs"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "test_user_stories",
+      "type": "USER_STORY",
+      "title": "Test Developer Experience",
+      "description": "As a plugin developer, I want reliable testing capabilities so that I can ensure code quality and prevent regressions",
+      "implementationStatus": "IMPLEMENTED",
+      "subModules": [
+        {
+          "id": "test_execution_story",
+          "title": "Execute Comprehensive Tests",
+          "description": "As a developer, I want to run all tests with a single command so that I can quickly verify my changes work correctly",
+          "implementationStatus": "IMPLEMENTED",
+          "mermaidDiagram": "```mermaid\nsequenceDiagram\n    participant Dev as Developer\n    participant API as Test API\n    participant Runner as Test Runner\n    participant Reporter as Reporter\n    Dev->>API: test.execute(config)\n    API->>Runner: run_tests(config)\n    Runner->>Runner: execute_all_suites\n    Runner-->>API: test_results\n    API->>Reporter: generate_report\n    Reporter-->>Dev: formatted_results\n```",
+          "implementationBlocks": [
+            {
+              "filePath": "lua/avante/test/init.lua",
+              "functionName": "execute",
+              "startLine": 23,
+              "endLine": 28,
+              "language": "lua",
+              "code": "function M.execute(config)\n  config = config or {}\n\n  local runner = require(\"avante.test.runner\")\n  return runner.run_tests(config)\nend",
+              "purpose": "Main entry point for developers to execute comprehensive test suites with configurable options"
+            }
+          ]
+        },
+        {
+          "id": "performance_validation_story",
+          "title": "Validate Performance Standards",
+          "description": "As a developer, I want to benchmark my code against performance targets so that I can ensure the plugin remains fast and efficient",
+          "implementationStatus": "IMPLEMENTED",
+          "mermaidDiagram": "```mermaid\nflowchart LR\n    A[Dev Request] --> B[Benchmark Suite]\n    B --> C[Startup < 100ms]\n    B --> D[Memory < 50MB]\n    B --> E[Tokenization > 10K/sec]\n    C --> F[Pass/Fail Report]\n    D --> F\n    E --> F\n```",
+          "implementationBlocks": [
+            {
+              "filePath": "lua/avante/test/init.lua",
+              "functionName": "benchmark",
+              "startLine": 52,
+              "endLine": 61,
+              "language": "lua",
+              "code": "function M.benchmark(suite_name)\n  local benchmark = require(\"tests.performance.benchmark\")\n\n  if suite_name == \"comprehensive\" then\n    return benchmark.run_comprehensive_benchmarks()\n  else\n    Utils.warn(\"Unknown benchmark suite: \" .. suite_name)\n    return {}\n  end\nend",
+              "purpose": "Enables developers to run performance benchmarks and validate against established targets"
+            }
+          ]
+        },
+        {
+          "id": "error_diagnosis_story",
+          "title": "Diagnose Test Failures",
+          "description": "As a developer, I want detailed error information when tests fail so that I can quickly identify and fix issues",
+          "implementationStatus": "IMPLEMENTED",
+          "mermaidDiagram": "```mermaid\nflowchart TD\n    A[Test Failure] --> B[Error Handler]\n    B --> C[Stack Trace]\n    B --> D[Context Info]\n    B --> E[Error Code]\n    C --> F[Debug Report]\n    D --> F\n    E --> F\n    F --> G[Developer]\n```",
+          "implementationBlocks": [
+            {
+              "filePath": "lua/avante/errors.lua",
+              "functionName": "create_error",
+              "startLine": 101,
+              "endLine": 107,
+              "language": "lua",
+              "code": "function M.create_error(message, code, context)\n  return {\n    message = message,\n    code = code or M.CODES.UNKNOWN_ERROR,\n    context = context,\n  }\nend",
+              "purpose": "Creates standardized error objects with context information for detailed debugging and diagnosis"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
