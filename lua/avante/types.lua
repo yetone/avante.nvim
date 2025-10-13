@@ -501,9 +501,9 @@ vim.g.avante_login = vim.g.avante_login
 ---@class avante.ChatHistory
 ---@field title string
 ---@field timestamp string
----@field messages avante.HistoryMessage[] | nil
----@field entries avante.ChatHistoryEntry[] | nil
----@field todos avante.TODO[] | nil
+---@field messages avante.HistoryMessage[]
+---@field entries avante.ChatHistoryEntry[]
+---@field todos avante.TODO[]
 ---@field memory avante.ChatMemory | nil
 ---@field filename string
 ---@field system_prompt string | nil
