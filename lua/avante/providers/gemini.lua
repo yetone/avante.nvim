@@ -312,11 +312,16 @@ function M:parse_response(ctx, data_stream, _, opts)
   end
 end
 
+---@param prompt_opts AvantePromptOptions
+---@return AvanteCurlOutput|nil
 function M:parse_curl_args(prompt_opts)
   local provider_conf, request_body = Providers.parse_config(self)
 
   local api_key = self:parse_api_key()
-  if api_key == nil then error("Cannot get the gemini api key!") end
+  if api_key == nil then
+    Utils.error("Gemini: API key is not set. Please set " .. M.api_key_name)
+    return nil
+  end
 
   return {
     url = Utils.url_join(

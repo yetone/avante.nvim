@@ -548,8 +548,11 @@ function M.curl(opts)
     if orig_on_stop then return orig_on_stop(stop_opts) end
   end
 
-  ---@type AvanteCurlOutput
   local spec = provider:parse_curl_args(prompt_opts)
+  if not spec then
+    handler_opts.on_stop({ reason = "error", error = "Provider configuration error" })
+    return
+  end
 
   ---@type string
   local current_event_state = nil

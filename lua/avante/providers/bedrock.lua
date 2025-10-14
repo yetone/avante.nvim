@@ -125,7 +125,7 @@ function M:parse_response_without_stream(data, event_state, opts)
 end
 
 ---@param prompt_opts AvantePromptOptions
----@return table
+---@return AvanteCurlOutput|nil
 function M:parse_curl_args(prompt_opts)
   local provider_conf, request_body = P.parse_config(self)
 
@@ -136,9 +136,12 @@ function M:parse_curl_args(prompt_opts)
   if profile ~= nil and profile ~= "" then
     ---@diagnostic disable-next-line: undefined-field
     region = provider_conf.aws_region
+    if not region or region == "" then
+      Utils.error("Bedrock: no aws_region specified in bedrock config")
+      return nil
+    end
 
     local awsCreds = M:get_aws_credentials(region, profile)
-    if not region or region == "" then error("No aws_region specified in bedrock config") end
 
     access_key_id = awsCreds.access_key_id
     secret_access_key = awsCreds.secret_access_key
@@ -153,7 +156,8 @@ function M:parse_curl_args(prompt_opts)
       region = parts[3]
       session_token = parts[4]
     else
-      error("API key not set correctly")
+      Utils.error("Bedrock: API key not set correctly")
+      return nil
     end
   end
 
