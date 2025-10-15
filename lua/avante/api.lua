@@ -296,7 +296,7 @@ end
 
 function M.remove_selected_file(filepath)
   ---@diagnostic disable-next-line: undefined-field
-  local stat = vim.loop.fs_stat(filepath)
+  local stat = vim.uv.fs_stat(filepath)
   local files
   if stat and stat.type == "directory" then
     files = Utils.scan_directory({ directory = filepath, add_dirs = true })
