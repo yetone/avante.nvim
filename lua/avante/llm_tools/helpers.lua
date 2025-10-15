@@ -53,6 +53,7 @@ end
 ---@param tool_name? string -- Optional tool name to check against tool_permissions config
 ---@return avante.ui.Confirm | nil
 function M.confirm(message, callback, confirm_opts, session_ctx, tool_name)
+  callback = vim.schedule_wrap(callback)
   if session_ctx and session_ctx.always_yes then
     callback(true)
     return
