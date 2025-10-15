@@ -15,19 +15,27 @@ local Config = require("avante.config")
 ---@field _popup NuiPopup | nil
 ---@field _prev_winid number | nil
 ---@field _ns_id number | nil
+---@field _skip_reject_prompt boolean | nil
 local M = {}
 M.__index = M
 
+---@class avante.ui.ConfirmOptions
+---@field container_winid? number
+---@field focus? boolean | nil
+---@field skip_reject_prompt? boolean ACP doesn't support reject reason
+---@field permission_options? avante.acp.PermissionOption[] ACP permission options to show in the confirm popup
+
 ---@param message string
 ---@param callback fun(type: "yes" | "all" | "no", reason?: string)
----@param opts { container_winid: number, focus?: boolean }
+---@param opts avante.ui.ConfirmOptions
 ---@return avante.ui.Confirm
 function M:new(message, callback, opts)
   local this = setmetatable({}, M)
-  this.message = message
+  this.message = message or ""
   this.callback = callback
   this._container_winid = opts.container_winid or vim.api.nvim_get_current_win()
   this._focus = opts.focus
+  this._skip_reject_prompt = opts.skip_reject_prompt
   this._ns_id = vim.api.nvim_create_namespace("avante_confirm")
   return this
 end
@@ -35,12 +43,12 @@ end
 function M:open()
   if self._popup then return end
   self._prev_winid = vim.api.nvim_get_current_win()
-  local message = self.message
+  local message = self.message or ""
   local callback = self.callback
 
   local win_width = 60
 
-  local focus_index = 3 -- 1 = Yes, 2 = All Yes, 3 = No
+  local focus_index = 1 -- 1 = Yes, 2 = All Yes, 3 = No
 
   local BUTTON_NORMAL = Highlights.BUTTON_DEFAULT
   local BUTTON_FOCUS = Highlights.BUTTON_DEFAULT_HOVER
@@ -61,21 +69,26 @@ function M:open()
     { " - input ", commentfg },
     { "  " },
   })
+
   local buttons_line = Line:new({
-    { " [Y]es ", function() return focus_index == 1 and BUTTON_FOCUS or BUTTON_NORMAL end },
+    { "  [Y]es ", function() return focus_index == 1 and BUTTON_FOCUS or BUTTON_NORMAL end },
     { "   " },
-    { " [A]ll yes ", function() return focus_index == 2 and BUTTON_FOCUS or BUTTON_NORMAL end },
+    { "  [A]ll yes ", function() return focus_index == 2 and BUTTON_FOCUS or BUTTON_NORMAL end },
     { "    " },
-    { " [N]o ", function() return focus_index == 3 and BUTTON_FOCUS or BUTTON_NORMAL end },
+    { "  [N]o ", function() return focus_index == 3 and BUTTON_FOCUS or BUTTON_NORMAL end },
   })
+
   local buttons_content = tostring(buttons_line)
   local buttons_start_col = math.floor((win_width - #buttons_content) / 2)
+
   local yes_button_pos = buttons_line:get_section_pos(1, buttons_start_col)
   local all_button_pos = buttons_line:get_section_pos(3, buttons_start_col)
   local no_button_pos = buttons_line:get_section_pos(5, buttons_start_col)
+
   local buttons_line_content = string.rep(" ", buttons_start_col) .. buttons_content
   local keybindings_line_num = 5 + #vim.split(message, "\n")
   local buttons_line_num = 2 + #vim.split(message, "\n")
+
   local content = vim
     .iter({
       "",
@@ -157,12 +170,19 @@ function M:open()
       callback("yes")
       return
     end
+
     if focus_index == 2 then
       self:close()
-      Utils.notify("Accept all")
       callback("all")
       return
     end
+
+    if self._skip_reject_prompt then
+      self:close()
+      callback("no")
+      return
+    end
+
     local prompt_input = PromptInput:new({
       submit_callback = function(input)
         self:close()
