@@ -1,5 +1,7 @@
 local Utils = require("avante.utils")
 local Path = require("plenary.path")
+local Config = require("avante.config")
+local ACPConfirmAdapter = require("avante.ui.acp_confirm_adapter")
 
 local M = {}
 
@@ -19,9 +21,34 @@ function M.get_abs_path(rel_path)
   return p
 end
 
+---@type avante.acp.PermissionOption[]
+local default_permission_options = {
+  { optionId = "allow_always", name = "Allow Always", kind = "allow_always" },
+  { optionId = "allow_once", name = "Allow", kind = "allow_once" },
+  { optionId = "reject_once", name = "Reject", kind = "reject_once" },
+}
+
+---@param callback fun(option_id: string)
+---@param confirm_opts avante.ui.ConfirmOptions
+function M.confirm_inline(callback, confirm_opts)
+  local sidebar = require("avante").get()
+  local items =
+    ACPConfirmAdapter.generate_buttons_for_acp_options(confirm_opts.permission_options or default_permission_options)
+
+  sidebar.permission_button_options = items
+  sidebar.permission_handler = function(id)
+    callback(id)
+    sidebar.scroll = true
+    sidebar.permission_button_options = nil
+    sidebar.permission_handler = nil
+    sidebar._history_cache_invalidated = true
+    sidebar:update_content("")
+  end
+end
+
 ---@param message string
----@param callback fun(yes: boolean, reason?: string)
----@param confirm_opts? { focus?: boolean }
+---@param callback fun(response: boolean, reason?: string)
+---@param confirm_opts? avante.ui.ConfirmOptions
 ---@param session_ctx? table
 ---@param tool_name? string -- Optional tool name to check against tool_permissions config
 ---@return avante.ui.Confirm | nil
@@ -32,7 +59,6 @@ function M.confirm(message, callback, confirm_opts, session_ctx, tool_name)
   end
 
   -- Check behaviour.auto_approve_tool_permissions config for auto-approval
-  local Config = require("avante.config")
   local auto_approve = Config.behaviour.auto_approve_tool_permissions
 
   -- If auto_approve is true, auto-approve all tools
@@ -46,6 +72,20 @@ function M.confirm(message, callback, confirm_opts, session_ctx, tool_name)
     callback(true)
     return
   end
+
+  if Config.behaviour.confirmation_ui_style == "inline_buttons" then
+    M.confirm_inline(function(option_id)
+      if option_id == "allow" or option_id == "allow_once" or option_id == "allow_always" then
+        if option_id == "allow_always" and session_ctx then session_ctx.always_yes = true end
+
+        callback(true)
+      else
+        callback(false, option_id)
+      end
+    end, confirm_opts or {})
+    return
+  end
+
   local Confirm = require("avante.ui.confirm")
   local sidebar = require("avante").get()
   if not sidebar or not sidebar.containers.input or not sidebar.containers.input.winid then
