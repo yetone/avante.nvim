@@ -196,7 +196,7 @@ function PromptInput:start_spinner()
     self.spinner_timer = nil
   end
 
-  self.spinner_timer = vim.loop.new_timer()
+  self.spinner_timer = vim.uv.new_timer()
   local spinner_timer = self.spinner_timer
 
   if self.spinner_timer then
