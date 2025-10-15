@@ -17,7 +17,16 @@ function ShortcutsSource:get_trigger_characters() return { "#" } end
 
 function ShortcutsSource:get_keyword_pattern() return [[\%(@\|#\|/\)\k*]] end
 
-function ShortcutsSource:complete(_, callback)
+---@param params cmp.SourceCompletionApiParams
+function ShortcutsSource:complete(params, callback)
+  ---@type string?
+  local trigger_character
+  if params.completion_context.triggerKind == 1 then
+    trigger_character = string.match(params.context.cursor_before_line, "%s*(#)%S*$")
+  elseif params.completion_context.triggerKind == 2 then
+    trigger_character = params.completion_context.triggerCharacter
+  end
+  if not trigger_character or trigger_character ~= "#" then return callback({ items = {}, isIncomplete = false }) end
   local Utils = require("avante.utils")
   local kind = require("cmp").lsp.CompletionItemKind.Variable
   local shortcuts = Utils.get_shortcuts()

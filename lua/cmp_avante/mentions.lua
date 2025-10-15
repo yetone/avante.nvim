@@ -24,8 +24,17 @@ function MentionsSource:get_trigger_characters() return { "@" } end
 
 function MentionsSource:get_keyword_pattern() return [[\%(@\|#\|/\)\k*]] end
 
-function MentionsSource:complete(_, callback)
+---@param params cmp.SourceCompletionApiParams
+function MentionsSource:complete(params, callback)
+  ---@type string?
+  local trigger_character
   local kind = require("cmp").lsp.CompletionItemKind.Variable
+  if params.completion_context.triggerKind == 1 then
+    trigger_character = string.match(params.context.cursor_before_line, "%s*(@)%S*$")
+  elseif params.completion_context.triggerKind == 2 then
+    trigger_character = params.completion_context.triggerCharacter
+  end
+  if not trigger_character or trigger_character ~= "@" then return callback({ items = {}, isIncomplete = false }) end
 
   local items = {}
 
