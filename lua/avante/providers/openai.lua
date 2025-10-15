@@ -504,6 +504,8 @@ function M:parse_response_without_stream(data, _, opts)
   end
 end
 
+---@param prompt_opts AvantePromptOptions
+---@return AvanteCurlOutput|nil
 function M:parse_curl_args(prompt_opts)
   local provider_conf, request_body = Providers.parse_config(self)
   local disable_tools = provider_conf.disable_tools or false
@@ -515,7 +517,8 @@ function M:parse_curl_args(prompt_opts)
   if Providers.env.require_api_key(provider_conf) then
     local api_key = self.parse_api_key()
     if api_key == nil then
-      error(Config.provider .. " API key is not set, please set it in your environment variable or config file")
+      Utils.error(Config.provider .. ": API key is not set, please set it in your environment variable or config file")
+      return nil
     end
     headers["Authorization"] = "Bearer " .. api_key
   end

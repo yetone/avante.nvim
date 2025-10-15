@@ -76,6 +76,8 @@ function M:parse_stream_data(ctx, data, opts)
   end
 end
 
+---@param prompt_opts AvantePromptOptions
+---@return AvanteCurlOutput|nil
 function M:parse_curl_args(prompt_opts)
   local provider_conf, request_body = P.parse_config(self)
 
@@ -89,7 +91,14 @@ function M:parse_curl_args(prompt_opts)
       .. "."
       .. vim.version().patch,
   }
-  if P.env.require_api_key(provider_conf) then headers["Authorization"] = "Bearer " .. self.parse_api_key() end
+  if P.env.require_api_key(provider_conf) then
+    local api_key = self.parse_api_key()
+    if not api_key then
+      Utils.error("Cohere: API key is not set. Please set " .. M.api_key_name)
+      return nil
+    end
+    headers["Authorization"] = "Bearer " .. api_key
+  end
 
   return {
     url = Utils.url_join(provider_conf.endpoint, "/chat"),
