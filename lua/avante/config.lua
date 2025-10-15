@@ -262,6 +262,13 @@ M._defaults = {
       command = "goose",
       args = { "acp" },
     },
+    ["codex"] = {
+      command = "codex-acp",
+      env = {
+        NODE_NO_WARNINGS = "1",
+        OPENAI_API_KEY = os.getenv("OPENAI_API_KEY"),
+      },
+    },
   },
   ---To add support for custom provider, follow the format below
   ---See https://github.com/yetone/avante.nvim/wiki#custom-providers for more details

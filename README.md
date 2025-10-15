@@ -1208,6 +1208,22 @@ To use ACP-compatible agents with Avante.nvim, you need to configure an ACP prov
 }
 ```
 
+#### Goose with ACP
+```lua
+{
+  provider = "goose",
+  -- other configuration options...
+}
+```
+
+#### Codex with ACP
+```lua
+{
+  provider = "codex",
+  -- other configuration options...
+}
+```
+
 ### ACP Configuration
 
 ACP providers are configured in the `acp_providers` section of your configuration:
@@ -1229,6 +1245,17 @@ ACP providers are configured in the `acp_providers` section of your configuratio
       env = {
         NODE_NO_WARNINGS = "1",
         ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY"),
+      },
+    },
+    ["goose"] = {
+      command = "goose",
+      args = { "acp" },
+    },
+    ["codex"] = {
+      command = "codex-acp",
+      env = {
+        NODE_NO_WARNINGS = "1",
+        OPENAI_API_KEY = os.getenv("OPENAI_API_KEY"),
       },
     },
   },

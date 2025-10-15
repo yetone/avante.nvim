@@ -907,7 +907,7 @@ function M._stream_acp(opts)
     end
     if opts.on_messages_add then
       opts.on_messages_add(messages)
-      vim.schedule(function() vim.cmd("redraw") end)
+      -- vim.schedule(function() vim.cmd("redraw") end)
     end
   end
   local function add_tool_call_message(update)
@@ -992,6 +992,24 @@ function M._stream_acp(opts)
           end
           if update.sessionUpdate == "agent_thought_chunk" then
             if update.content.type == "text" then
+              local messages = opts.get_history_messages()
+              local last_message = messages[#messages]
+              if last_message and last_message.message.role == "assistant" then
+                local is_thinking = false
+                local content = last_message.message.content
+                if type(content) == "table" then
+                  for idx, item in ipairs(content) do
+                    if type(item) == "table" and item.type == "thinking" then
+                      is_thinking = true
+                      content[idx].thinking = content[idx].thinking .. update.content.text
+                    end
+                  end
+                end
+                if is_thinking then
+                  on_messages_add({ last_message })
+                  return
+                end
+              end
               local message = History.Message:new("assistant", {
                 type = "thinking",
                 thinking = update.content.text,
