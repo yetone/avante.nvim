@@ -86,7 +86,11 @@ end
 local function thinking_to_lines(item)
   local text = item.thinking or item.data or ""
   local text_lines = vim.split(text, "\n")
-  --- trime suffix empty lines
+  --- trim prefix empty lines
+  while #text_lines > 0 and text_lines[1] == "" do
+    table.remove(text_lines, 1)
+  end
+  --- trim suffix empty lines
   while #text_lines > 0 and text_lines[#text_lines] == "" do
     table.remove(text_lines, #text_lines)
   end

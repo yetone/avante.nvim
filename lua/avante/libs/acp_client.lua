@@ -509,7 +509,7 @@ function ACPClient:_send_result(id, result)
 
   local data = vim.json.encode(message)
   if self.debug_log_file then
-    self.debug_log_file:write("request: " .. data .. string.rep("=", 100) .. "\n")
+    self.debug_log_file:write("request: " .. data .. "\n" .. string.rep("=", 100) .. "\n")
     self.debug_log_file:flush()
   end
   self.transport:send(data)

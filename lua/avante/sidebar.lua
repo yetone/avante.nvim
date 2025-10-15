@@ -1949,7 +1949,7 @@ function Sidebar:get_message_lines(ctx, message, messages, ignore_record_prefix)
       if type(item) == "string" then
         text_len = text_len + #item
       else
-        for _, subitem in ipairs(item) do
+        for _, subitem in pairs(item) do
           if type(subitem) == "string" then text_len = text_len + #subitem end
         end
       end
