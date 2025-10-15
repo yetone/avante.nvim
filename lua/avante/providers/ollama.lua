@@ -190,12 +190,21 @@ function M:parse_stream_data(ctx, data, opts)
 end
 
 ---@param prompt_opts AvantePromptOptions
+---@return AvanteCurlOutput|nil
 function M:parse_curl_args(prompt_opts)
   local provider_conf, request_body = Providers.parse_config(self)
   local keep_alive = provider_conf.keep_alive or "5m"
 
-  if not provider_conf.model or provider_conf.model == "" then error("Ollama model must be specified in config") end
-  if not provider_conf.endpoint then error("Ollama requires endpoint configuration") end
+  if not provider_conf.model or provider_conf.model == "" then
+    Utils.error("Ollama: model must be specified in config")
+    return nil
+  end
+
+  if not provider_conf.endpoint then
+    Utils.error("Ollama: endpoint must be specified in config")
+    return nil
+  end
+
   local headers = {
     ["Content-Type"] = "application/json",
     ["Accept"] = "application/json",

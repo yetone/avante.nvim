@@ -20,6 +20,8 @@ M.api_key_name = "AZURE_OPENAI_API_KEY"
 -- Inherit from OpenAI class
 setmetatable(M, { __index = O })
 
+---@param prompt_opts AvantePromptOptions
+---@return AvanteCurlOutput|nil
 function M:parse_curl_args(prompt_opts)
   local provider_conf, request_body = P.parse_config(self)
   local disable_tools = provider_conf.disable_tools or false
@@ -29,10 +31,15 @@ function M:parse_curl_args(prompt_opts)
   }
 
   if P.env.require_api_key(provider_conf) then
+    local api_key = self.parse_api_key()
+    if not api_key then
+      Utils.error("Azure: API key is not set. Please set " .. M.api_key_name)
+      return nil
+    end
     if provider_conf.entra then
-      headers["Authorization"] = "Bearer " .. self.parse_api_key()
+      headers["Authorization"] = "Bearer " .. api_key
     else
-      headers["api-key"] = self.parse_api_key()
+      headers["api-key"] = api_key
     end
   end
 

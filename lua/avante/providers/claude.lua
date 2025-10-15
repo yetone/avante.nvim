@@ -315,7 +315,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
 end
 
 ---@param prompt_opts AvantePromptOptions
----@return table
+---@return AvanteCurlOutput|nil
 function M:parse_curl_args(prompt_opts)
   local provider_conf, request_body = P.parse_config(self)
   local disable_tools = provider_conf.disable_tools or false
@@ -326,7 +326,14 @@ function M:parse_curl_args(prompt_opts)
     ["anthropic-beta"] = "prompt-caching-2024-07-31",
   }
 
-  if P.env.require_api_key(provider_conf) then headers["x-api-key"] = self.parse_api_key() end
+  if P.env.require_api_key(provider_conf) then
+    local api_key = self.parse_api_key()
+    if not api_key then
+      Utils.error("Claude: API key is not set. Please set " .. M.api_key_name)
+      return nil
+    end
+    headers["x-api-key"] = api_key
+  end
 
   local messages = self:parse_messages(prompt_opts)
 
