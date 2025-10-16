@@ -1301,12 +1301,17 @@ function M.update_buffer_lines(ns_id, bufnr, old_lines, new_lines, skip_line_cou
 
     local changed_lines = vim.list_slice(new_lines, diff_start_idx)
     local text_lines = vim.tbl_map(function(line) return tostring(line) end, changed_lines)
+    local cleaned_text_lines = {}
+    for _, line in ipairs(text_lines) do
+      local lines_ = vim.split(line, "\n")
+      cleaned_text_lines = vim.list_extend(cleaned_text_lines, lines_)
+    end
     vim.api.nvim_buf_set_lines(
       bufnr,
       skip_line_count + diff_start_idx - 1,
       skip_line_count + diff_start_idx + #changed_lines,
       false,
-      text_lines
+      cleaned_text_lines
     )
     for i, line in ipairs(changed_lines) do
       -- Apply highlights

@@ -1087,7 +1087,7 @@ function M._stream_acp(opts)
             if update.status == "pending" or update.status == "in_progress" then
               tool_call_message.is_calling = true
               tool_call_message.state = "generating"
-            else
+            elseif update.status == "completed" or update.status == "failed" then
               tool_call_message.is_calling = false
               tool_call_message.state = "generated"
               tool_result_message = History.Message:new("assistant", {
