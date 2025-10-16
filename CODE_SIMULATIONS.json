@@ -69,7 +69,10 @@
         "Performance benchmarking infrastructure: tests/performance/benchmark.lua (275 lines)",
         "All test suites pass with proper error handling and performance validation"
       ],
-      "status": "pass"
+      "status": "pass",
+      "design_spec_quote": {
+        "selected_text": "Test Runner orchestrates test discovery, execution, and reporting across multiple test suites. Test Executor manages test lifecycle and execution context with timeout handling and resource cleanup."
+      }
     },
     {
       "id": 2,
@@ -144,7 +147,10 @@
         "Integration tests gracefully degrade when FFI components unavailable",
         "Performance testing validates FFI call timing and resource usage when available"
       ],
-      "status": "pass"
+      "status": "pass",
+      "design_spec_quote": {
+        "selected_text": "Graceful degradation with comprehensive error handling ensures the system handles missing Rust libraries gracefully with fallback mechanisms providing estimated values when native implementations are unavailable."
+      }
     },
     {
       "id": 3,
@@ -220,7 +226,10 @@
         "Safe execution patterns prevent crashes and provide detailed error context",
         "Input and configuration validation with detailed error messages"
       ],
-      "status": "pass"
+      "status": "pass",
+      "design_spec_quote": {
+        "selected_text": "Error Handling System captures and categorizes test errors, provides detailed error context, and prevents test framework crashes. Safe execution wraps test execution with error handling to capture errors gracefully."
+      }
     },
     {
       "id": 4,
@@ -296,7 +305,10 @@
         "Performance targets: <100ms startup, <50MB memory, comprehensive reporting",
         "Integration with test framework for continuous performance monitoring"
       ],
-      "status": "pass"
+      "status": "pass",
+      "design_spec_quote": {
+        "selected_text": "Performance Monitoring tracks test execution time, monitors memory usage, and detects performance regressions. Benchmarking provides high-precision timing with warmup runs, multiple measurements, and statistical analysis to ensure performance targets are met."
+      }
     },
     {
       "id": 5,
@@ -372,7 +384,10 @@
         "Environment variable overrides, deep merging, and comprehensive defaults",
         "Integration with existing avante configuration patterns for consistency"
       ],
-      "status": "pass"
+      "status": "pass",
+      "design_spec_quote": {
+        "selected_text": "Configuration System loads and validates test configuration, supports environment-specific settings, and merges user and default configurations using deep extend following Avante.nvim provider patterns."
+      }
     }
   ],
   "summary": {
