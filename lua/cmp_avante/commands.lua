@@ -56,9 +56,18 @@ function CommandsSource:execute(item, callback)
   local commands = Utils.get_commands()
   local command = vim.iter(commands):find(function(command) return command.name == item.data.name end)
 
-  if not command then return end
+  if not command then
+    callback()
+    return
+  end
 
   local sidebar = require("avante").get()
+  if not command.callback then
+    if sidebar then sidebar:submit_input() end
+    callback()
+    return
+  end
+
   command.callback(sidebar, nil, function()
     local bufnr = sidebar.containers.input.bufnr ---@type integer
     local content = table.concat(api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n")
