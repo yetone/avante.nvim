@@ -417,6 +417,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@class AvanteLLMStreamOptions: AvanteGeneratePromptsOptions
 ---@field acp_client? avante.acp.ACPClient
 ---@field on_save_acp_client? fun(client: avante.acp.ACPClient): nil
+---@field just_connect_acp_client? boolean
 ---@field acp_session_id? string
 ---@field on_save_acp_session_id? fun(session_id: string): nil
 ---@field on_start AvanteLLMStartCallback

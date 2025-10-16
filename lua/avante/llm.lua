@@ -1054,6 +1054,32 @@ function M._stream_acp(opts)
             if tool_result_message then table.insert(messages, tool_result_message) end
             on_messages_add(messages)
           end
+          if update.sessionUpdate == "available_commands_update" then
+            local commands = update.availableCommands
+            local has_cmp, cmp = pcall(require, "cmp")
+            if has_cmp then
+              local slash_commands_id = require("avante").slash_commands_id
+              if slash_commands_id ~= nil then cmp.unregister_source(slash_commands_id) end
+              for _, command in ipairs(commands) do
+                local exists = false
+                for _, command_ in ipairs(Config.slash_commands) do
+                  if command_.name == command.name then
+                    exists = true
+                    break
+                  end
+                end
+                if not exists then
+                  table.insert(Config.slash_commands, {
+                    name = command.name,
+                    description = command.description,
+                    details = command.description,
+                  })
+                end
+              end
+              local avante = require("avante")
+              avante.slash_commands_id = cmp.register_source("avante_commands", require("cmp_avante.commands"):new())
+            end
+          end
         end,
         on_request_permission = function(tool_call, options, callback)
           local sidebar = require("avante").get()
@@ -1171,6 +1197,7 @@ function M._stream_acp(opts)
     session_id = session_id_
     if opts.on_save_acp_session_id then opts.on_save_acp_session_id(session_id) end
   end
+  if opts.just_connect_acp_client then return end
   local prompt = {}
   local donot_use_builtin_system_prompt = opts.history_messages ~= nil and #opts.history_messages > 0
   if donot_use_builtin_system_prompt then

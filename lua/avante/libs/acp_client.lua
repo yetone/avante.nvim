@@ -124,8 +124,13 @@ local Utils = require("avante.utils")
 ---@class avante.acp.Plan
 ---@field entries avante.acp.PlanEntry[]
 
+---@class avante.acp.AvailableCommand
+---@field name string
+---@field description string
+---@field input? table<string, any>
+
 ---@class avante.acp.BaseSessionUpdate
----@field sessionUpdate "user_message_chunk" | "agent_message_chunk" | "agent_thought_chunk" | "tool_call" | "tool_call_update" | "plan"
+---@field sessionUpdate "user_message_chunk" | "agent_message_chunk" | "agent_thought_chunk" | "tool_call" | "tool_call_update" | "plan" | "available_commands_update"
 
 ---@class avante.acp.UserMessageChunk : avante.acp.BaseSessionUpdate
 ---@field sessionUpdate "user_message_chunk"
@@ -153,6 +158,10 @@ local Utils = require("avante.utils")
 ---@class avante.acp.PlanUpdate : avante.acp.BaseSessionUpdate
 ---@field sessionUpdate "plan"
 ---@field entries avante.acp.PlanEntry[]
+
+---@class avante.acp.AvailableCommandsUpdate : avante.acp.BaseSessionUpdate
+---@field sessionUpdate "available_commands_update"
+---@field availableCommands avante.acp.AvailableCommand[]
 
 ---@class avante.acp.PermissionOption
 ---@field optionId string
@@ -196,7 +205,7 @@ ACPClient.ERROR_CODES = {
 }
 
 ---@class ACPHandlers
----@field on_session_update? fun(update: avante.acp.UserMessageChunk | avante.acp.AgentMessageChunk | avante.acp.AgentThoughtChunk | avante.acp.ToolCallUpdate | avante.acp.PlanUpdate)
+---@field on_session_update? fun(update: avante.acp.UserMessageChunk | avante.acp.AgentMessageChunk | avante.acp.AgentThoughtChunk | avante.acp.ToolCallUpdate | avante.acp.PlanUpdate | avante.acp.AvailableCommandsUpdate)
 ---@field on_request_permission? fun(tool_call: table, options: table[], callback: fun(option_id: string | nil)): nil
 ---@field on_read_file? fun(path: string, line: integer | nil, limit: integer | nil, callback: fun(content: string)): nil
 ---@field on_write_file? fun(path: string, content: string, callback: fun(error: string|nil)): nil

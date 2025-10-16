@@ -1626,7 +1626,22 @@ function M.get_commands()
     )
     :totable()
 
-  return vim.list_extend(builtin_commands, Config.slash_commands)
+  local commands = {}
+  local seen = {}
+  for _, command in ipairs(Config.slash_commands) do
+    if not seen[command.name] then
+      table.insert(commands, command)
+      seen[command.name] = true
+    end
+  end
+  for _, command in ipairs(builtin_commands) do
+    if not seen[command.name] then
+      table.insert(commands, command)
+      seen[command.name] = true
+    end
+  end
+
+  return commands
 end
 
 function M.get_timestamp() return tostring(os.date("%Y-%m-%d %H:%M:%S")) end

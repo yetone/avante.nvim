@@ -437,6 +437,8 @@ setmetatable(M.toggle, {
   __call = function() M.toggle_sidebar() end,
 })
 
+M.slash_commands_id = nil
+
 ---@param opts? avante.Config
 function M.setup(opts)
   ---PERF: we can still allow running require("avante").setup() multiple times to override config if users wish to
@@ -496,7 +498,7 @@ function M.setup(opts)
 
   local has_cmp, cmp = pcall(require, "cmp")
   if has_cmp then
-    cmp.register_source("avante_commands", require("cmp_avante.commands"):new())
+    M.slash_commands_id = cmp.register_source("avante_commands", require("cmp_avante.commands"):new())
 
     cmp.register_source("avante_mentions", require("cmp_avante.mentions"):new(Utils.get_chat_mentions))
 
