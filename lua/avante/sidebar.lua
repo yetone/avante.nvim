@@ -195,6 +195,9 @@ function Sidebar:open(opts)
     vim.g.avante_login = true
   end
 
+  local acp_provider = Config.acp_providers[Config.provider]
+  if acp_provider then self:handle_submit("") end
+
   return self
 end
 
@@ -2626,6 +2629,20 @@ function Sidebar:get_generate_prompts_options(request, cb)
   if cb then cb(prompts_opts) end
 end
 
+function Sidebar:submit_input()
+  if not vim.g.avante_login then
+    Utils.warn("Sending message to fast!, API key is not yet set", { title = "Avante" })
+    return
+  end
+  if not Utils.is_valid_container(self.containers.input) then return end
+  local lines = api.nvim_buf_get_lines(self.containers.input.bufnr, 0, -1, false)
+  local request = table.concat(lines, "\n")
+  if request == "" then return end
+  api.nvim_buf_set_lines(self.containers.input.bufnr, 0, -1, false, {})
+  api.nvim_win_set_cursor(self.containers.input.winid, { 1, 0 })
+  self:handle_submit(request)
+end
+
 ---@param request string
 function Sidebar:handle_submit(request)
   if Config.prompt_logger.enabled then PromptLogger.log_prompt(request) end
@@ -2650,16 +2667,18 @@ function Sidebar:handle_submit(request)
     ---@type AvanteSlashCommand
     local cmd = vim.iter(cmds):filter(function(cmd) return cmd.name == command end):totable()[1]
     if cmd then
-      if command == "lines" then
-        cmd.callback(self, args, function(args_)
-          local _, _, question = args_:match("(%d+)-(%d+)%s+(.*)")
-          request = question
-        end)
-      elseif command == "commit" then
-        cmd.callback(self, args, function(question) request = question end)
-      else
-        cmd.callback(self, args)
-        return
+      if cmd.callback then
+        if command == "lines" then
+          cmd.callback(self, args, function(args_)
+            local _, _, question = args_:match("(%d+)-(%d+)%s+(.*)")
+            request = question
+          end)
+        elseif command == "commit" then
+          cmd.callback(self, args, function(question) request = question end)
+        else
+          cmd.callback(self, args)
+          return
+        end
       end
     else
       self:update_content("Unknown command: " .. command, { focus = false, scroll = false })
@@ -2681,10 +2700,12 @@ function Sidebar:handle_submit(request)
       content = self.code.selection.content,
     }
 
-  --- HACK: we need to set focus to true and scroll to false to
-  --- prevent the cursor from jumping to the bottom of the
-  --- buffer at the beginning
-  self:update_content("", { focus = true, scroll = false })
+  if request ~= "" then
+    --- HACK: we need to set focus to true and scroll to false to
+    --- prevent the cursor from jumping to the bottom of the
+    --- buffer at the beginning
+    self:update_content("", { focus = true, scroll = false })
+  end
 
   ---stop scroll when user presses j/k keys
   local function on_j()
@@ -2809,6 +2830,7 @@ function Sidebar:handle_submit(request)
     ---@type AvanteLLMStreamOptions
     ---@diagnostic disable-next-line: assign-type-mismatch
     local stream_options = vim.tbl_deep_extend("force", generate_prompts_options, {
+      just_connect_acp_client = request == "",
       on_start = on_start,
       on_stop = on_stop,
       on_tool_log = on_tool_log,
@@ -2860,7 +2882,7 @@ function Sidebar:handle_submit(request)
 
     stream_options.on_memory_summarize = on_memory_summarize
 
-    on_state_change("generating")
+    if request ~= "" then on_state_change("generating") end
     Llm.stream(stream_options)
   end)
 end
@@ -2909,19 +2931,7 @@ function Sidebar:create_input_container()
     size = get_size(),
   })
 
-  local function on_submit()
-    if not vim.g.avante_login then
-      Utils.warn("Sending message to fast!, API key is not yet set", { title = "Avante" })
-      return
-    end
-    if not Utils.is_valid_container(self.containers.input) then return end
-    local lines = api.nvim_buf_get_lines(self.containers.input.bufnr, 0, -1, false)
-    local request = table.concat(lines, "\n")
-    if request == "" then return end
-    api.nvim_buf_set_lines(self.containers.input.bufnr, 0, -1, false, {})
-    api.nvim_win_set_cursor(self.containers.input.winid, { 1, 0 })
-    self:handle_submit(request)
-  end
+  local function on_submit() self:submit_input() end
 
   self.containers.input:mount()
   PromptLogger.init()
