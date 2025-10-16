@@ -49,7 +49,7 @@ function M:parse_curl_args(prompt_opts)
   local provider_conf, request_body = P.parse_config(self)
 
   local model_id = provider_conf.model or "default-model-id"
-  local project_id = parse_cmd("cmd:gcloud config get-value project")
+  local project_id = vim.fn.getenv("GOOGLE_CLOUD_PROJECT") or parse_cmd("cmd:gcloud config get-value project")
   local location = vim.fn.getenv("GOOGLE_CLOUD_LOCATION") -- same as gemini-cli
 
   if project_id == nil or project_id == vim.NIL then project_id = "default-project-id" end
