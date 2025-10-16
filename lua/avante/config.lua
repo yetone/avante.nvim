@@ -266,6 +266,7 @@ M._defaults = {
       command = "codex-acp",
       env = {
         NODE_NO_WARNINGS = "1",
+        HOME = os.getenv("HOME"),
         OPENAI_API_KEY = os.getenv("OPENAI_API_KEY"),
       },
     },
