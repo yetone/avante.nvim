@@ -214,8 +214,8 @@ function Sidebar:setup_colors()
         if not vim.api.nvim_win_is_valid(winid) or self:is_sidebar_winid(winid) then goto continue end
         local winhl = vim.wo[winid].winhl
         if
-          winhl:find(Highlights.AVANTE_SIDEBAR_WIN_SEPARATOR)
-          and not Utils.should_hidden_border(self.code.winid, winid)
+          winhl:find("WinSeparator:" .. Highlights.AVANTE_SIDEBAR_WIN_SEPARATOR)
+          and not (vim.api.nvim_win_is_valid(self.code.winid) and Utils.should_hidden_border(self.code.winid, winid))
         then
           vim.wo[winid].winhl = self.code.old_winhl or ""
         end
