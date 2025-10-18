@@ -85,7 +85,7 @@ Sidebar.__index = Sidebar
 ---@field skip_line_count integer | nil
 ---@field current_tool_use_extmark_id integer | nil
 ---@field private win_size_store table<integer, {width: integer, height: integer}>
----@field private is_in_full_view boolean
+---@field is_in_full_view boolean
 
 ---@param id integer the tabpage id retrieved from api.nvim_get_current_tabpage()
 function Sidebar:new(id)

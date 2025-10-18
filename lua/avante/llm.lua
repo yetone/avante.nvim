@@ -1071,16 +1071,18 @@ function M._stream_acp(opts)
           if update.sessionUpdate == "tool_call" then
             add_tool_call_message(update)
 
+            local sidebar = require("avante").get()
+
             if
               Config.behaviour.acp_follow_agent_locations
+              and sidebar
+              and not sidebar.is_in_full_view -- don't follow when in Zen mode
               and update.kind == "edit" -- to avoid entering more than once
               and update.locations
               and #update.locations > 0
             then
               vim.schedule(function()
-                local sidebar = require("avante").get()
-
-                if not sidebar or not sidebar:is_open() then return end
+                if not sidebar:is_open() then return end
 
                 -- Find a valid code window (non-sidebar window)
                 local code_winid = nil
