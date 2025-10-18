@@ -529,6 +529,9 @@ M._defaults = {
     --- inline_buttons is the new inline buttons in the sidebar
     ---@type "popup" | "inline_buttons"
     confirmation_ui_style = "inline_buttons",
+    --- Whether to automatically open files and navigate to lines when ACP agent makes edits
+    ---@type boolean
+    acp_follow_agent_locations = true,
   },
   prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
     enabled = true, -- toggle logging entirely
