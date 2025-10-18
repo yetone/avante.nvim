@@ -1005,6 +1005,7 @@ function M._stream_acp(opts)
             end)
             return
           end
+
           if update.sessionUpdate == "agent_message_chunk" then
             if update.content.type == "text" then
               if opts.get_history_messages then
@@ -1038,6 +1039,7 @@ function M._stream_acp(opts)
               on_messages_add({ message })
             end
           end
+
           if update.sessionUpdate == "agent_thought_chunk" then
             if update.content.type == "text" then
               local messages = opts.get_history_messages()
@@ -1065,7 +1067,75 @@ function M._stream_acp(opts)
               on_messages_add({ message })
             end
           end
-          if update.sessionUpdate == "tool_call" then add_tool_call_message(update) end
+
+          if update.sessionUpdate == "tool_call" then
+            add_tool_call_message(update)
+
+            local sidebar = require("avante").get()
+
+            if
+              Config.behaviour.acp_follow_agent_locations
+              and sidebar
+              and not sidebar.is_in_full_view -- don't follow when in Zen mode
+              and update.kind == "edit" -- to avoid entering more than once
+              and update.locations
+              and #update.locations > 0
+            then
+              vim.schedule(function()
+                if not sidebar:is_open() then return end
+
+                -- Find a valid code window (non-sidebar window)
+                local code_winid = nil
+                if sidebar.code.winid and sidebar.code.winid ~= 0 and api.nvim_win_is_valid(sidebar.code.winid) then
+                  code_winid = sidebar.code.winid
+                else
+                  -- Find first non-sidebar window in the current tab
+                  local all_wins = api.nvim_tabpage_list_wins(0)
+                  for _, winid in ipairs(all_wins) do
+                    if api.nvim_win_is_valid(winid) and not sidebar:is_sidebar_winid(winid) then
+                      code_winid = winid
+                      break
+                    end
+                  end
+                end
+
+                if not code_winid then return end
+
+                local now = uv.now()
+                local last_auto_nav = vim.g.avante_last_auto_nav or 0
+                local grace_period = 2000
+
+                -- Check if user navigated manually recently
+                if now - last_auto_nav < grace_period then return end
+
+                -- Only follow first location to avoid rapid jumping
+                local location = update.locations[1]
+                if not location or not location.path then return end
+
+                local abs_path = Utils.join_paths(Utils.get_project_root(), location.path)
+                local bufnr = vim.fn.bufnr(abs_path, true)
+
+                if not bufnr or bufnr == -1 then return end
+
+                if not api.nvim_buf_is_loaded(bufnr) then pcall(vim.fn.bufload, bufnr) end
+
+                local ok = pcall(api.nvim_win_set_buf, code_winid, bufnr)
+                if not ok then return end
+
+                local line = location.line or 1
+                local line_count = api.nvim_buf_line_count(bufnr)
+                local target_line = math.min(line, line_count)
+
+                pcall(api.nvim_win_set_cursor, code_winid, { target_line, 0 })
+                pcall(api.nvim_win_call, code_winid, function()
+                  vim.cmd("normal! zz") -- Center line in viewport
+                end)
+
+                vim.g.avante_last_auto_nav = now
+              end)
+            end
+          end
+
           if update.sessionUpdate == "tool_call_update" then
             local tool_call_message = tool_call_messages[update.toolCallId]
             if not tool_call_message then
@@ -1102,6 +1172,7 @@ function M._stream_acp(opts)
             if tool_result_message then table.insert(messages, tool_result_message) end
             on_messages_add(messages)
           end
+
           if update.sessionUpdate == "available_commands_update" then
             local commands = update.availableCommands
             local has_cmp, cmp = pcall(require, "cmp")
@@ -1129,6 +1200,7 @@ function M._stream_acp(opts)
             end
           end
         end,
+
         on_request_permission = function(tool_call, options, callback)
           local sidebar = require("avante").get()
           if not sidebar then
