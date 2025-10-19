@@ -943,6 +943,11 @@ function M._stream_acp(opts)
   local last_tool_call_message = nil
   local acp_provider = Config.acp_providers[Config.provider]
   local prev_text_message_content = ""
+  local history_messages = {}
+  local get_history_messages = function()
+    if opts.get_history_messages then return opts.get_history_messages() end
+    return history_messages
+  end
   local on_messages_add = function(messages)
     if opts.on_chunk then
       for _, message in ipairs(messages) do
@@ -955,7 +960,21 @@ function M._stream_acp(opts)
     end
     if opts.on_messages_add then
       opts.on_messages_add(messages)
-      -- vim.schedule(function() vim.cmd("redraw") end)
+    else
+      for _, message in ipairs(messages) do
+        local idx = nil
+        for i, m in ipairs(history_messages) do
+          if m.uuid == message.uuid then
+            idx = i
+            break
+          end
+        end
+        if idx ~= nil then
+          history_messages[idx] = message
+        else
+          table.insert(history_messages, message)
+        end
+      end
     end
   end
   local function add_tool_call_message(update)
@@ -1008,31 +1027,29 @@ function M._stream_acp(opts)
 
           if update.sessionUpdate == "agent_message_chunk" then
             if update.content.type == "text" then
-              if opts.get_history_messages then
-                local messages = opts.get_history_messages()
-                local last_message = messages[#messages]
-                if last_message and last_message.message.role == "assistant" then
-                  local has_text = false
-                  local content = last_message.message.content
-                  if type(content) == "string" then
-                    last_message.message.content = last_message.message.content .. update.content.text
-                    has_text = true
-                  elseif type(content) == "table" then
-                    for idx, item in ipairs(content) do
-                      if type(item) == "string" then
-                        content[idx] = item .. update.content.text
-                        has_text = true
-                      end
-                      if type(item) == "table" and item.type == "text" then
-                        item.text = item.text .. update.content.text
-                        has_text = true
-                      end
+              local messages = get_history_messages()
+              local last_message = messages[#messages]
+              if last_message and last_message.message.role == "assistant" then
+                local has_text = false
+                local content = last_message.message.content
+                if type(content) == "string" then
+                  last_message.message.content = last_message.message.content .. update.content.text
+                  has_text = true
+                elseif type(content) == "table" then
+                  for idx, item in ipairs(content) do
+                    if type(item) == "string" then
+                      content[idx] = item .. update.content.text
+                      has_text = true
+                    end
+                    if type(item) == "table" and item.type == "text" then
+                      item.text = item.text .. update.content.text
+                      has_text = true
                     end
                   end
-                  if has_text then
-                    on_messages_add({ last_message })
-                    return
-                  end
+                end
+                if has_text then
+                  on_messages_add({ last_message })
+                  return
                 end
               end
               local message = History.Message:new("assistant", update.content.text)
@@ -1042,7 +1059,7 @@ function M._stream_acp(opts)
 
           if update.sessionUpdate == "agent_thought_chunk" then
             if update.content.type == "text" then
-              local messages = opts.get_history_messages()
+              local messages = get_history_messages()
               local last_message = messages[#messages]
               if last_message and last_message.message.role == "assistant" then
                 local is_thinking = false
