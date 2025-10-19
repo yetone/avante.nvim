@@ -267,6 +267,7 @@ M._defaults = {
       env = {
         NODE_NO_WARNINGS = "1",
         HOME = os.getenv("HOME"),
+        PATH = os.getenv("PATH"),
         OPENAI_API_KEY = os.getenv("OPENAI_API_KEY"),
       },
     },
