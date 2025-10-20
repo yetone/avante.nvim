@@ -983,6 +983,8 @@ function M._stream_acp(opts)
       id = update.toolCallId,
       name = update.kind,
       input = update.rawInput or {},
+    }, {
+      uuid = update.toolCallId,
     })
     last_tool_call_message = message
     message.acp_tool_call = update
