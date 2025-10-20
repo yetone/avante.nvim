@@ -1281,61 +1281,42 @@ end
 ---@param skip_line_count? integer
 function M.update_buffer_lines(ns_id, bufnr, old_lines, new_lines, skip_line_count)
   skip_line_count = skip_line_count or 0
-  local diff_start_idx = 0
-  for i, line in ipairs(new_lines) do
-    local old_line = old_lines[i]
-    if not old_line or old_line ~= line then
-      diff_start_idx = i
-      break
-    end
-  end
-  if diff_start_idx > 0 then
-    -- Unbind events on old lines that will be replaced/moved
-    for i = diff_start_idx, #old_lines do
-      local old_line = old_lines[i]
-      if old_line and type(old_line.unbind_events) == "function" then
-        local line_1b = skip_line_count + i
-        pcall(old_line.unbind_events, old_line, bufnr, line_1b)
-      end
-    end
+  old_lines = old_lines or {}
+  new_lines = new_lines or {}
 
-    local changed_lines = vim.list_slice(new_lines, diff_start_idx)
-    local text_lines = vim.tbl_map(function(line) return tostring(line) end, changed_lines)
-    local cleaned_text_lines = {}
-    for _, line in ipairs(text_lines) do
-      local lines_ = vim.split(line, "\n")
-      cleaned_text_lines = vim.list_extend(cleaned_text_lines, lines_)
-    end
-    vim.api.nvim_buf_set_lines(
-      bufnr,
-      skip_line_count + diff_start_idx - 1,
-      skip_line_count + diff_start_idx + #changed_lines,
-      false,
-      cleaned_text_lines
-    )
-    for i, line in ipairs(changed_lines) do
-      -- Apply highlights
-      if type(line.set_highlights) == "function" then
-        line:set_highlights(ns_id, bufnr, skip_line_count + diff_start_idx + i - 2)
-      end
-      -- Bind events if provided by the line
-      if type(line.bind_events) == "function" then
-        local line_1b = skip_line_count + diff_start_idx + i - 1
-        pcall(line.bind_events, line, ns_id, bufnr, line_1b)
-      end
+  -- Unbind events from existing lines before rewriting the buffer section.
+  for i, old_line in ipairs(old_lines) do
+    if old_line and type(old_line.unbind_events) == "function" then
+      local line_1b = skip_line_count + i
+      pcall(old_line.unbind_events, old_line, bufnr, line_1b)
     end
   end
-  if #old_lines > #new_lines then
-    -- Unbind events on removed trailing lines
-    for i = #new_lines + 1, #old_lines do
-      local old_line = old_lines[i]
-      if old_line and type(old_line.unbind_events) == "function" then
-        local line_1b = skip_line_count + i
-        pcall(old_line.unbind_events, old_line, bufnr, line_1b)
-      end
-    end
-    vim.api.nvim_buf_set_lines(bufnr, skip_line_count + #new_lines, skip_line_count + #old_lines, false, {})
+
+  -- Collect the text representation of each line and track their positions.
+  local cleaned_text_lines = {}
+  local line_positions = {}
+  local current_line_0b = skip_line_count
+
+  for idx, line in ipairs(new_lines) do
+    local pieces = vim.split(tostring(line), "\n")
+    line_positions[idx] = current_line_0b
+    vim.list_extend(cleaned_text_lines, pieces)
+    current_line_0b = current_line_0b + #pieces
   end
+
+  -- Replace the entire dynamic portion of the buffer.
+  vim.api.nvim_buf_set_lines(bufnr, skip_line_count, -1, false, cleaned_text_lines)
+
+  -- Re-apply highlights and bind events for the new lines.
+  for i, line in ipairs(new_lines) do
+    local line_pos_0b = line_positions[i] or (skip_line_count + i - 1)
+    if type(line.set_highlights) == "function" then line:set_highlights(ns_id, bufnr, line_pos_0b) end
+    if type(line.bind_events) == "function" then
+      local line_1b = line_pos_0b + 1
+      pcall(line.bind_events, line, ns_id, bufnr, line_1b)
+    end
+  end
+
   vim.cmd("redraw")
   -- local diffs = get_lines_diff(old_lines, new_lines)
   -- if #diffs == 0 then return end
