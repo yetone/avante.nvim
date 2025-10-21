@@ -348,6 +348,7 @@ function M.get_tool_display_name(message)
   if native_tool_name == "other" and message.acp_tool_call then
     native_tool_name = message.acp_tool_call.title or "Other"
   end
+  if message.acp_tool_call and message.acp_tool_call.title then native_tool_name = message.acp_tool_call.title end
   local tool_name = native_tool_name
   if message.displayed_tool_name then
     tool_name = message.displayed_tool_name
@@ -384,6 +385,18 @@ function M.get_tool_display_name(message)
           end
         end
       end
+    end
+    if
+      not param
+      and message.acp_tool_call
+      and message.acp_tool_call.rawInput
+      and message.acp_tool_call.rawInput.command
+    then
+      param = message.acp_tool_call.rawInput.command
+      pcall(function()
+        local project_root = Utils.root.get()
+        param = param:gsub(project_root .. "/?", "")
+      end)
     end
     if param then tool_name = native_tool_name .. "(" .. param .. ")" end
   end
@@ -452,24 +465,53 @@ local function tool_to_lines(item, message, messages, expanded)
     end
     table.insert(lines, Line:new({ { decoration }, { "" } }))
   end
+  local add_diff_lines = false
   if item.input and type(item.input) == "table" then
     if type(item.input.old_str) == "string" and type(item.input.new_str) == "string" then
       local diff_lines = M.get_diff_lines(item.input.old_str, item.input.new_str, decoration, not expanded)
+      add_diff_lines = true
       vim.list_extend(lines, diff_lines)
     end
   end
-  if message.acp_tool_call and message.acp_tool_call.content then
-    local content = message.acp_tool_call.content
-    if content then
-      local content_lines = M.get_content_lines(content, decoration, not expanded)
+  if
+    not add_diff_lines
+    and message.acp_tool_call
+    and message.acp_tool_call.rawInput
+    and message.acp_tool_call.rawInput.oldString
+  then
+    local diff_lines = M.get_diff_lines(
+      message.acp_tool_call.rawInput.oldString,
+      message.acp_tool_call.rawInput.newString,
+      decoration,
+      not expanded
+    )
+    vim.list_extend(lines, diff_lines)
+  end
+  if
+    message.acp_tool_call
+    and message.acp_tool_call.rawOutput
+    and message.acp_tool_call.rawOutput.metadata
+    and message.acp_tool_call.rawOutput.metadata.preview
+  then
+    local preview = message.acp_tool_call.rawOutput.metadata.preview
+    if preview then
+      local content_lines = M.get_content_lines(preview, decoration, not expanded)
       vim.list_extend(lines, content_lines)
     end
   else
-    if result and result.content then
-      local result_content = result.content
-      if result_content then
-        local content_lines = M.get_content_lines(result_content, decoration, not expanded)
+    if message.acp_tool_call and message.acp_tool_call.content then
+      local content = message.acp_tool_call.content
+      if content then
+        local content_lines = M.get_content_lines(content, decoration, not expanded)
         vim.list_extend(lines, content_lines)
+      end
+    else
+      if result and result.content then
+        local result_content = result.content
+        if result_content then
+          local content_lines = M.get_content_lines(result_content, decoration, not expanded)
+          vim.list_extend(lines, content_lines)
+        end
       end
     end
   end
@@ -479,6 +521,10 @@ local function tool_to_lines(item, message, messages, expanded)
     else
       table.insert(lines, Line:new({ { decoration }, { "completed" } }))
     end
+  end
+  --- remove last empty lines
+  while #lines > 0 and lines[#lines].sections[2] and lines[#lines].sections[2][1] == "" do
+    table.remove(lines, #lines)
   end
   local last_line = lines[#lines]
   last_line.sections[1][1] = "╰─  "

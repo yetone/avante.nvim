@@ -271,6 +271,10 @@ M._defaults = {
         OPENAI_API_KEY = os.getenv("OPENAI_API_KEY"),
       },
     },
+    ["opencode"] = {
+      command = "opencode",
+      args = { "acp" },
+    },
   },
   ---To add support for custom provider, follow the format below
   ---See https://github.com/yetone/avante.nvim/wiki#custom-providers for more details
