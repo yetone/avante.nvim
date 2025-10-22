@@ -218,7 +218,7 @@ end
 function M:finish_pending_messages(ctx, opts)
   if ctx.content ~= nil and ctx.content ~= "" then self:add_text_message(ctx, "", "generated", opts) end
   if ctx.tool_use_list then
-    for _, tool_use in ipairs(ctx.tool_use_list) do
+    for _, tool_use in pairs(ctx.tool_use_list) do
       if tool_use.state == "generating" then self:add_tool_use_message(ctx, tool_use, "generated", opts) end
     end
   end
