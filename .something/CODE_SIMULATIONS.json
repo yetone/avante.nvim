@@ -1,0 +1,655 @@
+{
+  "project_name": "test-b",
+  "scenarios": [
+    {
+      "id": 1,
+      "name": "Requirements Gathering Initialization",
+      "description": "Initialize and configure requirements gathering process for minimal project specifications",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Initialize project with minimal information",
+          "description": "Create project structure with title 'test-b' and description 'aaa'",
+          "context": "Starting with minimal project requirements defined in project.md"
+        },
+        {
+          "step_number": 2,
+          "action": "Validate project configuration",
+          "description": "Ensure project metadata is correctly stored and retrievable",
+          "context": "Project should be accessible through configuration system"
+        },
+        {
+          "step_number": 3,
+          "action": "Generate placeholder PRD structure",
+          "description": "Create comprehensive PRD template with all required sections",
+          "context": "PRD should include executive summary, requirements, dependencies, and risk assessment"
+        }
+      ],
+      "test_cases": [
+        {
+          "id": 1,
+          "input": "project_title = 'test-b', project_description = 'aaa'",
+          "expected": "Project initialized with correct metadata",
+          "type": "unit"
+        },
+        {
+          "id": 2,
+          "input": "read_project_info()",
+          "expected": "Returns {title: 'test-b', description: 'aaa'}",
+          "type": "unit"
+        },
+        {
+          "id": 3,
+          "input": "generate_prd_template()",
+          "expected": "PRD file created with all required sections (Executive Summary, Requirements, Dependencies, Risk Assessment)",
+          "type": "integration"
+        }
+      ],
+      "expected": {
+        "success": [
+          "Project metadata stored successfully",
+          "PRD template generated with all required sections",
+          "Configuration accessible through standard interfaces"
+        ],
+        "failures": [
+          "Missing project title or description",
+          "PRD template missing required sections",
+          "Configuration not accessible"
+        ],
+        "performance": [
+          "Initialization completes in under 100ms",
+          "PRD generation completes in under 500ms"
+        ]
+      },
+      "implementation": {
+        "files": [
+          {
+            "file_path": ".something/reference/project.md",
+            "snippets": [
+              {
+                "start_line": 1,
+                "end_line": 8,
+                "code": "# Project Information\n\n## Title\ntest-b\n\n## Description\naaa\n",
+                "purpose": "Stores basic project metadata including title and description"
+              }
+            ]
+          },
+          {
+            "file_path": ".something/prd.md",
+            "snippets": [
+              {
+                "start_line": 1,
+                "end_line": 25,
+                "code": "# test-b - Product Requirements Document\n\n## Executive Summary\n\n### Project Overview\n**Project Title**: test-b\n**Status**: Requirements Definition Phase\n\n### Problem Statement\nThis PRD is currently based on minimal project requirements...",
+                "purpose": "Defines the PRD structure with executive summary and project overview"
+              }
+            ]
+          }
+        ],
+        "notes": "Implementation is pending. Need to create module for reading project configuration and generating PRD templates."
+      },
+      "expectation": "The system should successfully initialize a project with minimal information and generate a comprehensive PRD template",
+      "prediction": "Tests will fail because no implementation module exists to read project configuration or generate PRD templates",
+      "explanation": [
+        "No Lua module exists for project initialization (expected at lua/test_b/project.lua or similar)",
+        "No function to read project metadata from .something/reference/project.md",
+        "No PRD template generation logic implemented",
+        "Tests will fail with 'module not found' or 'attempt to call nil value' errors"
+      ],
+      "status": "not_implemented",
+      "design_spec_quote": {
+        "selected_text": "This PRD is currently based on minimal project requirements. The problem statement and business context need to be defined through stakeholder engagement and requirements gathering."
+      }
+    },
+    {
+      "id": 2,
+      "name": "Stakeholder Identification and Management",
+      "description": "Identify and manage stakeholders for requirements gathering activities",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Define stakeholder categories",
+          "description": "Create categories for business owners, end users, technical stakeholders, and reviewers",
+          "context": "Stakeholder management is critical for requirements definition"
+        },
+        {
+          "step_number": 2,
+          "action": "Register stakeholders",
+          "description": "Add stakeholders with roles, contact information, and responsibilities",
+          "context": "Each stakeholder should have defined role and contact method"
+        },
+        {
+          "step_number": 3,
+          "action": "Track stakeholder engagement",
+          "description": "Monitor interview status, feedback collection, and approval workflows",
+          "context": "Track progress of requirements gathering activities"
+        }
+      ],
+      "test_cases": [
+        {
+          "id": 1,
+          "input": "create_stakeholder({name: 'John Doe', role: 'business_owner', email: 'john@example.com'})",
+          "expected": "Stakeholder created with unique ID and stored in system",
+          "type": "unit"
+        },
+        {
+          "id": 2,
+          "input": "list_stakeholders_by_role('business_owner')",
+          "expected": "Returns array of all business owner stakeholders",
+          "type": "unit"
+        },
+        {
+          "id": 3,
+          "input": "track_engagement(stakeholder_id, 'interview_completed', date)",
+          "expected": "Engagement event recorded with timestamp",
+          "type": "integration"
+        },
+        {
+          "id": 4,
+          "input": "get_stakeholder_approval_status()",
+          "expected": "Returns approval status for all required stakeholders",
+          "type": "integration"
+        }
+      ],
+      "expected": {
+        "success": [
+          "Stakeholders created and stored with all required fields",
+          "Stakeholder queries return correct filtered results",
+          "Engagement tracking persists across sessions",
+          "Approval workflow properly tracks sign-offs"
+        ],
+        "failures": [
+          "Duplicate stakeholder entries",
+          "Missing required stakeholder fields",
+          "Engagement events not persisted",
+          "Approval status not updated correctly"
+        ],
+        "performance": [
+          "Stakeholder creation completes in under 50ms",
+          "Queries return results in under 100ms",
+          "Engagement tracking updates in under 50ms"
+        ]
+      },
+      "implementation": {
+        "files": [],
+        "notes": "No implementation exists. Need to create stakeholder management module with CRUD operations and engagement tracking."
+      },
+      "expectation": "The system should provide complete stakeholder management capabilities including creation, tracking, and approval workflows",
+      "prediction": "All tests will fail as no stakeholder management module has been implemented",
+      "explanation": [
+        "No stakeholder data model defined",
+        "No database or persistence layer for stakeholder information",
+        "No engagement tracking system implemented",
+        "No approval workflow logic exists",
+        "Tests will fail with module/function not found errors"
+      ],
+      "status": "not_implemented",
+      "design_spec_quote": {
+        "selected_text": "Stakeholder Identification - Identify business owners, end users and user representatives, technical stakeholders, and compliance/security reviewers."
+      }
+    },
+    {
+      "id": 3,
+      "name": "Requirements Documentation and Validation",
+      "description": "Document functional and non-functional requirements with acceptance criteria",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Create functional requirement",
+          "description": "Define requirement with unique ID (REQ-XX), priority, status, and description",
+          "context": "Each functional requirement needs unique identifier and clear acceptance criteria"
+        },
+        {
+          "step_number": 2,
+          "action": "Create non-functional requirement",
+          "description": "Define NFR with unique ID (NFR-XX), category, and measurable criteria",
+          "context": "NFRs should cover performance, security, usability, and compliance"
+        },
+        {
+          "step_number": 3,
+          "action": "Link requirements to stakeholders",
+          "description": "Associate requirements with requesting stakeholders and reviewers",
+          "context": "Traceability between requirements and stakeholders"
+        },
+        {
+          "step_number": 4,
+          "action": "Validate requirement completeness",
+          "description": "Ensure all requirements have necessary fields and acceptance criteria",
+          "context": "Requirements must be complete before stakeholder approval"
+        }
+      ],
+      "test_cases": [
+        {
+          "id": 1,
+          "input": "create_requirement({id: 'REQ-1', type: 'functional', priority: 'high', description: 'User authentication'})",
+          "expected": "Requirement created with all fields and assigned unique ID",
+          "type": "unit"
+        },
+        {
+          "id": 2,
+          "input": "create_nfr({id: 'NFR-1', category: 'performance', criteria: 'Response time < 200ms'})",
+          "expected": "Non-functional requirement created with measurable criteria",
+          "type": "unit"
+        },
+        {
+          "id": 3,
+          "input": "link_requirement_to_stakeholder('REQ-1', stakeholder_id)",
+          "expected": "Requirement linked to stakeholder successfully",
+          "type": "integration"
+        },
+        {
+          "id": 4,
+          "input": "validate_requirement('REQ-1')",
+          "expected": "Returns validation result with any missing fields or criteria",
+          "type": "unit"
+        },
+        {
+          "id": 5,
+          "input": "get_requirements_by_status('pending')",
+          "expected": "Returns all requirements with 'pending' status",
+          "type": "integration"
+        }
+      ],
+      "expected": {
+        "success": [
+          "Requirements created with unique IDs (REQ-XX, NFR-XX)",
+          "Requirements properly categorized and prioritized",
+          "Stakeholder linkage maintained",
+          "Validation identifies incomplete requirements",
+          "Requirements searchable by status, priority, and type"
+        ],
+        "failures": [
+          "Duplicate requirement IDs",
+          "Missing required fields",
+          "Invalid stakeholder links",
+          "Validation passes incomplete requirements"
+        ],
+        "performance": [
+          "Requirement creation completes in under 50ms",
+          "Validation completes in under 100ms",
+          "Search queries return in under 200ms"
+        ]
+      },
+      "implementation": {
+        "files": [
+          {
+            "file_path": ".something/prd.md",
+            "snippets": [
+              {
+                "start_line": 26,
+                "end_line": 48,
+                "code": "## Requirements & Scope\n\n### Functional Requirements\n\n**REQ-1**: Define core functional requirements\n**Status**: Pending requirements gathering\n**Priority**: High\n**Description**: Stakeholder interviews and requirements workshops needed to identify specific functional needs.\n\n### Non-Functional Requirements\n\n**NFR-1**: Define performance requirements\n**Status**: Pending\n**Description**: Performance expectations, scalability needs, and reliability standards to be defined.\n\n**NFR-2**: Define security and compliance requirements\n**Status**: Pending\n**Description**: Security standards, compliance requirements, and data protection policies to be identified.\n\n**NFR-3**: Define usability and accessibility requirements\n**Status**: Pending\n**Description**: User experience standards and accessibility compliance levels to be established.",
+                "purpose": "Defines the structure for functional and non-functional requirements with IDs and status tracking"
+              }
+            ]
+          }
+        ],
+        "notes": "No implementation module exists for requirements management. Need CRUD operations, validation logic, and stakeholder linking."
+      },
+      "expectation": "The system should provide comprehensive requirements management with validation, traceability, and search capabilities",
+      "prediction": "All tests will fail because no requirements management module has been implemented",
+      "explanation": [
+        "No requirements data model or schema defined",
+        "No persistence layer for requirements storage",
+        "No validation logic for requirement completeness",
+        "No stakeholder linkage implementation",
+        "No search or filtering functionality",
+        "Tests will fail with module not found or nil function call errors"
+      ],
+      "status": "not_implemented",
+      "design_spec_quote": {
+        "selected_text": "Requirements Documentation - Document detailed functional requirements, define non-functional requirements, create user stories or use cases, define acceptance criteria, and establish success metrics."
+      }
+    },
+    {
+      "id": 4,
+      "name": "Technical Discovery and Feasibility Assessment",
+      "description": "Conduct technical discovery to assess feasibility and identify constraints",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Document existing infrastructure",
+          "description": "Catalog current technical infrastructure, tools, and systems",
+          "context": "Understanding existing technical landscape is critical for feasibility"
+        },
+        {
+          "step_number": 2,
+          "action": "Identify integration points",
+          "description": "Map out required integrations with existing systems",
+          "context": "Integration complexity affects feasibility and timeline"
+        },
+        {
+          "step_number": 3,
+          "action": "Assess technical constraints",
+          "description": "Document technical limitations, dependencies, and risks",
+          "context": "Constraints inform what is technically feasible"
+        },
+        {
+          "step_number": 4,
+          "action": "Generate feasibility report",
+          "description": "Create report summarizing technical feasibility for all requirements",
+          "context": "Feasibility report guides requirement prioritization"
+        }
+      ],
+      "test_cases": [
+        {
+          "id": 1,
+          "input": "document_infrastructure({name: 'Database', type: 'PostgreSQL', version: '14.5'})",
+          "expected": "Infrastructure component documented and stored",
+          "type": "unit"
+        },
+        {
+          "id": 2,
+          "input": "add_integration_point({source: 'SystemA', target: 'SystemB', protocol: 'REST'})",
+          "expected": "Integration point created with bidirectional mapping",
+          "type": "unit"
+        },
+        {
+          "id": 3,
+          "input": "add_constraint({type: 'technical', description: 'Legacy system compatibility', impact: 'high'})",
+          "expected": "Constraint documented with severity level",
+          "type": "unit"
+        },
+        {
+          "id": 4,
+          "input": "assess_requirement_feasibility('REQ-1')",
+          "expected": "Returns feasibility assessment with technical analysis",
+          "type": "integration"
+        },
+        {
+          "id": 5,
+          "input": "generate_feasibility_report()",
+          "expected": "Returns comprehensive report with all assessments and recommendations",
+          "type": "e2e"
+        }
+      ],
+      "expected": {
+        "success": [
+          "Infrastructure components fully cataloged",
+          "Integration points mapped with protocols and data flows",
+          "Constraints documented with impact assessments",
+          "Feasibility assessments link to specific requirements",
+          "Report generation includes all technical analysis"
+        ],
+        "failures": [
+          "Incomplete infrastructure documentation",
+          "Missing integration mappings",
+          "Constraints without impact assessment",
+          "Feasibility report missing key sections"
+        ],
+        "performance": [
+          "Infrastructure documentation saves in under 50ms",
+          "Feasibility assessment completes in under 500ms",
+          "Full report generation completes in under 2 seconds"
+        ]
+      },
+      "implementation": {
+        "files": [
+          {
+            "file_path": ".something/prd.md",
+            "snippets": [
+              {
+                "start_line": 77,
+                "end_line": 85,
+                "code": "3. **Technical Discovery**\n   - Review existing technical infrastructure\n   - Identify integration points\n   - Assess technical constraints\n   - Evaluate technology options",
+                "purpose": "Outlines the technical discovery process required for feasibility assessment"
+              }
+            ]
+          }
+        ],
+        "notes": "No technical discovery module implemented. Need infrastructure cataloging, integration mapping, constraint tracking, and feasibility assessment logic."
+      },
+      "expectation": "The system should provide complete technical discovery capabilities with infrastructure documentation, integration mapping, and feasibility reporting",
+      "prediction": "All tests will fail as no technical discovery module exists",
+      "explanation": [
+        "No data model for infrastructure components",
+        "No integration point mapping system",
+        "No constraint tracking implementation",
+        "No feasibility assessment algorithm",
+        "No report generation logic",
+        "Tests will fail with module/function not found errors"
+      ],
+      "status": "not_implemented",
+      "design_spec_quote": {
+        "selected_text": "Technical Discovery - Review existing technical infrastructure, identify integration points, assess technical constraints, and evaluate technology options."
+      }
+    },
+    {
+      "id": 5,
+      "name": "Risk Assessment and Mitigation Planning",
+      "description": "Identify, assess, and create mitigation plans for project risks",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Identify project risks",
+          "description": "Document risks with descriptions, impact levels, and probability",
+          "context": "Risk identification from PRD includes insufficient requirements, stakeholder misalignment, and technical feasibility"
+        },
+        {
+          "step_number": 2,
+          "action": "Assess risk severity",
+          "description": "Calculate risk severity based on impact and probability",
+          "context": "Risk severity determines prioritization of mitigation efforts"
+        },
+        {
+          "step_number": 3,
+          "action": "Create mitigation strategies",
+          "description": "Define specific mitigation actions for each high-priority risk",
+          "context": "Mitigation strategies must be actionable and measurable"
+        },
+        {
+          "step_number": 4,
+          "action": "Track mitigation progress",
+          "description": "Monitor implementation of mitigation strategies and risk status changes",
+          "context": "Risk management is ongoing throughout project lifecycle"
+        }
+      ],
+      "test_cases": [
+        {
+          "id": 1,
+          "input": "create_risk({name: 'Insufficient Requirements', impact: 'high', probability: 'current'})",
+          "expected": "Risk created with calculated severity score",
+          "type": "unit"
+        },
+        {
+          "id": 2,
+          "input": "calculate_risk_severity({impact: 'high', probability: 'high'})",
+          "expected": "Returns severity score and priority level",
+          "type": "unit"
+        },
+        {
+          "id": 3,
+          "input": "add_mitigation_strategy(risk_id, {action: 'Conduct requirements workshop', owner: 'PM', deadline: '2025-11-01'})",
+          "expected": "Mitigation strategy linked to risk with ownership and timeline",
+          "type": "integration"
+        },
+        {
+          "id": 4,
+          "input": "get_high_priority_risks()",
+          "expected": "Returns list of risks with high or critical severity",
+          "type": "integration"
+        },
+        {
+          "id": 5,
+          "input": "update_risk_status(risk_id, 'mitigated')",
+          "expected": "Risk status updated with timestamp and audit trail",
+          "type": "integration"
+        }
+      ],
+      "expected": {
+        "success": [
+          "Risks documented with all required fields",
+          "Severity calculation considers both impact and probability",
+          "Mitigation strategies have clear ownership and timelines",
+          "Risk status tracking maintains audit history",
+          "High-priority risks properly identified and flagged"
+        ],
+        "failures": [
+          "Missing risk fields (impact, probability)",
+          "Incorrect severity calculations",
+          "Mitigation strategies without ownership",
+          "Lost audit trail on status changes"
+        ],
+        "performance": [
+          "Risk creation completes in under 50ms",
+          "Severity calculation completes in under 10ms",
+          "Risk queries return in under 100ms"
+        ]
+      },
+      "implementation": {
+        "files": [
+          {
+            "file_path": ".something/prd.md",
+            "snippets": [
+              {
+                "start_line": 106,
+                "end_line": 127,
+                "code": "## Risk Assessment\n\n### Current Risks\n\n**Risk 1: Insufficient Requirements Definition**\n**Impact**: High\n**Probability**: Current\n**Description**: Limited project description may lead to scope ambiguity and misaligned expectations.\n**Mitigation**: Conduct comprehensive requirements gathering before proceeding with design or development.\n\n**Risk 2: Stakeholder Misalignment**\n**Impact**: High\n**Probability**: Medium\n**Description**: Without clear requirements, stakeholders may have different expectations.\n**Mitigation**: Early and frequent stakeholder engagement; documented agreement on scope and objectives.\n\n**Risk 3: Technical Feasibility Unknown**\n**Impact**: Medium\n**Probability**: Medium\n**Description**: Without understanding requirements, technical feasibility cannot be assessed.\n**Mitigation**: Technical discovery phase before committing to specific approaches.",
+                "purpose": "Defines risk assessment structure with impact, probability, and mitigation strategies"
+              }
+            ]
+          }
+        ],
+        "notes": "No risk management module implemented. Need risk CRUD operations, severity calculation, mitigation tracking, and reporting."
+      },
+      "expectation": "The system should provide comprehensive risk management with severity assessment, mitigation planning, and status tracking",
+      "prediction": "All tests will fail because no risk management module has been implemented",
+      "explanation": [
+        "No risk data model or schema defined",
+        "No severity calculation algorithm implemented",
+        "No mitigation strategy tracking system",
+        "No audit trail for status changes",
+        "No risk prioritization or filtering logic",
+        "Tests will fail with module not found or nil value errors"
+      ],
+      "status": "not_implemented",
+      "design_spec_quote": {
+        "selected_text": "Limited project description may lead to scope ambiguity and misaligned expectations. Mitigation: Conduct comprehensive requirements gathering before proceeding with design or development."
+      }
+    },
+    {
+      "id": 6,
+      "name": "PRD Completion Workflow",
+      "description": "Track and manage PRD completion through required steps and approvals",
+      "steps": [
+        {
+          "step_number": 1,
+          "action": "Initialize PRD checklist",
+          "description": "Create checklist with all required completion items from PRD template",
+          "context": "Checklist ensures all sections are completed before stakeholder review"
+        },
+        {
+          "step_number": 2,
+          "action": "Update section completion status",
+          "description": "Mark PRD sections as completed when all content is finalized",
+          "context": "Track progress through requirements definition workflow"
+        },
+        {
+          "step_number": 3,
+          "action": "Validate PRD completeness",
+          "description": "Check that all required sections have content and meet quality standards",
+          "context": "Validation ensures PRD is ready for stakeholder approval"
+        },
+        {
+          "step_number": 4,
+          "action": "Submit for stakeholder approval",
+          "description": "Send PRD to stakeholders for review and sign-off",
+          "context": "Approval workflow tracks sign-offs from all required stakeholders"
+        }
+      ],
+      "test_cases": [
+        {
+          "id": 1,
+          "input": "initialize_prd_checklist()",
+          "expected": "Checklist created with all required items from PRD template",
+          "type": "unit"
+        },
+        {
+          "id": 2,
+          "input": "update_section_status('functional_requirements', 'completed')",
+          "expected": "Section marked as completed with timestamp",
+          "type": "unit"
+        },
+        {
+          "id": 3,
+          "input": "validate_prd_completeness()",
+          "expected": "Returns validation result with list of incomplete or invalid sections",
+          "type": "integration"
+        },
+        {
+          "id": 4,
+          "input": "submit_for_approval(stakeholder_ids)",
+          "expected": "Approval requests sent to all stakeholders, workflow initiated",
+          "type": "integration"
+        },
+        {
+          "id": 5,
+          "input": "get_approval_status()",
+          "expected": "Returns approval status from each stakeholder with timestamps",
+          "type": "integration"
+        },
+        {
+          "id": 6,
+          "input": "is_prd_approved()",
+          "expected": "Returns true only when all required stakeholders have approved",
+          "type": "e2e"
+        }
+      ],
+      "expected": {
+        "success": [
+          "Checklist includes all PRD sections",
+          "Section completion tracked with timestamps",
+          "Validation identifies missing or incomplete content",
+          "Approval workflow tracks all stakeholder responses",
+          "PRD marked as approved only when all stakeholders sign off"
+        ],
+        "failures": [
+          "Missing checklist items",
+          "Section completion without validation",
+          "Validation passes incomplete sections",
+          "Approval workflow allows partial sign-off"
+        ],
+        "performance": [
+          "Checklist initialization completes in under 100ms",
+          "Validation runs in under 500ms",
+          "Approval status queries return in under 100ms"
+        ]
+      },
+      "implementation": {
+        "files": [
+          {
+            "file_path": ".something/prd.md",
+            "snippets": [
+              {
+                "start_line": 154,
+                "end_line": 167,
+                "code": "### PRD Completion Checklist\n\nOnce requirements are gathered, update this PRD to include:\n\n- [ ] Clear problem statement and business context\n- [ ] Detailed functional requirements (REQ-1 through REQ-n)\n- [ ] Specific non-functional requirements with measurable criteria\n- [ ] User stories with acceptance criteria (if user-facing)\n- [ ] Success metrics and measurement plan\n- [ ] Technical considerations and constraints\n- [ ] Business impact analysis\n- [ ] Resource and timeline estimates\n- [ ] Risk assessment with specific mitigation strategies",
+                "purpose": "Defines the checklist for PRD completion and approval readiness"
+              }
+            ]
+          }
+        ],
+        "notes": "No PRD workflow module implemented. Need checklist management, validation logic, and approval workflow tracking."
+      },
+      "expectation": "The system should provide complete PRD workflow management from checklist initialization through stakeholder approval",
+      "prediction": "All tests will fail as no PRD workflow module exists",
+      "explanation": [
+        "No checklist data model or storage",
+        "No section completion tracking",
+        "No PRD validation logic implemented",
+        "No approval workflow system",
+        "No integration with stakeholder management",
+        "Tests will fail with module/function not found errors"
+      ],
+      "status": "not_implemented",
+      "design_spec_quote": {
+        "selected_text": "Once requirements are gathered, update this PRD to include: Clear problem statement and business context, detailed functional requirements (REQ-1 through REQ-n), specific non-functional requirements with measurable criteria."
+      }
+    }
+  ],
+  "summary": {
+    "total_scenarios": 6,
+    "complexity": "high",
+    "estimated_time": "120 minutes"
+  }
+}
