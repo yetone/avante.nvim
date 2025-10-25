@@ -294,13 +294,20 @@ end
 
 ---Create stdio transport layer
 function ACPClient:_create_stdio_transport()
-  local uv = vim.loop
+  local uv = vim.uv or vim.loop
+
+  --- @class avante.acp.ACPTransportInstance
   local transport = {
+    --- @type uv.uv_pipe_t|nil
     stdin = nil,
+    --- @type uv.uv_pipe_t|nil
     stdout = nil,
+    --- @type uv.uv_process_t|nil
     process = nil,
   }
 
+  --- @param transport_self avante.acp.ACPTransportInstance
+  --- @param data string
   function transport.send(transport_self, data)
     if transport_self.stdin and not transport_self.stdin:is_closing() then
       transport_self.stdin:write(data .. "\n")
@@ -309,6 +316,8 @@ function ACPClient:_create_stdio_transport()
     return false
   end
 
+  --- @param transport_self avante.acp.ACPTransportInstance
+  --- @param on_message fun(message: any)
   function transport.start(transport_self, on_message)
     self:_set_state("connecting")
 
@@ -415,10 +424,19 @@ function ACPClient:_create_stdio_transport()
     end)
   end
 
+  --- @param transport_self avante.acp.ACPTransportInstance
   function transport.stop(transport_self)
-    if transport_self.process then
-      transport_self.process:close()
+    if transport_self.process and not transport_self.process:is_closing() then
+      local process = transport_self.process
       transport_self.process = nil
+
+      if not process then return end
+
+      -- Try to terminate gracefully
+      pcall(function() process:kill(15) end)
+      -- then force kill, it'll fail harmlessly if already exited
+      pcall(function() process:kill(9) end)
+      process:close()
     end
     if transport_self.stdin then
       transport_self.stdin:close()
