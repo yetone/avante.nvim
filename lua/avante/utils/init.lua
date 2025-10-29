@@ -1546,6 +1546,7 @@ function M.llm_tool_param_fields_to_json_schema(fields)
     end
     if not field.optional then table.insert(required, field.name) end
   end
+  if vim.tbl_isempty(properties) then properties = vim.empty_dict() end
   return properties, required
 end
 
