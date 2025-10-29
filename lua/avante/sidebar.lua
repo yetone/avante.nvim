@@ -1960,7 +1960,13 @@ function Sidebar:get_message_lines(ctx, message, messages, ignore_record_prefix)
   elseif type(content) == "string" then
     text_len = #content
   end
-  local cache_key = message.uuid .. ":" .. tostring(text_len) .. ":" .. tostring(expanded == true)
+  local cache_key = message.uuid
+    .. ":"
+    .. message.state
+    .. ":"
+    .. tostring(text_len)
+    .. ":"
+    .. tostring(expanded == true)
   local cached_lines = _message_to_lines_lru_cache:get(cache_key)
   if cached_lines then return cached_lines end
   local lines = self:_get_message_lines(ctx, message, messages, ignore_record_prefix)
@@ -2518,7 +2524,7 @@ function Sidebar:get_history_messages_for_api(opts)
 
     if not Config.acp_providers[Config.provider] then
       local tool_limit
-      if Providers[Config.provider].use_ReAct_prompt then
+      if Providers[Config.provider].use_ReAct_prompt or Providers[Config.provider].use_response_api then
         tool_limit = nil
       else
         tool_limit = 25

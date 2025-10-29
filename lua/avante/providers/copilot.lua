@@ -138,6 +138,7 @@ end
 
 H.chat_auth_url = "https://api.github.com/copilot_internal/v2/token"
 function H.chat_completion_url(base_url) return Utils.url_join(base_url, "/chat/completions") end
+function H.response_url(base_url) return Utils.url_join(base_url, "/responses") end
 
 function H.refresh_token(async, force)
   if not M.state then error("internal initialization error") end
@@ -283,12 +284,28 @@ function M:parse_curl_args(prompt_opts)
   local provider_conf, request_body = Providers.parse_config(self)
   local disable_tools = provider_conf.disable_tools or false
 
+  -- Apply OpenAI's set_allowed_params for Response API compatibility
+  OpenAI.set_allowed_params(provider_conf, request_body)
+
   local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
 
-  local tools = {}
-  if not use_ReAct_prompt and not disable_tools and prompt_opts.tools then
+  local tools = nil
+  if not disable_tools and prompt_opts.tools and not use_ReAct_prompt then
+    tools = {}
     for _, tool in ipairs(prompt_opts.tools) do
-      table.insert(tools, OpenAI:transform_tool(tool))
+      local transformed_tool = OpenAI:transform_tool(tool)
+      -- Response API uses flattened tool structure
+      if provider_conf.use_response_api then
+        if transformed_tool.type == "function" and transformed_tool["function"] then
+          transformed_tool = {
+            type = "function",
+            name = transformed_tool["function"].name,
+            description = transformed_tool["function"].description,
+            parameters = transformed_tool["function"].parameters,
+          }
+        end
+      end
+      table.insert(tools, transformed_tool)
     end
   end
 
@@ -300,18 +317,45 @@ function M:parse_curl_args(prompt_opts)
     headers["X-Initiator"] = initiator
   end
 
+  local parsed_messages = self:parse_messages(prompt_opts)
+
+  -- Build base body
+  local base_body = {
+    model = provider_conf.model,
+    stream = true,
+    tools = tools,
+  }
+
+  -- Response API uses 'input' instead of 'messages'
+  -- NOTE: Copilot doesn't support previous_response_id, always send full history
+  if provider_conf.use_response_api then
+    base_body.input = parsed_messages
+
+    -- Response API uses max_output_tokens instead of max_tokens/max_completion_tokens
+    if request_body.max_completion_tokens then
+      request_body.max_output_tokens = request_body.max_completion_tokens
+      request_body.max_completion_tokens = nil
+    end
+    if request_body.max_tokens then
+      request_body.max_output_tokens = request_body.max_tokens
+      request_body.max_tokens = nil
+    end
+    -- Response API doesn't use stream_options
+    base_body.stream_options = nil
+  else
+    base_body.messages = parsed_messages
+    base_body.stream_options = {
+      include_usage = true,
+    }
+  end
+
   return {
-    url = H.chat_completion_url(M.state.github_token.endpoints.api or provider_conf.endpoint),
+    url = H.response_url(M.state.github_token.endpoints.api or provider_conf.endpoint),
     timeout = provider_conf.timeout,
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,
     headers = Utils.tbl_override(headers, self.extra_headers),
-    body = vim.tbl_deep_extend("force", {
-      model = provider_conf.model,
-      messages = self:parse_messages(prompt_opts),
-      stream = true,
-      tools = tools,
-    }, request_body),
+    body = vim.tbl_deep_extend("force", base_body, request_body),
   }
 end
 
