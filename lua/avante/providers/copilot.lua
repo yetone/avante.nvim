@@ -268,7 +268,7 @@ function M:build_headers()
   return {
     ["Authorization"] = "Bearer " .. M.state.github_token.token,
     ["User-Agent"] = "GitHubCopilotChat/0.26.7",
-    ["Editor-Version"] = "vscode/1.99.3",
+    ["Editor-Version"] = "vscode/1.105.1",
     ["Editor-Plugin-Version"] = "copilot-chat/0.26.7",
     ["Copilot-Integration-Id"] = "vscode-chat",
     ["Openai-Intent"] = "conversation-edits",
