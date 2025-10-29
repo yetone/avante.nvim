@@ -204,10 +204,22 @@ vim.g.avante_login = vim.g.avante_login
 ---@field reasoning_content? string
 ---@field reasoning? string
 ---@field tool_calls? AvanteOpenAIMessageToolCall[]
+---@field type? "reasoning" | "function_call" | "function_call_output"
+---@field id? string
+---@field encrypted_content? string
+---@field summary? string
+---@field call_id? string
+---@field name? string
+---@field arguments? string
+---@field output? string
 ---
 ---@class AvanteOpenAITool
 ---@field type "function"
----@field function AvanteOpenAIToolFunction
+---@field function? AvanteOpenAIToolFunction
+---@field name? string
+---@field description? string | nil
+---@field parameters? AvanteOpenAIToolFunctionParameters | nil
+---@field strict? boolean | nil
 ---
 ---@class AvanteOpenAIToolFunction
 ---@field name string
@@ -251,6 +263,8 @@ vim.g.avante_login = vim.g.avante_login
 ---@field hide_in_model_selector? boolean
 ---@field use_ReAct_prompt? boolean
 ---@field context_window? integer
+---@field use_response_api? boolean
+---@field support_previous_response_id? boolean
 ---
 ---@class AvanteSupportedProvider: AvanteDefaultBaseProvider
 ---@field __inherited_from? string
@@ -484,7 +498,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@class AvanteLLMToolReturn
 ---@field name string
 ---@field description string
----@field type 'string' | 'string[]' | 'boolean'
+---@field type 'string' | 'string[]' | 'boolean' | 'array'
 ---@field optional? boolean
 ---
 ---@class avante.ChatHistoryEntry

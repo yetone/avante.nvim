@@ -136,13 +136,9 @@ Parameters:
 
 <tool_use>{"name": "attempt_completion", "input": {"result": "I've successfully created the requested React component with the following features:\n- Responsive layout\n- Dark/light mode toggle\n- Form validation\n- API integration"}}</tool_use>
 
-## Example 5: Add todos
+## Example 5: Write todos
 
-<tool_use>{"name": "add_todos", "input": {"todos": [{"id": "1", "content": "Implement a responsive layout", "status": "todo", "priority": "low"}, {"id": "2", "content": "Add dark/light mode toggle", "status": "todo", "priority": "medium"}]}}</tool_use>
-
-## Example 6: Update todo status
-
-<tool_use>{"name": "update_todo_status", "input": {"id": "1", "status": "done"}}</tool_use>
+<tool_use>{"name": "write_todos", "input": {"todos": [{"id": "1", "content": "Implement a responsive layout", "status": "todo", "priority": "low"}, {"id": "2", "content": "Add dark/light mode toggle", "status": "todo", "priority": "medium"}]}}</tool_use>
 ]]
   end
   return system_prompt

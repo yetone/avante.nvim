@@ -3,9 +3,9 @@ local Base = require("avante.llm_tools.base")
 ---@class AvanteLLMTool
 local M = setmetatable({}, Base)
 
-M.name = "add_todos"
+M.name = "write_todos"
 
-M.description = "Add TODOs to the current task"
+M.description = "Write TODOs to the current task"
 
 ---@type AvanteLLMToolParam
 M.param = {
@@ -13,7 +13,7 @@ M.param = {
   fields = {
     {
       name = "todos",
-      description = "The TODOs to add",
+      description = "The entire TODOs array to write",
       type = "array",
       items = {
         name = "items",

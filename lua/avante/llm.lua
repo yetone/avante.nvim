@@ -104,14 +104,14 @@ end
 ---@param cb fun(error: string | nil): nil
 function M.generate_todos(user_input, cb)
   local system_prompt =
-    [[You are an expert coding assistant. Please generate a todo list to complete the task based on the user input and pass the todo list to the add_todos tool.]]
+    [[You are an expert coding assistant. Please generate a todo list to complete the task based on the user input and pass the todo list to the write_todos tool.]]
   local messages = {
     { role = "user", content = user_input },
   }
 
   local provider = Providers[Config.provider]
   local tools = {
-    require("avante.llm_tools.add_todos"),
+    require("avante.llm_tools.write_todos"),
   }
 
   local history_messages = {}
@@ -153,7 +153,7 @@ function M.generate_todos(user_input, cb)
         if stop_opts.reason == "tool_use" then
           local pending_tools = History.get_pending_tools(history_messages)
           for _, pending_tool in ipairs(pending_tools) do
-            if pending_tool.state == "generated" and pending_tool.name == "add_todos" then
+            if pending_tool.state == "generated" and pending_tool.name == "write_todos" then
               local result = LLMTools.process_tool_use(tools, pending_tool, {
                 session_ctx = {},
                 on_complete = function() cb() end,
@@ -440,30 +440,6 @@ function M.generate_prompts(opts)
 
   if opts.instructions ~= nil and opts.instructions ~= "" then
     messages = vim.list_extend(messages, { { role = "user", content = opts.instructions } })
-  end
-
-  if opts.get_todos then
-    local todos = opts.get_todos()
-    if todos and #todos > 0 then
-      -- Remove existing todos-related messages - use more precise <todos> tag matching
-      messages = vim
-        .iter(messages)
-        :filter(function(msg)
-          if not msg.content or type(msg.content) ~= "string" then return true end
-          -- Only filter out messages that start with <todos> and end with </todos> to avoid accidentally deleting other messages
-          return not msg.content:match("^<todos>.*</todos>$")
-        end)
-        :totable()
-
-      -- Add the latest todos to the end of messages, wrapped in <todos> tags
-      local todos_content = vim.json.encode(todos)
-      table.insert(messages, {
-        role = "user",
-        content = "<todos>\n" .. todos_content .. "\n</todos>",
-        visible = false,
-        is_context = true,
-      })
-    end
   end
 
   opts.session_ctx = opts.session_ctx or {}
@@ -1885,7 +1861,7 @@ function M._stream(opts)
           if #unfinished_todos > 0 then
             message = History.Message:new(
               "user",
-              "<system-reminder>You should use tool calls to answer the question, for example, use update_todo_status if the task step is done or cancelled.</system-reminder>",
+              "<system-reminder>You should use tool calls to answer the question, for example, use write_todos if the task step is done or cancelled.</system-reminder>",
               {
                 visible = false,
               }

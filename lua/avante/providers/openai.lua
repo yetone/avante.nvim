@@ -66,16 +66,48 @@ function M.get_user_message(opts)
   )
 end
 
-function M.is_reasoning_model(model) return model and string.match(model, "^o%d+") ~= nil end
+function M.is_reasoning_model(model)
+  return model and (string.match(model, "^o%d+") ~= nil or string.match(model, "gpt%-5") ~= nil)
+end
 
 function M.set_allowed_params(provider_conf, request_body)
   if M.is_reasoning_model(provider_conf.model) then
+    -- Reasoning models have specific parameter requirements
     request_body.temperature = 1
+    -- Response API doesn't support temperature for reasoning models
+    if provider_conf.use_response_api then request_body.temperature = nil end
   else
     request_body.reasoning_effort = nil
+    request_body.reasoning = nil
   end
   -- If max_tokens is set in config, unset max_completion_tokens
   if request_body.max_tokens then request_body.max_completion_tokens = nil end
+
+  -- Handle Response API specific parameters
+  if provider_conf.use_response_api then
+    -- Convert reasoning_effort to reasoning object for Response API
+    if request_body.reasoning_effort then
+      request_body.reasoning = {
+        effort = request_body.reasoning_effort,
+      }
+      request_body.reasoning_effort = nil
+    end
+
+    -- Response API doesn't support some parameters
+    -- Remove unsupported parameters for Response API
+    local unsupported_params = {
+      "top_p",
+      "frequency_penalty",
+      "presence_penalty",
+      "logit_bias",
+      "logprobs",
+      "top_logprobs",
+      "n",
+    }
+    for _, param in ipairs(unsupported_params) do
+      request_body[param] = nil
+    end
+  end
 end
 
 function M:parse_messages(opts)
@@ -99,6 +131,18 @@ function M:parse_messages(opts)
     if type(msg.content) == "string" then
       table.insert(messages, { role = self.role_map[msg.role], content = msg.content })
     elseif type(msg.content) == "table" then
+      -- Check if this is a reasoning message (object with type "reasoning")
+      if msg.content.type == "reasoning" then
+        -- Add reasoning message directly (for Response API)
+        table.insert(messages, {
+          type = "reasoning",
+          id = msg.content.id,
+          encrypted_content = msg.content.encrypted_content,
+          summary = msg.content.summary,
+        })
+        return
+      end
+
       local content = {}
       local tool_calls = {}
       local tool_results = {}
@@ -113,6 +157,14 @@ function M:parse_messages(opts)
             image_url = {
               url = "data:" .. item.source.media_type .. ";" .. item.source.type .. "," .. item.source.data,
             },
+          })
+        elseif item.type == "reasoning" then
+          -- Add reasoning message directly (for Response API)
+          table.insert(messages, {
+            type = "reasoning",
+            id = item.id,
+            encrypted_content = item.encrypted_content,
+            summary = item.summary,
           })
         elseif item.type == "tool_use" and not use_ReAct_prompt then
           has_tool_use = true
@@ -155,21 +207,53 @@ function M:parse_messages(opts)
       if #content > 0 then table.insert(messages, { role = self.role_map[msg.role], content = content }) end
       if not provider_conf.disable_tools and not use_ReAct_prompt then
         if #tool_calls > 0 then
-          local last_message = messages[#messages]
-          if last_message and last_message.role == self.role_map["assistant"] and last_message.tool_calls then
-            last_message.tool_calls = vim.list_extend(last_message.tool_calls, tool_calls)
+          -- Only skip tool_calls if using Response API with previous_response_id support
+          -- Copilot uses Response API format but doesn't support previous_response_id
+          local should_include_tool_calls = not provider_conf.use_response_api
+            or not provider_conf.support_previous_response_id
 
-            if not last_message.content then last_message.content = "" end
-          else
-            table.insert(messages, { role = self.role_map["assistant"], tool_calls = tool_calls, content = "" })
+          if should_include_tool_calls then
+            -- For Response API without previous_response_id support (like Copilot),
+            -- convert tool_calls to function_call items in input
+            if provider_conf.use_response_api then
+              for _, tool_call in ipairs(tool_calls) do
+                table.insert(messages, {
+                  type = "function_call",
+                  call_id = tool_call.id,
+                  name = tool_call["function"].name,
+                  arguments = tool_call["function"].arguments,
+                })
+              end
+            else
+              -- Chat Completions API format
+              local last_message = messages[#messages]
+              if last_message and last_message.role == self.role_map["assistant"] and last_message.tool_calls then
+                last_message.tool_calls = vim.list_extend(last_message.tool_calls, tool_calls)
+
+                if not last_message.content then last_message.content = "" end
+              else
+                table.insert(messages, { role = self.role_map["assistant"], tool_calls = tool_calls, content = "" })
+              end
+            end
           end
+          -- If support_previous_response_id is true, Response API manages function call history
+          -- So we can skip adding tool_calls to input messages
         end
         if #tool_results > 0 then
           for _, tool_result in ipairs(tool_results) do
-            table.insert(
-              messages,
-              { role = "tool", tool_call_id = tool_result.tool_call_id, content = tool_result.content or "" }
-            )
+            -- Response API uses different format for function outputs
+            if provider_conf.use_response_api then
+              table.insert(messages, {
+                type = "function_call_output",
+                call_id = tool_result.tool_call_id,
+                output = tool_result.content or "",
+              })
+            else
+              table.insert(
+                messages,
+                { role = "tool", tool_call_id = tool_result.tool_call_id, content = tool_result.content or "" }
+              )
+            end
           end
         end
       end
@@ -194,10 +278,16 @@ function M:parse_messages(opts)
 
   local final_messages = {}
   local prev_role = nil
+  local prev_type = nil
 
   vim.iter(messages):each(function(message)
     local role = message.role
-    if role == prev_role and role ~= "tool" then
+    if
+      role == prev_role
+      and role ~= "tool"
+      and prev_type ~= "function_call"
+      and prev_type ~= "function_call_output"
+    then
       if role == self.role_map["assistant"] then
         table.insert(final_messages, { role = self.role_map["user"], content = "Ok" })
       else
@@ -209,6 +299,7 @@ function M:parse_messages(opts)
       end
     end
     prev_role = role
+    prev_type = message.type
     table.insert(final_messages, message)
   end)
 
@@ -217,8 +308,8 @@ end
 
 function M:finish_pending_messages(ctx, opts)
   if ctx.content ~= nil and ctx.content ~= "" then self:add_text_message(ctx, "", "generated", opts) end
-  if ctx.tool_use_list then
-    for _, tool_use in pairs(ctx.tool_use_list) do
+  if ctx.tool_use_map then
+    for _, tool_use in pairs(ctx.tool_use_map) do
       if tool_use.state == "generating" then self:add_tool_use_message(ctx, tool_use, "generated", opts) end
     end
   end
@@ -308,17 +399,18 @@ function M:add_text_message(ctx, text, state, opts)
           turn_id = ctx.turn_id,
         })
         msgs[#msgs + 1] = msg_
-        ctx.tool_use_list = ctx.tool_use_list or {}
+        ctx.tool_use_map = ctx.tool_use_map or {}
         local input_json = type(input) == "string" and input or vim.json.encode(input)
         local exists = false
-        for _, tool_use in ipairs(ctx.tool_use_list) do
+        for _, tool_use in pairs(ctx.tool_use_map) do
           if tool_use.id == tool_use_id then
             tool_use.input_json = input_json
             exists = true
           end
         end
         if not exists then
-          ctx.tool_use_list[#ctx.tool_use_list + 1] = {
+          local tool_key = tostring(vim.tbl_count(ctx.tool_use_map))
+          ctx.tool_use_map[tool_key] = {
             uuid = tool_use_id,
             id = tool_use_id,
             name = item.tool_name,
@@ -369,6 +461,20 @@ function M:add_tool_use_message(ctx, tool_use, state, opts)
   if state == "generating" then opts.on_stop({ reason = "tool_use", streaming_tool_use = true }) end
 end
 
+function M:add_reasoning_message(ctx, reasoning_item, opts)
+  local msg = HistoryMessage:new("assistant", {
+    type = "reasoning",
+    id = reasoning_item.id,
+    encrypted_content = reasoning_item.encrypted_content,
+    summary = reasoning_item.summary,
+  }, {
+    state = "generated",
+    uuid = Utils.uuid(),
+    turn_id = ctx.turn_id,
+  })
+  if opts.on_messages_add then opts.on_messages_add({ msg }) end
+end
+
 ---@param usage avante.OpenAITokenUsage | nil
 ---@return avante.LLMTokenUsage | nil
 function M.transform_openai_usage(usage)
@@ -385,15 +491,118 @@ end
 function M:parse_response(ctx, data_stream, _, opts)
   if data_stream:match('"%[DONE%]":') or data_stream == "[DONE]" then
     self:finish_pending_messages(ctx, opts)
-    if ctx.tool_use_list and #ctx.tool_use_list > 0 then
-      ctx.tool_use_list = {}
+    if ctx.tool_use_map and vim.tbl_count(ctx.tool_use_map) > 0 then
+      ctx.tool_use_map = {}
       opts.on_stop({ reason = "tool_use" })
     else
       opts.on_stop({ reason = "complete" })
     end
     return
   end
+
   local jsn = vim.json.decode(data_stream)
+
+  -- Check if this is a Response API event (has 'type' field)
+  if jsn.type and type(jsn.type) == "string" then
+    -- Response API event-driven format
+    if jsn.type == "response.output_text.delta" then
+      -- Text content delta
+      if jsn.delta and jsn.delta ~= vim.NIL and jsn.delta ~= "" then
+        if opts.on_chunk then opts.on_chunk(jsn.delta) end
+        self:add_text_message(ctx, jsn.delta, "generating", opts)
+      end
+    elseif jsn.type == "response.reasoning_summary_text.delta" then
+      -- Reasoning summary delta
+      if jsn.delta and jsn.delta ~= vim.NIL and jsn.delta ~= "" then
+        if ctx.returned_think_start_tag == nil or not ctx.returned_think_start_tag then
+          ctx.returned_think_start_tag = true
+          if opts.on_chunk then opts.on_chunk("<think>\n") end
+        end
+        ctx.last_think_content = jsn.delta
+        self:add_thinking_message(ctx, jsn.delta, "generating", opts)
+        if opts.on_chunk then opts.on_chunk(jsn.delta) end
+      end
+    elseif jsn.type == "response.function_call_arguments.delta" then
+      -- Function call arguments delta
+      if jsn.delta and jsn.delta ~= vim.NIL and jsn.delta ~= "" then
+        if not ctx.tool_use_map then ctx.tool_use_map = {} end
+        local tool_key = tostring(jsn.output_index or 0)
+        if not ctx.tool_use_map[tool_key] then
+          ctx.tool_use_map[tool_key] = {
+            name = jsn.name or "",
+            id = jsn.call_id or "",
+            input_json = jsn.delta,
+          }
+        else
+          ctx.tool_use_map[tool_key].input_json = ctx.tool_use_map[tool_key].input_json .. jsn.delta
+        end
+      end
+    elseif jsn.type == "response.output_item.added" then
+      -- Output item added (could be function call or reasoning)
+      if jsn.item and jsn.item.type == "function_call" then
+        local tool_key = tostring(jsn.output_index or 0)
+        if not ctx.tool_use_map then ctx.tool_use_map = {} end
+        ctx.tool_use_map[tool_key] = {
+          name = jsn.item.name or "",
+          id = jsn.item.call_id or jsn.item.id or "",
+          input_json = "",
+        }
+        self:add_tool_use_message(ctx, ctx.tool_use_map[tool_key], "generating", opts)
+      elseif jsn.item and jsn.item.type == "reasoning" then
+        -- Add reasoning item to history
+        self:add_reasoning_message(ctx, jsn.item, opts)
+      end
+    elseif jsn.type == "response.output_item.done" then
+      -- Output item done (finalize function call)
+      if jsn.item and jsn.item.type == "function_call" then
+        local tool_key = tostring(jsn.output_index or 0)
+        if ctx.tool_use_map and ctx.tool_use_map[tool_key] then
+          local tool_use = ctx.tool_use_map[tool_key]
+          if jsn.item.arguments then tool_use.input_json = jsn.item.arguments end
+          self:add_tool_use_message(ctx, tool_use, "generated", opts)
+        end
+      end
+    elseif jsn.type == "response.completed" or jsn.type == "response.done" then
+      -- Response completed - save response.id for future requests
+      if jsn.response and jsn.response.id then
+        ctx.last_response_id = jsn.response.id
+        -- Store in provider for next request
+        self.last_response_id = jsn.response.id
+      end
+      if
+        ctx.returned_think_start_tag ~= nil and (ctx.returned_think_end_tag == nil or not ctx.returned_think_end_tag)
+      then
+        ctx.returned_think_end_tag = true
+        if opts.on_chunk then
+          if
+            ctx.last_think_content
+            and ctx.last_think_content ~= vim.NIL
+            and ctx.last_think_content:sub(-1) ~= "\n"
+          then
+            opts.on_chunk("\n</think>\n")
+          else
+            opts.on_chunk("</think>\n")
+          end
+        end
+        self:add_thinking_message(ctx, "", "generated", opts)
+      end
+      self:finish_pending_messages(ctx, opts)
+      local usage = nil
+      if jsn.response and jsn.response.usage then usage = self.transform_openai_usage(jsn.response.usage) end
+      if ctx.tool_use_map and vim.tbl_count(ctx.tool_use_map) > 0 then
+        opts.on_stop({ reason = "tool_use", usage = usage })
+      else
+        opts.on_stop({ reason = "complete", usage = usage })
+      end
+    elseif jsn.type == "error" then
+      -- Error event
+      local error_msg = jsn.error and vim.inspect(jsn.error) or "Unknown error"
+      opts.on_stop({ reason = "error", error = error_msg })
+    end
+    return
+  end
+
+  -- Chat Completions API format (original code)
   if jsn.usage and jsn.usage ~= vim.NIL then
     if opts.update_tokens_usage then
       local usage = self.transform_openai_usage(jsn.usage)
@@ -435,10 +644,12 @@ function M:parse_response(ctx, data_stream, _, opts)
     for idx, tool_call in ipairs(delta.tool_calls) do
       --- In Gemini's so-called OpenAI Compatible API, tool_call.index is nil, which is quite absurd! Therefore, a compatibility fix is needed here.
       if tool_call.index == nil then tool_call.index = choice_index + idx - 1 end
-      if not ctx.tool_use_list then ctx.tool_use_list = {} end
-      if not ctx.tool_use_list[tool_call.index + 1] then
-        if tool_call.index > 0 and ctx.tool_use_list[tool_call.index] then
-          local prev_tool_use = ctx.tool_use_list[tool_call.index]
+      if not ctx.tool_use_map then ctx.tool_use_map = {} end
+      local tool_key = tostring(tool_call.index)
+      local prev_tool_key = tostring(tool_call.index - 1)
+      if not ctx.tool_use_map[tool_key] then
+        local prev_tool_use = ctx.tool_use_map[prev_tool_key]
+        if tool_call.index > 0 and prev_tool_use then
           self:add_tool_use_message(ctx, prev_tool_use, "generated", opts)
         end
         local tool_use = {
@@ -446,10 +657,10 @@ function M:parse_response(ctx, data_stream, _, opts)
           id = tool_call.id,
           input_json = type(tool_call["function"].arguments) == "string" and tool_call["function"].arguments or "",
         }
-        ctx.tool_use_list[tool_call.index + 1] = tool_use
+        ctx.tool_use_map[tool_key] = tool_use
         self:add_tool_use_message(ctx, tool_use, "generating", opts)
       else
-        local tool_use = ctx.tool_use_list[tool_call.index + 1]
+        local tool_use = ctx.tool_use_map[tool_key]
         if tool_call["function"].arguments == vim.NIL then tool_call["function"].arguments = "" end
         tool_use.input_json = tool_use.input_json .. tool_call["function"].arguments
         -- self:add_tool_use_message(ctx, tool_use, "generating", opts)
@@ -476,7 +687,7 @@ function M:parse_response(ctx, data_stream, _, opts)
   end
   if choice.finish_reason == "stop" or choice.finish_reason == "eos_token" or choice.finish_reason == "length" then
     self:finish_pending_messages(ctx, opts)
-    if ctx.tool_use_list and #ctx.tool_use_list > 0 then
+    if ctx.tool_use_map and vim.tbl_count(ctx.tool_use_map) > 0 then
       opts.on_stop({ reason = "tool_use", usage = self.transform_openai_usage(jsn.usage) })
     else
       opts.on_stop({ reason = "complete", usage = self.transform_openai_usage(jsn.usage) })
@@ -537,7 +748,21 @@ function M:parse_curl_args(prompt_opts)
   if not disable_tools and prompt_opts.tools and not use_ReAct_prompt then
     tools = {}
     for _, tool in ipairs(prompt_opts.tools) do
-      table.insert(tools, self:transform_tool(tool))
+      local transformed_tool = self:transform_tool(tool)
+      -- Response API uses flattened tool structure
+      if provider_conf.use_response_api then
+        -- Convert from {type: "function", function: {name, description, parameters}}
+        -- to {type: "function", name, description, parameters}
+        if transformed_tool.type == "function" and transformed_tool["function"] then
+          transformed_tool = {
+            type = "function",
+            name = transformed_tool["function"].name,
+            description = transformed_tool["function"].description,
+            parameters = transformed_tool["function"].parameters,
+          }
+        end
+      end
+      table.insert(tools, transformed_tool)
     end
   end
 
@@ -547,21 +772,70 @@ function M:parse_curl_args(prompt_opts)
   local stop = nil
   if use_ReAct_prompt then stop = { "</tool_use>" } end
 
+  -- Determine endpoint path based on use_response_api
+  local endpoint_path = provider_conf.use_response_api and "/responses" or "/chat/completions"
+
+  local parsed_messages = self:parse_messages(prompt_opts)
+
+  -- Build base body
+  local base_body = {
+    model = provider_conf.model,
+    stop = stop,
+    stream = true,
+    tools = tools,
+  }
+
+  -- Response API uses 'input' instead of 'messages'
+  if provider_conf.use_response_api then
+    -- Check if we have tool results - if so, use previous_response_id
+    local has_function_outputs = false
+    for _, msg in ipairs(parsed_messages) do
+      if msg.type == "function_call_output" then
+        has_function_outputs = true
+        break
+      end
+    end
+
+    if has_function_outputs and self.last_response_id then
+      -- When sending function outputs, use previous_response_id
+      base_body.previous_response_id = self.last_response_id
+      -- Only send the function outputs, not the full history
+      local function_outputs = {}
+      for _, msg in ipairs(parsed_messages) do
+        if msg.type == "function_call_output" then table.insert(function_outputs, msg) end
+      end
+      base_body.input = function_outputs
+      -- Clear the stored response_id after using it
+      self.last_response_id = nil
+    else
+      -- Normal request without tool results
+      base_body.input = parsed_messages
+    end
+
+    -- Response API uses max_output_tokens instead of max_tokens/max_completion_tokens
+    if request_body.max_completion_tokens then
+      request_body.max_output_tokens = request_body.max_completion_tokens
+      request_body.max_completion_tokens = nil
+    end
+    if request_body.max_tokens then
+      request_body.max_output_tokens = request_body.max_tokens
+      request_body.max_tokens = nil
+    end
+    -- Response API doesn't use stream_options
+    base_body.stream_options = nil
+  else
+    base_body.messages = parsed_messages
+    base_body.stream_options = not M.is_mistral(provider_conf.endpoint) and {
+      include_usage = true,
+    } or nil
+  end
+
   return {
-    url = Utils.url_join(provider_conf.endpoint, "/chat/completions"),
+    url = Utils.url_join(provider_conf.endpoint, endpoint_path),
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,
     headers = Utils.tbl_override(headers, self.extra_headers),
-    body = vim.tbl_deep_extend("force", {
-      model = provider_conf.model,
-      messages = self:parse_messages(prompt_opts),
-      stop = stop,
-      stream = true,
-      stream_options = not M.is_mistral(provider_conf.endpoint) and {
-        include_usage = true,
-      } or nil,
-      tools = tools,
-    }, request_body),
+    body = vim.tbl_deep_extend("force", base_body, request_body),
   }
 end
 
