@@ -67,7 +67,7 @@ local function parse_response_wo_stream(self, data, _, opts)
     content = content:gsub("<file>\n?", "")
     content = content:gsub("\n?</file>", "")
     content = content:gsub("\n?<memory>.-</memory>\n?", "")
-    content = content:gsub("\n?<update_todo_status>.-</update_todo_status>\n?", "")
+    content = content:gsub("\n?<write_todos>.-</write_todos>\n?", "")
     content = content:gsub("\n?<attempt_completion>.-</attempt_completion>\n?", "")
 
     -- Trim excessive whitespace but preserve structure

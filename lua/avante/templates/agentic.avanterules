@@ -90,7 +90,7 @@ By thoughtfully selecting between write_to_file and replace_in_file, you can mak
 
 RULES
 
-- Strictly follow the TODOs step by step to complete the task without stopping, and after completing each step, use the update_todo_status tool to update the status of the TODOs.
+- Strictly follow the TODOs step by step to complete the task without stopping, and after completing each step, use the write_todos tool to update the status of the TODOs.
 
 - NEVER reply the updated code.
 

@@ -286,10 +286,15 @@ M._defaults = {
       model = "gpt-4o",
       timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
       context_window = 128000, -- Number of tokens to send to the model for context
+      use_response_api = false, -- Set to true to use OpenAI's new Response API (/responses) instead of Chat Completions API (/chat/completions)
+      support_previous_response_id = true, -- OpenAI Response API supports previous_response_id for stateful conversations
+      -- NOTE: Response API automatically manages conversation state using previous_response_id for tool calling
       extra_request_body = {
         temperature = 0.75,
-        max_completion_tokens = 16384, -- Increase this to include reasoning tokens (for reasoning models)
-        reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
+        max_completion_tokens = 16384, -- Increase this to include reasoning tokens (for reasoning models). For Response API, will be converted to max_output_tokens
+        reasoning_effort = "medium", -- low|medium|high, only used for reasoning models. For Response API, this will be converted to reasoning.effort
+        -- background = false, -- Response API only: set to true to start a background task
+        -- NOTE: previous_response_id is automatically managed by the provider for tool calling - don't set manually
       },
     },
     ---@type AvanteSupportedProvider
@@ -300,8 +305,12 @@ M._defaults = {
       allow_insecure = false, -- Allow insecure server connections
       timeout = 30000, -- Timeout in milliseconds
       context_window = 64000, -- Number of tokens to send to the model for context
+      use_response_api = true, -- Copilot uses Response API input format
+      support_previous_response_id = false, -- Copilot doesn't support previous_response_id, must send full history
+      -- NOTE: Copilot doesn't support previous_response_id, always sends full conversation history including tool_calls
+      -- NOTE: Response API doesn't support some parameters like top_p, frequency_penalty, presence_penalty
       extra_request_body = {
-        temperature = 0.75,
+        -- temperature is not supported by Response API for reasoning models
         max_tokens = 20480,
       },
     },
