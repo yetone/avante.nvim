@@ -342,6 +342,11 @@ function M:parse_curl_args(prompt_opts)
     end
     -- Response API doesn't use stream_options
     base_body.stream_options = nil
+    base_body.include = { "reasoning.encrypted_content" }
+    base_body.reasoning = {
+      summary = "detailed",
+    }
+    base_body.truncation = "disabled"
   else
     base_body.messages = parsed_messages
     base_body.stream_options = {

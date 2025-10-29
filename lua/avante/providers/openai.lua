@@ -131,6 +131,18 @@ function M:parse_messages(opts)
     if type(msg.content) == "string" then
       table.insert(messages, { role = self.role_map[msg.role], content = msg.content })
     elseif type(msg.content) == "table" then
+      -- Check if this is a reasoning message (object with type "reasoning")
+      if msg.content.type == "reasoning" then
+        -- Add reasoning message directly (for Response API)
+        table.insert(messages, {
+          type = "reasoning",
+          id = msg.content.id,
+          encrypted_content = msg.content.encrypted_content,
+          summary = msg.content.summary,
+        })
+        return
+      end
+
       local content = {}
       local tool_calls = {}
       local tool_results = {}
@@ -145,6 +157,14 @@ function M:parse_messages(opts)
             image_url = {
               url = "data:" .. item.source.media_type .. ";" .. item.source.type .. "," .. item.source.data,
             },
+          })
+        elseif item.type == "reasoning" then
+          -- Add reasoning message directly (for Response API)
+          table.insert(messages, {
+            type = "reasoning",
+            id = item.id,
+            encrypted_content = item.encrypted_content,
+            summary = item.summary,
           })
         elseif item.type == "tool_use" and not use_ReAct_prompt then
           has_tool_use = true
@@ -262,7 +282,12 @@ function M:parse_messages(opts)
 
   vim.iter(messages):each(function(message)
     local role = message.role
-    if role == prev_role and role ~= "tool" and prev_type ~= "function_call" then
+    if
+      role == prev_role
+      and role ~= "tool"
+      and prev_type ~= "function_call"
+      and prev_type ~= "function_call_output"
+    then
       if role == self.role_map["assistant"] then
         table.insert(final_messages, { role = self.role_map["user"], content = "Ok" })
       else
@@ -436,6 +461,20 @@ function M:add_tool_use_message(ctx, tool_use, state, opts)
   if state == "generating" then opts.on_stop({ reason = "tool_use", streaming_tool_use = true }) end
 end
 
+function M:add_reasoning_message(ctx, reasoning_item, opts)
+  local msg = HistoryMessage:new("assistant", {
+    type = "reasoning",
+    id = reasoning_item.id,
+    encrypted_content = reasoning_item.encrypted_content,
+    summary = reasoning_item.summary,
+  }, {
+    state = "generated",
+    uuid = Utils.uuid(),
+    turn_id = ctx.turn_id,
+  })
+  if opts.on_messages_add then opts.on_messages_add({ msg }) end
+end
+
 ---@param usage avante.OpenAITokenUsage | nil
 ---@return avante.LLMTokenUsage | nil
 function M.transform_openai_usage(usage)
@@ -499,7 +538,7 @@ function M:parse_response(ctx, data_stream, _, opts)
         end
       end
     elseif jsn.type == "response.output_item.added" then
-      -- Output item added (could be function call)
+      -- Output item added (could be function call or reasoning)
       if jsn.item and jsn.item.type == "function_call" then
         local tool_key = tostring(jsn.output_index or 0)
         if not ctx.tool_use_map then ctx.tool_use_map = {} end
@@ -509,6 +548,9 @@ function M:parse_response(ctx, data_stream, _, opts)
           input_json = "",
         }
         self:add_tool_use_message(ctx, ctx.tool_use_map[tool_key], "generating", opts)
+      elseif jsn.item and jsn.item.type == "reasoning" then
+        -- Add reasoning item to history
+        self:add_reasoning_message(ctx, jsn.item, opts)
       end
     elseif jsn.type == "response.output_item.done" then
       -- Output item done (finalize function call)
