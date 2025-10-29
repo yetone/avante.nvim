@@ -49,3 +49,8 @@ doc/
 config.personal.lua
 
 target
+
+# Website
+website/node_modules
+website/docs/.vitepress/cache
+website/docs/.vitepress/dist

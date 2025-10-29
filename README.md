@@ -29,6 +29,9 @@
 
 **avante.nvim** is a Neovim plugin designed to emulate the behaviour of the [Cursor](https://www.cursor.com) AI IDE. It provides users with AI-driven code suggestions and the ability to apply these recommendations directly to their source files with minimal effort.
 
+> [!TIP]
+> 📖 **[Visit our official website](https://yetone.github.io/avante.nvim/)** for comprehensive documentation, guides, and examples!
+
 [查看中文版](README_zh.md)
 
 > [!NOTE]
