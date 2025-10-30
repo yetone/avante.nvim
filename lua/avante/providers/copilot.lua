@@ -354,8 +354,11 @@ function M:parse_curl_args(prompt_opts)
     }
   end
 
+  local endpoint = M.state.github_token.endpoints.api or provider_conf.endpoint
+  local url = provider_conf.use_response_api and H.response_url(endpoint) or H.chat_completion_url(endpoint)
+
   return {
-    url = H.response_url(M.state.github_token.endpoints.api or provider_conf.endpoint),
+    url = url,
     timeout = provider_conf.timeout,
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,
