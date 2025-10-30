@@ -1691,7 +1691,7 @@ end
 
 ---@param tool_use AvanteLLMToolUse
 function M.is_edit_tool_use(tool_use)
-  return tool_use.name == "replace_in_file"
+  return tool_use.name == "str_replace"
     or tool_use.name == "edit_file"
     or (tool_use.name == "str_replace_editor" and tool_use.input.command == "str_replace")
     or (tool_use.name == "str_replace_based_edit_tool" and tool_use.input.command == "str_replace")
