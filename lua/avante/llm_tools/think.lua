@@ -11,6 +11,8 @@ M.name = "think"
 function M.enabled()
   local Providers = require("avante.providers")
   local Config = require("avante.config")
+  local acp_provider = Config.acp_providers[Config.provider]
+  if acp_provider then return true end
   local provider = Providers[Config.provider]
   local model = provider.model
   if model and model:match("gpt%-5") then return false end
