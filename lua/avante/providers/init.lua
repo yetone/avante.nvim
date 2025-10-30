@@ -256,6 +256,22 @@ function M.parse_config(opts)
   return provider_opts, request_body
 end
 
+---@param provider_conf table | nil
+---@param ctx any
+---@return boolean
+function M.resolve_use_response_api(provider_conf, ctx)
+  if not provider_conf then return false end
+  local value = provider_conf.use_response_api
+  if type(value) ~= "function" then value = provider_conf._use_response_api_resolver or value end
+  if type(value) == "function" then
+    provider_conf._use_response_api_resolver = value
+    local ok, result = pcall(value, provider_conf, ctx)
+    if not ok then error("Failed to evaluate use_response_api: " .. result, 2) end
+    return result == true
+  end
+  return value == true
+end
+
 ---@param provider_name avante.ProviderName
 function M.get_config(provider_name)
   provider_name = provider_name or Config.provider

@@ -6,6 +6,11 @@
 
 local Utils = require("avante.utils")
 
+local function copilot_use_response_api(opts)
+  local model = opts and opts.model
+  return type(model) == "string" and model:match("gpt%-5%-codex") ~= nil
+end
+
 ---@class avante.file_selector.IParams
 ---@field public title      string
 ---@field public filepaths  string[]
@@ -286,7 +291,7 @@ M._defaults = {
       model = "gpt-4o",
       timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
       context_window = 128000, -- Number of tokens to send to the model for context
-      use_response_api = false, -- Set to true to use OpenAI's new Response API (/responses) instead of Chat Completions API (/chat/completions)
+      use_response_api = copilot_use_response_api, -- Automatically switch to Response API for GPT-5 Codex models
       support_previous_response_id = true, -- OpenAI Response API supports previous_response_id for stateful conversations
       -- NOTE: Response API automatically manages conversation state using previous_response_id for tool calling
       extra_request_body = {
@@ -305,7 +310,7 @@ M._defaults = {
       allow_insecure = false, -- Allow insecure server connections
       timeout = 30000, -- Timeout in milliseconds
       context_window = 64000, -- Number of tokens to send to the model for context
-      use_response_api = true, -- Copilot uses Response API input format
+      use_response_api = copilot_use_response_api, -- Automatically switch to Response API for GPT-5 Codex models
       support_previous_response_id = false, -- Copilot doesn't support previous_response_id, must send full history
       -- NOTE: Copilot doesn't support previous_response_id, always sends full conversation history including tool_calls
       -- NOTE: Response API doesn't support some parameters like top_p, frequency_penalty, presence_penalty
