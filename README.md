@@ -492,7 +492,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
     auto_approve_tool_permissions = true, -- Default: auto-approve all tools (no prompts)
     -- Examples:
     -- auto_approve_tool_permissions = false,                -- Show permission prompts for all tools
-    -- auto_approve_tool_permissions = {"bash", "replace_in_file"}, -- Auto-approve specific tools only
+    -- auto_approve_tool_permissions = {"bash", "str_replace"}, -- Auto-approve specific tools only
     ---@type "popup" | "inline_buttons"
     confirmation_ui_style = "inline_buttons",
     --- Whether to automatically open files and navigate to lines when ACP agent makes edits

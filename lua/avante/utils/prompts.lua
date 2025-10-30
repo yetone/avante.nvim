@@ -126,7 +126,7 @@ Parameters:
 
 ## Example 3: Requesting to make targeted edits to a file
 
-<tool_use>{"name": "replace_in_file", "input": {"path": "src/components/App.tsx", "the_diff": "------- SEARCH\nimport React from 'react';\n=======\nimport React, { useState } from 'react';\n+++++++ REPLACE\n\n------- SEARCH\nfunction handleSubmit() {\n  saveData();\n  setLoading(false);\n}\n\n=======\n+++++++ REPLACE\n\n------- SEARCH\nreturn (\n  <div>\n=======\nfunction handleSubmit() {\n  saveData();\n  setLoading(false);\n}\n\nreturn (\n  <div>\n+++++++ REPLACE\n"}}</tool_use>
+<tool_use>{"name": "str_replace", "input": {"path": "src/components/App.tsx", "old_str": "import React from 'react';", "new_str": "import React, { useState } from 'react';"}}</tool_use>
 ]]
     end
 

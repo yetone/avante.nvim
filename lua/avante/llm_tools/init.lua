@@ -643,7 +643,6 @@ end
 
 ---@type AvanteLLMTool[]
 M._tools = {
-  require("avante.llm_tools.replace_in_file"),
   require("avante.llm_tools.dispatch_agent"),
   require("avante.llm_tools.glob"),
   {
