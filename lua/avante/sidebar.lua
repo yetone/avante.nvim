@@ -2527,8 +2527,10 @@ function Sidebar:get_history_messages_for_api(opts)
     end
 
     if not Config.acp_providers[Config.provider] then
+      local provider = Providers[Config.provider]
+      local use_response_api = Providers.resolve_use_response_api(provider, nil)
       local tool_limit
-      if Providers[Config.provider].use_ReAct_prompt or Providers[Config.provider].use_response_api then
+      if provider.use_ReAct_prompt or use_response_api then
         tool_limit = nil
       else
         tool_limit = 25

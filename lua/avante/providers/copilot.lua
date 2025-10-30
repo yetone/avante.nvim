@@ -282,6 +282,7 @@ function M:parse_curl_args(prompt_opts)
   H.refresh_token(false, false)
 
   local provider_conf, request_body = Providers.parse_config(self)
+  local use_response_api = Providers.resolve_use_response_api(provider_conf, prompt_opts)
   local disable_tools = provider_conf.disable_tools or false
 
   -- Apply OpenAI's set_allowed_params for Response API compatibility
@@ -295,7 +296,7 @@ function M:parse_curl_args(prompt_opts)
     for _, tool in ipairs(prompt_opts.tools) do
       local transformed_tool = OpenAI:transform_tool(tool)
       -- Response API uses flattened tool structure
-      if provider_conf.use_response_api then
+      if use_response_api then
         if transformed_tool.type == "function" and transformed_tool["function"] then
           transformed_tool = {
             type = "function",
@@ -328,7 +329,7 @@ function M:parse_curl_args(prompt_opts)
 
   -- Response API uses 'input' instead of 'messages'
   -- NOTE: Copilot doesn't support previous_response_id, always send full history
-  if provider_conf.use_response_api then
+  if use_response_api then
     base_body.input = parsed_messages
 
     -- Response API uses max_output_tokens instead of max_tokens/max_completion_tokens
@@ -354,8 +355,11 @@ function M:parse_curl_args(prompt_opts)
     }
   end
 
+  local base_url = M.state.github_token.endpoints.api or provider_conf.endpoint
+  local build_url = use_response_api and H.response_url or H.chat_completion_url
+
   return {
-    url = H.response_url(M.state.github_token.endpoints.api or provider_conf.endpoint),
+    url = build_url(base_url),
     timeout = provider_conf.timeout,
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,

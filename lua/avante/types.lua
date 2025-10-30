@@ -263,7 +263,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field hide_in_model_selector? boolean
 ---@field use_ReAct_prompt? boolean
 ---@field context_window? integer
----@field use_response_api? boolean
+---@field use_response_api? boolean | fun(provider: AvanteDefaultBaseProvider, ctx?: any): boolean
 ---@field support_previous_response_id? boolean
 ---
 ---@class AvanteSupportedProvider: AvanteDefaultBaseProvider
