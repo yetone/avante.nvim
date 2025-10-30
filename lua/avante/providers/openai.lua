@@ -71,11 +71,12 @@ function M.is_reasoning_model(model)
 end
 
 function M.set_allowed_params(provider_conf, request_body)
+  local use_response_api = Providers.resolve_use_response_api(provider_conf, nil)
   if M.is_reasoning_model(provider_conf.model) then
     -- Reasoning models have specific parameter requirements
     request_body.temperature = 1
     -- Response API doesn't support temperature for reasoning models
-    if provider_conf.use_response_api then request_body.temperature = nil end
+    if use_response_api then request_body.temperature = nil end
   else
     request_body.reasoning_effort = nil
     request_body.reasoning = nil
@@ -84,7 +85,7 @@ function M.set_allowed_params(provider_conf, request_body)
   if request_body.max_tokens then request_body.max_completion_tokens = nil end
 
   -- Handle Response API specific parameters
-  if provider_conf.use_response_api then
+  if use_response_api then
     -- Convert reasoning_effort to reasoning object for Response API
     if request_body.reasoning_effort then
       request_body.reasoning = {
@@ -113,6 +114,7 @@ end
 function M:parse_messages(opts)
   local messages = {}
   local provider_conf, _ = Providers.parse_config(self)
+  local use_response_api = Providers.resolve_use_response_api(provider_conf, opts)
 
   local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
   local system_prompt = opts.system_prompt
@@ -209,13 +211,12 @@ function M:parse_messages(opts)
         if #tool_calls > 0 then
           -- Only skip tool_calls if using Response API with previous_response_id support
           -- Copilot uses Response API format but doesn't support previous_response_id
-          local should_include_tool_calls = not provider_conf.use_response_api
-            or not provider_conf.support_previous_response_id
+          local should_include_tool_calls = not use_response_api or not provider_conf.support_previous_response_id
 
           if should_include_tool_calls then
             -- For Response API without previous_response_id support (like Copilot),
             -- convert tool_calls to function_call items in input
-            if provider_conf.use_response_api then
+            if use_response_api then
               for _, tool_call in ipairs(tool_calls) do
                 table.insert(messages, {
                   type = "function_call",
@@ -242,7 +243,7 @@ function M:parse_messages(opts)
         if #tool_results > 0 then
           for _, tool_result in ipairs(tool_results) do
             -- Response API uses different format for function outputs
-            if provider_conf.use_response_api then
+            if use_response_api then
               table.insert(messages, {
                 type = "function_call_output",
                 call_id = tool_result.tool_call_id,
@@ -741,6 +742,7 @@ function M:parse_curl_args(prompt_opts)
   end
 
   self.set_allowed_params(provider_conf, request_body)
+  local use_response_api = Providers.resolve_use_response_api(provider_conf, prompt_opts)
 
   local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
 
@@ -750,7 +752,7 @@ function M:parse_curl_args(prompt_opts)
     for _, tool in ipairs(prompt_opts.tools) do
       local transformed_tool = self:transform_tool(tool)
       -- Response API uses flattened tool structure
-      if provider_conf.use_response_api then
+      if use_response_api then
         -- Convert from {type: "function", function: {name, description, parameters}}
         -- to {type: "function", name, description, parameters}
         if transformed_tool.type == "function" and transformed_tool["function"] then
@@ -773,7 +775,7 @@ function M:parse_curl_args(prompt_opts)
   if use_ReAct_prompt then stop = { "</tool_use>" } end
 
   -- Determine endpoint path based on use_response_api
-  local endpoint_path = provider_conf.use_response_api and "/responses" or "/chat/completions"
+  local endpoint_path = use_response_api and "/responses" or "/chat/completions"
 
   local parsed_messages = self:parse_messages(prompt_opts)
 
@@ -786,7 +788,7 @@ function M:parse_curl_args(prompt_opts)
   }
 
   -- Response API uses 'input' instead of 'messages'
-  if provider_conf.use_response_api then
+  if use_response_api then
     -- Check if we have tool results - if so, use previous_response_id
     local has_function_outputs = false
     for _, msg in ipairs(parsed_messages) do
