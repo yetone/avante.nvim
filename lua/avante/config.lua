@@ -254,7 +254,7 @@ M._defaults = {
     },
     ["claude-code"] = {
       command = "npx",
-      args = { "@zed-industries/claude-code-acp" },
+      args = { "-y", "@zed-industries/claude-code-acp" },
       env = {
         NODE_NO_WARNINGS = "1",
         ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY"),
@@ -279,6 +279,10 @@ M._defaults = {
     ["opencode"] = {
       command = "opencode",
       args = { "acp" },
+    },
+    ["kimi-cli"] = {
+      command = "kimi",
+      args = { "--acp" },
     },
   },
   ---To add support for custom provider, follow the format below
