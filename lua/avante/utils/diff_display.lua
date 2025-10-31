@@ -8,6 +8,51 @@ local Config = require("avante.config")
 M.NAMESPACE = vim.api.nvim_create_namespace("avante-diff-display")
 M.KEYBINDING_NAMESPACE = vim.api.nvim_create_namespace("avante-diff-keybinding")
 
+---Find character-level changes between two lines
+---@param old_line string
+---@param new_line string
+---@return {old_start: integer, old_end: integer, new_start: integer, new_end: integer}|nil
+local function find_inline_change(old_line, new_line)
+  if old_line == new_line then return nil end
+
+  -- Find common prefix
+  local prefix_len = 0
+  local min_len = math.min(#old_line, #new_line)
+  for i = 1, min_len do
+    if old_line:sub(i, i) == new_line:sub(i, i) then
+      prefix_len = i
+    else
+      break
+    end
+  end
+
+  -- Find common suffix (after the prefix)
+  local suffix_len = 0
+  for i = 1, min_len - prefix_len do
+    if old_line:sub(#old_line - i + 1, #old_line - i + 1) == new_line:sub(#new_line - i + 1, #new_line - i + 1) then
+      suffix_len = i
+    else
+      break
+    end
+  end
+
+  -- Calculate change regions
+  local old_start = prefix_len
+  local old_end = #old_line - suffix_len
+  local new_start = prefix_len
+  local new_end = #new_line - suffix_len
+
+  -- If no changes found, return nil
+  if old_start >= old_end and new_start >= new_end then return nil end
+
+  return {
+    old_start = old_start,
+    old_end = old_end,
+    new_start = new_start,
+    new_end = new_end,
+  }
+end
+
 ---@class avante.DiffDisplayInstance
 ---@field bufnr integer Buffer number
 ---@field diff_blocks avante.DiffBlock[] List of diff blocks (mutable reference)
@@ -136,18 +181,48 @@ function DiffDisplayInstance:highlight()
   vim.api.nvim_buf_clear_namespace(self.bufnr, M.NAMESPACE, 0, -1)
   local base_line_ = 0
   local max_col = vim.o.columns
+
   for _, diff_block in ipairs(self.diff_blocks) do
     local start_line = diff_block.start_line + base_line_
     base_line_ = base_line_ + #diff_block.new_lines - #diff_block.old_lines
-    local deleted_virt_lines = vim
-      .iter(diff_block.old_lines)
-      :map(function(line)
-        --- append spaces to the end of the line
-        local line_ = line .. string.rep(" ", max_col - #line)
-        return { { line_, Highlights.TO_BE_DELETED_WITHOUT_STRIKETHROUGH } }
-      end)
-      :totable()
     local end_row = start_line + #diff_block.new_lines - 1
+
+    local is_modification = #diff_block.old_lines == #diff_block.new_lines and #diff_block.old_lines > 0
+
+    -- Build virtual lines for deleted content with word-level highlighting
+    local deleted_virt_lines = {}
+    for i, old_line in ipairs(diff_block.old_lines) do
+      if is_modification then
+        local new_line = diff_block.new_lines[i]
+        local ok_change, change = pcall(find_inline_change, old_line, new_line)
+
+        if ok_change and change and change.old_end > change.old_start then
+          local virt_line = {}
+          if change.old_start > 0 then
+            table.insert(virt_line, { old_line:sub(1, change.old_start), Highlights.DIFF_DELETED })
+          end
+          table.insert(virt_line, { old_line:sub(change.old_start + 1, change.old_end), Highlights.DIFF_DELETED_WORD })
+
+          if change.old_end < #old_line then
+            table.insert(virt_line, { old_line:sub(change.old_end + 1), Highlights.DIFF_DELETED })
+          end
+
+          local line_len = #old_line
+          if line_len < max_col then
+            table.insert(virt_line, { string.rep(" ", max_col - line_len), Highlights.DIFF_DELETED })
+          end
+          table.insert(deleted_virt_lines, virt_line)
+        else
+          -- No inline changes, use full line background
+          local line_ = old_line .. string.rep(" ", max_col - #old_line)
+          table.insert(deleted_virt_lines, { { line_, Highlights.DIFF_DELETED } })
+        end
+      else
+        -- Pure deletion - use full line background
+        local line_ = old_line .. string.rep(" ", max_col - #old_line)
+        table.insert(deleted_virt_lines, { { line_, Highlights.DIFF_DELETED } })
+      end
+    end
 
     local ok_delete, delete_extmark_id = pcall(
       vim.api.nvim_buf_set_extmark,
@@ -169,15 +244,36 @@ function DiffDisplayInstance:highlight()
       math.min(math.max(start_line - 1, 0), line_count - 1),
       0,
       {
-        hl_group = Highlights.INCOMING,
+        hl_group = Highlights.DIFF_INCOMING,
         hl_eol = true,
         hl_mode = "combine",
         end_row = end_row,
+        priority = 100, -- Lower priority so word-level highlights can overlay
       }
     )
 
     if ok_delete then diff_block.delete_extmark_id = delete_extmark_id end
     if ok_incoming then diff_block.incoming_extmark_id = incoming_extmark_id end
+
+    if is_modification then
+      for i, new_line in ipairs(diff_block.new_lines) do
+        local old_line = diff_block.old_lines[i]
+        local ok_change, change = pcall(find_inline_change, old_line, new_line)
+        if not ok_change then
+          Utils.debug("find_inline_change failed:", { old_line = old_line, new_line = new_line, error = change })
+        else
+          local line_nr = start_line - 1 + (i - 1)
+
+          if change and change.new_end > change.new_start then
+            pcall(vim.api.nvim_buf_set_extmark, self.bufnr, M.NAMESPACE, line_nr, change.new_start, {
+              hl_group = Highlights.DIFF_INCOMING_WORD,
+              end_col = change.new_end,
+              priority = 200,
+            })
+          end
+        end
+      end
+    end
   end
 end
 

@@ -65,20 +65,47 @@ function M.extract_diff_blocks(tool_call)
           local replace_all = raw.replace_all or raw.replaceAll
 
           if replace_all then
-            local matches = Utils.find_all_matches(file_lines, old_lines)
-
-            if #matches == 0 then
-              Utils.warn("Failed to find any matches for replace_all in file: " .. file_path)
-            else
+            if #old_lines == 1 and #new_lines == 1 then
+              local search_text = old_lines[1]
+              local replace_text = new_lines[1]
               diff_blocks_by_file[file_path] = {}
-              for _, match in ipairs(matches) do
-                local diff_block = {
-                  start_line = match.start_line,
-                  end_line = match.end_line,
-                  old_lines = old_lines,
-                  new_lines = new_lines,
-                }
-                table.insert(diff_blocks_by_file[file_path], diff_block)
+
+              -- Find all lines containing the substring
+              for line_idx, line_content in ipairs(file_lines) do
+                if line_content:find(search_text, 1, true) then
+                  -- Replace all occurrences in this line
+                  local modified_line =
+                    line_content:gsub(search_text:gsub("[%(%)%.%%%+%-%*%?%[%]%^%$]", "%%%1"), replace_text)
+                  local diff_block = {
+                    start_line = line_idx,
+                    end_line = line_idx,
+                    old_lines = { line_content },
+                    new_lines = { modified_line },
+                  }
+                  table.insert(diff_blocks_by_file[file_path], diff_block)
+                end
+              end
+
+              if #diff_blocks_by_file[file_path] == 0 then
+                Utils.warn("Failed to find substring '" .. search_text .. "' in file: " .. file_path)
+              end
+            else
+              -- Multi-line replace_all: use line matching
+              local matches = Utils.find_all_matches(file_lines, old_lines)
+
+              if #matches == 0 then
+                Utils.warn("Failed to find any matches for replace_all in file: " .. file_path)
+              else
+                diff_blocks_by_file[file_path] = {}
+                for _, match in ipairs(matches) do
+                  local diff_block = {
+                    start_line = match.start_line,
+                    end_line = match.end_line,
+                    old_lines = old_lines,
+                    new_lines = new_lines,
+                  }
+                  table.insert(diff_blocks_by_file[file_path], diff_block)
+                end
               end
             end
           else
