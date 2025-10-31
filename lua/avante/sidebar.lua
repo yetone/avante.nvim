@@ -1653,7 +1653,8 @@ function Sidebar:toggle_code_window()
     end
 
     if self:get_layout() == "vertical" then
-      api.nvim_win_set_width(self.containers.result.winid, vim.o.columns)
+      api.nvim_win_set_width(self.code.winid, 0)
+      api.nvim_win_set_width(self.containers.result.winid, vim.o.columns - 1)
     else
       api.nvim_win_set_height(self.containers.result.winid, vim.o.lines)
     end

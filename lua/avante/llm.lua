@@ -957,7 +957,7 @@ function M._stream_acp(opts)
     local message = History.Message:new("assistant", {
       type = "tool_use",
       id = update.toolCallId,
-      name = update.kind,
+      name = update.kind or update.title,
       input = update.rawInput or {},
     }, {
       uuid = update.toolCallId,
