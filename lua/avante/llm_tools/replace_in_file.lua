@@ -354,6 +354,10 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
       buffer = bufnr,
       group = write_augroup,
       callback = function()
+        if not vim.api.nvim_buf_is_valid(bufnr) then
+          pcall(vim.api.nvim_del_augroup_by_id, write_augroup)
+          return
+        end
         if #diff_blocks ~= 0 then return end
         pcall(vim.api.nvim_del_augroup_by_id, write_augroup)
         if confirm then confirm:close() end

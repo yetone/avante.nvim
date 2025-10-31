@@ -96,8 +96,8 @@ vim.g.avante_login = vim.g.avante_login
 ---@class avante.DiffBlock
 ---@field start_line integer Original position in file
 ---@field end_line integer Original position in file
----@field new_start_line integer Adjusted position after previous diffs
----@field new_end_line integer Adjusted position after previous diffs
+---@field new_start_line? integer Adjusted position after previous diffs (populated after construction)
+---@field new_end_line? integer Adjusted position after previous diffs (populated after construction)
 ---@field old_lines string[] Content to be replaced
 ---@field new_lines string[] New content
 ---@field delete_extmark_id? integer Extmark ID for deleted lines display

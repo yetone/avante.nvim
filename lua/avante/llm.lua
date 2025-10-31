@@ -991,8 +991,13 @@ function M._stream_acp(opts)
     session_ctx,
     tool_kind
   )
-    local has_diff = ACPDiffHandler.has_diff_content(tool_call)
     local config_enabled = Config.behaviour.acp_show_diff_in_buffer
+
+    local ok_check, has_diff = pcall(ACPDiffHandler.has_diff_content, tool_call)
+    if not ok_check then has_diff = false end
+
+    -- Skip diff display if always_yes mode is active
+    if session_ctx and session_ctx.always_yes then has_diff = false end
 
     if has_diff and config_enabled then
       local ok, diff_blocks_by_file = pcall(ACPDiffHandler.extract_diff_blocks, tool_call)
@@ -1008,10 +1013,11 @@ function M._stream_acp(opts)
         end
 
         if not original_state_by_file[path] then
+          local ok_changedtick, changedtick = pcall(function() return vim.b[bufnr].changedtick end)
           original_state_by_file[path] = {
             bufnr = bufnr,
             lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false),
-            changedtick = vim.b[bufnr].changedtick,
+            changedtick = ok_changedtick and changedtick or 0,
             undolevels = vim.bo[bufnr].undolevels,
             modifiable = vim.bo[bufnr].modifiable,
             diff_display = nil,
@@ -1046,13 +1052,31 @@ function M._stream_acp(opts)
     LLMToolHelpers.confirm(description, function(ok)
       local acp_mapped_options = ACPConfirmAdapter.map_acp_options(options)
 
+      local all_restored = true
+
       if has_diff and config_enabled then
-        for _path, state in pairs(original_state_by_file) do
-          if vim.api.nvim_buf_is_valid(state.bufnr) then
+        for path, state in pairs(original_state_by_file) do
+          if not vim.api.nvim_buf_is_valid(state.bufnr) then
+            -- Buffer was deleted, just clean up diff_display if it exists
+            if state.diff_display then
+              pcall(state.diff_display.clear, state.diff_display)
+              state.diff_display = nil
+            end
+          else
+            -- Validate changedtick to detect external modifications
+            local ok_current_tick, current_tick = pcall(function() return vim.b[state.bufnr].changedtick end)
+            if ok_current_tick and current_tick ~= state.changedtick then
+              Utils.warn("Buffer " .. path .. " was modified during preview. Changes will be overwritten.")
+            end
+
             vim.bo[state.bufnr].undolevels = -1
             vim.bo[state.bufnr].modifiable = true
 
-            pcall(vim.api.nvim_buf_set_lines, state.bufnr, 0, -1, false, state.lines)
+            local ok_restore = pcall(vim.api.nvim_buf_set_lines, state.bufnr, 0, -1, false, state.lines)
+            if not ok_restore then
+              Utils.error("Failed to restore buffer: " .. path)
+              all_restored = false
+            end
 
             if state.diff_display then
               pcall(state.diff_display.clear, state.diff_display)
@@ -1061,19 +1085,18 @@ function M._stream_acp(opts)
 
             vim.bo[state.bufnr].undolevels = state.undolevels
             vim.bo[state.bufnr].modifiable = state.modifiable
-          else
-            -- Buffer was deleted, just clean up diff_display if it exists
-            if state.diff_display then
-              pcall(state.diff_display.clear, state.diff_display)
-              state.diff_display = nil
-            end
           end
-
-          -- Clear state references
-          state.lines = nil
         end
-        -- Clear original_state_by_file reference
-        original_state_by_file = {}
+
+        for k in pairs(original_state_by_file) do
+          original_state_by_file[k] = nil
+        end
+      end
+
+      if not all_restored then
+        Utils.error("Some buffers failed to restore. Rejecting permission request.")
+        callback(acp_mapped_options.no or "reject_once")
+        return
       end
 
       local option_id
@@ -1273,20 +1296,27 @@ function M._stream_acp(opts)
 
             if pending then
               local merged_tool_call = tool_call_message.acp_tool_call or update
-              local has_diff = ACPDiffHandler.has_diff_content(merged_tool_call)
+              local ok_check, has_diff = pcall(ACPDiffHandler.has_diff_content, merged_tool_call)
+
+              if not ok_check then has_diff = false end
 
               if has_diff then
                 local pending_data = pending_permissions[update.toolCallId]
-                pending_permissions[update.toolCallId] = nil
-                display_diff_and_confirm(
-                  merged_tool_call,
-                  pending_data.message,
-                  pending_data.options,
-                  pending_data.callback,
-                  pending_data.original_state_by_file,
-                  opts.session_ctx,
-                  merged_tool_call.kind
-                )
+                -- Race condition check: ensure we haven't already displayed this
+                if pending_data and not pending_data.original_state_by_file.diff_display_shown then
+                  pending_permissions[update.toolCallId] = nil
+                  pending_data.original_state_by_file.diff_display_shown = true
+
+                  display_diff_and_confirm(
+                    merged_tool_call,
+                    pending_data.message,
+                    pending_data.options,
+                    pending_data.callback,
+                    pending_data.original_state_by_file,
+                    opts.session_ctx,
+                    merged_tool_call.kind
+                  )
+                end
               end
             end
 
@@ -1361,8 +1391,17 @@ function M._stream_acp(opts)
 
           on_messages_add({ message })
 
-          local has_diff = ACPDiffHandler.has_diff_content(tool_call)
+          if not tool_call.toolCallId then
+            Utils.error("Tool call missing toolCallId")
+            callback("reject_once")
+            return
+          end
+
+          local ok_check, has_diff = pcall(ACPDiffHandler.has_diff_content, tool_call)
+          if not ok_check then has_diff = false end
           local config_enabled = Config.behaviour.acp_show_diff_in_buffer
+
+          if opts.session_ctx and opts.session_ctx.always_yes then has_diff = false end
 
           local original_state_by_file = {}
 
@@ -1835,9 +1874,19 @@ function M._stream_acp(opts)
         -- CRITICAL: Return immediately to prevent further processing in fast event context
         return
       end
+
+      for k in pairs(pending_permissions) do
+        pending_permissions[k] = nil
+      end
+
       opts.on_stop({ reason = "error", error = err_ })
       return
     end
+
+    for k in pairs(pending_permissions) do
+      pending_permissions[k] = nil
+    end
+
     opts.on_stop({ reason = "complete" })
   end)
 end

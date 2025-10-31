@@ -42,7 +42,10 @@ end
 ---@return avante.DiffBlock?, integer? The diff block and its index, or nil if not found
 function DiffDisplayInstance:get_current_diff_block()
   local winid = Utils.get_winid(self.bufnr)
+  if not winid then return nil, nil end
+
   local cursor_line = Utils.get_cursor_pos(winid)
+
   for idx, diff_block in ipairs(self.diff_blocks) do
     if cursor_line >= diff_block.new_start_line and cursor_line <= diff_block.new_end_line then
       return diff_block, idx
@@ -55,6 +58,9 @@ end
 ---@return avante.DiffBlock? The previous diff block, or nil if not found
 function DiffDisplayInstance:get_prev_diff_block()
   local winid = Utils.get_winid(self.bufnr)
+
+  if not winid then return nil end
+
   local cursor_line = Utils.get_cursor_pos(winid)
   local distance = nil
   local idx = nil
@@ -81,6 +87,9 @@ end
 ---@return avante.DiffBlock? The next diff block, or nil if not found
 function DiffDisplayInstance:get_next_diff_block()
   local winid = Utils.get_winid(self.bufnr)
+
+  if not winid then return nil end
+
   local cursor_line = Utils.get_cursor_pos(winid)
   local distance = nil
   local idx = nil
@@ -111,7 +120,12 @@ function DiffDisplayInstance:insert_new_lines()
     local start_line = diff_block.start_line + base_line_
     local end_line = diff_block.end_line + base_line_
     base_line_ = base_line_ + #diff_block.new_lines - #diff_block.old_lines
-    vim.api.nvim_buf_set_lines(self.bufnr, start_line - 1, end_line, false, diff_block.new_lines)
+
+    local ok = pcall(vim.api.nvim_buf_set_lines, self.bufnr, start_line - 1, end_line, false, diff_block.new_lines)
+    if not ok then
+      Utils.warn("Failed to insert diff lines at " .. start_line)
+      return
+    end
   end
 end
 
@@ -134,21 +148,36 @@ function DiffDisplayInstance:highlight()
       end)
       :totable()
     local end_row = start_line + #diff_block.new_lines - 1
-    local delete_extmark_id =
-      vim.api.nvim_buf_set_extmark(self.bufnr, M.NAMESPACE, math.min(math.max(end_row - 1, 0), line_count - 1), 0, {
+
+    local ok_delete, delete_extmark_id = pcall(
+      vim.api.nvim_buf_set_extmark,
+      self.bufnr,
+      M.NAMESPACE,
+      math.min(math.max(end_row - 1, 0), line_count - 1),
+      0,
+      {
         virt_lines = deleted_virt_lines,
         hl_eol = true,
         hl_mode = "combine",
-      })
-    local incoming_extmark_id =
-      vim.api.nvim_buf_set_extmark(self.bufnr, M.NAMESPACE, math.min(math.max(start_line - 1, 0), line_count - 1), 0, {
+      }
+    )
+
+    local ok_incoming, incoming_extmark_id = pcall(
+      vim.api.nvim_buf_set_extmark,
+      self.bufnr,
+      M.NAMESPACE,
+      math.min(math.max(start_line - 1, 0), line_count - 1),
+      0,
+      {
         hl_group = Highlights.INCOMING,
         hl_eol = true,
         hl_mode = "combine",
         end_row = end_row,
-      })
-    diff_block.delete_extmark_id = delete_extmark_id
-    diff_block.incoming_extmark_id = incoming_extmark_id
+      }
+    )
+
+    if ok_delete then diff_block.delete_extmark_id = delete_extmark_id end
+    if ok_incoming then diff_block.incoming_extmark_id = incoming_extmark_id end
   end
 end
 
@@ -160,11 +189,15 @@ function DiffDisplayInstance:register_navigation_keybindings()
   vim.keymap.set({ "n", "v" }, Config.mappings.diff.next, function()
     if not vim.api.nvim_buf_is_valid(self.bufnr) then return end
     if self.show_keybinding_hint_extmark_id then
-      vim.api.nvim_buf_del_extmark(self.bufnr, M.KEYBINDING_NAMESPACE, self.show_keybinding_hint_extmark_id)
+      pcall(vim.api.nvim_buf_del_extmark, self.bufnr, M.KEYBINDING_NAMESPACE, self.show_keybinding_hint_extmark_id)
+      self.show_keybinding_hint_extmark_id = nil
     end
     local diff_block = self:get_next_diff_block()
     if not diff_block then return end
     local winnr = Utils.get_winid(self.bufnr)
+
+    if not winnr then return end
+
     vim.api.nvim_win_set_cursor(winnr, { diff_block.new_start_line, 0 })
     vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
   end, keymap_opts)
@@ -172,11 +205,15 @@ function DiffDisplayInstance:register_navigation_keybindings()
   vim.keymap.set({ "n", "v" }, Config.mappings.diff.prev, function()
     if not vim.api.nvim_buf_is_valid(self.bufnr) then return end
     if self.show_keybinding_hint_extmark_id then
-      vim.api.nvim_buf_del_extmark(self.bufnr, M.KEYBINDING_NAMESPACE, self.show_keybinding_hint_extmark_id)
+      pcall(vim.api.nvim_buf_del_extmark, self.bufnr, M.KEYBINDING_NAMESPACE, self.show_keybinding_hint_extmark_id)
+      self.show_keybinding_hint_extmark_id = nil
     end
     local diff_block = self:get_prev_diff_block()
     if not diff_block then return end
     local winnr = Utils.get_winid(self.bufnr)
+
+    if not winnr then return end
+
     vim.api.nvim_win_set_cursor(winnr, { diff_block.new_start_line, 0 })
     vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
   end, keymap_opts)
@@ -193,7 +230,8 @@ function DiffDisplayInstance:register_accept_reject_keybindings(on_accept, on_re
   vim.keymap.set({ "n", "v" }, Config.mappings.diff.ours, function()
     if not vim.api.nvim_buf_is_valid(self.bufnr) then return end
     if self.show_keybinding_hint_extmark_id then
-      vim.api.nvim_buf_del_extmark(self.bufnr, M.KEYBINDING_NAMESPACE, self.show_keybinding_hint_extmark_id)
+      pcall(vim.api.nvim_buf_del_extmark, self.bufnr, M.KEYBINDING_NAMESPACE, self.show_keybinding_hint_extmark_id)
+      self.show_keybinding_hint_extmark_id = nil
     end
     local diff_block, idx = self:get_current_diff_block()
     if not diff_block then return end
@@ -201,7 +239,8 @@ function DiffDisplayInstance:register_accept_reject_keybindings(on_accept, on_re
     pcall(vim.api.nvim_buf_del_extmark, self.bufnr, M.NAMESPACE, diff_block.delete_extmark_id)
     pcall(vim.api.nvim_buf_del_extmark, self.bufnr, M.NAMESPACE, diff_block.incoming_extmark_id)
 
-    vim.api.nvim_buf_set_lines(
+    local ok = pcall(
+      vim.api.nvim_buf_set_lines,
       self.bufnr,
       diff_block.new_start_line - 1,
       diff_block.new_end_line,
@@ -209,24 +248,32 @@ function DiffDisplayInstance:register_accept_reject_keybindings(on_accept, on_re
       diff_block.old_lines
     )
 
+    if not ok then
+      Utils.error("Failed to restore buffer lines")
+      return
+    end
+
     diff_block.incoming_extmark_id = nil
     diff_block.delete_extmark_id = nil
 
     if on_reject then on_reject(idx) end
 
     local next_diff_block = self:get_next_diff_block()
-    if next_diff_block then
-      local winnr = Utils.get_winid(self.bufnr)
-      vim.api.nvim_win_set_cursor(winnr, { next_diff_block.new_start_line, 0 })
-      vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
-    end
+    if not next_diff_block then return end
+
+    local winnr = Utils.get_winid(self.bufnr)
+    if not winnr then return end
+
+    vim.api.nvim_win_set_cursor(winnr, { next_diff_block.new_start_line, 0 })
+    vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
   end, keymap_opts)
 
   -- "ct" - Choose THEIRS (accept incoming changes)
   vim.keymap.set({ "n", "v" }, Config.mappings.diff.theirs, function()
     if not vim.api.nvim_buf_is_valid(self.bufnr) then return end
     if self.show_keybinding_hint_extmark_id then
-      vim.api.nvim_buf_del_extmark(self.bufnr, M.KEYBINDING_NAMESPACE, self.show_keybinding_hint_extmark_id)
+      pcall(vim.api.nvim_buf_del_extmark, self.bufnr, M.KEYBINDING_NAMESPACE, self.show_keybinding_hint_extmark_id)
+      self.show_keybinding_hint_extmark_id = nil
     end
     local diff_block, idx = self:get_current_diff_block()
     if not diff_block then return end
@@ -242,6 +289,9 @@ function DiffDisplayInstance:register_accept_reject_keybindings(on_accept, on_re
     local next_diff_block = self:get_next_diff_block()
     if next_diff_block then
       local winnr = Utils.get_winid(self.bufnr)
+
+      if not winnr then return end
+
       vim.api.nvim_win_set_cursor(winnr, { next_diff_block.new_start_line, 0 })
       vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
     end
@@ -254,7 +304,8 @@ function DiffDisplayInstance:register_cursor_move_events()
   local function show_keybinding_hint(lnum)
     if not vim.api.nvim_buf_is_valid(self.bufnr) then return end
     if self.show_keybinding_hint_extmark_id then
-      vim.api.nvim_buf_del_extmark(self.bufnr, M.KEYBINDING_NAMESPACE, self.show_keybinding_hint_extmark_id)
+      pcall(vim.api.nvim_buf_del_extmark, self.bufnr, M.KEYBINDING_NAMESPACE, self.show_keybinding_hint_extmark_id)
+      self.show_keybinding_hint_extmark_id = nil
     end
 
     local hint = string.format(
@@ -308,11 +359,12 @@ function DiffDisplayInstance:clear()
     return
   end
 
-  vim.api.nvim_buf_clear_namespace(self.bufnr, M.NAMESPACE, 0, -1)
-  vim.api.nvim_buf_clear_namespace(self.bufnr, M.KEYBINDING_NAMESPACE, 0, -1)
   self:unregister_keybindings()
 
   pcall(vim.api.nvim_del_augroup_by_id, self.augroup)
+
+  vim.api.nvim_buf_clear_namespace(self.bufnr, M.NAMESPACE, 0, -1)
+  vim.api.nvim_buf_clear_namespace(self.bufnr, M.KEYBINDING_NAMESPACE, 0, -1)
 
   -- Clear references to help GC
   self.bufnr = nil

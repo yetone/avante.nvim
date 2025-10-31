@@ -662,15 +662,21 @@ end
 
 ---@param original_lines string[]
 ---@param target_lines string[]
----@param compare_fn function
+---@param compare_fn fun(line_a: string, line_b: string): boolean
 ---@return table[] matches Array of {start_line, end_line} pairs
 function M.try_find_all_matches(original_lines, target_lines, compare_fn)
   local matches = {}
+
+  if #original_lines == 0 or #target_lines == 0 then return matches end
+
   local i = 1
   while i <= #original_lines - #target_lines + 1 do
     local match = true
     for j = 1, #target_lines do
-      if not compare_fn(original_lines[i + j - 1], target_lines[j]) then
+      local line_a = original_lines[i + j - 1]
+      local line_b = target_lines[j]
+
+      if not line_a or not line_b or not compare_fn(line_a, line_b) then
         match = false
         break
       end

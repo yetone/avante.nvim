@@ -10,20 +10,15 @@ local Config = require("avante.config")
 function M.has_diff_content(tool_call)
   -- Check for diff in content array format
   for _, content_item in ipairs(tool_call.content or {}) do
-    if content_item.type == "diff" and content_item.oldText ~= vim.NIL and content_item.newText ~= vim.NIL then
-      return true
-    end
+    if content_item.type == "diff" and content_item.newText ~= vim.NIL then return true end
   end
 
   -- Check for diff in rawInput format (legacy format)
-  if tool_call.rawInput then
-    local raw = tool_call.rawInput
-    if raw then
-      local has_old = (raw["old_string"] ~= nil) or (raw["oldString"] ~= nil)
-      local has_new = (raw["new_string"] ~= nil) or (raw["newString"] ~= nil)
-      local has_path = (raw["file_path"] ~= nil) or (raw["filePath"] ~= nil)
-      if has_old and has_new and has_path then return true end
-    end
+  local raw = tool_call.rawInput
+  if raw then
+    local has_new = (raw["new_string"] ~= nil) or (raw["newString"] ~= nil)
+    local has_path = (raw["file_path"] ~= nil) or (raw["filePath"] ~= nil)
+    if has_new and has_path then return true end
   end
 
   return false
@@ -40,13 +35,18 @@ function M.extract_diff_blocks(tool_call)
     local raw = tool_call.rawInput
     if raw then
       local file_path = raw.file_path or raw.filePath
-      local old_string = raw.old_string or raw.oldString or ""
+      local old_string = raw.old_string or raw.oldString
+
+      if old_string == vim.NIL then old_string = nil end
+
       local new_string = raw.new_string or raw.newString
 
       if file_path and new_string then
-        local old_lines = (old_string and old_string ~= "" and type(old_string) == "string")
-            and vim.split(old_string, "\n")
-          or {}
+        local old_lines = {}
+        if old_string and old_string ~= "" and type(old_string) == "string" then
+          old_lines = vim.split(old_string, "\n")
+        end
+
         local new_lines = (new_string and type(new_string) == "string") and vim.split(new_string, "\n") or {}
 
         local abs_path = Utils.to_absolute_path(file_path)
@@ -67,7 +67,9 @@ function M.extract_diff_blocks(tool_call)
           if replace_all then
             local matches = Utils.find_all_matches(file_lines, old_lines)
 
-            if #matches > 0 then
+            if #matches == 0 then
+              Utils.warn("Failed to find any matches for replace_all in file: " .. file_path)
+            else
               diff_blocks_by_file[file_path] = {}
               for _, match in ipairs(matches) do
                 local diff_block = {
@@ -78,13 +80,13 @@ function M.extract_diff_blocks(tool_call)
                 }
                 table.insert(diff_blocks_by_file[file_path], diff_block)
               end
-            else
-              Utils.warn("Failed to find any matches for replace_all in file: " .. file_path)
             end
           else
             local start_line, end_line = Utils.fuzzy_match(file_lines, old_lines)
 
-            if start_line and end_line then
+            if not start_line or not end_line then
+              Utils.warn("Failed to find location for diff in file: " .. file_path)
+            else
               local diff_block = {
                 start_line = start_line,
                 end_line = end_line,
@@ -92,8 +94,6 @@ function M.extract_diff_blocks(tool_call)
                 new_lines = new_lines,
               }
               diff_blocks_by_file[file_path] = { diff_block }
-            else
-              Utils.warn("Failed to find location for diff in file: " .. file_path)
             end
           end
         end
@@ -103,21 +103,26 @@ function M.extract_diff_blocks(tool_call)
 
   -- Handle content array format (standard format)
   for _, content_item in ipairs(tool_call.content or {}) do
-    if content_item.type == "diff" and content_item.oldText ~= vim.NIL and content_item.newText ~= vim.NIL then
+    if content_item.type == "diff" and content_item.newText ~= vim.NIL then
       local path = content_item.path
       local oldText = content_item.oldText or ""
       local newText = content_item.newText
 
-      if oldText == "" or oldText == vim.NIL then
+      if not path then
+        Utils.warn("Diff content missing path field")
+      elseif oldText == "" or oldText == vim.NIL then
+        -- New file case
+        local new_lines = type(newText) == "string" and vim.split(newText, "\n") or {}
         local diff_block = {
           start_line = 1,
           end_line = 0,
           old_lines = {},
-          new_lines = vim.split(newText, "\n"),
+          new_lines = new_lines,
         }
         diff_blocks_by_file[path] = diff_blocks_by_file[path] or {}
         table.insert(diff_blocks_by_file[path], diff_block)
       else
+        -- Existing file case
         local old_lines = vim.split(oldText, "\n")
         local new_lines = vim.split(newText, "\n")
 
@@ -125,7 +130,9 @@ function M.extract_diff_blocks(tool_call)
         local file_lines = Utils.read_file_from_buf_or_disk(abs_path) or {}
         local start_line, end_line = Utils.fuzzy_match(file_lines, old_lines)
 
-        if start_line and end_line then
+        if not start_line or not end_line then
+          Utils.warn("Failed to find location for diff in file: " .. path)
+        else
           local diff_block = {
             start_line = start_line,
             end_line = end_line,
@@ -134,8 +141,6 @@ function M.extract_diff_blocks(tool_call)
           }
           diff_blocks_by_file[path] = diff_blocks_by_file[path] or {}
           table.insert(diff_blocks_by_file[path], diff_block)
-        else
-          Utils.warn("Failed to find location for diff in file: " .. path)
         end
       end
     end
@@ -155,7 +160,12 @@ function M.extract_diff_blocks(tool_call)
     local base_line = 0
     for _, diff_block in ipairs(diff_blocks) do
       diff_block.new_start_line = diff_block.start_line + base_line
-      diff_block.new_end_line = diff_block.new_start_line + #diff_block.new_lines - 1
+      if #diff_block.new_lines > 0 then
+        diff_block.new_end_line = diff_block.new_start_line + #diff_block.new_lines - 1
+      else
+        -- For deletions, new_end_line is one before new_start_line
+        diff_block.new_end_line = diff_block.new_start_line - 1
+      end
       base_line = base_line + #diff_block.new_lines - #diff_block.old_lines
     end
   end
@@ -179,26 +189,30 @@ function M.minimize_diff_blocks(diff_blocks)
       ctxlen = 0,
     })
 
-    for _, hunk in ipairs(patch) do
-      local start_a, count_a, start_b, count_b = unpack(hunk)
-      local minimized_block = {}
-      if count_a > 0 then
-        minimized_block.old_lines = vim.list_slice(diff_block.old_lines, start_a, start_a + count_a - 1)
-      else
-        minimized_block.old_lines = {}
+    if #patch > 0 then
+      for _, hunk in ipairs(patch) do
+        local start_a, count_a, start_b, count_b = unpack(hunk)
+        local minimized_block = {}
+        if count_a > 0 then
+          minimized_block.old_lines = vim.list_slice(diff_block.old_lines, start_a, start_a + count_a - 1)
+        else
+          minimized_block.old_lines = {}
+        end
+        if count_b > 0 then
+          minimized_block.new_lines = vim.list_slice(diff_block.new_lines, start_b, start_b + count_b - 1)
+        else
+          minimized_block.new_lines = {}
+        end
+        if count_a > 0 then
+          minimized_block.start_line = diff_block.start_line + start_a - 1
+          minimized_block.end_line = minimized_block.start_line + count_a - 1
+        else
+          -- For insertions, start_line is the position before which to insert
+          minimized_block.start_line = diff_block.start_line + start_a
+          minimized_block.end_line = minimized_block.start_line - 1
+        end
+        table.insert(minimized, minimized_block)
       end
-      if count_b > 0 then
-        minimized_block.new_lines = vim.list_slice(diff_block.new_lines, start_b, start_b + count_b - 1)
-      else
-        minimized_block.new_lines = {}
-      end
-      if count_a > 0 then
-        minimized_block.start_line = diff_block.start_line + start_a - 1
-      else
-        minimized_block.start_line = diff_block.start_line + start_a
-      end
-      minimized_block.end_line = diff_block.start_line + start_a + math.max(count_a, 1) - 2
-      table.insert(minimized, minimized_block)
     end
   end
 
