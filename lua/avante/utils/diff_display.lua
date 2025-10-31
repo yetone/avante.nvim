@@ -208,7 +208,7 @@ function DiffDisplayInstance:highlight()
           end
 
           local line_len = #old_line
-          if line_len < max_col then
+          if line_len < max_col and max_col > 0 then
             table.insert(virt_line, { string.rep(" ", max_col - line_len), Highlights.DIFF_DELETED })
           end
           table.insert(deleted_virt_lines, virt_line)
@@ -294,7 +294,9 @@ function DiffDisplayInstance:register_navigation_keybindings()
 
     if not winnr then return end
 
-    vim.api.nvim_win_set_cursor(winnr, { diff_block.new_start_line, 0 })
+    local line_count = vim.api.nvim_buf_line_count(self.bufnr)
+    local target_line = math.min(diff_block.new_start_line, line_count)
+    vim.api.nvim_win_set_cursor(winnr, { target_line, 0 })
     vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
   end, keymap_opts)
 
@@ -310,7 +312,9 @@ function DiffDisplayInstance:register_navigation_keybindings()
 
     if not winnr then return end
 
-    vim.api.nvim_win_set_cursor(winnr, { diff_block.new_start_line, 0 })
+    local line_count = vim.api.nvim_buf_line_count(self.bufnr)
+    local target_line = math.min(diff_block.new_start_line, line_count)
+    vim.api.nvim_win_set_cursor(winnr, { target_line, 0 })
     vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
   end, keymap_opts)
 end
@@ -360,7 +364,9 @@ function DiffDisplayInstance:register_accept_reject_keybindings(on_accept, on_re
     local winnr = Utils.get_winid(self.bufnr)
     if not winnr then return end
 
-    vim.api.nvim_win_set_cursor(winnr, { next_diff_block.new_start_line, 0 })
+    local line_count = vim.api.nvim_buf_line_count(self.bufnr)
+    local target_line = math.min(next_diff_block.new_start_line, line_count)
+    vim.api.nvim_win_set_cursor(winnr, { target_line, 0 })
     vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
   end, keymap_opts)
 
@@ -388,7 +394,9 @@ function DiffDisplayInstance:register_accept_reject_keybindings(on_accept, on_re
 
       if not winnr then return end
 
-      vim.api.nvim_win_set_cursor(winnr, { next_diff_block.new_start_line, 0 })
+      local line_count = vim.api.nvim_buf_line_count(self.bufnr)
+      local target_line = math.min(next_diff_block.new_start_line, line_count)
+      vim.api.nvim_win_set_cursor(winnr, { target_line, 0 })
       vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
     end
   end, keymap_opts)
@@ -461,6 +469,12 @@ function DiffDisplayInstance:clear()
 
   vim.api.nvim_buf_clear_namespace(self.bufnr, M.NAMESPACE, 0, -1)
   vim.api.nvim_buf_clear_namespace(self.bufnr, M.KEYBINDING_NAMESPACE, 0, -1)
+
+  -- Clear extmark IDs from diff_blocks to help GC
+  for _, block in ipairs(self.diff_blocks or {}) do
+    block.incoming_extmark_id = nil
+    block.delete_extmark_id = nil
+  end
 
   -- Clear references to help GC
   self.bufnr = nil

@@ -667,7 +667,7 @@ end
 function M.try_find_all_matches(original_lines, target_lines, compare_fn)
   local matches = {}
 
-  if #original_lines == 0 or #target_lines == 0 then return matches end
+  if #original_lines == 0 or #target_lines == 0 or #target_lines > #original_lines then return matches end
 
   local i = 1
   while i <= #original_lines - #target_lines + 1 do

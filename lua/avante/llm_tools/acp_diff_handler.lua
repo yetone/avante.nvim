@@ -40,6 +40,7 @@ function M.extract_diff_blocks(tool_call)
       if old_string == vim.NIL then old_string = nil end
 
       local new_string = raw.new_string or raw.newString
+      if new_string == vim.NIL then new_string = nil end
 
       if file_path and new_string then
         local old_lines = {}
@@ -52,7 +53,7 @@ function M.extract_diff_blocks(tool_call)
         local abs_path = Utils.to_absolute_path(file_path)
         local file_lines = Utils.read_file_from_buf_or_disk(abs_path) or {}
 
-        if #old_lines == 0 then
+        if #old_lines == 0 or (#old_lines == 1 and old_lines[1] == "") then
           -- New file case
           local diff_block = {
             start_line = 1,
@@ -221,12 +222,14 @@ function M.minimize_diff_blocks(diff_blocks)
         local start_a, count_a, start_b, count_b = unpack(hunk)
         local minimized_block = {}
         if count_a > 0 then
-          minimized_block.old_lines = vim.list_slice(diff_block.old_lines, start_a, start_a + count_a - 1)
+          local end_a = math.min(start_a + count_a - 1, #diff_block.old_lines)
+          minimized_block.old_lines = vim.list_slice(diff_block.old_lines, start_a, end_a)
         else
           minimized_block.old_lines = {}
         end
         if count_b > 0 then
-          minimized_block.new_lines = vim.list_slice(diff_block.new_lines, start_b, start_b + count_b - 1)
+          local end_b = math.min(start_b + count_b - 1, #diff_block.new_lines)
+          minimized_block.new_lines = vim.list_slice(diff_block.new_lines, start_b, end_b)
         else
           minimized_block.new_lines = {}
         end

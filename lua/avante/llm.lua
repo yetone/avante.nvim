@@ -1001,7 +1001,10 @@ function M._stream_acp(opts)
 
     if has_diff and config_enabled then
       local ok, diff_blocks_by_file = pcall(ACPDiffHandler.extract_diff_blocks, tool_call)
-      if not ok then diff_blocks_by_file = {} end
+      if not ok then
+        Utils.warn("Failed to extract diff blocks: " .. tostring(diff_blocks_by_file))
+        diff_blocks_by_file = {}
+      end
 
       for path, diff_blocks in pairs(diff_blocks_by_file) do
         local abs_path = Utils.to_absolute_path(path)
@@ -1305,9 +1308,9 @@ function M._stream_acp(opts)
               if has_diff then
                 local pending_data = pending_permissions[update.toolCallId]
                 -- Race condition check: ensure we haven't already displayed this
-                if pending_data and not pending_data.original_state_by_file.diff_display_shown then
+                if pending_data and not pending_data.diff_display_shown then
                   pending_permissions[update.toolCallId] = nil
-                  pending_data.original_state_by_file.diff_display_shown = true
+                  pending_data.diff_display_shown = true
 
                   display_diff_and_confirm(
                     merged_tool_call,

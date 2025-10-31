@@ -343,6 +343,11 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
   local confirm
   local has_rejected = false
 
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    on_complete(false, "Buffer is no longer valid")
+    return
+  end
+
   local diff_display = DiffDisplay.new({
     bufnr = bufnr,
     diff_blocks = diff_blocks,
@@ -362,6 +367,7 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
         pcall(vim.api.nvim_del_augroup_by_id, write_augroup)
         if confirm then confirm:close() end
         if has_rejected then
+          diff_display:clear()
           on_complete(false, "User canceled")
           return
         end
