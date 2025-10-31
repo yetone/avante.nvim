@@ -741,10 +741,12 @@ end
 ---@param target_lines string[]
 ---@return table[] matches Array of {start_line, end_line} pairs, empty if no matches
 function M.find_all_matches(original_lines, target_lines)
-  local matches = {}
-
   -- Try exact match first
-  matches = M.try_find_all_matches(original_lines, target_lines, function(line_a, line_b) return line_a == line_b end)
+  local matches = M.try_find_all_matches(
+    original_lines,
+    target_lines,
+    function(line_a, line_b) return line_a == line_b end
+  )
   if #matches > 0 then return matches end
 
   -- Try fuzzy match (trim trailing spaces/tabs)
