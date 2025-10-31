@@ -1018,15 +1018,14 @@ function M._stream_acp(opts)
             bufnr = bufnr,
             lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false),
             changedtick = ok_changedtick and changedtick or 0,
-            undolevels = vim.bo[bufnr].undolevels,
+            changedtick_after_diff = nil,
+            modified = vim.bo[bufnr].modified,
             modifiable = vim.bo[bufnr].modifiable,
             diff_display = nil,
           }
         end
 
         local state = original_state_by_file[path]
-
-        vim.bo[bufnr].undolevels = -1
 
         local ok_create, diff_display = pcall(DiffDisplay.new, {
           bufnr = bufnr,
@@ -1040,9 +1039,11 @@ function M._stream_acp(opts)
           pcall(diff_display.highlight, diff_display)
           pcall(diff_display.register_navigation_keybindings, diff_display)
           pcall(diff_display.register_cursor_move_events, diff_display)
+
+          local ok_tick_after, tick_after = pcall(function() return vim.b[bufnr].changedtick end)
+          if ok_tick_after then state.changedtick_after_diff = tick_after end
         end
 
-        vim.bo[bufnr].undolevels = state.undolevels
         vim.bo[bufnr].modifiable = false
       end
     end
@@ -1063,15 +1064,16 @@ function M._stream_acp(opts)
               state.diff_display = nil
             end
           else
-            -- Validate changedtick to detect external modifications
-            local ok_current_tick, current_tick = pcall(function() return vim.b[state.bufnr].changedtick end)
-            if ok_current_tick and current_tick ~= state.changedtick then
-              Utils.warn("Buffer " .. path .. " was modified during preview. Changes will be overwritten.")
+            if state.changedtick_after_diff then
+              local ok_current_tick, current_tick = pcall(function() return vim.b[state.bufnr].changedtick end)
+              if ok_current_tick and current_tick ~= state.changedtick_after_diff then
+                Utils.warn("Buffer " .. path .. " was modified during preview. Changes will be overwritten.")
+              end
             end
 
-            vim.bo[state.bufnr].undolevels = -1
             vim.bo[state.bufnr].modifiable = true
 
+            -- Restore buffer to original state
             local ok_restore = pcall(vim.api.nvim_buf_set_lines, state.bufnr, 0, -1, false, state.lines)
             if not ok_restore then
               Utils.error("Failed to restore buffer: " .. path)
@@ -1083,7 +1085,7 @@ function M._stream_acp(opts)
               state.diff_display = nil
             end
 
-            vim.bo[state.bufnr].undolevels = state.undolevels
+            vim.bo[state.bufnr].modified = state.modified
             vim.bo[state.bufnr].modifiable = state.modifiable
           end
         end
