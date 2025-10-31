@@ -59,13 +59,9 @@ function M.func(input, opts)
   local replace_in_file = require("avante.llm_tools.replace_in_file")
   local Utils = require("avante.utils")
 
-  if input.new_str == nil then
-    input.new_str = ""
-  end
+  if input.new_str == nil then input.new_str = "" end
 
-  if input.old_str == nil then
-    input.old_str = ""
-  end
+  if input.old_str == nil then input.old_str = "" end
 
   -- Remove trailing spaces from the new string
   input.new_str = Utils.remove_trailing_spaces(input.new_str)
