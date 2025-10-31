@@ -17,15 +17,23 @@ local DiffDisplayInstance = {}
 DiffDisplayInstance.__index = DiffDisplayInstance
 
 ---Create a new diff display instance
----@param opts { bufnr: integer, diff_blocks: avante.DiffBlock[], augroup: integer }
+---@param opts { bufnr: integer, diff_blocks: avante.DiffBlock[] }
 ---@return avante.DiffDisplayInstance
 function M.new(opts)
+  local augroup = vim.api.nvim_create_augroup("avante-diff-display-" .. opts.bufnr, { clear = true })
   local instance = setmetatable({
     bufnr = opts.bufnr,
     diff_blocks = opts.diff_blocks,
-    augroup = opts.augroup,
+    augroup = augroup,
     show_keybinding_hint_extmark_id = nil,
   }, DiffDisplayInstance)
+
+  vim.api.nvim_create_autocmd({ "BufDelete", "BufWipeout" }, {
+    buffer = opts.bufnr,
+    group = augroup,
+    once = true,
+    callback = function() instance:clear() end,
+  })
 
   return instance
 end
@@ -132,18 +140,13 @@ function DiffDisplayInstance:highlight()
         hl_eol = true,
         hl_mode = "combine",
       })
-    local incoming_extmark_id = vim.api.nvim_buf_set_extmark(
-      self.bufnr,
-      M.NAMESPACE,
-      math.min(math.max(start_line - 1, 0), line_count - 1),
-      0,
-      {
+    local incoming_extmark_id =
+      vim.api.nvim_buf_set_extmark(self.bufnr, M.NAMESPACE, math.min(math.max(start_line - 1, 0), line_count - 1), 0, {
         hl_group = Highlights.INCOMING,
         hl_eol = true,
         hl_mode = "combine",
         end_row = end_row,
-      }
-    )
+      })
     diff_block.delete_extmark_id = delete_extmark_id
     diff_block.incoming_extmark_id = incoming_extmark_id
   end
@@ -300,13 +303,22 @@ function DiffDisplayInstance:unregister_keybindings()
 end
 
 function DiffDisplayInstance:clear()
-  if self.bufnr and not vim.api.nvim_buf_is_valid(self.bufnr) then return end
+  if self.bufnr and not vim.api.nvim_buf_is_valid(self.bufnr) then
+    pcall(vim.api.nvim_del_augroup_by_id, self.augroup)
+    return
+  end
 
   vim.api.nvim_buf_clear_namespace(self.bufnr, M.NAMESPACE, 0, -1)
   vim.api.nvim_buf_clear_namespace(self.bufnr, M.KEYBINDING_NAMESPACE, 0, -1)
   self:unregister_keybindings()
 
   pcall(vim.api.nvim_del_augroup_by_id, self.augroup)
+
+  -- Clear references to help GC
+  self.bufnr = nil
+  self.diff_blocks = nil
+  self.augroup = nil
+  self.show_keybinding_hint_extmark_id = nil
 end
 
 return M

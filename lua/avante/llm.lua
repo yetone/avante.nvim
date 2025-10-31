@@ -16,6 +16,8 @@ local LLMTools = require("avante.llm_tools")
 local History = require("avante.history")
 local HistoryRender = require("avante.history.render")
 local ACPConfirmAdapter = require("avante.ui.acp_confirm_adapter")
+local ACPDiffHandler = require("avante.llm_tools.acp_diff_handler")
+local DiffDisplay = require("avante.utils.diff_display")
 
 ---@class avante.LLM
 local M = {}
@@ -953,6 +955,9 @@ function M._stream_acp(opts)
       end
     end
   end
+  -- Track pending permission requests (tool_call_id -> {callback, options, message, original_state_by_file})
+  local pending_permissions = {}
+
   local function add_tool_call_message(update)
     local message = History.Message:new("assistant", {
       type = "tool_use",
@@ -975,6 +980,138 @@ function M._stream_acp(opts)
     end
     on_messages_add({ message })
     return message
+  end
+
+  local function display_diff_and_confirm(
+    tool_call,
+    message,
+    options,
+    callback,
+    original_state_by_file,
+    session_ctx,
+    tool_kind
+  )
+    local has_diff = false
+    for _, content_item in ipairs(tool_call.content or {}) do
+      if content_item.type == "diff" and content_item.oldText ~= vim.NIL and content_item.newText ~= vim.NIL then
+        has_diff = true
+        break
+      end
+    end
+
+    if not has_diff and tool_call.rawInput then
+      local raw = tool_call.rawInput
+      local has_old = (raw["old_string"] ~= nil) or (raw["oldString"] ~= nil)
+      local has_new = (raw["new_string"] ~= nil) or (raw["newString"] ~= nil)
+      local has_path = (raw["file_path"] ~= nil) or (raw["filePath"] ~= nil)
+      if has_old and has_new and has_path then has_diff = true end
+    end
+
+    local config_enabled = Config.behaviour.acp_show_diff_in_buffer
+
+    if has_diff and config_enabled then
+      local ok, diff_blocks_by_file = pcall(ACPDiffHandler.extract_diff_blocks, tool_call)
+      if not ok then diff_blocks_by_file = {} end
+
+      for path, diff_blocks in pairs(diff_blocks_by_file) do
+        local abs_path = Utils.to_absolute_path(path)
+
+        local bufnr = vim.fn.bufnr(abs_path)
+        if bufnr == -1 then
+          bufnr = vim.fn.bufnr(abs_path, true)
+          if not vim.api.nvim_buf_is_loaded(bufnr) then pcall(vim.fn.bufload, bufnr) end
+        end
+
+        if not original_state_by_file[path] then
+          original_state_by_file[path] = {
+            bufnr = bufnr,
+            lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false),
+            changedtick = vim.b[bufnr].changedtick,
+            undolevels = vim.bo[bufnr].undolevels,
+            modifiable = vim.bo[bufnr].modifiable,
+            diff_display = nil,
+          }
+        end
+
+        local state = original_state_by_file[path]
+
+        vim.bo[bufnr].undolevels = -1
+
+        local ok_create, diff_display = pcall(DiffDisplay.new, {
+          bufnr = bufnr,
+          diff_blocks = diff_blocks,
+        })
+
+        if ok_create then
+          state.diff_display = diff_display
+
+          pcall(diff_display.insert_new_lines, diff_display)
+          pcall(diff_display.highlight, diff_display)
+          pcall(diff_display.register_navigation_keybindings, diff_display)
+          pcall(diff_display.register_cursor_move_events, diff_display)
+        end
+
+        vim.bo[bufnr].undolevels = state.undolevels
+        vim.bo[bufnr].modifiable = false
+      end
+    end
+
+    local sidebar = require("avante").get()
+    local description = HistoryRender.get_tool_display_name(message)
+    LLMToolHelpers.confirm(description, function(ok)
+      local acp_mapped_options = ACPConfirmAdapter.map_acp_options(options)
+
+      if has_diff and config_enabled then
+        for _path, state in pairs(original_state_by_file) do
+          if vim.api.nvim_buf_is_valid(state.bufnr) then
+            vim.bo[state.bufnr].undolevels = -1
+            vim.bo[state.bufnr].modifiable = true
+
+            pcall(vim.api.nvim_buf_set_lines, state.bufnr, 0, -1, false, state.lines)
+
+            if state.diff_display then
+              pcall(state.diff_display.clear, state.diff_display)
+              state.diff_display = nil
+            end
+
+            vim.bo[state.bufnr].undolevels = state.undolevels
+            vim.bo[state.bufnr].modifiable = state.modifiable
+          else
+            -- Buffer was deleted, just clean up diff_display if it exists
+            if state.diff_display then
+              pcall(state.diff_display.clear, state.diff_display)
+              state.diff_display = nil
+            end
+          end
+
+          -- Clear state references
+          state.lines = nil
+        end
+        -- Clear original_state_by_file reference
+        original_state_by_file = {}
+      end
+
+      local option_id
+      if ok and session_ctx and session_ctx.always_yes then
+        option_id = acp_mapped_options.all
+      elseif ok then
+        option_id = acp_mapped_options.yes
+      else
+        option_id = acp_mapped_options.no
+      end
+      if not option_id then option_id = ok and "allow_once" or "reject_once" end
+      callback(option_id)
+
+      if sidebar then
+        sidebar.scroll = true
+        sidebar._history_cache_invalidated = true
+        sidebar:update_content("")
+      end
+    end, {
+      focus = true,
+      skip_reject_prompt = true,
+      permission_options = options,
+    }, session_ctx, tool_kind)
   end
   local acp_client = opts.acp_client
   if not acp_client then
@@ -1146,6 +1283,47 @@ function M._stream_acp(opts)
               if update.content and next(update.content) == nil then update.content = nil end
               tool_call_message.acp_tool_call = vim.tbl_deep_extend("force", tool_call_message.acp_tool_call, update)
             end
+
+            local pending = pending_permissions[update.toolCallId]
+
+            if pending then
+              local merged_tool_call = tool_call_message.acp_tool_call or update
+              local has_diff = false
+
+              for _, content_item in ipairs(merged_tool_call.content or {}) do
+                if
+                  content_item.type == "diff"
+                  and content_item.oldText ~= vim.NIL
+                  and content_item.newText ~= vim.NIL
+                then
+                  has_diff = true
+                  break
+                end
+              end
+
+              if not has_diff and merged_tool_call.rawInput then
+                local raw = merged_tool_call.rawInput
+                local has_old = (raw["old_string"] ~= nil) or (raw["oldString"] ~= nil)
+                local has_new = (raw["new_string"] ~= nil) or (raw["newString"] ~= nil)
+                local has_path = (raw["file_path"] ~= nil) or (raw["filePath"] ~= nil)
+                if has_old and has_new and has_path then has_diff = true end
+              end
+
+              if has_diff then
+                local pending_data = pending_permissions[update.toolCallId]
+                pending_permissions[update.toolCallId] = nil
+                display_diff_and_confirm(
+                  merged_tool_call,
+                  pending_data.message,
+                  pending_data.options,
+                  pending_data.callback,
+                  pending_data.original_state_by_file,
+                  opts.session_ctx,
+                  merged_tool_call.kind
+                )
+              end
+            end
+
             tool_call_message.tool_use_logs = tool_call_message.tool_use_logs or {}
             tool_call_message.tool_use_log_lines = tool_call_message.tool_use_log_lines or {}
             local tool_result_message
@@ -1217,26 +1395,69 @@ function M._stream_acp(opts)
 
           on_messages_add({ message })
 
-          local description = HistoryRender.get_tool_display_name(message)
-          LLMToolHelpers.confirm(description, function(ok)
-            local acp_mapped_options = ACPConfirmAdapter.map_acp_options(options)
-
-            if ok and opts.session_ctx and opts.session_ctx.always_yes then
-              callback(acp_mapped_options.all)
-            elseif ok then
-              callback(acp_mapped_options.yes)
-            else
-              callback(acp_mapped_options.no)
+          local has_diff = false
+          for _, content_item in ipairs(tool_call.content or {}) do
+            if content_item.type == "diff" and content_item.oldText ~= vim.NIL and content_item.newText ~= vim.NIL then
+              has_diff = true
+              break
             end
+          end
 
-            sidebar.scroll = true
-            sidebar._history_cache_invalidated = true
-            sidebar:update_content("")
-          end, {
-            focus = true,
-            skip_reject_prompt = true,
-            permission_options = options,
-          }, opts.session_ctx, tool_call.kind)
+          if not has_diff and tool_call.rawInput then
+            local raw = tool_call.rawInput
+            local has_old = (raw["old_string"] ~= nil) or (raw["oldString"] ~= nil)
+            local has_new = (raw["new_string"] ~= nil) or (raw["newString"] ~= nil)
+            local has_path = (raw["file_path"] ~= nil) or (raw["filePath"] ~= nil)
+            if has_old and has_new and has_path then has_diff = true end
+          end
+
+          local config_enabled = Config.behaviour.acp_show_diff_in_buffer
+
+          local original_state_by_file = {}
+
+          if has_diff and config_enabled then
+            display_diff_and_confirm(
+              tool_call,
+              message,
+              options,
+              callback,
+              original_state_by_file,
+              opts.session_ctx,
+              tool_call.kind
+            )
+          else
+            pending_permissions[tool_call.toolCallId] = {
+              callback = callback,
+              options = options,
+              message = message,
+              original_state_by_file = original_state_by_file,
+            }
+
+            local description = HistoryRender.get_tool_display_name(message)
+            LLMToolHelpers.confirm(description, function(ok)
+              pending_permissions[tool_call.toolCallId] = nil
+
+              local acp_mapped_options = ACPConfirmAdapter.map_acp_options(options)
+              local option_id
+              if ok and opts.session_ctx and opts.session_ctx.always_yes then
+                option_id = acp_mapped_options.all
+              elseif ok then
+                option_id = acp_mapped_options.yes
+              else
+                option_id = acp_mapped_options.no
+              end
+              if not option_id then option_id = ok and "allow_once" or "reject_once" end
+              callback(option_id)
+
+              sidebar.scroll = true
+              sidebar._history_cache_invalidated = true
+              sidebar:update_content("")
+            end, {
+              focus = true,
+              skip_reject_prompt = true,
+              permission_options = options,
+            }, opts.session_ctx, tool_call.kind)
+          end
         end,
         on_read_file = function(path, line, limit, callback)
           local abs_path = Utils.to_absolute_path(path)
@@ -1268,10 +1489,12 @@ function M._stream_acp(opts)
         end,
         on_write_file = function(path, content, callback)
           local abs_path = Utils.to_absolute_path(path)
+
           local file = io.open(abs_path, "w")
           if file then
             file:write(content)
             file:close()
+
             local buffers = vim.tbl_filter(
               function(bufnr)
                 return vim.api.nvim_buf_is_valid(bufnr)
@@ -1280,12 +1503,15 @@ function M._stream_acp(opts)
               end,
               vim.api.nvim_list_bufs()
             )
+
             for _, buf in ipairs(buffers) do
-              vim.api.nvim_buf_call(buf, function() vim.cmd("edit") end)
+              vim.api.nvim_buf_call(buf, function() vim.cmd("edit!") end)
             end
+
             callback(nil)
             return
           end
+
           callback("Failed to write file: " .. abs_path)
         end,
       },

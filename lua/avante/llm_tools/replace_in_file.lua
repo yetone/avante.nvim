@@ -253,7 +253,7 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
         patch = vim.diff(old_string, new_string, { ---@type integer[][]
           algorithm = "histogram",
           result_type = "indices",
-          ctxlen = vim.o.scrolloff,
+          ctxlen = 0,
         })
       else
         patch = { { 1, #old_lines, 1, #new_lines } }
@@ -340,23 +340,22 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
     diff_blocks = new_diff_blocks
   end
 
-  local augroup = vim.api.nvim_create_augroup("avante_replace_in_file", { clear = true })
   local confirm
   local has_rejected = false
 
   local diff_display = DiffDisplay.new({
     bufnr = bufnr,
     diff_blocks = diff_blocks,
-    augroup = augroup,
   })
 
   local function register_buf_write_events()
+    local write_augroup = vim.api.nvim_create_augroup("avante_replace_in_file_write", { clear = true })
     vim.api.nvim_create_autocmd({ "BufWritePost" }, {
       buffer = bufnr,
-      group = augroup,
+      group = write_augroup,
       callback = function()
         if #diff_blocks ~= 0 then return end
-        pcall(vim.api.nvim_del_augroup_by_id, augroup)
+        pcall(vim.api.nvim_del_augroup_by_id, write_augroup)
         if confirm then confirm:close() end
         if has_rejected then
           on_complete(false, "User canceled")
