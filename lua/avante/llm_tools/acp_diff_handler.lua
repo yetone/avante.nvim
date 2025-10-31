@@ -4,71 +4,97 @@ local M = {}
 local Utils = require("avante.utils")
 local Config = require("avante.config")
 
+---Check if tool call contains diff content
+---@param tool_call avante.acp.ToolCall|avante.acp.ToolCallUpdate
+---@return boolean has_diff Whether the tool call contains diff content
+function M.has_diff_content(tool_call)
+  -- Check for diff in content array format
+  for _, content_item in ipairs(tool_call.content or {}) do
+    if content_item.type == "diff" and content_item.oldText ~= vim.NIL and content_item.newText ~= vim.NIL then
+      return true
+    end
+  end
+
+  -- Check for diff in rawInput format (legacy format)
+  if tool_call.rawInput then
+    local raw = tool_call.rawInput
+    if raw then
+      local has_old = (raw["old_string"] ~= nil) or (raw["oldString"] ~= nil)
+      local has_new = (raw["new_string"] ~= nil) or (raw["newString"] ~= nil)
+      local has_path = (raw["file_path"] ~= nil) or (raw["filePath"] ~= nil)
+      if has_old and has_new and has_path then return true end
+    end
+  end
+
+  return false
+end
+
 ---Extract diff blocks from ACP tool call content
----@param tool_call avante.acp.ToolCall
+---@param tool_call avante.acp.ToolCall|avante.acp.ToolCallUpdate
 ---@return table<string, avante.DiffBlock[]> diff_blocks_by_file Maps file path to list of diff blocks
 function M.extract_diff_blocks(tool_call)
   local diff_blocks_by_file = {}
 
   -- Handle rawInput format (legacy format)
   if tool_call.rawInput then
-    ---@diagnostic disable-next-line: need-check-nil
     local raw = tool_call.rawInput
-    local file_path = raw.file_path or raw.filePath
-    local old_string = raw.old_string or raw.oldString or ""
-    local new_string = raw.new_string or raw.newString
+    if raw then
+      local file_path = raw.file_path or raw.filePath
+      local old_string = raw.old_string or raw.oldString or ""
+      local new_string = raw.new_string or raw.newString
 
-    if file_path and new_string then
-      local old_lines = (old_string and old_string ~= "" and type(old_string) == "string")
-          and vim.split(old_string, "\n")
-        or {}
-      local new_lines = (new_string and type(new_string) == "string") and vim.split(new_string, "\n") or {}
+      if file_path and new_string then
+        local old_lines = (old_string and old_string ~= "" and type(old_string) == "string")
+            and vim.split(old_string, "\n")
+          or {}
+        local new_lines = (new_string and type(new_string) == "string") and vim.split(new_string, "\n") or {}
 
-      local abs_path = Utils.to_absolute_path(file_path)
-      local file_lines = Utils.read_file_from_buf_or_disk(abs_path) or {}
+        local abs_path = Utils.to_absolute_path(file_path)
+        local file_lines = Utils.read_file_from_buf_or_disk(abs_path) or {}
 
-      if #old_lines == 0 then
-        -- New file case
-        local diff_block = {
-          start_line = 1,
-          end_line = 0,
-          old_lines = {},
-          new_lines = new_lines,
-        }
-        diff_blocks_by_file[file_path] = { diff_block }
-      else
-        local replace_all = raw.replace_all or raw.replaceAll
+        if #old_lines == 0 then
+          -- New file case
+          local diff_block = {
+            start_line = 1,
+            end_line = 0,
+            old_lines = {},
+            new_lines = new_lines,
+          }
+          diff_blocks_by_file[file_path] = { diff_block }
+        else
+          local replace_all = raw.replace_all or raw.replaceAll
 
-        if replace_all then
-          local matches = Utils.find_all_matches(file_lines, old_lines)
+          if replace_all then
+            local matches = Utils.find_all_matches(file_lines, old_lines)
 
-          if #matches > 0 then
-            diff_blocks_by_file[file_path] = {}
-            for _, match in ipairs(matches) do
+            if #matches > 0 then
+              diff_blocks_by_file[file_path] = {}
+              for _, match in ipairs(matches) do
+                local diff_block = {
+                  start_line = match.start_line,
+                  end_line = match.end_line,
+                  old_lines = old_lines,
+                  new_lines = new_lines,
+                }
+                table.insert(diff_blocks_by_file[file_path], diff_block)
+              end
+            else
+              Utils.warn("Failed to find any matches for replace_all in file: " .. file_path)
+            end
+          else
+            local start_line, end_line = Utils.fuzzy_match(file_lines, old_lines)
+
+            if start_line and end_line then
               local diff_block = {
-                start_line = match.start_line,
-                end_line = match.end_line,
+                start_line = start_line,
+                end_line = end_line,
                 old_lines = old_lines,
                 new_lines = new_lines,
               }
-              table.insert(diff_blocks_by_file[file_path], diff_block)
+              diff_blocks_by_file[file_path] = { diff_block }
+            else
+              Utils.warn("Failed to find location for diff in file: " .. file_path)
             end
-          else
-            Utils.warn("Failed to find any matches for replace_all in file: " .. file_path)
-          end
-        else
-          local start_line, end_line = Utils.fuzzy_match(file_lines, old_lines)
-
-          if start_line and end_line then
-            local diff_block = {
-              start_line = start_line,
-              end_line = end_line,
-              old_lines = old_lines,
-              new_lines = new_lines,
-            }
-            diff_blocks_by_file[file_path] = { diff_block }
-          else
-            Utils.warn("Failed to find location for diff in file: " .. file_path)
           end
         end
       end

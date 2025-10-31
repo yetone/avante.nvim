@@ -991,22 +991,7 @@ function M._stream_acp(opts)
     session_ctx,
     tool_kind
   )
-    local has_diff = false
-    for _, content_item in ipairs(tool_call.content or {}) do
-      if content_item.type == "diff" and content_item.oldText ~= vim.NIL and content_item.newText ~= vim.NIL then
-        has_diff = true
-        break
-      end
-    end
-
-    if not has_diff and tool_call.rawInput then
-      local raw = tool_call.rawInput
-      local has_old = (raw["old_string"] ~= nil) or (raw["oldString"] ~= nil)
-      local has_new = (raw["new_string"] ~= nil) or (raw["newString"] ~= nil)
-      local has_path = (raw["file_path"] ~= nil) or (raw["filePath"] ~= nil)
-      if has_old and has_new and has_path then has_diff = true end
-    end
-
+    local has_diff = ACPDiffHandler.has_diff_content(tool_call)
     local config_enabled = Config.behaviour.acp_show_diff_in_buffer
 
     if has_diff and config_enabled then
@@ -1288,26 +1273,7 @@ function M._stream_acp(opts)
 
             if pending then
               local merged_tool_call = tool_call_message.acp_tool_call or update
-              local has_diff = false
-
-              for _, content_item in ipairs(merged_tool_call.content or {}) do
-                if
-                  content_item.type == "diff"
-                  and content_item.oldText ~= vim.NIL
-                  and content_item.newText ~= vim.NIL
-                then
-                  has_diff = true
-                  break
-                end
-              end
-
-              if not has_diff and merged_tool_call.rawInput then
-                local raw = merged_tool_call.rawInput
-                local has_old = (raw["old_string"] ~= nil) or (raw["oldString"] ~= nil)
-                local has_new = (raw["new_string"] ~= nil) or (raw["newString"] ~= nil)
-                local has_path = (raw["file_path"] ~= nil) or (raw["filePath"] ~= nil)
-                if has_old and has_new and has_path then has_diff = true end
-              end
+              local has_diff = ACPDiffHandler.has_diff_content(merged_tool_call)
 
               if has_diff then
                 local pending_data = pending_permissions[update.toolCallId]
@@ -1395,22 +1361,7 @@ function M._stream_acp(opts)
 
           on_messages_add({ message })
 
-          local has_diff = false
-          for _, content_item in ipairs(tool_call.content or {}) do
-            if content_item.type == "diff" and content_item.oldText ~= vim.NIL and content_item.newText ~= vim.NIL then
-              has_diff = true
-              break
-            end
-          end
-
-          if not has_diff and tool_call.rawInput then
-            local raw = tool_call.rawInput
-            local has_old = (raw["old_string"] ~= nil) or (raw["oldString"] ~= nil)
-            local has_new = (raw["new_string"] ~= nil) or (raw["newString"] ~= nil)
-            local has_path = (raw["file_path"] ~= nil) or (raw["filePath"] ~= nil)
-            if has_old and has_new and has_path then has_diff = true end
-          end
-
+          local has_diff = ACPDiffHandler.has_diff_content(tool_call)
           local config_enabled = Config.behaviour.acp_show_diff_in_buffer
 
           local original_state_by_file = {}
