@@ -913,12 +913,12 @@ local function truncate_history_for_recovery(history_messages)
   return truncated
 end
 
--- Track pending permission requests (tool_call_id -> {callback, options, message, original_state_by_file})
-local pending_ACP_permissions = {}
-
 ---@param opts AvanteLLMStreamOptions
 function M._stream_acp(opts)
   Utils.debug("use ACP", Config.provider)
+  -- Track pending permission requests (tool_call_id -> {callback, options, message, original_state_by_file})
+  local pending_ACP_permissions = {}
+
   ---@type table<string, avante.HistoryMessage>
   local tool_call_messages = {}
   ---@type avante.HistoryMessage
@@ -984,6 +984,13 @@ function M._stream_acp(opts)
     return message
   end
 
+  ---@param tool_call avante.acp.ToolCall|avante.acp.ToolCallUpdate
+  ---@param message avante.HistoryMessage
+  ---@param options table[]
+  ---@param callback any
+  ---@param original_state_by_file table
+  ---@param session_ctx table
+  ---@param tool_kind ACPToolKind
   local function display_diff_and_confirm(
     tool_call,
     message,
@@ -995,8 +1002,7 @@ function M._stream_acp(opts)
   )
     local config_enabled = Config.behaviour.acp_show_diff_in_buffer
 
-    local ok_check, has_diff = pcall(ACPDiffHandler.has_diff_content, tool_call)
-    if not ok_check then has_diff = false end
+    local has_diff = ACPDiffHandler.has_diff_content(tool_call)
 
     -- Skip diff display if always_yes mode is active
     if session_ctx and session_ctx.always_yes then has_diff = false end
@@ -1058,8 +1064,6 @@ function M._stream_acp(opts)
       local acp_mapped_options = ACPConfirmAdapter.map_acp_options(options)
 
       local all_restored = true
-
-      -- Don't save cursor position - we want to keep the current scroll position after accepting
 
       if has_diff and config_enabled then
         for path, state in pairs(original_state_by_file) do
