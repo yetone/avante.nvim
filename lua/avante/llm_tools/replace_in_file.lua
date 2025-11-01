@@ -5,6 +5,12 @@ local Highlights = require("avante.highlights")
 local Config = require("avante.config")
 local DiffDisplay = require("avante.utils.diff_display")
 
+--- LLM tool for applying targeted file changes using SEARCH/REPLACE blocks.
+--- Processes streaming diffs, displays changes with highlighting, and handles
+--- user confirmation before applying modifications.
+---
+--- IMPORTANT: This tool is ONLY used by API-based providers (claude.lua, openai.lua, etc.).
+--- ACP providers (gemini-cli, claude-code, etc) NEVER invoke this tool.
 ---@class AvanteLLMTool
 local M = setmetatable({}, Base)
 
@@ -340,6 +346,7 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
     diff_blocks = new_diff_blocks
   end
 
+  --- @type avante.ui.Confirm|nil
   local confirm
   local has_rejected = false
 
@@ -355,19 +362,17 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
 
   local function register_buf_write_events()
     local write_augroup = vim.api.nvim_create_augroup("avante_replace_in_file_write", { clear = true })
+
     vim.api.nvim_create_autocmd({ "BufWritePost" }, {
       buffer = bufnr,
       group = write_augroup,
       callback = function()
-        if not vim.api.nvim_buf_is_valid(bufnr) then
-          pcall(vim.api.nvim_del_augroup_by_id, write_augroup)
-          return
-        end
-        if #diff_blocks ~= 0 then return end
         pcall(vim.api.nvim_del_augroup_by_id, write_augroup)
+        diff_display:clear()
+
         if confirm then confirm:close() end
+
         if has_rejected then
-          diff_display:clear()
           on_complete(false, "User canceled")
           return
         end
@@ -502,27 +507,26 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
   pcall(vim.cmd.undojoin)
 
   confirm = Helpers.confirm("Are you sure you want to apply this modification?", function(ok, reason)
-    if not ok then
-      diff_display:clear()
-      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, original_lines)
-      on_complete(false, "User declined, reason: " .. (reason or "unknown"))
-      return
-    end
-    local parent_dir = vim.fn.fnamemodify(abs_path, ":h")
-    --- check if the parent dir is exists, if not, create it
-    if vim.fn.isdirectory(parent_dir) == 0 then vim.fn.mkdir(parent_dir, "p") end
+    diff_display:clear()
+
     if not vim.api.nvim_buf_is_valid(bufnr) then
       on_complete(false, "Code buffer is not valid")
       return
     end
 
+    if not ok then
+      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, original_lines)
+      on_complete(false, "User declined, reason: " .. (reason or "unknown"))
+      return
+    end
+
+    local parent_dir = vim.fn.fnamemodify(abs_path, ":h")
+
+    --- check if the parent dir is exists, if not, create it
+    if vim.fn.isdirectory(parent_dir) == 0 then vim.fn.mkdir(parent_dir, "p") end
+
     -- Write the file with current buffer state (new lines already inserted)
     vim.api.nvim_buf_call(bufnr, function() vim.cmd("silent noautocmd write!") end)
-
-    -- Clear diff display after write
-    vim.schedule(function()
-      if diff_display then diff_display:clear() end
-    end)
 
     if session_ctx then Helpers.mark_as_not_viewed(input.path, session_ctx) end
     on_complete(true, nil)

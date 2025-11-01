@@ -912,6 +912,10 @@ local function truncate_history_for_recovery(history_messages)
 
   return truncated
 end
+
+-- Track pending permission requests (tool_call_id -> {callback, options, message, original_state_by_file})
+local pending_ACP_permissions = {}
+
 ---@param opts AvanteLLMStreamOptions
 function M._stream_acp(opts)
   Utils.debug("use ACP", Config.provider)
@@ -955,8 +959,6 @@ function M._stream_acp(opts)
       end
     end
   end
-  -- Track pending permission requests (tool_call_id -> {callback, options, message, original_state_by_file})
-  local pending_permissions = {}
 
   local function add_tool_call_message(update)
     local message = History.Message:new("assistant", {
@@ -1253,7 +1255,7 @@ function M._stream_acp(opts)
               tool_call_message.acp_tool_call = vim.tbl_deep_extend("force", tool_call_message.acp_tool_call, update)
             end
 
-            local pending = pending_permissions[update.toolCallId]
+            local pending = pending_ACP_permissions[update.toolCallId]
 
             if pending then
               local merged_tool_call = tool_call_message.acp_tool_call or update
@@ -1262,10 +1264,10 @@ function M._stream_acp(opts)
               if not ok_check then has_diff = false end
 
               if has_diff then
-                local pending_data = pending_permissions[update.toolCallId]
+                local pending_data = pending_ACP_permissions[update.toolCallId]
                 -- Race condition check: ensure we haven't already displayed this
                 if pending_data and not pending_data.diff_display_shown then
-                  pending_permissions[update.toolCallId] = nil
+                  pending_ACP_permissions[update.toolCallId] = nil
                   pending_data.diff_display_shown = true
 
                   display_diff_and_confirm(
@@ -1377,7 +1379,7 @@ function M._stream_acp(opts)
               tool_call.kind
             )
           else
-            pending_permissions[tool_call.toolCallId] = {
+            pending_ACP_permissions[tool_call.toolCallId] = {
               callback = callback,
               options = options,
               message = message,
@@ -1386,7 +1388,7 @@ function M._stream_acp(opts)
 
             local description = HistoryRender.get_tool_display_name(message)
             LLMToolHelpers.confirm(description, function(ok)
-              pending_permissions[tool_call.toolCallId] = nil
+              pending_ACP_permissions[tool_call.toolCallId] = nil
 
               local acp_mapped_options = ACPConfirmAdapter.map_acp_options(options)
               local option_id
@@ -1884,16 +1886,16 @@ function M._stream_acp(opts)
         return
       end
 
-      for k in pairs(pending_permissions) do
-        pending_permissions[k] = nil
+      for k in pairs(pending_ACP_permissions) do
+        pending_ACP_permissions[k] = nil
       end
 
       opts.on_stop({ reason = "error", error = err_ })
       return
     end
 
-    for k in pairs(pending_permissions) do
-      pending_permissions[k] = nil
+    for k in pairs(pending_ACP_permissions) do
+      pending_ACP_permissions[k] = nil
     end
 
     opts.on_stop({ reason = "complete" })

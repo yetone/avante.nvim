@@ -514,23 +514,18 @@ end
 function DiffDisplayInstance:unregister_keybindings()
   if not self.bufnr or not vim.api.nvim_buf_is_valid(self.bufnr) then return end
 
-  vim.keymap.del("n", Config.mappings.diff.next, { buffer = buf, silent = true })
-  vim.keymap.del("v", Config.mappings.diff.next, { buffer = buf, silent = true })
-  vim.keymap.del("n", Config.mappings.diff.prev, { buffer = buf, silent = true })
-  vim.keymap.del("v", Config.mappings.diff.prev, { buffer = buf, silent = true })
-  vim.keymap.del("n", Config.mappings.diff.ours, { buffer = buf, silent = true })
-  vim.keymap.del("v", Config.mappings.diff.ours, { buffer = buf, silent = true })
-  vim.keymap.del("n", Config.mappings.diff.theirs, { buffer = buf, silent = true })
-  vim.keymap.del("v", Config.mappings.diff.theirs, { buffer = buf, silent = true })
+  vim.keymap.del("n", Config.mappings.diff.next, { buffer = self.bufnr, silent = true })
+  vim.keymap.del("v", Config.mappings.diff.next, { buffer = self.bufnr, silent = true })
+  vim.keymap.del("n", Config.mappings.diff.prev, { buffer = self.bufnr, silent = true })
+  vim.keymap.del("v", Config.mappings.diff.prev, { buffer = self.bufnr, silent = true })
+  vim.keymap.del("n", Config.mappings.diff.ours, { buffer = self.bufnr, silent = true })
+  vim.keymap.del("v", Config.mappings.diff.ours, { buffer = self.bufnr, silent = true })
+  vim.keymap.del("n", Config.mappings.diff.theirs, { buffer = self.bufnr, silent = true })
+  vim.keymap.del("v", Config.mappings.diff.theirs, { buffer = self.bufnr, silent = true })
 end
 
--- FIXIT: it doesn't seem to the called from the llm.lua, AI propably mixed replace_in_file with diff_display
+-- FIXIT: it doesn't seem to the called from the llm.lua, AI probably mixed replace_in_file with diff_display
 function DiffDisplayInstance:clear()
-  if self.bufnr and not vim.api.nvim_buf_is_valid(self.bufnr) then
-    pcall(vim.api.nvim_del_augroup_by_id, self.augroup)
-    return
-  end
-
   self:unregister_keybindings()
 
   pcall(vim.api.nvim_del_augroup_by_id, self.augroup)

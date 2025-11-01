@@ -418,7 +418,7 @@ function ACPClient:_create_stdio_transport()
       if data then
         -- Filter out common session recovery error messages to avoid user confusion
         if not (data:match("Session not found") or data:match("session/prompt")) then
-          vim.schedule(function() vim.notify("ACP stderr: " .. data, vim.log.levels.DEBUG) end)
+          vim.schedule(function() Utils.debug("ACP stderr: ", data) end)
         end
       end
     end)
