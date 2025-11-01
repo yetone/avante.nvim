@@ -69,7 +69,7 @@ function M.confirm(message, callback, confirm_opts, session_ctx, tool_name)
   end
 
   -- If auto_approve is a table (array of tool names), check if this tool is in the list
-  if type(auto_approve) == "table" and vim.tbl_contains(auto_approve, tool_name) then
+  if tool_name and type(auto_approve) == "table" and vim.tbl_contains(auto_approve, tool_name) then
     callback(true)
     return
   end

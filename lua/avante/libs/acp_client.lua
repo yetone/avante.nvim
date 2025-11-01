@@ -89,10 +89,13 @@ local Utils = require("avante.utils")
 ---@alias ACPContent avante.acp.TextContent | avante.acp.ImageContent | avante.acp.AudioContent | avante.acp.ResourceLinkContent | avante.acp.ResourceContent
 
 ---@class ACPRawInput
----@field file_path string|nil
----@field new_string string|nil
----@field old_string string|nil
----@field replace_all boolean|nil
+---@field file_path string
+---@field new_string? string
+---@field old_string? string
+---@field replace_all? boolean
+---@field description? string
+---@field command? string
+---@field timeout? number
 
 ---@class avante.acp.BaseToolCallContent
 ---@field type "content" | "diff"

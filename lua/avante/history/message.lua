@@ -1,6 +1,12 @@
 local Utils = require("avante.utils")
 
----@class avante.HistoryMessage
+---@class avante.history.Message
+---@field message AvanteLLMMessage
+---@field uuid string
+---@field state string
+---@field timestamp number
+---@field is_user_submission boolean
+---@field visible boolean
 local M = {}
 M.__index = M
 
@@ -21,7 +27,7 @@ M.__index = M
 ---@param role "user" | "assistant"
 ---@param content AvanteLLMMessageContentItem
 ---@param opts? avante.HistoryMessage.Opts
----@return avante.HistoryMessage
+---@return avante.history.Message
 function M:new(role, content, opts)
   ---@type AvanteLLMMessage
   local message = { role = role, content = type(content) == "string" and content or { content } }
@@ -40,17 +46,17 @@ end
 ---Creates a new instance of synthetic (dummy) history message
 ---@param role "assistant" | "user"
 ---@param item AvanteLLMMessageContentItem
----@return avante.HistoryMessage
+---@return avante.history.Message
 function M:new_synthetic(role, item) return M:new(role, item, { is_dummy = true }) end
 
 ---Creates a new instance of synthetic (dummy) history message attributed to the assistant
 ---@param item AvanteLLMMessageContentItem
----@return avante.HistoryMessage
+---@return avante.history.Message
 function M:new_assistant_synthetic(item) return M:new_synthetic("assistant", item) end
 
 ---Creates a new instance of synthetic (dummy) history message attributed to the user
 ---@param item AvanteLLMMessageContentItem
----@return avante.HistoryMessage
+---@return avante.history.Message
 function M:new_user_synthetic(item) return M:new_synthetic("user", item) end
 
 ---Updates content of a message as long as it is a simple text (or empty).

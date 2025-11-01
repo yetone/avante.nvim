@@ -342,16 +342,17 @@ function M.get_tool_display_name(message)
 
   if not islist(content) then return "", "expected message content to be a list" end
 
-  local item = message.message.content[1]
+  local item = content[1]
 
-  local native_tool_name = item.name
+  local native_tool_name = item and item.name
+
   if native_tool_name == "other" and message.acp_tool_call then
-    native_tool_name = message.acp_tool_call.title or "Other"
+    native_tool_name = message.acp_tool_call.kind or "other"
   end
-  if message.acp_tool_call and message.acp_tool_call.title then native_tool_name = message.acp_tool_call.title end
+
   local tool_name = native_tool_name
   if message.displayed_tool_name then
-    tool_name = message.displayed_tool_name
+    tool_name = message.displayed_tool_name or ""
   else
     local param
     if item.input and type(item.input) == "table" then
@@ -367,14 +368,17 @@ function M.get_tool_display_name(message)
         local pieces = vim.split(param, "\n")
         if #pieces > 1 then param = pieces[1] .. "..." end
       end
+
       if native_tool_name == "execute" and not param then
         if message.acp_tool_call and message.acp_tool_call.title then param = message.acp_tool_call.title end
       end
+
       if not param and path then
         local relative_path = Utils.relative_path(path)
         param = relative_path
       end
     end
+
     if not param and message.acp_tool_call then
       if message.acp_tool_call.locations then
         for _, location in ipairs(message.acp_tool_call.locations) do
@@ -386,22 +390,24 @@ function M.get_tool_display_name(message)
         end
       end
     end
+
     if
       not param
       and message.acp_tool_call
       and message.acp_tool_call.rawInput
       and message.acp_tool_call.rawInput.command
     then
-      param = message.acp_tool_call.rawInput.command
+      param = message.acp_tool_call.rawInput.command or ""
       pcall(function()
         local project_root = Utils.root.get()
         param = param:gsub(project_root .. "/?", "")
       end)
     end
-    if param then tool_name = native_tool_name .. "(" .. param .. ")" end
-  end
 
-  ---@cast tool_name string
+    ---@diagnostic disable-next-line: param-type-mismatch
+    param = type(param) == "string" and param or table.concat(param or {}, " ")
+    tool_name = native_tool_name .. "(" .. param .. ")"
+  end
 
   return tool_name, nil
 end
@@ -477,11 +483,11 @@ local function tool_to_lines(item, message, messages, expanded)
     not add_diff_lines
     and message.acp_tool_call
     and message.acp_tool_call.rawInput
-    and message.acp_tool_call.rawInput.oldString
+    and message.acp_tool_call.rawInput.old_string
   then
     local diff_lines = M.get_diff_lines(
-      message.acp_tool_call.rawInput.oldString,
-      message.acp_tool_call.rawInput.newString,
+      message.acp_tool_call.rawInput.old_string,
+      message.acp_tool_call.rawInput.new_string,
       decoration,
       not expanded
     )

@@ -16,6 +16,7 @@ local LLMTools = require("avante.llm_tools")
 local History = require("avante.history")
 local HistoryRender = require("avante.history.render")
 local ACPConfirmAdapter = require("avante.ui.acp_confirm_adapter")
+local ACPDiffHandler = require("avante.llm_tools.acp_diff_handler")
 
 ---@class avante.LLM
 local M = {}
@@ -910,6 +911,7 @@ local function truncate_history_for_recovery(history_messages)
 
   return truncated
 end
+
 ---@param opts AvanteLLMStreamOptions
 function M._stream_acp(opts)
   Utils.debug("use ACP", Config.provider)
@@ -920,10 +922,12 @@ function M._stream_acp(opts)
   local acp_provider = Config.acp_providers[Config.provider]
   local prev_text_message_content = ""
   local history_messages = {}
+
   local get_history_messages = function()
     if opts.get_history_messages then return opts.get_history_messages() end
     return history_messages
   end
+
   local on_messages_add = function(messages)
     if opts.on_chunk then
       for _, message in ipairs(messages) do
@@ -953,19 +957,25 @@ function M._stream_acp(opts)
       end
     end
   end
+
+  ---@param update avante.acp.ToolCallUpdate|avante.acp.RequestPermission
   local function add_tool_call_message(update)
+    local id = update.toolCallId or update.toolCall.toolCallId
+
     local message = History.Message:new("assistant", {
+      id = id,
       type = "tool_use",
-      id = update.toolCallId,
       name = update.kind or update.title,
-      input = update.rawInput or {},
+      input = update.rawInput or update.toolCall.rawInput or {},
     }, {
-      uuid = update.toolCallId,
+      uuid = id,
     })
+
     last_tool_call_message = message
-    message.acp_tool_call = update
+    message.acp_tool_call = update.toolCall or update
     if update.status == "pending" or update.status == "in_progress" then message.is_calling = true end
-    tool_call_messages[update.toolCallId] = message
+    tool_call_messages[id] = message
+
     if update.rawInput then
       local description = update.rawInput.description
       if description then
@@ -973,10 +983,13 @@ function M._stream_acp(opts)
         table.insert(message.tool_use_logs, description)
       end
     end
+
     on_messages_add({ message })
     return message
   end
+
   local acp_client = opts.acp_client
+
   if not acp_client then
     local acp_config = vim.tbl_deep_extend("force", acp_provider, {
       ---@type ACPHandlers
@@ -1066,68 +1079,11 @@ function M._stream_acp(opts)
           if update.sessionUpdate == "tool_call" then
             add_tool_call_message(update)
 
-            local sidebar = require("avante").get()
-
-            if
-              Config.behaviour.acp_follow_agent_locations
-              and sidebar
-              and not sidebar.is_in_full_view -- don't follow when in Zen mode
-              and update.kind == "edit" -- to avoid entering more than once
-              and update.locations
-              and #update.locations > 0
-            then
-              vim.schedule(function()
-                if not sidebar:is_open() then return end
-
-                -- Find a valid code window (non-sidebar window)
-                local code_winid = nil
-                if sidebar.code.winid and sidebar.code.winid ~= 0 and api.nvim_win_is_valid(sidebar.code.winid) then
-                  code_winid = sidebar.code.winid
-                else
-                  -- Find first non-sidebar window in the current tab
-                  local all_wins = api.nvim_tabpage_list_wins(0)
-                  for _, winid in ipairs(all_wins) do
-                    if api.nvim_win_is_valid(winid) and not sidebar:is_sidebar_winid(winid) then
-                      code_winid = winid
-                      break
-                    end
-                  end
-                end
-
-                if not code_winid then return end
-
-                local now = uv.now()
-                local last_auto_nav = vim.g.avante_last_auto_nav or 0
-                local grace_period = 2000
-
-                -- Check if user navigated manually recently
-                if now - last_auto_nav < grace_period then return end
-
-                -- Only follow first location to avoid rapid jumping
-                local location = update.locations[1]
-                if not location or not location.path then return end
-
-                local abs_path = Utils.join_paths(Utils.get_project_root(), location.path)
-                local bufnr = vim.fn.bufnr(abs_path, true)
-
-                if not bufnr or bufnr == -1 then return end
-
-                if not api.nvim_buf_is_loaded(bufnr) then pcall(vim.fn.bufload, bufnr) end
-
-                local ok = pcall(api.nvim_win_set_buf, code_winid, bufnr)
-                if not ok then return end
-
-                local line = location.line or 1
-                local line_count = api.nvim_buf_line_count(bufnr)
-                local target_line = math.min(line, line_count)
-
-                pcall(api.nvim_win_set_cursor, code_winid, { target_line, 0 })
-                pcall(api.nvim_win_call, code_winid, function()
-                  vim.cmd("normal! zz") -- Center line in viewport
-                end)
-
-                vim.g.avante_last_auto_nav = now
-              end)
+            if Config.behaviour.acp_show_diff_in_buffer and not opts.session_ctx.always_yes then
+              if ACPDiffHandler.has_diff_content(update) then
+                --FIXIT: continue the diff handling
+                local diffs = ACPDiffHandler.extract_diff_blocks(update)
+              end
             end
           end
 
@@ -1196,30 +1152,29 @@ function M._stream_acp(opts)
           end
         end,
 
-        on_request_permission = function(tool_call, options, callback)
+        on_request_permission = function(request, callback)
           local sidebar = require("avante").get()
           if not sidebar then
             Utils.error("Avante sidebar not found")
             return
           end
 
-          ---@cast tool_call avante.acp.ToolCall
-
-          local message = tool_call_messages[tool_call.toolCallId]
+          local message = tool_call_messages[request.toolCall.toolCallId]
           if not message then
-            message = add_tool_call_message(tool_call)
+            message = add_tool_call_message(request)
           else
             if message.acp_tool_call then
-              if tool_call.content and next(tool_call.content) == nil then tool_call.content = nil end
-              message.acp_tool_call = vim.tbl_deep_extend("force", message.acp_tool_call, tool_call)
+              -- Merge updates into existing tool call message
+              message.acp_tool_call = vim.tbl_deep_extend("force", message.acp_tool_call, request.toolCall)
             end
           end
 
           on_messages_add({ message })
 
           local description = HistoryRender.get_tool_display_name(message)
+
           LLMToolHelpers.confirm(description, function(ok)
-            local acp_mapped_options = ACPConfirmAdapter.map_acp_options(options)
+            local acp_mapped_options = ACPConfirmAdapter.map_acp_options(request.options)
 
             if ok and opts.session_ctx and opts.session_ctx.always_yes then
               callback(acp_mapped_options.all)
@@ -1235,9 +1190,10 @@ function M._stream_acp(opts)
           end, {
             focus = true,
             skip_reject_prompt = true,
-            permission_options = options,
-          }, opts.session_ctx, tool_call.kind)
+            permission_options = request.options,
+          }, opts.session_ctx, message.acp_tool_call.kind)
         end,
+
         on_read_file = function(path, line, limit, callback)
           local abs_path = Utils.to_absolute_path(path)
           local lines = Utils.read_file_from_buf_or_disk(abs_path)
@@ -1303,6 +1259,7 @@ function M._stream_acp(opts)
     if not acp_client.agent_capabilities.loadSession then opts.acp_session_id = nil end
     if opts.on_save_acp_client then opts.on_save_acp_client(acp_client) end
   end
+
   local session_id = opts.acp_session_id
   if not session_id then
     local project_root = Utils.root.get()
@@ -1318,9 +1275,11 @@ function M._stream_acp(opts)
     session_id = session_id_
     if opts.on_save_acp_session_id then opts.on_save_acp_session_id(session_id) end
   end
+
   if opts.just_connect_acp_client then return end
   local prompt = {}
   local donot_use_builtin_system_prompt = opts.history_messages ~= nil and #opts.history_messages > 0
+
   if donot_use_builtin_system_prompt then
     if opts.selected_filepaths then
       for _, filepath in ipairs(opts.selected_filepaths) do
@@ -1342,11 +1301,12 @@ function M._stream_acp(opts)
       table.insert(prompt, prompt_item)
     end
   end
-  local history_messages = opts.history_messages or {}
+
+  local messages_from_opt = opts.history_messages or {}
 
   -- DEBUG: Log history message details
-  Utils.debug("ACP history messages count: " .. #history_messages)
-  for i, msg in ipairs(history_messages) do
+  Utils.debug("ACP history messages count: " .. #messages_from_opt)
+  for i, msg in ipairs(messages_from_opt) do
     if msg and msg.message then
       Utils.debug(
         "History msg "
@@ -1381,11 +1341,11 @@ function M._stream_acp(opts)
     local include_history_count = recovery_config.include_history_count or 15 -- Default to 15 for better context
 
     -- Get recent messages from truncated history
-    local start_idx = math.max(1, #history_messages - include_history_count + 1)
-    Utils.debug("Including history from index " .. start_idx .. " to " .. #history_messages)
+    local start_idx = math.max(1, #messages_from_opt - include_history_count + 1)
+    Utils.debug("Including history from index " .. start_idx .. " to " .. #messages_from_opt)
 
-    for i = start_idx, #history_messages do
-      local message = history_messages[i]
+    for i = start_idx, #messages_from_opt do
+      local message = messages_from_opt[i]
       if message and message.message then
         table.insert(recent_messages, message)
         Utils.debug("Adding message " .. i .. " to recent_messages: role=" .. (message.message.role or "unknown"))
@@ -1453,8 +1413,8 @@ function M._stream_acp(opts)
     local include_history_count = recovery_config.include_history_count or 5
     local user_messages_added = 0
 
-    for i = #history_messages, 1, -1 do
-      local message = history_messages[i]
+    for i = #messages_from_opt, 1, -1 do
+      local message = messages_from_opt[i]
       if message.message.role == "user" and user_messages_added < include_history_count then
         local content = message.message.content
         if type(content) == "table" then
@@ -1493,7 +1453,7 @@ function M._stream_acp(opts)
   else
     if donot_use_builtin_system_prompt then
       -- Include all user messages for better context preservation
-      for _, message in ipairs(history_messages) do
+      for _, message in ipairs(messages_from_opt) do
         if message.message.role == "user" then
           local content = message.message.content
           if type(content) == "table" then
@@ -1534,6 +1494,7 @@ function M._stream_acp(opts)
       end
     end
   end
+
   acp_client:send_prompt(session_id, prompt, function(_, err_)
     if err_ then
       -- ACP-specific session recovery: Check for session not found error
@@ -1658,9 +1619,11 @@ function M._stream_acp(opts)
         -- CRITICAL: Return immediately to prevent further processing in fast event context
         return
       end
+
       opts.on_stop({ reason = "error", error = err_ })
       return
     end
+
     opts.on_stop({ reason = "complete" })
   end)
 end
