@@ -314,20 +314,10 @@ function M.get_content_lines(content, decoration, truncate)
             table.insert(lines, line)
           end
         end
-      elseif
-        content_item.type == "diff"
-        and content_item.oldText ~= nil
-        and content_item.newText ~= nil
-        and content_item.oldText ~= vim.NIL
-        and content_item.newText ~= vim.NIL
-      then
-        local relative_path = Utils.relative_path(content_item.path)
-        table.insert(lines, Line:new({ { decoration }, { "Path: " .. relative_path } }))
-        local lines_ = M.get_diff_lines(content_item.oldText, content_item.newText, decoration, truncate)
-        lines = vim.list_extend(lines, lines_)
       end
     end
   end
+
   return lines
 end
 
