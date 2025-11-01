@@ -662,6 +662,40 @@ end
 
 ---@param original_lines string[]
 ---@param target_lines string[]
+---@param compare_fn fun(line_a: string, line_b: string): boolean
+---@return table[] matches Array of {start_line, end_line} pairs
+function M.try_find_all_matches(original_lines, target_lines, compare_fn)
+  local matches = {}
+
+  if #original_lines == 0 or #target_lines == 0 or #target_lines > #original_lines then return matches end
+
+  local i = 1
+  while i <= #original_lines - #target_lines + 1 do
+    local match = true
+    for j = 1, #target_lines do
+      local line_a = original_lines[i + j - 1]
+      local line_b = target_lines[j]
+
+      if not line_a or not line_b or not compare_fn(line_a, line_b) then
+        match = false
+        break
+      end
+    end
+    if match then
+      local start_line = i
+      local end_line = i + #target_lines - 1
+      table.insert(matches, { start_line = start_line, end_line = end_line })
+      -- Skip past this match to avoid overlapping
+      i = end_line + 1
+    else
+      i = i + 1
+    end
+  end
+  return matches
+end
+
+---@param original_lines string[]
+---@param target_lines string[]
 ---@return integer | nil start_line
 ---@return integer | nil end_line
 function M.fuzzy_match(original_lines, target_lines)
@@ -701,6 +735,52 @@ function M.fuzzy_match(original_lines, target_lines)
     function(line_a, line_b) return M.trim_space(line_a) == M.trim_space(M.trim_escapes(line_b)) end
   )
   return start_line, end_line
+end
+
+---@param original_lines string[]
+---@param target_lines string[]
+---@return table[] matches Array of {start_line, end_line} pairs, empty if no matches
+function M.find_all_matches(original_lines, target_lines)
+  -- Try exact match first
+  local matches = M.try_find_all_matches(
+    original_lines,
+    target_lines,
+    function(line_a, line_b) return line_a == line_b end
+  )
+  if #matches > 0 then return matches end
+
+  -- Try fuzzy match (trim trailing spaces/tabs)
+  matches = M.try_find_all_matches(
+    original_lines,
+    target_lines,
+    function(line_a, line_b) return M.trim(line_a, { suffix = " \t" }) == M.trim(line_b, { suffix = " \t" }) end
+  )
+  if #matches > 0 then return matches end
+
+  -- Try trim_space match
+  matches = M.try_find_all_matches(
+    original_lines,
+    target_lines,
+    function(line_a, line_b) return M.trim_space(line_a) == M.trim_space(line_b) end
+  )
+  if #matches > 0 then return matches end
+
+  -- Try trim slashes match
+  matches = M.try_find_all_matches(
+    original_lines,
+    target_lines,
+    function(line_a, line_b) return line_a == M.trim_escapes(line_b) end
+  )
+  if #matches > 0 then return matches end
+
+  -- Try trim slashes and trim_space match
+  matches = M.try_find_all_matches(
+    original_lines,
+    target_lines,
+    function(line_a, line_b) return M.trim_space(line_a) == M.trim_space(M.trim_escapes(line_b)) end
+  )
+
+  return matches
 end
 
 function M.relative_path(absolute)
