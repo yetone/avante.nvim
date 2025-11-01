@@ -3,6 +3,7 @@ local Utils = require("avante.utils")
 
 ---@class avante.acp.ClientCapabilities
 ---@field fs avante.acp.FileSystemCapability
+---@field terminal boolean
 
 ---@class avante.acp.FileSystemCapability
 ---@field readTextFile boolean
@@ -87,15 +88,11 @@ local Utils = require("avante.utils")
 
 ---@alias ACPContent avante.acp.TextContent | avante.acp.ImageContent | avante.acp.AudioContent | avante.acp.ResourceLinkContent | avante.acp.ResourceContent
 
----@class avante.acp.ToolCall
----@field toolCallId string
----@field title string
----@field kind ACPToolKind
----@field status ACPToolCallStatus
----@field content ACPToolCallContent[]
----@field locations avante.acp.ToolCallLocation[]
----@field rawInput table
----@field rawOutput table
+---@class ACPRawInput
+---@field file_path string|nil
+---@field new_string string|nil
+---@field old_string string|nil
+---@field replace_all boolean|nil
 
 ---@class avante.acp.BaseToolCallContent
 ---@field type "content" | "diff"
@@ -107,7 +104,7 @@ local Utils = require("avante.utils")
 ---@class avante.acp.ToolCallDiffContent : avante.acp.BaseToolCallContent
 ---@field type "diff"
 ---@field path string
----@field oldText string|nil
+---@field oldText string
 ---@field newText string
 
 ---@alias ACPToolCallContent avante.acp.ToolCallRegularContent | avante.acp.ToolCallDiffContent
@@ -144,15 +141,15 @@ local Utils = require("avante.utils")
 ---@field sessionUpdate "agent_thought_chunk"
 ---@field content ACPContent
 
----@class avante.acp.ToolCallUpdate : avante.acp.BaseSessionUpdate
----@field sessionUpdate "tool_call" | "tool_call_update"
+---@class avante.acp.ToolCallUpdate
+---@field sessionUpdate "tool_call" | "tool_call_update" | nil
 ---@field toolCallId string
 ---@field title string|nil
 ---@field kind ACPToolKind|nil
 ---@field status ACPToolCallStatus|nil
 ---@field content ACPToolCallContent[]|nil
 ---@field locations avante.acp.ToolCallLocation[]|nil
----@field rawInput table|nil
+---@field rawInput ACPRawInput|nil
 ---@field rawOutput table|nil
 
 ---@class avante.acp.PlanUpdate : avante.acp.BaseSessionUpdate
@@ -167,6 +164,11 @@ local Utils = require("avante.utils")
 ---@field optionId string
 ---@field name string
 ---@field kind "allow_once" | "allow_always" | "reject_once" | "reject_always"
+
+---@class avante.acp.RequestPermission
+---@field options avante.acp.PermissionOption[]
+---@field sessionId string
+---@field toolCall { toolCallId: string, rawInput: ACPRawInput|nil }
 
 ---@class avante.acp.RequestPermissionOutcome
 ---@field outcome "cancelled" | "selected"
@@ -206,7 +208,7 @@ ACPClient.ERROR_CODES = {
 
 ---@class ACPHandlers
 ---@field on_session_update? fun(update: avante.acp.UserMessageChunk | avante.acp.AgentMessageChunk | avante.acp.AgentThoughtChunk | avante.acp.ToolCallUpdate | avante.acp.PlanUpdate | avante.acp.AvailableCommandsUpdate)
----@field on_request_permission? fun(tool_call: table, options: table[], callback: fun(option_id: string | nil)): nil
+---@field on_request_permission? fun(request: avante.acp.RequestPermission, callback: fun(option_id: string | nil)): nil
 ---@field on_read_file? fun(path: string, line: integer | nil, limit: integer | nil, callback: fun(content: string)): nil
 ---@field on_write_file? fun(path: string, content: string, callback: fun(error: string|nil)): nil
 ---@field on_error? fun(error: table)
@@ -240,6 +242,7 @@ function ACPClient:new(config)
         readTextFile = true,
         writeTextFile = true,
       },
+      terminal = false,
     },
     debug_log_file = debug_log_file,
     pending_responses = {},
@@ -625,19 +628,14 @@ end
 
 ---Handle permission request notification
 ---@param message_id number
----@param params table
-function ACPClient:_handle_request_permission(message_id, params)
-  local session_id = params.sessionId
-  local tool_call = params.toolCall
-  local options = params.options
-
-  if not session_id or not tool_call then return end
+---@param request avante.acp.RequestPermission
+function ACPClient:_handle_request_permission(message_id, request)
+  if not request.sessionId or not request.toolCall then return end
 
   if self.config.handlers and self.config.handlers.on_request_permission then
     vim.schedule(function()
       self.config.handlers.on_request_permission(
-        tool_call,
-        options,
+        request,
         function(option_id)
           self:_send_result(message_id, {
             outcome = {
