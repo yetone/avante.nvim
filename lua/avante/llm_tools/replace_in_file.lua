@@ -3,10 +3,7 @@ local Helpers = require("avante.llm_tools.helpers")
 local Utils = require("avante.utils")
 local Highlights = require("avante.highlights")
 local Config = require("avante.config")
-
-local PRIORITY = (vim.hl or vim.highlight).priorities.user
-local NAMESPACE = vim.api.nvim_create_namespace("avante-diff")
-local KEYBINDING_NAMESPACE = vim.api.nvim_create_namespace("avante-diff-keybinding")
+local DiffDisplay = require("avante.utils.diff_display")
 
 ---@class AvanteLLMTool
 local M = setmetatable({}, Base)
@@ -256,7 +253,7 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
         patch = vim.diff(old_string, new_string, { ---@type integer[][]
           algorithm = "histogram",
           result_type = "indices",
-          ctxlen = vim.o.scrolloff,
+          ctxlen = 0,
         })
       else
         patch = { { 1, #old_lines, 1, #new_lines } }
@@ -343,115 +340,34 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
     diff_blocks = new_diff_blocks
   end
 
-  local function get_current_diff_block()
-    local winid = Utils.get_winid(bufnr)
-    local cursor_line = Utils.get_cursor_pos(winid)
-    for idx, diff_block in ipairs(diff_blocks) do
-      if cursor_line >= diff_block.new_start_line and cursor_line <= diff_block.new_end_line then
-        return diff_block, idx
-      end
-    end
-    return nil, nil
-  end
-
-  local function get_prev_diff_block()
-    local winid = Utils.get_winid(bufnr)
-    local cursor_line = Utils.get_cursor_pos(winid)
-    local distance = nil
-    local idx = nil
-    for i, diff_block in ipairs(diff_blocks) do
-      if cursor_line >= diff_block.new_start_line and cursor_line <= diff_block.new_end_line then
-        local new_i = i - 1
-        if new_i < 1 then return diff_blocks[#diff_blocks] end
-        return diff_blocks[new_i]
-      end
-      if diff_block.new_start_line < cursor_line then
-        local distance_ = cursor_line - diff_block.new_start_line
-        if distance == nil or distance_ < distance then
-          distance = distance_
-          idx = i
-        end
-      end
-    end
-    if idx ~= nil then return diff_blocks[idx] end
-    if #diff_blocks > 0 then return diff_blocks[#diff_blocks] end
-    return nil
-  end
-
-  local function get_next_diff_block()
-    local winid = Utils.get_winid(bufnr)
-    local cursor_line = Utils.get_cursor_pos(winid)
-    local distance = nil
-    local idx = nil
-    for i, diff_block in ipairs(diff_blocks) do
-      if cursor_line >= diff_block.new_start_line and cursor_line <= diff_block.new_end_line then
-        local new_i = i + 1
-        if new_i > #diff_blocks then return diff_blocks[1] end
-        return diff_blocks[new_i]
-      end
-      if diff_block.new_start_line > cursor_line then
-        local distance_ = diff_block.new_start_line - cursor_line
-        if distance == nil or distance_ < distance then
-          distance = distance_
-          idx = i
-        end
-      end
-    end
-    if idx ~= nil then return diff_blocks[idx] end
-    if #diff_blocks > 0 then return diff_blocks[1] end
-    return nil
-  end
-
-  local show_keybinding_hint_extmark_id = nil
-  local augroup = vim.api.nvim_create_augroup("avante_replace_in_file", { clear = true })
-  local function register_cursor_move_events()
-    local function show_keybinding_hint(lnum)
-      if show_keybinding_hint_extmark_id then
-        vim.api.nvim_buf_del_extmark(bufnr, KEYBINDING_NAMESPACE, show_keybinding_hint_extmark_id)
-      end
-
-      local hint = string.format(
-        "[<%s>: OURS, <%s>: THEIRS, <%s>: PREV, <%s>: NEXT]",
-        Config.mappings.diff.ours,
-        Config.mappings.diff.theirs,
-        Config.mappings.diff.prev,
-        Config.mappings.diff.next
-      )
-
-      show_keybinding_hint_extmark_id = vim.api.nvim_buf_set_extmark(bufnr, KEYBINDING_NAMESPACE, lnum - 1, -1, {
-        hl_group = "AvanteInlineHint",
-        virt_text = { { hint, "AvanteInlineHint" } },
-        virt_text_pos = "right_align",
-        priority = PRIORITY,
-      })
-    end
-
-    vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI", "WinLeave" }, {
-      buffer = bufnr,
-      group = augroup,
-      callback = function(event)
-        local diff_block = get_current_diff_block()
-        if (event.event == "CursorMoved" or event.event == "CursorMovedI") and diff_block then
-          show_keybinding_hint(diff_block.new_start_line)
-        else
-          vim.api.nvim_buf_clear_namespace(bufnr, KEYBINDING_NAMESPACE, 0, -1)
-        end
-      end,
-    })
-  end
-
   local confirm
   local has_rejected = false
 
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    on_complete(false, "Buffer is no longer valid")
+    return
+  end
+
+  local diff_display = DiffDisplay.new({
+    bufnr = bufnr,
+    diff_blocks = diff_blocks,
+  })
+
   local function register_buf_write_events()
+    local write_augroup = vim.api.nvim_create_augroup("avante_replace_in_file_write", { clear = true })
     vim.api.nvim_create_autocmd({ "BufWritePost" }, {
       buffer = bufnr,
-      group = augroup,
+      group = write_augroup,
       callback = function()
+        if not vim.api.nvim_buf_is_valid(bufnr) then
+          pcall(vim.api.nvim_del_augroup_by_id, write_augroup)
+          return
+        end
         if #diff_blocks ~= 0 then return end
-        pcall(vim.api.nvim_del_augroup_by_id, augroup)
+        pcall(vim.api.nvim_del_augroup_by_id, write_augroup)
         if confirm then confirm:close() end
         if has_rejected then
+          diff_display:clear()
           on_complete(false, "User canceled")
           return
         end
@@ -461,140 +377,12 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
     })
   end
 
-  local function register_keybinding_events()
-    local keymap_opts = { buffer = bufnr }
-    vim.keymap.set({ "n", "v" }, Config.mappings.diff.ours, function()
-      if show_keybinding_hint_extmark_id then
-        vim.api.nvim_buf_del_extmark(bufnr, KEYBINDING_NAMESPACE, show_keybinding_hint_extmark_id)
-      end
-      local diff_block, idx = get_current_diff_block()
-      if not diff_block then return end
-      pcall(vim.api.nvim_buf_del_extmark, bufnr, NAMESPACE, diff_block.delete_extmark_id)
-      pcall(vim.api.nvim_buf_del_extmark, bufnr, NAMESPACE, diff_block.incoming_extmark_id)
-      vim.api.nvim_buf_set_lines(
-        bufnr,
-        diff_block.new_start_line - 1,
-        diff_block.new_end_line,
-        false,
-        diff_block.old_lines
-      )
-      diff_block.incoming_extmark_id = nil
-      diff_block.delete_extmark_id = nil
-      remove_diff_block(idx, false)
-      local next_diff_block = get_next_diff_block()
-      if next_diff_block then
-        local winnr = Utils.get_winid(bufnr)
-        vim.api.nvim_win_set_cursor(winnr, { next_diff_block.new_start_line, 0 })
-        vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
-      end
-      has_rejected = true
-    end, keymap_opts)
-
-    vim.keymap.set({ "n", "v" }, Config.mappings.diff.theirs, function()
-      if show_keybinding_hint_extmark_id then
-        vim.api.nvim_buf_del_extmark(bufnr, KEYBINDING_NAMESPACE, show_keybinding_hint_extmark_id)
-      end
-      local diff_block, idx = get_current_diff_block()
-      if not diff_block then return end
-      pcall(vim.api.nvim_buf_del_extmark, bufnr, NAMESPACE, diff_block.incoming_extmark_id)
-      pcall(vim.api.nvim_buf_del_extmark, bufnr, NAMESPACE, diff_block.delete_extmark_id)
-      diff_block.incoming_extmark_id = nil
-      diff_block.delete_extmark_id = nil
-      remove_diff_block(idx, true)
-      local next_diff_block = get_next_diff_block()
-      if next_diff_block then
-        local winnr = Utils.get_winid(bufnr)
-        vim.api.nvim_win_set_cursor(winnr, { next_diff_block.new_start_line, 0 })
-        vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
-      end
-    end, keymap_opts)
-
-    vim.keymap.set({ "n", "v" }, Config.mappings.diff.next, function()
-      if show_keybinding_hint_extmark_id then
-        vim.api.nvim_buf_del_extmark(bufnr, KEYBINDING_NAMESPACE, show_keybinding_hint_extmark_id)
-      end
-      local diff_block = get_next_diff_block()
-      if not diff_block then return end
-      local winnr = Utils.get_winid(bufnr)
-      vim.api.nvim_win_set_cursor(winnr, { diff_block.new_start_line, 0 })
-      vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
-    end, keymap_opts)
-
-    vim.keymap.set({ "n", "v" }, Config.mappings.diff.prev, function()
-      if show_keybinding_hint_extmark_id then
-        vim.api.nvim_buf_del_extmark(bufnr, KEYBINDING_NAMESPACE, show_keybinding_hint_extmark_id)
-      end
-      local diff_block = get_prev_diff_block()
-      if not diff_block then return end
-      local winnr = Utils.get_winid(bufnr)
-      vim.api.nvim_win_set_cursor(winnr, { diff_block.new_start_line, 0 })
-      vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
-    end, keymap_opts)
+  local function on_reject_diff_block(idx)
+    remove_diff_block(idx, false)
+    has_rejected = true
   end
 
-  local function unregister_keybinding_events()
-    pcall(vim.api.nvim_buf_del_keymap, bufnr, "n", Config.mappings.diff.ours)
-    pcall(vim.api.nvim_buf_del_keymap, bufnr, "n", Config.mappings.diff.theirs)
-    pcall(vim.api.nvim_buf_del_keymap, bufnr, "n", Config.mappings.diff.next)
-    pcall(vim.api.nvim_buf_del_keymap, bufnr, "n", Config.mappings.diff.prev)
-    pcall(vim.api.nvim_buf_del_keymap, bufnr, "v", Config.mappings.diff.ours)
-    pcall(vim.api.nvim_buf_del_keymap, bufnr, "v", Config.mappings.diff.theirs)
-    pcall(vim.api.nvim_buf_del_keymap, bufnr, "v", Config.mappings.diff.next)
-    pcall(vim.api.nvim_buf_del_keymap, bufnr, "v", Config.mappings.diff.prev)
-  end
-
-  local function clear()
-    if bufnr and not vim.api.nvim_buf_is_valid(bufnr) then return end
-    vim.api.nvim_buf_clear_namespace(bufnr, NAMESPACE, 0, -1)
-    vim.api.nvim_buf_clear_namespace(bufnr, KEYBINDING_NAMESPACE, 0, -1)
-    unregister_keybinding_events()
-    pcall(vim.api.nvim_del_augroup_by_id, augroup)
-  end
-
-  local function insert_diff_blocks_new_lines()
-    local base_line_ = 0
-    for _, diff_block in ipairs(diff_blocks) do
-      local start_line = diff_block.start_line + base_line_
-      local end_line = diff_block.end_line + base_line_
-      base_line_ = base_line_ + #diff_block.new_lines - #diff_block.old_lines
-      vim.api.nvim_buf_set_lines(bufnr, start_line - 1, end_line, false, diff_block.new_lines)
-    end
-  end
-
-  local function highlight_diff_blocks()
-    local line_count = vim.api.nvim_buf_line_count(bufnr)
-    vim.api.nvim_buf_clear_namespace(bufnr, NAMESPACE, 0, -1)
-    local base_line_ = 0
-    local max_col = vim.o.columns
-    for _, diff_block in ipairs(diff_blocks) do
-      local start_line = diff_block.start_line + base_line_
-      base_line_ = base_line_ + #diff_block.new_lines - #diff_block.old_lines
-      local deleted_virt_lines = vim
-        .iter(diff_block.old_lines)
-        :map(function(line)
-          --- append spaces to the end of the line
-          local line_ = line .. string.rep(" ", max_col - #line)
-          return { { line_, Highlights.TO_BE_DELETED_WITHOUT_STRIKETHROUGH } }
-        end)
-        :totable()
-      local end_row = start_line + #diff_block.new_lines - 1
-      local delete_extmark_id =
-        vim.api.nvim_buf_set_extmark(bufnr, NAMESPACE, math.min(math.max(end_row - 1, 0), line_count - 1), 0, {
-          virt_lines = deleted_virt_lines,
-          hl_eol = true,
-          hl_mode = "combine",
-        })
-      local incoming_extmark_id =
-        vim.api.nvim_buf_set_extmark(bufnr, NAMESPACE, math.min(math.max(start_line - 1, 0), line_count - 1), 0, {
-          hl_group = Highlights.INCOMING,
-          hl_eol = true,
-          hl_mode = "combine",
-          end_row = end_row,
-        })
-      diff_block.delete_extmark_id = delete_extmark_id
-      diff_block.incoming_extmark_id = incoming_extmark_id
-    end
-  end
+  local function on_accept_diff_block(idx) remove_diff_block(idx, true) end
 
   session_ctx.extmark_id_map = session_ctx.extmark_id_map or {}
   local extmark_id_map = session_ctx.extmark_id_map[opts.tool_use_id]
@@ -651,7 +439,7 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
       local new_lines = diff_block.new_lines
       local start_line = diff_block.start_line
       if #diff_block.old_lines > 0 then
-        vim.api.nvim_buf_set_extmark(bufnr, NAMESPACE, start_line - 1, 0, {
+        vim.api.nvim_buf_set_extmark(bufnr, DiffDisplay.NAMESPACE, start_line - 1, 0, {
           hl_group = Highlights.TO_BE_DELETED_WITHOUT_STRIKETHROUGH,
           hl_eol = true,
           hl_mode = "combine",
@@ -673,10 +461,9 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
       else
         extmark_line = math.max(0, start_line - 1 + #diff_block.old_lines)
       end
-      -- Utils.debug("extmark_line", extmark_line, "idx", idx, "start_line", diff_block.start_line, "old_lines", table.concat(diff_block.old_lines, "\n"))
       local old_extmark_id = extmark_id_map[start_line]
-      if old_extmark_id then vim.api.nvim_buf_del_extmark(bufnr, NAMESPACE, old_extmark_id) end
-      local extmark_id = vim.api.nvim_buf_set_extmark(bufnr, NAMESPACE, extmark_line, 0, {
+      if old_extmark_id then vim.api.nvim_buf_del_extmark(bufnr, DiffDisplay.NAMESPACE, old_extmark_id) end
+      local extmark_id = vim.api.nvim_buf_set_extmark(bufnr, DiffDisplay.NAMESPACE, extmark_line, 0, {
         virt_lines = virt_lines,
         hl_eol = true,
         hl_mode = "combine",
@@ -687,27 +474,22 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
   end
 
   if not is_streaming then
-    insert_diff_blocks_new_lines()
-    highlight_diff_blocks()
-    register_cursor_move_events()
-    register_keybinding_events()
+    diff_display:insert_new_lines()
+    diff_display:highlight()
+    diff_display:scroll_to_first_diff()
+    diff_display:register_cursor_move_events()
+    diff_display:register_navigation_keybindings()
+    diff_display:register_accept_reject_keybindings(on_accept_diff_block, on_reject_diff_block)
     register_buf_write_events()
   else
     highlight_streaming_diff_blocks()
-  end
-
-  if diff_blocks[1] then
-    if not vim.api.nvim_buf_is_valid(bufnr) then return false, "Code buffer is not valid" end
-    local line_count = vim.api.nvim_buf_line_count(bufnr)
-    local winnr = Utils.get_winid(bufnr)
-    if is_streaming then
-      -- In streaming mode, focus on the last diff block
+    -- In streaming mode, focus on the last diff block
+    if diff_blocks[1] then
+      if not vim.api.nvim_buf_is_valid(bufnr) then return false, "Code buffer is not valid" end
+      local line_count = vim.api.nvim_buf_line_count(bufnr)
+      local winnr = Utils.get_winid(bufnr)
       local last_diff_block = diff_blocks[#diff_blocks]
       vim.api.nvim_win_set_cursor(winnr, { math.min(last_diff_block.start_line, line_count), 0 })
-      vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
-    else
-      -- In normal mode, focus on the first diff block
-      vim.api.nvim_win_set_cursor(winnr, { math.min(diff_blocks[1].new_start_line, line_count), 0 })
       vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
     end
   end
@@ -720,8 +502,8 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
   pcall(vim.cmd.undojoin)
 
   confirm = Helpers.confirm("Are you sure you want to apply this modification?", function(ok, reason)
-    clear()
     if not ok then
+      diff_display:clear()
       vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, original_lines)
       on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
@@ -733,7 +515,15 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
       on_complete(false, "Code buffer is not valid")
       return
     end
-    vim.api.nvim_buf_call(bufnr, function() vim.cmd("noautocmd write!") end)
+
+    -- Write the file with current buffer state (new lines already inserted)
+    vim.api.nvim_buf_call(bufnr, function() vim.cmd("silent noautocmd write!") end)
+
+    -- Clear diff display after write
+    vim.schedule(function()
+      if diff_display then diff_display:clear() end
+    end)
+
     if session_ctx then Helpers.mark_as_not_viewed(input.path, session_ctx) end
     on_complete(true, nil)
   end, { focus = not Config.behaviour.auto_focus_on_diff_view }, session_ctx, M.name)

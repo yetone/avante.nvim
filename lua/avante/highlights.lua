@@ -75,6 +75,11 @@ Highlights.conflict = {
   INCOMING_LABEL = { name = "AvanteConflictIncomingLabel", shade_link = "AvanteConflictIncoming", shade = 30 },
 }
 
+Highlights.DIFF_INCOMING = { name = "AvanteDiffIncoming", bg = "#2d4a2c", bold = true } -- Green for additions
+Highlights.DIFF_INCOMING_WORD = { name = "AvanteDiffIncomingWord", bg = "#0d7a4d", bold = true } -- Much darker/brighter green for changed words
+Highlights.DIFF_DELETED = { name = "AvanteDiffDeleted", bg = "#562C30" } -- Red for deletions (virtual text)
+Highlights.DIFF_DELETED_WORD = { name = "AvanteDiffDeletedWord", bg = "#9a3c3c", bold = true } -- Darker/brighter red for deleted words
+
 --- helper
 local H = {}
 

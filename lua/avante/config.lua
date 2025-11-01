@@ -555,6 +555,10 @@ M._defaults = {
     --- Whether to automatically open files and navigate to lines when ACP agent makes edits
     ---@type boolean
     acp_follow_agent_locations = true,
+    --- Whether to show visual diff in buffer before confirmation for ACP providers
+    --- When false, ACP providers will show diff in sidebar instead
+    ---@type boolean
+    acp_show_diff_in_buffer = true,
   },
   prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
     enabled = true, -- toggle logging entirely
