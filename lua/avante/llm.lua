@@ -1030,22 +1030,21 @@ function M._stream_acp(opts)
 
         local state = original_state_by_file[path]
 
-        local ok_create, diff_display = pcall(DiffDisplay.new, {
+        local diff_display = DiffDisplay.new({
           bufnr = bufnr,
           diff_blocks = diff_blocks,
         })
 
-        if ok_create then
-          state.diff_display = diff_display
+        state.diff_display = diff_display
 
-          pcall(diff_display.insert_new_lines, diff_display)
-          pcall(diff_display.highlight, diff_display)
-          pcall(diff_display.register_navigation_keybindings, diff_display)
-          pcall(diff_display.register_cursor_move_events, diff_display)
+        diff_display:insert_new_lines()
+        diff_display:highlight()
+        diff_display:scroll_to_first_diff()
+        diff_display:register_navigation_keybindings()
+        diff_display:register_cursor_move_events()
 
-          local ok_tick_after, tick_after = pcall(function() return vim.b[bufnr].changedtick end)
-          if ok_tick_after then state.changedtick_after_diff = tick_after end
-        end
+        local ok_tick_after, tick_after = pcall(function() return vim.b[bufnr].changedtick end)
+        if ok_tick_after then state.changedtick_after_diff = tick_after end
 
         vim.bo[bufnr].modifiable = false
       end
@@ -1057,6 +1056,8 @@ function M._stream_acp(opts)
       local acp_mapped_options = ACPConfirmAdapter.map_acp_options(options)
 
       local all_restored = true
+
+      -- Don't save cursor position - we want to keep the current scroll position after accepting
 
       if has_diff and config_enabled then
         for path, state in pairs(original_state_by_file) do
@@ -1076,20 +1077,41 @@ function M._stream_acp(opts)
 
             vim.bo[state.bufnr].modifiable = true
 
-            -- Restore buffer to original state
-            local ok_restore = pcall(vim.api.nvim_buf_set_lines, state.bufnr, 0, -1, false, state.lines)
-            if not ok_restore then
-              Utils.error("Failed to restore buffer: " .. path)
-              all_restored = false
-            end
-
             if state.diff_display then
-              pcall(state.diff_display.clear, state.diff_display)
-              state.diff_display = nil
+              if not ok then
+                -- Clear immediately when rejecting
+                pcall(state.diff_display.clear, state.diff_display)
+                state.diff_display = nil
+              else
+                -- When accepting, defer clearing by a tiny amount to avoid flash
+                -- Store reference to clear after file write completes
+                vim.b[state.bufnr].avante_diff_display_to_clear = state.diff_display
+                state.diff_display = nil
+              end
             end
 
-            vim.bo[state.bufnr].modified = state.modified
+            if not ok then
+              -- Only restore buffer to original state when rejecting
+              local ok_restore = pcall(vim.api.nvim_buf_set_lines, state.bufnr, 0, -1, false, state.lines)
+              if not ok_restore then
+                Utils.error("Failed to restore buffer: " .. path)
+                all_restored = false
+              end
+              vim.bo[state.bufnr].modified = state.modified
+            else
+              -- When accepting, restore buffer to original SYNCHRONOUSLY so ACP writes to clean state
+              local ok_restore = pcall(vim.api.nvim_buf_set_lines, state.bufnr, 0, -1, false, state.lines)
+              if not ok_restore then
+                Utils.error("Failed to restore buffer: " .. path)
+                all_restored = false
+              end
+              -- Mark buffer so we know to skip the edit! reload after write
+              vim.b[state.bufnr].avante_accepted_diff = true
+            end
+
             vim.bo[state.bufnr].modifiable = state.modifiable
+
+            -- Keep the current cursor position (user's scroll position is preserved)
           end
         end
 
@@ -1213,73 +1235,7 @@ function M._stream_acp(opts)
             end
           end
 
-          if update.sessionUpdate == "tool_call" then
-            add_tool_call_message(update)
-
-            local sidebar = require("avante").get()
-
-            if
-              Config.behaviour.acp_follow_agent_locations
-              and sidebar
-              and not sidebar.is_in_full_view -- don't follow when in Zen mode
-              and update.kind == "edit" -- to avoid entering more than once
-              and update.locations
-              and #update.locations > 0
-            then
-              vim.schedule(function()
-                if not sidebar:is_open() then return end
-
-                -- Find a valid code window (non-sidebar window)
-                local code_winid = nil
-                if sidebar.code.winid and sidebar.code.winid ~= 0 and api.nvim_win_is_valid(sidebar.code.winid) then
-                  code_winid = sidebar.code.winid
-                else
-                  -- Find first non-sidebar window in the current tab
-                  local all_wins = api.nvim_tabpage_list_wins(0)
-                  for _, winid in ipairs(all_wins) do
-                    if api.nvim_win_is_valid(winid) and not sidebar:is_sidebar_winid(winid) then
-                      code_winid = winid
-                      break
-                    end
-                  end
-                end
-
-                if not code_winid then return end
-
-                local now = uv.now()
-                local last_auto_nav = vim.g.avante_last_auto_nav or 0
-                local grace_period = 2000
-
-                -- Check if user navigated manually recently
-                if now - last_auto_nav < grace_period then return end
-
-                -- Only follow first location to avoid rapid jumping
-                local location = update.locations[1]
-                if not location or not location.path then return end
-
-                local abs_path = Utils.join_paths(Utils.get_project_root(), location.path)
-                local bufnr = vim.fn.bufnr(abs_path, true)
-
-                if not bufnr or bufnr == -1 then return end
-
-                if not api.nvim_buf_is_loaded(bufnr) then pcall(vim.fn.bufload, bufnr) end
-
-                local ok = pcall(api.nvim_win_set_buf, code_winid, bufnr)
-                if not ok then return end
-
-                local line = location.line or 1
-                local line_count = api.nvim_buf_line_count(bufnr)
-                local target_line = math.min(line, line_count)
-
-                pcall(api.nvim_win_set_cursor, code_winid, { target_line, 0 })
-                pcall(api.nvim_win_call, code_winid, function()
-                  vim.cmd("normal! zz") -- Center line in viewport
-                end)
-
-                vim.g.avante_last_auto_nav = now
-              end)
-            end
-          end
+          if update.sessionUpdate == "tool_call" then add_tool_call_message(update) end
 
           if update.sessionUpdate == "tool_call_update" then
             local tool_call_message = tool_call_messages[update.toolCallId]
@@ -1500,7 +1456,89 @@ function M._stream_acp(opts)
             )
 
             for _, buf in ipairs(buffers) do
-              vim.api.nvim_buf_call(buf, function() vim.cmd("edit!") end)
+              -- Check if this buffer was just accepted (has diff applied)
+              if vim.b[buf].avante_accepted_diff then
+                vim.b[buf].avante_accepted_diff = nil -- Clear flag
+
+                -- Set buffer content to what ACP just wrote (content is the new file content)
+                -- This avoids edit! reload but ensures buffer matches disk
+                local new_lines = vim.split(content, "\n")
+                pcall(vim.api.nvim_buf_set_lines, buf, 0, -1, false, new_lines)
+                vim.bo[buf].modified = false
+
+                -- Clear diff display
+                local diff_display_to_clear = vim.b[buf].avante_diff_display_to_clear
+                vim.b[buf].avante_diff_display_to_clear = nil
+
+                -- FIXIT: here is where cleanup is needed
+                if diff_display_to_clear then
+                  -- Delete the autocommand group first to prevent hints from being re-added
+                  if diff_display_to_clear.augroup then
+                    pcall(vim.api.nvim_del_augroup_by_id, diff_display_to_clear.augroup)
+                  end
+                  -- Unregister keybindings
+                  if diff_display_to_clear.unregister_keybindings then
+                    if not diff_display_to_clear.bufnr then diff_display_to_clear.bufnr = buf end
+                    if diff_display_to_clear.bufnr == buf and vim.api.nvim_buf_is_valid(buf) then
+                      pcall(diff_display_to_clear.unregister_keybindings, diff_display_to_clear)
+                    end
+                  end
+                  -- Fallback: directly delete keymaps
+                  if Config.mappings and Config.mappings.diff then
+                    vim.keymap.del("n", Config.mappings.diff.next, { buffer = buf, silent = true })
+                    vim.keymap.del("v", Config.mappings.diff.next, { buffer = buf, silent = true })
+                    vim.keymap.del("n", Config.mappings.diff.prev, { buffer = buf, silent = true })
+                    vim.keymap.del("v", Config.mappings.diff.prev, { buffer = buf, silent = true })
+                    vim.keymap.del("n", Config.mappings.diff.ours, { buffer = buf, silent = true })
+                    vim.keymap.del("v", Config.mappings.diff.ours, { buffer = buf, silent = true })
+                    vim.keymap.del("n", Config.mappings.diff.theirs, { buffer = buf, silent = true })
+                    vim.keymap.del("v", Config.mappings.diff.theirs, { buffer = buf, silent = true })
+                  end
+                  -- Clear namespaces
+                  pcall(vim.api.nvim_buf_clear_namespace, buf, DiffDisplay.NAMESPACE, 0, -1)
+                  pcall(vim.api.nvim_buf_clear_namespace, buf, DiffDisplay.KEYBINDING_NAMESPACE, 0, -1)
+                end
+
+                goto continue
+              end
+
+              -- Check if buffer content matches what was written
+              local current_lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+              local current_content = table.concat(current_lines, "\n")
+              -- Normalize line endings for comparison
+              local written_content = content:gsub("\r\n", "\n"):gsub("\r", "\n")
+              current_content = current_content:gsub("\r\n", "\n"):gsub("\r", "\n")
+
+              -- If content matches, skip reload to avoid flash
+              if current_content == written_content then
+                -- Just mark buffer as not modified since content matches
+                vim.bo[buf].modified = false
+              else
+                -- Save cursor position before reloading buffer
+                local winnr = Utils.get_winid(buf)
+                local cursor_pos = nil
+                if winnr then
+                  local ok_cursor, pos = pcall(vim.api.nvim_win_get_cursor, winnr)
+                  if ok_cursor then cursor_pos = pos end
+                end
+
+                -- Reload buffer from disk
+                vim.api.nvim_buf_call(buf, function() vim.cmd("edit!") end)
+
+                -- Restore cursor position after reload
+                if winnr and cursor_pos then
+                  vim.schedule(function()
+                    if vim.api.nvim_win_is_valid(winnr) and vim.api.nvim_buf_is_valid(buf) then
+                      local line_count = vim.api.nvim_buf_line_count(buf)
+                      local target_line = math.min(cursor_pos[1], line_count)
+                      pcall(vim.api.nvim_win_set_cursor, winnr, { target_line, cursor_pos[2] })
+                      -- Center the view on the cursor position
+                      pcall(vim.api.nvim_win_call, winnr, function() vim.cmd("normal! zz") end)
+                    end
+                  end)
+                end
+              end
+              ::continue::
             end
 
             callback(nil)
@@ -1563,33 +1601,6 @@ function M._stream_acp(opts)
       table.insert(prompt, prompt_item)
     end
   end
-  local history_messages = opts.history_messages or {}
-
-  -- DEBUG: Log history message details
-  Utils.debug("ACP history messages count: " .. #history_messages)
-  for i, msg in ipairs(history_messages) do
-    if msg and msg.message then
-      Utils.debug(
-        "History msg "
-          .. i
-          .. ": role="
-          .. (msg.message.role or "unknown")
-          .. ", has_content="
-          .. tostring(msg.message.content ~= nil)
-      )
-      if msg.message.role == "assistant" then
-        Utils.debug("Found assistant message " .. i .. ": " .. tostring(msg.message.content):sub(1, 100))
-      end
-    end
-  end
-
-  -- DEBUG: Log session recovery state
-  Utils.debug(
-    "Session recovery state: _is_session_recovery="
-      .. tostring(rawget(opts, "_is_session_recovery"))
-      .. ", acp_session_id="
-      .. tostring(opts.acp_session_id)
-  )
 
   -- CRITICAL: Enhanced session recovery with full context preservation
   if rawget(opts, "_is_session_recovery") and opts.acp_session_id then
@@ -1614,13 +1625,6 @@ function M._stream_acp(opts)
     end
 
     Utils.info("ACP recovery: including " .. #recent_messages .. " recent messages")
-
-    -- DEBUG: Log what we're about to add to prompt
-    for i, msg in ipairs(recent_messages) do
-      if msg and msg.message then
-        Utils.debug("Adding to prompt: " .. i .. " role=" .. (msg.message.role or "unknown"))
-      end
-    end
 
     -- CRITICAL: Add all recent messages to prompt for complete context
     for _, message in ipairs(recent_messages) do

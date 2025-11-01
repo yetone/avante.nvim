@@ -461,7 +461,6 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
       else
         extmark_line = math.max(0, start_line - 1 + #diff_block.old_lines)
       end
-      -- Utils.debug("extmark_line", extmark_line, "idx", idx, "start_line", diff_block.start_line, "old_lines", table.concat(diff_block.old_lines, "\n"))
       local old_extmark_id = extmark_id_map[start_line]
       if old_extmark_id then vim.api.nvim_buf_del_extmark(bufnr, DiffDisplay.NAMESPACE, old_extmark_id) end
       local extmark_id = vim.api.nvim_buf_set_extmark(bufnr, DiffDisplay.NAMESPACE, extmark_line, 0, {
@@ -477,26 +476,20 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
   if not is_streaming then
     diff_display:insert_new_lines()
     diff_display:highlight()
+    diff_display:scroll_to_first_diff()
     diff_display:register_cursor_move_events()
     diff_display:register_navigation_keybindings()
     diff_display:register_accept_reject_keybindings(on_accept_diff_block, on_reject_diff_block)
     register_buf_write_events()
   else
     highlight_streaming_diff_blocks()
-  end
-
-  if diff_blocks[1] then
-    if not vim.api.nvim_buf_is_valid(bufnr) then return false, "Code buffer is not valid" end
-    local line_count = vim.api.nvim_buf_line_count(bufnr)
-    local winnr = Utils.get_winid(bufnr)
-    if is_streaming then
-      -- In streaming mode, focus on the last diff block
+    -- In streaming mode, focus on the last diff block
+    if diff_blocks[1] then
+      if not vim.api.nvim_buf_is_valid(bufnr) then return false, "Code buffer is not valid" end
+      local line_count = vim.api.nvim_buf_line_count(bufnr)
+      local winnr = Utils.get_winid(bufnr)
       local last_diff_block = diff_blocks[#diff_blocks]
       vim.api.nvim_win_set_cursor(winnr, { math.min(last_diff_block.start_line, line_count), 0 })
-      vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
-    else
-      -- In normal mode, focus on the first diff block
-      vim.api.nvim_win_set_cursor(winnr, { math.min(diff_blocks[1].new_start_line, line_count), 0 })
       vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
     end
   end
@@ -509,8 +502,8 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
   pcall(vim.cmd.undojoin)
 
   confirm = Helpers.confirm("Are you sure you want to apply this modification?", function(ok, reason)
-    diff_display:clear()
     if not ok then
+      diff_display:clear()
       vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, original_lines)
       on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
@@ -522,7 +515,15 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
       on_complete(false, "Code buffer is not valid")
       return
     end
-    vim.api.nvim_buf_call(bufnr, function() vim.cmd("noautocmd write!") end)
+
+    -- Write the file with current buffer state (new lines already inserted)
+    vim.api.nvim_buf_call(bufnr, function() vim.cmd("silent noautocmd write!") end)
+
+    -- Clear diff display after write
+    vim.schedule(function()
+      if diff_display then diff_display:clear() end
+    end)
+
     if session_ctx then Helpers.mark_as_not_viewed(input.path, session_ctx) end
     on_complete(true, nil)
   end, { focus = not Config.behaviour.auto_focus_on_diff_view }, session_ctx, M.name)

@@ -174,6 +174,80 @@ function DiffDisplayInstance:insert_new_lines()
   end
 end
 
+---@param on_complete? function Optional callback to run after scroll completes
+function DiffDisplayInstance:scroll_to_first_diff(on_complete)
+  if not self.bufnr or not vim.api.nvim_buf_is_valid(self.bufnr) then return end
+  if #self.diff_blocks == 0 then return end
+
+  local first_diff = self.diff_blocks[1]
+  local bufnr = self.bufnr
+
+  -- Schedule the scroll to happen after the UI settles and confirmation dialog is shown
+  vim.schedule(function()
+    if not vim.api.nvim_buf_is_valid(bufnr) then return end
+
+    local winnr = Utils.get_winid(bufnr)
+
+    -- If buffer is not visible in any window, open it in a suitable window
+    if not winnr then
+      local sidebar = require("avante").get()
+      local target_winid = nil
+
+      -- Try to find a code window (non-sidebar window)
+      if
+        sidebar
+        and sidebar.code.winid
+        and sidebar.code.winid ~= 0
+        and vim.api.nvim_win_is_valid(sidebar.code.winid)
+      then
+        target_winid = sidebar.code.winid
+      else
+        -- Find first non-sidebar window in the current tab
+        local all_wins = vim.api.nvim_tabpage_list_wins(0)
+        for _, winid in ipairs(all_wins) do
+          if vim.api.nvim_win_is_valid(winid) and (not sidebar or not sidebar:is_sidebar_winid(winid)) then
+            target_winid = winid
+            break
+          end
+        end
+      end
+
+      -- If we found a suitable window, open the buffer in it
+      if target_winid then
+        pcall(vim.api.nvim_win_set_buf, target_winid, bufnr)
+        winnr = target_winid
+      else
+        return
+      end
+    end
+
+    if not winnr then return end
+
+    local line_count = vim.api.nvim_buf_line_count(bufnr)
+    local target_line = math.min(first_diff.new_start_line, line_count)
+    local current_win = vim.api.nvim_get_current_win()
+
+    -- Respect auto_focus_on_diff_view config when deciding whether to switch windows
+    local should_switch_window = Config.behaviour.auto_focus_on_diff_view and winnr ~= current_win
+
+    if should_switch_window then pcall(vim.api.nvim_set_current_win, winnr) end
+
+    pcall(vim.api.nvim_win_set_cursor, winnr, { target_line, 0 })
+    pcall(vim.api.nvim_win_call, winnr, function() vim.cmd("normal! zz") end)
+
+    -- If auto_focus_on_diff_view is true, stay in the code window
+    -- Otherwise, return to the original window
+    if should_switch_window and not Config.behaviour.auto_focus_on_diff_view then
+      vim.schedule(function()
+        if vim.api.nvim_win_is_valid(current_win) then pcall(vim.api.nvim_set_current_win, current_win) end
+      end)
+    end
+
+    -- Call completion callback if provided
+    if on_complete and type(on_complete) == "function" then vim.schedule(function() pcall(on_complete) end) end
+  end)
+end
+
 function DiffDisplayInstance:highlight()
   if not self.bufnr or not vim.api.nvim_buf_is_valid(self.bufnr) then return end
 
@@ -228,10 +302,11 @@ function DiffDisplayInstance:highlight()
       vim.api.nvim_buf_set_extmark,
       self.bufnr,
       M.NAMESPACE,
-      math.min(math.max(end_row - 1, 0), line_count - 1),
+      math.min(math.max(start_line - 1, 0), line_count - 1),
       0,
       {
         virt_lines = deleted_virt_lines,
+        virt_lines_above = true,
         hl_eol = true,
         hl_mode = "combine",
       }
@@ -259,9 +334,7 @@ function DiffDisplayInstance:highlight()
       for i, new_line in ipairs(diff_block.new_lines) do
         local old_line = diff_block.old_lines[i]
         local ok_change, change = pcall(find_inline_change, old_line, new_line)
-        if not ok_change then
-          Utils.debug("find_inline_change failed:", { old_line = old_line, new_line = new_line, error = change })
-        else
+        if ok_change then
           local line_nr = start_line - 1 + (i - 1)
 
           if change and change.new_end > change.new_start then
@@ -412,13 +485,7 @@ function DiffDisplayInstance:register_cursor_move_events()
       self.show_keybinding_hint_extmark_id = nil
     end
 
-    local hint = string.format(
-      "[<%s>: OURS, <%s>: THEIRS, <%s>: PREV, <%s>: NEXT]",
-      Config.mappings.diff.ours,
-      Config.mappings.diff.theirs,
-      Config.mappings.diff.prev,
-      Config.mappings.diff.next
-    )
+    local hint = string.format("[<%s>: PREV, <%s>: NEXT]", Config.mappings.diff.prev, Config.mappings.diff.next)
 
     self.show_keybinding_hint_extmark_id =
       vim.api.nvim_buf_set_extmark(self.bufnr, M.KEYBINDING_NAMESPACE, lnum - 1, -1, {
@@ -447,16 +514,17 @@ end
 function DiffDisplayInstance:unregister_keybindings()
   if not self.bufnr or not vim.api.nvim_buf_is_valid(self.bufnr) then return end
 
-  pcall(vim.api.nvim_buf_del_keymap, self.bufnr, "n", Config.mappings.diff.ours)
-  pcall(vim.api.nvim_buf_del_keymap, self.bufnr, "n", Config.mappings.diff.theirs)
-  pcall(vim.api.nvim_buf_del_keymap, self.bufnr, "n", Config.mappings.diff.next)
-  pcall(vim.api.nvim_buf_del_keymap, self.bufnr, "n", Config.mappings.diff.prev)
-  pcall(vim.api.nvim_buf_del_keymap, self.bufnr, "v", Config.mappings.diff.ours)
-  pcall(vim.api.nvim_buf_del_keymap, self.bufnr, "v", Config.mappings.diff.theirs)
-  pcall(vim.api.nvim_buf_del_keymap, self.bufnr, "v", Config.mappings.diff.next)
-  pcall(vim.api.nvim_buf_del_keymap, self.bufnr, "v", Config.mappings.diff.prev)
+  vim.keymap.del("n", Config.mappings.diff.next, { buffer = buf, silent = true })
+  vim.keymap.del("v", Config.mappings.diff.next, { buffer = buf, silent = true })
+  vim.keymap.del("n", Config.mappings.diff.prev, { buffer = buf, silent = true })
+  vim.keymap.del("v", Config.mappings.diff.prev, { buffer = buf, silent = true })
+  vim.keymap.del("n", Config.mappings.diff.ours, { buffer = buf, silent = true })
+  vim.keymap.del("v", Config.mappings.diff.ours, { buffer = buf, silent = true })
+  vim.keymap.del("n", Config.mappings.diff.theirs, { buffer = buf, silent = true })
+  vim.keymap.del("v", Config.mappings.diff.theirs, { buffer = buf, silent = true })
 end
 
+-- FIXIT: it doesn't seem to the called from the llm.lua, AI propably mixed replace_in_file with diff_display
 function DiffDisplayInstance:clear()
   if self.bufnr and not vim.api.nvim_buf_is_valid(self.bufnr) then
     pcall(vim.api.nvim_del_augroup_by_id, self.augroup)
@@ -466,9 +534,8 @@ function DiffDisplayInstance:clear()
   self:unregister_keybindings()
 
   pcall(vim.api.nvim_del_augroup_by_id, self.augroup)
-
-  vim.api.nvim_buf_clear_namespace(self.bufnr, M.NAMESPACE, 0, -1)
-  vim.api.nvim_buf_clear_namespace(self.bufnr, M.KEYBINDING_NAMESPACE, 0, -1)
+  pcall(vim.api.nvim_buf_clear_namespace, self.bufnr, M.NAMESPACE, 0, -1)
+  pcall(vim.api.nvim_buf_clear_namespace, self.bufnr, M.KEYBINDING_NAMESPACE, 0, -1)
 
   -- Clear extmark IDs from diff_blocks to help GC
   for _, block in ipairs(self.diff_blocks or {}) do
