@@ -353,15 +353,11 @@ function P._find_substring_replacements(file_lines, search_text, replace_text, r
         -- Replace all occurrences in this line
         -- Use function replacement to avoid pattern interpretation of replace_text
         -- This ensures literal replacement (e.g., "result%1" stays as "result%1", not backreference)
-        modified_line = line_content:gsub(escaped_search, function()
-          return replace_text
-        end)
+        modified_line = line_content:gsub(escaped_search, function() return replace_text end)
       else
         -- Replace first occurrence only
         -- Use function replacement to ensure literal text (no pattern interpretation)
-        modified_line = line_content:gsub(escaped_search, function()
-          return replace_text
-        end, 1)
+        modified_line = line_content:gsub(escaped_search, function() return replace_text end, 1)
       end
 
       table.insert(diff_blocks, {

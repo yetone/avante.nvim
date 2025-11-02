@@ -6,12 +6,14 @@ local M = {}
 
 -- Simple single-line edit (most common case)
 M.simple_single_line_edit = {
-  content = { {
-    type = "diff",
-    path = "/project/README.md",
-    oldText = "# Platform Frontend",
-    newText = "# Platform Front-end",
-  } },
+  content = {
+    {
+      type = "diff",
+      path = "/project/README.md",
+      oldText = "# Platform Frontend",
+      newText = "# Platform Front-end",
+    },
+  },
   rawInput = {
     file_path = "/project/README.md",
     old_string = "# Platform Frontend",
@@ -26,12 +28,14 @@ M.simple_single_line_edit = {
 
 -- Replace all occurrences (replace_all = true)
 M.replace_all_occurrences = {
-  content = { {
-    type = "diff",
-    path = "/project/app.lua",
-    oldText = "config",
-    newText = "configuration",
-  } },
+  content = {
+    {
+      type = "diff",
+      path = "/project/app.lua",
+      oldText = "config",
+      newText = "configuration",
+    },
+  },
   rawInput = {
     file_path = "/project/app.lua",
     old_string = "config",
@@ -98,12 +102,14 @@ M.multiple_edits_same_file = {
 
 -- New file creation (oldText is empty or nil)
 M.new_file_creation_empty_string = {
-  content = { {
-    type = "diff",
-    path = "/project/new_module.lua",
-    oldText = "",
-    newText = "local M = {}\n\nfunction M.init()\n  return true\nend\n\nreturn M",
-  } },
+  content = {
+    {
+      type = "diff",
+      path = "/project/new_module.lua",
+      oldText = "",
+      newText = "local M = {}\n\nfunction M.init()\n  return true\nend\n\nreturn M",
+    },
+  },
   rawInput = {
     file_path = "/project/new_module.lua",
     old_string = "",
@@ -118,12 +124,14 @@ M.new_file_creation_empty_string = {
 
 -- New file creation with vim.NIL
 M.new_file_creation_vim_nil = {
-  content = { {
-    type = "diff",
-    path = "/project/another_module.lua",
-    oldText = vim.NIL,
-    newText = "-- New file\nreturn {}",
-  } },
+  content = {
+    {
+      type = "diff",
+      path = "/project/another_module.lua",
+      oldText = vim.NIL,
+      newText = "-- New file\nreturn {}",
+    },
+  },
   rawInput = {
     file_path = "/project/another_module.lua",
     old_string = vim.NIL,
@@ -138,12 +146,14 @@ M.new_file_creation_vim_nil = {
 
 -- Multi-line replacement
 M.multiline_function_edit = {
-  content = { {
-    type = "diff",
-    path = "/project/utils.lua",
-    oldText = "function process(data)\n  return data\nend",
-    newText = "function process(data)\n  -- Add validation\n  if not data then return nil end\n  return data\nend",
-  } },
+  content = {
+    {
+      type = "diff",
+      path = "/project/utils.lua",
+      oldText = "function process(data)\n  return data\nend",
+      newText = "function process(data)\n  -- Add validation\n  if not data then return nil end\n  return data\nend",
+    },
+  },
   rawInput = {
     file_path = "/project/utils.lua",
     old_string = "function process(data)\n  return data\nend",
@@ -196,12 +206,14 @@ M.only_raw_input = {
 
 -- Edge case: Single-line file edit
 M.single_line_file_edit = {
-  content = { {
-    type = "diff",
-    path = "/project/.gitignore",
-    oldText = "node_modules",
-    newText = "node_modules\n.env",
-  } },
+  content = {
+    {
+      type = "diff",
+      path = "/project/.gitignore",
+      oldText = "node_modules",
+      newText = "node_modules\n.env",
+    },
+  },
   rawInput = {
     file_path = "/project/.gitignore",
     old_string = "node_modules",
@@ -213,12 +225,14 @@ M.single_line_file_edit = {
 
 -- Edge case: Deletion (new_string is empty)
 M.delete_lines = {
-  content = { {
-    type = "diff",
-    path = "/project/temp.lua",
-    oldText = "-- TODO: Remove this\nlocal unused = 1",
-    newText = "",
-  } },
+  content = {
+    {
+      type = "diff",
+      path = "/project/temp.lua",
+      oldText = "-- TODO: Remove this\nlocal unused = 1",
+      newText = "",
+    },
+  },
   rawInput = {
     file_path = "/project/temp.lua",
     old_string = "-- TODO: Remove this\nlocal unused = 1",

@@ -11,9 +11,7 @@ describe("acp_diff_handler", function()
 
   before_each(function()
     -- Initialize Config.behaviour if it doesn't exist
-    if not Config.behaviour then
-      Config.behaviour = {}
-    end
+    if not Config.behaviour then Config.behaviour = {} end
 
     -- Store original config value
     original_behaviour = vim.deepcopy(Config.behaviour)
@@ -24,9 +22,7 @@ describe("acp_diff_handler", function()
 
   after_each(function()
     -- Restore original config
-    if original_behaviour then
-      Config.behaviour = original_behaviour
-    end
+    if original_behaviour then Config.behaviour = original_behaviour end
   end)
 
   describe("has_diff_content", function()
@@ -79,29 +75,19 @@ describe("acp_diff_handler", function()
     end)
 
     after_each(function()
-      if path_stub then
-        path_stub:revert()
-      end
-      if read_stub then
-        read_stub:revert()
-      end
-      if fuzzy_stub then
-        fuzzy_stub:revert()
-      end
+      if path_stub then path_stub:revert() end
+      if read_stub then read_stub:revert() end
+      if fuzzy_stub then fuzzy_stub:revert() end
     end)
 
     describe("simple single-line edits", function()
       before_each(function()
-        read_stub = stub(Utils, "read_file_from_buf_or_disk", function()
-          return sample_files.readme_simple, nil
-        end)
+        read_stub = stub(Utils, "read_file_from_buf_or_disk", function() return sample_files.readme_simple, nil end)
         fuzzy_stub = stub(Utils, "fuzzy_match", function(file_lines, search_lines)
           -- Find exact match
           local search_str = search_lines[1]
           for i, line in ipairs(file_lines) do
-            if line == search_str then
-              return i, i + #search_lines - 1
-            end
+            if line == search_str then return i, i + #search_lines - 1 end
           end
           return nil, nil
         end)
@@ -125,9 +111,7 @@ describe("acp_diff_handler", function()
 
     describe("replace_all behavior", function()
       before_each(function()
-        read_stub = stub(Utils, "read_file_from_buf_or_disk", function()
-          return sample_files.app_with_config, nil
-        end)
+        read_stub = stub(Utils, "read_file_from_buf_or_disk", function() return sample_files.app_with_config, nil end)
         fuzzy_stub = stub(Utils, "fuzzy_match", function()
           return nil, nil -- Force fallback to substring search
         end)
@@ -138,9 +122,7 @@ describe("acp_diff_handler", function()
           local matches = {}
           local search_str = search_lines[1]
           for i, line in ipairs(file_lines) do
-            if line:find(search_str, 1, true) then
-              table.insert(matches, { start_line = i, end_line = i })
-            end
+            if line:find(search_str, 1, true) then table.insert(matches, { start_line = i, end_line = i }) end
           end
           return matches
         end)
@@ -158,9 +140,11 @@ describe("acp_diff_handler", function()
         read_stub:revert()
         fuzzy_stub:revert()
 
-        read_stub = stub(Utils, "read_file_from_buf_or_disk", function()
-          return sample_files.file_with_duplicates, nil
-        end)
+        read_stub = stub(
+          Utils,
+          "read_file_from_buf_or_disk",
+          function() return sample_files.file_with_duplicates, nil end
+        )
         fuzzy_stub = stub(Utils, "fuzzy_match", function()
           return nil, nil -- Force substring replacement
         end)
@@ -184,9 +168,11 @@ describe("acp_diff_handler", function()
 
     describe("CRITICAL BUG: special characters in replacement", function()
       before_each(function()
-        read_stub = stub(Utils, "read_file_from_buf_or_disk", function()
-          return sample_files.lib_with_variable, nil
-        end)
+        read_stub = stub(
+          Utils,
+          "read_file_from_buf_or_disk",
+          function() return sample_files.lib_with_variable, nil end
+        )
         fuzzy_stub = stub(Utils, "fuzzy_match", function()
           return nil, nil -- Force substring replacement path
         end)
@@ -218,9 +204,7 @@ describe("acp_diff_handler", function()
         read_stub:revert()
         fuzzy_stub:revert()
 
-        read_stub = stub(Utils, "read_file_from_buf_or_disk", function()
-          return sample_files.paths_file, nil
-        end)
+        read_stub = stub(Utils, "read_file_from_buf_or_disk", function() return sample_files.paths_file, nil end)
         fuzzy_stub = stub(Utils, "fuzzy_match", function()
           return nil, nil -- Force substring replacement
         end)
@@ -239,9 +223,11 @@ describe("acp_diff_handler", function()
 
     describe("multiple content items for same file", function()
       before_each(function()
-        read_stub = stub(Utils, "read_file_from_buf_or_disk", function()
-          return sample_files.config_with_foo_baz, nil
-        end)
+        read_stub = stub(
+          Utils,
+          "read_file_from_buf_or_disk",
+          function() return sample_files.config_with_foo_baz, nil end
+        )
         fuzzy_stub = stub(Utils, "fuzzy_match", function()
           return nil, nil -- Force substring replacement
         end)
@@ -265,9 +251,7 @@ describe("acp_diff_handler", function()
         read_stub = stub(Utils, "read_file_from_buf_or_disk", function()
           return {}, nil -- Empty file
         end)
-        fuzzy_stub = stub(Utils, "fuzzy_match", function()
-          return nil, nil
-        end)
+        fuzzy_stub = stub(Utils, "fuzzy_match", function() return nil, nil end)
       end)
 
       it("should handle new file with empty string oldText", function()
@@ -298,9 +282,11 @@ describe("acp_diff_handler", function()
 
     describe("multi-line replacements", function()
       before_each(function()
-        read_stub = stub(Utils, "read_file_from_buf_or_disk", function()
-          return sample_files.utils_with_function, nil
-        end)
+        read_stub = stub(
+          Utils,
+          "read_file_from_buf_or_disk",
+          function() return sample_files.utils_with_function, nil end
+        )
         fuzzy_stub = stub(Utils, "fuzzy_match", function(file_lines, search_lines)
           -- Find the function across multiple lines
           if #search_lines == 3 and search_lines[1]:match("^function process") then
@@ -325,15 +311,15 @@ describe("acp_diff_handler", function()
 
     describe("cumulative offset calculation", function()
       before_each(function()
-        read_stub = stub(Utils, "read_file_from_buf_or_disk", function()
-          return sample_files.main_file_for_offset, nil
-        end)
+        read_stub = stub(
+          Utils,
+          "read_file_from_buf_or_disk",
+          function() return sample_files.main_file_for_offset, nil end
+        )
         fuzzy_stub = stub(Utils, "fuzzy_match", function(file_lines, search_lines)
           local search_str = search_lines[1]
           for i, line in ipairs(file_lines) do
-            if line == search_str then
-              return i, i + #search_lines - 1
-            end
+            if line == search_str then return i, i + #search_lines - 1 end
           end
           return nil, nil
         end)
@@ -359,20 +345,18 @@ describe("acp_diff_handler", function()
 
     describe("edge cases", function()
       it("should handle empty file", function()
-        read_stub = stub(Utils, "read_file_from_buf_or_disk", function()
-          return {}, nil
-        end)
-        fuzzy_stub = stub(Utils, "fuzzy_match", function()
-          return nil, nil
-        end)
+        read_stub = stub(Utils, "read_file_from_buf_or_disk", function() return {}, nil end)
+        fuzzy_stub = stub(Utils, "fuzzy_match", function() return nil, nil end)
 
         local tool_call = {
-          content = { {
-            type = "diff",
-            path = "/project/empty.lua",
-            oldText = "",
-            newText = "content",
-          } },
+          content = {
+            {
+              type = "diff",
+              path = "/project/empty.lua",
+              oldText = "",
+              newText = "content",
+            },
+          },
         }
 
         local result = M.extract_diff_blocks(tool_call)
@@ -380,22 +364,14 @@ describe("acp_diff_handler", function()
       end)
 
       it("should handle only rawInput present (no content array)", function()
-        if read_stub then
-          read_stub:revert()
-        end
-        if fuzzy_stub then
-          fuzzy_stub:revert()
-        end
+        if read_stub then read_stub:revert() end
+        if fuzzy_stub then fuzzy_stub:revert() end
 
-        read_stub = stub(Utils, "read_file_from_buf_or_disk", function()
-          return sample_files.settings_file, nil
-        end)
+        read_stub = stub(Utils, "read_file_from_buf_or_disk", function() return sample_files.settings_file, nil end)
         fuzzy_stub = stub(Utils, "fuzzy_match", function(file_lines, search_lines)
           -- Find "debug = false" in settings file
           for i, line in ipairs(file_lines) do
-            if line:find(search_lines[1], 1, true) then
-              return i, i
-            end
+            if line:find(search_lines[1], 1, true) then return i, i end
           end
           return nil, nil
         end)
@@ -407,14 +383,14 @@ describe("acp_diff_handler", function()
       end)
 
       it("should handle deletion (newText is empty)", function()
-        read_stub = stub(Utils, "read_file_from_buf_or_disk", function()
-          return sample_files.temp_file_with_todo, nil
-        end)
+        read_stub = stub(
+          Utils,
+          "read_file_from_buf_or_disk",
+          function() return sample_files.temp_file_with_todo, nil end
+        )
         fuzzy_stub = stub(Utils, "fuzzy_match", function(file_lines, search_lines)
           -- Find lines 3-4
-          if #search_lines == 2 and search_lines[1]:match("TODO") then
-            return 3, 4
-          end
+          if #search_lines == 2 and search_lines[1]:match("TODO") then return 3, 4 end
           return nil, nil
         end)
 
@@ -431,20 +407,20 @@ describe("acp_diff_handler", function()
       end)
 
       it("should return empty table when no diff found", function()
-        read_stub = stub(Utils, "read_file_from_buf_or_disk", function()
-          return { "unrelated content" }, nil
-        end)
+        read_stub = stub(Utils, "read_file_from_buf_or_disk", function() return { "unrelated content" }, nil end)
         fuzzy_stub = stub(Utils, "fuzzy_match", function()
           return nil, nil -- No match
         end)
 
         local tool_call = {
-          content = { {
-            type = "diff",
-            path = "/project/file.lua",
-            oldText = "nonexistent",
-            newText = "replacement",
-          } },
+          content = {
+            {
+              type = "diff",
+              path = "/project/file.lua",
+              oldText = "nonexistent",
+              newText = "replacement",
+            },
+          },
         }
 
         local result = M.extract_diff_blocks(tool_call)
@@ -462,20 +438,24 @@ describe("acp_diff_handler", function()
     it("should apply minimize_diff when config enabled", function()
       Config.behaviour.minimize_diff = true
 
-      local read_stub = stub(Utils, "read_file_from_buf_or_disk", function()
-        return sample_files.file_for_minimize_diff, nil
-      end)
+      local read_stub = stub(
+        Utils,
+        "read_file_from_buf_or_disk",
+        function() return sample_files.file_for_minimize_diff, nil end
+      )
       local fuzzy_stub = stub(Utils, "fuzzy_match", function()
         return 1, 5 -- Match all 5 lines
       end)
 
       local tool_call = {
-        content = { {
-          type = "diff",
-          path = "/project/test.lua",
-          oldText = table.concat(sample_files.file_for_minimize_diff, "\n"),
-          newText = "CHANGED\nline 2 - keep me\nCHANGED\nline 4 - keep me\nCHANGED",
-        } },
+        content = {
+          {
+            type = "diff",
+            path = "/project/test.lua",
+            oldText = table.concat(sample_files.file_for_minimize_diff, "\n"),
+            newText = "CHANGED\nline 2 - keep me\nCHANGED\nline 4 - keep me\nCHANGED",
+          },
+        },
       }
 
       local result = M.extract_diff_blocks(tool_call)
