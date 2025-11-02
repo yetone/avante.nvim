@@ -1237,8 +1237,9 @@ function M._stream_acp(opts)
 
             for _, buf in ipairs(buffers) do
               vim.api.nvim_buf_call(buf, function()
-                --FIXIT: check if the buffer is modified before, or it throws error, also check if is necesssary to call "edit"
-                vim.cmd("edit")
+                local view = vim.fn.winsaveview()
+                vim.cmd("checktime")
+                vim.fn.winrestview(view)
               end)
             end
             callback(nil)
