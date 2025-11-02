@@ -352,6 +352,7 @@ function M.get_tool_display_name(message)
       if type(item.input.filepath) == "string" then path = item.input.filepath end
       if type(item.input.file_path) == "string" then path = item.input.file_path end
       if type(item.input.query) == "string" then param = item.input.query end
+      if type(item.input.url) == "string" then param = item.input.url end
       if type(item.input.pattern) == "string" then param = item.input.pattern end
       if type(item.input.command) == "string" then
         param = item.input.command

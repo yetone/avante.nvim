@@ -95,6 +95,8 @@ local Utils = require("avante.utils")
 ---@field replace_all? boolean
 ---@field description? string
 ---@field command? string
+---@field url? string Usually from the fetch tool
+---@field query? string Usually from the web_search tool
 ---@field timeout? number
 
 ---@class avante.acp.BaseToolCallContent
