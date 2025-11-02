@@ -378,8 +378,6 @@ end
 ---Check if a table is empty (has no keys)
 ---@param tbl table
 ---@return boolean
-function P._is_table_empty(tbl)
-  return next(tbl) == nil
-end
+function P._is_table_empty(tbl) return next(tbl) == nil end
 
 return M
