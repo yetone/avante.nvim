@@ -298,19 +298,19 @@ function DiffDisplayInstance:highlight()
       end
     end
 
-    local ok_delete, delete_extmark_id = pcall(
-      vim.api.nvim_buf_set_extmark,
-      self.bufnr,
-      M.NAMESPACE,
-      math.min(math.max(start_line - 1, 0), line_count - 1),
-      0,
-      {
+    -- Edge case: If start_line is 1, we cannot place virtual lines above, as it's out of bounds
+    -- Determine if virtual lines should be shown above or below
+    -- If the diff is on the first line (start_line - 1 == 0), show below instead
+    local extmark_line = math.min(math.max(start_line - 1, 0), line_count - 1)
+    local virt_lines_above = extmark_line > 0
+
+    local ok_delete, delete_extmark_id =
+      pcall(vim.api.nvim_buf_set_extmark, self.bufnr, M.NAMESPACE, extmark_line, 0, {
         virt_lines = deleted_virt_lines,
-        virt_lines_above = true,
+        virt_lines_above = virt_lines_above,
         hl_eol = true,
         hl_mode = "combine",
-      }
-    )
+      })
 
     local ok_incoming, incoming_extmark_id = pcall(
       vim.api.nvim_buf_set_extmark,

@@ -379,10 +379,7 @@ end
 ---@param tbl table
 ---@return boolean
 function P._is_table_empty(tbl)
-  for _ in pairs(tbl) do
-    return false
-  end
-  return true
+  return next(tbl) == nil
 end
 
 return M

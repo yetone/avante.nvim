@@ -340,7 +340,7 @@ function M.get_tool_display_name(message)
     native_tool_name = message.acp_tool_call.kind or "other"
   end
 
-  local tool_name = native_tool_name
+  local tool_name
   if message.displayed_tool_name then
     tool_name = message.displayed_tool_name or ""
   else
