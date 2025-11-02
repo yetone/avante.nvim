@@ -46,30 +46,35 @@ function M.confirm_inline(callback, confirm_opts)
   end
 end
 
----@param message string
----@param callback fun(response: boolean, reason?: string)
----@param confirm_opts? avante.ui.ConfirmOptions
 ---@param session_ctx? table
 ---@param tool_name? string -- Optional tool name to check against tool_permissions config
----@return avante.ui.Confirm | nil
-function M.confirm(message, callback, confirm_opts, session_ctx, tool_name)
-  callback = vim.schedule_wrap(callback)
-  if session_ctx and session_ctx.always_yes then
-    callback(true)
-    return
-  end
+---@return boolean
+function M.is_auto_approved(session_ctx, tool_name)
+  -- Check if session has always_yes flag set
+  if session_ctx and session_ctx.always_yes then return true end
 
   -- Check behaviour.auto_approve_tool_permissions config for auto-approval
   local auto_approve = Config.behaviour.auto_approve_tool_permissions
 
   -- If auto_approve is true, auto-approve all tools
-  if auto_approve == true then
-    callback(true)
-    return
-  end
+  if auto_approve == true then return true end
 
   -- If auto_approve is a table (array of tool names), check if this tool is in the list
-  if tool_name and type(auto_approve) == "table" and vim.tbl_contains(auto_approve, tool_name) then
+  if tool_name and type(auto_approve) == "table" and vim.tbl_contains(auto_approve, tool_name) then return true end
+
+  return false
+end
+
+---@param description string
+---@param callback fun(response: boolean, reason?: string)
+---@param confirm_opts? avante.ui.ConfirmOptions
+---@param session_ctx? table
+---@param tool_name? string -- Optional tool name to check against tool_permissions config
+---@return avante.ui.Confirm | nil
+function M.confirm(description, callback, confirm_opts, session_ctx, tool_name)
+  callback = vim.schedule_wrap(callback)
+
+  if M.is_auto_approved(session_ctx, tool_name) then
     callback(true)
     return
   end
@@ -96,7 +101,7 @@ function M.confirm(message, callback, confirm_opts, session_ctx, tool_name)
   end
   confirm_opts = vim.tbl_deep_extend("force", { container_winid = sidebar.containers.input.winid }, confirm_opts or {})
   if M.confirm_popup then M.confirm_popup:close() end
-  M.confirm_popup = Confirm:new(message, function(type, reason)
+  M.confirm_popup = Confirm:new(description, function(type, reason)
     if type == "yes" then
       callback(true)
     elseif type == "all" then

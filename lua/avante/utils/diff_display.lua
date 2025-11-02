@@ -514,17 +514,17 @@ end
 function DiffDisplayInstance:unregister_keybindings()
   if not self.bufnr or not vim.api.nvim_buf_is_valid(self.bufnr) then return end
 
-  vim.keymap.del("n", Config.mappings.diff.next, { buffer = self.bufnr, silent = true })
-  vim.keymap.del("v", Config.mappings.diff.next, { buffer = self.bufnr, silent = true })
-  vim.keymap.del("n", Config.mappings.diff.prev, { buffer = self.bufnr, silent = true })
-  vim.keymap.del("v", Config.mappings.diff.prev, { buffer = self.bufnr, silent = true })
-  vim.keymap.del("n", Config.mappings.diff.ours, { buffer = self.bufnr, silent = true })
-  vim.keymap.del("v", Config.mappings.diff.ours, { buffer = self.bufnr, silent = true })
-  vim.keymap.del("n", Config.mappings.diff.theirs, { buffer = self.bufnr, silent = true })
-  vim.keymap.del("v", Config.mappings.diff.theirs, { buffer = self.bufnr, silent = true })
+  -- We need to pcall each del separately to avoid stopping on first error, `del` errors if keymap doesn't exist
+  pcall(vim.keymap.del, "n", Config.mappings.diff.next, { buffer = self.bufnr })
+  pcall(vim.keymap.del, "v", Config.mappings.diff.next, { buffer = self.bufnr })
+  pcall(vim.keymap.del, "n", Config.mappings.diff.prev, { buffer = self.bufnr })
+  pcall(vim.keymap.del, "v", Config.mappings.diff.prev, { buffer = self.bufnr })
+  pcall(vim.keymap.del, "n", Config.mappings.diff.ours, { buffer = self.bufnr })
+  pcall(vim.keymap.del, "v", Config.mappings.diff.ours, { buffer = self.bufnr })
+  pcall(vim.keymap.del, "n", Config.mappings.diff.theirs, { buffer = self.bufnr })
+  pcall(vim.keymap.del, "v", Config.mappings.diff.theirs, { buffer = self.bufnr })
 end
 
--- FIXIT: it doesn't seem to the called from the llm.lua, AI probably mixed replace_in_file with diff_display
 function DiffDisplayInstance:clear()
   self:unregister_keybindings()
 

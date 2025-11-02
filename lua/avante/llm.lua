@@ -16,7 +16,7 @@ local LLMTools = require("avante.llm_tools")
 local History = require("avante.history")
 local HistoryRender = require("avante.history.render")
 local ACPConfirmAdapter = require("avante.ui.acp_confirm_adapter")
-local ACPDiffHandler = require("avante.llm_tools.acp_diff_handler")
+local ACPDiffPreview = require("avante.ui.acp_diff_preview")
 
 ---@class avante.LLM
 local M = {}
@@ -1076,16 +1076,7 @@ function M._stream_acp(opts)
             end
           end
 
-          if update.sessionUpdate == "tool_call" then
-            add_tool_call_message(update)
-
-            if Config.behaviour.acp_show_diff_in_buffer and not opts.session_ctx.always_yes then
-              if ACPDiffHandler.has_diff_content(update) then
-                --FIXIT: continue the diff handling
-                local diffs = ACPDiffHandler.extract_diff_blocks(update)
-              end
-            end
-          end
+          if update.sessionUpdate == "tool_call" then add_tool_call_message(update) end
 
           if update.sessionUpdate == "tool_call_update" then
             local tool_call_message = tool_call_messages[update.toolCallId]
@@ -1173,8 +1164,14 @@ function M._stream_acp(opts)
 
           local description = HistoryRender.get_tool_display_name(message)
 
+          local clear_diff_preview_safelly = ACPDiffPreview.show_acp_diff({
+            tool_call = message.acp_tool_call,
+            session_ctx = opts.session_ctx,
+          })
+
           LLMToolHelpers.confirm(description, function(ok)
             local acp_mapped_options = ACPConfirmAdapter.map_acp_options(request.options)
+            clear_diff_preview_safelly()
 
             if ok and opts.session_ctx and opts.session_ctx.always_yes then
               callback(acp_mapped_options.all)
@@ -1222,6 +1219,7 @@ function M._stream_acp(opts)
           end
           callback(content)
         end,
+
         on_write_file = function(path, content, callback)
           local abs_path = Utils.to_absolute_path(path)
           local file = io.open(abs_path, "w")
@@ -1236,8 +1234,12 @@ function M._stream_acp(opts)
               end,
               vim.api.nvim_list_bufs()
             )
+
             for _, buf in ipairs(buffers) do
-              vim.api.nvim_buf_call(buf, function() vim.cmd("edit") end)
+              vim.api.nvim_buf_call(buf, function()
+                --FIXIT: check if the buffer is modified before, or it throws error, also check if is necesssary to call "edit"
+                vim.cmd("edit")
+              end)
             end
             callback(nil)
             return
