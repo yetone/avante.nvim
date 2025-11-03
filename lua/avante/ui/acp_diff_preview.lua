@@ -62,7 +62,6 @@ function M.show_acp_diff(opts)
       diff_display = diff_display,
     }
 
-    diff_display:insert_new_lines()
     diff_display:highlight()
     diff_display:scroll_to_first_diff()
     diff_display:register_cursor_move_events()
@@ -73,27 +72,15 @@ function M.show_acp_diff(opts)
     table.insert(preview_states, state)
   end
 
-  -- Cleanup function to restore buffers states after the user approves/rejects the changes
+  -- Cleanup function to clear diff display and restore buffer flags
   return function()
     if not preview_states or #preview_states == 0 then return end
 
     for _, state in ipairs(preview_states) do
-      -- Clear diff display
       if state.diff_display then state.diff_display:clear() end
 
-      -- Restore buffer state if buffer is still valid
-      if api.nvim_buf_is_valid(state.bufnr) then
-        -- Restore buffer to original state
-        vim.bo[state.bufnr].modifiable = true
-
-        -- Restore buffer lines synchronously (critical for ACP to write to clean state)
-        local ok_restore = pcall(api.nvim_buf_set_lines, state.bufnr, 0, -1, false, state.lines)
-        if not ok_restore then Utils.error("Failed to restore buffer: " .. state.path) end
-
-        -- Restore buffer options
-        vim.bo[state.bufnr].modified = state.modified
-        vim.bo[state.bufnr].modifiable = state.modifiable
-      end
+      -- Restore buffer flags if buffer is still valid
+      if api.nvim_buf_is_valid(state.bufnr) then vim.bo[state.bufnr].modifiable = state.modifiable end
     end
 
     -- Clear references to help garbage collection

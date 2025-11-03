@@ -58,6 +58,7 @@ end
 ---@field diff_blocks avante.DiffBlock[] List of diff blocks (mutable reference)
 ---@field augroup integer Autocommand group ID
 ---@field show_keybinding_hint_extmark_id integer? Current keybinding hint extmark ID
+---@field has_accept_reject_keybindings boolean Whether accept/reject keybindings are registered
 local DiffDisplayInstance = {}
 DiffDisplayInstance.__index = DiffDisplayInstance
 
@@ -71,6 +72,7 @@ function M.new(opts)
     diff_blocks = opts.diff_blocks,
     augroup = augroup,
     show_keybinding_hint_extmark_id = nil,
+    has_accept_reject_keybindings = false,
   }, DiffDisplayInstance)
 
   vim.api.nvim_create_autocmd({ "BufDelete", "BufWipeout" }, {
@@ -92,9 +94,7 @@ function DiffDisplayInstance:get_current_diff_block()
   local cursor_line = Utils.get_cursor_pos(winid)
 
   for idx, diff_block in ipairs(self.diff_blocks) do
-    if cursor_line >= diff_block.new_start_line and cursor_line <= diff_block.new_end_line then
-      return diff_block, idx
-    end
+    if cursor_line >= diff_block.start_line and cursor_line <= diff_block.end_line then return diff_block, idx end
   end
   return nil, nil
 end
@@ -110,13 +110,13 @@ function DiffDisplayInstance:get_prev_diff_block()
   local distance = nil
   local idx = nil
   for i, diff_block in ipairs(self.diff_blocks) do
-    if cursor_line >= diff_block.new_start_line and cursor_line <= diff_block.new_end_line then
+    if cursor_line >= diff_block.start_line and cursor_line <= diff_block.end_line then
       local new_i = i - 1
       if new_i < 1 then return self.diff_blocks[#self.diff_blocks] end
       return self.diff_blocks[new_i]
     end
-    if diff_block.new_start_line < cursor_line then
-      local distance_ = cursor_line - diff_block.new_start_line
+    if diff_block.start_line < cursor_line then
+      local distance_ = cursor_line - diff_block.start_line
       if distance == nil or distance_ < distance then
         distance = distance_
         idx = i
@@ -139,13 +139,13 @@ function DiffDisplayInstance:get_next_diff_block()
   local distance = nil
   local idx = nil
   for i, diff_block in ipairs(self.diff_blocks) do
-    if cursor_line >= diff_block.new_start_line and cursor_line <= diff_block.new_end_line then
+    if cursor_line >= diff_block.start_line and cursor_line <= diff_block.end_line then
       local new_i = i + 1
       if new_i > #self.diff_blocks then return self.diff_blocks[1] end
       return self.diff_blocks[new_i]
     end
-    if diff_block.new_start_line > cursor_line then
-      local distance_ = diff_block.new_start_line - cursor_line
+    if diff_block.start_line > cursor_line then
+      local distance_ = diff_block.start_line - cursor_line
       if distance == nil or distance_ < distance then
         distance = distance_
         idx = i
@@ -155,23 +155,6 @@ function DiffDisplayInstance:get_next_diff_block()
   if idx ~= nil then return self.diff_blocks[idx] end
   if #self.diff_blocks > 0 then return self.diff_blocks[1] end
   return nil
-end
-
-function DiffDisplayInstance:insert_new_lines()
-  if not self.bufnr or not vim.api.nvim_buf_is_valid(self.bufnr) then return end
-
-  local base_line_ = 0
-  for _, diff_block in ipairs(self.diff_blocks) do
-    local start_line = diff_block.start_line + base_line_
-    local end_line = diff_block.end_line + base_line_
-    base_line_ = base_line_ + #diff_block.new_lines - #diff_block.old_lines
-
-    local ok = pcall(vim.api.nvim_buf_set_lines, self.bufnr, start_line - 1, end_line, false, diff_block.new_lines)
-    if not ok then
-      Utils.warn("Failed to insert diff lines at " .. start_line)
-      return
-    end
-  end
 end
 
 ---@param on_complete? function Optional callback to run after scroll completes
@@ -224,7 +207,7 @@ function DiffDisplayInstance:scroll_to_first_diff(on_complete)
     if not winnr then return end
 
     local line_count = vim.api.nvim_buf_line_count(bufnr)
-    local target_line = math.min(first_diff.new_start_line, line_count)
+    local target_line = math.min(first_diff.start_line, line_count)
     local current_win = vim.api.nvim_get_current_win()
 
     -- Respect auto_focus_on_diff_view config when deciding whether to switch windows
@@ -253,99 +236,108 @@ function DiffDisplayInstance:highlight()
 
   local line_count = vim.api.nvim_buf_line_count(self.bufnr)
   vim.api.nvim_buf_clear_namespace(self.bufnr, M.NAMESPACE, 0, -1)
-  local base_line_ = 0
   local max_col = vim.o.columns
 
   for _, diff_block in ipairs(self.diff_blocks) do
-    local start_line = diff_block.start_line + base_line_
-    base_line_ = base_line_ + #diff_block.new_lines - #diff_block.old_lines
-    local end_row = start_line + #diff_block.new_lines - 1
+    -- Use original positions directly (no offset calculation needed since buffer unchanged)
+    local start_line = diff_block.start_line
+    local end_line = diff_block.end_line
 
     local is_modification = #diff_block.old_lines == #diff_block.new_lines and #diff_block.old_lines > 0
 
-    -- Build virtual lines for deleted content with word-level highlighting
-    local deleted_virt_lines = {}
-    for i, old_line in ipairs(diff_block.old_lines) do
+    -- Highlight OLD content in buffer with background for DELETED lines
+    if #diff_block.old_lines > 0 then
+      -- end_row is 0-indexed and exclusive, so use end_line directly
+      local end_row = math.min(end_line, line_count)
+
+      local ok_deleted_bg, deleted_bg_extmark_id = pcall(
+        vim.api.nvim_buf_set_extmark,
+        self.bufnr,
+        M.NAMESPACE,
+        math.min(math.max(start_line - 1, 0), line_count - 1),
+        0,
+        {
+          hl_group = Highlights.DIFF_DELETED,
+          hl_eol = true,
+          hl_mode = "combine",
+          end_row = end_row,
+          priority = 100,
+        }
+      )
+
+      if ok_deleted_bg then diff_block.delete_extmark_id = deleted_bg_extmark_id end
+
+      -- Word-level highlighting on OLD content in buffer
       if is_modification then
-        local new_line = diff_block.new_lines[i]
-        local ok_change, change = pcall(find_inline_change, old_line, new_line)
+        for i, old_line in ipairs(diff_block.old_lines) do
+          local new_line = diff_block.new_lines[i]
+          local ok_change, change = pcall(find_inline_change, old_line, new_line)
+          if ok_change and change then
+            local line_nr = start_line - 1 + (i - 1)
 
-        if ok_change and change and change.old_end > change.old_start then
-          local virt_line = {}
-          if change.old_start > 0 then
-            table.insert(virt_line, { old_line:sub(1, change.old_start), Highlights.DIFF_DELETED })
+            if change.old_end > change.old_start then
+              pcall(vim.api.nvim_buf_set_extmark, self.bufnr, M.NAMESPACE, line_nr, change.old_start, {
+                hl_group = Highlights.DIFF_DELETED_WORD,
+                end_col = change.old_end,
+                priority = 200,
+              })
+            end
           end
-          table.insert(virt_line, { old_line:sub(change.old_start + 1, change.old_end), Highlights.DIFF_DELETED_WORD })
-
-          if change.old_end < #old_line then
-            table.insert(virt_line, { old_line:sub(change.old_end + 1), Highlights.DIFF_DELETED })
-          end
-
-          local line_len = #old_line
-          if line_len < max_col and max_col > 0 then
-            table.insert(virt_line, { string.rep(" ", max_col - line_len), Highlights.DIFF_DELETED })
-          end
-          table.insert(deleted_virt_lines, virt_line)
-        else
-          -- No inline changes, use full line background
-          local line_ = old_line .. string.rep(" ", max_col - #old_line)
-          table.insert(deleted_virt_lines, { { line_, Highlights.DIFF_DELETED } })
         end
-      else
-        -- Pure deletion - use full line background
-        local line_ = old_line .. string.rep(" ", max_col - #old_line)
-        table.insert(deleted_virt_lines, { { line_, Highlights.DIFF_DELETED } })
       end
     end
 
-    -- Edge case: If start_line is 1, we cannot place virtual lines above, as it's out of bounds
-    -- Determine if virtual lines should be shown above or below
-    -- If the diff is on the first line (start_line - 1 == 0), show below instead
-    local extmark_line = math.min(math.max(start_line - 1, 0), line_count - 1)
-    local virt_lines_above = extmark_line > 0
-
-    local ok_delete, delete_extmark_id =
-      pcall(vim.api.nvim_buf_set_extmark, self.bufnr, M.NAMESPACE, extmark_line, 0, {
-        virt_lines = deleted_virt_lines,
-        virt_lines_above = virt_lines_above,
-        hl_eol = true,
-        hl_mode = "combine",
-      })
-
-    local ok_incoming, incoming_extmark_id = pcall(
-      vim.api.nvim_buf_set_extmark,
-      self.bufnr,
-      M.NAMESPACE,
-      math.min(math.max(start_line - 1, 0), line_count - 1),
-      0,
-      {
-        hl_group = Highlights.DIFF_INCOMING,
-        hl_eol = true,
-        hl_mode = "combine",
-        end_row = end_row,
-        priority = 100, -- Lower priority so word-level highlights can overlay
-      }
-    )
-
-    if ok_delete then diff_block.delete_extmark_id = delete_extmark_id end
-    if ok_incoming then diff_block.incoming_extmark_id = incoming_extmark_id end
-
-    if is_modification then
+    -- Build virtual lines for NEW content (incoming changes)
+    if #diff_block.new_lines > 0 then
+      local incoming_virt_lines = {}
       for i, new_line in ipairs(diff_block.new_lines) do
-        local old_line = diff_block.old_lines[i]
-        local ok_change, change = pcall(find_inline_change, old_line, new_line)
-        if ok_change then
-          local line_nr = start_line - 1 + (i - 1)
+        if is_modification then
+          local old_line = diff_block.old_lines[i]
+          local ok_change, change = pcall(find_inline_change, old_line, new_line)
 
-          if change and change.new_end > change.new_start then
-            pcall(vim.api.nvim_buf_set_extmark, self.bufnr, M.NAMESPACE, line_nr, change.new_start, {
-              hl_group = Highlights.DIFF_INCOMING_WORD,
-              end_col = change.new_end,
-              priority = 200,
-            })
+          if ok_change and change and change.new_end > change.new_start then
+            local virt_line = {}
+            if change.new_start > 0 then
+              table.insert(virt_line, { new_line:sub(1, change.new_start), Highlights.DIFF_INCOMING })
+            end
+            table.insert(
+              virt_line,
+              { new_line:sub(change.new_start + 1, change.new_end), Highlights.DIFF_INCOMING_WORD }
+            )
+
+            if change.new_end < #new_line then
+              table.insert(virt_line, { new_line:sub(change.new_end + 1), Highlights.DIFF_INCOMING })
+            end
+
+            local line_len = #new_line
+            if line_len < max_col and max_col > 0 then
+              table.insert(virt_line, { string.rep(" ", max_col - line_len), Highlights.DIFF_INCOMING })
+            end
+            table.insert(incoming_virt_lines, virt_line)
+          else
+            -- No inline changes, use full line background
+            local line_ = new_line .. string.rep(" ", max_col - #new_line)
+            table.insert(incoming_virt_lines, { { line_, Highlights.DIFF_INCOMING } })
           end
+        else
+          -- Pure addition - use full line background
+          local line_ = new_line .. string.rep(" ", max_col - #new_line)
+          table.insert(incoming_virt_lines, { { line_, Highlights.DIFF_INCOMING } })
         end
       end
+
+      -- Place virtual lines below old content
+      local extmark_line = math.min(math.max(end_line - 1, 0), line_count - 1)
+
+      local ok_incoming_virt, incoming_virt_extmark_id =
+        pcall(vim.api.nvim_buf_set_extmark, self.bufnr, M.NAMESPACE, extmark_line, 0, {
+          virt_lines = incoming_virt_lines,
+          virt_lines_above = false,
+          hl_eol = true,
+          hl_mode = "combine",
+        })
+
+      if ok_incoming_virt then diff_block.incoming_extmark_id = incoming_virt_extmark_id end
     end
   end
 end
@@ -368,7 +360,7 @@ function DiffDisplayInstance:register_navigation_keybindings()
     if not winnr then return end
 
     local line_count = vim.api.nvim_buf_line_count(self.bufnr)
-    local target_line = math.min(diff_block.new_start_line, line_count)
+    local target_line = math.min(diff_block.start_line, line_count)
     vim.api.nvim_win_set_cursor(winnr, { target_line, 0 })
     vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
   end, keymap_opts)
@@ -386,7 +378,7 @@ function DiffDisplayInstance:register_navigation_keybindings()
     if not winnr then return end
 
     local line_count = vim.api.nvim_buf_line_count(self.bufnr)
-    local target_line = math.min(diff_block.new_start_line, line_count)
+    local target_line = math.min(diff_block.start_line, line_count)
     vim.api.nvim_win_set_cursor(winnr, { target_line, 0 })
     vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
   end, keymap_opts)
@@ -397,79 +389,88 @@ end
 function DiffDisplayInstance:register_accept_reject_keybindings(on_accept, on_reject)
   if not self.bufnr or not vim.api.nvim_buf_is_valid(self.bufnr) then return end
 
+  self.has_accept_reject_keybindings = true
   local keymap_opts = { buffer = self.bufnr }
 
   -- "co" - Choose OURS (reject incoming changes, keep original)
   vim.keymap.set({ "n", "v" }, Config.mappings.diff.ours, function()
     if not vim.api.nvim_buf_is_valid(self.bufnr) then return end
-    if self.show_keybinding_hint_extmark_id then
-      pcall(vim.api.nvim_buf_del_extmark, self.bufnr, M.KEYBINDING_NAMESPACE, self.show_keybinding_hint_extmark_id)
-      self.show_keybinding_hint_extmark_id = nil
-    end
     local diff_block, idx = self:get_current_diff_block()
     if not diff_block then return end
 
-    pcall(vim.api.nvim_buf_del_extmark, self.bufnr, M.NAMESPACE, diff_block.delete_extmark_id)
-    pcall(vim.api.nvim_buf_del_extmark, self.bufnr, M.NAMESPACE, diff_block.incoming_extmark_id)
+    -- Clear all extmarks in this diff block's range (background, virtual text, word highlights, and hints)
+    local line_count = vim.api.nvim_buf_line_count(self.bufnr)
+    local clear_start = math.max(0, diff_block.start_line - 1)
+    local clear_end = math.min(line_count, diff_block.end_line + 1)
+    pcall(vim.api.nvim_buf_clear_namespace, self.bufnr, M.NAMESPACE, clear_start, clear_end)
+    pcall(vim.api.nvim_buf_clear_namespace, self.bufnr, M.KEYBINDING_NAMESPACE, clear_start, clear_end)
 
-    local ok = pcall(
-      vim.api.nvim_buf_set_lines,
-      self.bufnr,
-      diff_block.new_start_line - 1,
-      diff_block.new_end_line,
-      false,
-      diff_block.old_lines
-    )
-
-    if not ok then
-      Utils.error("Failed to restore buffer lines")
-      return
-    end
+    -- Clear the stored hint ID
+    self.show_keybinding_hint_extmark_id = nil
 
     diff_block.incoming_extmark_id = nil
     diff_block.delete_extmark_id = nil
 
+    -- Remove the diff block from the list so it's no longer navigable
+    table.remove(self.diff_blocks, idx)
+
     if on_reject then on_reject(idx) end
 
+    -- Navigate to next diff block (if any)
     local next_diff_block = self:get_next_diff_block()
-    if not next_diff_block then return end
+    if next_diff_block then
+      local winnr = Utils.get_winid(self.bufnr)
+      if not winnr then return end
 
-    local winnr = Utils.get_winid(self.bufnr)
-    if not winnr then return end
-
-    local line_count = vim.api.nvim_buf_line_count(self.bufnr)
-    local target_line = math.min(next_diff_block.new_start_line, line_count)
-    vim.api.nvim_win_set_cursor(winnr, { target_line, 0 })
-    vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
+      vim.api.nvim_win_set_cursor(winnr, { math.min(next_diff_block.start_line, line_count), 0 })
+      vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
+    end
   end, keymap_opts)
 
   -- "ct" - Choose THEIRS (accept incoming changes)
   vim.keymap.set({ "n", "v" }, Config.mappings.diff.theirs, function()
     if not vim.api.nvim_buf_is_valid(self.bufnr) then return end
-    if self.show_keybinding_hint_extmark_id then
-      pcall(vim.api.nvim_buf_del_extmark, self.bufnr, M.KEYBINDING_NAMESPACE, self.show_keybinding_hint_extmark_id)
-      self.show_keybinding_hint_extmark_id = nil
-    end
     local diff_block, idx = self:get_current_diff_block()
     if not diff_block then return end
 
-    pcall(vim.api.nvim_buf_del_extmark, self.bufnr, M.NAMESPACE, diff_block.incoming_extmark_id)
-    pcall(vim.api.nvim_buf_del_extmark, self.bufnr, M.NAMESPACE, diff_block.delete_extmark_id)
+    local ok = pcall(
+      vim.api.nvim_buf_set_lines,
+      self.bufnr,
+      diff_block.start_line - 1,
+      diff_block.end_line,
+      false,
+      diff_block.new_lines
+    )
+
+    if not ok then
+      Utils.error("Failed to apply changes to buffer")
+      return
+    end
+
+    -- Clear all extmarks in this diff block's range (background, virtual text, word highlights, and hints)
+    local line_count = vim.api.nvim_buf_line_count(self.bufnr)
+    local clear_start = math.max(0, diff_block.start_line - 1)
+    local clear_end = math.min(line_count, diff_block.start_line - 1 + #diff_block.new_lines + 1)
+    pcall(vim.api.nvim_buf_clear_namespace, self.bufnr, M.NAMESPACE, clear_start, clear_end)
+    pcall(vim.api.nvim_buf_clear_namespace, self.bufnr, M.KEYBINDING_NAMESPACE, clear_start, clear_end)
+
+    self.show_keybinding_hint_extmark_id = nil
 
     diff_block.incoming_extmark_id = nil
     diff_block.delete_extmark_id = nil
 
+    -- Remove the diff block from the list so it's no longer navigable
+    table.remove(self.diff_blocks, idx)
+
     if on_accept then on_accept(idx) end
 
+    -- Navigate to next diff block (if any)
     local next_diff_block = self:get_next_diff_block()
     if next_diff_block then
       local winnr = Utils.get_winid(self.bufnr)
-
       if not winnr then return end
 
-      local line_count = vim.api.nvim_buf_line_count(self.bufnr)
-      local target_line = math.min(next_diff_block.new_start_line, line_count)
-      vim.api.nvim_win_set_cursor(winnr, { target_line, 0 })
+      vim.api.nvim_win_set_cursor(winnr, { math.min(next_diff_block.start_line, line_count), 0 })
       vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
     end
   end, keymap_opts)
@@ -485,7 +486,21 @@ function DiffDisplayInstance:register_cursor_move_events()
       self.show_keybinding_hint_extmark_id = nil
     end
 
-    local hint = string.format("[<%s>: PREV, <%s>: NEXT]", Config.mappings.diff.prev, Config.mappings.diff.next)
+    -- Show different hints based on whether accept/reject keybindings are registered
+    -- API providers: show OURS/THEIRS/PREV/NEXT (full partial accept/reject support)
+    -- ACP providers: show PREV/NEXT only (navigation only, no partial accept/reject)
+    local hint
+    if not self.has_accept_reject_keybindings then
+      hint = string.format("[<%s>: PREV, <%s>: NEXT]", Config.mappings.diff.prev, Config.mappings.diff.next)
+    else
+      hint = string.format(
+        "[<%s>: OURS, <%s>: THEIRS, <%s>: PREV, <%s>: NEXT]",
+        Config.mappings.diff.ours,
+        Config.mappings.diff.theirs,
+        Config.mappings.diff.prev,
+        Config.mappings.diff.next
+      )
+    end
 
     self.show_keybinding_hint_extmark_id =
       vim.api.nvim_buf_set_extmark(self.bufnr, M.KEYBINDING_NAMESPACE, lnum - 1, -1, {
@@ -503,7 +518,7 @@ function DiffDisplayInstance:register_cursor_move_events()
       if not vim.api.nvim_buf_is_valid(self.bufnr) then return end
       local diff_block = self:get_current_diff_block()
       if (event.event == "CursorMoved" or event.event == "CursorMovedI") and diff_block then
-        show_keybinding_hint(diff_block.new_start_line)
+        show_keybinding_hint(diff_block.start_line)
       else
         vim.api.nvim_buf_clear_namespace(self.bufnr, M.KEYBINDING_NAMESPACE, 0, -1)
       end

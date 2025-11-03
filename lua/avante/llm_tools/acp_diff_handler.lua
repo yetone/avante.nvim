@@ -227,23 +227,10 @@ function M.extract_diff_blocks(tool_call)
     -- Sort by start_line to handle multiple diffs correctly
     table.sort(diff_blocks, function(a, b) return a.start_line < b.start_line end)
 
-    -- Apply minimize_diff if enabled (before calculating new_start_line/new_end_line)
+    -- Apply minimize_diff if enabled
     if Config.behaviour.minimize_diff then
       diff_blocks = P.minimize_diff_blocks(diff_blocks)
       diff_blocks_by_file[path] = diff_blocks
-    end
-
-    -- Calculate new_start_line and new_end_line with cumulative offset
-    local base_line = 0
-    for _, diff_block in ipairs(diff_blocks) do
-      diff_block.new_start_line = diff_block.start_line + base_line
-      if #diff_block.new_lines > 0 then
-        diff_block.new_end_line = diff_block.new_start_line + #diff_block.new_lines - 1
-      else
-        -- For deletions, new_end_line is one before new_start_line
-        diff_block.new_end_line = diff_block.new_start_line - 1
-      end
-      base_line = base_line + #diff_block.new_lines - #diff_block.old_lines
     end
   end
 

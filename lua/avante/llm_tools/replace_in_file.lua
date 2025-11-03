@@ -320,24 +320,22 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
 
   table.sort(diff_blocks, function(a, b) return a.start_line < b.start_line end)
 
-  local base_line = 0
-  for _, diff_block in ipairs(diff_blocks) do
-    diff_block.new_start_line = diff_block.start_line + base_line
-    diff_block.new_end_line = diff_block.new_start_line + #diff_block.new_lines - 1
-    base_line = base_line + #diff_block.new_lines - #diff_block.old_lines
-  end
+  -- Save initial hunk count to detect if user made manual accept/reject choices
+  local initial_hunk_count = #diff_blocks
 
   local function remove_diff_block(removed_idx, use_new_lines)
     local new_diff_blocks = {}
     local distance = 0
     for idx, diff_block in ipairs(diff_blocks) do
       if idx == removed_idx then
-        if not use_new_lines then distance = #diff_block.old_lines - #diff_block.new_lines end
+        -- Virtual-first: accepting applies NEW lines (buffer changes), rejecting keeps OLD (no change)
+        if use_new_lines then distance = #diff_block.new_lines - #diff_block.old_lines end
         goto continue
       end
       if idx > removed_idx then
-        diff_block.new_start_line = diff_block.new_start_line + distance
-        diff_block.new_end_line = diff_block.new_end_line + distance
+        -- Adjust subsequent block positions based on actual buffer changes
+        diff_block.start_line = diff_block.start_line + distance
+        diff_block.end_line = diff_block.end_line + distance
       end
       table.insert(new_diff_blocks, diff_block)
       ::continue::
@@ -387,9 +385,23 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
   local function on_reject_diff_block(idx)
     remove_diff_block(idx, false)
     has_rejected = true
+
+    if #diff_blocks == 0 and confirm and confirm.cancel then
+      confirm:cancel("All suggestions processed with rejections")
+    end
   end
 
-  local function on_accept_diff_block(idx) remove_diff_block(idx, true) end
+  local function on_accept_diff_block(idx)
+    remove_diff_block(idx, true)
+
+    if #diff_blocks == 0 and confirm then
+      if has_rejected then
+        confirm:cancel("All suggestions processed with mixed accept/reject")
+      else
+        confirm:confirm("All suggestions accepted")
+      end
+    end
+  end
 
   session_ctx.extmark_id_map = session_ctx.extmark_id_map or {}
   local extmark_id_map = session_ctx.extmark_id_map[opts.tool_use_id]
@@ -482,7 +494,6 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
   end
 
   if not is_streaming then
-    diff_display:insert_new_lines()
     diff_display:highlight()
     diff_display:scroll_to_first_diff()
     diff_display:register_cursor_move_events()
@@ -504,7 +515,7 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
       vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
     else
       -- In normal mode, focus on the first diff block
-      vim.api.nvim_win_set_cursor(winnr, { math.min(diff_blocks[1].new_start_line, line_count), 0 })
+      vim.api.nvim_win_set_cursor(winnr, { math.min(diff_blocks[1].start_line, line_count), 0 })
       vim.api.nvim_win_call(winnr, function() vim.cmd("normal! zz") end)
     end
   end
@@ -525,17 +536,46 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
     end
 
     if not ok then
-      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, original_lines)
       on_complete(false, "User declined, reason: " .. (reason or "unknown"))
       return
     end
+
+    -- Handle user approval - check if user made manual accept/reject choices
+    local remaining_hunks = #diff_blocks
+
+    -- If user made NO manual choices (counts match), apply all remaining hunks
+    if remaining_hunks == initial_hunk_count and remaining_hunks > 0 then
+      local offset = 0
+      for _, diff_block in ipairs(diff_blocks) do
+        local adjusted_start = diff_block.start_line - 1 + offset
+        local adjusted_end = diff_block.end_line + offset
+
+        local ok_apply = pcall(
+          vim.api.nvim_buf_set_lines,
+          bufnr,
+          adjusted_start,
+          adjusted_end,
+          false,
+          diff_block.new_lines
+        )
+
+        if ok_apply then
+          offset = offset + (#diff_block.new_lines - #diff_block.old_lines)
+        else
+          on_complete(false, "Failed to apply changes to buffer")
+          return
+        end
+      end
+    end
+    -- If user made manual choices (counts differ), remaining hunks are intentionally skipped
+    -- The buffer already has the accepted changes from co/ct operations
 
     local parent_dir = vim.fn.fnamemodify(abs_path, ":h")
 
     --- check if the parent dir is exists, if not, create it
     if vim.fn.isdirectory(parent_dir) == 0 then vim.fn.mkdir(parent_dir, "p") end
 
-    -- Write the file with current buffer state (new lines already inserted)
+    -- Write the file with current buffer state
     vim.api.nvim_buf_call(bufnr, function() vim.cmd("silent noautocmd write!") end)
 
     if session_ctx then Helpers.mark_as_not_viewed(input.path, session_ctx) end
