@@ -550,14 +550,8 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
         local adjusted_start = diff_block.start_line - 1 + offset
         local adjusted_end = diff_block.end_line + offset
 
-        local ok_apply = pcall(
-          vim.api.nvim_buf_set_lines,
-          bufnr,
-          adjusted_start,
-          adjusted_end,
-          false,
-          diff_block.new_lines
-        )
+        local ok_apply =
+          pcall(vim.api.nvim_buf_set_lines, bufnr, adjusted_start, adjusted_end, false, diff_block.new_lines)
 
         if ok_apply then
           offset = offset + (#diff_block.new_lines - #diff_block.old_lines)
