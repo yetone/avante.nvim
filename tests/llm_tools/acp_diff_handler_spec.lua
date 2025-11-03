@@ -104,8 +104,8 @@ describe("acp_diff_handler", function()
         assert.equals(1, block.end_line)
         assert.same({ "# Platform Frontend" }, block.old_lines)
         assert.same({ "# Platform Front-end" }, block.new_lines)
-        assert.equals(1, block.new_start_line)
-        assert.equals(1, block.new_end_line)
+        -- Note: new_start_line and new_end_line are not populated during extraction
+        -- (virtual-first approach - these fields are optional and set later if needed)
       end)
     end)
 
@@ -309,39 +309,9 @@ describe("acp_diff_handler", function()
       end)
     end)
 
-    describe("cumulative offset calculation", function()
-      before_each(function()
-        read_stub = stub(
-          Utils,
-          "read_file_from_buf_or_disk",
-          function() return sample_files.main_file_for_offset, nil end
-        )
-        fuzzy_stub = stub(Utils, "fuzzy_match", function(file_lines, search_lines)
-          local search_str = search_lines[1]
-          for i, line in ipairs(file_lines) do
-            if line == search_str then return i, i + #search_lines - 1 end
-          end
-          return nil, nil
-        end)
-      end)
-
-      it("should calculate new_start_line and new_end_line with cumulative offset", function()
-        local result = M.extract_diff_blocks(fixtures.multiple_diff_blocks_offset_test)
-
-        assert.is_not_nil(result["/project/main.lua"])
-        local blocks = result["/project/main.lua"]
-
-        -- First block: line 1, replaces 1 line with 2 lines (offset +1)
-        assert.equals(1, blocks[1].start_line)
-        assert.equals(1, blocks[1].new_start_line)
-        assert.equals(2, blocks[1].new_end_line)
-
-        -- Second block: originally at line 7, but with +1 offset becomes line 8
-        assert.equals(7, blocks[2].start_line)
-        assert.equals(8, blocks[2].new_start_line)
-        assert.equals(8, blocks[2].new_end_line)
-      end)
-    end)
+    -- Note: Cumulative offset calculation tests removed
+    -- The virtual-first approach no longer calculates new_start_line/new_end_line during extraction
+    -- These fields are optional and only populated later when diffs are applied to buffers
 
     describe("edge cases", function()
       it("should handle empty file", function()
@@ -402,8 +372,7 @@ describe("acp_diff_handler", function()
         assert.equals(3, block.start_line)
         assert.equals(4, block.end_line)
         assert.same({}, block.new_lines)
-        -- For deletions, new_end_line is one before new_start_line
-        assert.equals(block.new_start_line - 1, block.new_end_line)
+        -- Note: new_start_line/new_end_line not populated during extraction (virtual-first approach)
       end)
 
       it("should return empty table when no diff found", function()
