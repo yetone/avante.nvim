@@ -3,7 +3,6 @@ local stub = require("luassert.stub")
 
 describe("avante.utils.root", function()
   local root
-  local vim_uv_mock
   local original_cwd
 
   before_each(function()
@@ -122,10 +121,10 @@ describe("avante.utils.root", function()
 
       -- Simulate cwd being deleted (becomes nil)
       vim.uv.cwd = function() return nil end
+      vim.api.nvim_buf_get_name = function(buf) return buf == 2 and "/other/file.txt" or "/valid/path/file.txt" end
 
       -- Should not crash, should use cached value or fallback
       result = root.get({ buf = 2 }) -- Different buffer to bypass cache
-      vim.api.nvim_buf_get_name = function(buf) return buf == 2 and "/other/file.txt" or "/valid/path/file.txt" end
       
       assert.is_string(result)
       assert.equals("/", result)
