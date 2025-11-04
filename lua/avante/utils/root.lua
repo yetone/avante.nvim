@@ -211,9 +211,9 @@ function M.get(opts)
     buf_names[buf] = buf_name
     M.cache[buf] = ret
   end
-  if cwd ~= nil and ret ~= nil and #ret > #cwd then ret = cwd end
+  if cwd ~= nil and #ret > #cwd then ret = cwd end
   if opts and opts.normalize then return ret end
-  return ret and (Utils.is_win() and ret:gsub("/", "\\") or ret) or "/"
+  return Utils.is_win() and ret:gsub("/", "\\") or ret
 end
 
 function M.git()

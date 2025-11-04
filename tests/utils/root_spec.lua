@@ -121,7 +121,16 @@ describe("avante.utils.root", function()
 
       -- Simulate cwd being deleted (becomes nil)
       vim.uv.cwd = function() return nil end
-      vim.api.nvim_buf_get_name = function(buf) return buf == 2 and "/other/file.txt" or "/valid/path/file.txt" end
+      
+      -- Mock buf_get_name for different buffers
+      local function mock_get_name(buf)
+        if buf == 2 then
+          return "/other/file.txt"
+        else
+          return "/valid/path/file.txt"
+        end
+      end
+      vim.api.nvim_buf_get_name = mock_get_name
 
       -- Should not crash, should use cached value or fallback
       result = root.get({ buf = 2 }) -- Different buffer to bypass cache
