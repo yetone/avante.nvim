@@ -138,7 +138,7 @@ function M.get_diff_lines(old_str, new_str, decoration, truncate)
   local patch = vim.diff(old_str, new_str, { ---@type integer[][]
     algorithm = "histogram",
     result_type = "indices",
-    ctxlen = vim.o.scrolloff,
+    ctxlen = 0,
   })
   local prev_start_a = 0
   local truncated_lines = 0
