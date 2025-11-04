@@ -147,15 +147,15 @@ local Utils = require("avante.utils")
 ---@field content ACPContent
 
 ---@class avante.acp.ToolCallUpdate
----@field sessionUpdate "tool_call" | "tool_call_update" | nil
+---@field sessionUpdate? "tool_call" | "tool_call_update"
 ---@field toolCallId string
----@field title string|nil
----@field kind ACPToolKind|nil
----@field status ACPToolCallStatus|nil
----@field content ACPToolCallContent[]|nil
----@field locations avante.acp.ToolCallLocation[]|nil
----@field rawInput ACPRawInput|nil
----@field rawOutput table|nil
+---@field title? string
+---@field kind? ACPToolKind
+---@field status? ACPToolCallStatus
+---@field content? ACPToolCallContent[]
+---@field locations? avante.acp.ToolCallLocation[]
+---@field rawInput? ACPRawInput
+---@field rawOutput? table
 
 ---@class avante.acp.PlanUpdate : avante.acp.BaseSessionUpdate
 ---@field sessionUpdate "plan"

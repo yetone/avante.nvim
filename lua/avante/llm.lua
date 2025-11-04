@@ -958,21 +958,21 @@ function M._stream_acp(opts)
     end
   end
 
-  ---@param update avante.acp.ToolCallUpdate|avante.acp.RequestPermission
+  ---@param update avante.acp.ToolCallUpdate
   local function add_tool_call_message(update)
-    local id = update.toolCallId or update.toolCall.toolCallId
+    local id = update.toolCallId
 
     local message = History.Message:new("assistant", {
       id = id,
       type = "tool_use",
-      name = update.kind or update.title,
-      input = update.rawInput or update.toolCall.rawInput or {},
+      name = update.kind or update.title or "other",
+      input = update.rawInput or {},
     }, {
       uuid = id,
     })
 
     last_tool_call_message = message
-    message.acp_tool_call = update.toolCall or update
+    message.acp_tool_call = update
     if update.status == "pending" or update.status == "in_progress" then message.is_calling = true end
     tool_call_messages[id] = message
 
@@ -1152,7 +1152,7 @@ function M._stream_acp(opts)
 
           local message = tool_call_messages[request.toolCall.toolCallId]
           if not message then
-            message = add_tool_call_message(request)
+            message = add_tool_call_message(request.toolCall)
           else
             if message.acp_tool_call then
               -- Merge updates into existing tool call message
