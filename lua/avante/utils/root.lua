@@ -77,7 +77,10 @@ M.spec = {
 
 M.detectors = {}
 
-function M.detectors.cwd() return { vim.uv.cwd() } end
+function M.detectors.cwd()
+  local cwd = vim.uv.cwd()
+  return cwd and { cwd } or {}
+end
 
 ---@param buf number
 function M.detectors.lsp(buf)
@@ -102,7 +105,7 @@ end
 function M.detectors.pattern(buf, patterns)
   local patterns_ = type(patterns) == "string" and { patterns } or patterns
   ---@cast patterns_ string[]
-  local path = M.bufpath(buf) or vim.uv.cwd()
+  local path = M.bufpath(buf) or vim.uv.cwd() or "/"
   local pattern = vim.fs.find(function(name)
     for _, p in ipairs(patterns_) do
       if name == p then return true end
@@ -204,13 +207,13 @@ function M.get(opts)
   local ret = buf_names[buf] == buf_name and M.cache[buf] or nil
   if not ret then
     local roots = M.detect({ all = false, buf = buf })
-    ret = roots[1] and roots[1].paths[1] or vim.uv.cwd()
+    ret = roots[1] and roots[1].paths[1] or vim.uv.cwd() or "/"
     buf_names[buf] = buf_name
     M.cache[buf] = ret
   end
-  if cwd ~= nil and #ret > #cwd then ret = cwd end
+  if cwd ~= nil and ret ~= nil and #ret > #cwd then ret = cwd end
   if opts and opts.normalize then return ret end
-  return Utils.is_win() and ret:gsub("/", "\\") or ret
+  return ret and (Utils.is_win() and ret:gsub("/", "\\") or ret) or "/"
 end
 
 function M.git()
