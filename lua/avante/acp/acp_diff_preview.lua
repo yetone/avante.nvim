@@ -3,7 +3,7 @@ local api = vim.api
 local Utils = require("avante.utils")
 local Config = require("avante.config")
 local DiffDisplay = require("avante.utils.diff_display")
-local ACPDiffHandler = require("avante.llm_tools.acp_diff_handler")
+local ACPDiffHandler = require("avante.acp.acp_diff_handler")
 local LLMToolHelpers = require("avante.llm_tools.helpers")
 
 ---@class avante.ACPDiffPreviewState

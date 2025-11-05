@@ -1,5 +1,5 @@
 ---@diagnostic disable: undefined-field
-local M = require("avante.llm_tools.acp_diff_handler")
+local M = require("avante.acp.acp_diff_handler")
 local Utils = require("avante.utils")
 local Config = require("avante.config")
 local fixtures = require("tests.data.acp_diff.fixtures")
