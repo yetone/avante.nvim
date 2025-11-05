@@ -1,7 +1,7 @@
 local Utils = require("avante.utils")
 local Path = require("plenary.path")
 local Config = require("avante.config")
-local ACPConfirmAdapter = require("avante.ui.acp_confirm_adapter")
+local ACPConfirmAdapter = require("avante.acp.acp_confirm_adapter")
 
 local M = {}
 

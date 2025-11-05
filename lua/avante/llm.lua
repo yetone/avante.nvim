@@ -15,8 +15,8 @@ local LLMToolHelpers = require("avante.llm_tools.helpers")
 local LLMTools = require("avante.llm_tools")
 local History = require("avante.history")
 local HistoryRender = require("avante.history.render")
-local ACPConfirmAdapter = require("avante.ui.acp_confirm_adapter")
-local ACPDiffPreview = require("avante.ui.acp_diff_preview")
+local ACPConfirmAdapter = require("avante.acp.acp_confirm_adapter")
+local ACPDiffPreview = require("avante.acp.acp_diff_preview")
 
 ---@class avante.LLM
 local M = {}
