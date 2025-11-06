@@ -552,10 +552,6 @@ M._defaults = {
     --- inline_buttons is the new inline buttons in the sidebar
     ---@type "popup" | "inline_buttons"
     confirmation_ui_style = "inline_buttons",
-    --- Whether to show visual diff in buffer before confirmation for ACP providers
-    --- When false, ACP providers will show diff in sidebar instead
-    ---@type boolean
-    acp_show_diff_in_buffer = true,
   },
   prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
     enabled = true, -- toggle logging entirely
