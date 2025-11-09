@@ -67,7 +67,7 @@ function M.get_user_message(opts)
 end
 
 function M.is_reasoning_model(model)
-  return model and (string.match(model, "^o%d+") ~= nil or string.match(model, "gpt%-5") ~= nil)
+  return model and (string.match(model, "^o%d+") ~= nil or (string.match(model, "gpt%-5") ~= nil and model ~= "gpt-5-chat"))
 end
 
 function M.set_allowed_params(provider_conf, request_body)
