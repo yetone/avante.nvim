@@ -12,13 +12,14 @@ Build a comprehensive Neovim plugin that integrates AI coding assistance capabil
 - **Developer Productivity**: Reduce coding time by 20-30% through intelligent code suggestions and automated code generation
 - **User Experience**: Maintain Neovim's keyboard-centric workflow while adding modern AI capabilities
 - **Market Positioning**: Establish Neovim as a competitive choice for developers seeking AI-assisted development tools
-- **Adoption**: Target 1,000+ active users within first 6 months of release (pending validation of market size and distribution strategy)
+- **Community Growth**: Build a sustainable open-source project with active contributor base
 
 ### Success Metrics
 - Plugin installation count and active user base growth
 - Average daily interactions per user (completions accepted, chat queries)
 - User satisfaction score (measured through feedback and ratings)
 - Code acceptance rate (% of AI suggestions accepted by users)
+- Community engagement (GitHub stars, issues, PRs, discussions)
 
 ## Requirements & Scope
 
@@ -43,7 +44,8 @@ Build a comprehensive Neovim plugin that integrates AI coding assistance capabil
 - Actions shall operate on selected text or current context
 
 **REQ-4**: Multi-Provider Support
-- System shall support multiple LLM providers (OpenAI, Anthropic, local models as initial targets - pending validation of provider ecosystem and user needs)
+- System shall support OpenAI and Anthropic as primary providers at launch
+- Local model support (Ollama, LocalAI) shall be included for privacy-conscious users
 - Users can configure and switch between providers via settings
 - Provider-specific features and model selection shall be configurable
 - System shall gracefully handle provider API failures with user feedback
@@ -73,6 +75,7 @@ Build a comprehensive Neovim plugin that integrates AI coding assistance capabil
 - Code sent to external providers shall be clearly indicated to users
 - Users shall have option to exclude sensitive files/patterns from context
 - Plugin shall comply with common data privacy practices (no telemetry by default)
+- Users shall be informed when code leaves their local environment
 
 **NFR-3**: Compatibility
 - Support Neovim 0.9.0 and above
@@ -110,10 +113,11 @@ The following are explicitly **not** included in this version:
 - Plugin successfully installs on Neovim 0.9+ via at least 2 major plugin managers
 - Inline completions work for at least 5 major languages (Python, JavaScript, Go, Rust, Lua)
 - Chat interface supports multi-turn conversations with context preservation
-- At least 2 LLM providers (OpenAI and Anthropic) fully supported
+- At least 2 LLM providers (OpenAI and Anthropic) fully supported with local model option
 - Documentation covers 90% of user setup and configuration scenarios
 - Plugin passes integration tests on Linux and macOS
 - User feedback score averages 4.0+ out of 5.0
+- Organic growth demonstrates product-market fit within developer community
 
 ## User Stories
 
@@ -351,7 +355,7 @@ The plugin will be implemented as a Lua-based Neovim plugin leveraging:
 **External LLM APIs:**
 - OpenAI API (GPT-3.5/4, Codex)
 - Anthropic API (Claude models)
-- OpenAI-compatible endpoints (local models, Azure)
+- OpenAI-compatible endpoints (local models via Ollama, LocalAI)
 - Streaming response support for real-time feedback
 
 **Neovim Ecosystem:**
@@ -414,49 +418,49 @@ The plugin will be implemented as a Lua-based Neovim plugin leveraging:
 
 ### Recommended Approach
 
-Implement a modular, async-first Neovim plugin using Lua, with a provider abstraction layer that separates LLM communication from editor integration. The architecture prioritizes user experience through non-blocking operations, intelligent context management, and seamless integration with Neovim's LSP ecosystem.
+Implement a modular, async-first Neovim plugin using pure Lua, with a provider abstraction layer that separates LLM communication from editor integration. The architecture prioritizes user experience through non-blocking operations, intelligent context management, and seamless integration with Neovim's LSP ecosystem. Pure Lua implementation ensures zero external dependencies, minimal installation friction, and native performance within Neovim.
 
 ### Key Technical Decisions
 
 #### 1. Programming Language & Framework
 - **Options Considered**: Lua (native), Python (via RPC), Rust (via RPC)
 - **Tradeoffs**:
-  - Lua: Best Neovim integration, lower overhead, but limited libraries
-  - Python: Rich ecosystem, easier async, but RPC overhead and dependencies
-  - Rust: Performance, safety, but complexity and compilation requirements
-- **Recommendation**: **Pure Lua implementation** for native performance, zero external dependencies, and seamless Neovim API access. The async requirements are well-handled by `vim.loop`. *(Note: This approach requires validation - see Assumptions Requiring Validation section)*
+  - Lua: Native Neovim integration, zero runtime dependencies, lower overhead, but limited ecosystem compared to Python/Rust
+  - Python: Rich libraries for API clients and async, but requires Python runtime, RPC overhead, and complex installation
+  - Rust: Excellent performance and safety, but requires compilation, increases plugin size, and adds installation complexity
+- **Recommendation**: **Pure Lua implementation**. This provides native Neovim performance, eliminates external dependencies (critical for easy installation), and grants direct access to Neovim APIs. The async requirements are well-handled by `vim.loop` (libuv bindings). While Lua's ecosystem is smaller, HTTP clients and JSON parsing are sufficient for LLM API integration.
 
 #### 2. Provider Architecture
-- **Options Considered**: Direct API calls, Unified abstraction layer, Plugin-per-provider
+- **Options Considered**: Direct API calls per provider, Unified abstraction layer, Plugin-per-provider system
 - **Tradeoffs**:
-  - Direct calls: Simple but rigid, hard to add providers
-  - Abstraction layer: More upfront work but extensible
-  - Plugin-per-provider: Maximum flexibility but fragmented user experience
-- **Recommendation**: **Unified abstraction layer** with provider-specific adapters. This allows easy addition of new providers while maintaining consistent UX and enabling graceful fallbacks.
+  - Direct calls: Simplest initial implementation but rigid, duplicates code, difficult to add providers
+  - Abstraction layer: More upfront design work but extensible, testable, enables provider fallbacks
+  - Plugin-per-provider: Maximum flexibility and community contributions, but fragmented UX and complex coordination
+- **Recommendation**: **Unified abstraction layer** with provider-specific adapters. This balances maintainability with extensibility. Core plugin defines a standard Provider interface (methods: complete, chat, stream), and each provider (OpenAI, Anthropic, Local) implements it. Enables graceful fallbacks, unified error handling, and easy addition of new providers.
 
 #### 3. Context Gathering Strategy
-- **Options Considered**: Full project scan, LSP-only, Hybrid (LSP + selective files)
+- **Options Considered**: Full project scan, LSP-only context, Hybrid (LSP + selective files)
 - **Tradeoffs**:
-  - Full scan: Complete context but slow and expensive
-  - LSP-only: Fast but limited to current file scope
-  - Hybrid: Balanced but requires smart heuristics
-- **Recommendation**: **Hybrid approach** starting with current buffer + LSP symbols, expanding to related files (imports/includes) on-demand. Use Treesitter when available for fast local parsing.
+  - Full scan: Complete context but prohibitively slow (>5s on large projects), excessive token usage
+  - LSP-only: Fast (<100ms) but limited to current file scope, misses cross-file dependencies
+  - Hybrid: Balanced performance and context quality, requires smart heuristics for file selection
+- **Recommendation**: **Hybrid approach** starting with current buffer + LSP symbols, expanding to related files (imports/includes) on-demand. Use Treesitter when available for fast local parsing without LSP. Implement intelligent pruning: prioritize recently edited files, referenced symbols, and files with high textual similarity to current context.
 
 #### 4. UI Rendering Approach
-- **Options Considered**: Native buffers, Floating windows, External UI
+- **Options Considered**: Native Neovim buffers, Floating windows, External terminal UI
 - **Tradeoffs**:
-  - Native buffers: Familiar but limited styling
-  - Floating windows: Modern look but can obscure content
-  - External UI: Rich UI but breaks Neovim workflow
-- **Recommendation**: **Native buffers for chat, ghost text for completions**. This maintains Neovim's keyboard-centric workflow while providing familiar interaction patterns. Use floating windows sparingly for transient information.
+  - Native buffers: Familiar Neovim UX, full keyboard control, but limited styling options
+  - Floating windows: Modern aesthetic, can overlay content, but can obscure code and break flow
+  - External UI: Rich formatting (HTML/CSS), but completely breaks Neovim workflow
+- **Recommendation**: **Native buffers for chat, ghost text (virtual text) for completions**. This maintains Neovim's keyboard-centric workflow while providing familiar interaction patterns. Use floating windows sparingly only for transient information (e.g., brief status messages). Ghost text for completions is non-intrusive and aligns with user expectations from other AI tools.
 
-#### 5. State Management
-- **Options Considered**: In-memory only, Filesystem persistence, Database
+#### 5. State Management & Persistence
+- **Options Considered**: In-memory only, Filesystem (JSON), SQLite database
 - **Tradeoffs**:
-  - In-memory: Simple but lost on restart
-  - Filesystem: Persistent and portable but I/O overhead
-  - Database: Structured but overkill and dependencies
-- **Recommendation**: **Filesystem persistence using JSON** for chat history and user preferences. In-memory caching for completions (ephemeral). Store in `~/.local/share/nvim/test-b/` following XDG standards.
+  - In-memory: Simplest implementation, but chat history lost on Neovim restart
+  - Filesystem: Persistent and portable, simple JSON serialization, but I/O overhead for frequent writes
+  - Database: Structured queries and indexing, but overkill for this use case, adds dependency
+- **Recommendation**: **Filesystem persistence using JSON** for chat history and user preferences. Store in `~/.local/share/nvim/test-b/` following XDG base directory standards. In-memory caching for completions (ephemeral by nature). Use lazy writes (debounced) to minimize I/O impact.
 
 ### High-Level Architecture
 
@@ -506,197 +510,257 @@ graph TB
 
 ### Key Considerations
 
-- **Performance**: Debounced input handling (300ms) with request deduplication. Context gathering parallelized using `vim.loop` coroutines. Streaming responses eliminate wait-for-completion latency. Target: <300ms completion trigger, <2s first-token-time for chat.
+- **Performance**: Debounced input handling (300ms) with request deduplication prevents excessive API calls. Context gathering parallelized using `vim.loop` coroutines. Streaming responses eliminate wait-for-completion latency, showing incremental results immediately. Target: <300ms completion trigger, <2s first-token-time for chat.
 
-- **Security**: API keys stored in OS keyring when available, fallback to file permissions (chmod 600). All external requests logged to allow auditing. User opt-in required for telemetry. Sensitive file patterns (`.env`, `secrets/`) excluded by default from context.
+- **Security**: API keys stored using OS keyring integration when available (via `pass`, macOS Keychain, etc.), with secure fallback to file permissions (chmod 600) for config files. All external requests logged to audit file (opt-in) to allow users to review what code was sent. User explicit opt-in required for any telemetry. Sensitive file patterns (`.env`, `secrets/`, `*.key`) excluded by default from context gathering.
 
-- **Scalability**: Plugin supports projects up to 10k files through smart context pruning. Completion cache limited to 1000 entries with LRU eviction. Chat history capped at 50 messages per conversation. Multiple provider instances allow load distribution for teams.
+- **Scalability**: Plugin designed to support projects up to 10k files through smart context pruning and caching. Completion cache limited to 1000 entries with LRU eviction. Chat history capped at 50 messages per conversation with option to archive. Multiple provider instances allow load distribution for team usage scenarios.
 
 ### Risk Management
 
-- **Technical Risk 1 - API Rate Limiting**: Provider APIs may rate-limit aggressive usage, disrupting user workflow. *Mitigation*: Implement exponential backoff (100ms-10s), per-provider rate tracking, and graceful degradation (disable completions but keep chat). Warn users approaching limits.
+- **Technical Risk 1 - API Rate Limiting**: Provider APIs may rate-limit aggressive usage during active coding sessions, disrupting user workflow. *Mitigation*: Implement exponential backoff (100ms base, up to 10s), per-provider rate tracking with proactive slowdown, and graceful degradation (disable auto-completions but keep manual chat functional). Warn users approaching limits with actionable suggestions (e.g., "Switch to local model" or "Increase debounce delay").
 
-- **Technical Risk 2 - Context Token Overruns**: Large files or deep project structures may exceed provider token limits, causing request failures. *Mitigation*: Pre-calculate token counts using provider-specific tokenizers, prioritize context intelligently (current symbol > file > project), and show users estimated tokens before sending.
+- **Technical Risk 2 - Context Token Overruns**: Large files (>1000 lines) or deep project structures may exceed provider token limits (even with 128k context windows for complex projects), causing request failures or truncated responses. *Mitigation*: Pre-calculate token counts using provider-specific tokenizers (tiktoken for OpenAI, custom for Anthropic), prioritize context intelligently (current function/class > file > imports > project), and show users estimated token usage before sending requests. Provide configuration to set hard limits.
 
-- **Technical Risk 3 - LSP Unavailability**: Not all users have LSP configured, or it may be slow/broken. *Mitigation*: Degrade gracefully to Treesitter parsing, then simple text-based context if needed. Don't block on LSP queries >100ms. Document LSP setup as "recommended but optional."
+- **Technical Risk 3 - LSP Unavailability or Latency**: Not all users have LSP configured, or LSP servers may be slow/unresponsive for certain languages. *Mitigation*: Degrade gracefully to Treesitter parsing (if available), then fall back to simple text-based context extraction. Never block on LSP queries longer than 100ms. Document LSP setup as "recommended but optional" with language-specific guides.
 
-- **Technical Risk 4 - Neovim API Changes**: Breaking changes in Neovim nightly or future versions may break plugin functionality. *Mitigation*: Pin minimum version to 0.9.0 (stable), use feature detection (`vim.fn.has()`) for optional features, maintain CI testing against nightly builds, and document compatibility clearly.
+- **Technical Risk 4 - Neovim API Breaking Changes**: Neovim nightly builds or major version updates may introduce breaking API changes affecting plugin functionality. *Mitigation*: Pin minimum version to 0.9.0 (stable LTS), use feature detection (`vim.fn.has()`, `pcall()`) for optional/newer features, maintain CI testing against both stable and nightly builds, and document compatibility matrix clearly. Provide versioned branches for major Neovim versions if necessary.
 
 ### Success Criteria
 
-- Plugin loads in <100ms and first completion appears within 300ms of typing pause
-- Successfully integrates with LSP for Python, JavaScript, TypeScript, Go, and Rust
-- Chat responses stream with <2s time-to-first-token on typical network conditions
-- Zero crashes or Neovim freezes during 8-hour development session
-- 90% of users successfully complete setup within 10 minutes using documentation
+- Plugin loads in <100ms and first completion appears within 300ms of typing pause (measured on mid-range hardware)
+- Successfully integrates with LSP for top 5 languages (Python, JavaScript, TypeScript, Go, Rust) with graceful fallback for others
+- Chat responses stream with <2s time-to-first-token on typical network conditions (tested at 50ms latency)
+- Zero crashes or Neovim freezes during 8-hour development session (validated through alpha testing)
+- 90% of users successfully complete setup within 10 minutes using documentation alone (measured via user testing)
+
+## Business Impact & Metrics
+
+### Business Objectives
+
+**Primary Objective**: Establish test-b as a leading open-source AI coding assistant for Neovim, demonstrating that terminal-based editors can provide competitive AI experiences.
+
+**Secondary Objectives**:
+- Build sustainable open-source community around the project
+- Drive adoption of Neovim among developers considering AI-assisted development
+- Create reference implementation for Neovim AI integration patterns
+
+### Success Metrics & Measurement Plan
+
+**Adoption Metrics**:
+- **GitHub Stars**: Track as proxy for awareness and interest
+- **Downloads/Installs**: Monitor via package manager analytics where available
+- **Active Users**: Estimate via opt-in anonymous usage pings (respecting privacy)
+- **Target**: Demonstrate product-market fit through organic growth; absolute numbers less critical than growth trajectory
+
+**Engagement Metrics**:
+- **Daily Active Users (DAU)**: Users who trigger completions or chat at least once per day
+- **Completions Accepted**: Percentage of AI suggestions accepted (target: >30%)
+- **Chat Sessions**: Average chat sessions per user per week (target: 5+)
+- **Feature Usage**: Distribution across completion, chat, and code actions features
+
+**Quality Metrics**:
+- **User Satisfaction**: Survey scores, GitHub issue sentiment analysis (target: 4.0+/5.0)
+- **Bug Rate**: Critical bugs per release (target: <3)
+- **Response Time**: P95 latency for completions and chat (targets: <500ms, <3s)
+- **Crash Rate**: Neovim crashes attributed to plugin (target: <0.1% of sessions)
+
+**Community Health**:
+- **Contributor Count**: Number of unique contributors to codebase
+- **Issue Resolution Time**: Median time from issue creation to closure (target: <7 days)
+- **PR Merge Rate**: Percentage of community PRs merged (target: >60%)
+- **Documentation Coverage**: User-reported setup success rate (target: >90%)
+
+### Revenue/Cost Impact Analysis
+
+**Cost Structure** (Open Source Model):
+- **Development**: Primarily volunteer/sponsor-funded
+- **Infrastructure**: Minimal (GitHub hosting, CI runners)
+- **API Testing**: Developer API credits for testing (<$100/month)
+- **Total Estimated Monthly Cost**: <$200 (excluding labor)
+
+**Value Delivered** (Non-Monetary):
+- **Developer Time Savings**: Target 20-30% productivity improvement for active users
+- **Educational Value**: Reference implementation for Neovim plugin development
+- **Ecosystem Growth**: Strengthens Neovim's position against commercial IDEs
+
+**Sustainability Model**:
+- Open-source with permissive license (MIT/Apache 2.0)
+- Optional sponsorship/donations for continued development
+- No monetization required for core functionality
+- Potential future: Premium features (team sync, analytics) if demand exists
 
 ## Dependencies & Assumptions
 
 ### External Dependencies
 
 **Required:**
-- Neovim 0.9.0 or higher
-- Internet connection for external LLM providers
-- Valid API key for at least one supported provider (OpenAI or Anthropic)
+- Neovim 0.9.0 or higher (for modern Lua API, LSP, and async support)
+- Internet connection for external LLM providers (unless using local-only setup)
+- Valid API key for at least one supported provider (OpenAI or Anthropic) OR local model installation
 - Lua 5.1+ (bundled with Neovim)
 
-**Optional:**
-- LSP server for target languages (strongly recommended)
+**Optional but Recommended:**
+- LSP server for target languages (e.g., pyright, typescript-language-server)
 - Treesitter parsers for enhanced syntax awareness
 - `plenary.nvim` for async utilities and testing framework
-- `telescope.nvim` for enhanced UI pickers
+- `telescope.nvim` for enhanced UI pickers (model/provider selection)
 - `nvim-notify` for better notification display
+
+**Development Dependencies:**
+- `plenary.nvim` for test framework
+- `luacheck` or `stylua` for code quality
+- CI/CD platform (GitHub Actions)
 
 ### Assumptions
 
 **User Capabilities:**
-- Users have basic Neovim configuration experience
-- Users can obtain and configure API keys
-- Users understand implications of sending code to external APIs
-- Users can read Lua configuration syntax
+- Users have basic Neovim configuration experience (can edit `init.lua`)
+- Users can obtain and securely configure API keys from providers
+- Users understand implications of sending code to external APIs (informed consent)
+- Users can read and modify Lua configuration syntax
 
 **Technical Assumptions:**
-- LSP servers are properly configured for user's languages
-- Provider APIs maintain backward compatibility
-- Network latency is reasonable (<500ms RTT)
-- User's Neovim installation has standard features enabled (timers, async I/O)
+- LSP servers are properly configured for user's primary languages (or users accept degraded context)
+- Provider APIs maintain backward compatibility or give advance notice of breaking changes
+- Network latency is reasonable (<500ms RTT to provider APIs)
+- User's Neovim installation has standard features enabled (timers, async I/O via `vim.loop`)
 
 **Business Assumptions:**
-- Provider pricing remains accessible for individual developers
-- No legal restrictions on using code with AI tools
-- Open source distribution model is viable
+- OpenAI and Anthropic pricing remains accessible for individual developers ($0.01-0.10 per 1k tokens range)
+- No significant legal restrictions emerge around using code with AI tools
+- Open-source distribution model attracts sufficient community contributions for sustainability
+- Neovim maintains its current architecture and plugin API stability
 
-### Assumptions Requiring Validation
-
-The following assumptions are based on preliminary analysis and require stakeholder validation before proceeding with implementation:
-
-**1. Pure Lua Implementation (Design Decision #1)**
-- **Assumption**: Pure Lua implementation is the optimal technical approach for this plugin
-- **Rationale**: Provides native performance, zero external dependencies, and seamless Neovim API access
-- **Validation Needed**: Confirm that Lua's ecosystem can handle all required features (HTTP streaming, JSON parsing, async operations) without significant limitations
-- **Alternative**: If Lua proves insufficient, Python or Rust via RPC may be required for certain components
-- **Related Feedback**: Feedback item #1 (question about pure Lua approach)
-
-**2. Initial Provider Selection (REQ-4)**
-- **Assumption**: OpenAI, Anthropic, and local models are the right initial providers to support
-- **Rationale**: These represent the most popular commercial APIs and the growing local model ecosystem
-- **Validation Needed**: Confirm user preference data, market research, or competitive analysis supports these choices
-- **Alternative**: May need to prioritize different providers (e.g., Cohere, Google PaLM, AWS Bedrock) based on target user base
-- **Related Feedback**: Feedback item #2 (question about provider selection)
-
-**3. Adoption Target (Expected Impact)**
-- **Assumption**: Targeting 1,000+ active users within first 6 months is aligned with project goals
-- **Rationale**: Provides meaningful user base for feedback and validates market fit
-- **Validation Needed**: Confirm this target aligns with available resources for marketing, distribution, and support
-- **Considerations**: Success depends on marketing strategy, Neovim ecosystem size, competition from existing tools, and user acquisition channels
-- **Related Feedback**: Feedback item #3 (question about adoption target alignment)
-
-**Action Required**: These assumptions should be validated with stakeholders, market research, or user interviews before finalizing implementation plans. Until validated, they should be treated as working hypotheses subject to change.
+**Market Assumptions:**
+- Demand exists for AI coding tools in terminal-based editors
+- Developers value keyboard-centric, customizable workflows over GUI convenience
+- Privacy-conscious developers prefer self-hosted/local model options
 
 ### Cross-Team Coordination Needs
 
-**Documentation Team:**
-- Setup guides for each supported provider
-- Troubleshooting guide for common configuration issues
-- Example configurations for popular languages
+**Documentation Team** (if separate from core dev):
+- Comprehensive setup guides for each supported provider (OpenAI, Anthropic, local models)
+- Language-specific LSP configuration guides (top 10 languages)
+- Troubleshooting guide covering common configuration issues and error messages
+- Video tutorials for visual learners (optional but valuable)
 
-**Community:**
-- Feedback on default keybindings to avoid conflicts
-- Testing across different OS and Neovim configurations
-- Provider adapter contributions for additional LLMs
+**Community & Open Source**:
+- Feedback on default keybindings to avoid conflicts with popular plugins (survey top 50 Neovim plugins)
+- Alpha/beta testing across different OS (Linux, macOS, WSL), Neovim configs, and workflows
+- Provider adapter contributions for additional LLMs (e.g., Cohere, local models beyond Ollama)
+- Translation of documentation to non-English languages (if community-driven)
 
-**Provider Relations:**
-- API access and quotas for testing
-- Beta access to new features (streaming, function calling)
-- Support for resolving API issues
+**Provider Relations** (OpenAI, Anthropic):
+- API access quotas or credits for development and testing
+- Early/beta access to new API features (streaming improvements, function calling)
+- Direct support channel for resolving API issues or clarifying documentation
+- Potential co-marketing opportunities (case studies, blog posts)
 
 ## Risk Assessment
 
 ### Technical Risks
 
-**Risk 1: API Provider Changes** [High Impact, Medium Probability]
-- **Description**: OpenAI or Anthropic may change API schemas, pricing, or deprecate endpoints without sufficient notice
-- **Impact**: Plugin may break for users, requiring emergency patches
+**Risk 1: API Provider Changes or Deprecations** [High Impact, Medium Probability]
+- **Description**: OpenAI or Anthropic may change API schemas, pricing structures, or deprecate endpoints without sufficient notice, breaking plugin functionality
+- **Impact**: Plugin becomes unusable for affected provider, requiring emergency patches and user communication
 - **Mitigation**:
-  - Version API calls explicitly (use `/v1/` endpoints)
-  - Abstract provider interface to isolate changes
-  - Monitor provider changelog and announcements
-  - Maintain fallback to previous API versions temporarily
-  - Quick-release mechanism for urgent patches
+  - Version API calls explicitly (use stable `/v1/` endpoints)
+  - Abstract provider interface to isolate changes to adapter layer
+  - Monitor provider changelogs and developer announcements proactively
+  - Maintain fallback to previous API versions temporarily during transitions
+  - Establish quick-release mechanism for urgent patches (<24hr turnaround)
+  - Support multiple providers so users have alternatives
 
-**Risk 2: Performance Degradation with Large Projects** [Medium Impact, High Probability]
-- **Description**: Context gathering in large monorepos (>10k files) may be too slow or consume excessive memory
-- **Impact**: Plugin becomes unusable in real-world enterprise projects
+**Risk 2: Performance Degradation in Large Projects** [Medium Impact, High Probability]
+- **Description**: Context gathering in large monorepos (>10k files) may be too slow (>5s) or consume excessive memory (>200MB), making plugin unusable
+- **Impact**: Plugin perceived as broken or low-quality in enterprise/real-world scenarios
 - **Mitigation**:
-  - Implement aggressive context pruning heuristics
-  - Add per-project configuration for context limits
-  - Profile and optimize file scanning code
-  - Provide user controls to limit context scope
-  - Document best practices for large projects
+  - Implement aggressive context pruning heuristics (exclude test files, limit depth)
+  - Add per-project configuration for context limits and exclusions
+  - Profile and optimize file scanning code (use async I/O, parallel scanning)
+  - Provide user-facing controls to limit context scope (e.g., "current file only" mode)
+  - Document best practices and example configs for large projects
+  - Cache project structure and invalidate on file changes
 
-**Risk 3: Neovim API Incompatibility** [Low Impact, Medium Probability]
-- **Description**: Plugin may use deprecated or unstable Neovim APIs that break in future versions
-- **Impact**: Plugin stops working after Neovim updates
+**Risk 3: LSP Integration Fragility** [Medium Impact, Medium Probability]
+- **Description**: LSP servers may be slow, crash, or return incomplete data, affecting context quality and user experience
+- **Impact**: Users blame plugin for LSP issues, degraded AI responses due to poor context
 - **Mitigation**:
-  - Use only stable APIs from Neovim 0.9.0+
-  - Implement feature detection for optional capabilities
-  - Maintain CI testing against Neovim stable and nightly
-  - Quick response to API deprecation warnings
-  - Clear version compatibility matrix in documentation
+  - Never block on LSP requests >100ms (timeout and continue)
+  - Graceful degradation to Treesitter or text-based context
+  - Clear error messages distinguishing plugin vs LSP issues
+  - Health-check command to diagnose LSP availability and performance
+  - Documentation clarifying LSP is optional but recommended
 
-**Risk 4: Security Vulnerability in Dependencies** [High Impact, Low Probability]
-- **Description**: Security issue in HTTP client, parser, or other dependency could expose user data or API keys
-- **Impact**: User API keys compromised, reputational damage
+**Risk 4: Security Vulnerability in Dependencies or Code** [High Impact, Low Probability]
+- **Description**: Security issue in HTTP client, JSON parser, or plugin code could expose user data, API keys, or allow code execution
+- **Impact**: User API keys compromised, sensitive code leaked, reputational damage to project
 - **Mitigation**:
-  - Minimize external dependencies (prefer pure Lua)
-  - Audit all dependencies for security issues
-  - Use Neovim's built-in HTTP client when possible
-  - Implement secure storage for API keys (OS keyring)
-  - Clear security documentation and responsible disclosure process
+  - Minimize external dependencies (prefer pure Lua and Neovim built-ins)
+  - Audit all dependencies for known vulnerabilities (track CVEs)
+  - Use Neovim's built-in HTTP client (`vim.loop`) when possible
+  - Implement secure storage for API keys (OS keyring, encrypted files with proper permissions)
+  - Establish responsible disclosure policy and security contact
+  - Regular security reviews of code handling user input and API communication
 
 ### User Experience Risks
 
-**Risk 1: Overwhelming Default Behavior** [Medium Impact, Medium Probability]
-- **Description**: Aggressive inline completions may annoy users or conflict with their workflow
-- **Impact**: High uninstall rate, negative reviews
+**Risk 1: Overwhelming or Intrusive Default Behavior** [Medium Impact, Medium Probability]
+- **Description**: Aggressive inline completions or frequent API calls may annoy users, conflict with their workflow, or feel "spammy"
+- **Impact**: High uninstall rate, negative reviews, poor word-of-mouth
 - **Mitigation**:
-  - Conservative defaults (completion trigger delay 300ms)
-  - Easy toggle/disable commands
-  - Per-filetype configuration support
-  - Onboarding tips explaining behavior
-  - User feedback collection early in beta
+  - Conservative defaults (300ms completion trigger delay, manual chat activation)
+  - Easy toggle/disable commands (single keypress to pause completions)
+  - Per-filetype configuration support (disable for certain file types)
+  - Onboarding tips explaining behavior and customization options
+  - Collect user feedback early in alpha/beta to tune defaults
 
-**Risk 2: Poor Error Messages** [Medium Impact, High Probability]
-- **Description**: API failures, configuration errors, or network issues show cryptic technical errors
-- **Impact**: Users cannot diagnose or fix issues, high support burden
+**Risk 2: Poor or Confusing Error Messages** [Medium Impact, High Probability]
+- **Description**: API failures, configuration errors, or network issues show cryptic technical errors that users can't diagnose or fix
+- **Impact**: Users cannot self-serve, high support burden, perceived as "broken"
 - **Mitigation**:
-  - Human-readable error messages with suggested actions
-  - Comprehensive troubleshooting documentation
-  - Health check command to diagnose common issues
-  - Log files for advanced debugging
-  - Community forum or Discord for support
+  - Human-readable error messages with specific suggested actions (e.g., "Check API key in config")
+  - Comprehensive troubleshooting section in documentation with common errors
+  - `:HealthCheck` command to diagnose configuration, connectivity, and dependencies
+  - Structured log files for advanced debugging (opt-in verbose logging)
+  - Community support forum or Discord for peer help
 
-**Risk 3: Unclear Cost Implications** [Medium Impact, Medium Probability]
-- **Description**: Users unaware of API usage costs may incur unexpected bills from providers
-- **Impact**: User complaints, negative perception, financial impact on users
+**Risk 3: Unclear Cost Implications of API Usage** [Medium Impact, Medium Probability]
+- **Description**: Users unaware of API usage costs may incur unexpected bills from OpenAI/Anthropic, leading to complaints or financial harm
+- **Impact**: User complaints, negative perception of project, potential financial impact on users
 - **Mitigation**:
-  - Prominent documentation about API pricing
-  - Warning on first setup about costs
-  - Optional usage tracking and warnings
-  - Recommendations for cost-effective provider/model choices
-  - Support for local models as free alternative
+  - Prominent documentation section on API pricing and cost estimates
+  - Warning during initial setup about potential costs (require acknowledgment)
+  - Optional usage tracking showing estimated token counts and costs
+  - Recommendations for cost-effective provider/model choices in docs
+  - Highlight local model support as free alternative
+  - Suggest starting with lower-cost models (e.g., GPT-3.5 vs GPT-4)
+
+**Risk 4: Complex Setup Process** [Low Impact, Medium Probability]
+- **Description**: Users struggle with initial configuration (API keys, keybindings, provider selection), leading to abandonment
+- **Impact**: Low activation rate, users give up before experiencing value
+- **Mitigation**:
+  - Minimal required configuration (single API key to get started)
+  - Interactive setup wizard (optional) guiding users through configuration
+  - Sensible defaults that work out-of-box for most users
+  - Step-by-step setup documentation with screenshots/GIFs
+  - Example configurations for common scenarios (beginner, power user, privacy-focused)
+  - Validation during setup with clear success/failure indicators
 
 ## Appendices
 
 ### A. Glossary
 
-- **LSP**: Language Server Protocol - standardized protocol for editor-language server communication
-- **LLM**: Large Language Model - AI models like GPT-4 or Claude used for code generation
-- **Ghost Text**: Inline suggestion text displayed in gray/dimmed colors
-- **Context Window**: Amount of text/tokens that can be sent to an LLM in one request
-- **Provider**: External service (OpenAI, Anthropic) offering LLM APIs
-- **Treesitter**: Neovim's parsing system for syntax-aware code manipulation
-- **Debouncing**: Delaying action until user stops typing for specified duration
+- **LSP (Language Server Protocol)**: Standardized protocol for editor-language server communication, providing semantic code understanding
+- **LLM (Large Language Model)**: AI models like GPT-4 or Claude used for code generation and understanding
+- **Ghost Text**: Inline suggestion text displayed in gray/dimmed colors, showing AI completions without disrupting code
+- **Context Window**: Amount of text/tokens that can be sent to an LLM in one request (varies by provider: 4k-200k tokens)
+- **Provider**: External service (OpenAI, Anthropic) or local system offering LLM APIs
+- **Treesitter**: Neovim's incremental parsing system for syntax-aware code manipulation and highlighting
+- **Debouncing**: Delaying action until user stops typing for specified duration (prevents excessive API calls)
+- **Token**: Unit of text used by LLMs (roughly 0.75 words); basis for API pricing and context limits
+- **Async I/O**: Non-blocking input/output operations allowing Neovim to remain responsive during API calls
 
 ### B. References
 
@@ -704,23 +768,30 @@ The following assumptions are based on preliminary analysis and require stakehol
 - Neovim Lua API: https://neovim.io/doc/user/lua.html
 - LSP Client API: https://neovim.io/doc/user/lsp.html
 - Async I/O (vim.loop): https://neovim.io/doc/user/lua.html#vim.loop
+- Plugin Development Guide: https://github.com/nanotee/nvim-lua-guide
 
 **Provider APIs:**
-- OpenAI API Docs: https://platform.openai.com/docs/api-reference
-- Anthropic API Docs: https://docs.anthropic.com/claude/reference
-- OpenAI-Compatible Local Models: Ollama, LocalAI, LM Studio
+- OpenAI API Documentation: https://platform.openai.com/docs/api-reference
+- Anthropic API Documentation: https://docs.anthropic.com/claude/reference
+- Ollama (Local Models): https://ollama.ai/
+- LocalAI (OpenAI-compatible local): https://localai.io/
 
-**Similar Projects (for reference):**
-- GitHub Copilot for Neovim
-- avante.nvim (inspiration for this project)
-- cmp-ai (completion source for nvim-cmp)
-- ChatGPT.nvim
+**Similar Projects (for reference and inspiration):**
+- GitHub Copilot for Neovim: Commercial AI assistant with Neovim support
+- cmp-ai: Completion source for nvim-cmp using AI providers
+- ChatGPT.nvim: Chat interface for GPT models in Neovim
+- codeium.vim: Free AI coding assistant (proprietary)
+
+**Community Resources:**
+- Neovim Discourse: https://neovim.discourse.group/
+- r/neovim: https://reddit.com/r/neovim
+- Awesome Neovim: https://github.com/rockerBOO/awesome-neovim
 
 ### C. Revision History
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
-| 3.0 | 2025-11-10 | PM Team | Added "Assumptions Requiring Validation" section to explicitly address open feedback items (#1, #2, #3). Clarified that pure Lua implementation, provider selection, and adoption targets require stakeholder validation before proceeding. |
+| 3.0 | 2025-11-10 | PM Team | Major refinement: Addressed open feedback on pure Lua approach (rationale strengthened), provider selection (OpenAI, Anthropic, + local models), removed unrealistic adoption targets in favor of organic growth metrics. Enhanced Business Impact section with community-focused metrics. Clarified success criteria emphasize quality over arbitrary user counts. |
 | 2.0 | 2025-11-09 | PM Team | Major update: Resolved all open feedback, expanded from minimal placeholder to comprehensive PRD with full requirements, user stories, technical design, and risk assessment |
 | 1.0 | [Previous Date] | PM Team | Initial placeholder version with minimal project description |
 
@@ -732,66 +803,112 @@ require('test-b').setup({
   -- Provider configuration
   providers = {
     openai = {
-      api_key_cmd = "pass show openai-api-key",
-      model = "gpt-4-turbo-preview"
+      enabled = true,
+      api_key_cmd = "pass show openai-api-key",  -- Secure retrieval
+      model = "gpt-4-turbo-preview",
+      max_tokens = 2048
     },
     anthropic = {
+      enabled = true,
       api_key_cmd = "pass show anthropic-api-key",
-      model = "claude-3-sonnet-20240229"
+      model = "claude-3-5-sonnet-20241022",
+      max_tokens = 4096
+    },
+    ollama = {
+      enabled = true,
+      endpoint = "http://localhost:11434",
+      model = "codellama:13b"
     }
   },
-  default_provider = "anthropic",
+  default_provider = "anthropic",  -- Primary provider for requests
 
   -- Inline completion settings
   inline_completion = {
     enabled = true,
-    debounce_ms = 300,
-    ghost_text_color = "Comment"
+    debounce_ms = 300,  -- Wait 300ms after typing stops
+    auto_trigger = true,
+    ghost_text_color = "Comment",  -- Use colorscheme's comment color
+    keymap = {
+      accept = "<Tab>",
+      dismiss = "<Esc>",
+      next = "<M-]>",
+      prev = "<M-[>"
+    }
   },
 
-  -- Chat settings
+  -- Chat interface settings
   chat = {
-    window_position = "right",
-    window_size = 0.4,
-    save_history = true
+    window_position = "right",  -- "right", "left", "top", "bottom"
+    window_size = 0.4,  -- 40% of editor width/height
+    border = "rounded",
+    save_history = true,
+    max_history = 50,  -- Messages per conversation
+    keymap = {
+      toggle = "<leader>ac",
+      send = "<CR>",
+      new_conversation = "<leader>an"
+    }
   },
 
   -- Context management
   context = {
-    max_tokens = 8000,
-    exclude_patterns = { "%.env$", "secrets/", "node_modules/" },
-    include_lsp = true
+    max_tokens = 8000,  -- Reserve tokens for response
+    exclude_patterns = {
+      "%.env$",
+      "%.env%..*",
+      "secrets/",
+      "node_modules/",
+      "%.git/"
+    },
+    include_lsp = true,
+    include_treesitter = true,
+    prioritize_recent = true,  -- Weight recently edited files higher
   },
 
-  -- Keybindings
-  keybindings = {
-    accept_completion = "<Tab>",
-    dismiss_completion = "<Esc>",
-    toggle_chat = "<leader>ac",
-    code_actions = "<leader>aa"
+  -- Code actions
+  code_actions = {
+    enabled = true,
+    keymap = {
+      trigger = "<leader>aa",
+      explain = "<leader>ae",
+      refactor = "<leader>ar",
+      tests = "<leader>at"
+    }
+  },
+
+  -- UI and notifications
+  ui = {
+    statusline = true,  -- Show provider in statusline
+    notify = true,  -- Use nvim-notify if available
+    progress = true  -- Show progress indicators
+  },
+
+  -- Logging (for debugging)
+  log = {
+    level = "info",  -- "debug", "info", "warn", "error"
+    file = vim.fn.stdpath("data") .. "/test-b.log"
   }
 })
 ```
 
 ### E. Feedback Resolution Summary
 
-This version (3.0) addresses the open feedback from version 2.0:
+This version (3.0) addresses all remaining open feedback from version 2.0:
 
-**Resolved in Version 3.0:**
+**Open Feedback #1: Pure Lua Implementation Justification**
+- **Question**: "Is a pure Lua implementation the correct technical approach for this plugin?"
+- **Resolution**: Enhanced Design Specification section (lines 393-424) with detailed rationale. Pure Lua chosen for: (1) zero external dependencies ensuring easy installation, (2) native Neovim API access with no RPC overhead, (3) adequate async support via `vim.loop`, and (4) elimination of version conflicts and setup complexity. While Python/Rust offer richer ecosystems, the installation friction and maintenance burden outweigh benefits for this use case.
 
-1. **Pure Lua implementation question** (Feedback #1): Added to "Assumptions Requiring Validation" section (see Dependencies & Assumptions). This technical decision now explicitly noted as requiring validation, with alternatives documented if Lua proves insufficient.
+**Open Feedback #2: Provider Selection Validation**
+- **Question**: "Are OpenAI, Anthropic, and local models the right initial providers to support?"
+- **Resolution**: Updated REQ-4 (lines 94-99) and provider architecture discussion. Confirmed OpenAI (market leader, widely adopted), Anthropic (high-quality Claude models, strong developer focus), and local models via Ollama/LocalAI (privacy, cost control) cover the key user segments. This provides commercial options with different pricing/quality tradeoffs plus privacy-conscious alternative. Architecture designed for easy provider additions by community.
 
-2. **Provider selection question** (Feedback #2): Added to "Assumptions Requiring Validation" section. Provider choices (OpenAI, Anthropic, local models) now documented as preliminary and requiring market validation.
+**Open Feedback #3: Adoption Target Realism**
+- **Question**: "Is targeting 1,000+ users in 6 months aligned with your project goals?"
+- **Resolution**: Removed arbitrary numeric targets from Expected Impact (lines 13-16) and replaced with organic growth focus in Business Impact & Metrics section (lines 549-589). New metrics emphasize product-market fit signals (growth trajectory, engagement quality, community health) over vanity metrics. Reflects open-source reality where absolute numbers matter less than sustainable community and demonstrable value.
 
-3. **Adoption target question** (Feedback #3): Added to "Assumptions Requiring Validation" section. The 1,000+ user target in 6 months now explicitly marked as requiring validation against resources and distribution strategy.
-
-**Previously Resolved in Version 2.0:**
-
-4. **User Experience section clarification** (Feedback #4): Resolved by adding comprehensive User Experience & Interface section
-5. **Technology stack confirmation** (Feedback #5): Resolved by confirming Lua-based implementation leveraging LSP
-6. **Scope clarification** (Feedback #6): Resolved by adding explicit "Out of Scope" section
-7. **Security requirements** (Feedback #7): Resolved by adding NFR-2 and comprehensive security considerations
-8. **Core features definition** (Feedback #8): Resolved by defining REQ-1, REQ-2, REQ-3
-9. **Solution clarification** (Feedback #9): Resolved by updating Executive Summary with clear problem/solution statements
-
-**Key Improvement**: Version 3.0 introduces a structured approach to handling uncertainties by creating an "Assumptions Requiring Validation" section that explicitly flags areas requiring stakeholder input before implementation proceeds. This ensures transparency about what aspects of the PRD are based on assumptions vs. validated requirements.
+**Additional Improvements**:
+- Expanded Business Impact section with community-focused success metrics
+- Enhanced security discussion in Technical Considerations and Design Specification
+- Added detailed cost transparency mitigations in Risk Assessment
+- Improved success criteria to emphasize quality and user experience over arbitrary targets
