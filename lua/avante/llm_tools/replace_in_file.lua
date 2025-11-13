@@ -557,6 +557,8 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
       local start_line = diff_block.start_line + base_line_
       local end_line = diff_block.end_line + base_line_
       base_line_ = base_line_ + #diff_block.new_lines - #diff_block.old_lines
+      local was_modifiable = vim.api.nvim_get_option_value("modifiable", { buf = bufnr })
+      if not was_modifiable then vim.api.nvim_set_option_value("modifiable", true, { buf = bufnr }) end
       vim.api.nvim_buf_set_lines(bufnr, start_line - 1, end_line, false, diff_block.new_lines)
     end
   end
@@ -713,7 +715,15 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
   end
 
   if is_streaming then
-    -- In streaming mode, don't show confirmation dialog, just apply changes
+    -- Before the nvim_buf_call or nvim_exec2
+    local buf_type = vim.api.nvim_get_option_value("buftype", { buf = bufnr })
+    if buf_type ~= "" then vim.api.nvim_set_option_value("buftype", "", { buf = bufnr }) end
+
+    -- Existing code: e.g., vim.api.nvim_buf_call(bufnr, function()
+    vim.api.nvim_exec2("silent write", { output = false })
+
+    -- Restore if needed (optional, as Avante buffers are often transient)
+    if buf_type ~= "" then vim.api.nvim_set_option_value("buftype", buf_type, { buf = bufnr }) end
     return
   end
 
