@@ -14,10 +14,22 @@
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
+<<<<<<< HEAD
+=======
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ],
+>>>>>>> c8dfc81 (feat(homepage): implement complete Next.js homepage with i18n support)
     "paths": {
       "@/*": ["./*"]
     }
   },
+<<<<<<< HEAD
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+=======
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
+>>>>>>> c8dfc81 (feat(homepage): implement complete Next.js homepage with i18n support)
   "exclude": ["node_modules"]
 }

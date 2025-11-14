@@ -1,0 +1,73 @@
+{
+  "hero": {
+    "tagline": "AI-Powered Code Assistance for Neovim",
+    "subtitle": "Bring Cursor-like AI capabilities to your Neovim workflow. Open-source, extensible, and powerful.",
+    "cta_primary": "Get Started",
+    "cta_secondary": "View Demo",
+    "github_stars": "stars",
+    "version": "Version"
+  },
+  "features": {
+    "title": "Powerful Features",
+    "subtitle": "Everything you need for AI-assisted coding in Neovim",
+    "ai_suggestions": {
+      "title": "AI-Powered Code Suggestions",
+      "description": "Get intelligent code completions and suggestions powered by advanced AI models"
+    },
+    "one_click": {
+      "title": "One-Click Code Application",
+      "description": "Apply AI-generated code changes instantly with a single command"
+    },
+    "multi_provider": {
+      "title": "Multi-Provider Support",
+      "description": "Works with Claude, OpenAI, Gemini, and more AI providers"
+    },
+    "zen_mode": {
+      "title": "Avante Zen Mode",
+      "description": "Focus on your code with distraction-free AI assistance"
+    },
+    "acp": {
+      "title": "ACP Support",
+      "description": "Agent Client Protocol integration for extensible AI workflows"
+    },
+    "avante_md": {
+      "title": "Project Instructions",
+      "description": "Use avante.md files for project-specific AI guidance"
+    },
+    "rag": {
+      "title": "RAG Service",
+      "description": "Retrieval-Augmented Generation for context-aware suggestions"
+    },
+    "custom_tools": {
+      "title": "Custom Tools & MCP",
+      "description": "Extend functionality with custom tools and Model Context Protocol"
+    }
+  },
+  "installation": {
+    "title": "Quick Start",
+    "subtitle": "Get up and running in minutes",
+    "requirements": "Requirements: Neovim 0.10.1+",
+    "lazy_nvim": "lazy.nvim",
+    "packer": "Packer",
+    "vim_plug": "vim-plug",
+    "docs_link": "Full Documentation"
+  },
+  "nav": {
+    "home": "Home",
+    "features": "Features",
+    "installation": "Installation",
+    "community": "Community",
+    "docs": "Documentation"
+  },
+  "footer": {
+    "description": "AI-Powered Code Assistance for Neovim",
+    "resources": "Resources",
+    "github": "GitHub",
+    "discord": "Discord",
+    "documentation": "Documentation",
+    "community": "Community",
+    "support": "Support & Sponsorship",
+    "sponsors": "Sponsors",
+    "license": "Licensed under MIT"
+  }
+}

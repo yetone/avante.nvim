@@ -1,0 +1,73 @@
+{
+  "hero": {
+    "tagline": "为 Neovim 提供 AI 驱动的代码辅助",
+    "subtitle": "将类似 Cursor 的 AI 能力带到你的 Neovim 工作流程中。开源、可扩展、功能强大。",
+    "cta_primary": "开始使用",
+    "cta_secondary": "查看演示",
+    "github_stars": "星标",
+    "version": "版本"
+  },
+  "features": {
+    "title": "强大功能",
+    "subtitle": "Neovim 中 AI 辅助编码所需的一切",
+    "ai_suggestions": {
+      "title": "AI 驱动的代码建议",
+      "description": "获得由先进 AI 模型驱动的智能代码补全和建议"
+    },
+    "one_click": {
+      "title": "一键应用代码",
+      "description": "一键即可应用 AI 生成的代码更改"
+    },
+    "multi_provider": {
+      "title": "多提供商支持",
+      "description": "支持 Claude、OpenAI、Gemini 等多个 AI 提供商"
+    },
+    "zen_mode": {
+      "title": "Avante 禅定模式",
+      "description": "专注于代码，享受无干扰的 AI 辅助"
+    },
+    "acp": {
+      "title": "ACP 支持",
+      "description": "代理客户端协议集成，实现可扩展的 AI 工作流"
+    },
+    "avante_md": {
+      "title": "项目指令",
+      "description": "使用 avante.md 文件提供项目特定的 AI 指导"
+    },
+    "rag": {
+      "title": "RAG 服务",
+      "description": "检索增强生成，提供上下文感知的建议"
+    },
+    "custom_tools": {
+      "title": "自定义工具与 MCP",
+      "description": "通过自定义工具和模型上下文协议扩展功能"
+    }
+  },
+  "installation": {
+    "title": "快速开始",
+    "subtitle": "几分钟内即可开始使用",
+    "requirements": "要求：Neovim 0.10.1+",
+    "lazy_nvim": "lazy.nvim",
+    "packer": "Packer",
+    "vim_plug": "vim-plug",
+    "docs_link": "完整文档"
+  },
+  "nav": {
+    "home": "首页",
+    "features": "功能",
+    "installation": "安装",
+    "community": "社区",
+    "docs": "文档"
+  },
+  "footer": {
+    "description": "为 Neovim 提供 AI 驱动的代码辅助",
+    "resources": "资源",
+    "github": "GitHub",
+    "discord": "Discord",
+    "documentation": "文档",
+    "community": "社区",
+    "support": "支持与赞助",
+    "sponsors": "赞助商",
+    "license": "采用 MIT 许可证"
+  }
+}

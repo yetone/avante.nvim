@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React, { useState } from 'react';
 import { useRouter } from 'next/router';
 import { Translations } from '@/lib/types';
@@ -19,11 +20,24 @@ export function Navigation({ translations, locale, onLocaleChange }: NavigationP
     onLocaleChange(newLocale);
     router.push(`${router.pathname}?lang=${newLocale}`, undefined, { shallow: true });
   };
+=======
+'use client';
+
+import { useTranslations } from 'next-intl';
+import { useState } from 'react';
+import { Link as IntlLink } from '@/i18n/routing';
+import LanguageSwitcher from './LanguageSwitcher';
+
+export default function Navigation() {
+  const t = useTranslations('nav');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+>>>>>>> c8dfc81 (feat(homepage): implement complete Next.js homepage with i18n support)
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
     if (element) {
       element.scrollIntoView({ behavior: 'smooth' });
+<<<<<<< HEAD
     }
     setIsOpen(false);
   };
@@ -46,10 +60,28 @@ export function Navigation({ translations, locale, onLocaleChange }: NavigationP
               className="flex items-center space-x-2 text-white font-bold text-xl hover:text-primary-400 transition-colors"
             >
               <span>avante.nvim</span>
+=======
+      setIsMenuOpen(false);
+    }
+  };
+
+  return (
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-gray-900/95 backdrop-blur-sm border-b border-gray-800">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          {/* Logo */}
+          <div className="flex-shrink-0">
+            <button
+              onClick={() => scrollToSection('hero')}
+              className="text-xl font-bold text-white hover:text-primary-400 transition-colors"
+            >
+              avante.nvim
+>>>>>>> c8dfc81 (feat(homepage): implement complete Next.js homepage with i18n support)
             </button>
           </div>
 
           {/* Desktop Navigation */}
+<<<<<<< HEAD
           <div className="hidden md:flex items-center space-x-8">
             {navItems.map((item) => (
               <button
@@ -60,12 +92,28 @@ export function Navigation({ translations, locale, onLocaleChange }: NavigationP
                 {translations.nav[item.key as keyof typeof translations.nav]}
               </button>
             ))}
+=======
+          <div className="hidden md:flex md:items-center md:space-x-8">
+            <button
+              onClick={() => scrollToSection('features')}
+              className="text-gray-300 hover:text-white transition-colors"
+            >
+              {t('features')}
+            </button>
+            <button
+              onClick={() => scrollToSection('installation')}
+              className="text-gray-300 hover:text-white transition-colors"
+            >
+              {t('installation')}
+            </button>
+>>>>>>> c8dfc81 (feat(homepage): implement complete Next.js homepage with i18n support)
             <a
               href="https://github.com/yetone/avante.nvim"
               target="_blank"
               rel="noopener noreferrer"
               className="text-gray-300 hover:text-white transition-colors"
             >
+<<<<<<< HEAD
               {translations.nav.docs}
             </a>
 
@@ -82,12 +130,33 @@ export function Navigation({ translations, locale, onLocaleChange }: NavigationP
           <div className="md:hidden">
             <button
               onClick={() => setIsOpen(!isOpen)}
+=======
+              {t('community')}
+            </a>
+            <a
+              href="https://github.com/yetone/avante.nvim/blob/main/README.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-300 hover:text-white transition-colors"
+            >
+              {t('docs')}
+            </a>
+            <LanguageSwitcher />
+          </div>
+
+          {/* Mobile menu button */}
+          <div className="md:hidden flex items-center space-x-4">
+            <LanguageSwitcher />
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+>>>>>>> c8dfc81 (feat(homepage): implement complete Next.js homepage with i18n support)
               className="text-gray-300 hover:text-white focus:outline-none"
               aria-label="Toggle menu"
             >
               <svg
                 className="h-6 w-6"
                 fill="none"
+<<<<<<< HEAD
                 viewBox="0 0 24 24"
                 stroke="currentColor"
               >
@@ -105,12 +174,25 @@ export function Navigation({ translations, locale, onLocaleChange }: NavigationP
                     strokeWidth={2}
                     d="M4 6h16M4 12h16M4 18h16"
                   />
+=======
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                {isMenuOpen ? (
+                  <path d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path d="M4 6h16M4 12h16M4 18h16" />
+>>>>>>> c8dfc81 (feat(homepage): implement complete Next.js homepage with i18n support)
                 )}
               </svg>
             </button>
           </div>
         </div>
 
+<<<<<<< HEAD
         {/* Mobile Menu */}
         {isOpen && (
           <div className="md:hidden pb-4">
@@ -137,6 +219,41 @@ export function Navigation({ translations, locale, onLocaleChange }: NavigationP
             >
               {locale === 'en' ? '中文' : 'English'}
             </button>
+=======
+        {/* Mobile menu */}
+        {isMenuOpen && (
+          <div className="md:hidden pb-4">
+            <div className="flex flex-col space-y-4">
+              <button
+                onClick={() => scrollToSection('features')}
+                className="text-gray-300 hover:text-white transition-colors text-left"
+              >
+                {t('features')}
+              </button>
+              <button
+                onClick={() => scrollToSection('installation')}
+                className="text-gray-300 hover:text-white transition-colors text-left"
+              >
+                {t('installation')}
+              </button>
+              <a
+                href="https://github.com/yetone/avante.nvim"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-300 hover:text-white transition-colors"
+              >
+                {t('community')}
+              </a>
+              <a
+                href="https://github.com/yetone/avante.nvim/blob/main/README.md"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-300 hover:text-white transition-colors"
+              >
+                {t('docs')}
+              </a>
+            </div>
+>>>>>>> c8dfc81 (feat(homepage): implement complete Next.js homepage with i18n support)
           </div>
         )}
       </div>

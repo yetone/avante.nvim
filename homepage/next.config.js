@@ -4,6 +4,10 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+<<<<<<< HEAD
+=======
+  basePath: '',
+>>>>>>> c8dfc81 (feat(homepage): implement complete Next.js homepage with i18n support)
   trailingSlash: true,
 }
 
