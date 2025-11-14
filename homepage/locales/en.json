@@ -1,0 +1,74 @@
+{
+  "nav": {
+    "home": "Home",
+    "features": "Features",
+    "installation": "Installation",
+    "community": "Community",
+    "docs": "Documentation"
+  },
+  "hero": {
+    "title": "AI-Powered Code Assistance for Neovim",
+    "subtitle": "Bring Cursor-like AI capabilities to your Neovim workflow. Open-source, extensible, and powerful.",
+    "cta_primary": "Get Started",
+    "cta_secondary": "View on GitHub"
+  },
+  "features": {
+    "title": "Powerful Features",
+    "ai_suggestions": {
+      "title": "AI-Powered Code Suggestions",
+      "description": "Get intelligent code suggestions powered by multiple AI providers including Claude, OpenAI, and Gemini."
+    },
+    "one_click": {
+      "title": "One-Click Application",
+      "description": "Apply AI suggestions with a single keystroke. Review diffs and accept changes seamlessly."
+    },
+    "multi_provider": {
+      "title": "Multi-Provider Support",
+      "description": "Choose from Claude, OpenAI, Gemini, Cohere, and more. Switch providers based on your needs."
+    },
+    "zen_mode": {
+      "title": "Avante Zen Mode",
+      "description": "Focus on your code with distraction-free AI assistance. Perfect for deep work sessions."
+    },
+    "acp": {
+      "title": "ACP Integration",
+      "description": "Agent Client Protocol support for advanced AI agent interactions and workflows."
+    },
+    "project_instructions": {
+      "title": "Project Instructions",
+      "description": "Define project-specific context with avante.md files for tailored AI assistance."
+    },
+    "rag_service": {
+      "title": "RAG Service",
+      "description": "Leverage Retrieval-Augmented Generation for context-aware code suggestions."
+    },
+    "custom_tools": {
+      "title": "Custom Tools & MCP",
+      "description": "Extend functionality with custom tools and Model Context Protocol integration."
+    }
+  },
+  "installation": {
+    "title": "Quick Start",
+    "subtitle": "Get up and running in minutes",
+    "lazy_nvim": "Using lazy.nvim",
+    "packer": "Using Packer",
+    "vim_plug": "Using vim-plug",
+    "requirements": "Requirements: Neovim 0.10.1+",
+    "copied": "Copied!",
+    "copy": "Copy"
+  },
+  "community": {
+    "title": "Join the Community",
+    "subtitle": "Connect with other developers using avante.nvim",
+    "github": "Star on GitHub",
+    "discord": "Join Discord",
+    "stars": "stars",
+    "members": "members"
+  },
+  "footer": {
+    "license": "Licensed under Apache 2.0",
+    "docs": "Documentation",
+    "github": "GitHub",
+    "discord": "Discord"
+  }
+}

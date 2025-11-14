@@ -1,0 +1,74 @@
+{
+  "nav": {
+    "home": "首页",
+    "features": "功能特性",
+    "installation": "快速开始",
+    "community": "社区",
+    "docs": "文档"
+  },
+  "hero": {
+    "title": "Neovim 的 AI 驱动编程",
+    "subtitle": "在你最喜爱的终端编辑器中体验 Cursor IDE 的智能。开源、可扩展、功能强大。",
+    "cta_primary": "快速开始",
+    "cta_secondary": "在 GitHub 查看"
+  },
+  "features": {
+    "title": "强大功能",
+    "ai_suggestions": {
+      "title": "AI 驱动的代码建议",
+      "description": "获得由 Claude、OpenAI 和 Gemini 等多个 AI 提供商支持的智能代码建议。"
+    },
+    "one_click": {
+      "title": "一键应用",
+      "description": "通过单次按键应用 AI 建议。无缝审查差异并接受更改。"
+    },
+    "multi_provider": {
+      "title": "多提供商支持",
+      "description": "从 Claude、OpenAI、Gemini、Cohere 等中选择。根据需求切换提供商。"
+    },
+    "zen_mode": {
+      "title": "Avante 禅模式",
+      "description": "通过无干扰的 AI 辅助专注于代码。完美适合深度工作会话。"
+    },
+    "acp": {
+      "title": "ACP 集成",
+      "description": "支持代理客户端协议，实现高级 AI 代理交互和工作流。"
+    },
+    "project_instructions": {
+      "title": "项目指令",
+      "description": "使用 avante.md 文件定义项目特定上下文，获得量身定制的 AI 辅助。"
+    },
+    "rag_service": {
+      "title": "RAG 服务",
+      "description": "利用检索增强生成获得上下文感知的代码建议。"
+    },
+    "custom_tools": {
+      "title": "自定义工具和 MCP",
+      "description": "通过自定义工具和模型上下文协议集成扩展功能。"
+    }
+  },
+  "installation": {
+    "title": "快速开始",
+    "subtitle": "几分钟内即可开始使用",
+    "lazy_nvim": "使用 lazy.nvim",
+    "packer": "使用 Packer",
+    "vim_plug": "使用 vim-plug",
+    "requirements": "要求：Neovim 0.10.1+",
+    "copied": "已复制！",
+    "copy": "复制"
+  },
+  "community": {
+    "title": "加入社区",
+    "subtitle": "与其他使用 avante.nvim 的开发者建立联系",
+    "github": "在 GitHub 点赞",
+    "discord": "加入 Discord",
+    "stars": "星标",
+    "members": "成员"
+  },
+  "footer": {
+    "license": "采用 Apache 2.0 许可",
+    "docs": "文档",
+    "github": "GitHub",
+    "discord": "Discord"
+  }
+}
