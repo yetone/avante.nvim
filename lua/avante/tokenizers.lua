@@ -52,7 +52,13 @@ function M.encode(prompt)
   if not prompt or prompt == "" then return nil end
   if type(prompt) ~= "string" then error("Prompt is not type string", 2) end
 
-  return tokenizers.encode(prompt)
+  local success, result = pcall(tokenizers.encode, prompt)
+  -- Some output like terminal command output might not be utf-8 encoded, which will cause an error here
+  if not success then
+    Utils.warn("Failed to encode prompt: " .. result)
+    return nil
+  end
+  return result
 end
 
 ---@param prompt string
