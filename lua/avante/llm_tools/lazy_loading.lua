@@ -1,6 +1,6 @@
 --[[
-MCPHub Integration Module
-Provides integration between avante.nvim and mcphub.nvim with lazy loading support.
+MCP Lazy Loading module
+Implements the lazy loading feature for MCP tools. See top-level README
 ]]
 
 local M = {}
