@@ -46,7 +46,7 @@ describe("lazy_loading", function()
         },
         {
           input = "A very long sentence that goes on and on and is more than one hundred characters long and should be truncated...",
-          expected = "A very long sentence that goes on and on and is more than one hundred characters long..."
+          expected = "A very long sentence that goes on and on and is more than one hundred characters long and should be ..."
         }
       }
 
@@ -69,6 +69,7 @@ describe("lazy_loading", function()
         {name = "tool2"}
       }
       local tools_to_collect = {
+        {name = "tool2"},
         {name = "tool3"},
         {name = "tool4"}
       }
@@ -81,7 +82,7 @@ describe("lazy_loading", function()
       assert.equals("tool2", updated_tools[2].name)
       assert.equals("tool3", updated_tools[3].name)
       assert.equals("tool4", updated_tools[4].name)
-      assert.equals(1, #LazyLoading._tools_to_collect)
+      assert.equals(2, #LazyLoading._tools_to_collect)
     end)
 
     it("should not add tools already in the list", function()
@@ -102,7 +103,9 @@ describe("lazy_loading", function()
       assert.equals("tool2", updated_tools[2].name)
       assert.equals("tool4", updated_tools[3].name)
       assert.equals(1, #LazyLoading._tools_to_collect)
-      assert.equals("tool1", LazyLoading._tools_to_collect[1].name)
+      -- Tools that were already in the list don't need to be collected
+      -- any more so tool1 should be removed from tools_to_collect
+      assert.equals("tool4", LazyLoading._tools_to_collect[1].name)
     end)
   end)
 
