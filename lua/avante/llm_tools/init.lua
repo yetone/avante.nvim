@@ -609,9 +609,8 @@ end
 
 ---@param user_input string
 ---@param history_messages AvanteLLMMessage[]
----@param for_system_prompt boolean? When true, return summarized tools for system prompt. When false or nil, return full tools for API requests
 ---@return AvanteLLMTool[]
-function M.get_tools(user_input, history_messages, for_system_prompt)
+function M.get_tools(user_input, history_messages)
   local custom_tools = Config.custom_tools
   if type(custom_tools) == "function" then custom_tools = custom_tools() end
 
