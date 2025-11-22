@@ -354,6 +354,18 @@ function M.generate_prompts(opts)
     end
   end
 
+  -- Apply system_prompt_providers if available
+  if Config.system_prompt_providers and #Config.system_prompt_providers > 0 then
+    for _, provider_fn in ipairs(Config.system_prompt_providers) do
+      if type(provider_fn) == "function" then
+        local provider_prompt = provider_fn()
+        if provider_prompt and provider_prompt ~= "" then
+          system_prompt = system_prompt .. "\n\n" .. provider_prompt
+        end
+      end
+    end
+  end
+
   ---@type AvanteLLMMessage[]
   local context_messages = {}
   if opts.prompt_opts and opts.prompt_opts.messages then
@@ -524,11 +536,38 @@ function M.curl(opts)
     if orig_on_stop then return orig_on_stop(stop_opts) end
   end
 
+  ---@type AvanteCurlOutput
+  if Config.lazy_loading and Config.lazy_loading.enabled then
+    -- print("\\nn\nLAZY LOADING IS GO!!!!\n\n" .. vim.inspect(require('avante.llm_tools.lazy_loading')._tools_to_collect))
+    prompt_opts.tools = require('avante.llm_tools.lazy_loading').add_loaded_tools(prompt_opts.tools)
+    Utils.debug("Extended tool list")
+    -- print(vim.inspect("LAZY LOADING IS DONE!!!!"))
+    -- print(vim.inspect(prompt_opts.tools))
+  else
+
+    -- print(vim.inspect("LAZY LOADING IS CAPUT!!!!"))
+    -- print(vim.inspect(Config))
+    Utils.debug("Did not extend tool list")
+    -- print(vim.inspect(prompt_opts.tools))
+  end
+
   local spec = provider:parse_curl_args(prompt_opts)
   if not spec then
     handler_opts.on_stop({ reason = "error", error = "Provider configuration error" })
     return
   end
+
+  local timestamp = os.time(os.date("!*t"))
+  local filename  = '/tmp/llm_log/' .. tostring(timestamp) .. '.lua'
+
+  local file,err = io.open(filename,'w')
+  if file then
+      file:write(tostring(vim.inspect(spec)))
+      file:close()
+  else
+      print("error:", err) -- not so hard?
+  end
+
 
   ---@type string
   local current_event_state = nil
