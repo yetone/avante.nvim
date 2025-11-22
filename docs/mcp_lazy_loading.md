@@ -1,5 +1,4 @@
 # MCP Tools Lazy Loading
-# MCP Lazy Loading
 
 This document describes the lazy loading feature for MCP tools in avante.nvim, which optimizes token usage and improves performance.
 
