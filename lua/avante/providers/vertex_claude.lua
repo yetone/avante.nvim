@@ -38,6 +38,7 @@ function M:parse_curl_args(prompt_opts)
   local tools = {}
   if not disable_tools and prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
+      -- Only include tool if lazy loading is disabled, or if it's always eager, or if it's been requested
       table.insert(tools, P.claude:transform_tool(tool))
     end
   end

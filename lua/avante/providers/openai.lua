@@ -751,21 +751,26 @@ function M:parse_curl_args(prompt_opts)
   if not disable_tools and prompt_opts.tools and not use_ReAct_prompt then
     tools = {}
     for _, tool in ipairs(prompt_opts.tools) do
-      local transformed_tool = self:transform_tool(tool)
-      -- Response API uses flattened tool structure
-      if use_response_api then
-        -- Convert from {type: "function", function: {name, description, parameters}}
-        -- to {type: "function", name, description, parameters}
-        if transformed_tool.type == "function" and transformed_tool["function"] then
-          transformed_tool = {
-            type = "function",
-            name = transformed_tool["function"].name,
-            description = transformed_tool["function"].description,
-            parameters = transformed_tool["function"].parameters,
-          }
+      -- Only include tool if lazy loading is disabled, or if it's always eager, or if it's been requested
+      local LazyLoading = require("avante.llm_tools.lazy_loading")
+
+      if LazyLoading.should_include_tool(tool.name, tool.server_name) then
+        local transformed_tool = self:transform_tool(tool)
+        -- Response API uses flattened tool structure
+        if use_response_api then
+          -- Convert from {type: "function", function: {name, description, parameters}}
+          -- to {type: "function", name, description, parameters}
+          if transformed_tool.type == "function" and transformed_tool["function"] then
+            transformed_tool = {
+              type = "function",
+              name = transformed_tool["function"].name,
+              description = transformed_tool["function"].description,
+              parameters = transformed_tool["function"].parameters,
+            }
+          end
         end
+        table.insert(tools, transformed_tool)
       end
-      table.insert(tools, transformed_tool)
     end
   end
 

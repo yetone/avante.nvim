@@ -609,13 +609,17 @@ end
 
 ---@param user_input string
 ---@param history_messages AvanteLLMMessage[]
+---@param for_system_prompt boolean? When true, return summarized tools for system prompt. When false or nil, return full tools for API requests
 ---@return AvanteLLMTool[]
-function M.get_tools(user_input, history_messages)
+function M.get_tools(user_input, history_messages, for_system_prompt)
   local custom_tools = Config.custom_tools
   if type(custom_tools) == "function" then custom_tools = custom_tools() end
+
   ---@type AvanteLLMTool[]
   local unfiltered_tools = vim.list_extend(vim.list_extend({}, M._tools), custom_tools)
-  return vim
+
+  -- Filter enabled tools
+  local filtered_tools = vim
     .iter(unfiltered_tools)
     :filter(function(tool) ---@param tool AvanteLLMTool
       -- Always disable tools that are explicitly disabled
@@ -627,6 +631,37 @@ function M.get_tools(user_input, history_messages)
       end
     end)
     :totable()
+
+  -- Handle lazy loading configurations
+  if Config.lazy_loading and Config.lazy_loading.enabled then
+
+    -- Lazy-load the LazyLoading module to check for requested tools
+    local LazyLoading = require("avante.llm_tools.lazy_loading")
+
+    local always_eager = LazyLoading.always_eager()
+
+    -- For API requests, only return tools that have been requested or are in always_eager
+    local api_tools = {}
+    for _, tool in ipairs(filtered_tools) do
+      local server_name = tool.server_name or "avante"
+      local tool_name = tool.name
+
+      -- Include the tool if it's in the always_eager list or has been explicitly requested
+      if LazyLoading.should_include_tool(server_name, tool_name) then
+        table.insert(api_tools, tool)
+      end
+    end
+
+    -- Add server_name to all tools for proper tracking
+    for _, tool in ipairs(api_tools) do
+      tool.server_name = tool.server_name or "avante"
+    end
+
+    return api_tools
+  else
+    return filtered_tools
+  end
+
 end
 
 function M.get_tool_names()
@@ -645,6 +680,7 @@ end
 M._tools = {
   require("avante.llm_tools.dispatch_agent"),
   require("avante.llm_tools.glob"),
+  require("avante.llm_tools.load_mcp_tool"),
   {
     name = "rag_search",
     enabled = function() return Config.rag_service.enabled and RagService.is_ready() end,

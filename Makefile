@@ -93,6 +93,8 @@ rustlint:
 rusttest:
 	@cargo test --features luajit
 
+# SINGLE_TEST_FILE: Optional environment variable to run a single Lua test file.
+# Usage: make SINGLE_TEST_FILE=tests/your_test_spec.lua luatest
 .PHONY: luatest
 luatest:
 	@./scripts/run-luatest.sh

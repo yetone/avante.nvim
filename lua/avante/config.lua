@@ -48,6 +48,8 @@ M._defaults = {
   tokenizer = "tiktoken",
   ---@type string | fun(): string | nil
   system_prompt = nil,
+  ---@type function[] | nil
+  system_prompt_providers = {},
   ---@type string | fun(): string | nil
   override_prompt_dir = nil,
   rules = {
@@ -793,6 +795,15 @@ M._defaults = {
   shortcuts = {},
   ---@type AskOptions
   ask_opts = {},
+  ---@type table
+  lazy_loading = {
+    -- Whether to enable lazy loading for built-in avante MCP tools
+    enabled = false,
+    -- List of tools that should always be loaded eagerly (not lazily)
+    -- These tools are critical and should always be available without requiring a separate load
+    always_eager = {},
+    mcp_extra_concise = true, -- When true, and lazy_loading is on, MCP tool summarizer will only include name and description (no input/output schema)
+  },
 }
 
 ---@type avante.Config

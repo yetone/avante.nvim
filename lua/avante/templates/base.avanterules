@@ -14,6 +14,10 @@ Memory is crucial, you must follow the instructions in <memory>!
 
 ====
 
+{% include "_mcp-lazy-loading.avanterules" %}
+
+====
+
 {%- block extra_prompt %}
 {% endblock %}
 
