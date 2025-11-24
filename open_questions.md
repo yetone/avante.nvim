@@ -34,4 +34,3 @@
 **8. Integration with Existing Avante Features**
 - How will cache interact with prompt logging/history? Can users distinguish between cache hits and new completions?
 - How will this framework fit with Avante's provider abstraction—will each provider need custom hooks or is the logic fully generic?
-

@@ -21,21 +21,15 @@ M.role_map = {
 ---@return boolean
 function M:is_static_content(message, index)
   -- System prompts are typically static
-  if message.role == "system" then
-    return true
-  end
+  if message.role == "system" then return true end
 
   -- Consider first user message as static (usually contains context/instructions)
   -- Use the configured static_message_count or default to 2
   local static_message_count = Config.prompt_caching and Config.prompt_caching.static_message_count or 2
-  if index <= static_message_count then
-    return true
-  end
+  if index <= static_message_count then return true end
 
   -- Check if message content is marked as context (usually static)
-  if message.is_context then
-    return true
-  end
+  if message.is_context then return true end
 
   return false
 end
@@ -236,18 +230,20 @@ function M.transform_anthropic_usage(usage)
     total_input_tokens = total_input_tokens,
     cache_hit_rate = cache_hit_rate,
     conversation_id = usage.conversation_id or "unknown",
-    model = usage.model or "unknown"
+    model = usage.model or "unknown",
   })
 
   -- Log detailed cache info if debug is enabled
   if Config.prompt_caching and Config.prompt_caching.debug then
-    Utils.info(string.format(
-      "Cache performance: hit_rate=%.2f%%, hit_tokens=%d, write_tokens=%d, total_tokens=%d",
-      cache_hit_rate * 100,
-      cache_hit_tokens,
-      cache_write_tokens,
-      total_input_tokens
-    ))
+    Utils.info(
+      string.format(
+        "Cache performance: hit_rate=%.2f%%, hit_tokens=%d, write_tokens=%d, total_tokens=%d",
+        cache_hit_rate * 100,
+        cache_hit_tokens,
+        cache_write_tokens,
+        total_input_tokens
+      )
+    )
   end
 
   -- Return usage info with cache metrics
@@ -259,7 +255,7 @@ function M.transform_anthropic_usage(usage)
       or usage.output_tokens,
     cache_hit_tokens = cache_hit_tokens,
     cache_write_tokens = cache_write_tokens,
-    cache_hit_rate = cache_hit_rate
+    cache_hit_rate = cache_hit_rate,
   }
 
   return res
@@ -267,9 +263,7 @@ end
 
 -- Add a function to analyze cache performance
 function M.analyze_cache_performance()
-  if not M.cache_stats or #M.cache_stats == 0 then
-    return "No cache statistics available"
-  end
+  if not M.cache_stats or #M.cache_stats == 0 then return "No cache statistics available" end
 
   local total_hit_rate = 0
   local total_hit_tokens = 0
@@ -290,7 +284,7 @@ function M.analyze_cache_performance()
     total_hit_tokens = total_hit_tokens,
     total_write_tokens = total_write_tokens,
     total_input_tokens = total_input_tokens,
-    sample_count = #M.cache_stats
+    sample_count = #M.cache_stats,
   }
 end
 
@@ -530,14 +524,22 @@ function M:parse_curl_args(prompt_opts)
   end
 
   -- Check if prompt caching is enabled for this provider
-  local prompt_caching_enabled = Config.prompt_caching and Config.prompt_caching.enabled and Config.prompt_caching.providers.claude
+  local prompt_caching_enabled = Config.prompt_caching
+    and Config.prompt_caching.enabled
+    and Config.prompt_caching.providers.claude
 
   -- Determine minimum token threshold based on model
-  local min_tokens = 1024  -- Default
+  local min_tokens = 1024 -- Default
   if Config.prompt_caching and Config.prompt_caching.min_tokens_threshold then
-    if provider_conf.model:match("claude%-3%-5%-haiku") and Config.prompt_caching.min_tokens_threshold["claude-3-5-haiku"] then
+    if
+      provider_conf.model:match("claude%-3%-5%-haiku")
+      and Config.prompt_caching.min_tokens_threshold["claude-3-5-haiku"]
+    then
       min_tokens = Config.prompt_caching.min_tokens_threshold["claude-3-5-haiku"]
-    elseif provider_conf.model:match("claude%-3%-7%-sonnet") and Config.prompt_caching.min_tokens_threshold["claude-3-7-sonnet"] then
+    elseif
+      provider_conf.model:match("claude%-3%-7%-sonnet")
+      and Config.prompt_caching.min_tokens_threshold["claude-3-7-sonnet"]
+    then
       min_tokens = Config.prompt_caching.min_tokens_threshold["claude-3-7-sonnet"]
     elseif Config.prompt_caching.min_tokens_threshold.default then
       min_tokens = Config.prompt_caching.min_tokens_threshold.default
@@ -562,9 +564,7 @@ function M:parse_curl_args(prompt_opts)
             current_tokens = self:count_tokens_before(messages, prompt_opts.system_prompt, i)
 
             -- Only consider this as a boundary if we've reached the token threshold
-            if current_tokens >= min_tokens then
-              static_boundary_idx = i
-            end
+            if current_tokens >= min_tokens then static_boundary_idx = i end
           else
             break
           end

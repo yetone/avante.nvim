@@ -184,4 +184,8 @@ cmd("ShowRepoMap", function() require("avante.repo_map").show() end, { desc = "a
 cmd("Models", function() require("avante.model_selector").open() end, { desc = "avante: show models" })
 cmd("History", function() require("avante.api").select_history() end, { desc = "avante: show histories" })
 cmd("Stop", function() require("avante.api").stop() end, { desc = "avante: stop current AI request" })
-cmd("CacheStats", function() require("avante.api").cache_stats() end, { desc = "avante: display prompt cache performance statistics" })
+cmd(
+  "CacheStats",
+  function() require("avante.api").cache_stats() end,
+  { desc = "avante: display prompt cache performance statistics" }
+)

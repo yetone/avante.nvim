@@ -25,16 +25,12 @@ M.role_map = {
 ---@return boolean
 function M:is_static_content(message, index)
   -- System prompts are typically static
-  if message.role == "system" then
-    return true
-  end
+  if message.role == "system" then return true end
 
   -- Consider first user message as static (usually contains context/instructions)
   -- Use the configured static_message_count or default to 2
   local static_message_count = Config.prompt_caching and Config.prompt_caching.static_message_count or 2
-  if index <= static_message_count then
-    return true
-  end
+  if index <= static_message_count then return true end
 
   return false
 end
@@ -53,9 +49,7 @@ function M:count_tokens_before(messages, system_prompt, index)
       token_count = token_count + Utils.tokens.calculate_tokens(system_prompt)
     elseif type(system_prompt) == "table" then
       for _, item in ipairs(system_prompt) do
-        if item.type == "text" then
-          token_count = token_count + Utils.tokens.calculate_tokens(item.text)
-        end
+        if item.type == "text" then token_count = token_count + Utils.tokens.calculate_tokens(item.text) end
       end
     end
   end
@@ -64,9 +58,7 @@ function M:count_tokens_before(messages, system_prompt, index)
   for i = 1, index do
     local message = messages[i]
     for _, item in ipairs(message.content) do
-      if item.type == "text" then
-        token_count = token_count + Utils.tokens.calculate_tokens(item.text)
-      end
+      if item.type == "text" then token_count = token_count + Utils.tokens.calculate_tokens(item.text) end
     end
   end
 
@@ -99,14 +91,22 @@ function M.build_bedrock_payload(provider, prompt_opts, request_body)
   end
 
   -- Check if prompt caching is enabled for this provider
-  local prompt_caching_enabled = Config.prompt_caching and Config.prompt_caching.enabled and Config.prompt_caching.providers.bedrock
+  local prompt_caching_enabled = Config.prompt_caching
+    and Config.prompt_caching.enabled
+    and Config.prompt_caching.providers.bedrock
 
   -- Determine minimum token threshold based on model
-  local min_tokens = 1024  -- Default
+  local min_tokens = 1024 -- Default
   if Config.prompt_caching and Config.prompt_caching.min_tokens_threshold then
-    if provider_conf.model:match("claude%-3%-5%-haiku") and Config.prompt_caching.min_tokens_threshold["claude-3-5-haiku"] then
+    if
+      provider_conf.model:match("claude%-3%-5%-haiku")
+      and Config.prompt_caching.min_tokens_threshold["claude-3-5-haiku"]
+    then
       min_tokens = Config.prompt_caching.min_tokens_threshold["claude-3-5-haiku"]
-    elseif provider_conf.model:match("claude%-3%-7%-sonnet") and Config.prompt_caching.min_tokens_threshold["claude-3-7-sonnet"] then
+    elseif
+      provider_conf.model:match("claude%-3%-7%-sonnet")
+      and Config.prompt_caching.min_tokens_threshold["claude-3-7-sonnet"]
+    then
       min_tokens = Config.prompt_caching.min_tokens_threshold["claude-3-7-sonnet"]
     elseif Config.prompt_caching.min_tokens_threshold.default then
       min_tokens = Config.prompt_caching.min_tokens_threshold.default
@@ -119,9 +119,7 @@ function M.build_bedrock_payload(provider, prompt_opts, request_body)
   -- Add cache_control to system prompt if prompt caching is supported and enabled
   if M.support_prompt_caching and prompt_caching_enabled and system_prompt ~= "" then
     -- Count tokens in system prompt
-    if type(system_prompt) == "string" then
-      current_tokens = Utils.tokens.calculate_tokens(system_prompt)
-    end
+    if type(system_prompt) == "string" then current_tokens = Utils.tokens.calculate_tokens(system_prompt) end
 
     -- Only add cache control if we meet the minimum token threshold
     if current_tokens >= min_tokens then
@@ -129,15 +127,15 @@ function M.build_bedrock_payload(provider, prompt_opts, request_body)
         {
           type = "text",
           text = system_prompt,
-          cache_control = { type = "ephemeral" }
-        }
+          cache_control = { type = "ephemeral" },
+        },
       }
     else
       system_prompt = {
         {
           type = "text",
-          text = system_prompt
-        }
+          text = system_prompt,
+        },
       }
     end
   end
@@ -157,9 +155,7 @@ function M.build_bedrock_payload(provider, prompt_opts, request_body)
           current_tokens = M:count_tokens_before(messages, system_prompt, i)
 
           -- Only consider this as a boundary if we've reached the token threshold
-          if current_tokens >= min_tokens then
-            static_boundary_idx = i
-          end
+          if current_tokens >= min_tokens then static_boundary_idx = i end
         else
           break
         end

@@ -239,7 +239,7 @@ function M.transform_copilot_claude_usage(usage)
     cache_hit_tokens = cache_hit_tokens,
     cache_write_tokens = cache_write_tokens,
     total_input_tokens = total_input_tokens,
-    cache_hit_rate = cache_hit_rate
+    cache_hit_rate = cache_hit_rate,
   })
 
   -- Return usage info with cache metrics
@@ -248,7 +248,7 @@ function M.transform_copilot_claude_usage(usage)
     completion_tokens = usage.output_tokens,
     cache_hit_tokens = cache_hit_tokens,
     cache_write_tokens = cache_write_tokens,
-    cache_hit_rate = cache_hit_rate
+    cache_hit_rate = cache_hit_rate,
   }
 end
 
@@ -330,10 +330,10 @@ function M:parse_curl_args(prompt_opts)
   -- Check if this is a Claude model and if prompt caching is enabled
   local is_claude = self:is_claude_model()
   local Config = require("avante.config")
-  local prompt_caching_enabled = Config.prompt_caching and
-                                Config.prompt_caching.enabled and
-                                Config.prompt_caching.providers and
-                                Config.prompt_caching.providers.copilot
+  local prompt_caching_enabled = Config.prompt_caching
+    and Config.prompt_caching.enabled
+    and Config.prompt_caching.providers
+    and Config.prompt_caching.providers.copilot
 
   local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
 
@@ -360,9 +360,7 @@ function M:parse_curl_args(prompt_opts)
   local headers = self:build_headers()
 
   -- Add Claude-specific headers for prompt caching if applicable
-  if is_claude and prompt_caching_enabled then
-    headers["anthropic-beta"] = "prompt-caching-2024-07-31"
-  end
+  if is_claude and prompt_caching_enabled then headers["anthropic-beta"] = "prompt-caching-2024-07-31" end
 
   if prompt_opts.messages and #prompt_opts.messages > 0 then
     local last_message = prompt_opts.messages[#prompt_opts.messages]
@@ -391,7 +389,7 @@ function M:parse_curl_args(prompt_opts)
         -- For string content, convert to object with cache_control
         if message.role == "user" then
           message.content = {
-            { type = "text", text = message.content, cache_control = { type = "ephemeral" } }
+            { type = "text", text = message.content, cache_control = { type = "ephemeral" } },
           }
           found = true
           break

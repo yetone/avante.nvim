@@ -75,4 +75,3 @@ The implementation includes:
 - Modification of request generation to add Claude-specific headers and message modifications
 - Token usage tracking for cached prompts
 - Configuration updates to include Copilot in prompt caching providers
-

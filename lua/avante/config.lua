@@ -56,21 +56,21 @@ M._defaults = {
   override_prompt_dir = nil,
   -- Prompt caching configuration
   prompt_caching = {
-    enabled = true,  -- Global enable/disable
+    enabled = true, -- Global enable/disable
     providers = {
       claude = true,
       bedrock = true,
-      copilot = true
+      copilot = true,
     },
     -- New options for cache tuning
-    strategy = "simplified",  -- "simplified" or "manual"
-    static_message_count = 2,  -- Number of initial messages to consider static
+    strategy = "simplified", -- "simplified" or "manual"
+    static_message_count = 2, -- Number of initial messages to consider static
     min_tokens_threshold = {
       ["claude-3-7-sonnet"] = 1024,
       ["claude-3-5-haiku"] = 2048,
-      default = 1024
+      default = 1024,
     },
-    debug = false  -- Enable detailed logging of cache operations
+    debug = false, -- Enable detailed logging of cache operations
   },
   rules = {
     project_dir = nil, ---@type string | nil (could be relative dirpath)

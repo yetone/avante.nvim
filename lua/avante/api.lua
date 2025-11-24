@@ -326,12 +326,12 @@ function M.cache_stats()
     Utils.info(stats)
   else
     local message = string.format(
-      "Cache Performance Stats:\n" ..
-      "- Average hit rate: %.2f%%\n" ..
-      "- Total hit tokens: %d\n" ..
-      "- Total write tokens: %d\n" ..
-      "- Total input tokens: %d\n" ..
-      "- Sample count: %d",
+      "Cache Performance Stats:\n"
+        .. "- Average hit rate: %.2f%%\n"
+        .. "- Total hit tokens: %d\n"
+        .. "- Total write tokens: %d\n"
+        .. "- Total input tokens: %d\n"
+        .. "- Sample count: %d",
       stats.average_hit_rate * 100,
       stats.total_hit_tokens,
       stats.total_write_tokens,
