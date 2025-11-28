@@ -215,7 +215,7 @@ function M:parse_response(ctx, data_stream, event_state, opts)
           type = "tool_use",
           name = content_block.name,
           id = content_block.id,
-          input = incomplete_json or {},
+          input = incomplete_json or { dummy = "" },
         })
         content_block.uuid = msg.uuid
         opts.on_messages_add({ msg })
@@ -281,15 +281,12 @@ function M:parse_response(ctx, data_stream, event_state, opts)
     elseif content_block.type == "tool_use" then
       if opts.on_messages_add then
         local ok_, complete_json = pcall(vim.json.decode, content_block.input_json)
-        if not ok_ then
-          Utils.warn("Failed to parse tool_use input_json: " .. content_block.input_json)
-          return
-        end
+        if not ok_ then complete_json = nil end
         local msg = new_assistant_message({
           type = "tool_use",
           name = content_block.name,
           id = content_block.id,
-          input = complete_json or {},
+          input = complete_json or { dummy = "" },
         }, content_block.uuid)
         opts.on_messages_add({ msg })
       end
