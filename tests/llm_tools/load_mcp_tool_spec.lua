@@ -5,16 +5,16 @@ local mcphub = {
       get_tools = function()
         return {
           {
-            server_name = "test_server", 
-            name = "test_tool", 
-            description = "A test tool description"
-          }
+            server_name = "test_server",
+            name = "test_tool",
+            description = "A test tool description",
+          },
         }
-      end
+      end,
     }
-  end
+  end,
 }
-package.preload['mcphub'] = function() return mcphub end
+package.preload["mcphub"] = function() return mcphub end
 
 local LoadMcpTool = require("avante.llm_tools.load_mcp_tool")
 local LazyLoading = require("avante.llm_tools.lazy_loading")
@@ -41,8 +41,8 @@ describe("load_mcp_tool", function()
       return {
         {
           name = "test_avante_tool",
-          description = "A test avante tool description"
-        }
+          description = "A test avante tool description",
+        },
       }
     end
   end)
@@ -50,7 +50,7 @@ describe("load_mcp_tool", function()
   after_each(function()
     -- Restore the original function
     mcphub.get_hub_instance = original_get_hub_instance
-    
+
     -- Restore the original get_tools function
     LlmTools.get_tools = require("avante.llm_tools").get_tools
   end)
@@ -63,7 +63,7 @@ describe("load_mcp_tool", function()
     end)
 
     it("should return an error if tool_name is missing", function()
-      local result, err = LoadMcpTool.func({server_name = "test_server"}, {})
+      local result, err = LoadMcpTool.func({ server_name = "test_server" }, {})
       assert.is_nil(result)
       assert.equals("tool_name is required", err)
     end)
@@ -76,7 +76,7 @@ describe("load_mcp_tool", function()
 
       local result, err = LoadMcpTool.func({
         server_name = "avante",
-        tool_name = "test_avante_tool"
+        tool_name = "test_avante_tool",
       }, {})
 
       assert.is_nil(err)
@@ -88,7 +88,7 @@ describe("load_mcp_tool", function()
     it("should return an error for non-existent avante tool", function()
       local result, err = LoadMcpTool.func({
         server_name = "avante",
-        tool_name = "non_existent_tool"
+        tool_name = "non_existent_tool",
       }, {})
 
       assert.is_nil(result)
@@ -99,8 +99,8 @@ describe("load_mcp_tool", function()
   describe("non-avante server tools", function()
     it("should return tool details for existing tool", function()
       local result, err = LoadMcpTool.func({
-        server_name = "test_server", 
-        tool_name = "test_tool"
+        server_name = "test_server",
+        tool_name = "test_tool",
       }, {})
 
       assert.is_nil(err)
@@ -111,13 +111,11 @@ describe("load_mcp_tool", function()
 
     it("should return error for non-existent server", function()
       -- Replace get_hub_instance to return nil
-      mcphub.get_hub_instance = function()
-        return nil
-      end
+      mcphub.get_hub_instance = function() return nil end
 
       local result, err = LoadMcpTool.func({
-        server_name = "non_existent_server", 
-        tool_name = "test_tool"
+        server_name = "non_existent_server",
+        tool_name = "test_tool",
       }, {})
 
       assert.is_nil(result)
@@ -126,8 +124,8 @@ describe("load_mcp_tool", function()
 
     it("should return error for non-existent tool", function()
       local result, err = LoadMcpTool.func({
-        server_name = "test_server", 
-        tool_name = "non_existent_tool"
+        server_name = "test_server",
+        tool_name = "non_existent_tool",
       }, {})
 
       assert.is_nil(result)
@@ -136,26 +134,26 @@ describe("load_mcp_tool", function()
 
     it("should cache tool details", function()
       local log_called = false
-      
+
       -- First call should fetch and cache
       local result1, err1 = LoadMcpTool.func({
-        server_name = "test_server", 
-        tool_name = "test_tool"
+        server_name = "test_server",
+        tool_name = "test_tool",
       }, {
         on_log = function(msg)
-          assert.is_nil(msg)  -- No log message on first call
-        end
+          assert.is_nil(msg) -- No log message on first call
+        end,
       })
 
       -- Second call should use cache
       local result2, err2 = LoadMcpTool.func({
-        server_name = "test_server", 
-        tool_name = "test_tool"
+        server_name = "test_server",
+        tool_name = "test_tool",
       }, {
         on_log = function(msg)
           log_called = true
           assert.equals("Cache hit for test_server:test_tool", msg)
-        end
+        end,
       })
 
       assert.is_nil(err1)
@@ -175,8 +173,8 @@ describe("load_mcp_tool", function()
 
       -- Now call load_mcp_tool
       local result, err = LoadMcpTool.func({
-        server_name = "test_server", 
-        tool_name = "test_tool"
+        server_name = "test_server",
+        tool_name = "test_tool",
       }, {})
 
       assert.is_nil(err)

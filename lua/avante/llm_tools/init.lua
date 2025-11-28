@@ -633,7 +633,6 @@ function M.get_tools(user_input, history_messages)
 
   -- Handle lazy loading configurations
   if Config.lazy_loading and Config.lazy_loading.enabled then
-
     -- Lazy-load the LazyLoading module to check for requested tools
     local LazyLoading = require("avante.llm_tools.lazy_loading")
 
@@ -646,9 +645,7 @@ function M.get_tools(user_input, history_messages)
       local tool_name = tool.name
 
       -- Include the tool if it's in the always_eager list or has been explicitly requested
-      if LazyLoading.should_include_tool(server_name, tool_name) then
-        table.insert(api_tools, tool)
-      end
+      if LazyLoading.should_include_tool(server_name, tool_name) then table.insert(api_tools, tool) end
     end
 
     -- Add server_name to all tools for proper tracking
@@ -660,7 +657,6 @@ function M.get_tools(user_input, history_messages)
   else
     return filtered_tools
   end
-
 end
 
 function M.get_tool_names()

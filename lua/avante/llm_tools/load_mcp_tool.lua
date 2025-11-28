@@ -9,14 +9,15 @@ local Config = require("avante.config")
 local LazyLoading = require("avante.llm_tools.lazy_loading")
 
 M.name = "load_mcp_tool"
-M.description = "Load detailed information about a specific MCP tool. Use this tool when you need more details about a tool's functionality, parameters, or usage than what is provided in the summarized description. To load built-in avante tools, use \"avante\" as the server_name."
+M.description =
+  'Load detailed information about a specific MCP tool. Use this tool when you need more details about a tool\'s functionality, parameters, or usage than what is provided in the summarized description. To load built-in avante tools, use "avante" as the server_name.'
 M.enabled = function() return Config.lazy_loading and Config.lazy_loading.enabled end
 M.param = {
   type = "table",
   fields = {
     {
       name = "server_name",
-      description = "Name of the MCP server that provides the tool. Use \"avante\" for built-in avante tools.",
+      description = 'Name of the MCP server that provides the tool. Use "avante" for built-in avante tools.',
       type = "string",
     },
     {
@@ -26,7 +27,7 @@ M.param = {
     },
   },
   usage = {
-    server_name = "Name of the MCP server that provides the tool. Use \"avante\" for built-in avante tools.",
+    server_name = 'Name of the MCP server that provides the tool. Use "avante" for built-in avante tools.',
     tool_name = "Name of the tool to load",
   },
 }
@@ -65,7 +66,12 @@ function M.func(input, opts)
 
   -- Early exit if validation failed
   if err_msg ~= nil then
-    if on_complete then on_complete(nil, err_msg) return nil, nil else return nil, err_msg end
+    if on_complete then
+      on_complete(nil, err_msg)
+      return nil, nil
+    else
+      return nil, err_msg
+    end
   end
 
   -- Register requested tool for lazy loading tracking (does not guarantee existence)
@@ -73,16 +79,21 @@ function M.func(input, opts)
 
   -- Handle built-in avante tools specially by adding them to prompt instead of returning spec
   if input.server_name == "avante" then
-    local tool_to_add = vim.iter(require('avante.llm_tools').get_tools("", {}, false)):find(function(tool)
-      return tool.name == input.tool_name
-    end) ---@param tool AvanteLLMTool
+    local tool_to_add = vim
+      .iter(require("avante.llm_tools").get_tools("", {}, false))
+      :find(function(tool) return tool.name == input.tool_name end) ---@param tool AvanteLLMTool
     if tool_to_add == nil then
       err_msg = "Internal error: could not load tool " .. input.tool_name
     else
       LazyLoading.register_tool_to_collect(tool_to_add)
       message = "The tool " .. input.tool_name .. " has now been added to the tools section of the prompt."
     end
-    if on_complete then on_complete(message, err_msg) return nil, nil else return message, err_msg end
+    if on_complete then
+      on_complete(message, err_msg)
+      return nil, nil
+    else
+      return message, err_msg
+    end
   end
 
   -- Non-avante server path: retrieve tool details (and cache)
@@ -90,20 +101,35 @@ function M.func(input, opts)
   if M._tool_cache[cache_key] then
     message = M._tool_cache[cache_key]
     if on_log then on_log("Cache hit for " .. cache_key) end
-    if on_complete then on_complete(message, nil) return nil, nil else return message, nil end
+    if on_complete then
+      on_complete(message, nil)
+      return nil, nil
+    else
+      return message, nil
+    end
   end
 
   -- Try to access mcphub hub instance
-  local hub_ok, mcphub = pcall(require, 'mcphub')
+  local hub_ok, mcphub = pcall(require, "mcphub")
   if not hub_ok or not mcphub or not mcphub.get_hub_instance then
     err_msg = "Server '" .. input.server_name .. "' is not available or not connected"
-    if on_complete then on_complete(nil, err_msg) return nil, nil else return nil, err_msg end
+    if on_complete then
+      on_complete(nil, err_msg)
+      return nil, nil
+    else
+      return nil, err_msg
+    end
   end
 
   local hub = mcphub.get_hub_instance()
   if not hub or not hub.get_tools then
     err_msg = "Server '" .. input.server_name .. "' is not available or not connected"
-    if on_complete then on_complete(nil, err_msg) return nil, nil else return nil, err_msg end
+    if on_complete then
+      on_complete(nil, err_msg)
+      return nil, nil
+    else
+      return nil, err_msg
+    end
   end
 
   local tools = hub:get_tools() or {}

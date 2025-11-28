@@ -538,7 +538,7 @@ function M.curl(opts)
 
   ---@type AvanteCurlOutput
   if Config.lazy_loading and Config.lazy_loading.enabled then
-    prompt_opts.tools = require('avante.llm_tools.lazy_loading').add_loaded_tools(prompt_opts.tools)
+    prompt_opts.tools = require("avante.llm_tools.lazy_loading").add_loaded_tools(prompt_opts.tools)
   end
 
   local spec = provider:parse_curl_args(prompt_opts)

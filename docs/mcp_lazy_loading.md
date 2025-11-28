@@ -66,4 +66,3 @@ If you have mcphub enabled, the lazy loader integrates with MCPHub to provide su
 4. Provides a structured system prompt with all the summarized tools
 
 This integration ensures that the LLM has access to all the tools provided by MCPHub while minimizing token usage.
-

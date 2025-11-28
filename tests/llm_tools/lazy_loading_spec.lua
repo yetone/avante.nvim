@@ -30,24 +30,24 @@ describe("lazy_loading", function()
       local test_cases = {
         {
           input = "This is a test sentence. Another sentence follows.",
-          expected = "This is a test sentence."
+          expected = "This is a test sentence.",
         },
         {
           input = "Short sentence.",
-          expected = "Short sentence."
+          expected = "Short sentence.",
         },
         {
           input = "A sentence with a `code block`. More text.",
-          expected = "A sentence with a `code block`."
+          expected = "A sentence with a `code block`.",
         },
         {
           input = "A sentence with an abbreviation like e.g. something else.",
-          expected = "A sentence with an abbreviation like e.g. something else."
+          expected = "A sentence with an abbreviation like e.g. something else.",
         },
         {
           input = "A very long sentence that goes on and on and is more than one hundred characters long and should be truncated...",
-          expected = "A very long sentence that goes on and on and is more than one hundred characters long and should be ..."
-        }
+          expected = "A very long sentence that goes on and on and is more than one hundred characters long and should be ...",
+        },
       }
 
       for _, case in ipairs(test_cases) do
@@ -65,13 +65,13 @@ describe("lazy_loading", function()
   describe("add_loaded_tools", function()
     it("should add tools to collect that are not already in the list", function()
       local existing_tools = {
-        {name = "tool1"},
-        {name = "tool2"}
+        { name = "tool1" },
+        { name = "tool2" },
       }
       local tools_to_collect = {
-        {name = "tool2"},
-        {name = "tool3"},
-        {name = "tool4"}
+        { name = "tool2" },
+        { name = "tool3" },
+        { name = "tool4" },
       }
 
       LazyLoading._tools_to_collect = tools_to_collect
@@ -87,12 +87,12 @@ describe("lazy_loading", function()
 
     it("should not add tools already in the list", function()
       local existing_tools = {
-        {name = "tool1"},
-        {name = "tool2"}
+        { name = "tool1" },
+        { name = "tool2" },
       }
       local tools_to_collect = {
-        {name = "tool1"},
-        {name = "tool4"}
+        { name = "tool1" },
+        { name = "tool4" },
       }
 
       LazyLoading._tools_to_collect = tools_to_collect
@@ -110,15 +110,13 @@ describe("lazy_loading", function()
   end)
 
   describe("summarize_tool", function()
-    it("should return nil for nil input", function()
-      assert.is_nil(LazyLoading.summarize_tool(nil))
-    end)
+    it("should return nil for nil input", function() assert.is_nil(LazyLoading.summarize_tool(nil)) end)
 
     it("should create a minimal tool version with extra concise mode", function()
       -- Temporarily modify config
       Config.lazy_loading = {
         enabled = true,
-        mcp_extra_concise = true
+        mcp_extra_concise = true,
       }
 
       local tool = {
@@ -128,10 +126,10 @@ describe("lazy_loading", function()
           fields = {
             {
               name = "test_param",
-              description = "A parameter description that will be truncated."
-            }
-          }
-        }
+              description = "A parameter description that will be truncated.",
+            },
+          },
+        },
       }
 
       local summarized = LazyLoading.summarize_tool(tool)
@@ -144,7 +142,7 @@ describe("lazy_loading", function()
       -- Temporarily modify config
       Config.lazy_loading = {
         enabled = true,
-        mcp_extra_concise = false
+        mcp_extra_concise = false,
       }
 
       local tool = {
@@ -154,10 +152,10 @@ describe("lazy_loading", function()
           fields = {
             {
               name = "test_param",
-              description = "A parameter description that will be truncated. This is the full description."
-            }
-          }
-        }
+              description = "A parameter description that will be truncated. This is the full description.",
+            },
+          },
+        },
       }
 
       local summarized = LazyLoading.summarize_tool(tool)
@@ -172,7 +170,7 @@ describe("lazy_loading", function()
   describe("should_include_tool", function()
     it("should include tool for always eager tools", function()
       Config.lazy_loading = {
-        enabled = true
+        enabled = true,
       }
 
       -- Test always eager tools
@@ -184,7 +182,7 @@ describe("lazy_loading", function()
 
     it("should include tool when lazy loading is disabled", function()
       Config.lazy_loading = {
-        enabled = false
+        enabled = false,
       }
 
       assert.is_true(LazyLoading.should_include_tool("test_server", "test_tool"))
@@ -192,7 +190,7 @@ describe("lazy_loading", function()
 
     it("should include requested tool when lazy loading is enabled", function()
       Config.lazy_loading = {
-        enabled = true
+        enabled = true,
       }
 
       LazyLoading.register_available_tool("test_server", "test_tool")
@@ -203,7 +201,7 @@ describe("lazy_loading", function()
 
     it("should not include unrequested tool when lazy loading is enabled", function()
       Config.lazy_loading = {
-        enabled = true
+        enabled = true,
       }
 
       LazyLoading.register_available_tool("test_server", "test_tool")
