@@ -65,6 +65,10 @@ end
 --effort.
 --Returns the extended list of tools
 function M.add_loaded_tools(tools)
+  -- Sometimes there are no tools needed (e.g. when running on_memory_summarize)
+  if tools == nil then
+    return tools
+  end
   local tools_to_collect = M._tools_to_collect
   local tools_that_are_needed = {}
   M._tools_to_collect = {}
