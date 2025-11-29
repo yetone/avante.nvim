@@ -66,7 +66,7 @@ function M.servers_with_available_tools_with_name_as_string(tool_name)
 end
 
 --- Register a tool to be collected and added to the tools list in the next API call.
---- Called when the LLM requests a tool via load_mcp_tool during a conversation.
+--- Called when the LLM requests a built-in (avante) tool via load_mcp_tool during a conversation.
 --- The tool will be merged into the tools list by add_loaded_tools() before the next prompt.
 ---@param tool table The complete tool object to register for collection
 function M.register_tool_to_collect(tool)
