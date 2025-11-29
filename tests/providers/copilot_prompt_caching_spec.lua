@@ -1,5 +1,7 @@
-local Copilot = require("avante.providers.copilot")
 local Config = require("avante.config")
+-- Initialize Config with minimal setup before requiring providers
+Config.setup({})
+local Providers = require("avante.providers")
 
 describe("Copilot provider prompt caching", function()
   before_each(function()
@@ -28,7 +30,9 @@ describe("Copilot provider prompt caching", function()
           },
         },
       })
-      assert.is_true(Copilot:is_claude_model())
+      -- Clear cached provider to force reload with new config
+      Providers.copilot = nil
+      assert.is_true(Providers.copilot:is_claude_model())
     end)
 
     it("should detect Claude models case-insensitively", function()
@@ -39,7 +43,9 @@ describe("Copilot provider prompt caching", function()
           },
         },
       })
-      assert.is_true(Copilot:is_claude_model())
+      -- Clear cached provider to force reload with new config
+      Providers.copilot = nil
+      assert.is_true(Providers.copilot:is_claude_model())
     end)
 
     it("should detect various Claude model variants", function()
@@ -60,7 +66,9 @@ describe("Copilot provider prompt caching", function()
             },
           },
         })
-        assert.is_true(Copilot:is_claude_model(), "Failed to detect: " .. model)
+        -- Clear cached provider to force reload with new config
+        Providers.copilot = nil
+        assert.is_true(Providers.copilot:is_claude_model(), "Failed to detect: " .. model)
       end
     end)
 
@@ -80,7 +88,9 @@ describe("Copilot provider prompt caching", function()
             },
           },
         })
-        assert.is_false(Copilot:is_claude_model(), "Incorrectly detected as Claude: " .. model)
+        -- Clear cached provider to force reload with new config
+        Providers.copilot = nil
+        assert.is_false(Providers.copilot:is_claude_model(), "Incorrectly detected as Claude: " .. model)
       end
     end)
   end)
@@ -91,7 +101,7 @@ describe("Copilot provider prompt caching", function()
         input_tokens = 100,
         output_tokens = 50,
       }
-      local result = Copilot.transform_copilot_claude_usage(usage)
+      local result = Providers.copilot.transform_copilot_claude_usage(usage)
       assert.equals(100, result.prompt_tokens)
       assert.equals(50, result.completion_tokens)
       assert.equals(0, result.cache_hit_tokens)
@@ -106,7 +116,7 @@ describe("Copilot provider prompt caching", function()
         cache_read_input_tokens = 80,
         cache_creation_input_tokens = 0,
       }
-      local result = Copilot.transform_copilot_claude_usage(usage)
+      local result = Providers.copilot.transform_copilot_claude_usage(usage)
       assert.equals(100, result.prompt_tokens)
       assert.equals(50, result.completion_tokens)
       assert.equals(80, result.cache_hit_tokens)
@@ -121,7 +131,7 @@ describe("Copilot provider prompt caching", function()
         cache_read_input_tokens = 0,
         cache_creation_input_tokens = 100,
       }
-      local result = Copilot.transform_copilot_claude_usage(usage)
+      local result = Providers.copilot.transform_copilot_claude_usage(usage)
       assert.equals(200, result.prompt_tokens)
       assert.equals(50, result.completion_tokens)
       assert.equals(0, result.cache_hit_tokens)
@@ -136,7 +146,7 @@ describe("Copilot provider prompt caching", function()
         cache_read_input_tokens = 60,
         cache_creation_input_tokens = 40,
       }
-      local result = Copilot.transform_copilot_claude_usage(usage)
+      local result = Providers.copilot.transform_copilot_claude_usage(usage)
       assert.equals(140, result.prompt_tokens)
       assert.equals(50, result.completion_tokens)
       assert.equals(60, result.cache_hit_tokens)
@@ -145,13 +155,16 @@ describe("Copilot provider prompt caching", function()
     end)
 
     it("should return nil for nil usage", function()
-      local result = Copilot.transform_copilot_claude_usage(nil)
+      local result = Providers.copilot.transform_copilot_claude_usage(nil)
       assert.is_nil(result)
     end)
 
     it("should record stats for visualization", function()
-      -- Clear stats
-      Copilot.cache_stats = {}
+      -- Clear cached provider to ensure fresh instance
+      Providers.copilot = nil
+
+      -- Record the current count of stats before the call
+      local initial_count = Providers.copilot.cache_stats and #Providers.copilot.cache_stats or 0
 
       local usage = {
         input_tokens = 100,
@@ -160,13 +173,18 @@ describe("Copilot provider prompt caching", function()
         cache_creation_input_tokens = 0,
       }
 
-      Copilot.transform_copilot_claude_usage(usage)
+      Providers.copilot.transform_copilot_claude_usage(usage)
 
-      assert.equals(1, #Copilot.cache_stats)
-      assert.equals(80, Copilot.cache_stats[1].cache_hit_tokens)
-      assert.equals(0, Copilot.cache_stats[1].cache_write_tokens)
-      assert.equals(100, Copilot.cache_stats[1].total_input_tokens)
-      assert.equals(0.8, Copilot.cache_stats[1].cache_hit_rate)
+      -- Verify that a new stat was added
+      assert.is_not_nil(Providers.copilot.cache_stats)
+      assert.equals(initial_count + 1, #Providers.copilot.cache_stats)
+
+      -- Check the last recorded stat
+      local last_stat = Providers.copilot.cache_stats[#Providers.copilot.cache_stats]
+      assert.equals(80, last_stat.cache_hit_tokens)
+      assert.equals(0, last_stat.cache_write_tokens)
+      assert.equals(100, last_stat.total_input_tokens)
+      assert.equals(0.8, last_stat.cache_hit_rate)
     end)
   end)
 
