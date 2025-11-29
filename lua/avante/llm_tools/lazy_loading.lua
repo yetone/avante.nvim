@@ -173,7 +173,7 @@ function M.get_mcphub_tool(server_name, tool_name)
 end
 
 -- Function to get MCPHub prompt with lazy loading support
----@return string
+---@return string|table
 function M.get_system_prompt()
   -- Try to load mcphub
   local ok, mcphub = pcall(require, "mcphub")
@@ -225,8 +225,8 @@ function M.get_system_prompt()
       if tool.name then
         local summarized_tool = M.summarize_tool(tool)
         -- Add server_name to the tool description
-        if summarized_tool.description then
-          summarized_tool.description = summarized_tool.description .. " (Server: avante)"
+        if summarized_tool and summarized_tool.description then
+          summarized_tool.description = (summarized_tool.description or "") .. " (Server: avante)"
           summarized_prompt = summarized_prompt
             .. "- **"
             .. tool.name
@@ -249,7 +249,7 @@ function M.get_system_prompt()
       if server.name then
         local server_name = server.name
         local server_resources = server.capabilities and server.capabilities.resources or {}
-        local server_tools = server_tools_map[server_name] or {}
+        local server_tools = (server_tools_map and server_tools_map[server_name]) or {}
 
         -- Add server information to the prompt
         summarized_prompt = summarized_prompt .. "### " .. server_name .. "\n\n"
@@ -264,8 +264,8 @@ function M.get_system_prompt()
             if tool.name then
               local summarized_tool = M.summarize_tool(tool)
               -- Add server_name to the tool description
-              if summarized_tool.description then
-                summarized_tool.description = summarized_tool.description .. " (Server: " .. server_name .. ")"
+              if summarized_tool and summarized_tool.description then
+                summarized_tool.description = (summarized_tool.description or "") .. " (Server: " .. server_name .. ")"
                 summarized_prompt = summarized_prompt
                   .. "- **"
                   .. tool.name
@@ -400,8 +400,8 @@ function M.get_custom_tools()
     local summarized_tool = M.summarize_tool(tool)
 
     -- Add server information to the description
-    if summarized_tool.description then
-      summarized_tool.description = summarized_tool.description
+    if summarized_tool and summarized_tool.description then
+      summarized_tool.description = (summarized_tool.description or "")
         .. " (Server: avante, use load_mcp_tool to get full details)"
     end
 
@@ -412,7 +412,8 @@ function M.get_custom_tools()
 end
 
 -- Function to determine if a tool should be included based on lazy loading configuration
----@param tool AvanteLLMTool The tool to check
+---@param server_name string The name of the MCP server
+---@param tool_name string The name of the tool
 ---@return boolean True if the tool should be included, false otherwise
 function M.should_include_tool(server_name, tool_name)
   if server_name == nil then
@@ -422,9 +423,8 @@ function M.should_include_tool(server_name, tool_name)
   M.always_eager()[tool_name] or M.is_tool_requested(server_name, tool_name)
 end
 
----@param server_name string The name of the MCP server
 ---@param tool_use_input table The tool input containing the tool name to validate
----@param on_complete function The callback function to call with result or error
+---@param on_complete function|nil The callback function to call with result or error
 ---@return boolean, string|nil Whether the tool is valid, and an optional error message
 function M.validate_mcp_tool(tool_use_input, on_complete)
   local server_name = tool_use_input.server_name
@@ -613,7 +613,7 @@ local function process_schema_descriptions(schema, process_fn)
 end
 
 ---@param tool table The tool to summarize
----@return table The summarized tool
+---@return table|nil The summarized tool
 function M.summarize_tool(tool)
   if not tool then return nil end
 

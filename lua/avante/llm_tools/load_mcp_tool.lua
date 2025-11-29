@@ -76,8 +76,9 @@ function M.func(input, opts)
   --- using use_mcp_tool.
   if found_tool then
     if input.server_name == "avante" then
-      local tool_to_add = vim.iter(require('avante.llm_tools').get_tools("", {}, false)):find(function(tool)
-        return tool.name == input.tool_name end) ---@param tool AvanteLLMTool
+      local tool_to_add = vim.iter(require('avante.llm_tools').get_tools("", {})):find(function(tool)
+        return tool.name == input.tool_name
+      end)
       if tool_to_add == nil then
         err_msg = "Internal error: could not load tool " .. input.tool_name
         -- print(vim.inspect(input))
@@ -115,15 +116,9 @@ function M.func(input, opts)
   end
   if on_log then
     if message then
-      if not opts.tool_use_id then
-        error("Tool use ID is missing in opts for load_mcp_tool")
-      end
-      on_log(opts.tool_use_id, "load_mcp_tool", message, "completed")
+      on_log(message)
     elseif err_msg then
-      if not opts.tool_use_id then
-        error("Tool use ID is missing in opts for load_mcp_tool")
-      end
-      on_log(opts.tool_use_id, "load_mcp_tool", err_msg, "failed")
+      on_log(err_msg)
     end
   end
 
