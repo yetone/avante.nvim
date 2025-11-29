@@ -441,6 +441,9 @@ function M.should_include_tool(server_name, tool_name)
   return not Config.lazy_loading.enabled or M.always_eager()[tool_name] or M.is_tool_requested(server_name, tool_name)
 end
 
+-- Function to check that a tool is valid before calling. Typically the reason this returns
+-- invalid is because the tool has not been loaded, but LLMs have sometimes got the wrong
+-- server, etc. Helpful error messages are provided so the LLM can fix its tool call.
 ---@param tool_use_input table The tool input containing the tool name to validate
 ---@param on_complete function|nil The callback function to call with result or error
 ---@return boolean, string|nil Whether the tool is valid, and an optional error message
