@@ -56,6 +56,8 @@ function M.func(input, opts)
 
   local message = nil
   local err_msg = nil
+  local found_tool = false
+  local tool_id = "load_mcp_tool_" .. Utils.uuid() -- Generate a unique ID for this tool call
 
   -- Validate input parameters
   if not input.server_name then
@@ -158,6 +160,13 @@ function M.func(input, opts)
     }
     message = vim.json.encode(spec_tbl)
     M._tool_cache[cache_key] = message
+  end
+  if on_log then
+    if message then
+      on_log(tool_id, "load_mcp_tool", message, "completed")
+    elseif err_msg then
+      on_log(tool_id, "load_mcp_tool", err_msg, "failed")
+    end
   end
 
   if on_complete then
