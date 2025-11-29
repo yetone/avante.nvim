@@ -108,42 +108,16 @@ function M:parse_messages(opts)
 
   local provider_conf, _ = P.parse_config(self)
 
-  -- Separate static and dynamic content
-  local static_messages = {}
-  local dynamic_messages = {}
-
-  -- First pass: categorize messages as static or dynamic
-  for idx, message in ipairs(opts.messages) do
-    if self:is_static_content(message, idx) then
-      table.insert(static_messages, { idx = idx, message = message })
-    else
-      table.insert(dynamic_messages, { idx = idx, message = message })
-    end
-  end
-
-  -- Preserve original order within each category
-  table.sort(static_messages, function(a, b) return a.idx < b.idx end)
-  table.sort(dynamic_messages, function(a, b) return a.idx < b.idx end)
-
-  -- Create a new ordered list with static content first, followed by dynamic content
-  local ordered_messages = {}
-  for _, item in ipairs(static_messages) do
-    table.insert(ordered_messages, item.message)
-  end
-  for _, item in ipairs(dynamic_messages) do
-    table.insert(ordered_messages, item.message)
-  end
-
   ---@type {idx: integer, length: integer}[]
   local messages_with_length = {}
-  for idx, message in ipairs(ordered_messages) do
+  for idx, message in ipairs(opts.messages) do
     table.insert(messages_with_length, { idx = idx, length = Utils.tokens.calculate_tokens(message.content) })
   end
 
   table.sort(messages_with_length, function(a, b) return a.length > b.length end)
 
   local has_tool_use = false
-  for _, message in ipairs(ordered_messages) do
+  for _, message in ipairs(opts.messages) do
     local content_items = message.content
     local message_content = {}
     if type(content_items) == "string" then
