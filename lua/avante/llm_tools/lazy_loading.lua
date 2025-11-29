@@ -13,8 +13,12 @@ M._available_to_request = M._available_to_request or {}
 
 M._tools_to_collect = M._tools_to_collect or {}
 
--- Function to register a tool as requested
--- Returns true if successful, false if not
+--- Register a tool as requested by the LLM via load_mcp_tool.
+--- When a tool is registered as requested, it will be included in subsequent API calls.
+--- This is the core mechanism that enables on-demand tool loading during a conversation.
+---@param server_name string The MCP server name (e.g., "avante", "neovim", "github")
+---@param tool_name string The name of the tool to register
+---@return boolean True if tool was successfully registered (was available), false otherwise
 function M.register_requested_tool(server_name, tool_name)
   local key = server_name .. ":" .. tool_name
   if M._available_to_request[key] then
@@ -24,12 +28,20 @@ function M.register_requested_tool(server_name, tool_name)
   return false
 end
 
--- Function to register a tool as availale
+--- Register a tool as available for lazy loading.
+--- Called during system prompt generation to catalog all tools that can be requested.
+--- Tools must be registered as available before they can be requested by the LLM.
+---@param server_name string The MCP server name providing the tool
+---@param tool_name string The name of the tool being registered
 function M.register_available_tool(server_name, tool_name)
   local key = server_name .. ":" .. tool_name
   M._available_to_request[key] = { server_name = server_name, name = tool_name }
 end
 
+--- Find all available tools with a specific name across all servers.
+--- Used for error reporting to suggest alternative servers when a tool is not found on the requested server.
+---@param tool_name string The name of the tool to search for
+---@return table[] Array of tool objects matching the name
 function M.available_tools_with_name(tool_name)
   local available_tools = {}
   for _, tool in pairs(M._available_to_request) do
@@ -38,6 +50,10 @@ function M.available_tools_with_name(tool_name)
   return available_tools
 end
 
+--- Get a comma-separated string of server names that have a tool with the given name.
+--- Used to provide helpful error messages when a tool is called on the wrong server.
+---@param tool_name string The name of the tool to search for
+---@return string Comma-separated list of server names (e.g., "neovim, github, avante")
 function M.servers_with_available_tools_with_name_as_string(tool_name)
   local available_tools = M.available_tools_with_name(tool_name)
   local servers = ""
@@ -49,18 +65,21 @@ function M.servers_with_available_tools_with_name_as_string(tool_name)
   return servers
 end
 
--- Add a tool to be collected by `generate_prompts`
--- to add to the list of tools in the middle of an LLM action
+--- Register a tool to be collected and added to the tools list in the next API call.
+--- Called when the LLM requests a tool via load_mcp_tool during a conversation.
+--- The tool will be merged into the tools list by add_loaded_tools() before the next prompt.
+---@param tool table The complete tool object to register for collection
 function M.register_tool_to_collect(tool)
   M._tools_to_collect[#M._tools_to_collect + 1] = tool
   -- print("\n\n Registering \n" .. vim.inspect(tool) .. "\n\n" .. vim.inspect(M._tools_to_collect) .. "\n")
 end
 
---Append any tools to collect to the provided tools list.
---If they are already in the provided tools list, remove
---them from the list of tools to collect, to avoid unnecessary
---effort.
---Returns the extended list of tools
+--- Merge dynamically loaded tools into the provided tools list.
+--- Tools that have been requested via load_mcp_tool are appended to the list.
+--- If a tool is already present, it's not duplicated. This is called before each API request
+--- to ensure that newly loaded tools are available to the LLM in the next conversation turn.
+---@param tools table[]|nil The current list of tools to extend
+---@return table[]|nil The extended list of tools with dynamically loaded tools appended
 function M.add_loaded_tools(tools)
   -- Sometimes there are no tools needed (e.g. when running on_memory_summarize)
   if tools == nil then return tools end
@@ -79,15 +98,24 @@ function M.add_loaded_tools(tools)
   return vim.list_extend(tools, tools_that_are_needed)
 end
 
--- Function to check if a tool has been requested
+--- Check if a tool has been requested by the LLM.
+--- Used by should_include_tool() to determine if a tool should be included in the tools list.
+---@param server_name string The MCP server name
+---@param tool_name string The name of the tool
+---@return boolean True if the tool has been requested, false otherwise
 function M.is_tool_requested(server_name, tool_name)
   local key = server_name .. ":" .. tool_name
   return M._requested_tools[key] == true
 end
 
--- Function to reset requested tools (useful for testing)
+--- Reset the registry of requested tools.
+--- Primarily used for testing to clear state between test runs.
 function M.reset_requested_tools() M._requested_tools = {} end
 
+--- Get a table of tool names that should always be eagerly loaded.
+--- Merges critical tools (think, attempt_completion, load_mcp_tool, etc.) with user-configured tools
+--- from Config.lazy_loading.always_eager. These tools bypass lazy loading and are always available.
+---@return table<string, boolean> A map of tool names to true for efficient lookup
 function M.always_eager()
   -- Define critical tools that should always be eagerly loaded regardless of user configuration
   local critical_tools = {
@@ -117,6 +145,10 @@ function M.always_eager()
   return always_eager
 end
 
+--- Get the MCPHub server hub instance.
+--- Returns nil if MCPHub is not installed or not initialized.
+--- This is used internally by other MCPHub integration functions.
+---@return table|nil The MCPHub hub instance, or nil if unavailable
 function M.get_mcphub_server_hub()
   local ok, mcphub = pcall(require, "mcphub")
   if not ok then return nil end
@@ -125,6 +157,10 @@ function M.get_mcphub_server_hub()
   return hub
 end
 
+--- Get all tools from the MCPHub instance.
+--- Returns nil if MCPHub is unavailable or has no tools.
+--- Used to populate the system prompt and validate tool availability.
+---@return table[]|nil Array of all tools from all connected MCP servers, or nil if unavailable
 function M.get_mcphub_tools()
   local hub = M.get_mcphub_server_hub()
   if not hub then return nil end
@@ -140,6 +176,10 @@ function M.get_mcphub_tools()
   return all_tools
 end
 
+--- Get a map of MCP server names to their tools.
+--- Groups all available tools by their server name for easy lookup during validation.
+--- Used extensively by validate_mcp_tool() to check tool availability.
+---@return table<string, table[]>|nil Map from server_name to array of tools, or nil if unavailable
 function M.get_mcphub_server_map()
   local hub = M.get_mcphub_server_hub()
   if not hub then return nil end
@@ -160,6 +200,11 @@ function M.get_mcphub_server_map()
   return server_tools_map
 end
 
+--- Get a specific tool from MCPHub by server and tool name.
+--- Used by load_mcp_tool to retrieve the full tool specification when requested by the LLM.
+---@param server_name string The MCP server name
+---@param tool_name string The name of the tool
+---@return table|nil The tool object, or nil if not found
 function M.get_mcphub_tool(server_name, tool_name)
   -- Get all tools from the hub
   local all_tools = M.get_mcphub_tools()
@@ -168,7 +213,10 @@ function M.get_mcphub_tool(server_name, tool_name)
   return tool
 end
 
--- Function to get MCPHub prompt with lazy loading support
+--- Generate the MCP system prompt with lazy loading support.
+--- When lazy loading is enabled, generates a summarized prompt with tool descriptions.
+--- When disabled, returns the full MCPHub prompt. This is called during prompt generation
+--- to inform the LLM about available MCP servers, tools, and resources.
 ---@return string|table
 function M.get_system_prompt()
   -- Try to load mcphub
