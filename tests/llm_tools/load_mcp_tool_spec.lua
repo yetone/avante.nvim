@@ -160,7 +160,7 @@ describe("load_mcp_tool", function()
     it("should return error for non-existent tool", function()
       local result, err = LoadMcpTool.func({
         server_name = "test_server",
-        tool_name = "non_existent_tool",
+        tool_name = "non_existent_tool"
       }, {})
 
       assert.is_nil(result)
@@ -212,7 +212,7 @@ describe("load_mcp_tool", function()
       -- Now call load_mcp_tool
       local result, err = LoadMcpTool.func({
         server_name = "test_server",
-        tool_name = "test_tool",
+        tool_name = "test_tool"
       }, {})
 
       assert.is_nil(err)

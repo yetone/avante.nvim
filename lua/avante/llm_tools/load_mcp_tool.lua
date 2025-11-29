@@ -63,11 +63,17 @@ function M.func(input, opts)
     err_msg = "tool_name is required"
   end
 
-  -- Register this tool as requested
+  -- Register this tool as requested. This means it will appear
+  -- in subsequent queries to the model but not in the current
+  -- streaming session.
   if err_msg == nil then
     found_tool = LazyLoading.register_requested_tool(input.server_name, input.tool_name)
   end
 
+  --- Here we make sure that tools are available in the ongoing conversation
+  --- For internal tools, we add them to the tools in the prompt. For MCPHub
+  --- tools, we reply with the tool spec so that the LLM can call the tool
+  --- using use_mcp_tool.
   if found_tool then
     if input.server_name == "avante" then
       local tool_to_add = vim.iter(require('avante.llm_tools').get_tools("", {}, false)):find(function(tool)
@@ -83,7 +89,7 @@ function M.func(input, opts)
         message = "The tool " .. input.tool_name .. " has now been added to the tools section of the prompt."
       end
     else
-      tool = LazyLoading.get_mcphub_tool(input.server_name, input.tool_name)
+      local tool = LazyLoading.get_mcphub_tool(input.server_name, input.tool_name)
       if tool then
         local MCPHubPrompt = require('mcphub.utils.prompt')
         local utils = require("mcphub.utils")
@@ -101,7 +107,8 @@ function M.func(input, opts)
       end
 
     end
-  else
+  end
+  if not found_tool then
     if err_msg == nil then
       err_msg = "Tool '" .. input.tool_name .. "' on server '" .. input.server_name .. "' does not exist."
     end
