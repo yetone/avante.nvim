@@ -430,31 +430,6 @@ function M.get_system_prompt()
   end
 end
 
--- Function to get custom tools for MCPHub
----@return table[]
-function M.get_custom_tools()
-  local ok, mcphub_ext = pcall(require, "mcphub.extensions.avante")
-  if not ok then return {} end
-
-  -- If lazy loading is enabled, summarize the tools
-  if Config.lazy_loading and Config.lazy_loading.enabled then
-    local tool = mcphub_ext.mcp_tool()
-
-    -- Summarize the tool
-    local summarized_tool = M.summarize_tool(tool)
-
-    -- Add server information to the description
-    if summarized_tool and summarized_tool.description then
-      summarized_tool.description = (summarized_tool.description or "")
-        .. " (Server: avante, use load_mcp_tool to get full details)"
-    end
-
-    return { summarized_tool }
-  end
-
-  return { mcphub_ext.mcp_tool() }
-end
-
 -- Function to determine if a tool should be included based on lazy loading configuration
 ---@param server_name string The name of the MCP server
 ---@param tool_name string The name of the tool
