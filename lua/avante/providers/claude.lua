@@ -612,11 +612,6 @@ function M:parse_curl_args(prompt_opts)
         end
       end
     end
-    if #tools > 0 then
-      local last_tool = vim.deepcopy(tools[#tools])
-      last_tool.cache_control = { type = "ephemeral" }
-      tools[#tools] = last_tool
-    end
   end
 
   return {

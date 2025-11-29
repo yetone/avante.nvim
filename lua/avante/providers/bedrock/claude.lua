@@ -200,12 +200,6 @@ function M.build_bedrock_payload(provider, prompt_opts, request_body)
     end
   end
 
-  -- Add cache_control to tools if prompt caching is supported and enabled
-  if M.support_prompt_caching and prompt_caching_enabled and #tools > 0 then
-    local last_tool = vim.deepcopy(tools[#tools])
-    last_tool.cache_control = { type = "ephemeral" }
-    tools[#tools] = last_tool
-  end
 
   local payload = {
     anthropic_version = "bedrock-2023-05-31",

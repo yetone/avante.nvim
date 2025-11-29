@@ -412,12 +412,6 @@ function M:parse_curl_args(prompt_opts)
     end
   end
 
-  -- Add cache_control to tools if prompt caching is enabled for Claude models
-  if is_claude and self.support_prompt_caching and prompt_caching_enabled and #tools > 0 then
-    local last_tool = vim.deepcopy(tools[#tools])
-    last_tool.cache_control = { type = "ephemeral" }
-    tools[#tools] = last_tool
-  end
 
   -- Response API uses 'input' instead of 'messages'
   -- NOTE: Copilot doesn't support previous_response_id, always send full history
