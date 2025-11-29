@@ -33,9 +33,7 @@ end
 function M.available_tools_with_name(tool_name)
   local available_tools = {}
   for _, tool in pairs(M._available_to_request) do
-    if tool.name == tool_name then
-      available_tools[#available_tools+1] = tool
-    end
+    if tool.name == tool_name then available_tools[#available_tools + 1] = tool end
   end
   return available_tools
 end
@@ -46,9 +44,7 @@ function M.servers_with_available_tools_with_name_as_string(tool_name)
   for i = 1, #available_tools do
     local tool = available_tools[i]
     servers = servers .. tool.server_name
-    if i < #available_tools then
-      servers = servers .. ", "
-    end
+    if i < #available_tools then servers = servers .. ", " end
   end
   return servers
 end
@@ -93,17 +89,17 @@ end
 function M.reset_requested_tools() M._requested_tools = {} end
 
 function M.always_eager()
-    -- Define critical tools that should always be eagerly loaded regardless of user configuration
-    local critical_tools = {
-      "think",
-      "attempt_completion",
-      "load_mcp_tool",
-      "use_mcp_tool",
-      "add_todos",
-      "update_todo_status",
-      "list_tools",
-      "dispatch_agent",
-    }
+  -- Define critical tools that should always be eagerly loaded regardless of user configuration
+  local critical_tools = {
+    "think",
+    "attempt_completion",
+    "load_mcp_tool",
+    "use_mcp_tool",
+    "add_todos",
+    "update_todo_status",
+    "list_tools",
+    "dispatch_agent",
+  }
 
   -- Merge user configuration with critical tools
   local user_always_eager = Config.lazy_loading.always_eager or {}
@@ -417,10 +413,9 @@ end
 ---@return boolean True if the tool should be included, false otherwise
 function M.should_include_tool(server_name, tool_name)
   if server_name == nil then
-    server_name = "avante"  -- need to handle direct injection of tools with no server name by sidebar
+    server_name = "avante" -- need to handle direct injection of tools with no server name by sidebar
   end
-  return not Config.lazy_loading.enabled or
-  M.always_eager()[tool_name] or M.is_tool_requested(server_name, tool_name)
+  return not Config.lazy_loading.enabled or M.always_eager()[tool_name] or M.is_tool_requested(server_name, tool_name)
 end
 
 ---@param tool_use_input table The tool input containing the tool name to validate
@@ -453,9 +448,7 @@ function M.validate_mcp_tool(tool_use_input, on_complete)
       tool_use_input.tool_name,
       server_name
     ) .. "Don't forget to load the tool with load_mcp_tool if necessary!"
-    if on_complete then
-      on_complete(false, error_msg)
-    end
+    if on_complete then on_complete(false, error_msg) end
     return false, error_msg
   end
 
@@ -484,9 +477,15 @@ function M.check_tool_loading(tools, tool_use, Config)
   -- Sanity check to make sure the tool exists.
   local key = server_name .. ":" .. tool_use.name
   if not M._available_to_request[key] then
-    local error_msg = "Tool '" .. tool_use.name .. "' is not on server '" .. server_name .. "'. " ..
-      "Did you mean one of these servers: " .. M.servers_with_available_tools_with_name_as_string(tool_use.name) .. " ?" ..
-      "Don't forget to load the tool with load_mcp_tool if necessary!"
+    local error_msg = "Tool '"
+      .. tool_use.name
+      .. "' is not on server '"
+      .. server_name
+      .. "'. "
+      .. "Did you mean one of these servers: "
+      .. M.servers_with_available_tools_with_name_as_string(tool_use.name)
+      .. " ?"
+      .. "Don't forget to load the tool with load_mcp_tool if necessary!"
     return false, error_msg
   end
   -- Special handling for use_mcp_tool
@@ -631,10 +630,9 @@ function M.summarize_tool(tool)
 
     -- Include only the name and summarized description
     -- Some tools have a property description, others have a function get_description
-    local description = summarized_tool.description or (summarized_tool.get_description and summarized_tool.get_description())
-    if description then
-      minimal_tool.description = M.extract_first_sentence(description)
-    end
+    local description = summarized_tool.description
+      or (summarized_tool.get_description and summarized_tool.get_description())
+    if description then minimal_tool.description = M.extract_first_sentence(description) end
 
     return minimal_tool
   end

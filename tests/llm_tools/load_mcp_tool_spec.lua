@@ -13,11 +13,11 @@ local mcphub = {
               properties = {
                 param1 = {
                   type = "string",
-                  description = "First parameter"
-                }
-              }
-            }
-          }
+                  description = "First parameter",
+                },
+              },
+            },
+          },
         }
       end,
     }
@@ -27,22 +27,16 @@ package.preload["mcphub"] = function() return mcphub end
 
 -- Create mock mcphub.utils.prompt module
 local mcphub_prompt = {
-  get_description = function(tool)
-    return tool.description or "No description"
-  end,
-  get_inputSchema = function(tool)
-    return tool.inputSchema or {}
-  end
+  get_description = function(tool) return tool.description or "No description" end,
+  get_inputSchema = function(tool) return tool.inputSchema or {} end,
 }
-package.preload['mcphub.utils.prompt'] = function() return mcphub_prompt end
+package.preload["mcphub.utils.prompt"] = function() return mcphub_prompt end
 
 -- Create mock mcphub.utils module
 local mcphub_utils = {
-  pretty_json = function(json_str)
-    return json_str
-  end
+  pretty_json = function(json_str) return json_str end,
 }
-package.preload['mcphub.utils'] = function() return mcphub_utils end
+package.preload["mcphub.utils"] = function() return mcphub_utils end
 
 local LoadMcpTool = require("avante.llm_tools.load_mcp_tool")
 local LazyLoading = require("avante.llm_tools.lazy_loading")
@@ -135,7 +129,7 @@ describe("load_mcp_tool", function()
 
       local result, err = LoadMcpTool.func({
         server_name = "test_server",
-        tool_name = "test_tool"
+        tool_name = "test_tool",
       }, {})
 
       assert.is_nil(err)
@@ -150,7 +144,7 @@ describe("load_mcp_tool", function()
 
       local result, err = LoadMcpTool.func({
         server_name = "non_existent_server",
-        tool_name = "test_tool"
+        tool_name = "test_tool",
       }, {})
 
       assert.is_nil(result)
@@ -160,7 +154,7 @@ describe("load_mcp_tool", function()
     it("should return error for non-existent tool", function()
       local result, err = LoadMcpTool.func({
         server_name = "test_server",
-        tool_name = "non_existent_tool"
+        tool_name = "non_existent_tool",
       }, {})
 
       assert.is_nil(result)
@@ -176,13 +170,13 @@ describe("load_mcp_tool", function()
 
       local result, err = LoadMcpTool.func({
         server_name = "test_server",
-        tool_name = "test_tool"
+        tool_name = "test_tool",
       }, {
         tool_use_id = "test_id_123",
         on_log = function(message)
           log_called = true
           log_message = message
-        end
+        end,
       })
 
       assert.is_nil(err)
@@ -204,7 +198,7 @@ describe("load_mcp_tool", function()
       -- Now call load_mcp_tool
       local result, err = LoadMcpTool.func({
         server_name = "test_server",
-        tool_name = "test_tool"
+        tool_name = "test_tool",
       }, {})
 
       assert.is_nil(err)

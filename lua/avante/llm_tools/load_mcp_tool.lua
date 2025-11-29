@@ -56,19 +56,13 @@ function M.func(input, opts)
   local found_tool = false
 
   -- Validate input parameters
-  if not input.server_name then
-    err_msg = "server_name is required"
-  end
-  if not input.tool_name then
-    err_msg = "tool_name is required"
-  end
+  if not input.server_name then err_msg = "server_name is required" end
+  if not input.tool_name then err_msg = "tool_name is required" end
 
   -- Register this tool as requested. This means it will appear
   -- in subsequent queries to the model but not in the current
   -- streaming session.
-  if err_msg == nil then
-    found_tool = LazyLoading.register_requested_tool(input.server_name, input.tool_name)
-  end
+  if err_msg == nil then found_tool = LazyLoading.register_requested_tool(input.server_name, input.tool_name) end
 
   --- Here we make sure that tools are available in the ongoing conversation
   --- For internal tools, we add them to the tools in the prompt. For MCPHub
@@ -76,9 +70,9 @@ function M.func(input, opts)
   --- using use_mcp_tool.
   if found_tool then
     if input.server_name == "avante" then
-      local tool_to_add = vim.iter(require('avante.llm_tools').get_tools("", {})):find(function(tool)
-        return tool.name == input.tool_name
-      end)
+      local tool_to_add = vim
+        .iter(require("avante.llm_tools").get_tools("", {}))
+        :find(function(tool) return tool.name == input.tool_name end)
       if tool_to_add == nil then
         err_msg = "Internal error: could not load tool " .. input.tool_name
         -- print(vim.inspect(input))
@@ -92,21 +86,24 @@ function M.func(input, opts)
     else
       local tool = LazyLoading.get_mcphub_tool(input.server_name, input.tool_name)
       if tool then
-        local MCPHubPrompt = require('mcphub.utils.prompt')
+        local MCPHubPrompt = require("mcphub.utils.prompt")
         local utils = require("mcphub.utils")
-        local result = "This is is the input schema for the tool " .. input.tool_name .. " from the server " .. input.server_name
+        local result = "This is is the input schema for the tool "
+          .. input.tool_name
+          .. " from the server "
+          .. input.server_name
         result = result .. "\n **YOU WILL NEED THIS SCHEMA TO CALL THE TOOL***"
-        result = result .. string.format("\n\n- %s: %s", tool.name, MCPHubPrompt.get_description(tool):gsub("\n", "\n  "))
+        result = result
+          .. string.format("\n\n- %s: %s", tool.name, MCPHubPrompt.get_description(tool):gsub("\n", "\n  "))
         local inputSchema = MCPHubPrompt.get_inputSchema(tool)
         result = result
-            .. "\n\n  Input Schema:\n\n  ```json\n  "
-            .. utils.pretty_json(vim.json.encode(inputSchema)):gsub("\n", "\n  ")
-            .. "\n  ```"
+          .. "\n\n  Input Schema:\n\n  ```json\n  "
+          .. utils.pretty_json(vim.json.encode(inputSchema)):gsub("\n", "\n  ")
+          .. "\n  ```"
         message = result .. "\n Use this tool indirectly by using the 'use_mcp_tool' tool \n"
       else
         found_tool = false
       end
-
     end
   end
   if not found_tool then
@@ -124,7 +121,7 @@ function M.func(input, opts)
 
   if on_complete then
     on_complete(message, err_msg)
-    return nil, nil  -- Will be handled asynchronously
+    return nil, nil -- Will be handled asynchronously
   else
     return message, err_msg
   end
