@@ -1,6 +1,8 @@
 ---@class AvanteBedrockClaudeTextMessage
 ---@field type "text"
 ---@field text string
+---@field cache_control {type: "ephemeral"}?
+---@field [any] any
 ---
 ---@class AvanteBedrockClaudeMessage
 ---@field role "user" | "assistant"
@@ -49,6 +51,7 @@ function M:count_tokens_before(messages, system_prompt, index)
       token_count = token_count + Utils.tokens.calculate_tokens(system_prompt)
     elseif type(system_prompt) == "table" then
       for _, item in ipairs(system_prompt) do
+        ---@cast item AvanteBedrockClaudeTextMessage
         if item.type == "text" then token_count = token_count + Utils.tokens.calculate_tokens(item.text) end
       end
     end
@@ -58,6 +61,7 @@ function M:count_tokens_before(messages, system_prompt, index)
   for i = 1, index do
     local message = messages[i]
     for _, item in ipairs(message.content) do
+      ---@cast item AvanteBedrockClaudeTextMessage
       if item.type == "text" then token_count = token_count + Utils.tokens.calculate_tokens(item.text) end
     end
   end
@@ -77,8 +81,11 @@ M.analyze_cache_performance = Claude.analyze_cache_performance
 ---@param request_body table
 ---@return table
 function M.build_bedrock_payload(provider, prompt_opts, request_body)
+  ---@type string|table
   local system_prompt = prompt_opts.system_prompt or ""
+  ---@type AvanteBedrockClaudeMessage[]
   local messages = provider:parse_messages(prompt_opts)
+  ---@cast messages AvanteBedrockClaudeMessage[]
   local max_tokens = request_body.max_tokens or 2000
 
   local provider_conf, _ = P.parse_config(provider)
@@ -123,6 +130,7 @@ function M.build_bedrock_payload(provider, prompt_opts, request_body)
 
     -- Only add cache control if we meet the minimum token threshold
     if current_tokens >= min_tokens then
+      ---@type table
       system_prompt = {
         {
           type = "text",
@@ -131,6 +139,7 @@ function M.build_bedrock_payload(provider, prompt_opts, request_body)
         },
       }
     else
+      ---@type table
       system_prompt = {
         {
           type = "text",
@@ -164,10 +173,12 @@ function M.build_bedrock_payload(provider, prompt_opts, request_body)
       -- Add cache checkpoint at the end of static content if we found any
       if static_boundary_idx > 0 then
         local message = vim.deepcopy(messages[static_boundary_idx])
+        ---@cast message AvanteBedrockClaudeMessage
         local content = message.content
         for j = #content, 1, -1 do
           local item = content[j]
-          if item.type == "text" then
+          ---@cast item AvanteBedrockClaudeTextMessage
+          if item and item.type == "text" then
             item.cache_control = { type = "ephemeral" }
             messages[static_boundary_idx] = message
             break
@@ -185,10 +196,12 @@ function M.build_bedrock_payload(provider, prompt_opts, request_body)
           -- Only add cache checkpoint if we've reached the minimum token threshold
           if current_tokens >= min_tokens then
             local message = vim.deepcopy(messages[i])
+            ---@cast message AvanteBedrockClaudeMessage
             local content = message.content
             for j = #content, 1, -1 do
               local item = content[j]
-              if item.type == "text" then
+              ---@cast item AvanteBedrockClaudeTextMessage
+              if item and item.type == "text" then
                 item.cache_control = { type = "ephemeral" }
                 messages[i] = message
                 break

@@ -281,6 +281,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field cache_creation_input_tokens number
 ---@field cache_read_input_tokens number
 ---@field output_tokens number
+---@field [any] any
 ---
 ---@class avante.GeminiTokenUsage
 ---@field promptTokenCount number

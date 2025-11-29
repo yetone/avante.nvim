@@ -398,6 +398,7 @@ function M:parse_curl_args(prompt_opts)
         -- For array content, add cache_control to the last text item
         for j = #message.content, 1, -1 do
           local item = message.content[j]
+          ---@cast item AvanteClaudeMessageContentTextItem
           if type(item) == "table" and item.type == "text" then
             item.cache_control = { type = "ephemeral" }
             found = true
