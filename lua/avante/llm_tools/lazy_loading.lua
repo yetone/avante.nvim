@@ -31,19 +31,24 @@ function M.register_available_tool(server_name, tool_name)
 end
 
 function M.available_tools_with_name(tool_name)
-  available_tools = {}
-  for _, tool in ipairs(M._available_to_request) do
-    if tool.name == tool_name then available_tools[#available_tools + 1] = tool end
+  local available_tools = {}
+  for _, tool in pairs(M._available_to_request) do
+    if tool.name == tool_name then
+      available_tools[#available_tools+1] = tool
+    end
   end
   return available_tools
 end
 
 function M.servers_with_available_tools_with_name_as_string(tool_name)
-  available_tools = M.available_tools_with_name(tool_name)
-  servers = ""
+  local available_tools = M.available_tools_with_name(tool_name)
+  local servers = ""
   for i = 1, #available_tools do
-    servers = servers .. tool.name
-    if i < #available_tools then servers = servers .. ", " end
+    local tool = available_tools[i]
+    servers = servers .. tool.server_name
+    if i < #available_tools then
+      servers = servers .. ", "
+    end
   end
   return servers
 end
@@ -88,16 +93,17 @@ end
 function M.reset_requested_tools() M._requested_tools = {} end
 
 function M.always_eager()
-  -- Define critical tools that should always be eagerly loaded regardless of user configuration
-  local critical_tools = {
-    "think",
-    "attempt_completion",
-    "load_mcp_tool",
-    "use_mcp_tool",
-    "add_todos",
-    "update_todo_status",
-    "list_tools",
-  }
+    -- Define critical tools that should always be eagerly loaded regardless of user configuration
+    local critical_tools = {
+      "think",
+      "attempt_completion",
+      "load_mcp_tool",
+      "use_mcp_tool",
+      "add_todos",
+      "update_todo_status",
+      "list_tools",
+      "dispatch_agent",
+    }
 
   -- Merge user configuration with critical tools
   local user_always_eager = Config.lazy_loading.always_eager or {}
@@ -128,7 +134,7 @@ function M.get_mcphub_tools()
   if not hub then return nil end
 
   -- Get all tools from the hub
-  local all_tools = {}
+  local all_tools
   if hub.get_tools and type(hub.get_tools) == "function" then
     all_tools = hub:get_tools()
   else
@@ -409,7 +415,11 @@ end
 ---@param tool AvanteLLMTool The tool to check
 ---@return boolean True if the tool should be included, false otherwise
 function M.should_include_tool(server_name, tool_name)
-  return not Config.lazy_loading.enabled or M.always_eager()[tool_name] or M.is_tool_requested(server_name, tool_name)
+  if server_name == nil then
+    server_name = "avante"  -- need to handle direct injection of tools with no server name by sidebar
+  end
+  return not Config.lazy_loading.enabled or
+  M.always_eager()[tool_name] or M.is_tool_requested(server_name, tool_name)
 end
 
 ---@param server_name string The name of the MCP server
@@ -417,7 +427,7 @@ end
 ---@param on_complete function The callback function to call with result or error
 ---@return boolean, string|nil Whether the tool is valid, and an optional error message
 function M.validate_mcp_tool(tool_use_input, on_complete)
-  server_name = tool_use_input.server_name
+  local server_name = tool_use_input.server_name
   -- Validate the server is available
   local server_tools_map = M.get_mcphub_server_map()
   if not server_tools_map or not server_tools_map[server_name] then
@@ -442,8 +452,10 @@ function M.validate_mcp_tool(tool_use_input, on_complete)
         .. " ?",
       tool_use_input.tool_name,
       server_name
-    )
-    if on_complete then on_complete(false, error_msg) end
+    ) .. "Don't forget to load the tool with load_mcp_tool if necessary!"
+    if on_complete then
+      on_complete(false, error_msg)
+    end
     return false, error_msg
   end
 
@@ -472,14 +484,9 @@ function M.check_tool_loading(tools, tool_use, Config)
   -- Sanity check to make sure the tool exists.
   local key = server_name .. ":" .. tool_use.name
   if not M._available_to_request[key] then
-    local error_msg = "Tool '"
-      .. tool_use.name
-      .. "' is not on server '"
-      .. server_name
-      .. "'. "
-      .. "Did you mean one of these servers: "
-      .. M.servers_with_available_tools_with_name_as_string(tool_use.name)
-      .. " ?"
+    local error_msg = "Tool '" .. tool_use.name .. "' is not on server '" .. server_name .. "'. " ..
+      "Did you mean one of these servers: " .. M.servers_with_available_tools_with_name_as_string(tool_use.name) .. " ?" ..
+      "Don't forget to load the tool with load_mcp_tool if necessary!"
     return false, error_msg
   end
   -- Special handling for use_mcp_tool
@@ -488,7 +495,7 @@ function M.check_tool_loading(tools, tool_use, Config)
       local error_msg = "Please check the spec of use_mcp_tool and provide the right input."
       return false, error_msg
     end
-    tool_input_server_name = tool_use.input.server_name
+    local tool_input_server_name = tool_use.input.server_name
     if tool_input_server_name == "avante" then
       local error_msg = string.format(
         "Do not use 'use_mcp_tool' for any tool with the 'avante' server.  '%s' is a built-in tool and can be called directly.",
@@ -623,8 +630,10 @@ function M.summarize_tool(tool)
     }
 
     -- Include only the name and summarized description
-    if summarized_tool.description then
-      minimal_tool.description = M.extract_first_sentence(summarized_tool.description)
+    -- Some tools have a property description, others have a function get_description
+    local description = summarized_tool.description or (summarized_tool.get_description and summarized_tool.get_description())
+    if description then
+      minimal_tool.description = M.extract_first_sentence(description)
     end
 
     return minimal_tool
