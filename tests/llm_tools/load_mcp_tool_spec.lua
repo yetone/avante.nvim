@@ -169,10 +169,7 @@ describe("load_mcp_tool", function()
 
     it("should call on_log when provided with tool_use_id", function()
       local log_called = false
-      local log_tool_use_id = nil
-      local log_tool_name = nil
       local log_message = nil
-      local log_status = nil
 
       -- Register the tool as available first
       LazyLoading.register_available_tool("test_server", "test_tool")
@@ -182,22 +179,17 @@ describe("load_mcp_tool", function()
         tool_name = "test_tool"
       }, {
         tool_use_id = "test_id_123",
-        on_log = function(tool_use_id, tool_name, message, status)
+        on_log = function(message)
           log_called = true
-          log_tool_use_id = tool_use_id
-          log_tool_name = tool_name
           log_message = message
-          log_status = status
         end
       })
 
       assert.is_nil(err)
       assert.is_not_nil(result)
       assert.is_true(log_called)
-      assert.equals("test_id_123", log_tool_use_id)
-      assert.equals("load_mcp_tool", log_tool_name)
       assert.is_not_nil(log_message)
-      assert.equals("completed", log_status)
+      assert.is_true(log_message:find("test_tool") ~= nil)
     end)
   end)
 
