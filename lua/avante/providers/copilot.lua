@@ -392,7 +392,6 @@ function M:parse_curl_args(prompt_opts)
             { type = "text", text = message.content, cache_control = { type = "ephemeral" } },
           }
           found = true
-          break
         end
       elseif type(message.content) == "table" then
         -- For array content, add cache_control to the last text item

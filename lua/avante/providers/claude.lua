@@ -520,9 +520,6 @@ function M:parse_curl_args(prompt_opts)
     end
   end
 
-  -- Track token count for threshold check
-  local current_tokens = 0
-
   if self.support_prompt_caching and prompt_caching_enabled then
     -- Get the cache strategy from config
     local cache_strategy = Config.prompt_caching and Config.prompt_caching.strategy or "simplified"
@@ -535,10 +532,10 @@ function M:parse_curl_args(prompt_opts)
         for i = 1, #messages do
           if self:is_static_content(messages[i], i) then
             -- Count tokens up to this point to check threshold
-            current_tokens = self:count_tokens_before(messages, prompt_opts.system_prompt, i)
+            local tokens_before = self:count_tokens_before(messages, prompt_opts.system_prompt, i)
 
             -- Only consider this as a boundary if we've reached the token threshold
-            if current_tokens >= min_tokens then static_boundary_idx = i end
+            if tokens_before >= min_tokens then static_boundary_idx = i end
           else
             break
           end
@@ -565,7 +562,7 @@ function M:parse_curl_args(prompt_opts)
         for i = 1, #messages do
           if self:is_static_content(messages[i], i) then
             -- Count tokens up to this point to check threshold
-            current_tokens = self:count_tokens_before(messages, prompt_opts.system_prompt, i)
+            local current_tokens = self:count_tokens_before(messages, prompt_opts.system_prompt, i)
 
             -- Only add cache checkpoint if we've reached the minimum token threshold
             if current_tokens >= min_tokens then
