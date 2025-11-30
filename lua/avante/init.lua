@@ -494,16 +494,13 @@ function M.setup(opts)
   -- Add lazy loading prompt if appropriate. It gives shortened descriptions of
   -- available tools plus instructions about how to load them.
   if Config.lazy_loading and Config.lazy_loading.enabled then
-    if
-      not vim.tbl_contains(Config.system_prompt_providers, require("avante.llm_tools.lazy_loading").get_system_prompt)
-    then
-      table.insert(Config.system_prompt_providers, require("avante.llm_tools.lazy_loading").get_system_prompt)
+    local lazy_loading = require("avante.llm_tools.lazy_loading")
+    if not vim.tbl_contains(Config.system_prompt_providers, lazy_loading.get_system_prompt) then
+      table.insert(Config.system_prompt_providers, lazy_loading.get_system_prompt)
     end
     -- Add custom tools provider for mcphub integration
-    if
-      not vim.tbl_contains(Config.custom_tools_providers, require("avante.llm_tools.lazy_loading").get_custom_tools)
-    then
-      table.insert(Config.custom_tools_providers, require("avante.llm_tools.lazy_loading").get_custom_tools)
+    if not vim.tbl_contains(Config.custom_tools_providers, lazy_loading.get_custom_tools) then
+      table.insert(Config.custom_tools_providers, lazy_loading.get_custom_tools)
     end
   end
 
