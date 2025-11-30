@@ -499,6 +499,12 @@ function M.setup(opts)
     then
       table.insert(Config.system_prompt_providers, require("avante.llm_tools.lazy_loading").get_system_prompt)
     end
+    -- Add custom tools provider for mcphub integration
+    if
+      not vim.tbl_contains(Config.custom_tools_providers, require("avante.llm_tools.lazy_loading").get_custom_tools)
+    then
+      table.insert(Config.custom_tools_providers, require("avante.llm_tools.lazy_loading").get_custom_tools)
+    end
   end
 
   if M.did_setup then return end

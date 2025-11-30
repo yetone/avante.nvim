@@ -50,6 +50,8 @@ M._defaults = {
   system_prompt = nil,
   ---@type function[] | nil
   system_prompt_providers = {},
+  ---@type function[] | nil
+  custom_tools_providers = {},
   ---@type string | fun(): string | nil
   override_prompt_dir = nil,
   rules = {

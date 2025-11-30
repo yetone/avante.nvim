@@ -704,4 +704,30 @@ function M.summarize_tools(tools)
   return summarized_tools
 end
 
+--- Get custom tools from mcphub when lazy loading is enabled
+--- This function is designed to be used as a custom_tools_provider
+---@return AvanteLLMToolPublic[]
+function M.get_custom_tools()
+  -- Try to load mcphub
+  local ok, mcphub = pcall(require, "mcphub")
+  if not ok then
+    return {} -- MCPHub not available
+  end
+
+  -- Check if extensions.avante.mcp_tool exists
+  local extensions = mcphub.extensions or {}
+  local avante_ext = extensions.avante
+  if not avante_ext or not avante_ext.mcp_tool then
+    return {} -- mcp_tool not available
+  end
+
+  -- Call mcp_tool() to get the custom tools
+  local tools = avante_ext.mcp_tool()
+  if type(tools) == "table" then
+    return tools
+  end
+
+  return {}
+end
+
 return M

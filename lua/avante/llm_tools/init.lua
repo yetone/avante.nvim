@@ -614,6 +614,18 @@ function M.get_tools(user_input, history_messages)
   local custom_tools = Config.custom_tools
   if type(custom_tools) == "function" then custom_tools = custom_tools() end
 
+  -- Apply custom_tools_providers if available
+  if Config.custom_tools_providers and #Config.custom_tools_providers > 0 then
+    for _, provider_fn in ipairs(Config.custom_tools_providers) do
+      if type(provider_fn) == "function" then
+        local provider_tools = provider_fn()
+        if provider_tools and type(provider_tools) == "table" then
+          custom_tools = vim.list_extend(custom_tools, provider_tools)
+        end
+      end
+    end
+  end
+
   ---@type AvanteLLMTool[]
   local unfiltered_tools = vim.list_extend(vim.list_extend({}, M._tools), custom_tools)
 
@@ -662,6 +674,19 @@ end
 function M.get_tool_names()
   local custom_tools = Config.custom_tools
   if type(custom_tools) == "function" then custom_tools = custom_tools() end
+
+  -- Apply custom_tools_providers if available
+  if Config.custom_tools_providers and #Config.custom_tools_providers > 0 then
+    for _, provider_fn in ipairs(Config.custom_tools_providers) do
+      if type(provider_fn) == "function" then
+        local provider_tools = provider_fn()
+        if provider_tools and type(provider_tools) == "table" then
+          custom_tools = vim.list_extend(custom_tools, provider_tools)
+        end
+      end
+    end
+  end
+
   ---@type AvanteLLMTool[]
   local unfiltered_tools = vim.list_extend(vim.list_extend({}, M._tools), custom_tools)
   local tool_names = {}
