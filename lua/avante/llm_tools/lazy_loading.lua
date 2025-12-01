@@ -723,9 +723,7 @@ function M.get_custom_tools()
 
   -- Call mcp_tool() to get the custom tools
   local tools = avante_ext.mcp_tool()
-  if type(tools) == "table" then
-    return tools
-  end
+  if type(tools) == "table" then return tools end
 
   return {}
 end
