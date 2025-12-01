@@ -367,9 +367,16 @@ end
 
 function M:unbind_window_focus_keymaps() pcall(vim.keymap.del, { "n", "i" }, Config.mappings.confirm.focus_window) end
 
-function M:cancel()
-  self.callback("no", "cancel")
-  return self:close()
+---@param reason? string Optional reason for cancellation
+function M:cancel(reason)
+  self:close()
+  self.callback("no", reason or "cancel")
+end
+
+---@param reason? string Optional reason for confirmation
+function M:confirm(reason)
+  self:close()
+  self.callback("yes", reason or "confirm")
 end
 
 function M:close()
