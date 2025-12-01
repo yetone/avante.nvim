@@ -1534,7 +1534,28 @@ function M._stream_acp(opts)
       end
     end
   end
+  local cancelled = false
+  local stop_cmd_id = api.nvim_create_autocmd("User", {
+    group = group,
+    pattern = M.CANCEL_PATTERN,
+    once = true,
+    callback = function()
+      cancelled = true
+      local cancelled_text = "\n*[Request cancelled by user.]*\n"
+      if opts.on_chunk then opts.on_chunk(cancelled_text) end
+      if opts.on_messages_add then
+        local message = History.Message:new("assistant", cancelled_text, {
+          just_for_display = true,
+        })
+        opts.on_messages_add({ message })
+      end
+      acp_client:cancel_session(session_id)
+      opts.on_stop({ reason = "cancelled" })
+    end,
+  })
   acp_client:send_prompt(session_id, prompt, function(_, err_)
+    if cancelled then return end
+    api.nvim_del_autocmd(stop_cmd_id)
     if err_ then
       -- ACP-specific session recovery: Check for session not found error
       -- Check for session recovery conditions
