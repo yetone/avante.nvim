@@ -16,6 +16,57 @@ M.role_map = {
   assistant = "assistant",
 }
 
+---@param message table
+---@param index integer
+---@return boolean
+function M:is_static_content(message, index)
+  -- System prompts are typically static
+  if message.role == "system" then return true end
+
+  -- Consider first user message as static (usually contains context/instructions)
+  -- Use the configured static_message_count or default to 2
+  local static_message_count = Config.prompt_caching and Config.prompt_caching.static_message_count or 2
+  if index <= static_message_count then return true end
+
+  -- Check if message content is marked as context (usually static)
+  if message.is_context then return true end
+
+  return false
+end
+
+---@param messages table[]
+---@param system_prompt string
+---@param index integer
+---@return integer
+function M:count_tokens_before(messages, system_prompt, index)
+  local token_count = 0
+
+  -- Count tokens in system prompt
+  if system_prompt and system_prompt ~= "" then
+    token_count = token_count + Utils.tokens.calculate_tokens(system_prompt)
+  end
+
+  -- Count tokens in messages up to the index
+  for i = 1, index do
+    local message = messages[i]
+    local content = message.content
+
+    if type(content) == "string" then
+      token_count = token_count + Utils.tokens.calculate_tokens(content)
+    elseif type(content) == "table" then
+      for _, item in ipairs(content) do
+        if type(item) == "string" then
+          token_count = token_count + Utils.tokens.calculate_tokens(item)
+        elseif type(item) == "table" and item.type == "text" then
+          token_count = token_count + Utils.tokens.calculate_tokens(item.text)
+        end
+      end
+    end
+  end
+
+  return token_count
+end
+
 ---@param headers table<string, string>
 ---@return integer|nil
 function M:get_rate_limit_sleep_time(headers)
@@ -137,15 +188,78 @@ end
 ---@return avante.LLMTokenUsage | nil
 function M.transform_anthropic_usage(usage)
   if not usage then return nil end
+
+  -- Calculate cache stats
+  local cache_hit_tokens = usage.cache_read_input_tokens or 0
+  local cache_write_tokens = usage.cache_creation_input_tokens or 0
+  local total_input_tokens = usage.input_tokens or 0
+  local cache_hit_rate = total_input_tokens > 0 and (cache_hit_tokens / total_input_tokens) or 0
+
+  -- Record stats for visualization
+  if not M.cache_stats then M.cache_stats = {} end
+  table.insert(M.cache_stats, {
+    timestamp = os.time(),
+    cache_hit_tokens = cache_hit_tokens,
+    cache_write_tokens = cache_write_tokens,
+    total_input_tokens = total_input_tokens,
+    cache_hit_rate = cache_hit_rate,
+    conversation_id = usage.conversation_id or "unknown",
+    model = usage.model or "unknown",
+  })
+
+  -- Log detailed cache info if debug is enabled
+  if Config.prompt_caching and Config.prompt_caching.debug then
+    Utils.info(
+      string.format(
+        "Cache performance: hit_rate=%.2f%%, hit_tokens=%d, write_tokens=%d, total_tokens=%d",
+        cache_hit_rate * 100,
+        cache_hit_tokens,
+        cache_write_tokens,
+        total_input_tokens
+      )
+    )
+  end
+
+  -- Return usage info with cache metrics
   ---@type avante.LLMTokenUsage
   local res = {
     prompt_tokens = usage.cache_creation_input_tokens and (usage.input_tokens + usage.cache_creation_input_tokens)
       or usage.input_tokens,
     completion_tokens = usage.cache_read_input_tokens and (usage.output_tokens + usage.cache_read_input_tokens)
       or usage.output_tokens,
+    cache_hit_tokens = cache_hit_tokens,
+    cache_write_tokens = cache_write_tokens,
+    cache_hit_rate = cache_hit_rate,
   }
 
   return res
+end
+
+-- Add a function to analyze cache performance
+function M.analyze_cache_performance()
+  if not M.cache_stats or #M.cache_stats == 0 then return "No cache statistics available" end
+
+  local total_hit_rate = 0
+  local total_hit_tokens = 0
+  local total_write_tokens = 0
+  local total_input_tokens = 0
+
+  for _, stat in ipairs(M.cache_stats) do
+    total_hit_rate = total_hit_rate + stat.cache_hit_rate
+    total_hit_tokens = total_hit_tokens + stat.cache_hit_tokens
+    total_write_tokens = total_write_tokens + stat.cache_write_tokens
+    total_input_tokens = total_input_tokens + stat.total_input_tokens
+  end
+
+  local avg_hit_rate = total_hit_rate / #M.cache_stats
+
+  return {
+    average_hit_rate = avg_hit_rate,
+    total_hit_tokens = total_hit_tokens,
+    total_write_tokens = total_write_tokens,
+    total_input_tokens = total_input_tokens,
+    sample_count = #M.cache_stats,
+  }
 end
 
 function M:parse_response(ctx, data_stream, event_state, opts)
@@ -337,16 +451,21 @@ function M:parse_curl_args(prompt_opts)
   local tools = {}
   if not disable_tools and prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
-      if Config.mode == "agentic" then
-        if tool.name == "create_file" then goto continue end
-        if tool.name == "view" then goto continue end
-        if tool.name == "str_replace" then goto continue end
-        if tool.name == "create" then goto continue end
-        if tool.name == "insert" then goto continue end
-        if tool.name == "undo_edit" then goto continue end
-        if tool.name == "replace_in_file" then goto continue end
+      -- Only include tool if lazy loading is disabled, or if it's always eager, or if it's been requested
+      local LazyLoading = require("avante.llm_tools.lazy_loading")
+
+      if LazyLoading.should_include_tool(tool.server_name or "avante", tool.name) then
+        if Config.mode == "agentic" then
+          if tool.name == "create_file" then goto continue end
+          if tool.name == "view" then goto continue end
+          if tool.name == "str_replace" then goto continue end
+          if tool.name == "create" then goto continue end
+          if tool.name == "insert" then goto continue end
+          if tool.name == "undo_edit" then goto continue end
+          if tool.name == "replace_in_file" then goto continue end
+        end
+        table.insert(tools, self:transform_tool(tool))
       end
-      table.insert(tools, self:transform_tool(tool))
       ::continue::
     end
   end
@@ -375,33 +494,91 @@ function M:parse_curl_args(prompt_opts)
     end
   end
 
-  if self.support_prompt_caching then
+  -- Check if prompt caching is enabled for this provider
+  local prompt_caching_enabled = Config.prompt_caching
+    and Config.prompt_caching.enabled
+    and Config.prompt_caching.providers.claude
+
+  -- Determine minimum token threshold based on model
+  local min_tokens = 1024 -- Default
+  if Config.prompt_caching and Config.prompt_caching.min_tokens_threshold then
+    if
+      provider_conf.model:match("claude%-3%-5%-haiku")
+      and Config.prompt_caching.min_tokens_threshold["claude-3-5-haiku"]
+    then
+      min_tokens = Config.prompt_caching.min_tokens_threshold["claude-3-5-haiku"]
+    elseif
+      provider_conf.model:match("claude%-3%-7%-sonnet")
+      and Config.prompt_caching.min_tokens_threshold["claude-3-7-sonnet"]
+    then
+      min_tokens = Config.prompt_caching.min_tokens_threshold["claude-3-7-sonnet"]
+    elseif Config.prompt_caching.min_tokens_threshold.default then
+      min_tokens = Config.prompt_caching.min_tokens_threshold.default
+    end
+  end
+
+  if self.support_prompt_caching and prompt_caching_enabled then
+    -- Get the cache strategy from config
+    local cache_strategy = Config.prompt_caching and Config.prompt_caching.strategy or "simplified"
+
     if #messages > 0 then
-      local found = false
-      for i = #messages, 1, -1 do
-        local message = messages[i]
-        message = vim.deepcopy(message)
-        ---@cast message AvanteClaudeMessage
-        local content = message.content
-        ---@cast content AvanteClaudeMessageContentTextItem[]
-        for j = #content, 1, -1 do
-          local item = content[j]
-          if item.type == "text" then
-            item.cache_control = { type = "ephemeral" }
-            found = true
+      if cache_strategy == "simplified" then
+        -- Simplified approach: place a single cache checkpoint at the end of static content
+        -- This allows the model to automatically find the best cache match
+        local static_boundary_idx = 0
+        for i = 1, #messages do
+          if self:is_static_content(messages[i], i) then
+            -- Count tokens up to this point to check threshold
+            local tokens_before = self:count_tokens_before(messages, prompt_opts.system_prompt, i)
+
+            -- Only consider this as a boundary if we've reached the token threshold
+            if tokens_before >= min_tokens then static_boundary_idx = i end
+          else
             break
           end
         end
-        if found then
-          messages[i] = message
-          break
+
+        -- Add cache checkpoint at the end of static content if we found any
+        if static_boundary_idx > 0 then
+          local message = vim.deepcopy(messages[static_boundary_idx])
+          ---@cast message AvanteClaudeMessage
+          local content = message.content
+          ---@cast content AvanteClaudeMessageContentTextItem[]
+          for j = #content, 1, -1 do
+            local item = content[j]
+            if item.type == "text" then
+              item.cache_control = { type = "ephemeral" }
+              messages[static_boundary_idx] = message
+              break
+            end
+          end
+        end
+      else
+        -- Manual approach: place cache checkpoints at multiple points
+        -- This gives more control but may be less effective than the simplified approach
+        for i = 1, #messages do
+          if self:is_static_content(messages[i], i) then
+            -- Count tokens up to this point to check threshold
+            local current_tokens = self:count_tokens_before(messages, prompt_opts.system_prompt, i)
+
+            -- Only add cache checkpoint if we've reached the minimum token threshold
+            if current_tokens >= min_tokens then
+              local message = vim.deepcopy(messages[i])
+              ---@cast message AvanteClaudeMessage
+              local content = message.content
+              ---@cast content AvanteClaudeMessageContentTextItem[]
+              for j = #content, 1, -1 do
+                local item = content[j]
+                if item.type == "text" then
+                  item.cache_control = { type = "ephemeral" }
+                  messages[i] = message
+                  break
+                end
+              end
+            end
+          end
         end
       end
-    end
-    if #tools > 0 then
-      local last_tool = vim.deepcopy(tools[#tools])
-      last_tool.cache_control = { type = "ephemeral" }
-      tools[#tools] = last_tool
     end
   end
 

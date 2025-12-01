@@ -281,6 +281,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field cache_creation_input_tokens number
 ---@field cache_read_input_tokens number
 ---@field output_tokens number
+---@field [any] any
 ---
 ---@class avante.GeminiTokenUsage
 ---@field promptTokenCount number
@@ -303,6 +304,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field name string
 ---@field id string
 ---@field input any
+---@field server_name? string
 ---
 ---@class AvantePartialLLMToolUse : AvanteLLMToolUse
 ---@field state avante.HistoryMessageState
@@ -468,6 +470,7 @@ vim.g.avante_login = vim.g.avante_login
 ---
 ---@class AvanteLLMTool
 ---@field name string
+---@field server_name? string
 ---@field description? string
 ---@field get_description? fun(): string
 ---@field func? AvanteLLMToolFunc
