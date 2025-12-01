@@ -552,6 +552,7 @@ M._defaults = {
     --- inline_buttons is the new inline buttons in the sidebar
     ---@type "popup" | "inline_buttons"
     confirmation_ui_style = "inline_buttons",
+    acp_show_diff_in_buffer = true,
   },
   prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
     enabled = true, -- toggle logging entirely
