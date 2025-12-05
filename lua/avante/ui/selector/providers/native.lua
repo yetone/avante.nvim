@@ -27,16 +27,18 @@ function M.show(selector)
           local choice = input:lower()
           if choice == "d" or choice == "delete" then
             selector.on_delete_item(item.id)
+            -- The native provider handles the UI flow; we just need to refresh.
+            selector.on_open() -- Re-open the selector to refresh the list
           elseif choice == "" or choice == "o" or choice == "open" then
             selector.on_select({ item.id })
           elseif choice == "c" or choice == "cancel" then
-            if type(selector.on_action_cancel) == "function" then
-              selector.on_action_cancel()
+            if type(selector.on_open) == "function" then
+              selector.on_open()
             else
-              selector.on_select(nil) -- Fallback if on_action_cancel is not defined
+              selector.on_select(nil) -- Fallback if on_open is not defined
             end
           else -- c or any other input, treat as cancel
-            selector.on_select(nil) -- Fallback if on_action_cancel is not defined
+            selector.on_select(nil) -- Fallback if on_open is not defined
           end
         end
       )
