@@ -1238,9 +1238,16 @@ function M._stream_acp(opts)
             permission_options = options,
           }, opts.session_ctx, tool_call.kind)
         end,
-        on_read_file = function(path, line, limit, callback)
+        on_read_file = function(path, line, limit, callback, error_callback)
           local abs_path = Utils.to_absolute_path(path)
-          local lines = Utils.read_file_from_buf_or_disk(abs_path)
+          local lines, err, errname = Utils.read_file_from_buf_or_disk(abs_path)
+          if err then
+            if error_callback then
+              local code = errname == "ENOENT" and ACPClient.ERROR_CODES.RESOURCE_NOT_FOUND or nil
+              error_callback(err, code)
+            end
+            return
+          end
           lines = lines or {}
           if line ~= nil and limit ~= nil then lines = vim.list_slice(lines, line, line + limit) end
           local content = table.concat(lines, "\n")
