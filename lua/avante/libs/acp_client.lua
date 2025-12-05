@@ -195,19 +195,21 @@ local ACPClient = {}
 
 -- ACP Error codes
 ACPClient.ERROR_CODES = {
-  TRANSPORT_ERROR = -32000,
-  PROTOCOL_ERROR = -32001,
-  TIMEOUT_ERROR = -32002,
-  AUTH_REQUIRED = -32003,
-  SESSION_NOT_FOUND = -32004,
-  PERMISSION_DENIED = -32005,
-  INVALID_REQUEST = -32006,
+  -- JSON-RPC 2.0
+  PARSE_ERROR = -32700,
+  INVALID_REQUEST = -32600,
+  METHOD_NOT_FOUND = -32601,
+  INVALID_PARAMS = -32602,
+  INTERNAL_ERROR = -32603,
+  -- ACP
+  AUTH_REQUIRED = -32000,
+  RESOURCE_NOT_FOUND = -32002,
 }
 
 ---@class ACPHandlers
 ---@field on_session_update? fun(update: avante.acp.UserMessageChunk | avante.acp.AgentMessageChunk | avante.acp.AgentThoughtChunk | avante.acp.ToolCallUpdate | avante.acp.PlanUpdate | avante.acp.AvailableCommandsUpdate)
 ---@field on_request_permission? fun(tool_call: table, options: table[], callback: fun(option_id: string | nil)): nil
----@field on_read_file? fun(path: string, line: integer | nil, limit: integer | nil, callback: fun(content: string)): nil
+---@field on_read_file? fun(path: string, line: integer | nil, limit: integer | nil, callback: fun(content: string), error_callback: fun(message: string, code: integer|nil)): nil
 ---@field on_write_file? fun(path: string, content: string, callback: fun(error: string|nil)): nil
 ---@field on_error? fun(error: table)
 
@@ -548,7 +550,7 @@ end
 ---@param code? number
 ---@return nil
 function ACPClient:_send_error(id, message, code)
-  code = code or self.ERROR_CODES.TRANSPORT_ERROR
+  code = code or self.ERROR_CODES.INTERNAL_ERROR
   local msg = { jsonrpc = "2.0", id = id, error = { code = code, message = message } }
 
   local data = vim.json.encode(msg)
@@ -658,7 +660,10 @@ function ACPClient:_handle_read_text_file(message_id, params)
   local session_id = params.sessionId
   local path = params.path
 
-  if not session_id or not path then return end
+  if not session_id or not path then
+    self:_send_error(message_id, "Invalid fs/read_text_file params", ACPClient.ERROR_CODES.INVALID_PARAMS)
+    return
+  end
 
   if self.config.handlers and self.config.handlers.on_read_file then
     vim.schedule(function()
@@ -666,9 +671,12 @@ function ACPClient:_handle_read_text_file(message_id, params)
         path,
         params.line ~= vim.NIL and params.line or nil,
         params.limit ~= vim.NIL and params.limit or nil,
-        function(content) self:_send_result(message_id, { content = content }) end
+        function(content) self:_send_result(message_id, { content = content }) end,
+        function(err, code) self:_send_error(message_id, err or "Failed to read file", code) end
       )
     end)
+  else
+    self:_send_error(message_id, "fs/read_text_file handler not configured", ACPClient.ERROR_CODES.METHOD_NOT_FOUND)
   end
 end
 
@@ -680,7 +688,10 @@ function ACPClient:_handle_write_text_file(message_id, params)
   local path = params.path
   local content = params.content
 
-  if not session_id or not path or not content then return end
+  if not session_id or not path or not content then
+    self:_send_error(message_id, "Invalid fs/write_text_file params", ACPClient.ERROR_CODES.INVALID_PARAMS)
+    return
+  end
 
   if self.config.handlers and self.config.handlers.on_write_file then
     vim.schedule(function()
@@ -690,6 +701,8 @@ function ACPClient:_handle_write_text_file(message_id, params)
         function(error) self:_send_result(message_id, error == nil and vim.NIL or error) end
       )
     end)
+  else
+    self:_send_error(message_id, "fs/write_text_file handler not configured", ACPClient.ERROR_CODES.METHOD_NOT_FOUND)
   end
 end
 
