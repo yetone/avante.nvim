@@ -6,13 +6,13 @@ on:
       - main
     paths:
       - "**/*.lua"
-      - ".github/workflows/lua.yaml"
+      - .github/workflows/lua.yaml
   pull_request:
     branches:
       - main
     paths:
       - "**/*.lua"
-      - ".github/workflows/lua.yaml"
+      - .github/workflows/lua.yaml
 
 jobs:
   # reference from: https://github.com/nvim-lua/plenary.nvim/blob/2d9b06177a975543726ce5c73fca176cedbffe9d/.github/workflows/default.yml#L6C3-L43C20
@@ -24,30 +24,42 @@ jobs:
       matrix:
         include:
           - os: ubuntu-22.04
-            rev: v0.10.0/nvim-linux64.tar.gz
+            rev: v0.10.0
     steps:
-      - uses: actions/checkout@v3
-      - run: date +%F > todays-date
+      - uses: actions/checkout@v6
+
+      - id: todays-date
+        run: echo "date=$(date +%F)" >> "$GITHUB_OUTPUT"
+
       - name: Restore cache for today's nightly.
-        uses: actions/cache@v3
+        id: cache-neovim
+        uses: actions/cache@v4
         with:
           path: _neovim
-          key: ${{ runner.os }}-${{ matrix.rev }}-${{ hashFiles('todays-date') }}
+          key: ${{ runner.os }}-${{ matrix.rev }}-${{ steps.todays-date.outputs.date }}
+
+      - name: Download neovim ${{ matrix.rev }}
+        env:
+          NEOVIM_VERSION: ${{ matrix.rev }}
+        if: steps.cache-neovim.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p _neovim
+          gh release download \
+            --output - \
+            --pattern nvim-linux64.tar.gz \
+            --repo neovim/neovim \
+            "$NEOVIM_VERSION" | tar xvz --strip-components 1 --directory _neovim
 
       - name: Prepare
         run: |
-          test -d _neovim || {
-            mkdir -p _neovim
-            curl -sL "https://github.com/neovim/neovim/releases/download/${{ matrix.rev }}" | tar xzf - --strip-components=1 -C "${PWD}/_neovim"
-          }
           sudo apt-get update
           sudo apt-get install -y ripgrep
           sudo apt-get install -y silversearcher-ag
+          echo "${PWD}/_neovim/bin" >> "$GITHUB_PATH"
+          echo VIM="${PWD}/_neovim/share/nvim/runtime" >> "$GITHUB_ENV"
 
       - name: Run tests
         run: |
-          export PATH="${PWD}/_neovim/bin:${PATH}"
-          export VIM="${PWD}/_neovim/share/nvim/runtime"
           nvim --version
           make luatest
 
@@ -59,8 +71,7 @@ jobs:
         nvim_version: [ stable ]
         luals_version: [ 3.13.6 ]
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v6
 
       - uses: rhysd/action-setup-vim@v1
         with:
