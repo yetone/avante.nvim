@@ -258,15 +258,22 @@ end
 ---@param opts AvanteGeneratePromptsOptions
 ---@return AvantePromptOptions
 function M.generate_prompts(opts)
-  local project_instruction_file = Config.instructions_file or "avante.md"
+  local project_instruction_file = Config.instructions_file
+      and type(Config.instructions_file) == "string"
+      and { Config.instructions_file }
+    or { "avante.md" }
   local project_root = Utils.root.get()
-  local instruction_file_path = PPath:new(project_root, project_instruction_file)
 
-  if instruction_file_path:exists() then
-    local lines = Utils.read_file_from_buf_or_disk(instruction_file_path:absolute())
-    local instruction_content = lines and table.concat(lines, "\n") or ""
+  for _, instruction_file in ipairs(project_instruction_file) do
+    local instruction_file_path = PPath:new(project_root, instruction_file)
 
-    if instruction_content then opts.instructions = (opts.instructions or "") .. "\n" .. instruction_content end
+    if instruction_file_path:exists() then
+      local lines = Utils.read_file_from_buf_or_disk(instruction_file_path:absolute())
+      local instruction_content = lines and table.concat(lines, "\n") or ""
+
+      if instruction_content then opts.instructions = (opts.instructions or "") .. "\n" .. instruction_content end
+      break
+    end
   end
 
   local mode = opts.mode or Config.mode
@@ -1298,7 +1305,7 @@ function M._stream_acp(opts)
     local ok, Avante = pcall(require, "avante")
     if ok and Avante.register_acp_client then Avante.register_acp_client(client_id, acp_client) end
 
-    -- If we create a new client and it does not support sesion loading,
+    -- If we create a new client and it does not support session loading,
     -- remove the old session
     if not acp_client.agent_capabilities.loadSession then opts.acp_session_id = nil end
     if opts.on_save_acp_client then opts.on_save_acp_client(acp_client) end
