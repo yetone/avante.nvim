@@ -129,10 +129,7 @@ end
 ---@return boolean
 function M.is_ignored(abs_path)
   local project_root = Utils.get_project_root()
-  local cmd =
-    string.format("git -C %s check-ignore %s", vim.fn.shellescape(project_root), vim.fn.shellescape(abs_path))
-
-  local result = vim.fn.system(cmd)
+  local result = vim.fn.system({ "git", "-C", vim.fn.shellescape(project_root), "check-ignore", vim.fn.shellescape(abs_path) })
   local exit_code = vim.v.shell_error
 
   -- If command failed or git is not available, fall back to old method
