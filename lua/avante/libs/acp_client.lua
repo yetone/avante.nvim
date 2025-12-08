@@ -230,8 +230,6 @@ ACPClient.ERROR_CODES = {
 ---@param config ACPConfig
 ---@return avante.acp.ACPClient
 function ACPClient:new(config)
-  local debug_log_file
-  if Config.debug then debug_log_file = io.open("/tmp/avante-acp-session.log", "a") end
   local client = setmetatable({
     id_counter = 0,
     protocol_version = 1,
@@ -241,7 +239,7 @@ function ACPClient:new(config)
         writeTextFile = true,
       },
     },
-    debug_log_file = debug_log_file,
+    debug_log_file = nil,
     pending_responses = {},
     callbacks = {},
     transport = nil,
@@ -253,6 +251,31 @@ function ACPClient:new(config)
 
   client:_setup_transport()
   return client
+end
+
+---Write debug log message
+---@param message string
+function ACPClient:_debug_log(message)
+  if not Config.debug then
+    self:_close_debug_log()
+    return
+  end
+
+  -- Open file if needed
+  if not self.debug_log_file then self.debug_log_file = io.open("/tmp/avante-acp-session.log", "a") end
+
+  if self.debug_log_file then
+    self.debug_log_file:write(message)
+    self.debug_log_file:flush()
+  end
+end
+
+---Close debug log file
+function ACPClient:_close_debug_log()
+  if self.debug_log_file then
+    self.debug_log_file:close()
+    self.debug_log_file = nil
+  end
 end
 
 ---Setup transport layer
@@ -483,10 +506,7 @@ function ACPClient:_send_request(method, params, callback)
   if callback then self.callbacks[id] = callback end
 
   local data = vim.json.encode(message)
-  if self.debug_log_file then
-    self.debug_log_file:write("request: " .. data .. string.rep("=", 100) .. "\n")
-    self.debug_log_file:flush()
-  end
+  self:_debug_log("request: " .. data .. string.rep("=", 100) .. "\n")
   if not self.transport:send(data) then return nil end
 
   if not callback then return self:_wait_response(id) end
@@ -520,10 +540,7 @@ function ACPClient:_send_notification(method, params)
   }
 
   local data = vim.json.encode(message)
-  if self.debug_log_file then
-    self.debug_log_file:write("notification: " .. data .. string.rep("=", 100) .. "\n")
-    self.debug_log_file:flush()
-  end
+  self:_debug_log("notification: " .. data .. string.rep("=", 100) .. "\n")
   self.transport:send(data)
 end
 
@@ -535,10 +552,7 @@ function ACPClient:_send_result(id, result)
   local message = { jsonrpc = "2.0", id = id, result = result }
 
   local data = vim.json.encode(message)
-  if self.debug_log_file then
-    self.debug_log_file:write("request: " .. data .. "\n" .. string.rep("=", 100) .. "\n")
-    self.debug_log_file:flush()
-  end
+  self:_debug_log("request: " .. data .. "\n" .. string.rep("=", 100) .. "\n")
   self.transport:send(data)
 end
 
@@ -563,10 +577,7 @@ function ACPClient:_handle_message(message)
     -- This is a notification
     self:_handle_notification(message.id, message.method, message.params)
   elseif message.id and (message.result or message.error) then
-    if self.debug_log_file then
-      self.debug_log_file:write("response: " .. vim.inspect(message) .. "\n" .. string.rep("=", 100) .. "\n")
-      self.debug_log_file:flush()
-    end
+    self:_debug_log("response: " .. vim.inspect(message) .. "\n" .. string.rep("=", 100) .. "\n")
     local callback = self.callbacks[message.id]
     if callback then
       callback(message.result, message.error)
@@ -584,11 +595,8 @@ end
 ---@param method string
 ---@param params table
 function ACPClient:_handle_notification(message_id, method, params)
-  if self.debug_log_file then
-    self.debug_log_file:write("method: " .. method .. "\n")
-    self.debug_log_file:write(vim.inspect(params) .. "\n" .. string.rep("=", 100) .. "\n")
-    self.debug_log_file:flush()
-  end
+  self:_debug_log("method: " .. method .. "\n")
+  self:_debug_log(vim.inspect(params) .. "\n" .. string.rep("=", 100) .. "\n")
   if method == "session/update" then
     self:_handle_session_update(params)
   elseif method == "session/request_permission" then
@@ -705,7 +713,7 @@ end
 ---Stop client
 function ACPClient:stop()
   self.transport:stop()
-
+  self:_close_debug_log()
   self.pending_responses = {}
   self.reconnect_count = 0
 end
