@@ -38,11 +38,11 @@ local mcphub_utils = {
 }
 package.preload["mcphub.utils"] = function() return mcphub_utils end
 
-local LoadMcpTool = require("avante.llm_tools.load_mcp_tool")
+local LoadMcpTool = require("avante.llm_tools.load_tool")
 local LazyLoading = require("avante.llm_tools.lazy_loading")
 local Config = require("avante.config")
 
-describe("load_mcp_tool", function()
+describe("load_tool", function()
   local original_get_hub_instance
   local LlmTools
 
@@ -195,7 +195,7 @@ describe("load_mcp_tool", function()
       -- First, register the tool as available
       LazyLoading.register_available_tool("test_server", "test_tool")
 
-      -- Now call load_mcp_tool
+      -- Now call load_tool
       local result, err = LoadMcpTool.func({
         server_name = "test_server",
         tool_name = "test_tool",

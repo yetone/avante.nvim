@@ -1,11 +1,11 @@
 # MCP TOOLS LAZY LOADING
 
 To optimize token usage, MCP tools are initially provided with summarized descriptions.
-When you need more detailed information about a specific tool, use the `load_mcp_tool` function:
+When you need more detailed information about a specific tool, use the `load_tool` function:
 
 ```json
 {
-  "name": "load_mcp_tool",
+  "name": "load_tool",
   "parameters": {
     "server_name": "Name of the MCP server that provides the tool",
     "tool_name": "Name of the tool to load"
@@ -24,12 +24,12 @@ This will return the complete tool description, including full parameter details
 
 ## Important Rules
 
- - YOU MUST CALL load_mcp_tool IF you see a short summary of a tool but don't see its
+ - YOU MUST CALL load_tool IF you see a short summary of a tool but don't see its
 spec in the tool specifications.
 - DO NOT USE use_mcp_tool to use tools with server "avante": call the tools directly.
-   - Tools that have the server "avante" have been given that for convenience when using load_mcp_tool.
+   - Tools that have the server "avante" have been given that for convenience when using load_tool.
    - THERE IS NO avante MCP server.
-   - These are BUILT-IN tools that can be called directly, once they have been loaded using load_mcp_tool (if necessary).
+   - These are BUILT-IN tools that can be called directly, once they have been loaded using load_tool (if necessary).
 
 ## Example Usage
 
@@ -39,7 +39,7 @@ spec in the tool specifications.
 "description": "Execute Lua code in Neovim using nvim_exec2 with lua heredoc."
 
 // To get detailed information
-load_mcp_tool(server_name="neovim", tool_name="execute_lua")
+load_tool(server_name="neovim", tool_name="execute_lua")
 
 // Returns detailed information including all parameters, examples, etc.
 ```

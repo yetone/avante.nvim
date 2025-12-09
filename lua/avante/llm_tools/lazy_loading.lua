@@ -13,7 +13,7 @@ M._available_to_request = M._available_to_request or {}
 
 M._tools_to_collect = M._tools_to_collect or {}
 
---- Register a tool as requested by the LLM via load_mcp_tool.
+--- Register a tool as requested by the LLM via load_tool.
 --- When a tool is registered as requested, it will be included in subsequent API calls.
 --- This is the core mechanism that enables on-demand tool loading during a conversation.
 ---@param server_name string The MCP server name (e.g., "avante", "neovim", "github")
@@ -66,7 +66,7 @@ function M.servers_with_available_tools_with_name_as_string(tool_name)
 end
 
 --- Register a tool to be collected and added to the tools list in the next API call.
---- Called when the LLM requests a built-in (avante) tool via load_mcp_tool during a conversation.
+--- Called when the LLM requests a built-in (avante) tool via load_tool during a conversation.
 --- The tool will be merged into the tools list by add_loaded_tools() before the next prompt.
 ---@param tool table The complete tool object to register for collection
 function M.register_tool_to_collect(tool)
@@ -75,7 +75,7 @@ function M.register_tool_to_collect(tool)
 end
 
 --- Merge dynamically loaded tools into the provided tools list.
---- Tools that have been requested via load_mcp_tool are appended to the list.
+--- Tools that have been requested via load_tool are appended to the list.
 --- If a tool is already present, it's not duplicated. This is called before each API request
 --- to ensure that newly loaded tools are available to the LLM in the next conversation turn.
 ---@param tools table[]|nil The current list of tools to extend
@@ -113,7 +113,7 @@ end
 function M.reset_requested_tools() M._requested_tools = {} end
 
 --- Get a table of tool names that should always be eagerly loaded.
---- Merges critical tools (think, attempt_completion, load_mcp_tool, etc.) with user-configured tools
+--- Merges critical tools (think, attempt_completion, load_tool, etc.) with user-configured tools
 --- from Config.lazy_loading.always_eager. These tools bypass lazy loading and are always available.
 ---@return table<string, boolean> A map of tool names to true for efficient lookup
 function M.always_eager()
@@ -121,7 +121,7 @@ function M.always_eager()
   local critical_tools = {
     "think",
     "attempt_completion",
-    "load_mcp_tool",
+    "load_tool",
     "use_mcp_tool",
     "add_todos",
     "update_todo_status",
@@ -201,7 +201,7 @@ function M.get_mcphub_server_map()
 end
 
 --- Get a specific tool from MCPHub by server and tool name.
---- Used by load_mcp_tool to retrieve the full tool specification when requested by the LLM.
+--- Used by load_tool to retrieve the full tool specification when requested by the LLM.
 ---@param server_name string The MCP server name
 ---@param tool_name string The name of the tool
 ---@return table|nil The tool object, or nil if not found
@@ -260,7 +260,7 @@ function M.get_system_prompt()
     -- Add built-in tools section to the prompt
     summarized_prompt = summarized_prompt .. "## Built-in Tools\n\n"
     summarized_prompt = summarized_prompt
-      .. "To use all the tools in this section, YOU MUST LOAD THEM USING load_mcp_tool "
+      .. "To use all the tools in this section, YOU MUST LOAD THEM USING load_tool "
     summarized_prompt = summarized_prompt
       .. "if you cannot see their spec in the tools section of the prompt. YOU CANNOT "
     summarized_prompt = summarized_prompt .. "access them by running use_mcp_tool. \n\n"
@@ -371,7 +371,7 @@ function M.get_system_prompt()
       end
     end
 
-    -- Add instructions about how to use load_mcp_tool
+    -- Add instructions about how to use load_tool
     summarized_prompt = summarized_prompt
       .. [[## Examples
 
@@ -403,7 +403,7 @@ function M.get_system_prompt()
     CRITICAL: You need to use the `use_mcp_tool` tool to call the `toggle_mcp_server` tool on `mcphub` MCP Server when `mcphub` server is "Connected" else ask the user to enable `mcphub` server.
 
     CRITICAL: You must NOT use `use_mcp_tool` when the server is "avante". You must call the tool directly. If the tool
-    spec is not available, load it with `load_mcp_tool`
+    spec is not available, load it with `load_tool`
 
     Pseudocode:
 
@@ -473,7 +473,7 @@ function M.validate_mcp_tool(tool_use_input, on_complete)
         .. " ?",
       tool_use_input.tool_name,
       server_name
-    ) .. "Don't forget to load the tool with load_mcp_tool if necessary!"
+    ) .. "Don't forget to load the tool with load_tool if necessary!"
     if on_complete then on_complete(false, error_msg) end
     return false, error_msg
   end
@@ -481,7 +481,7 @@ function M.validate_mcp_tool(tool_use_input, on_complete)
   -- Validate the target tool has been loaded/requested
   if not M.should_include_tool(server_name, tool_use_input.tool_name) then
     local error_msg = string.format(
-      "Tool '%s' on server '%s' has not been loaded. Please use load_mcp_tool to load this tool first.",
+      "Tool '%s' on server '%s' has not been loaded. Please use load_tool to load this tool first.",
       tool_use_input.tool_name,
       server_name
     )
@@ -511,7 +511,7 @@ function M.check_tool_loading(tools, tool_use, Config)
       .. "Did you mean one of these servers: "
       .. M.servers_with_available_tools_with_name_as_string(tool_use.name)
       .. " ?"
-      .. "Don't forget to load the tool with load_mcp_tool if necessary!"
+      .. "Don't forget to load the tool with load_tool if necessary!"
     return false, error_msg
   end
   -- Special handling for use_mcp_tool
@@ -535,7 +535,7 @@ function M.check_tool_loading(tools, tool_use, Config)
     -- Regular tool loading check
     if not M.should_include_tool(server_name, tool_use.name) then
       local error_msg = string.format(
-        "Tool '%s' has not been loaded. Please use load_mcp_tool to load this tool first and then retry. "
+        "Tool '%s' has not been loaded. Please use load_tool to load this tool first and then retry. "
           .. "Server: %s.",
         tool_use.name,
         server_name
