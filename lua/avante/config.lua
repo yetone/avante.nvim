@@ -58,6 +58,8 @@ M._defaults = {
     enabled = false, -- Enables the RAG service
     host_mount = os.getenv("HOME"), -- Host mount path for the RAG service (Docker will mount this path)
     runner = "docker", -- The runner for the RAG service (can use docker or nix)
+    -- The image to use to run the rag service if runner is docker
+    image="quay.io/yetoneful/avante-rag-service:0.0.11",
     llm = { -- Configuration for the Language Model (LLM) used by the RAG service
       provider = "openai", -- The LLM provider
       endpoint = "https://api.openai.com/v1", -- The LLM API endpoint
