@@ -5,6 +5,75 @@ local Highlights = require("avante.highlights")
 
 local M = {}
 
+---Get the width of avante sidebar
+---@return number
+local function get_sidebar_width()
+  local Config = require("avante.config")
+  local width = Config.windows.width
+  if type(width) == "number" then
+    if width < 1 then
+      return math.floor(vim.o.columns * width)
+    end
+    return width
+  end
+  return 40  -- default fallback
+end
+
+---Helper function to wrap long lines and insert into lines table
+---@param lines avante.ui.Line[]
+---@param decoration string
+---@param text string
+---@param highlight? string
+local function wrap_and_insert_lines(lines, decoration, text, highlight)
+  local max_width = get_sidebar_width()
+  local deco_width = vim.fn.strdisplaywidth(decoration)
+  local available_width = max_width - deco_width - 2
+  if available_width < 20 then available_width = 20 end
+  
+  local text_width = vim.fn.strdisplaywidth(text)
+  if text_width <= available_width then
+    if highlight then
+      table.insert(lines, Line:new({ { decoration }, { text, highlight } }))
+    else
+      table.insert(lines, Line:new({ { decoration }, { text } }))
+    end
+    return
+  end
+  
+  -- Word-aware wrapping
+  local words = vim.split(text, " ", { plain = true })
+  local current_line = ""
+  local current_width = 0
+  
+  for _, word in ipairs(words) do
+    local word_width = vim.fn.strdisplaywidth(word)
+    if current_width == 0 then
+      current_line = word
+      current_width = word_width
+    elseif current_width + 1 + word_width <= available_width then
+      current_line = current_line .. " " .. word
+      current_width = current_width + 1 + word_width
+    else
+      if highlight then
+        table.insert(lines, Line:new({ { decoration }, { current_line, highlight } }))
+      else
+        table.insert(lines, Line:new({ { decoration }, { current_line } }))
+      end
+      current_line = word
+      current_width = word_width
+    end
+  end
+  
+  if current_line ~= "" then
+    if highlight then
+      table.insert(lines, Line:new({ { decoration }, { current_line, highlight } }))
+    else
+      table.insert(lines, Line:new({ { decoration }, { current_line } }))
+    end
+  end
+end
+
+
 ---@diagnostic disable-next-line: deprecated
 local islist = vim.islist or vim.tbl_islist
 
@@ -19,7 +88,7 @@ local function text_to_lines(text, decoration, filter)
   for idx, text_line in ipairs(text_lines) do
     if filter and not filter(text_line, idx, #text_lines) then goto continue end
     if decoration then
-      table.insert(lines, Line:new({ { decoration }, { text_line } }))
+      wrap_and_insert_lines(lines, decoration, text_line, nil)
     else
       table.insert(lines, Line:new({ { text_line } }))
     end
@@ -50,7 +119,7 @@ local function text_to_truncated_lines(text, decoration, truncate)
       )
       break
     end
-    table.insert(lines, Line:new({ { decoration }, { text_line } }))
+    wrap_and_insert_lines(lines, decoration, text_line, nil)
   end
   return lines
 end
@@ -159,7 +228,7 @@ function M.get_diff_lines(old_str, new_str, decoration, truncate)
         break
       end
       line_count = line_count + 1
-      table.insert(lines, Line:new({ { decoration }, { line } }))
+      wrap_and_insert_lines(lines, decoration, line, nil)
     end
     prev_start_a = start_a + count_a
     if count_a > 0 then
@@ -170,7 +239,7 @@ function M.get_diff_lines(old_str, new_str, decoration, truncate)
           break
         end
         line_count = line_count + 1
-        table.insert(lines, Line:new({ { decoration }, { line, Highlights.TO_BE_DELETED_WITHOUT_STRIKETHROUGH } }))
+        wrap_and_insert_lines(lines, decoration, line, Highlights.TO_BE_DELETED_WITHOUT_STRIKETHROUGH)
       end
     end
     if count_b > 0 then
@@ -181,7 +250,7 @@ function M.get_diff_lines(old_str, new_str, decoration, truncate)
           break
         end
         line_count = line_count + 1
-        table.insert(lines, Line:new({ { decoration }, { line, Highlights.INCOMING } }))
+        wrap_and_insert_lines(lines, decoration, line, Highlights.INCOMING)
       end
     end
   end
@@ -195,7 +264,7 @@ function M.get_diff_lines(old_str, new_str, decoration, truncate)
         break
       end
       line_count = line_count + 1
-      table.insert(lines, Line:new({ { decoration }, { line } }))
+      wrap_and_insert_lines(lines, decoration, line, nil)
     end
   end
   if truncate and truncated_lines > 0 then

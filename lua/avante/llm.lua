@@ -2104,6 +2104,50 @@ function M.cancel_inflight_request()
   end
   abort_retry_timer = true
 
+  -- Cancel ACP sessions without stopping clients (preserves connection for faster subsequent requests)
+  local ok, Avante = pcall(require, "avante")
+  if ok and Avante.get then
+    local sidebar = Avante.get()
+    if sidebar then
+      -- Cancel current session if exists
+      if sidebar.acp_client and sidebar.chat_history and sidebar.chat_history.acp_session_id then
+        pcall(function()
+          Utils.debug("Cancelling ACP session: " .. sidebar.chat_history.acp_session_id)
+          sidebar.acp_client:cancel_session(sidebar.chat_history.acp_session_id)
+        end)
+      end
+    end
+  end
+
+  -- Reset sidebar state after cancellation (Fix: UI stuck in 'generating' state)
+  if ok and Avante.get then
+    local sidebar = Avante.get()
+    if sidebar then
+      -- Reset current_state to stop the spinner
+      sidebar.current_state = nil
+      -- Reset scroll to prevent auto-scroll issues
+      sidebar.scroll = true
+      -- Clear any state timer
+      if sidebar.state_timer then
+        pcall(function()
+          if sidebar.state_timer.stop then sidebar.state_timer:stop() end
+          if sidebar.state_timer.close then sidebar.state_timer:close() end
+        end)
+        sidebar.state_timer = nil
+      end
+      -- Clear state extmark
+      if sidebar.state_extmark_id and sidebar.containers and sidebar.containers.result then
+        pcall(function()
+          local STATE_NAMESPACE = api.nvim_create_namespace("AVANTE_STATE")
+          api.nvim_buf_del_extmark(sidebar.containers.result.bufnr, STATE_NAMESPACE, sidebar.state_extmark_id)
+        end)
+        sidebar.state_extmark_id = nil
+      end
+      -- Note: acp_client is preserved for faster subsequent requests (only session is cancelled)
+      Utils.debug("Reset sidebar state after ACP cancellation")
+    end
+  end
+
   api.nvim_exec_autocmds("User", { pattern = M.CANCEL_PATTERN })
 end
 

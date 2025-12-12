@@ -356,14 +356,23 @@ function ACPClient:_create_stdio_transport()
     local args = vim.deepcopy(self.config.args or {})
     local env = self.config.env
 
-    -- Start with system environment and override with config env
+    -- Start with ALL system environment variables
     local final_env = {}
+    local system_env = vim.fn.environ()
+    for k, v in pairs(system_env) do
+      final_env[#final_env + 1] = k .. "=" .. v
+    end
 
-    local path = vim.fn.getenv("PATH")
-    if path then final_env[#final_env + 1] = "PATH=" .. path end
-
+    -- Override with config env
     if env then
       for k, v in pairs(env) do
+        -- Remove existing key if present
+        for i = #final_env, 1, -1 do
+          if final_env[i]:match("^" .. k .. "=") then
+            table.remove(final_env, i)
+            break
+          end
+        end
         final_env[#final_env + 1] = k .. "=" .. v
       end
     end
@@ -730,6 +739,7 @@ function ACPClient:initialize()
   local result = self:_send_request("initialize", {
     protocolVersion = self.protocol_version,
     clientCapabilities = self.capabilities,
+    authMethod = self.config.auth_method,
   })
 
   if not result then

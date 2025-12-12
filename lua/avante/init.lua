@@ -33,6 +33,17 @@ function M.register_acp_client(client_id, client)
   Utils.debug("Registered ACP client: " .. client_id)
 end
 
+---Get all registered ACP clients
+---@return table<string, avante.acp.ACPClient>
+function M.get_registered_acp_clients()
+  return M.acp_clients or {}
+end
+
+---Clear all registered ACP clients
+function M.clear_acp_clients()
+  M.acp_clients = {}
+end
+
 ---Unregister an ACP client
 ---@param client_id string Unique identifier for the client
 function M.unregister_acp_client(client_id)

@@ -196,7 +196,12 @@ function Sidebar:open(opts)
   end
 
   local acp_provider = Config.acp_providers[Config.provider]
-  if acp_provider then self:handle_submit("") end
+  -- Pre-connect ACP asynchronously to avoid blocking UI
+  if acp_provider then
+    vim.defer_fn(function()
+      self:handle_submit("")
+    end, 0)
+  end
 
   return self
 end
@@ -752,7 +757,10 @@ function Sidebar:get_current_user_request_block(position)
     end
   end
   if start_line == nil then return nil end
-  content_lines = vim.list_slice(content_lines, 1, #content_lines - 1)
+  -- Fix: Only remove last line if there are multiple lines (bug fix for single-line messages)
+  if #content_lines > 1 then
+    content_lines = vim.list_slice(content_lines, 1, #content_lines - 1)
+  end
   local content = table.concat(content_lines, "\n")
   return {
     start_line = current_resp_start_line + start_line - 1,
