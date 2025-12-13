@@ -61,6 +61,49 @@ function M.show(selector)
         }),
         attach_mappings = function(prompt_bufnr, map)
           map("i", "<esc>", require("telescope.actions").close)
+          map("i", "<c-del>", function()
+            local picker = action_state.get_current_picker(prompt_bufnr)
+
+            local selections
+            local multi_selection = picker:get_multi_selection()
+            if #multi_selection ~= 0 then
+              selections = multi_selection
+            else
+              selections = action_state.get_selected_entry()
+              selections = vim.islist(selections) and selections or { selections }
+            end
+
+            local selected_item_ids = vim
+              .iter(selections)
+              :map(function(selection) return selection.value end)
+              :totable()
+
+            vim.ui.input({ prompt = "Remove·selection?·(" .. #selected_item_ids .. " items) [y/N]" }, function(input)
+              if input and input:lower() == "y" then
+                for _, item_id in ipairs(selected_item_ids) do
+                  selector.on_delete_item(item_id)
+                end
+
+                local new_items = {}
+                for _, item in ipairs(items) do
+                  if not vim.list_contains(selected_item_ids, item.id) then table.insert(new_items, item) end
+                end
+
+                local new_finder = finders.new_table({
+                  results = new_items,
+                  entry_maker = function(entry)
+                    return {
+                      value = entry.id,
+                      display = entry.title,
+                      ordinal = entry.title,
+                    }
+                  end,
+                })
+
+                picker:refresh(new_finder, { reset_prompt = true })
+              end
+            end)
+          end, { desc = "delete_selection" })
           actions.select_default:replace(function()
             local picker = action_state.get_current_picker(prompt_bufnr)
 
