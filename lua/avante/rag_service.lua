@@ -161,7 +161,7 @@ function M.launch_rag_service(cb)
       embed_extra,
       Config.rag_service.llm.provider,
       Config.rag_service.llm.endpoint,
-      embed_api_key,
+      llm_api_key,
       Config.rag_service.llm.model,
       llm_extra,
       service_path
