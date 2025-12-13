@@ -7,9 +7,7 @@ describe("ACPClient", function()
 
   before_each(function()
     schedule_stub = stub(vim, "schedule")
-    schedule_stub.invokes(function(fn)
-      fn()
-    end)
+    schedule_stub.invokes(function(fn) fn() end)
     setup_transport_stub = stub(ACPClient, "_setup_transport")
   end)
 
@@ -33,9 +31,9 @@ describe("ACPClient", function()
       }
 
       local client = ACPClient:new(mock_config)
-      client._send_error = stub().invokes(function(self, id, message, code)
-        sent_error = { id = id, message = message, code = code }
-      end)
+      client._send_error = stub().invokes(
+        function(self, id, message, code) sent_error = { id = id, message = message, code = code } end
+      )
 
       client:_handle_read_text_file(123, { sessionId = "test-session", path = "/nonexistent/file.txt" })
 
@@ -51,16 +49,14 @@ describe("ACPClient", function()
       local mock_config = {
         transport_type = "stdio",
         handlers = {
-          on_read_file = function(path, line, limit, success_callback, err_callback)
-            err_callback(nil, nil)
-          end,
+          on_read_file = function(path, line, limit, success_callback, err_callback) err_callback(nil, nil) end,
         },
       }
 
       local client = ACPClient:new(mock_config)
-      client._send_error = stub().invokes(function(self, id, message, code)
-        sent_error = { id = id, message = message, code = code }
-      end)
+      client._send_error = stub().invokes(
+        function(self, id, message, code) sent_error = { id = id, message = message, code = code } end
+      )
 
       client:_handle_read_text_file(456, { sessionId = "test-session", path = "/bad/file.txt" })
 
@@ -75,16 +71,12 @@ describe("ACPClient", function()
       local mock_config = {
         transport_type = "stdio",
         handlers = {
-          on_read_file = function(path, line, limit, success_callback, err_callback)
-            success_callback("file contents")
-          end,
+          on_read_file = function(path, line, limit, success_callback, err_callback) success_callback("file contents") end,
         },
       }
 
       local client = ACPClient:new(mock_config)
-      client._send_result = stub().invokes(function(self, id, result)
-        sent_result = { id = id, result = result }
-      end)
+      client._send_result = stub().invokes(function(self, id, result) sent_result = { id = id, result = result } end)
 
       client:_handle_read_text_file(789, { sessionId = "test-session", path = "/existing/file.txt" })
 
@@ -103,9 +95,9 @@ describe("ACPClient", function()
       }
 
       local client = ACPClient:new(mock_config)
-      client._send_error = stub().invokes(function(self, id, message, code)
-        sent_error = { id = id, message = message, code = code }
-      end)
+      client._send_error = stub().invokes(
+        function(self, id, message, code) sent_error = { id = id, message = message, code = code } end
+      )
 
       client:_handle_read_text_file(100, { path = "/file.txt" })
 
@@ -125,9 +117,9 @@ describe("ACPClient", function()
       }
 
       local client = ACPClient:new(mock_config)
-      client._send_error = stub().invokes(function(self, id, message, code)
-        sent_error = { id = id, message = message, code = code }
-      end)
+      client._send_error = stub().invokes(
+        function(self, id, message, code) sent_error = { id = id, message = message, code = code } end
+      )
 
       client:_handle_read_text_file(200, { sessionId = "test-session" })
 
@@ -145,9 +137,9 @@ describe("ACPClient", function()
       }
 
       local client = ACPClient:new(mock_config)
-      client._send_error = stub().invokes(function(self, id, message, code)
-        sent_error = { id = id, message = message, code = code }
-      end)
+      client._send_error = stub().invokes(
+        function(self, id, message, code) sent_error = { id = id, message = message, code = code } end
+      )
 
       client:_handle_read_text_file(300, { sessionId = "test-session", path = "/file.txt" })
 
@@ -169,9 +161,9 @@ describe("ACPClient", function()
       }
 
       local client = ACPClient:new(mock_config)
-      client._send_error = stub().invokes(function(self, id, message, code)
-        sent_error = { id = id, message = message, code = code }
-      end)
+      client._send_error = stub().invokes(
+        function(self, id, message, code) sent_error = { id = id, message = message, code = code } end
+      )
 
       client:_handle_write_text_file(400, { path = "/file.txt", content = "data" })
 
@@ -191,9 +183,9 @@ describe("ACPClient", function()
       }
 
       local client = ACPClient:new(mock_config)
-      client._send_error = stub().invokes(function(self, id, message, code)
-        sent_error = { id = id, message = message, code = code }
-      end)
+      client._send_error = stub().invokes(
+        function(self, id, message, code) sent_error = { id = id, message = message, code = code } end
+      )
 
       client:_handle_write_text_file(500, { sessionId = "test-session", content = "data" })
 
@@ -213,9 +205,9 @@ describe("ACPClient", function()
       }
 
       local client = ACPClient:new(mock_config)
-      client._send_error = stub().invokes(function(self, id, message, code)
-        sent_error = { id = id, message = message, code = code }
-      end)
+      client._send_error = stub().invokes(
+        function(self, id, message, code) sent_error = { id = id, message = message, code = code } end
+      )
 
       client:_handle_write_text_file(600, { sessionId = "test-session", path = "/file.txt" })
 
@@ -233,9 +225,9 @@ describe("ACPClient", function()
       }
 
       local client = ACPClient:new(mock_config)
-      client._send_error = stub().invokes(function(self, id, message, code)
-        sent_error = { id = id, message = message, code = code }
-      end)
+      client._send_error = stub().invokes(
+        function(self, id, message, code) sent_error = { id = id, message = message, code = code } end
+      )
 
       client:_handle_write_text_file(700, { sessionId = "test-session", path = "/file.txt", content = "data" })
 
