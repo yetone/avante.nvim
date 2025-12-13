@@ -1383,6 +1383,7 @@ end
 ---@param filepath string
 ---@return string[]|nil lines
 ---@return string|nil error
+---@return string|nil errname
 function M.read_file_from_buf_or_disk(filepath)
   local abs_path = filepath:sub(1, 7) == "term://" and filepath or M.join_paths(M.get_project_root(), filepath)
   --- Lookup if the file is loaded in a buffer
@@ -1391,12 +1392,13 @@ function M.read_file_from_buf_or_disk(filepath)
     if bufnr ~= -1 and vim.api.nvim_buf_is_loaded(bufnr) then
       -- If buffer exists and is loaded, get buffer content
       local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-      return lines, nil
+      return lines, nil, nil
     end
   end
 
-  local stat = vim.uv.fs_stat(abs_path)
-  if stat and stat.type == "directory" then return {}, "Cannot read a directory as file" .. filepath end
+  local stat, stat_err, stat_errname = vim.uv.fs_stat(abs_path)
+  if not stat then return {}, stat_err, stat_errname end
+  if stat.type == "directory" then return {}, "Cannot read a directory as file" .. filepath, nil end
 
   -- Fallback: read file from disk
   local file, open_err = io.open(abs_path, "r")
@@ -1404,9 +1406,9 @@ function M.read_file_from_buf_or_disk(filepath)
     local content = file:read("*all")
     file:close()
     content = content:gsub("\r\n", "\n")
-    return vim.split(content, "\n"), nil
+    return vim.split(content, "\n"), nil, nil
   else
-    return {}, open_err
+    return {}, open_err, nil
   end
 end
 
