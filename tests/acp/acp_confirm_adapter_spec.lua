@@ -1,4 +1,4 @@
-local ACPConfirmAdapter = require("avante.ui.acp_confirm_adapter")
+local ACPConfirmAdapter = require("avante.acp.acp_confirm_adapter")
 
 describe("ACPConfirmAdapter", function()
   describe("map_acp_options", function()

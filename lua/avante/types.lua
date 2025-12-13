@@ -78,8 +78,15 @@ vim.g.avante_login = vim.g.avante_login
 ---@field on_messages_add? fun(messages: avante.HistoryMessage[]): nil
 ---@field on_state_change? fun(state: avante.GenerateState): nil
 ---@field update_tokens_usage? fun(usage: avante.LLMTokenUsage): nil
----
----@alias AvanteLLMMessageContentItem string | { type: "text", text: string, cache_control: { type: string } | nil } | { type: "image", source: { type: "base64", media_type: string, data: string } } | { type: "tool_use", name: string, id: string, input: any } | { type: "tool_result", tool_use_id: string, content: string, is_error?: boolean, is_user_declined?: boolean } | { type: "thinking", thinking: string, signature: string } | { type: "redacted_thinking", data: string }
+
+---@alias AvanteLLMMessageContentItem
+---| string
+---| { type: "text", text: string, cache_control: { type: string } | nil }
+---| { type: "image", source: { type: "base64", media_type: string, data: string } }
+---| { type: "tool_use", name: string, id: string, input: any }
+---| { type: "tool_result", tool_use_id: string, content: string, is_error?: boolean, is_user_declined?: boolean }
+---| { type: "thinking", thinking: string, signature: string }
+---| { type: "redacted_thinking", data: string }
 
 ---@alias AvanteLLMMessageContent AvanteLLMMessageContentItem[] | string
 
@@ -92,6 +99,16 @@ vim.g.avante_login = vim.g.avante_login
 ---@field content string
 ---@field status "todo" | "doing" | "done" | "cancelled"
 ---@field priority "low" | "medium" | "high"
+
+---@class avante.DiffBlock
+---@field start_line integer Original position in file
+---@field end_line integer Original position in file
+---@field new_start_line? integer Adjusted position after previous diffs (populated after construction)
+---@field new_end_line? integer Adjusted position after previous diffs (populated after construction)
+---@field old_lines string[] Content to be replaced
+---@field new_lines string[] New content
+---@field delete_extmark_id? integer Extmark ID for deleted lines display
+---@field incoming_extmark_id? integer Extmark ID for incoming lines display
 
 ---@class avante.HistoryMessage
 ---@field message AvanteLLMMessage
@@ -117,7 +134,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field turn_id string | nil
 ---@field is_calling boolean | nil
 ---@field original_content AvanteLLMMessageContent | nil
----@field acp_tool_call? avante.acp.ToolCall
+---@field acp_tool_call? avante.acp.ToolCallUpdate
 
 ---@class AvanteLLMToolResult
 ---@field tool_name string
