@@ -1425,7 +1425,7 @@ Avante allows you to define custom tools that can be used by the AI during code 
       },
       func = function(params, on_log, on_complete)  -- Custom function to execute
         local target = params.target or "./..."
-        return vim.fn.system(string.format("go test -v %s", target))
+        return vim.system({ "go", "test", "-v", target }, { text = true }):wait().stdout
       end,
     },
   },

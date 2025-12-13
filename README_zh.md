@@ -950,7 +950,7 @@ Avante 允许您定义自定义工具，AI 可以在代码生成和分析期间�
       },
       func = function(params, on_log, on_complete)  -- 要执行的自定义函数
         local target = params.target or "./..."
-        return vim.fn.system(string.format("go test -v %s", target))
+        return vim.system({ "go", "test", "-v", target }, { text = true }):wait().stdout
       end,
     },
   },

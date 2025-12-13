@@ -42,10 +42,11 @@ local lockfile_path = vim.fn.stdpath("data") .. "/avante/copilot-timer.lock"
 
 -- Lockfile management
 local function is_process_running(pid)
-  if vim.fn.has("win32") == 1 then
-    return vim.fn.system('tasklist /FI "PID eq ' .. pid .. '" 2>NUL | find /I "' .. pid .. '"') ~= ""
+  local result = vim.uv.kill(pid, 0)
+  if result ~= nil and result == 0 then
+    return true
   else
-    return vim.fn.system("ps -p " .. pid .. " > /dev/null 2>&1; echo $?") == "0\n"
+    return false
   end
 end
 
