@@ -8,7 +8,13 @@ local M = {}
 local container_name = "avante-rag-service"
 local service_path = "/tmp/" .. container_name
 
-function M.get_rag_service_image() return "quay.io/yetoneful/avante-rag-service:0.0.11" end
+function M.get_rag_service_image()
+  if Config.rag_service and Config.rag_service.image then
+    return Config.rag_service.image
+  else
+    return "quay.io/yetoneful/avante-rag-service:0.0.11"
+  end
+end
 
 function M.get_rag_service_port() return 20250 end
 
