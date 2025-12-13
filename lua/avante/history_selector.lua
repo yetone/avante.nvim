@@ -69,13 +69,8 @@ function M.open(bufnr, cb)
         return
       end
       Path.history.delete(bufnr, item_id_to_delete) -- bufnr from M.open's scope
-      -- The native provider handles the UI flow; we just need to refresh.
-      M.open(bufnr, cb) -- Re-open the selector to refresh the list
     end,
-    on_action_cancel = function()
-      -- If the user cancels the open/delete prompt, re-open the history selector.
-      M.open(bufnr, cb)
-    end,
+    on_open = function() M.open(bufnr, cb) end,
   })
   current_selector:open()
 end
