@@ -11,12 +11,10 @@ local function get_sidebar_width()
   local Config = require("avante.config")
   local width = Config.windows.width
   if type(width) == "number" then
-    if width < 1 then
-      return math.floor(vim.o.columns * width)
-    end
+    if width < 1 then return math.floor(vim.o.columns * width) end
     return width
   end
-  return 40  -- default fallback
+  return 40 -- default fallback
 end
 
 ---Helper function to wrap long lines and insert into lines table
@@ -29,7 +27,7 @@ local function wrap_and_insert_lines(lines, decoration, text, highlight)
   local deco_width = vim.fn.strdisplaywidth(decoration)
   local available_width = max_width - deco_width - 2
   if available_width < 20 then available_width = 20 end
-  
+
   local text_width = vim.fn.strdisplaywidth(text)
   if text_width <= available_width then
     if highlight then
@@ -39,12 +37,12 @@ local function wrap_and_insert_lines(lines, decoration, text, highlight)
     end
     return
   end
-  
+
   -- Word-aware wrapping
   local words = vim.split(text, " ", { plain = true })
   local current_line = ""
   local current_width = 0
-  
+
   for _, word in ipairs(words) do
     local word_width = vim.fn.strdisplaywidth(word)
     if current_width == 0 then
@@ -63,7 +61,7 @@ local function wrap_and_insert_lines(lines, decoration, text, highlight)
       current_width = word_width
     end
   end
-  
+
   if current_line ~= "" then
     if highlight then
       table.insert(lines, Line:new({ { decoration }, { current_line, highlight } }))
@@ -72,7 +70,6 @@ local function wrap_and_insert_lines(lines, decoration, text, highlight)
     end
   end
 end
-
 
 ---@diagnostic disable-next-line: deprecated
 local islist = vim.islist or vim.tbl_islist
