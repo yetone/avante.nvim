@@ -48,8 +48,30 @@ M._defaults = {
   tokenizer = "tiktoken",
   ---@type string | fun(): string | nil
   system_prompt = nil,
+  ---@type function[] | nil
+  system_prompt_providers = {},
+  ---@type function[] | nil
+  custom_tools_providers = {},
   ---@type string | fun(): string | nil
   override_prompt_dir = nil,
+  -- Prompt caching configuration
+  prompt_caching = {
+    enabled = true, -- Global enable/disable
+    providers = {
+      claude = true,
+      bedrock = true,
+      copilot = true,
+    },
+    -- New options for cache tuning
+    strategy = "simplified", -- "simplified" or "manual"
+    static_message_count = 2, -- Number of initial messages to consider static
+    min_tokens_threshold = {
+      ["claude-3-7-sonnet"] = 1024,
+      ["claude-3-5-haiku"] = 2048,
+      default = 1024,
+    },
+    debug = false, -- Enable detailed logging of cache operations
+  },
   rules = {
     project_dir = nil, ---@type string | nil (could be relative dirpath)
     global_dir = nil, ---@type string | nil (absolute dirpath)
@@ -793,6 +815,14 @@ M._defaults = {
   shortcuts = {},
   ---@type AskOptions
   ask_opts = {},
+  ---@type table
+  lazy_loading = {
+    -- Whether to enable lazy loading for MCP tool descriptions
+    enabled = false,
+    -- List of tools that should always be loaded eagerly (not lazily)
+    always_eager = {},
+    mcp_extra_concise = true, -- When true, and lazy_loading is on, MCP tool summarizer will only include name and description (no input/output schema)
+  },
 }
 
 ---@type avante.Config

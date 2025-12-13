@@ -615,9 +615,24 @@ end
 function M.get_tools(user_input, history_messages)
   local custom_tools = Config.custom_tools
   if type(custom_tools) == "function" then custom_tools = custom_tools() end
+
+  -- Apply custom_tools_providers if available
+  if Config.custom_tools_providers and #Config.custom_tools_providers > 0 then
+    for _, provider_fn in ipairs(Config.custom_tools_providers) do
+      if type(provider_fn) == "function" then
+        local provider_tools = provider_fn()
+        if provider_tools and type(provider_tools) == "table" then
+          custom_tools = vim.list_extend(custom_tools, provider_tools)
+        end
+      end
+    end
+  end
+
   ---@type AvanteLLMTool[]
   local unfiltered_tools = vim.list_extend(vim.list_extend({}, M._tools), custom_tools)
-  return vim
+
+  -- Filter enabled tools
+  local filtered_tools = vim
     .iter(unfiltered_tools)
     :filter(function(tool) ---@param tool AvanteLLMTool
       -- Always disable tools that are explicitly disabled
@@ -629,11 +644,51 @@ function M.get_tools(user_input, history_messages)
       end
     end)
     :totable()
+
+  -- Handle lazy loading configurations
+  if Config.lazy_loading and Config.lazy_loading.enabled then
+    -- Lazy-load the LazyLoading module to check for requested tools
+    local LazyLoading = require("avante.llm_tools.lazy_loading")
+
+    local always_eager = LazyLoading.always_eager()
+
+    -- For API requests, only return tools that have been requested or are in always_eager
+    local api_tools = {}
+    for _, tool in ipairs(filtered_tools) do
+      local server_name = tool.server_name or "avante"
+      local tool_name = tool.name
+
+      -- Include the tool if it's in the always_eager list or has been explicitly requested
+      if LazyLoading.should_include_tool(server_name, tool_name) then table.insert(api_tools, tool) end
+    end
+
+    -- Add server_name to all tools for proper tracking
+    for _, tool in ipairs(api_tools) do
+      tool.server_name = tool.server_name or "avante"
+    end
+
+    return api_tools
+  else
+    return filtered_tools
+  end
 end
 
 function M.get_tool_names()
   local custom_tools = Config.custom_tools
   if type(custom_tools) == "function" then custom_tools = custom_tools() end
+
+  -- Apply custom_tools_providers if available
+  if Config.custom_tools_providers and #Config.custom_tools_providers > 0 then
+    for _, provider_fn in ipairs(Config.custom_tools_providers) do
+      if type(provider_fn) == "function" then
+        local provider_tools = provider_fn()
+        if provider_tools and type(provider_tools) == "table" then
+          custom_tools = vim.list_extend(custom_tools, provider_tools)
+        end
+      end
+    end
+  end
+
   ---@type AvanteLLMTool[]
   local unfiltered_tools = vim.list_extend(vim.list_extend({}, M._tools), custom_tools)
   local tool_names = {}
@@ -647,6 +702,7 @@ end
 M._tools = {
   require("avante.llm_tools.dispatch_agent"),
   require("avante.llm_tools.glob"),
+  require("avante.llm_tools.load_tool"),
   {
     name = "rag_search",
     enabled = function() return Config.rag_service.enabled and RagService.is_ready() end,
@@ -1264,6 +1320,23 @@ M.run_python = M.python
 function M.process_tool_use(tools, tool_use, opts)
   local on_log = opts.on_log
   local on_complete = opts.on_complete
+
+  -- Use the new function in lazy_loading.lua to check tool loading
+  local Config = require("avante.config")
+  local LazyLoading = require("avante.llm_tools.lazy_loading")
+
+  -- Only perform lazy loading check if lazy loading is enabled
+  if Config.lazy_loading and Config.lazy_loading.enabled then
+    local result, err = LazyLoading.check_tool_loading(tools, tool_use, Config)
+    if not result then
+      if on_complete then
+        on_complete(nil, err)
+        return
+      end
+      return nil, err
+    end
+  end
+
   -- Check if execution is already cancelled
   if Helpers.is_cancelled then
     Utils.debug("Tool execution cancelled before starting: " .. tool_use.name)
