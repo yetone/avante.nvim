@@ -85,17 +85,22 @@ end
 ---@param shell_cmd string?
 local function get_cmd_for_shell(input_cmd, shell_cmd)
   local shell = vim.o.shell:lower()
-  local cmd ---@type string
+  local cmd = {}
 
   -- powershell then we can just run the cmd
-  if shell:match("powershell") or shell:match("pwsh") then
-    cmd = input_cmd
+  if shell:match("powershell") then
+    cmd = { "powershell.exe", "-NoProfile", "-Command", input_cmd:gsub('"', "'") }
+  elseif shell:match("pwsh") then
+    cmd = { "pwsh.exe", "-NoProfile", "-Command", input_cmd:gsub('"', "'") }
   elseif fn.has("win32") > 0 then
-    cmd = 'powershell.exe -NoProfile -Command "' .. input_cmd:gsub('"', "'") .. '"'
+    cmd = { "powershell.exe", "-NoProfile", "-Command", input_cmd:gsub('"', "'") }
   else
     -- linux and macos we will just do sh -c
     shell_cmd = shell_cmd or "sh -c"
-    cmd = shell_cmd .. " " .. fn.shellescape(input_cmd)
+    for _, cmd_part in ipairs(vim.split(shell_cmd, " ")) do
+      table.insert(cmd, cmd_part)
+    end
+    table.insert(cmd, input_cmd)
   end
 
   return cmd
@@ -108,10 +113,9 @@ end
 function M.shell_run(input_cmd, shell_cmd)
   local cmd = get_cmd_for_shell(input_cmd, shell_cmd)
 
-  local output = fn.system(cmd)
-  local code = vim.v.shell_error
+  local result = vim.system(cmd, { text = true }):wait()
 
-  return { stdout = output, code = code }
+  return { stdout = result.stdout, code = result.code }
 end
 
 ---@param input_cmd string
