@@ -799,7 +799,7 @@ M._defaults = {
 ---@diagnostic disable-next-line: missing-fields
 M._options = {}
 
-local function get_config_dir_path() return Utils.join_paths(vim.fn.expand("~"), ".config", "avante.nvim") end
+local function get_config_dir_path() return Utils.join_paths(vim.fn.stdpath("config"), "avante.nvim") end
 local function get_config_file_path() return Utils.join_paths(get_config_dir_path(), "config.json") end
 
 --- Function to save the last used model
