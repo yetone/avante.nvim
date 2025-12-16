@@ -2813,7 +2813,11 @@ function Sidebar:handle_submit(request)
       return
     end
 
-    on_state_change("succeeded")
+    if stop_opts.reason == "cancelled" then
+      on_state_change("cancelled")
+    else
+      on_state_change("succeeded")
+    end
 
     self:update_content("", {
       callback = function() api.nvim_exec_autocmds("User", { pattern = VIEW_BUFFER_UPDATED_PATTERN }) end,
