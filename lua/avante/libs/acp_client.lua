@@ -387,7 +387,7 @@ function ACPClient:_create_stdio_transport()
       if self.config.reconnect and self.reconnect_count < (self.config.max_reconnect_attempts or 3) then
         self.reconnect_count = self.reconnect_count + 1
         vim.defer_fn(function()
-          if self.state == "disconnected" then self:connect() end
+          if self.state == "disconnected" then self:connect(function(_err) end) end
         end, 2000) -- Wait 2 seconds before reconnecting
       end
     end)
