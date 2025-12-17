@@ -153,30 +153,28 @@ function M.launch_rag_service(cb)
       detach = true,
       cwd = rag_service_dir,
       env = {
-        ALLOW_RESET="TRUE",
-        PORT=port,
-        DATA_DIR=service_path,
-        RAG_EMBED_PROVIDER=Config.rag_service.embed.provider,
-        RAG_EMBED_ENDPOINT=Config.rag_service.embed.endpoint,
-        RAG_EMBED_API_KEY=embed_api_key,
-        RAG_EMBED_MODEL=Config.rag_service.embed.model,
-        RAG_EMBED_EXTRA=embed_extra,
-        RAG_LLM_PROVIDER=Config.rag_service.llm.provider,
-        RAG_LLM_ENDPOINT=Config.rag_service.llm.endpoint,
-        RAG_LLM_API_KEY=llm_api_key,
-        RAG_LLM_MODEL=Config.rag_service.llm.model,
-        RAG_LLM_EXTRA=llm_extra,
-      }
-    },
-      function(res)
-        if res.code ~= 0 then
-          Utils.error(string.format("service %s failed to start, exit code: %d", container_name, res.code))
-        else
-          Utils.debug(string.format("service %s started", container_name))
-          cb()
-        end
+        ALLOW_RESET = "TRUE",
+        PORT = port,
+        DATA_DIR = service_path,
+        RAG_EMBED_PROVIDER = Config.rag_service.embed.provider,
+        RAG_EMBED_ENDPOINT = Config.rag_service.embed.endpoint,
+        RAG_EMBED_API_KEY = embed_api_key,
+        RAG_EMBED_MODEL = Config.rag_service.embed.model,
+        RAG_EMBED_EXTRA = embed_extra,
+        RAG_LLM_PROVIDER = Config.rag_service.llm.provider,
+        RAG_LLM_ENDPOINT = Config.rag_service.llm.endpoint,
+        RAG_LLM_API_KEY = llm_api_key,
+        RAG_LLM_MODEL = Config.rag_service.llm.model,
+        RAG_LLM_EXTRA = llm_extra,
+      },
+    }, function(res)
+      if res.code ~= 0 then
+        Utils.error(string.format("service %s failed to start, exit code: %d", container_name, res.code))
+      else
+        Utils.debug(string.format("service %s started", container_name))
+        cb()
       end
-    )
+    end)
   end
 end
 
