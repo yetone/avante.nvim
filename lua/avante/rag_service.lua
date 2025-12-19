@@ -149,35 +149,32 @@ function M.launch_rag_service(cb)
 
     Utils.debug(string.format("launching %s with nix...", container_name))
 
-    local cmd = string.format(
-      "cd %s && ALLOW_RESET=TRUE PORT=%d DATA_DIR=%s RAG_EMBED_PROVIDER=%s RAG_EMBED_ENDPOINT=%s RAG_EMBED_API_KEY=%s RAG_EMBED_MODEL=%s RAG_EMBED_EXTRA=%s RAG_LLM_PROVIDER=%s RAG_LLM_ENDPOINT=%s RAG_LLM_API_KEY=%s RAG_LLM_MODEL=%s RAG_LLM_EXTRA=%s sh run.sh %s",
-      rag_service_dir,
-      port,
-      service_path,
-      Config.rag_service.embed.provider,
-      Config.rag_service.embed.endpoint,
-      embed_api_key,
-      Config.rag_service.embed.model,
-      embed_extra,
-      Config.rag_service.llm.provider,
-      Config.rag_service.llm.endpoint,
-      llm_api_key,
-      Config.rag_service.llm.model,
-      llm_extra,
-      service_path
-    )
-
-    vim.fn.jobstart(cmd, {
+    vim.system({ "sh", "run.sh", service_path }, {
       detach = true,
-      on_exit = function(_, exit_code)
-        if exit_code ~= 0 then
-          Utils.error(string.format("service %s failed to start, exit code: %d", container_name, exit_code))
-        else
-          Utils.debug(string.format("service %s started", container_name))
-          cb()
-        end
-      end,
-    })
+      cwd = rag_service_dir,
+      env = {
+        ALLOW_RESET = "TRUE",
+        PORT = port,
+        DATA_DIR = service_path,
+        RAG_EMBED_PROVIDER = Config.rag_service.embed.provider,
+        RAG_EMBED_ENDPOINT = Config.rag_service.embed.endpoint,
+        RAG_EMBED_API_KEY = embed_api_key,
+        RAG_EMBED_MODEL = Config.rag_service.embed.model,
+        RAG_EMBED_EXTRA = embed_extra,
+        RAG_LLM_PROVIDER = Config.rag_service.llm.provider,
+        RAG_LLM_ENDPOINT = Config.rag_service.llm.endpoint,
+        RAG_LLM_API_KEY = llm_api_key,
+        RAG_LLM_MODEL = Config.rag_service.llm.model,
+        RAG_LLM_EXTRA = llm_extra,
+      },
+    }, function(res)
+      if res.code ~= 0 then
+        Utils.error(string.format("service %s failed to start, exit code: %d", container_name, res.code))
+      else
+        Utils.debug(string.format("service %s started", container_name))
+        cb()
+      end
+    end)
   end
 end
 
