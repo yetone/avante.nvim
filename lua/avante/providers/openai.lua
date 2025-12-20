@@ -176,7 +176,7 @@ function M:parse_messages(opts)
         elseif item.type == "tool_result" and has_tool_use and not use_ReAct_prompt then
           table.insert(
             tool_results,
-            { tool_call_id = item.tool_use_id, content = item.is_error and "Error: " .. item.content or item.content }
+            { tool_call_id = item.tool_use_id, content = item.is_error and "Error: " .. (item.content or "") or (item.content or "") }
           )
         end
       end
