@@ -425,7 +425,7 @@ M._defaults = {
 
     ---@type AvanteSupportedProvider
     vertex_claude = {
-      endpoint = "https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/antrhopic/models",
+      endpoint = "https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/anthropic/models",
       model = "claude-3-5-sonnet-v2@20241022",
       timeout = 30000, -- Timeout in milliseconds
       extra_request_body = {
