@@ -1561,135 +1561,137 @@ function M._stream_acp(opts)
     end,
   })
   acp_client:send_prompt(session_id, prompt, function(_, err_)
-    if cancelled then return end
-    api.nvim_del_autocmd(stop_cmd_id)
-    if err_ then
-      -- ACP-specific session recovery: Check for session not found error
-      -- Check for session recovery conditions
-      local recovery_config = Config.session_recovery or {}
-      local recovery_enabled = recovery_config.enabled ~= false -- Default enabled unless explicitly disabled
+    vim.schedule(function()
+      if cancelled then return end
+      api.nvim_del_autocmd(stop_cmd_id)
+      if err_ then
+        -- ACP-specific session recovery: Check for session not found error
+        -- Check for session recovery conditions
+        local recovery_config = Config.session_recovery or {}
+        local recovery_enabled = recovery_config.enabled ~= false -- Default enabled unless explicitly disabled
 
-      local is_session_not_found = false
-      if err_.code == -32603 and err_.data and err_.data.details then
-        local details = err_.data.details
-        -- Support both Claude format ("Session not found") and Gemini-CLI format ("Session not found: session-id")
-        is_session_not_found = details == "Session not found" or details:match("^Session not found:")
-      end
-
-      if recovery_enabled and is_session_not_found and not rawget(opts, "_session_recovery_attempted") then
-        -- Mark recovery attempt to prevent infinite loops
-        rawset(opts, "_session_recovery_attempted", true)
-
-        -- DEBUG: Log recovery attempt
-        Utils.debug("Session recovery attempt detected, setting _session_recovery_attempted flag")
-
-        -- Clear invalid session ID
-        if opts.on_save_acp_session_id then
-          opts.on_save_acp_session_id("") -- Use empty string instead of nil
+        local is_session_not_found = false
+        if err_.code == -32603 and err_.data and err_.data.details then
+          local details = err_.data.details
+          -- Support both Claude format ("Session not found") and Gemini-CLI format ("Session not found: session-id")
+          is_session_not_found = details == "Session not found" or details:match("^Session not found:")
         end
 
-        -- Clear invalid session for recovery - let global cleanup handle ACP processes
-        vim.schedule(function()
-          opts.acp_client = nil
-          opts.acp_session_id = nil
-        end)
+        if recovery_enabled and is_session_not_found and not rawget(opts, "_session_recovery_attempted") then
+          -- Mark recovery attempt to prevent infinite loops
+          rawset(opts, "_session_recovery_attempted", true)
 
-        -- CRITICAL: Preserve full history for better context retention
-        -- Only truncate if explicitly configured to do so, otherwise keep full history
-        local original_history = opts.history_messages or {}
-        local truncated_history
+          -- DEBUG: Log recovery attempt
+          Utils.debug("Session recovery attempt detected, setting _session_recovery_attempted flag")
 
-        -- Check if history truncation is explicitly enabled
-        local should_truncate = recovery_config.truncate_history ~= false -- Default to true for backward compatibility
-
-        -- DEBUG: Log original history details
-        Utils.debug("Original history for recovery: " .. #original_history .. " messages")
-        for i, msg in ipairs(original_history) do
-          if msg and msg.message then
-            Utils.debug("Original history " .. i .. ": role=" .. (msg.message.role or "unknown"))
+          -- Clear invalid session ID
+          if opts.on_save_acp_session_id then
+            opts.on_save_acp_session_id("") -- Use empty string instead of nil
           end
-        end
 
-        if should_truncate and #original_history > 20 then -- Only truncate if history is long enough (20条)
-          -- Safely call truncation function
-          local ok, result = pcall(truncate_history_for_recovery, original_history)
-          if ok then
-            truncated_history = result
-            Utils.info(
-              "History truncated from "
-                .. #original_history
-                .. " to "
-                .. #truncated_history
-                .. " messages for recovery"
-            )
-          else
-            Utils.warn("Failed to truncate history for recovery: " .. tostring(result))
-            truncated_history = original_history -- Use full history as fallback
-          end
-        else
-          -- Use full history for better context retention
-          truncated_history = original_history
-          Utils.debug("Using full history for session recovery: " .. #truncated_history .. " messages")
-        end
+          -- Clear invalid session for recovery - let global cleanup handle ACP processes
+          vim.schedule(function()
+            opts.acp_client = nil
+            opts.acp_session_id = nil
+          end)
 
-        -- DEBUG: Log truncated history details
-        Utils.debug("Truncated history for recovery: " .. #truncated_history .. " messages")
-        for i, msg in ipairs(truncated_history) do
-          if msg and msg.message then
-            Utils.debug("Truncated history " .. i .. ": role=" .. (msg.message.role or "unknown"))
-          end
-        end
+          -- CRITICAL: Preserve full history for better context retention
+          -- Only truncate if explicitly configured to do so, otherwise keep full history
+          local original_history = opts.history_messages or {}
+          local truncated_history
 
-        opts.history_messages = truncated_history
+          -- Check if history truncation is explicitly enabled
+          local should_truncate = recovery_config.truncate_history ~= false -- Default to true for backward compatibility
 
-        Utils.info(
-          string.format(
-            "Session expired, recovering with %d recent messages (from %d total)...",
-            #truncated_history,
-            #original_history
-          )
-        )
-
-        -- CRITICAL: Use vim.schedule to move recovery out of fast event context
-        -- This prevents E5560 errors by avoiding vim.fn calls in fast event context
-        vim.schedule(function()
-          Utils.debug("Session recovery: clearing old session ID and retrying...")
-
-          -- Clean up recovery flags for fresh session state management
-          rawset(opts, "_session_recovery_attempted", nil)
-
-          -- Mark this as a recovery attempt to preserve history context
-          rawset(opts, "_is_session_recovery", true)
-
-          -- Update UI state if available
-          if opts.on_state_change then opts.on_state_change("generating") end
-
-          -- CRITICAL: Ensure history messages are preserved in recovery
-          Utils.info("Session recovery retry with " .. #(opts.history_messages or {}) .. " history messages")
-
-          -- DEBUG: Log recovery history details
-          local recovery_history = opts.history_messages or {}
-          Utils.debug("Recovery history messages: " .. #recovery_history)
-          for i, msg in ipairs(recovery_history) do
+          -- DEBUG: Log original history details
+          Utils.debug("Original history for recovery: " .. #original_history .. " messages")
+          for i, msg in ipairs(original_history) do
             if msg and msg.message then
-              Utils.debug("Recovery msg " .. i .. ": role=" .. (msg.message.role or "unknown"))
-              if msg.message.role == "assistant" then
-                Utils.debug("Recovery assistant content: " .. tostring(msg.message.content):sub(1, 100))
-              end
+              Utils.debug("Original history " .. i .. ": role=" .. (msg.message.role or "unknown"))
             end
           end
 
-          -- Retry with truncated history to rebuild context in new session
-          M._stream_acp(opts)
-        end)
+          if should_truncate and #original_history > 20 then -- Only truncate if history is long enough (20条)
+            -- Safely call truncation function
+            local ok, result = pcall(truncate_history_for_recovery, original_history)
+            if ok then
+              truncated_history = result
+              Utils.info(
+                "History truncated from "
+                  .. #original_history
+                  .. " to "
+                  .. #truncated_history
+                  .. " messages for recovery"
+              )
+            else
+              Utils.warn("Failed to truncate history for recovery: " .. tostring(result))
+              truncated_history = original_history -- Use full history as fallback
+            end
+          else
+            -- Use full history for better context retention
+            truncated_history = original_history
+            Utils.debug("Using full history for session recovery: " .. #truncated_history .. " messages")
+          end
 
-        -- CRITICAL: Return immediately to prevent further processing in fast event context
+          -- DEBUG: Log truncated history details
+          Utils.debug("Truncated history for recovery: " .. #truncated_history .. " messages")
+          for i, msg in ipairs(truncated_history) do
+            if msg and msg.message then
+              Utils.debug("Truncated history " .. i .. ": role=" .. (msg.message.role or "unknown"))
+            end
+          end
+
+          opts.history_messages = truncated_history
+
+          Utils.info(
+            string.format(
+              "Session expired, recovering with %d recent messages (from %d total)...",
+              #truncated_history,
+              #original_history
+            )
+          )
+
+          -- CRITICAL: Use vim.schedule to move recovery out of fast event context
+          -- This prevents E5560 errors by avoiding vim.fn calls in fast event context
+          vim.schedule(function()
+            Utils.debug("Session recovery: clearing old session ID and retrying...")
+
+            -- Clean up recovery flags for fresh session state management
+            rawset(opts, "_session_recovery_attempted", nil)
+
+            -- Mark this as a recovery attempt to preserve history context
+            rawset(opts, "_is_session_recovery", true)
+
+            -- Update UI state if available
+            if opts.on_state_change then opts.on_state_change("generating") end
+
+            -- CRITICAL: Ensure history messages are preserved in recovery
+            Utils.info("Session recovery retry with " .. #(opts.history_messages or {}) .. " history messages")
+
+            -- DEBUG: Log recovery history details
+            local recovery_history = opts.history_messages or {}
+            Utils.debug("Recovery history messages: " .. #recovery_history)
+            for i, msg in ipairs(recovery_history) do
+              if msg and msg.message then
+                Utils.debug("Recovery msg " .. i .. ": role=" .. (msg.message.role or "unknown"))
+                if msg.message.role == "assistant" then
+                  Utils.debug("Recovery assistant content: " .. tostring(msg.message.content):sub(1, 100))
+                end
+              end
+            end
+
+            -- Retry with truncated history to rebuild context in new session
+            M._stream_acp(opts)
+          end)
+
+          -- CRITICAL: Return immediately to prevent further processing in fast event context
+          return
+        end
+        opts.on_stop({ reason = "error", error = err_ })
         return
       end
-      opts.on_stop({ reason = "error", error = err_ })
-      return
-    end
-    opts.on_stop({ reason = "complete" })
+      opts.on_stop({ reason = "complete" })
+    end)
   end)
 end
 
