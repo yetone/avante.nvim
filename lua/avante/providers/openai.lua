@@ -534,7 +534,7 @@ function M:parse_response(ctx, data_stream, _, opts)
     -- Response API event-driven format
     if jsn.type == "response.output_text.delta" then
       -- Text content delta
-      if jsn.delta and jsn.delta ~= vim.NIL and jsn.delta ~= "" then
+      if (not ctx.has_tool_calls) and jsn.delta and jsn.delta ~= vim.NIL and jsn.delta ~= "" then
         if opts.on_chunk then opts.on_chunk(jsn.delta) end
         self:add_text_message(ctx, jsn.delta, "generating", opts)
       end
@@ -552,6 +552,7 @@ function M:parse_response(ctx, data_stream, _, opts)
     elseif jsn.type == "response.function_call_arguments.delta" then
       -- Function call arguments delta
       if jsn.delta and jsn.delta ~= vim.NIL and jsn.delta ~= "" then
+        ctx.has_tool_calls = true
         if not ctx.tool_use_map then ctx.tool_use_map = {} end
         local tool_key = tostring(jsn.output_index or 0)
         if not ctx.tool_use_map[tool_key] then
@@ -567,6 +568,7 @@ function M:parse_response(ctx, data_stream, _, opts)
     elseif jsn.type == "response.output_item.added" then
       -- Output item added (could be function call or reasoning)
       if jsn.item and jsn.item.type == "function_call" then
+        ctx.has_tool_calls = true
         local tool_key = tostring(jsn.output_index or 0)
         if not ctx.tool_use_map then ctx.tool_use_map = {} end
         ctx.tool_use_map[tool_key] = {
@@ -667,6 +669,7 @@ function M:parse_response(ctx, data_stream, _, opts)
     self:add_thinking_message(ctx, delta.reasoning, "generating", opts)
     if opts.on_chunk then opts.on_chunk(delta.reasoning) end
   elseif delta.tool_calls and delta.tool_calls ~= vim.NIL then
+    ctx.has_tool_calls = true
     local choice_index = choice.index or 0
     for idx, tool_call in ipairs(delta.tool_calls) do
       --- In Gemini's so-called OpenAI Compatible API, tool_call.index is nil, which is quite absurd! Therefore, a compatibility fix is needed here.
@@ -693,7 +696,7 @@ function M:parse_response(ctx, data_stream, _, opts)
         -- self:add_tool_use_message(ctx, tool_use, "generating", opts)
       end
     end
-  elseif delta.content then
+  elseif delta.content and not ctx.has_tool_calls then
     if
       ctx.returned_think_start_tag ~= nil and (ctx.returned_think_end_tag == nil or not ctx.returned_think_end_tag)
     then
@@ -734,10 +737,13 @@ function M:parse_response_without_stream(data, _, opts)
   local json = vim.json.decode(data)
   if json.choices and json.choices[1] then
     local choice = json.choices[1]
-    if choice.message and choice.message.content then
+    local has_tool_calls = choice.message and choice.message.tool_calls and #choice.message.tool_calls > 0
+    if (not has_tool_calls) and choice.message and choice.message.content then
       if opts.on_chunk then opts.on_chunk(choice.message.content) end
       self:add_text_message({}, choice.message.content, "generated", opts)
       vim.schedule(function() opts.on_stop({ reason = "complete" }) end)
+    elseif has_tool_calls then
+      vim.schedule(function() opts.on_stop({ reason = "tool_use" }) end)
     end
   end
 end
