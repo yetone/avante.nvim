@@ -984,6 +984,7 @@ function M._stream_acp(opts)
     return message
   end
   local acp_client = opts.acp_client
+  local session_id = opts.acp_session_id
   if not acp_client then
     local acp_config = vim.tbl_deep_extend("force", acp_provider, {
       ---@type ACPHandlers
@@ -1245,9 +1246,16 @@ function M._stream_acp(opts)
             permission_options = options,
           }, opts.session_ctx, tool_call.kind)
         end,
-        on_read_file = function(path, line, limit, callback)
+        on_read_file = function(path, line, limit, callback, error_callback)
           local abs_path = Utils.to_absolute_path(path)
-          local lines = Utils.read_file_from_buf_or_disk(abs_path)
+          local lines, err, errname = Utils.read_file_from_buf_or_disk(abs_path)
+          if err then
+            if error_callback then
+              local code = errname == "ENOENT" and ACPClient.ERROR_CODES.RESOURCE_NOT_FOUND or nil
+              error_callback(err, code)
+            end
+            return
+          end
           lines = lines or {}
           if line ~= nil and limit ~= nil then lines = vim.list_slice(lines, line, line + limit) end
           local content = table.concat(lines, "\n")
@@ -1298,22 +1306,46 @@ function M._stream_acp(opts)
       },
     })
     acp_client = ACPClient:new(acp_config)
-    acp_client:connect()
 
-    -- Register ACP client for global cleanup on exit (Fix Issue #2749)
-    local client_id = "acp_" .. tostring(acp_client) .. "_" .. os.time()
-    local ok, Avante = pcall(require, "avante")
-    if ok and Avante.register_acp_client then Avante.register_acp_client(client_id, acp_client) end
+    acp_client:connect(function(conn_err)
+      if conn_err then
+        opts.on_stop({ reason = "error", error = conn_err })
+        return
+      end
 
-    -- If we create a new client and it does not support session loading,
-    -- remove the old session
-    if not acp_client.agent_capabilities.loadSession then opts.acp_session_id = nil end
-    if opts.on_save_acp_client then opts.on_save_acp_client(acp_client) end
+      -- Register ACP client for global cleanup on exit (Fix Issue #2749)
+      local client_id = "acp_" .. tostring(acp_client) .. "_" .. os.time()
+      local ok, Avante = pcall(require, "avante")
+      if ok and Avante.register_acp_client then Avante.register_acp_client(client_id, acp_client) end
+
+      -- If we create a new client and it does not support session loading,
+      -- remove the old session
+      if not acp_client.agent_capabilities.loadSession then opts.acp_session_id = nil end
+      if opts.on_save_acp_client then opts.on_save_acp_client(acp_client) end
+
+      session_id = opts.acp_session_id
+      if not session_id then
+        M._create_acp_session_and_continue(opts, acp_client)
+      else
+        if opts.just_connect_acp_client then return end
+        M._continue_stream_acp(opts, acp_client, session_id)
+      end
+    end)
+    return
+  elseif not session_id then
+    M._create_acp_session_and_continue(opts, acp_client)
+    return
   end
-  local session_id = opts.acp_session_id
-  if not session_id then
-    local project_root = Utils.root.get()
-    local session_id_, err = acp_client:create_session(project_root, {})
+
+  if opts.just_connect_acp_client then return end
+  M._continue_stream_acp(opts, acp_client, session_id)
+end
+
+---@param opts AvanteLLMStreamOptions
+---@param acp_client avante.acp.ACPClient
+function M._create_acp_session_and_continue(opts, acp_client)
+  local project_root = Utils.root.get()
+  acp_client:create_session(project_root, {}, function(session_id_, err)
     if err then
       opts.on_stop({ reason = "error", error = err })
       return
@@ -1322,10 +1354,18 @@ function M._stream_acp(opts)
       opts.on_stop({ reason = "error", error = "Failed to create session" })
       return
     end
-    session_id = session_id_
-    if opts.on_save_acp_session_id then opts.on_save_acp_session_id(session_id) end
-  end
-  if opts.just_connect_acp_client then return end
+    opts.acp_session_id = session_id_
+    if opts.on_save_acp_session_id then opts.on_save_acp_session_id(session_id_) end
+
+    if opts.just_connect_acp_client then return end
+    M._continue_stream_acp(opts, acp_client, session_id_)
+  end)
+end
+
+---@param opts AvanteLLMStreamOptions
+---@param acp_client avante.acp.ACPClient
+---@param session_id string
+function M._continue_stream_acp(opts, acp_client, session_id)
   local prompt = {}
   local donot_use_builtin_system_prompt = opts.history_messages ~= nil and #opts.history_messages > 0
   if donot_use_builtin_system_prompt then
@@ -1541,7 +1581,28 @@ function M._stream_acp(opts)
       end
     end
   end
+  local cancelled = false
+  local stop_cmd_id = api.nvim_create_autocmd("User", {
+    group = group,
+    pattern = M.CANCEL_PATTERN,
+    once = true,
+    callback = function()
+      cancelled = true
+      local cancelled_text = "\n*[Request cancelled by user.]*\n"
+      if opts.on_chunk then opts.on_chunk(cancelled_text) end
+      if opts.on_messages_add then
+        local message = History.Message:new("assistant", cancelled_text, {
+          just_for_display = true,
+        })
+        opts.on_messages_add({ message })
+      end
+      acp_client:cancel_session(session_id)
+      opts.on_stop({ reason = "cancelled" })
+    end,
+  })
   acp_client:send_prompt(session_id, prompt, function(_, err_)
+    if cancelled then return end
+    vim.schedule(function() api.nvim_del_autocmd(stop_cmd_id) end)
     if err_ then
       -- ACP-specific session recovery: Check for session not found error
       -- Check for session recovery conditions

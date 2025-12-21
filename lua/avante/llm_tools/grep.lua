@@ -84,40 +84,72 @@ function M.func(input, opts)
   if search_cmd == "" then return "", "No search command found" end
 
   ---execute the search command
-  local cmd = ""
+  local cmd = {}
   if search_cmd:find("rg") then
-    cmd = string.format("%s --files-with-matches --hidden", search_cmd)
+    cmd = { search_cmd, "--files-with-matches", "--hidden" }
     if input.case_sensitive then
-      cmd = string.format("%s --case-sensitive", cmd)
+      table.insert(cmd, "--case-sensitive")
     else
-      cmd = string.format("%s --ignore-case", cmd)
+      table.insert(cmd, "--ignore-case")
     end
-    if input.include_pattern then cmd = string.format("%s --glob '%s'", cmd, input.include_pattern) end
-    if input.exclude_pattern then cmd = string.format("%s --glob '!%s'", cmd, input.exclude_pattern) end
-    cmd = string.format("%s '%s' %s", cmd, input.query, abs_path)
+    if input.include_pattern then
+      table.insert(cmd, "--glob")
+      table.insert(cmd, input.include_pattern)
+    end
+    if input.exclude_pattern then
+      table.insert(cmd, "--glob")
+      table.insert(cmd, "!" .. input.exclude_pattern)
+    end
+    table.insert(cmd, input.query)
+    table.insert(cmd, abs_path)
   elseif search_cmd:find("ag") then
-    cmd = string.format("%s --nocolor --nogroup --hidden", search_cmd)
-    if input.case_sensitive then cmd = string.format("%s --case-sensitive", cmd) end
-    if input.include_pattern then cmd = string.format("%s --ignore '!%s'", cmd, input.include_pattern) end
-    if input.exclude_pattern then cmd = string.format("%s --ignore '%s'", cmd, input.exclude_pattern) end
-    cmd = string.format("%s '%s' %s", cmd, input.query, abs_path)
+    cmd = { search_cmd, "--nocolor", "--nogroup", "--hidden" }
+    if input.case_sensitive then table.insert(cmd, "--case-sensitive") end
+    if input.include_pattern then
+      table.insert(cmd, "--ignore")
+      table.insert(cmd, "!" .. input.include_pattern)
+    end
+    if input.exclude_pattern then
+      table.insert(cmd, "--ignore")
+      table.insert(cmd, input.exclude_pattern)
+    end
+    table.insert(cmd, input.query)
+    table.insert(cmd, abs_path)
   elseif search_cmd:find("ack") then
-    cmd = string.format("%s --nocolor --nogroup --hidden", search_cmd)
-    if input.case_sensitive then cmd = string.format("%s --smart-case", cmd) end
-    if input.exclude_pattern then cmd = string.format("%s --ignore-dir '%s'", cmd, input.exclude_pattern) end
-    cmd = string.format("%s '%s' %s", cmd, input.query, abs_path)
+    cmd = { search_cmd, "--nocolor", "--nogroup", "--hidden" }
+    if input.case_sensitive then table.insert(cmd, "--smart-case") end
+    if input.exclude_pattern then
+      table.insert(cmd, "--ignore-dir")
+      table.insert(cmd, input.exclude_pattern)
+    end
+    table.insert(cmd, input.query)
+    table.insert(cmd, abs_path)
   elseif search_cmd:find("grep") then
-    cmd = string.format("cd %s && git ls-files -co --exclude-standard | xargs %s -rH", abs_path, search_cmd, abs_path)
-    if not input.case_sensitive then cmd = string.format("%s -i", cmd) end
-    if input.include_pattern then cmd = string.format("%s --include '%s'", cmd, input.include_pattern) end
-    if input.exclude_pattern then cmd = string.format("%s --exclude '%s'", cmd, input.exclude_pattern) end
-    cmd = string.format("%s '%s'", cmd, input.query)
+    local files =
+      vim.system({ "git", "-C", abs_path, "ls-files", "-co", "--exclude-standard" }, { text = true }):wait().stdout
+    cmd = { "grep", "-rH" }
+    if not input.case_sensitive then table.insert(cmd, "-i") end
+    if input.include_pattern then
+      table.insert(cmd, "--include")
+      table.insert(cmd, input.include_pattern)
+    end
+    if input.exclude_pattern then
+      table.insert(cmd, "--exclude")
+      table.insert(cmd, input.exclude_pattern)
+    end
+    table.insert(cmd, input.query)
+    if files ~= "" then
+      for _, path in ipairs(vim.split(files, "\n")) do
+        if not path:match("^%s*$") then table.insert(cmd, vim.fs.joinpath(abs_path, path)) end
+      end
+    else
+      table.insert(cmd, abs_path)
+    end
   end
 
-  Utils.debug("cmd", cmd)
-  if on_log then on_log("Running command: " .. cmd) end
-  local result = vim.fn.system(cmd)
-
+  Utils.debug("cmd", table.concat(cmd, " "))
+  if on_log then on_log("Running command: " .. table.concat(cmd, " ")) end
+  local result = vim.system(cmd, { text = true }):wait().stdout or ""
   local filepaths = vim.split(result, "\n")
 
   return vim.json.encode(filepaths), nil

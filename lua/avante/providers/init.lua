@@ -4,14 +4,14 @@ local Config = require("avante.config")
 local Utils = require("avante.utils")
 
 ---@class avante.Providers
----@field openai AvanteProviderFunctor
----@field claude AvanteProviderFunctor
----@field copilot AvanteProviderFunctor
 ---@field azure AvanteProviderFunctor
----@field gemini AvanteProviderFunctor
----@field cohere AvanteProviderFunctor
 ---@field bedrock AvanteBedrockProviderFunctor
+---@field claude AvanteProviderFunctor
+---@field cohere AvanteProviderFunctor
+---@field copilot AvanteProviderFunctor
+---@field gemini AvanteProviderFunctor
 ---@field ollama AvanteProviderFunctor
+---@field openai AvanteProviderFunctor
 ---@field vertex_claude AvanteProviderFunctor
 ---@field watsonx_code_assistant AvanteProviderFunctor
 local M = {}

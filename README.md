@@ -1,18 +1,3 @@
-<div align="center" markdown="1">
-   <sup>Special thanks to:</sup>
-   <br>
-   <br>
-   <a href="https://www.warp.dev/avantenvim">
-      <img alt="Warp sponsorship" width="400" src="https://github.com/user-attachments/assets/0fb088f2-f684-4d17-86d2-07a489229083">
-   </a>
-
-### [Warp, the intelligent terminal for developers](https://www.warp.dev/avantenvim)
-
-[Available for MacOS, Linux, & Windows](https://www.warp.dev/avantenvim)<br>
-
-</div>
-<hr>
-
 <div align="center">
   <img alt="logo" width="120" src="https://github.com/user-attachments/assets/2e2f2a58-2b28-4d11-afd1-87b65612b2de" />
   <h1>avante.nvim</h1>
@@ -1440,7 +1425,7 @@ Avante allows you to define custom tools that can be used by the AI during code 
       },
       func = function(params, on_log, on_complete)  -- Custom function to execute
         local target = params.target or "./..."
-        return vim.fn.system(string.format("go test -v %s", target))
+        return vim.system({ "go", "test", "-v", target }, { text = true }):wait().stdout
       end,
     },
   },

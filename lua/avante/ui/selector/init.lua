@@ -14,7 +14,7 @@ local Utils = require("avante.utils")
 ---@field on_select fun(item_ids: string[] | nil)
 ---@field get_preview_content fun(item_id: string): (string, string) | nil
 ---@field on_delete_item fun(item_id: string): (nil) | nil
----@field on_action_cancel fun(): (nil) | nil
+---@field on_open fun(): (nil) | nil
 
 ---@class avante.ui.Selector
 ---@field provider avante.SelectorProvider
@@ -26,7 +26,7 @@ local Utils = require("avante.utils")
 ---@field selected_item_ids string[] | nil
 ---@field get_preview_content fun(item_id: string): (string, string) | nil
 ---@field on_delete_item fun(item_id: string): (nil) | nil
----@field on_action_cancel fun(): (nil) | nil
+---@field on_open fun(): (nil) | nil
 local Selector = {}
 Selector.__index = Selector
 
@@ -50,7 +50,7 @@ function Selector:new(opts)
   o.selected_item_ids = opts.selected_item_ids or {}
   o.get_preview_content = opts.get_preview_content
   o.on_delete_item = opts.on_delete_item
-  o.on_action_cancel = opts.on_action_cancel
+  o.on_open = opts.on_open
   return o
 end
 

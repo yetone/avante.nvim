@@ -389,20 +389,20 @@ function M.git_diff(input, opts)
   if not project_root then return nil, "Not in a git repository" end
 
   -- Check if we're in a git repository
-  local git_dir = vim.fn.system("git rev-parse --git-dir"):gsub("\n", "")
+  local git_dir = vim.system({ "git", "rev-parse", "--git-dir" }, { text = true }):wait().stdout:gsub("\n", "")
   if git_dir == "" then return nil, "Not a git repository" end
 
   -- Get the diff
   local scope = input.scope or ""
-  local cmd = string.format("git diff --cached %s", scope)
-  if on_log then on_log("Running command: " .. cmd) end
-  local diff = vim.fn.system(cmd)
+  local cmd = { "git", "diff", "--cached", scope }
+  if on_log then on_log("Running command: " .. table.concat(cmd, " ")) end
+  local diff = vim.system(cmd, { text = true }):wait().stdout
 
   if diff == "" then
     -- If there's no staged changes, get unstaged changes
-    cmd = string.format("git diff %s", scope)
-    if on_log then on_log("No staged changes. Running command: " .. cmd) end
-    diff = vim.fn.system(cmd)
+    cmd = { "git", "diff", scope }
+    if on_log then on_log("No staged changes. Running command: " .. table.concat(cmd, " ")) end
+    diff = vim.system(cmd, { text = true }):wait().stdout
   end
 
   if diff == "" then return nil, "No changes detected" end
@@ -421,20 +421,23 @@ function M.git_commit(input, opts)
   if not project_root then return false, "Not in a git repository" end
 
   -- Check if we're in a git repository
-  local git_dir = vim.fn.system("git rev-parse --git-dir"):gsub("\n", "")
+  local git_dir = vim.system({ "git", "rev-parse", "--git-dir" }, { text = true }):wait().stdout:gsub("\n", "")
   if git_dir == "" then return false, "Not a git repository" end
 
   -- First check if there are any changes to commit
-  local status = vim.fn.system("git status --porcelain")
+  local status = vim.system({ "git", "status", "--porcelain" }, { text = true }):wait().stdout
   if status == "" then return false, "No changes to commit" end
 
   -- Get git user name and email
-  local git_user = vim.fn.system("git config user.name"):gsub("\n", "")
-  local git_email = vim.fn.system("git config user.email"):gsub("\n", "")
+  local git_user = vim.system({ "git", "config", "user.name" }, { text = true }):wait().stdout:gsub("\n", "")
+  local git_email = vim.system({ "git", "config", "user.email" }, { text = true }):wait().stdout:gsub("\n", "")
 
   -- Check if GPG signing is available and configured
   local has_gpg = false
-  local signing_key = vim.fn.system("git config --get user.signingkey"):gsub("\n", "")
+  local signing_key = vim
+    .system({ "git", "config", "--get", "user.signingkey" }, { text = true })
+    :wait().stdout
+    :gsub("\n", "")
 
   if signing_key ~= "" then
     -- Try to find gpg executable based on OS
@@ -449,8 +452,7 @@ function M.git_commit(input, opts)
 
     if gpg_cmd ~= "" then
       -- Verify GPG is working
-      local _ = vim.fn.system(string.format('"%s" --version', gpg_cmd))
-      has_gpg = vim.v.shell_error == 0
+      has_gpg = vim.system({ gpg_cmd, "--version" }, { text = true }):wait().code == 0
     end
   end
 
@@ -486,11 +488,11 @@ function M.git_commit(input, opts)
     end
     -- Stage changes if scope is provided
     if input.scope then
-      local stage_cmd = string.format("git add %s", input.scope)
-      if on_log then on_log("Staging files: " .. stage_cmd) end
-      local stage_result = vim.fn.system(stage_cmd)
-      if vim.v.shell_error ~= 0 then
-        on_complete(false, "Failed to stage files: " .. stage_result)
+      local stage_cmd = { "git", "add", input.scope }
+      if on_log then on_log("Staging files: " .. table.concat(stage_cmd, " ")) end
+      local stage_result = vim.system(stage_cmd, { text = true }):wait()
+      if stage_result.code ~= 0 then
+        on_complete(false, "Failed to stage files: " .. stage_result.stderr)
         return
       end
     end
@@ -501,16 +503,16 @@ function M.git_commit(input, opts)
     if has_gpg then table.insert(cmd_parts, "-S") end
     for _, line in ipairs(commit_msg_lines) do
       table.insert(cmd_parts, "-m")
-      table.insert(cmd_parts, '"' .. line .. '"')
+      table.insert(cmd_parts, line)
     end
     local cmd = table.concat(cmd_parts, " ")
 
     -- Execute git commit
     if on_log then on_log("Running command: " .. cmd) end
-    local result = vim.fn.system(cmd)
+    local result = vim.system(cmd_parts, { text = true }):wait()
 
-    if vim.v.shell_error ~= 0 then
-      on_complete(false, "Failed to commit: " .. result)
+    if result.code ~= 0 then
+      on_complete(false, "Failed to commit: " .. result.stderr)
       return
     end
 

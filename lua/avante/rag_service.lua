@@ -21,14 +21,10 @@ function M.get_data_path()
 end
 
 function M.get_current_image()
-  local cmd = string.format("docker inspect %s | grep Image | grep %s", container_name, container_name)
-  local result = vim.fn.system(cmd)
-  if result == "" then return nil end
-  local exit_code = vim.v.shell_error
-  if exit_code ~= 0 then return nil end
-  local image = result:match('"Image":%s*"(.*)"')
-  if image == nil then return nil end
-  return image
+  local cmd = { "docker", "inspect", "--format", "{{.Config.Image}}", container_name }
+  local result = vim.system(cmd, { text = true }):wait()
+  if result.code ~= 0 or result.stdout == "" then return nil end
+  return result.stdout
 end
 
 function M.get_rag_service_runner() return (Config.rag_service and Config.rag_service.runner) or "docker" end
@@ -80,9 +76,12 @@ function M.launch_rag_service(cb)
   if M.get_rag_service_runner() == "docker" then
     local image = M.get_rag_service_image()
     local data_path = M.get_data_path()
-    local cmd = string.format("docker ps | grep '%s'", container_name)
-    local result = vim.fn.system(cmd)
-    if result ~= "" then
+    local cmd = { "docker", "inspect", "--format", "{{.State.Status}}", container_name }
+    local result = vim.system(cmd, { text = true }):wait()
+    if result.code ~= 0 then Utils.debug(string.format("cmd: %s execution error", table.concat(cmd, " "))) end
+    if result.stdout == "" then
+      Utils.debug(string.format("container %s not found, starting...", container_name))
+    elseif result.stdout == "running" then
       Utils.debug(string.format("container %s already running", container_name))
       local current_image = M.get_current_image()
       if current_image == image then
@@ -98,11 +97,8 @@ function M.launch_rag_service(cb)
         )
       )
       M.stop_rag_service()
-    else
-      Utils.debug(string.format("container %s not found, starting...", container_name))
     end
-    result = vim.fn.system(string.format("docker ps -a | grep '%s'", container_name))
-    if result ~= "" then
+    if result.stdout ~= "running" then
       Utils.info(string.format("container %s already started but not running, stopping...", container_name))
       M.stop_rag_service()
     end
@@ -139,8 +135,8 @@ function M.launch_rag_service(cb)
     })
   elseif M.get_rag_service_runner() == "nix" then
     -- Check if service is already running
-    local check_cmd = string.format("pgrep -f '%s'", service_path)
-    local check_result = vim.fn.system(check_cmd)
+    local check_cmd = { "pgrep", "-f", service_path }
+    local check_result = vim.system(check_cmd, { text = true }):wait().stdout
     if check_result ~= "" then
       Utils.debug(string.format("RAG service already running at %s", service_path))
       cb()
@@ -153,62 +149,61 @@ function M.launch_rag_service(cb)
 
     Utils.debug(string.format("launching %s with nix...", container_name))
 
-    local cmd = string.format(
-      "cd %s && ALLOW_RESET=TRUE PORT=%d DATA_DIR=%s RAG_EMBED_PROVIDER=%s RAG_EMBED_ENDPOINT=%s RAG_EMBED_API_KEY=%s RAG_EMBED_MODEL=%s RAG_EMBED_EXTRA=%s RAG_LLM_PROVIDER=%s RAG_LLM_ENDPOINT=%s RAG_LLM_API_KEY=%s RAG_LLM_MODEL=%s RAG_LLM_EXTRA=%s sh run.sh %s",
-      rag_service_dir,
-      port,
-      service_path,
-      Config.rag_service.embed.provider,
-      Config.rag_service.embed.endpoint,
-      embed_api_key,
-      Config.rag_service.embed.model,
-      embed_extra,
-      Config.rag_service.llm.provider,
-      Config.rag_service.llm.endpoint,
-      embed_api_key,
-      Config.rag_service.llm.model,
-      llm_extra,
-      service_path
-    )
-
-    vim.fn.jobstart(cmd, {
+    vim.system({ "sh", "run.sh", service_path }, {
       detach = true,
-      on_exit = function(_, exit_code)
-        if exit_code ~= 0 then
-          Utils.error(string.format("service %s failed to start, exit code: %d", container_name, exit_code))
-        else
-          Utils.debug(string.format("service %s started", container_name))
-          cb()
-        end
-      end,
-    })
+      cwd = rag_service_dir,
+      env = {
+        ALLOW_RESET = "TRUE",
+        PORT = port,
+        DATA_DIR = service_path,
+        RAG_EMBED_PROVIDER = Config.rag_service.embed.provider,
+        RAG_EMBED_ENDPOINT = Config.rag_service.embed.endpoint,
+        RAG_EMBED_API_KEY = embed_api_key,
+        RAG_EMBED_MODEL = Config.rag_service.embed.model,
+        RAG_EMBED_EXTRA = embed_extra,
+        RAG_LLM_PROVIDER = Config.rag_service.llm.provider,
+        RAG_LLM_ENDPOINT = Config.rag_service.llm.endpoint,
+        RAG_LLM_API_KEY = llm_api_key,
+        RAG_LLM_MODEL = Config.rag_service.llm.model,
+        RAG_LLM_EXTRA = llm_extra,
+      },
+    }, function(res)
+      if res.code ~= 0 then
+        Utils.error(string.format("service %s failed to start, exit code: %d", container_name, res.code))
+      else
+        Utils.debug(string.format("service %s started", container_name))
+        cb()
+      end
+    end)
   end
 end
 
 function M.stop_rag_service()
   if M.get_rag_service_runner() == "docker" then
-    local cmd = string.format("docker ps -a | grep '%s'", container_name)
-    local result = vim.fn.system(cmd)
-    if result ~= "" then vim.fn.system(string.format("docker rm -fv %s", container_name)) end
+    local cmd = { "docker", "inspect", "--format", "{{.State.Status}}", container_name }
+    local result = vim.system(cmd, { text = true }):wait().stdout
+    if result ~= "" then vim.system({ "docker", "rm", "-fv", container_name }):wait() end
   else
-    local cmd = string.format("pgrep -f '%s' | xargs -r kill -9", service_path)
-    vim.fn.system(cmd)
-    Utils.debug(string.format("Attempted to kill processes related to %s", service_path))
+    local pid = vim.system({ "pgrep", "-f", service_path }, { text = true }):wait().stdout
+    if pid ~= "" then
+      vim.system({ "kill", "-9", pid }):wait()
+      Utils.debug(string.format("Attempted to kill processes related to %s", service_path))
+    end
   end
 end
 
 function M.get_rag_service_status()
   if M.get_rag_service_runner() == "docker" then
-    local cmd = string.format("docker ps -a | grep '%s'", container_name)
-    local result = vim.fn.system(cmd)
-    if result == "" then
+    local cmd = { "docker", "inspect", "--format", "{{.State.Status}}", container_name }
+    local result = vim.system(cmd, { text = true }):wait().stdout
+    if result ~= "running" then
       return "stopped"
     else
       return "running"
     end
   elseif M.get_rag_service_runner() == "nix" then
-    local cmd = string.format("pgrep -f '%s'", service_path)
-    local result = vim.fn.system(cmd)
+    local cmd = { "pgrep", "-f", service_path }
+    local result = vim.system(cmd, { text = true }):wait().stdout
     if result == "" then
       return "stopped"
     else
@@ -250,13 +245,12 @@ function M.to_local_uri(uri)
 end
 
 function M.is_ready()
-  vim.fn.system(
-    string.format(
-      "curl -s -o /dev/null -w '%%{http_code}' %s",
-      string.format("%s%s", M.get_rag_service_url(), "/api/health")
+  return vim
+    .system(
+      { "curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", M.get_rag_service_url() .. "/api/health" },
+      { text = true }
     )
-  )
-  return vim.v.shell_error == 0
+    :wait().code == 0
 end
 
 ---@class AvanteRagServiceAddResourceResponse

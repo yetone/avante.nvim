@@ -85,17 +85,22 @@ end
 ---@param shell_cmd string?
 local function get_cmd_for_shell(input_cmd, shell_cmd)
   local shell = vim.o.shell:lower()
-  local cmd ---@type string
+  local cmd = {}
 
   -- powershell then we can just run the cmd
-  if shell:match("powershell") or shell:match("pwsh") then
-    cmd = input_cmd
+  if shell:match("powershell") then
+    cmd = { "powershell.exe", "-NoProfile", "-Command", input_cmd:gsub('"', "'") }
+  elseif shell:match("pwsh") then
+    cmd = { "pwsh.exe", "-NoProfile", "-Command", input_cmd:gsub('"', "'") }
   elseif fn.has("win32") > 0 then
-    cmd = 'powershell.exe -NoProfile -Command "' .. input_cmd:gsub('"', "'") .. '"'
+    cmd = { "powershell.exe", "-NoProfile", "-Command", input_cmd:gsub('"', "'") }
   else
     -- linux and macos we will just do sh -c
     shell_cmd = shell_cmd or "sh -c"
-    cmd = shell_cmd .. " " .. fn.shellescape(input_cmd)
+    for _, cmd_part in ipairs(vim.split(shell_cmd, " ")) do
+      table.insert(cmd, cmd_part)
+    end
+    table.insert(cmd, input_cmd)
   end
 
   return cmd
@@ -108,10 +113,9 @@ end
 function M.shell_run(input_cmd, shell_cmd)
   local cmd = get_cmd_for_shell(input_cmd, shell_cmd)
 
-  local output = fn.system(cmd)
-  local code = vim.v.shell_error
+  local result = vim.system(cmd, { text = true }):wait()
 
-  return { stdout = output, code = code }
+  return { stdout = result.stdout, code = result.code }
 end
 
 ---@param input_cmd string
@@ -1379,6 +1383,7 @@ end
 ---@param filepath string
 ---@return string[]|nil lines
 ---@return string|nil error
+---@return string|nil errname
 function M.read_file_from_buf_or_disk(filepath)
   local abs_path = filepath:sub(1, 7) == "term://" and filepath or M.join_paths(M.get_project_root(), filepath)
   --- Lookup if the file is loaded in a buffer
@@ -1387,12 +1392,13 @@ function M.read_file_from_buf_or_disk(filepath)
     if bufnr ~= -1 and vim.api.nvim_buf_is_loaded(bufnr) then
       -- If buffer exists and is loaded, get buffer content
       local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-      return lines, nil
+      return lines, nil, nil
     end
   end
 
-  local stat = vim.uv.fs_stat(abs_path)
-  if stat and stat.type == "directory" then return {}, "Cannot read a directory as file" .. filepath end
+  local stat, stat_err, stat_errname = vim.uv.fs_stat(abs_path)
+  if not stat then return {}, stat_err, stat_errname end
+  if stat.type == "directory" then return {}, "Cannot read a directory as file" .. filepath, nil end
 
   -- Fallback: read file from disk
   local file, open_err = io.open(abs_path, "r")
@@ -1400,9 +1406,9 @@ function M.read_file_from_buf_or_disk(filepath)
     local content = file:read("*all")
     file:close()
     content = content:gsub("\r\n", "\n")
-    return vim.split(content, "\n"), nil
+    return vim.split(content, "\n"), nil, nil
   else
-    return {}, open_err
+    return {}, open_err, nil
   end
 end
 
