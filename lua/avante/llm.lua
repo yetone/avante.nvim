@@ -1595,7 +1595,7 @@ function M._continue_stream_acp(opts, acp_client, session_id)
   })
   acp_client:send_prompt(session_id, prompt, function(_, err_)
     if cancelled then return end
-    api.nvim_del_autocmd(stop_cmd_id)
+    vim.schedule(function() api.nvim_del_autocmd(stop_cmd_id) end)
     if err_ then
       -- ACP-specific session recovery: Check for session not found error
       -- Check for session recovery conditions
