@@ -8,6 +8,28 @@ local JsonParser = require("avante.libs.jsonparser")
 local Prompts = require("avante.utils.prompts")
 local LlmTools = require("avante.llm_tools")
 
+local function normalize_tool_arguments(args)
+  if args == nil or args == vim.NIL then return "{}" end
+  if type(args) == "string" then
+    if args == "" then return "{}" end
+    return args
+  end
+  if type(args) == "table" then
+    if vim.tbl_isempty(args) then return "{}" end
+    local ok, encoded = pcall(vim.json.encode, args)
+    if ok and type(encoded) == "string" then return encoded end
+  end
+  error(("avante: tool_call.arguments must be a JSON string, got %s"):format(type(args)))
+end
+
+local function normalize_tool_output(content)
+  if content == nil or content == vim.NIL then return "" end
+  if type(content) == "string" then return content end
+  local ok, encoded = pcall(vim.json.encode, content)
+  if ok and type(encoded) == "string" then return encoded end
+  error(("avante: tool result content must be a string, got %s"):format(type(content)))
+end
+
 ---@class AvanteProviderFunctor
 local M = {}
 
@@ -45,7 +67,9 @@ end
 
 function M.is_openrouter(url) return url:match("^https://openrouter%.ai/") end
 
-function M.is_mistral(url) return url:match("^https://api%.mistral%.ai/") end
+function M.is_mistral(url)
+  return url:match("^https://api%.mistral%.ai/") or url:match("^https://api%.scaleway%.ai/")
+end
 
 ---@param opts AvantePromptOptions
 function M.get_user_message(opts)
@@ -171,13 +195,17 @@ function M:parse_messages(opts)
           table.insert(tool_calls, {
             id = item.id,
             type = "function",
-            ["function"] = { name = item.name, arguments = vim.json.encode(item.input) },
+            ["function"] = { name = item.name, arguments = normalize_tool_arguments(item.input) },
           })
         elseif item.type == "tool_result" and has_tool_use and not use_ReAct_prompt then
-          table.insert(
-            tool_results,
-            { tool_call_id = item.tool_use_id, content = item.is_error and "Error: " .. item.content or item.content }
-          )
+          local raw_content = item.content
+          local tool_content = nil
+          if item.is_error then
+            tool_content = "Error: " .. normalize_tool_output(raw_content)
+          else
+            tool_content = normalize_tool_output(raw_content)
+          end
+          table.insert(tool_results, { tool_call_id = item.tool_use_id, content = tool_content })
         end
       end
       if not provider_conf.disable_tools and use_ReAct_prompt then
