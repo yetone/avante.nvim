@@ -9,15 +9,23 @@ function M.show(selector)
     return
   end
 
-  local formated_items = vim.iter(selector.items):map(function(item) return item.title end):totable()
   local title_to_id = {}
   for _, item in ipairs(selector.items) do
     title_to_id[item.title] = item.id
   end
 
   local function close_action() selector.on_select(nil) end
-  fzf_lua.fzf_exec(
-    formated_items,
+  fzf_lua.fzf_live(
+    function(args)
+      local query = args[1] or ""
+      local items = {}
+      for _, item in ipairs(vim.iter(selector.items):map(function(item) return item.title end):totable()) do
+        if query == "" or item:match(query:gsub("[%(%)%.%%%+%-%*%?%[%]%^%$]", "%%%1")) then
+          table.insert(items, item)
+        end
+      end
+      return items
+    end,
     vim.tbl_deep_extend("force", {
       prompt = selector.title,
       preview = selector.get_preview_content and function(item)
@@ -25,7 +33,7 @@ function M.show(selector)
         local content = selector.get_preview_content(id)
         return content
       end or nil,
-      fzf_opts = {},
+      fzf_opts = { ["--multi"] = true },
       git_icons = false,
       actions = {
         ["default"] = function(selected)
@@ -41,6 +49,23 @@ function M.show(selector)
         end,
         ["esc"] = close_action,
         ["ctrl-c"] = close_action,
+        ["ctrl-delete"] = {
+          fn = function(selected)
+            if not selected or #selected == 0 then return close_action() end
+            local selections = selected
+            vim.ui.input({ prompt = "Remove·selection?·(" .. #selections .. " items) [y/N]" }, function(input)
+              if input and input:lower() == "y" then
+                for _, selection in ipairs(selections) do
+                  selector.on_delete_item(title_to_id[selection])
+                  for i, item in ipairs(selector.items) do
+                    if item.id == title_to_id[selection] then table.remove(selector.items, i) end
+                  end
+                end
+              end
+            end)
+          end,
+          reload = true,
+        },
       },
     }, selector.provider_opts)
   )
