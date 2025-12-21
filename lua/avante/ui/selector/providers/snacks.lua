@@ -8,23 +8,26 @@ function M.show(selector)
     Utils.error("Snacks is not set up. Please install and set up Snacks to use it as a file selector.")
     return
   end
-  local function snacks_finder()
+  local function snacks_finder(opts, ctx)
+    local query = ctx.filter.search or ""
     local items = {}
     for i, item in ipairs(selector.items) do
       if not vim.list_contains(selector.selected_item_ids, item.id) then
-        table.insert(items, {
-          formatted = item.title,
-          text = item.title,
-          item = item,
-          idx = i,
-          preview = selector.get_preview_content and (function()
-            local content, filetype = selector.get_preview_content(item.id)
-            return {
-              text = content,
-              ft = filetype,
-            }
-          end)() or nil,
-        })
+        if query == "" or item.title:match(query:gsub("[%(%)%.%%%+%-%*%?%[%]%^%$]", "%%%1")) then
+          table.insert(items, {
+            formatted = item.title,
+            text = item.title,
+            item = item,
+            idx = i,
+            preview = selector.get_preview_content and (function()
+              local content, filetype = selector.get_preview_content(item.id)
+              return {
+                text = content,
+                ft = filetype,
+              }
+            end)() or nil,
+          })
+        end
       end
     end
     return items
