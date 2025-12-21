@@ -40,6 +40,7 @@ jobs:
 
       - name: Download neovim ${{ matrix.rev }}
         env:
+          GH_TOKEN: ${{ github.token }}
           NEOVIM_VERSION: ${{ matrix.rev }}
         if: steps.cache-neovim.outputs.cache-hit != 'true'
         run: |
