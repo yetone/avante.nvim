@@ -546,6 +546,7 @@ M._defaults = {
     ---@type boolean | string[] -- true: auto-approve all tools, false: normal prompts, string[]: auto-approve specific tools by name
     auto_approve_tool_permissions = true, -- Default: auto-approve all tools (no prompts)
     auto_check_diagnostics = true,
+    allow_access_to_git_ignored_files = false,
     enable_fastapply = false,
     include_generated_by_commit_line = false, -- Controls if 'Generated-by: <provider/model>' line is added to git commit message
     auto_add_current_file = true, -- Whether to automatically add the current file when opening a new chat
