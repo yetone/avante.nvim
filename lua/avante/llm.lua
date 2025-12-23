@@ -344,12 +344,10 @@ function M.generate_prompts(opts)
 
   -- Removed the original todos processing logic, now handled in context_messages
 
-  local system_prompt
-  if opts.prompt_opts and opts.prompt_opts.system_prompt then
-    system_prompt = opts.prompt_opts.system_prompt
-  else
-    system_prompt = Path.prompts.render_mode(mode, template_opts)
-  end
+  -- CRITICAL: Always regenerate system_prompt to avoid accumulating selected_files
+  -- If we reuse opts.prompt_opts.system_prompt from history, it contains old selected_files
+  -- which then get duplicated when we render the template again with new selected_files
+  local system_prompt = Path.prompts.render_mode(mode, template_opts)
 
   if Config.system_prompt ~= nil then
     local custom_system_prompt
