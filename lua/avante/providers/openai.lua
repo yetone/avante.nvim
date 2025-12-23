@@ -197,12 +197,8 @@ function M:parse_messages(opts)
           })
         elseif item.type == "tool_result" and has_tool_use and not use_ReAct_prompt then
           local raw_content = item.content
-          local tool_content = nil
-          if item.is_error then
-            tool_content = "Error: " .. normalize_tool_output(raw_content)
-          else
-            tool_content = normalize_tool_output(raw_content)
-          end
+          local tool_content = item.is_error and "Error: " .. normalize_tool_output(raw_content)
+            or normalize_tool_output(raw_content)
           table.insert(tool_results, { tool_call_id = item.tool_use_id, content = tool_content })
         end
       end
