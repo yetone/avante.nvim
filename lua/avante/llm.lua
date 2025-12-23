@@ -262,11 +262,17 @@ function M.generate_prompts(opts)
   local project_root = Utils.root.get()
   local instruction_file_path = PPath:new(project_root, project_instruction_file)
 
+  -- Track which file was read as instructions to avoid duplicate reading
+  local instruction_file_read = nil
+
   if instruction_file_path:exists() then
     local lines = Utils.read_file_from_buf_or_disk(instruction_file_path:absolute())
     local instruction_content = lines and table.concat(lines, "\n") or ""
 
-    if instruction_content then opts.instructions = (opts.instructions or "") .. "\n" .. instruction_content end
+    if instruction_content then
+      opts.instructions = (opts.instructions or "") .. "\n" .. instruction_content
+      instruction_file_read = project_instruction_file
+    end
   end
 
   local mode = opts.mode or Config.mode
@@ -443,7 +449,6 @@ function M.generate_prompts(opts)
   end
 
   opts.session_ctx = opts.session_ctx or {}
-  opts.session_ctx.system_prompt = system_prompt
   opts.session_ctx.messages = messages
 
   local tools = {}
@@ -454,10 +459,21 @@ function M.generate_prompts(opts)
   -- tools to be either non-existent or have at least one item
   if #tools == 0 then tools = nil end
 
-  local agents_rules = Prompts.get_agents_rules_prompt()
-  if agents_rules then system_prompt = system_prompt .. "\n\n" .. agents_rules end
+  -- Avoid duplicate reading: pass instruction_file_read to skip it in agents_rules
+  local agents_rules = Prompts.get_agents_rules_prompt(instruction_file_read)
+  -- Prevent duplicate append: check if agents_rules is already in system_prompt
+  if agents_rules and not system_prompt:find(agents_rules, 1, true) then
+    system_prompt = system_prompt .. "\n\n" .. agents_rules
+  end
   local cursor_rules = Prompts.get_cursor_rules_prompt(selected_files)
-  if cursor_rules then system_prompt = system_prompt .. "\n\n" .. cursor_rules end
+  -- Prevent duplicate append: check if cursor_rules is already in system_prompt
+  if cursor_rules and not system_prompt:find(cursor_rules, 1, true) then
+    system_prompt = system_prompt .. "\n\n" .. cursor_rules
+  end
+
+  -- CRITICAL: Update session_ctx with the complete system_prompt after all appends
+  -- This prevents duplicate appending of agents_rules and cursor_rules in subsequent turns
+  opts.session_ctx.system_prompt = system_prompt
 
   ---@type AvantePromptOptions
   return {

@@ -145,8 +145,9 @@ Parameters:
 end
 
 --- Get the content of AGENTS.md or CLAUDE.md or OPENCODE.md
+---@param exclude_file? string File name to exclude (if already read via instructions_file)
 ---@return string | nil
-function M.get_agents_rules_prompt()
+function M.get_agents_rules_prompt(exclude_file)
   local Utils = require("avante.utils")
   local project_root = Utils.get_project_root()
   local file_names = {
@@ -158,11 +159,17 @@ function M.get_agents_rules_prompt()
     Utils.join_paths(".github", "copilot-instructions.md"),
   }
   for _, file_name in ipairs(file_names) do
+    -- Skip if this file was already read as instructions_file
+    if exclude_file and file_name == exclude_file then
+      goto continue
+    end
+
     local file_path = Utils.join_paths(project_root, file_name)
     if vim.fn.filereadable(file_path) == 1 then
       local content = vim.fn.readfile(file_path)
       if content then return table.concat(content, "\n") end
     end
+    ::continue::
   end
   return nil
 end
