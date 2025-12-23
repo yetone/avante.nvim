@@ -67,9 +67,7 @@ end
 
 function M.is_openrouter(url) return url:match("^https://openrouter%.ai/") end
 
-function M.is_mistral(url)
-  return url:match("^https://api%.mistral%.ai/") or url:match("^https://api%.scaleway%.ai/")
-end
+function M.is_mistral(url) return url:match("^https://api%.mistral%.ai/") or url:match("^https://api%.scaleway%.ai/") end
 
 ---@param opts AvantePromptOptions
 function M.get_user_message(opts)
