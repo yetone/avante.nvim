@@ -160,9 +160,7 @@ function M.get_agents_rules_prompt(exclude_file)
   }
   for _, file_name in ipairs(file_names) do
     -- Skip if this file was already read as instructions_file
-    if exclude_file and file_name == exclude_file then
-      goto continue
-    end
+    if exclude_file and file_name == exclude_file then goto continue end
 
     local file_path = Utils.join_paths(project_root, file_name)
     if vim.fn.filereadable(file_path) == 1 then
