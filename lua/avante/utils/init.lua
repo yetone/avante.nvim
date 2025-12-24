@@ -1590,6 +1590,9 @@ function M.get_commands()
       description = "/dir [path] - Add directory to context",
       name = "dir"
     },
+    { description = "Show current plan", name = "plan" },
+    { description = "Toggle full-screen mode", name = "toggle-full-screen" },
+    { description = "Toggle plan-only mode", name = "toggle-plan-mode" },
   }
 
   ---@type {[AvanteSlashCommandBuiltInName]: AvanteSlashCommandCallback}
@@ -1781,6 +1784,90 @@ Use `/compact` to update the memory with recent messages.]],
           { focus = false, scroll = false }
         )
       end
+      
+      if cb then cb(args) end
+    end,
+    plan = function(sidebar, args, cb)
+      -- Show the current plan from todos
+      local history = sidebar.chat_history
+      if not history or not history.todos or #history.todos == 0 then
+        sidebar:update_content("No plan available.\n\nTodos will appear here when you use plan mode or when the assistant creates a plan.", { focus = false, scroll = false })
+        if cb then cb(args) end
+        return
+      end
+      
+      local todos = history.todos
+      local plan_text = "**Current Plan**\n\n"
+      
+      -- Group todos by status
+      local pending_todos = {}
+      local in_progress_todos = {}
+      local completed_todos = {}
+      
+      for _, todo in ipairs(todos) do
+        if todo.status == "pending" then
+          table.insert(pending_todos, todo)
+        elseif todo.status == "in_progress" then
+          table.insert(in_progress_todos, todo)
+        elseif todo.status == "completed" then
+          table.insert(completed_todos, todo)
+        end
+      end
+      
+      -- Display in-progress todos
+      if #in_progress_todos > 0 then
+        plan_text = plan_text .. "**In Progress:**\n"
+        for _, todo in ipairs(in_progress_todos) do
+          plan_text = plan_text .. "- 🔄 " .. todo.content .. "\n"
+        end
+        plan_text = plan_text .. "\n"
+      end
+      
+      -- Display pending todos
+      if #pending_todos > 0 then
+        plan_text = plan_text .. "**Pending:**\n"
+        for _, todo in ipairs(pending_todos) do
+          plan_text = plan_text .. "- ⏳ " .. todo.content .. "\n"
+        end
+        plan_text = plan_text .. "\n"
+      end
+      
+      -- Display completed todos
+      if #completed_todos > 0 then
+        plan_text = plan_text .. "**Completed:**\n"
+        for _, todo in ipairs(completed_todos) do
+          plan_text = plan_text .. "- ✅ " .. todo.content .. "\n"
+        end
+        plan_text = plan_text .. "\n"
+      end
+      
+      plan_text = plan_text .. string.format("\n**Progress:** %d/%d tasks completed", #completed_todos, #todos)
+      
+      sidebar:update_content(plan_text, { focus = false, scroll = false })
+      if cb then cb(args) end
+    end,
+    ["toggle-full-screen"] = function(sidebar, args, cb)
+      -- Toggle full-screen mode for the result window
+      sidebar:toggle_fullscreen_edit()
+      if cb then cb(args) end
+    end,
+    ["toggle-plan-mode"] = function(sidebar, args, cb)
+      -- Toggle plan-only mode
+      local Config = require("avante.config")
+      Config.plan_only_mode = not Config.plan_only_mode
+      local status = Config.plan_only_mode and "enabled" or "disabled"
+      
+      sidebar:update_content(
+        string.format("**Plan Mode %s**\n\nPlan mode is now %s.\n\n%s", 
+          status:upper(), 
+          status,
+          Config.plan_only_mode and "The assistant will only create plans, not execute code changes." or "The assistant will execute code changes normally."
+        ),
+        { focus = false, scroll = false }
+      )
+      
+      -- Update the header to reflect the change
+      sidebar:render()
       
       if cb then cb(args) end
     end,

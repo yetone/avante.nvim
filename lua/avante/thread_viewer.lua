@@ -180,6 +180,15 @@ function M.open_with_telescope(bufnr, cb)
 
   -- Create entries for telescope
   local entries = {}
+  
+  -- Add "Create New Thread" as the first entry
+  table.insert(entries, {
+    value = "__create_new__",
+    display = "[+] Create New Thread",
+    ordinal = "[+] Create New Thread",
+    is_new_thread = true,
+  })
+  
   for _, history in ipairs(histories) do
     local display_text = format_thread_entry(history)
     -- Add [EXTERNAL] tag for sessions without Avante history
@@ -208,12 +217,26 @@ function M.open_with_telescope(bufnr, cb)
       previewer = previewers.new_buffer_previewer({
         title = "Thread Preview",
         define_preview = function(self, entry)
+          local preview_lines = {}
+          
+          -- Handle "Create New Thread" entry
+          if entry.is_new_thread then
+            table.insert(preview_lines, "# Create New Thread")
+            table.insert(preview_lines, "")
+            table.insert(preview_lines, "Start a fresh conversation with a new thread.")
+            table.insert(preview_lines, "")
+            table.insert(preview_lines, "Press **Enter** to create a new thread.")
+            
+            vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, preview_lines)
+            vim.api.nvim_buf_set_option(self.state.bufnr, "filetype", "markdown")
+            return
+          end
+          
           local history = entry.history
           local Sidebar = require("avante.sidebar")
           local content = Sidebar.render_history_content(history)
           
           -- Add directory context at the top
-          local preview_lines = {}
           if history.working_directory then
             table.insert(preview_lines, "**Working Directory:** " .. history.working_directory)
             table.insert(preview_lines, "")
@@ -239,14 +262,24 @@ function M.open_with_telescope(bufnr, cb)
           local selection = action_state.get_selected_entry()
           -- Wrap close in pcall to handle potential autocmd errors
           pcall(actions.close, prompt_bufnr)
-          if selection and cb then
+          if selection then
             vim.schedule(function()
-              -- Pass external session ID if this is an external session
-              local external_session_id = nil
-              if selection.history._is_external then
-                external_session_id = selection.history.acp_session_id
+              -- Handle "Create New Thread"
+              if selection.is_new_thread then
+                -- Create a new thread by calling AvanteChatNew
+                vim.cmd("AvanteChatNew")
+                return
               end
-              cb(selection.value, external_session_id)
+              
+              -- Handle existing threads
+              if cb then
+                -- Pass external session ID if this is an external session
+                local external_session_id = nil
+                if selection.history and selection.history._is_external then
+                  external_session_id = selection.history.acp_session_id
+                end
+                cb(selection.value, external_session_id)
+              end
             end)
           end
         end)
