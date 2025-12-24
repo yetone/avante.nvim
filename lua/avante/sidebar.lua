@@ -197,6 +197,29 @@ function Sidebar:open(opts)
     vim.g.avante_login = true
   end
 
+  -- Check for saved session and offer to restore
+  if not opts.skip_session_restore then
+    vim.schedule(function()
+      local SessionManager = require("avante.session_manager")
+      if SessionManager.has_session(self.code.bufnr) then
+        local choice = vim.fn.confirm(
+          "Found a saved session for this project. Restore it?",
+          "&Yes\n&No",
+          1
+        )
+        if choice == 1 then
+          local session_state = SessionManager.load_session(self.code.bufnr)
+          if session_state then
+            SessionManager.restore_session(self, session_state)
+          end
+        else
+          -- Delete the session since user doesn't want it
+          SessionManager.delete_session(self.code.bufnr)
+        end
+      end
+    end)
+  end
+
   local acp_provider = Config.acp_providers[Config.provider]
   if acp_provider then self:handle_submit("") end
 
@@ -1027,6 +1050,12 @@ end
 function Sidebar:render_result()
   if not Utils.is_valid_container(self.containers.result) then return end
   local header_text = Utils.icon("󰭻 ") .. "Avante"
+  
+  -- Add plan mode indicator
+  if Config.plan_only_mode then
+    header_text = header_text .. " " .. Utils.icon(" ") .. "[PLAN]"
+  end
+  
   self:render_header(
     self.containers.result.winid,
     self.containers.result.bufnr,
@@ -2894,6 +2923,7 @@ function Sidebar:handle_submit(request)
     ---@diagnostic disable-next-line: assign-type-mismatch
     local stream_options = vim.tbl_deep_extend("force", generate_prompts_options, {
       just_connect_acp_client = request == "",
+      _load_existing_session = self._load_existing_session or false,
       on_start = on_start,
       on_stop = on_stop,
       on_tool_log = on_tool_log,
@@ -2905,6 +2935,8 @@ function Sidebar:handle_submit(request)
       on_save_acp_session_id = function(session_id)
         self.chat_history.acp_session_id = session_id
         Path.history.save(self.code.bufnr, self.chat_history)
+        -- Clear the load flag after saving
+        self._load_existing_session = false
       end,
       set_tool_use_store = set_tool_use_store,
       get_history_messages = function(opts) return self:get_history_messages_for_api(opts) end,

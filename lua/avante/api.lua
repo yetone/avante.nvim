@@ -280,12 +280,127 @@ function M.view_threads()
       local Path = require("avante.path")
       Path.history.save_latest_filename(buf, filename)
       local sidebar = require("avante").get()
-      sidebar:update_content_with_history()
-      sidebar:create_todos_container()
-      sidebar:initialize_token_count()
-      vim.schedule(function() sidebar:focus_input() end)
+      
+      -- Reload chat history to get the latest state
+      sidebar:reload_chat_history()
+      
+      -- If there's an ACP session, sync it with external changes
+      local history = sidebar.chat_history
+      if history and history.acp_session_id then
+        local Utils = require("avante.utils")
+        local Config = require("avante.config")
+        
+        -- Change to the working directory of the thread
+        if history.working_directory and vim.fn.isdirectory(history.working_directory) == 1 then
+          vim.cmd("cd " .. vim.fn.fnameescape(history.working_directory))
+          Utils.info("Changed directory to: " .. history.working_directory)
+        end
+        
+        -- Load the ACP session to sync state from external changes
+        if Config.acp_providers[Config.provider] then
+          Utils.info("Loading ACP session to sync external changes...")
+          
+          -- Force reconnection and session loading
+          sidebar.acp_client = nil -- Clear existing client to force reconnection
+          
+          -- Trigger a new connection with session loading
+          -- Set a flag to indicate we want to load the existing session
+          vim.schedule(function()
+            -- Store the flag in the sidebar temporarily
+            sidebar._load_existing_session = true
+            sidebar:handle_submit("")
+          end)
+        else
+          -- For non-ACP providers, just update the content
+          sidebar:update_content_with_history()
+          sidebar:create_todos_container()
+          sidebar:initialize_token_count()
+          vim.schedule(function() sidebar:focus_input() end)
+        end
+      else
+        -- No ACP session, just update normally
+        sidebar:update_content_with_history()
+        sidebar:create_todos_container()
+        sidebar:initialize_token_count()
+        vim.schedule(function() sidebar:focus_input() end)
+      end
     end)
   end)
+end
+
+function M.toggle_plan_mode()
+  local Config = require("avante.config")
+  Config.plan_only_mode = not Config.plan_only_mode
+  local status = Config.plan_only_mode and "enabled" or "disabled"
+  local Utils = require("avante.utils")
+  Utils.info("Plan Mode " .. status)
+
+  -- Update sidebar header if sidebar is open
+  local sidebar = require("avante").get()
+  if sidebar and sidebar.containers and sidebar.containers.result then
+    sidebar:render()
+  end
+end
+
+-- Session management functions
+function M.save_session()
+  local sidebar = require("avante").get()
+  if not sidebar then
+    require("avante.utils").warn("No active sidebar to save")
+    return
+  end
+  local SessionManager = require("avante.session_manager")
+  if SessionManager.save_session(sidebar) then
+    require("avante.utils").info("Session saved successfully")
+  else
+    require("avante.utils").error("Failed to save session")
+  end
+end
+
+function M.restore_session()
+  local sidebar = require("avante").get()
+  if not sidebar then
+    require("avante.api").ask()
+    sidebar = require("avante").get()
+  end
+
+  local SessionManager = require("avante.session_manager")
+  local session_state = SessionManager.load_session(sidebar.code.bufnr)
+  if not session_state then
+    require("avante.utils").warn("No saved session found for this project")
+    return
+  end
+
+  SessionManager.restore_session(sidebar, session_state)
+end
+
+function M.delete_session()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local SessionManager = require("avante.session_manager")
+  if SessionManager.delete_session(bufnr) then
+    require("avante.utils").info("Session deleted")
+  else
+    require("avante.utils").warn("No session found to delete")
+  end
+end
+
+function M.list_sessions()
+  local SessionManager = require("avante.session_manager")
+  local sessions = SessionManager.list_sessions()
+
+  if vim.tbl_count(sessions) == 0 then
+    require("avante.utils").info("No saved sessions")
+    return
+  end
+
+  print("Saved sessions:")
+  for project_root, session in pairs(sessions) do
+    print(string.format("  %s - %s (%s)",
+      vim.fn.fnamemodify(project_root, ":t"),
+      session.timestamp,
+      session.provider
+    ))
+  end
 end
 
 function M.add_buffer_files()

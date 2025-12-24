@@ -100,9 +100,12 @@ function M.open_with_telescope(bufnr, cb)
       attach_mappings = function(prompt_bufnr, map)
         actions.select_default:replace(function()
           local selection = action_state.get_selected_entry()
-          actions.close(prompt_bufnr)
+          -- Wrap close in pcall to handle potential autocmd errors
+          pcall(actions.close, prompt_bufnr)
           if selection and cb then
-            cb(selection.value)
+            vim.schedule(function()
+              cb(selection.value)
+            end)
           end
         end)
 
@@ -112,9 +115,12 @@ function M.open_with_telescope(bufnr, cb)
           if selection then
             Path.history.delete(bufnr, selection.value)
             Utils.info("Deleted thread: " .. selection.display)
-            actions.close(prompt_bufnr)
-            -- Reopen the picker to refresh
-            M.open_with_telescope(bufnr, cb)
+            -- Wrap close in pcall to handle potential autocmd errors
+            pcall(actions.close, prompt_bufnr)
+            -- Reopen the picker to refresh (with slight delay to avoid conflicts)
+            vim.schedule(function()
+              M.open_with_telescope(bufnr, cb)
+            end)
           end
         end)
 

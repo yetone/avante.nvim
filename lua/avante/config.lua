@@ -31,6 +31,8 @@ M._defaults = {
   ---@alias avante.Mode "agentic" | "legacy"
   ---@type avante.Mode
   mode = "agentic",
+  ---@type boolean
+  plan_only_mode = false,
   ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | "watsonx_code_assistant" | string
   ---@type avante.ProviderName
   provider = "claude",
@@ -555,6 +557,9 @@ M._defaults = {
     --- Whether to automatically open files and navigate to lines when ACP agent makes edits
     ---@type boolean
     acp_follow_agent_locations = true,
+    --- Whether to prompt before exiting when there are active ACP sessions
+    ---@type boolean
+    prompt_on_exit_with_active_session = true,
   },
   prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
     enabled = true, -- toggle logging entirely
@@ -631,6 +636,7 @@ M._defaults = {
       selection = "<leader>aC",
       suggestion = "<leader>as",
       repomap = "<leader>aR",
+      plan_mode = "<leader>ap",
     },
     sidebar = {
       expand_tool_use = "<S-Tab>",

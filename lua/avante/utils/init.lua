@@ -1582,6 +1582,14 @@ function M.get_commands()
       name = "lines",
     },
     { description = "Commit the changes", name = "commit" },
+    { description = "Show current conversation cost", name = "cost" },
+    { description = "Show project context summary", name = "context" },
+    { description = "Show conversation memory summary", name = "memory" },
+    { 
+      shorthelp = "Add a directory to file selector",
+      description = "/dir [path] - Add directory to context",
+      name = "dir"
+    },
   }
 
   ---@type {[AvanteSlashCommandBuiltInName]: AvanteSlashCommandCallback}
@@ -1601,6 +1609,180 @@ function M.get_commands()
     commit = function(_, _, cb)
       local question = "Please commit the changes"
       if cb then cb(question) end
+    end,
+    cost = function(sidebar, args, cb)
+      local history = sidebar.chat_history
+      if not history or not history.tokens_usage then
+        sidebar:update_content("No token usage information available", { focus = false, scroll = false })
+        if cb then cb(args) end
+        return
+      end
+      
+      local usage = history.tokens_usage
+      local prompt_tokens = usage.prompt_tokens or 0
+      local completion_tokens = usage.completion_tokens or 0
+      local total_tokens = prompt_tokens + completion_tokens
+      
+      -- Pricing (as of 2024, adjust as needed)
+      -- Claude Sonnet 4.5: $3/$15 per million tokens
+      local Config = require("avante.config")
+      local provider = Config.provider
+      local model = Config.providers[provider] and Config.providers[provider].model or "unknown"
+      
+      -- Default pricing (Claude Sonnet 4.5)
+      local input_price_per_million = 3.0
+      local output_price_per_million = 15.0
+      
+      -- Calculate costs
+      local input_cost = (prompt_tokens / 1000000) * input_price_per_million
+      local output_cost = (completion_tokens / 1000000) * output_price_per_million
+      local total_cost = input_cost + output_cost
+      
+      local cost_text = string.format(
+        [[**Conversation Cost**
+
+Provider: %s
+Model: %s
+
+**Token Usage:**
+- Prompt tokens: %s
+- Completion tokens: %s
+- Total tokens: %s
+
+**Estimated Cost (USD):**
+- Input: $%.4f
+- Output: $%.4f
+- Total: $%.4f
+
+Note: Pricing based on standard Claude Sonnet 4.5 rates ($3/$15 per million tokens).
+Actual costs may vary by provider and model.]],
+        provider,
+        model,
+        M.format_number(prompt_tokens),
+        M.format_number(completion_tokens),
+        M.format_number(total_tokens),
+        input_cost,
+        output_cost,
+        total_cost
+      )
+      
+      sidebar:update_content(cost_text, { focus = false, scroll = false })
+      if cb then cb(args) end
+    end,
+    context = function(sidebar, args, cb)
+      -- Show current project context information
+      local selected_files = sidebar.file_selector and sidebar.file_selector.selected_filepaths or {}
+      local project_root = M.get_project_root()
+      local working_dir = vim.fn.getcwd()
+      
+      local context_text = string.format(
+        [[**Project Context**
+
+**Project Root:** %s
+**Working Directory:** %s
+
+**Selected Files (%d):**
+%s
+
+**Recent Files:**
+%s
+
+Use `/dir <path>` to add directories to context.
+Use `@` or the file selector to add individual files.]],
+        project_root,
+        working_dir,
+        #selected_files,
+        #selected_files > 0 and table.concat(vim.iter(selected_files):map(function(f) 
+          return "- " .. M.relative_path(f) 
+        end):totable(), "\n") or "(none)",
+        table.concat(vim.iter(vim.v.oldfiles):take(10):map(function(f)
+          return "- " .. M.relative_path(f)
+        end):totable(), "\n")
+      )
+      
+      sidebar:update_content(context_text, { focus = false, scroll = false })
+      if cb then cb(args) end
+    end,
+    memory = function(sidebar, args, cb)
+      -- Show conversation memory summary
+      local history = sidebar.chat_history
+      if not history or not history.memory then
+        sidebar:update_content("No conversation memory available.\n\nMemory is created after compacting history with `/compact`.", { focus = false, scroll = false })
+        if cb then cb(args) end
+        return
+      end
+      
+      local memory = history.memory
+      local memory_text = string.format(
+        [[**Conversation Memory**
+
+**Last Summarized:** %s
+**Last Message ID:** %s
+
+**Summary:**
+%s
+
+---
+
+This is the compressed memory of earlier conversation turns.
+Use `/compact` to update the memory with recent messages.]],
+        memory.last_summarized_timestamp or "unknown",
+        memory.last_message_uuid or "unknown",
+        memory.content or "(empty)"
+      )
+      
+      sidebar:update_content(memory_text, { focus = false, scroll = false })
+      if cb then cb(args) end
+    end,
+    dir = function(sidebar, args, cb)
+      -- Add a directory to the file selector
+      local path = args and M.trim_spaces(args) or ""
+      
+      if path == "" then
+        -- If no path provided, open directory picker
+        local function on_select(selected_paths)
+          if selected_paths and #selected_paths > 0 then
+            for _, selected_path in ipairs(selected_paths) do
+              if vim.fn.isdirectory(selected_path) == 1 then
+                sidebar.file_selector:process_directory(selected_path)
+                sidebar:update_content(
+                  "Added directory: " .. M.relative_path(selected_path),
+                  { focus = false, scroll = false }
+                )
+              end
+            end
+          end
+        end
+        
+        -- Use file selector to pick directory
+        if sidebar.file_selector then
+          sidebar.file_selector:open(on_select)
+        end
+        if cb then cb("") end
+        return
+      end
+      
+      -- Add the specified directory
+      local abs_path = M.to_absolute_path(path)
+      if vim.fn.isdirectory(abs_path) == 0 then
+        sidebar:update_content(
+          "Error: '" .. path .. "' is not a directory",
+          { focus = false, scroll = false }
+        )
+        if cb then cb(args) end
+        return
+      end
+      
+      if sidebar.file_selector then
+        sidebar.file_selector:process_directory(abs_path)
+        local files = M.scan_directory({ directory = abs_path, add_dirs = false })
+        sidebar:update_content(
+          string.format("Added directory: %s (%d files)", M.relative_path(abs_path), #files),
+          { focus = false, scroll = false }
+        )
+      end
+      
+      if cb then cb(args) end
     end,
   }
 

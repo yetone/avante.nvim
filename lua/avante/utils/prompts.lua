@@ -144,6 +144,45 @@ Parameters:
   return system_prompt
 end
 
+--- Get the plan mode system prompt that forces planning-only behavior
+---@return string
+function M.get_plan_mode_prompt()
+  return [[
+
+====
+
+PLAN MODE - READ THIS CAREFULLY
+
+You are currently in PLAN MODE. This means you MUST NOT execute any code changes or write any files directly.
+
+Your ONLY job is to:
+1. Analyze the user's request thoroughly
+2. Break it down into clear, actionable steps
+3. Provide a detailed implementation plan
+
+You MUST follow these rules:
+- DO NOT use edit_file, write_to_file, str_replace, or any file modification tools
+- DO NOT use bash or execute tools unless specifically for exploration/research
+- DO use read_file, grep, or search tools to understand the codebase
+- ALWAYS end your response with a comprehensive plan using the write_todos tool
+
+Your plan should include:
+- Clear step-by-step implementation tasks
+- Files that need to be modified or created
+- Key functions or components to implement
+- Potential edge cases or considerations
+- Testing strategies
+- Dependencies or prerequisites
+
+Format your plan entries with appropriate priorities:
+- high: Critical tasks that block other work
+- medium: Important tasks for core functionality  
+- low: Nice-to-have improvements or optimizations
+
+Remember: In PLAN MODE, you are a planner and architect, NOT an executor. Provide the roadmap, but do not implement it.
+]]
+end
+
 --- Get the content of AGENTS.md or CLAUDE.md or OPENCODE.md
 ---@return string | nil
 function M.get_agents_rules_prompt()
