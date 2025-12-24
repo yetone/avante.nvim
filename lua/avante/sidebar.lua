@@ -122,6 +122,7 @@ function Sidebar:new(id)
     current_tool_use_extmark_id = nil,
     win_width_store = {},
     is_in_full_view = false,
+    is_in_fullscreen_edit = false,
   }, Sidebar)
 end
 
@@ -162,6 +163,7 @@ function Sidebar:reset()
   self.current_tool_use_extmark_id = nil
   self.win_size_store = {}
   self.is_in_full_view = false
+  self.is_in_fullscreen_edit = false
 end
 
 ---@class SidebarOpenOptions: AskOptions
@@ -1661,6 +1663,50 @@ function Sidebar:toggle_code_window()
   end
 
   self.is_in_full_view = not self.is_in_full_view
+end
+
+--- Toggle full-screen edit mode for the result window
+function Sidebar:toggle_fullscreen_edit()
+  if self.is_in_fullscreen_edit then
+    -- Exit fullscreen edit mode
+    self.is_in_fullscreen_edit = false
+    
+    -- Restore original modifiable state
+    if self.containers.result.bufnr and api.nvim_buf_is_valid(self.containers.result.bufnr) then
+      vim.bo[self.containers.result.bufnr].modifiable = false
+    end
+    
+    -- Return to normal view
+    if self.is_in_full_view then
+      self:toggle_code_window()
+    end
+    
+    Utils.info("Exited fullscreen edit mode")
+  else
+    -- Enter fullscreen edit mode
+    self.is_in_fullscreen_edit = true
+    
+    -- First, make sure we're in full view
+    if not self.is_in_full_view then
+      self:toggle_code_window()
+    end
+    
+    -- Make the result buffer editable
+    if self.containers.result.bufnr and api.nvim_buf_is_valid(self.containers.result.bufnr) then
+      vim.bo[self.containers.result.bufnr].modifiable = true
+      
+      -- Set up keybindings for fullscreen edit mode
+      self.containers.result:map("n", "<Esc>", function() self:toggle_fullscreen_edit() end)
+      self.containers.result:map("n", "q", function() self:toggle_fullscreen_edit() end)
+      
+      -- Focus the result window
+      if self.containers.result.winid and api.nvim_win_is_valid(self.containers.result.winid) then
+        api.nvim_set_current_win(self.containers.result.winid)
+      end
+      
+      Utils.info("Fullscreen edit mode - Press <Esc> or 'q' to exit")
+    end
+  end
 end
 
 --- Initialize the sidebar instance.
@@ -3205,6 +3251,7 @@ function Sidebar:render(opts)
 
   self.containers.result:map("n", Config.mappings.sidebar.close, function() self:shutdown() end)
   self.containers.result:map("n", Config.mappings.sidebar.toggle_code_window, function() self:toggle_code_window() end)
+  self.containers.result:map("n", Config.mappings.sidebar.toggle_fullscreen_edit, function() self:toggle_fullscreen_edit() end)
 
   self:create_input_container()
 

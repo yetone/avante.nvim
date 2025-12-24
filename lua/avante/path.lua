@@ -136,6 +136,7 @@ function History.new(bufnr)
     messages = {},
     todos = {},
     filename = filepath_to_filename(filepath),
+    working_directory = vim.fn.getcwd(),
   }
   return history
 end

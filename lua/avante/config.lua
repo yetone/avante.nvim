@@ -643,6 +643,7 @@ M._defaults = {
       switch_windows = "<Tab>",
       reverse_switch_windows = "<S-Tab>",
       toggle_code_window = "x",
+      toggle_fullscreen_edit = "<S-f>",
       remove_file = "d",
       add_file = "@",
       close = { "q" },

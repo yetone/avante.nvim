@@ -272,6 +272,22 @@ function M.select_history()
   end)
 end
 
+function M.view_threads()
+  local buf = vim.api.nvim_get_current_buf()
+  require("avante.thread_viewer").open(buf, function(filename)
+    vim.api.nvim_buf_call(buf, function()
+      if not require("avante").is_sidebar_open() then require("avante").open_sidebar({}) end
+      local Path = require("avante.path")
+      Path.history.save_latest_filename(buf, filename)
+      local sidebar = require("avante").get()
+      sidebar:update_content_with_history()
+      sidebar:create_todos_container()
+      sidebar:initialize_token_count()
+      vim.schedule(function() sidebar:focus_input() end)
+    end)
+  end)
+end
+
 function M.add_buffer_files()
   local sidebar = require("avante").get()
   if not sidebar then
