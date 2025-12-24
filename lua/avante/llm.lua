@@ -1385,6 +1385,12 @@ function M._load_and_continue_acp_session(opts, acp_client, session_id)
       Utils.warn("Failed to load ACP session: " .. vim.inspect(err))
       -- Fall back to continuing without loading
       M._continue_stream_acp(opts, acp_client, session_id)
+      -- Trigger callback even on error
+      if opts._on_session_load_complete then
+        vim.schedule(function()
+          opts._on_session_load_complete()
+        end)
+      end
       return
     end
     
@@ -1392,6 +1398,13 @@ function M._load_and_continue_acp_session(opts, acp_client, session_id)
     
     -- Mark this as session recovery to preserve context
     opts._is_session_recovery = true
+    
+    -- Trigger callback after session load completes
+    if opts._on_session_load_complete then
+      vim.schedule(function()
+        opts._on_session_load_complete()
+      end)
+    end
     
     M._continue_stream_acp(opts, acp_client, session_id)
   end)

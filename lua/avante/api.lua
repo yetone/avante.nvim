@@ -274,14 +274,70 @@ end
 
 function M.view_threads()
   local buf = vim.api.nvim_get_current_buf()
-  require("avante.thread_viewer").open(buf, function(filename)
+  require("avante.thread_viewer").open(buf, function(filename, external_session_id)
     vim.api.nvim_buf_call(buf, function()
       if not require("avante").is_sidebar_open() then require("avante").open_sidebar({}) end
       local Path = require("avante.path")
+      local Utils = require("avante.utils")
+      
+      -- Handle external ACP sessions (sessions created outside Avante)
+      if external_session_id then
+        -- Create a new Avante history for this external session
+        local sidebar = require("avante").get()
+        sidebar:reload_chat_history() -- This will create a new history if none exists
+        
+        -- Set the ACP session ID to link it with the external session
+        sidebar.chat_history.acp_session_id = external_session_id
+        
+        -- Get the working directory from the external session info
+        local thread_viewer = require("avante.thread_viewer")
+        local external_info = thread_viewer.get_external_session_info(external_session_id)
+        if external_info and external_info.working_directory then
+          sidebar.chat_history.working_directory = external_info.working_directory
+          if vim.fn.isdirectory(external_info.working_directory) == 1 then
+            vim.cmd("cd " .. vim.fn.fnameescape(external_info.working_directory))
+            Utils.info("Changed directory to: " .. external_info.working_directory)
+          end
+        end
+        
+        -- Save the history with the ACP session ID
+        Path.history.save(buf, sidebar.chat_history)
+        Path.history.save_latest_filename(buf, sidebar.chat_history.filename)
+        
+        -- Load the external session to sync its state
+        local Config = require("avante.config")
+        if Config.acp_providers[Config.provider] then
+          Utils.info("Loading external ACP session...")
+          
+          sidebar.acp_client = nil -- Force reconnection
+          sidebar._on_session_load_complete = function()
+            sidebar:reload_chat_history()
+            sidebar:update_content_with_history()
+            sidebar:create_todos_container()
+            sidebar:initialize_token_count()
+            vim.schedule(function() sidebar:focus_input() end)
+            sidebar._on_session_load_complete = nil
+          end
+          
+          vim.schedule(function()
+            sidebar._load_existing_session = true
+            sidebar:handle_submit("")
+          end)
+        else
+          sidebar:update_content_with_history()
+          sidebar:create_todos_container()
+          sidebar:initialize_token_count()
+          vim.schedule(function() sidebar:focus_input() end)
+        end
+        
+        return
+      end
+      
+      -- Handle regular Avante history
       Path.history.save_latest_filename(buf, filename)
       local sidebar = require("avante").get()
       
-      -- Reload chat history to get the latest state
+      -- Reload chat history to get the latest state from disk
       sidebar:reload_chat_history()
       
       -- If there's an ACP session, sync it with external changes
@@ -290,10 +346,20 @@ function M.view_threads()
         local Utils = require("avante.utils")
         local Config = require("avante.config")
         
-        -- Change to the working directory of the thread
+        -- Change to the working directory of the thread FIRST
         if history.working_directory and vim.fn.isdirectory(history.working_directory) == 1 then
           vim.cmd("cd " .. vim.fn.fnameescape(history.working_directory))
           Utils.info("Changed directory to: " .. history.working_directory)
+        end
+        
+        -- Restore selected files from history
+        if history.selected_files and sidebar.file_selector then
+          -- Clear existing selected files
+          sidebar.file_selector.selected_files = {}
+          -- Add files from history
+          for _, filepath in ipairs(history.selected_files) do
+            sidebar.file_selector:add_selected_file(filepath)
+          end
         end
         
         -- Load the ACP session to sync state from external changes
@@ -303,10 +369,22 @@ function M.view_threads()
           -- Force reconnection and session loading
           sidebar.acp_client = nil -- Clear existing client to force reconnection
           
+          -- Set callback to update UI after session load completes
+          sidebar._on_session_load_complete = function()
+            -- Reload history to pick up any changes synced from ACP
+            sidebar:reload_chat_history()
+            sidebar:update_content_with_history()
+            sidebar:create_todos_container()
+            sidebar:initialize_token_count()
+            vim.schedule(function() 
+              sidebar:focus_input()
+            end)
+            -- Clear the callback
+            sidebar._on_session_load_complete = nil
+          end
+          
           -- Trigger a new connection with session loading
-          -- Set a flag to indicate we want to load the existing session
           vim.schedule(function()
-            -- Store the flag in the sidebar temporarily
             sidebar._load_existing_session = true
             sidebar:handle_submit("")
           end)

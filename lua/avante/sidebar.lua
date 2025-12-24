@@ -2330,7 +2330,13 @@ function Sidebar:new_chat(args, cb)
 end
 
 local debounced_save_history = Utils.debounce(
-  function(self) Path.history.save(self.code.bufnr, self.chat_history) end,
+  function(self)
+    -- Update selected files before saving
+    if self.file_selector then
+      self.chat_history.selected_files = self.file_selector:get_selected_filepaths()
+    end
+    Path.history.save(self.code.bufnr, self.chat_history)
+  end,
   1000
 )
 
@@ -2924,6 +2930,7 @@ function Sidebar:handle_submit(request)
     local stream_options = vim.tbl_deep_extend("force", generate_prompts_options, {
       just_connect_acp_client = request == "",
       _load_existing_session = self._load_existing_session or false,
+      _on_session_load_complete = self._on_session_load_complete,
       on_start = on_start,
       on_stop = on_stop,
       on_tool_log = on_tool_log,
