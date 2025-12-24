@@ -75,13 +75,13 @@ function M.confirm(message, callback, confirm_opts, session_ctx, tool_name)
   end
 
   if Config.behaviour.confirmation_ui_style == "inline_buttons" then
-    M.confirm_inline(function(option_id)
-      if option_id == "allow" or option_id == "allow_once" or option_id == "allow_always" then
-        if option_id == "allow_always" and session_ctx then session_ctx.always_yes = true end
+    M.confirm_inline(function(kind)
+      if kind == "allow" or kind == "allow_once" or kind == "allow_always" then
+        if kind == "allow_always" and session_ctx then session_ctx.always_yes = true end
 
         callback(true)
       else
-        callback(false, option_id)
+        callback(false, kind)
       end
     end, confirm_opts or {})
     return
