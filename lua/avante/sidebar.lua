@@ -1694,47 +1694,57 @@ function Sidebar:toggle_code_window()
   self.is_in_full_view = not self.is_in_full_view
 end
 
---- Toggle full-screen edit mode for the result window
+--- Toggle full-screen mode for the currently focused container
 function Sidebar:toggle_fullscreen_edit()
+  -- Get the currently focused window
+  local current_winid = api.nvim_get_current_win()
+  local focused_container = self:get_sidebar_window(current_winid)
+
+  if not focused_container then
+    Utils.warn("No sidebar container is currently focused")
+    return
+  end
+
   if self.is_in_fullscreen_edit then
-    -- Exit fullscreen edit mode
+    -- Exit fullscreen mode: restore all hidden containers
     self.is_in_fullscreen_edit = false
-    
-    -- Restore original modifiable state
-    if self.containers.result.bufnr and api.nvim_buf_is_valid(self.containers.result.bufnr) then
-      vim.bo[self.containers.result.bufnr].modifiable = false
-    end
-    
-    -- Return to normal view
-    if self.is_in_full_view then
-      self:toggle_code_window()
-    end
-    
-    Utils.info("Exited fullscreen edit mode")
-  else
-    -- Enter fullscreen edit mode
-    self.is_in_fullscreen_edit = true
-    
-    -- First, make sure we're in full view
-    if not self.is_in_full_view then
-      self:toggle_code_window()
-    end
-    
-    -- Make the result buffer editable
-    if self.containers.result.bufnr and api.nvim_buf_is_valid(self.containers.result.bufnr) then
-      vim.bo[self.containers.result.bufnr].modifiable = true
-      
-      -- Set up keybindings for fullscreen edit mode
-      self.containers.result:map("n", "<Esc>", function() self:toggle_fullscreen_edit() end)
-      self.containers.result:map("n", "q", function() self:toggle_fullscreen_edit() end)
-      
-      -- Focus the result window
-      if self.containers.result.winid and api.nvim_win_is_valid(self.containers.result.winid) then
-        api.nvim_set_current_win(self.containers.result.winid)
+
+    -- Restore all previously visible containers
+    if self.fullscreen_hidden_containers then
+      for container_name, container in pairs(self.fullscreen_hidden_containers) do
+        if container and Utils.is_valid_container(container) then
+          -- Remount the container
+          container:mount()
+        elseif container_name == "selected_code" then
+          self:create_selected_code_container()
+        elseif container_name == "selected_files" then
+          self:create_selected_files_container()
+        elseif container_name == "todos" then
+          self:create_todos_container()
+        end
       end
-      
-      Utils.info("Fullscreen edit mode - Press <Esc> or 'q' to exit")
+      self.fullscreen_hidden_containers = nil
     end
+
+    self:adjust_layout()
+    Utils.info("Exited fullscreen mode")
+  else
+    -- Enter fullscreen mode: hide all other containers
+    self.is_in_fullscreen_edit = true
+    self.fullscreen_hidden_containers = {}
+
+    -- Hide all containers except the focused one
+    for container_name, container in pairs(self.containers) do
+      if container ~= focused_container and Utils.is_valid_container(container, true) then
+        -- Store the container before hiding it
+        self.fullscreen_hidden_containers[container_name] = container
+        -- Unmount (hide) the container
+        container:unmount()
+      end
+    end
+
+    self:adjust_layout()
+    Utils.info("Entered fullscreen mode - Run /toggle-full-screen again to exit")
   end
 end
 
@@ -3235,6 +3245,7 @@ end
 
 ---@param opts AskOptions
 function Sidebar:render(opts)
+  opts = opts or {}
   self.augroup = api.nvim_create_augroup("avante_sidebar_" .. self.id, { clear = true })
 
   -- This autocommand needs to be registered first, before NuiSplit

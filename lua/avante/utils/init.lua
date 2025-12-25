@@ -1789,6 +1789,11 @@ Use `/compact` to update the memory with recent messages.]],
     end,
     plan = function(sidebar, args, cb)
       -- Show the current plan from todos
+      -- Ensure chat history is loaded
+      if not sidebar.chat_history then
+        sidebar:reload_chat_history()
+      end
+      
       local history = sidebar.chat_history
       if not history or not history.todos or #history.todos == 0 then
         sidebar:update_content("No plan available.\n\nTodos will appear here when you use plan mode or when the assistant creates a plan.", { focus = false, scroll = false })
@@ -1867,7 +1872,7 @@ Use `/compact` to update the memory with recent messages.]],
       )
       
       -- Update the header to reflect the change
-      sidebar:render()
+      sidebar:render_result()
       
       if cb then cb(args) end
     end,

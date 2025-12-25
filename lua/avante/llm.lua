@@ -458,7 +458,14 @@ function M.generate_prompts(opts)
   if agents_rules then system_prompt = system_prompt .. "\n\n" .. agents_rules end
   local cursor_rules = Prompts.get_cursor_rules_prompt(selected_files)
   if cursor_rules then system_prompt = system_prompt .. "\n\n" .. cursor_rules end
-  
+
+  -- Add workspace context
+  local workspace_context = "\n\n<workspace_context>\n"
+    .. "Working directory: " .. Utils.root.get() .. "\n"
+    .. "Git root: " .. Utils.root.git() .. "\n"
+    .. "</workspace_context>"
+  system_prompt = system_prompt .. workspace_context
+
   -- Add plan mode prompt if enabled
   if Config.plan_only_mode then
     system_prompt = system_prompt .. "\n\n" .. Prompts.get_plan_mode_prompt()
