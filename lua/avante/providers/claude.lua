@@ -320,7 +320,9 @@ function M:parse_curl_args(prompt_opts)
   local headers = {
     ["Content-Type"] = "application/json",
     ["anthropic-version"] = "2023-06-01",
-    ["anthropic-beta"] = "prompt-caching-2024-07-31",
+    ["anthropic-beta"] = Config.plan_only_mode
+      and "prompt-caching-2024-07-31,interleaved-thinking-2025-05-14"
+      or "prompt-caching-2024-07-31",
   }
 
   if P.env.require_api_key(provider_conf) then
@@ -405,24 +407,34 @@ function M:parse_curl_args(prompt_opts)
     end
   end
 
+  local body = vim.tbl_deep_extend("force", {
+    model = provider_conf.model,
+    system = {
+      {
+        type = "text",
+        text = prompt_opts.system_prompt,
+        cache_control = self.support_prompt_caching and { type = "ephemeral" } or nil,
+      },
+    },
+    messages = messages,
+    tools = tools,
+    stream = true,
+  }, request_body)
+
+  -- Enable extended thinking for plan mode
+  if Config.plan_only_mode then
+    body.thinking = {
+      type = "enabled",
+      budget_tokens = 10000,  -- Allow substantial thinking for planning
+    }
+  end
+
   return {
     url = Utils.url_join(provider_conf.endpoint, "/v1/messages"),
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,
     headers = Utils.tbl_override(headers, self.extra_headers),
-    body = vim.tbl_deep_extend("force", {
-      model = provider_conf.model,
-      system = {
-        {
-          type = "text",
-          text = prompt_opts.system_prompt,
-          cache_control = self.support_prompt_caching and { type = "ephemeral" } or nil,
-        },
-      },
-      messages = messages,
-      tools = tools,
-      stream = true,
-    }, request_body),
+    body = body,
   }
 end
 

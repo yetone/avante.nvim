@@ -1422,6 +1422,16 @@ end
 ---@param session_id string
 function M._continue_stream_acp(opts, acp_client, session_id)
   local prompt = {}
+
+  -- Add plan mode instructions at the beginning of the prompt if enabled
+  if Config.plan_only_mode then
+    local Prompts = require("avante.utils.prompts")
+    table.insert(prompt, {
+      type = "text",
+      text = "<system_context>" .. Prompts.get_plan_mode_prompt() .. "</system_context>",
+    })
+  end
+
   local donot_use_builtin_system_prompt = opts.history_messages ~= nil and #opts.history_messages > 0
   if donot_use_builtin_system_prompt then
     if opts.selected_filepaths then
