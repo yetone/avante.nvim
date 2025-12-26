@@ -650,6 +650,7 @@ M._defaults = {
       reverse_switch_windows = "<S-Tab>",
       toggle_code_window = "x",
       toggle_fullscreen_edit = "<S-f>",
+      toggle_input_fullscreen = "<C-f>",
       remove_file = "d",
       add_file = "@",
       close = { "q" },
@@ -796,6 +797,8 @@ M._defaults = {
   custom_tools = {},
   ---@type AvanteSlashCommand[]
   slash_commands = {},
+  ---@type string | nil Path to directory containing .mdx shortcut files
+  shortcuts_directory = nil,
   ---@type AvanteShortcut[]
   shortcuts = {},
   ---@type AskOptions

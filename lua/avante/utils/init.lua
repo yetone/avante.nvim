@@ -1162,30 +1162,50 @@ function M.get_shortcuts()
     },
   }
 
+  -- Load MDX shortcuts from directory if configured
+  local mdx_shortcuts = {}
+  if Config.shortcuts_directory then
+    local MDXParser = require("avante.utils.mdx_parser")
+    mdx_shortcuts = MDXParser.load_shortcuts_from_directory(Config.shortcuts_directory)
+  end
+
   local user_shortcuts = Config.shortcuts or {}
   local result = {}
 
-  -- Create a map of builtin shortcuts by name for quick lookup
+  -- Create maps for quick lookup (precedence: config > mdx > builtin)
   local builtin_map = {}
   for _, shortcut in ipairs(builtin_shortcuts) do
     builtin_map[shortcut.name] = shortcut
   end
 
-  -- Process user shortcuts first (they take precedence)
+  local mdx_map = {}
+  for _, shortcut in ipairs(mdx_shortcuts) do
+    mdx_map[shortcut.name] = shortcut
+  end
+
+  -- Track which shortcuts have been added to avoid duplicates
+  local added = {}
+
+  -- Priority 1: User shortcuts from config (highest precedence)
   for _, user_shortcut in ipairs(user_shortcuts) do
-    if builtin_map[user_shortcut.name] then
-      -- User has overridden a builtin shortcut
-      table.insert(result, user_shortcut)
-      builtin_map[user_shortcut.name] = nil -- Remove from builtin map
-    else
-      -- User has added a new shortcut
-      table.insert(result, user_shortcut)
+    table.insert(result, user_shortcut)
+    added[user_shortcut.name] = true
+  end
+
+  -- Priority 2: MDX shortcuts (override builtins, but not config)
+  for _, mdx_shortcut in ipairs(mdx_shortcuts) do
+    if not added[mdx_shortcut.name] then
+      table.insert(result, mdx_shortcut)
+      added[mdx_shortcut.name] = true
     end
   end
 
-  -- Add remaining builtin shortcuts that weren't overridden
-  for _, builtin_shortcut in pairs(builtin_map) do
-    table.insert(result, builtin_shortcut)
+  -- Priority 3: Built-in shortcuts (lowest precedence)
+  for _, builtin_shortcut in ipairs(builtin_shortcuts) do
+    if not added[builtin_shortcut.name] then
+      table.insert(result, builtin_shortcut)
+      added[builtin_shortcut.name] = true
+    end
   end
 
   return result

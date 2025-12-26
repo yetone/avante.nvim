@@ -1748,6 +1748,54 @@ function Sidebar:toggle_fullscreen_edit()
   end
 end
 
+function Sidebar:toggle_input_fullscreen()
+  if not Utils.is_valid_container(self.containers.input, true) then
+    Utils.warn("Input container not available")
+    return
+  end
+
+  local input_winid = self.containers.input.winid
+  
+  if self.is_input_fullscreen then
+    -- Exit fullscreen mode: restore normal height
+    self.is_input_fullscreen = false
+    
+    -- Restore to normal height based on layout
+    if self:get_layout() == "vertical" then
+      api.nvim_win_set_height(input_winid, Config.windows.input.height)
+    else
+      -- In horizontal layout, calculate normal height
+      if Utils.is_valid_container(self.containers.result, true) then
+        local result_height = api.nvim_win_get_height(self.containers.result.winid)
+        local selected_code_height = self:get_selected_code_container_height()
+        local normal_height = math.max(1, result_height - selected_code_height)
+        api.nvim_win_set_height(input_winid, normal_height)
+      end
+    end
+    
+    Utils.info("Input: normal size")
+  else
+    -- Enter fullscreen mode: maximize input height
+    self.is_input_fullscreen = true
+    
+    -- Calculate and set fullscreen height
+    if self:get_layout() == "vertical" then
+      local available_height = vim.o.lines
+      local new_height = math.floor(available_height * 0.8)
+      api.nvim_win_set_height(input_winid, new_height)
+    else
+      -- In horizontal layout, take most of the result window height
+      if Utils.is_valid_container(self.containers.result, true) then
+        local result_height = api.nvim_win_get_height(self.containers.result.winid)
+        local new_height = math.floor(result_height * 0.9)
+        api.nvim_win_set_height(input_winid, new_height)
+      end
+    end
+    
+    Utils.info("Input: fullscreen mode (<C-f> to exit)")
+  end
+end
+
 --- Initialize the sidebar instance.
 --- @return avante.Sidebar The Sidebar instance.
 function Sidebar:initialize()
@@ -3016,6 +3064,25 @@ function Sidebar:create_input_container()
   end
 
   local function get_size()
+    -- Handle fullscreen input mode
+    if self.is_input_fullscreen then
+      if self:get_layout() == "vertical" then
+        -- In vertical layout, take up most of the sidebar height
+        local available_height = vim.o.lines
+        return {
+          height = math.floor(available_height * 0.8),
+        }
+      else
+        -- In horizontal layout, take up most of the result window height
+        local result_height = api.nvim_win_get_height(self.containers.result.winid)
+        return {
+          width = "40%",
+          height = math.floor(result_height * 0.9),
+        }
+      end
+    end
+
+    -- Normal sizing logic
     if self:get_layout() == "vertical" then return {
       height = Config.windows.input.height,
     } end
@@ -3067,6 +3134,8 @@ function Sidebar:create_input_container()
   self:setup_window_navigation(self.containers.input)
   self.containers.input:map("n", Config.mappings.submit.normal, on_submit)
   self.containers.input:map("i", Config.mappings.submit.insert, on_submit)
+  self.containers.input:map("n", Config.mappings.sidebar.toggle_input_fullscreen, function() self:toggle_input_fullscreen() end)
+  self.containers.input:map("i", Config.mappings.sidebar.toggle_input_fullscreen, function() self:toggle_input_fullscreen() end)
   if Config.prompt_logger.next_prompt.normal then
     self.containers.input:map("n", Config.prompt_logger.next_prompt.normal, PromptLogger.on_log_retrieve(-1))
   end
