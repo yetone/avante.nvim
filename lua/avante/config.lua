@@ -268,7 +268,8 @@ M._defaults = {
       args = { "acp" },
     },
     ["codex"] = {
-      command = "codex-acp",
+      command = "npx",
+      args = { "-y", "@zed-industries/codex-acp" },
       env = {
         NODE_NO_WARNINGS = "1",
         HOME = os.getenv("HOME"),
