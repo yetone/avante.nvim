@@ -1338,7 +1338,9 @@ end
 ---@param acp_client avante.acp.ACPClient
 function M._create_acp_session_and_continue(opts, acp_client)
   local project_root = Utils.root.get()
-  acp_client:create_session(project_root, {}, function(session_id_, err)
+  local acp_provider = Config.acp_providers[Config.provider] or {}
+  local mcp_servers = acp_provider.mcp_servers or {}
+  acp_client:create_session(project_root, mcp_servers, function(session_id_, err)
     if err then
       opts.on_stop({ reason = "error", error = err })
       return
