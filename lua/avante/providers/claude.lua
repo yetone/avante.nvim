@@ -5,6 +5,11 @@ local HistoryMessage = require("avante.history.message")
 local JsonParser = require("avante.libs.jsonparser")
 local Config = require("avante.config")
 
+---@class AvanteAnthropicProvider : AvanteDefaultBaseProvider
+---@field auth_endpoint string
+---@field token_endpoint string
+---@field auth_type "api" | "oauth"
+
 ---@class AvanteProviderFunctor
 local M = {}
 
@@ -323,6 +328,8 @@ function M:parse_curl_args(prompt_opts)
     ["anthropic-beta"] = "prompt-caching-2024-07-31",
   }
 
+  -- TODO: get api_key from auth.json instead of system API key
+  -- in vim.stdpath("data") if "max" is set as auth_type
   if P.env.require_api_key(provider_conf) then
     local api_key = self.parse_api_key()
     if not api_key then

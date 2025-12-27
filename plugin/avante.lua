@@ -184,3 +184,8 @@ cmd("ShowRepoMap", function() require("avante.repo_map").show() end, { desc = "a
 cmd("Models", function() require("avante.model_selector").open() end, { desc = "avante: show models" })
 cmd("History", function() require("avante.api").select_history() end, { desc = "avante: show histories" })
 cmd("Stop", function() require("avante.api").stop() end, { desc = "avante: stop current AI request" })
+cmd(
+  "ClaudeAuth",
+  function() require("avante.auth").authenticate("claude") end,
+  { desc = "avante: Authenticate with Claude" }
+)
