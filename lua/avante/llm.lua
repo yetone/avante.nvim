@@ -1329,21 +1329,16 @@ function M._stream_acp(opts)
       if opts.on_save_acp_client then opts.on_save_acp_client(acp_client) end
 
       session_id = opts.acp_session_id
-      vim.notify("🔶 session_id=" .. tostring(session_id), vim.log.levels.ERROR)
       if not session_id then
-        vim.notify("🟢 NO SESSION - CREATING NEW", vim.log.levels.ERROR)
         M._create_acp_session_and_continue(opts, acp_client)
       else
-        vim.notify("🔴 SESSION EXISTS - REUSING: " .. session_id, vim.log.levels.ERROR)
         if opts.just_connect_acp_client then return end
 
         -- Load existing session to sync external changes
         if acp_client.agent_capabilities.loadSession and opts._load_existing_session then
-          vim.notify("📥 Loading existing session", vim.log.levels.WARN)
           M._load_and_continue_acp_session(opts, acp_client, session_id)
         else
-          vim.notify("♻️ Reusing session without load", vim.log.levels.WARN)
-          -- BUGFIX: Set flag for first prompt even when reusing session
+          -- Set flag for first prompt even when reusing session
           opts._is_first_session_prompt = true
           M._continue_stream_acp(opts, acp_client, session_id)
         end
@@ -1357,12 +1352,11 @@ function M._stream_acp(opts)
 
   if opts.just_connect_acp_client then return end
 
-  vim.notify("🔷 FALLTHROUGH PATH - session_id=" .. tostring(session_id), vim.log.levels.ERROR)
   -- Load existing session to sync external changes
   if acp_client.agent_capabilities.loadSession and opts._load_existing_session then
     M._load_and_continue_acp_session(opts, acp_client, session_id)
   else
-    -- BUGFIX: Set flag for first prompt even in fallthrough path
+    -- Set flag for first prompt even in fallthrough path
     opts._is_first_session_prompt = true
     M._continue_stream_acp(opts, acp_client, session_id)
   end
@@ -1387,7 +1381,6 @@ function M._create_acp_session_and_continue(opts, acp_client)
     if opts.just_connect_acp_client then return end
     -- Mark this as the first prompt to the new session for proper title extraction
     opts._is_first_session_prompt = true
-    vim.notify("🔴 FLAG SET: _is_first_session_prompt=true", vim.log.levels.ERROR)
     M._continue_stream_acp(opts, acp_client, session_id_)
   end)
 end
@@ -1434,7 +1427,6 @@ end
 ---@param acp_client avante.acp.ACPClient
 ---@param session_id string
 function M._continue_stream_acp(opts, acp_client, session_id)
-  vim.notify("🟡 _continue_stream_acp: flag=" .. tostring(rawget(opts, "_is_first_session_prompt")), vim.log.levels.WARN)
   local prompt = {}
 
   -- Add plan mode instructions at the beginning of the prompt if enabled
@@ -1579,10 +1571,8 @@ function M._continue_stream_acp(opts, acp_client, session_id)
   elseif opts.acp_session_id then
     -- Check if this is the first prompt to a new session
     local is_first_prompt = rawget(opts, "_is_first_session_prompt") == true
-    vim.notify("🔵 Branch check: is_first_prompt=" .. tostring(is_first_prompt), vim.log.levels.WARN)
 
     if is_first_prompt then
-      vim.notify("🟢 ENTERING FIRST PROMPT BRANCH!", vim.log.levels.ERROR)
       -- First prompt to new session: send messages WITHOUT tags for clean title extraction
       -- Helper function to strip XML tags from content
       local function strip_tags(text)
@@ -1627,8 +1617,6 @@ function M._continue_stream_acp(opts, acp_client, session_id)
       end
       
       -- Apply session title template if configured
-      vim.notify("🔷 user_message_text=" .. tostring(user_message_text), vim.log.levels.WARN)
-      vim.notify("🔷 template=" .. tostring(Config.history.session_title_template), vim.log.levels.WARN)
       if user_message_text and Config.history.session_title_template then
         local title_text = Config.history.session_title_template:gsub("{{message}}", user_message_text)
         -- Insert title at the beginning so ACP agent uses it
@@ -1636,9 +1624,6 @@ function M._continue_stream_acp(opts, acp_client, session_id)
           type = "text",
           text = title_text,
         })
-        vim.notify("✅ TITLE APPLIED: " .. title_text, vim.log.levels.ERROR)
-      else
-        vim.notify("❌ TITLE NOT APPLIED", vim.log.levels.ERROR)
       end
     else
       -- Continuation of existing session: add context tags
