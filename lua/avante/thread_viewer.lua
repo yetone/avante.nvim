@@ -193,6 +193,7 @@ local function fetch_sessions_from_acp(callback)
         working_directory = acp_session.cwd or acp_session.workingDirectory or "unknown",
         mtime = acp_session.lastModified or acp_session.last_modified or os.time(),
         message_count = acp_session.messageCount or acp_session.message_count or 0,
+        title = acp_session.title or acp_session.name or nil, -- Capture title from ACP response
         path = nil, -- ACP sessions don't have a local path
       })
     end
@@ -220,8 +221,11 @@ end
 ---@param session_info table
 ---@return avante.ChatHistory
 local function create_synthetic_history(session_info)
+  -- Use the title from ACP if available, otherwise fall back to generic name
+  local title = session_info.title or "External ACP Session"
+  
   return {
-    title = "External ACP Session",
+    title = title,
     timestamp = os.date("%Y-%m-%d %H:%M:%S", session_info.mtime),
     messages = {},
     entries = {},

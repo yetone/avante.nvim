@@ -582,6 +582,10 @@ M._defaults = {
       extension = "png",
       filename = "pasted-%Y-%m-%d-%H-%M-%S",
     },
+    --- Template for ACP session titles. Use {{message}} for the first user message.
+    --- Example: "{{message}} (managed by avante)"
+    ---@type string|nil
+    session_title_template = "{{message}} (managed by avante)",
   },
   highlights = {
     diff = {

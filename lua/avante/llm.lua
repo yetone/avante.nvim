@@ -1329,15 +1329,22 @@ function M._stream_acp(opts)
       if opts.on_save_acp_client then opts.on_save_acp_client(acp_client) end
 
       session_id = opts.acp_session_id
+      vim.notify("🔶 session_id=" .. tostring(session_id), vim.log.levels.ERROR)
       if not session_id then
+        vim.notify("🟢 NO SESSION - CREATING NEW", vim.log.levels.ERROR)
         M._create_acp_session_and_continue(opts, acp_client)
       else
+        vim.notify("🔴 SESSION EXISTS - REUSING: " .. session_id, vim.log.levels.ERROR)
         if opts.just_connect_acp_client then return end
-        
+
         -- Load existing session to sync external changes
         if acp_client.agent_capabilities.loadSession and opts._load_existing_session then
+          vim.notify("📥 Loading existing session", vim.log.levels.WARN)
           M._load_and_continue_acp_session(opts, acp_client, session_id)
         else
+          vim.notify("♻️ Reusing session without load", vim.log.levels.WARN)
+          -- BUGFIX: Set flag for first prompt even when reusing session
+          opts._is_first_session_prompt = true
           M._continue_stream_acp(opts, acp_client, session_id)
         end
       end
@@ -1349,11 +1356,14 @@ function M._stream_acp(opts)
   end
 
   if opts.just_connect_acp_client then return end
-  
+
+  vim.notify("🔷 FALLTHROUGH PATH - session_id=" .. tostring(session_id), vim.log.levels.ERROR)
   -- Load existing session to sync external changes
   if acp_client.agent_capabilities.loadSession and opts._load_existing_session then
     M._load_and_continue_acp_session(opts, acp_client, session_id)
   else
+    -- BUGFIX: Set flag for first prompt even in fallthrough path
+    opts._is_first_session_prompt = true
     M._continue_stream_acp(opts, acp_client, session_id)
   end
 end
@@ -1375,6 +1385,9 @@ function M._create_acp_session_and_continue(opts, acp_client)
     if opts.on_save_acp_session_id then opts.on_save_acp_session_id(session_id_) end
 
     if opts.just_connect_acp_client then return end
+    -- Mark this as the first prompt to the new session for proper title extraction
+    opts._is_first_session_prompt = true
+    vim.notify("🔴 FLAG SET: _is_first_session_prompt=true", vim.log.levels.ERROR)
     M._continue_stream_acp(opts, acp_client, session_id_)
   end)
 end
@@ -1421,6 +1434,7 @@ end
 ---@param acp_client avante.acp.ACPClient
 ---@param session_id string
 function M._continue_stream_acp(opts, acp_client, session_id)
+  vim.notify("🟡 _continue_stream_acp: flag=" .. tostring(rawget(opts, "_is_first_session_prompt")), vim.log.levels.WARN)
   local prompt = {}
 
   -- Add plan mode instructions at the beginning of the prompt if enabled
@@ -1433,13 +1447,16 @@ function M._continue_stream_acp(opts, acp_client, session_id)
   end
 
   local donot_use_builtin_system_prompt = opts.history_messages ~= nil and #opts.history_messages > 0
+  
+  -- Collect file context items to add AFTER user message for proper session title extraction
+  local file_context_items = {}
   if donot_use_builtin_system_prompt then
     if opts.selected_filepaths then
       for _, filepath in ipairs(opts.selected_filepaths) do
         local abs_path = Utils.to_absolute_path(filepath)
         local file_name = vim.fn.fnamemodify(abs_path, ":t")
         local prompt_item = acp_client:create_resource_link_content("file://" .. abs_path, file_name)
-        table.insert(prompt, prompt_item)
+        table.insert(file_context_items, prompt_item)
       end
     end
     if opts.selected_code then
@@ -1451,7 +1468,7 @@ function M._continue_stream_acp(opts, acp_client, session_id)
           opts.selected_code.content
         ),
       }
-      table.insert(prompt, prompt_item)
+      table.insert(file_context_items, prompt_item)
     end
   end
   local history_messages = opts.history_messages or {}
@@ -1560,47 +1577,112 @@ function M._continue_stream_acp(opts, acp_client, session_id)
       })
     end
   elseif opts.acp_session_id then
-    -- Original logic for non-recovery session continuation
-    local recovery_config = Config.session_recovery or {}
-    local include_history_count = recovery_config.include_history_count or 5
-    local user_messages_added = 0
+    -- Check if this is the first prompt to a new session
+    local is_first_prompt = rawget(opts, "_is_first_session_prompt") == true
+    vim.notify("🔵 Branch check: is_first_prompt=" .. tostring(is_first_prompt), vim.log.levels.WARN)
 
-    for i = #history_messages, 1, -1 do
-      local message = history_messages[i]
-      if message.message.role == "user" and user_messages_added < include_history_count then
-        local content = message.message.content
-        if type(content) == "table" then
-          for _, item in ipairs(content) do
-            if type(item) == "string" then
-              table.insert(prompt, {
-                type = "text",
-                text = "<previous_user_message>" .. item .. "</previous_user_message>",
-              })
-            elseif type(item) == "table" and item.type == "text" then
-              table.insert(prompt, {
-                type = "text",
-                text = "<previous_user_message>" .. item.text .. "</previous_user_message>",
-              })
-            end
-          end
-        elseif type(content) == "string" then
-          table.insert(prompt, {
-            type = "text",
-            text = "<previous_user_message>" .. content .. "</previous_user_message>",
-          })
-        end
-        user_messages_added = user_messages_added + 1
+    if is_first_prompt then
+      vim.notify("🟢 ENTERING FIRST PROMPT BRANCH!", vim.log.levels.ERROR)
+      -- First prompt to new session: send messages WITHOUT tags for clean title extraction
+      -- Helper function to strip XML tags from content
+      local function strip_tags(text)
+        -- Remove <previous_user_message>, <previous_assistant_message>, and <system_context> tags
+        return text:gsub("<previous_user_message>", ""):gsub("</previous_user_message>", "")
+                   :gsub("<previous_assistant_message>", ""):gsub("</previous_assistant_message>", "")
+                   :gsub("<system_context>", ""):gsub("</system_context>", "")
       end
-    end
+      
+      -- Collect user message text for title template
+      local user_message_text = nil
+      for _, message in ipairs(history_messages) do
+        if message.message.role == "user" then
+          local content = message.message.content
+          if type(content) == "table" then
+            for _, item in ipairs(content) do
+              if type(item) == "string" then
+                local clean_text = strip_tags(item)
+                if not user_message_text then user_message_text = clean_text end
+                table.insert(prompt, {
+                  type = "text",
+                  text = clean_text,
+                })
+              elseif type(item) == "table" and item.type == "text" then
+                local clean_text = strip_tags(item.text)
+                if not user_message_text then user_message_text = clean_text end
+                table.insert(prompt, {
+                  type = "text",
+                  text = clean_text,
+                })
+              end
+            end
+          else
+            local clean_text = strip_tags(content)
+            if not user_message_text then user_message_text = clean_text end
+            table.insert(prompt, {
+              type = "text",
+              text = clean_text,
+            })
+          end
+        end
+      end
+      
+      -- Apply session title template if configured
+      vim.notify("🔷 user_message_text=" .. tostring(user_message_text), vim.log.levels.WARN)
+      vim.notify("🔷 template=" .. tostring(Config.history.session_title_template), vim.log.levels.WARN)
+      if user_message_text and Config.history.session_title_template then
+        local title_text = Config.history.session_title_template:gsub("{{message}}", user_message_text)
+        -- Insert title at the beginning so ACP agent uses it
+        table.insert(prompt, 1, {
+          type = "text",
+          text = title_text,
+        })
+        vim.notify("✅ TITLE APPLIED: " .. title_text, vim.log.levels.ERROR)
+      else
+        vim.notify("❌ TITLE NOT APPLIED", vim.log.levels.ERROR)
+      end
+    else
+      -- Continuation of existing session: add context tags
+      local recovery_config = Config.session_recovery or {}
+      local include_history_count = recovery_config.include_history_count or 5
+      local user_messages_added = 0
 
-    -- Add context about session recovery
-    if user_messages_added > 0 then
-      table.insert(prompt, {
-        type = "text",
-        text = "<system_context>Continuing from previous session with "
-          .. user_messages_added
-          .. " recent user messages</system_context>",
-      })
+      for i = #history_messages, 1, -1 do
+        local message = history_messages[i]
+        if message.message.role == "user" and user_messages_added < include_history_count then
+          local content = message.message.content
+          if type(content) == "table" then
+            for _, item in ipairs(content) do
+              if type(item) == "string" then
+                table.insert(prompt, {
+                  type = "text",
+                  text = "<previous_user_message>" .. item .. "</previous_user_message>",
+                })
+              elseif type(item) == "table" and item.type == "text" then
+                table.insert(prompt, {
+                  type = "text",
+                  text = "<previous_user_message>" .. item.text .. "</previous_user_message>",
+                })
+              end
+            end
+          elseif type(content) == "string" then
+            table.insert(prompt, {
+              type = "text",
+              text = "<previous_user_message>" .. content .. "</previous_user_message>",
+            })
+          end
+          user_messages_added = user_messages_added + 1
+        end
+      end
+
+      -- Add context about session recovery
+      if user_messages_added > 0 then
+        table.insert(prompt, {
+          type = "text",
+          text = "<system_context>Continuing from previous session with "
+            .. user_messages_added
+            .. " recent user messages</system_context>",
+        })
+      end
     end
   else
     if donot_use_builtin_system_prompt then
@@ -1645,7 +1727,13 @@ function M._continue_stream_acp(opts, acp_client, session_id)
         end
       end
     end
+    
+    -- Add file context items AFTER user message so ACP can extract proper session title
+    for _, item in ipairs(file_context_items) do
+      table.insert(prompt, item)
+    end
   end
+
   local cancelled = false
   local stop_cmd_id = api.nvim_create_autocmd("User", {
     group = group,
