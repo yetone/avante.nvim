@@ -776,6 +776,11 @@ M._defaults = {
     provider = nil,
     -- Options override for custom providers
     provider_opts = {},
+    --- When adding a directory, should it recursively add all files or just add the directory path?
+    --- "recursive": Add all files in the directory (default, original behavior)
+    --- "directory": Add only the directory path itself
+    ---@type "recursive" | "directory"
+    directory_mode = "directory",
   },
   selector = {
     ---@alias avante.SelectorProvider "native" | "fzf_lua" | "mini_pick" | "snacks" | "telescope" | fun(selector: avante.ui.Selector): nil

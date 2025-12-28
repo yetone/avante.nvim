@@ -2,19 +2,24 @@ local History = require("avante.history")
 local Utils = require("avante.utils")
 local Path = require("avante.path")
 local PlPath = require("plenary.path")
+local ACPClient = require("avante.libs.acp_client")
+local Config = require("avante.config")
 
 ---@class avante.ThreadViewer
 local M = {}
 
 -- Cache for external session info
 local _external_sessions_cache = nil
+local _acp_client_cache = nil
+local _acp_available = nil
 
 ---Get cached external session info by session ID
 ---@param session_id string
 ---@return table|nil
 function M.get_external_session_info(session_id)
   if not _external_sessions_cache then
-    _external_sessions_cache = scan_external_acp_sessions()
+    -- Use legacy filesystem scan for synchronous access
+    _external_sessions_cache = scan_external_acp_sessions_legacy()
   end
   
   for _, session_info in ipairs(_external_sessions_cache) do
@@ -29,11 +34,68 @@ end
 ---Clear the external sessions cache
 function M.clear_cache()
   _external_sessions_cache = nil
+  _acp_available = nil
 end
 
----Scan external ACP session directories for sessions
+---Get or create a shared ACP client for listing sessions
+---@return avante.acp.ACPClient|nil, string|nil error
+local function get_or_create_acp_client()
+  -- Return cached result if we already know ACP is unavailable
+  if _acp_available == false then
+    return nil, "ACP unavailable (cached)"
+  end
+
+  -- Return cached client if available and connected
+  if _acp_client_cache and _acp_client_cache:is_connected() then
+    return _acp_client_cache, nil
+  end
+
+  -- Create new ACP client
+  local provider_config = Config.providers and Config.providers["claude"]
+  if not provider_config or not provider_config.acp_args then
+    _acp_available = false
+    return nil, "ACP not configured"
+  end
+
+  local client = ACPClient:new({
+    transport_type = "stdio",
+    command = provider_config.acp_args.command,
+    args = provider_config.acp_args.args or {},
+    env = provider_config.acp_args.env or {},
+    timeout = 5000,
+  })
+
+  -- Try to connect with timeout
+  local connect_err = nil
+  local connected = false
+
+  client:connect(function(err)
+    if err then
+      connect_err = err
+    else
+      connected = true
+    end
+  end)
+
+  -- Wait up to 5 seconds for connection
+  local start_time = vim.loop.now()
+  while not connected and not connect_err and (vim.loop.now() - start_time) < 5000 do
+    vim.wait(100)
+  end
+
+  if not connected or connect_err then
+    _acp_available = false
+    return nil, "Failed to connect to ACP: " .. (connect_err and connect_err.message or "timeout")
+  end
+
+  _acp_client_cache = client
+  _acp_available = true
+  return client, nil
+end
+
+---Scan external ACP session directories for sessions (legacy fallback)
 ---@return table[] -- Array of session info {path: string, session_id: string, mtime: number}
-local function scan_external_acp_sessions()
+local function scan_external_acp_sessions_legacy()
   local sessions = {}
   
   -- Known ACP cache directories
@@ -92,6 +154,68 @@ local function scan_external_acp_sessions()
   return sessions
 end
 
+---Fetch sessions from claude-code via ACP protocol
+---@param callback fun(sessions: table[])
+local function fetch_sessions_from_acp(callback)
+  local client, err = get_or_create_acp_client()
+  
+  if not client then
+    -- ACP not available, just use filesystem scanning
+    Utils.debug("ACP client unavailable: " .. (err or "unknown") .. " - using filesystem scan")
+    callback(scan_external_acp_sessions_legacy())
+    return
+  end
+
+  Utils.debug("Fetching sessions via ACP...")
+  client:list_sessions(function(sessions, list_err)
+    if list_err then
+      Utils.warn("Failed to list sessions via ACP: " .. (list_err.message or "unknown error"))
+      Utils.debug("ACP error details: " .. vim.inspect(list_err))
+      -- Fall back to filesystem scanning
+      callback(scan_external_acp_sessions_legacy())
+      return
+    end
+    
+    if not sessions then
+      Utils.warn("ACP returned no sessions (nil)")
+      callback(scan_external_acp_sessions_legacy())
+      return
+    end
+
+    Utils.info("ACP returned " .. #sessions .. " sessions")
+    Utils.debug("Raw ACP sessions: " .. vim.inspect(sessions))
+
+    -- Transform ACP session format to our internal format
+    local transformed_sessions = {}
+    for _, acp_session in ipairs(sessions) do
+      table.insert(transformed_sessions, {
+        session_id = acp_session.sessionId or acp_session.session_id,
+        working_directory = acp_session.cwd or acp_session.workingDirectory or "unknown",
+        mtime = acp_session.lastModified or acp_session.last_modified or os.time(),
+        message_count = acp_session.messageCount or acp_session.message_count or 0,
+        path = nil, -- ACP sessions don't have a local path
+      })
+    end
+
+    Utils.info("Transformed " .. #transformed_sessions .. " ACP sessions")
+    
+    -- If ACP returned nothing, fall back to filesystem
+    if #transformed_sessions == 0 then
+      Utils.info("No ACP sessions found, falling back to filesystem scan")
+      callback(scan_external_acp_sessions_legacy())
+      return
+    end
+    
+    callback(transformed_sessions)
+  end)
+end
+
+---Scan external ACP sessions (async, uses ACP when available)
+---@param callback fun(sessions: table[])
+local function scan_external_acp_sessions(callback)
+  fetch_sessions_from_acp(callback)
+end
+
 ---Create a synthetic history entry for an external ACP session
 ---@param session_info table
 ---@return avante.ChatHistory
@@ -136,43 +260,17 @@ local function format_thread_entry(history)
   )
 end
 
+---Show telescope picker with histories
+---@param histories table[]
 ---@param bufnr integer
 ---@param cb fun(filename: string)
-function M.open_with_telescope(bufnr, cb)
-  local has_telescope, _ = pcall(require, "telescope")
-  if not has_telescope then
-    Utils.warn("Telescope is not installed. Please install telescope.nvim to use :AvanteThreads")
-    return
-  end
-
-  local pickers = require("telescope.pickers")
-  local finders = require("telescope.finders")
-  local conf = require("telescope.config").values
-  local actions = require("telescope.actions")
-  local action_state = require("telescope.actions.state")
-  local previewers = require("telescope.previewers")
-
-  local histories = Path.history.list(bufnr)
-  
-  -- Scan for external ACP sessions
-  local external_sessions = scan_external_acp_sessions()
-  
-  -- Create a map of existing ACP session IDs from Avante histories
-  local existing_acp_sessions = {}
-  for _, history in ipairs(histories) do
-    if history.acp_session_id then
-      existing_acp_sessions[history.acp_session_id] = true
-    end
-  end
-  
-  -- Add external sessions that don't have Avante histories
-  for _, session_info in ipairs(external_sessions) do
-    if not existing_acp_sessions[session_info.session_id] then
-      local synthetic_history = create_synthetic_history(session_info)
-      table.insert(histories, synthetic_history)
-    end
-  end
-  
+---@param pickers table
+---@param finders table
+---@param conf table
+---@param actions table
+---@param action_state table
+---@param previewers table
+local function show_telescope_picker(histories, bufnr, cb, pickers, finders, conf, actions, action_state, previewers)
   if #histories == 0 then
     Utils.warn("No thread history found.")
     return
@@ -303,6 +401,49 @@ function M.open_with_telescope(bufnr, cb)
       end,
     })
     :find()
+end
+
+---@param bufnr integer
+---@param cb fun(filename: string)
+function M.open_with_telescope(bufnr, cb)
+  local has_telescope, _ = pcall(require, "telescope")
+  if not has_telescope then
+    Utils.warn("Telescope is not installed. Please install telescope.nvim to use :AvanteThreads")
+    return
+  end
+
+  local pickers = require("telescope.pickers")
+  local finders = require("telescope.finders")
+  local conf = require("telescope.config").values
+  local actions = require("telescope.actions")
+  local action_state = require("telescope.actions.state")
+  local previewers = require("telescope.previewers")
+
+  local histories = Path.history.list(bufnr)
+  
+  -- Fetch external ACP sessions asynchronously
+  scan_external_acp_sessions(function(external_sessions)
+    -- Create a map of existing ACP session IDs from Avante histories
+    local existing_acp_sessions = {}
+    for _, history in ipairs(histories) do
+      if history.acp_session_id then
+        existing_acp_sessions[history.acp_session_id] = true
+      end
+    end
+    
+    -- Add external sessions that don't have Avante histories
+    for _, session_info in ipairs(external_sessions) do
+      if not existing_acp_sessions[session_info.session_id] then
+        local synthetic_history = create_synthetic_history(session_info)
+        table.insert(histories, synthetic_history)
+      end
+    end
+    
+    -- Continue with telescope picker inside the callback
+    vim.schedule(function()
+      show_telescope_picker(histories, bufnr, cb, pickers, finders, conf, actions, action_state, previewers)
+    end)
+  end)
 end
 
 ---@param bufnr integer
