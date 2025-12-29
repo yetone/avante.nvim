@@ -168,7 +168,7 @@ function M.authenticate(provider)
   -- Open browser to begin authentication
   local open_success = pcall(vim.ui.open, auth_url)
   if not open_success then vim.notify("Please open this URL in your browser:\n" .. auth_url, vim.log.levels.WARN) end
-  vim.notify("Waiting for authentication... (30s Max)", vim.log.levels.INFO)
+  vim.notify("Waiting for authentication...", vim.log.levels.INFO)
 
   -- Wait for code with timeout (30 seconds)
   -- local code, _ = receiver.recv(30000)
@@ -188,7 +188,7 @@ function M.authenticate(provider)
 
   -- TODO: Find a way to get this into a better UI, ideally a multi-step UI where user on first launch can type AvanteLogin and choose the provider,
   -- and if they choose an OAuth provider move to this functions process
-  vim.ui.input({ prompt = "Enter Claude Code Auth Key: ", default = "" }, function(input)
+  vim.ui.input({ prompt = "Enter Auth Key: ", default = "" }, function(input)
     if input then
       local splits = vim.split(input, "#")
       local tokens, e = http.post_json(provider_conf.token_endpoint, {
@@ -207,7 +207,7 @@ function M.authenticate(provider)
         vim.notify("Token exchange failed: " .. e, vim.log.levels.ERROR)
         return
       end
-      M.store_tokens(tokens)
+      M.store_tokens(provider, tokens)
       vim.notify("✓ Authentication successful!", vim.log.levels.INFO)
     else
       vim.notify("Failed to parse code", vim.log.levels.ERROR)
@@ -239,7 +239,7 @@ end
 
 -- TODO: This needs to be more general (entry in the auth.json per provider) and needs to call into
 -- the provider to parse the response properly i.e. for the Claude Code auth the expires_in needs to be added to Date.now()
-function M.store_tokens(tokens)
+function M.store_tokens(provider, tokens)
   local data_path = vim.fn.stdpath("data") .. "/avante/auth.json"
   local file = io.open(data_path, "w")
   if file then
