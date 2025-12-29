@@ -67,7 +67,9 @@ end
 
 function M.is_openrouter(url) return url:match("^https://openrouter%.ai/") end
 
-function M.is_mistral(url) return url:match("^https://api%.mistral%.ai/") or url:match("^https://api%.scaleway%.ai/") end
+function M.is_mistral(url) return url:match("^https://api%.mistral%.ai/") end
+
+function M.is_mistral_like(url) return M.is_mistral(url) or url:match("^https://api%.scaleway%.ai/") end
 
 ---@param opts AvantePromptOptions
 function M.get_user_message(opts)
@@ -315,7 +317,7 @@ function M:parse_messages(opts)
         table.insert(final_messages, { role = self.role_map["assistant"], content = "Ok, I understand." })
       end
     else
-      if role == "user" and prev_role == "tool" and M.is_mistral(provider_conf.endpoint) then
+      if role == "user" and prev_role == "tool" and M.is_mistral_like(provider_conf.endpoint) then
         table.insert(final_messages, { role = self.role_map["assistant"], content = "Ok, I understand." })
       end
     end
@@ -853,7 +855,7 @@ function M:parse_curl_args(prompt_opts)
     base_body.stream_options = nil
   else
     base_body.messages = parsed_messages
-    base_body.stream_options = not M.is_mistral(provider_conf.endpoint) and {
+    base_body.stream_options = not M.is_mistral_like(provider_conf.endpoint) and {
       include_usage = true,
     } or nil
   end
