@@ -237,4 +237,137 @@ describe("ACPClient", function()
       assert.equals(ACPClient.ERROR_CODES.METHOD_NOT_FOUND, sent_error.code)
     end)
   end)
+
+  describe("MCP tool flow", function()
+    local MCP_TOOL_UUID = "mcp-test-uuid-12345-67890"
+
+    it("receives MCP tool result via session/update when mcp_servers configured", function()
+      local sent_request = nil
+      local session_updates = {}
+      local client
+
+      local mock_transport = {
+        send = function(self, data)
+          local decoded = vim.json.decode(data)
+
+          if decoded.method == "session/new" then
+            sent_request = decoded.params
+
+            vim.schedule(
+              function()
+                client:_handle_message({
+                  jsonrpc = "2.0",
+                  id = decoded.id,
+                  result = { sessionId = "test-session-mcp" },
+                })
+              end
+            )
+          elseif decoded.method == "session/prompt" then
+            vim.schedule(
+              function()
+                client:_handle_message({
+                  jsonrpc = "2.0",
+                  method = "session/update",
+                  params = {
+                    sessionId = "test-session-mcp",
+                    update = {
+                      sessionUpdate = "tool_call",
+                      toolCallId = "mcp-tool-1",
+                      title = "lookup__get_code",
+                      kind = "other",
+                      status = "completed",
+                      content = {
+                        {
+                          type = "content",
+                          content = { type = "text", text = MCP_TOOL_UUID },
+                        },
+                      },
+                    },
+                  },
+                })
+              end
+            )
+
+            vim.schedule(
+              function()
+                client:_handle_message({
+                  jsonrpc = "2.0",
+                  id = decoded.id,
+                  result = { stopReason = "end_turn" },
+                })
+              end
+            )
+          end
+        end,
+        start = function(self, on_message) end,
+        stop = function(self) end,
+      }
+
+      local mock_config = {
+        transport_type = "stdio",
+        handlers = {
+          on_session_update = function(update) table.insert(session_updates, update) end,
+        },
+      }
+
+      client = ACPClient:new(mock_config)
+      client.transport = mock_transport
+      client.state = "ready"
+
+      local mcp_servers = {
+        { type = "http", name = "lookup", url = "http://localhost:8080/mcp" },
+      }
+      local session_id = nil
+      client:create_session("/tmp/test", mcp_servers, function(sid, err) session_id = sid end)
+
+      assert.is_not_nil(sent_request)
+      assert.equals("/tmp/test", sent_request.cwd)
+      assert.same(mcp_servers, sent_request.mcpServers)
+      assert.equals("test-session-mcp", session_id)
+
+      client:send_prompt("test-session-mcp", { { type = "text", text = "Use the get_code tool" } }, function() end)
+
+      assert.equals(1, #session_updates)
+      assert.equals("tool_call", session_updates[1].sessionUpdate)
+      assert.equals("lookup__get_code", session_updates[1].title)
+      assert.equals("completed", session_updates[1].status)
+
+      local tool_content = session_updates[1].content[1].content.text
+      assert.equals(MCP_TOOL_UUID, tool_content)
+    end)
+
+    it("should default mcp_servers to empty array", function()
+      local sent_params = nil
+      local client
+
+      local mock_transport = {
+        send = function(self, data)
+          local decoded = vim.json.decode(data)
+          if decoded.method == "session/new" then
+            sent_params = decoded.params
+            vim.schedule(
+              function()
+                client:_handle_message({
+                  jsonrpc = "2.0",
+                  id = decoded.id,
+                  result = { sessionId = "test-session" },
+                })
+              end
+            )
+          end
+        end,
+        start = function(self, on_message) end,
+        stop = function(self) end,
+      }
+
+      client = ACPClient:new({ transport_type = "stdio", handlers = {} })
+      client.transport = mock_transport
+      client.state = "ready"
+
+      client:create_session("/tmp/test", nil, function() end)
+
+      assert.is_not_nil(sent_params)
+      assert.same({}, sent_params.mcpServers)
+    end)
+  end)
 end)
