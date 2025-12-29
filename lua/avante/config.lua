@@ -31,6 +31,8 @@ M._defaults = {
   ---@alias avante.Mode "agentic" | "legacy"
   ---@type avante.Mode
   mode = "agentic",
+  ---@type boolean
+  plan_only_mode = false,
   ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | "watsonx_code_assistant" | string
   ---@type avante.ProviderName
   provider = "claude",
@@ -555,6 +557,9 @@ M._defaults = {
     --- Whether to automatically open files and navigate to lines when ACP agent makes edits
     ---@type boolean
     acp_follow_agent_locations = true,
+    --- Whether to prompt before exiting when there are active ACP sessions
+    ---@type boolean
+    prompt_on_exit_with_active_session = true,
   },
   prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
     enabled = true, -- toggle logging entirely
@@ -577,6 +582,10 @@ M._defaults = {
       extension = "png",
       filename = "pasted-%Y-%m-%d-%H-%M-%S",
     },
+    --- Template for ACP session titles. Use {{message}} for the first user message.
+    --- Example: "{{message}} (managed by avante)"
+    ---@type string|nil
+    session_title_template = "{{message}} (managed by avante)",
   },
   highlights = {
     diff = {
@@ -631,6 +640,7 @@ M._defaults = {
       selection = "<leader>aC",
       suggestion = "<leader>as",
       repomap = "<leader>aR",
+      plan_mode = "<leader>ap",
     },
     sidebar = {
       expand_tool_use = "<S-Tab>",
@@ -643,6 +653,8 @@ M._defaults = {
       switch_windows = "<Tab>",
       reverse_switch_windows = "<S-Tab>",
       toggle_code_window = "x",
+      toggle_fullscreen_edit = "<S-f>",
+      toggle_input_fullscreen = "<C-f>",
       remove_file = "d",
       add_file = "@",
       close = { "q" },
@@ -768,6 +780,11 @@ M._defaults = {
     provider = nil,
     -- Options override for custom providers
     provider_opts = {},
+    --- When adding a directory, should it recursively add all files or just add the directory path?
+    --- "recursive": Add all files in the directory (default, original behavior)
+    --- "directory": Add only the directory path itself
+    ---@type "recursive" | "directory"
+    directory_mode = "directory",
   },
   selector = {
     ---@alias avante.SelectorProvider "native" | "fzf_lua" | "mini_pick" | "snacks" | "telescope" | fun(selector: avante.ui.Selector): nil
@@ -789,6 +806,8 @@ M._defaults = {
   custom_tools = {},
   ---@type AvanteSlashCommand[]
   slash_commands = {},
+  ---@type string | nil Path to directory containing .mdx shortcut files
+  shortcuts_directory = nil,
   ---@type AvanteShortcut[]
   shortcuts = {},
   ---@type AskOptions

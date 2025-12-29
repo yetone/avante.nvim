@@ -14,7 +14,7 @@ local FileSelector = {}
 
 ---@alias FileSelectorHandler fun(self: FileSelector, on_select: fun(filepaths: string[] | nil)): nil
 
-local function has_scheme(path) return path:find("^(?!term://)%w+://") ~= nil end
+local function has_scheme(path) return path:find("^term://") ~= nil end
 
 function FileSelector:process_directory(absolute_path)
   if absolute_path:sub(-1) == Utils.path_sep then absolute_path = absolute_path:sub(1, -2) end
@@ -35,7 +35,15 @@ function FileSelector:handle_path_selection(selected_paths)
   for _, selected_path in ipairs(selected_paths) do
     local absolute_path = Utils.to_absolute_path(selected_path)
     if vim.fn.isdirectory(absolute_path) == 1 then
-      self:process_directory(absolute_path)
+      -- Check the directory_mode configuration
+      if Config.file_selector.directory_mode == "recursive" then
+        self:process_directory(absolute_path)
+      else
+        -- Add the directory itself, not its contents
+        if not vim.tbl_contains(self.selected_filepaths, absolute_path) then
+          table.insert(self.selected_filepaths, absolute_path)
+        end
+      end
     else
       local abs_path = Utils.to_absolute_path(selected_path)
       if Config.file_selector.provider == "native" then
@@ -86,10 +94,30 @@ end
 function FileSelector:add_selected_file(filepath)
   if not filepath or filepath == "" or has_scheme(filepath) then return end
   if filepath:match("^oil:") then filepath = filepath:gsub("^oil:", "") end
-  local absolute_path = Utils.to_absolute_path(filepath)
+  
+  -- Use the filepath as-is if it's already absolute, otherwise make it absolute
+  local absolute_path
+  if filepath:sub(1, 1) == "/" or filepath:match("^[A-Za-z]:") then
+    -- Already an absolute path (Unix or Windows)
+    absolute_path = filepath
+  else
+    -- Relative path, resolve against project root
+    absolute_path = Utils.to_absolute_path(filepath)
+  end
+  
   if vim.fn.isdirectory(absolute_path) == 1 then
-    self:process_directory(absolute_path)
-    return
+    -- Check the directory_mode configuration
+    if Config.file_selector.directory_mode == "recursive" then
+      self:process_directory(absolute_path)
+      return
+    else
+      -- Add the directory itself, not its contents
+      if not vim.tbl_contains(self.selected_filepaths, absolute_path) then
+        table.insert(self.selected_filepaths, absolute_path)
+        self:emit("update")
+      end
+      return
+    end
   end
   -- Avoid duplicates
   if not vim.tbl_contains(self.selected_filepaths, absolute_path) then

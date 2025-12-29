@@ -524,6 +524,8 @@ vim.g.avante_login = vim.g.avante_login
 ---@field system_prompt string | nil
 ---@field tokens_usage avante.LLMTokenUsage | nil
 ---@field acp_session_id string | nil
+---@field working_directory string | nil
+---@field selected_files string[] | nil
 ---
 ---@class avante.ChatMemory
 ---@field content string
@@ -540,7 +542,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field content string
 ---@field uri string
 ---
----@alias AvanteSlashCommandBuiltInName "clear" | "help" | "lines" | "commit" | "new"
+---@alias AvanteSlashCommandBuiltInName "clear" | "help" | "lines" | "commit" | "new" | "cost" | "context" | "memory" | "dir"
 ---@alias AvanteSlashCommandCallback fun(self: avante.Sidebar, args: string, cb?: fun(args: string): nil): nil
 ---@class AvanteSlashCommand
 ---@field name AvanteSlashCommandBuiltInName | string

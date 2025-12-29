@@ -1162,30 +1162,50 @@ function M.get_shortcuts()
     },
   }
 
+  -- Load MDX shortcuts from directory if configured
+  local mdx_shortcuts = {}
+  if Config.shortcuts_directory then
+    local MDXParser = require("avante.utils.mdx_parser")
+    mdx_shortcuts = MDXParser.load_shortcuts_from_directory(Config.shortcuts_directory)
+  end
+
   local user_shortcuts = Config.shortcuts or {}
   local result = {}
 
-  -- Create a map of builtin shortcuts by name for quick lookup
+  -- Create maps for quick lookup (precedence: config > mdx > builtin)
   local builtin_map = {}
   for _, shortcut in ipairs(builtin_shortcuts) do
     builtin_map[shortcut.name] = shortcut
   end
 
-  -- Process user shortcuts first (they take precedence)
+  local mdx_map = {}
+  for _, shortcut in ipairs(mdx_shortcuts) do
+    mdx_map[shortcut.name] = shortcut
+  end
+
+  -- Track which shortcuts have been added to avoid duplicates
+  local added = {}
+
+  -- Priority 1: User shortcuts from config (highest precedence)
   for _, user_shortcut in ipairs(user_shortcuts) do
-    if builtin_map[user_shortcut.name] then
-      -- User has overridden a builtin shortcut
-      table.insert(result, user_shortcut)
-      builtin_map[user_shortcut.name] = nil -- Remove from builtin map
-    else
-      -- User has added a new shortcut
-      table.insert(result, user_shortcut)
+    table.insert(result, user_shortcut)
+    added[user_shortcut.name] = true
+  end
+
+  -- Priority 2: MDX shortcuts (override builtins, but not config)
+  for _, mdx_shortcut in ipairs(mdx_shortcuts) do
+    if not added[mdx_shortcut.name] then
+      table.insert(result, mdx_shortcut)
+      added[mdx_shortcut.name] = true
     end
   end
 
-  -- Add remaining builtin shortcuts that weren't overridden
-  for _, builtin_shortcut in pairs(builtin_map) do
-    table.insert(result, builtin_shortcut)
+  -- Priority 3: Built-in shortcuts (lowest precedence)
+  for _, builtin_shortcut in ipairs(builtin_shortcuts) do
+    if not added[builtin_shortcut.name] then
+      table.insert(result, builtin_shortcut)
+      added[builtin_shortcut.name] = true
+    end
   end
 
   return result
@@ -1582,6 +1602,17 @@ function M.get_commands()
       name = "lines",
     },
     { description = "Commit the changes", name = "commit" },
+    { description = "Show current conversation cost", name = "cost" },
+    { description = "Show project context summary", name = "context" },
+    { description = "Show conversation memory summary", name = "memory" },
+    { 
+      shorthelp = "Add a directory to file selector",
+      description = "/dir [path] - Add directory to context",
+      name = "dir"
+    },
+    { description = "Show current plan", name = "plan" },
+    { description = "Toggle full-screen mode", name = "toggle-full-screen" },
+    { description = "Toggle plan-only mode", name = "toggle-plan-mode" },
   }
 
   ---@type {[AvanteSlashCommandBuiltInName]: AvanteSlashCommandCallback}
@@ -1601,6 +1632,269 @@ function M.get_commands()
     commit = function(_, _, cb)
       local question = "Please commit the changes"
       if cb then cb(question) end
+    end,
+    cost = function(sidebar, args, cb)
+      local history = sidebar.chat_history
+      if not history or not history.tokens_usage then
+        sidebar:update_content("No token usage information available", { focus = false, scroll = false })
+        if cb then cb(args) end
+        return
+      end
+      
+      local usage = history.tokens_usage
+      local prompt_tokens = usage.prompt_tokens or 0
+      local completion_tokens = usage.completion_tokens or 0
+      local total_tokens = prompt_tokens + completion_tokens
+      
+      -- Pricing (as of 2024, adjust as needed)
+      -- Claude Sonnet 4.5: $3/$15 per million tokens
+      local Config = require("avante.config")
+      local provider = Config.provider
+      local model = Config.providers[provider] and Config.providers[provider].model or "unknown"
+      
+      -- Default pricing (Claude Sonnet 4.5)
+      local input_price_per_million = 3.0
+      local output_price_per_million = 15.0
+      
+      -- Calculate costs
+      local input_cost = (prompt_tokens / 1000000) * input_price_per_million
+      local output_cost = (completion_tokens / 1000000) * output_price_per_million
+      local total_cost = input_cost + output_cost
+      
+      local cost_text = string.format(
+        [[**Conversation Cost**
+
+Provider: %s
+Model: %s
+
+**Token Usage:**
+- Prompt tokens: %s
+- Completion tokens: %s
+- Total tokens: %s
+
+**Estimated Cost (USD):**
+- Input: $%.4f
+- Output: $%.4f
+- Total: $%.4f
+
+Note: Pricing based on standard Claude Sonnet 4.5 rates ($3/$15 per million tokens).
+Actual costs may vary by provider and model.]],
+        provider,
+        model,
+        M.format_number(prompt_tokens),
+        M.format_number(completion_tokens),
+        M.format_number(total_tokens),
+        input_cost,
+        output_cost,
+        total_cost
+      )
+      
+      sidebar:update_content(cost_text, { focus = false, scroll = false })
+      if cb then cb(args) end
+    end,
+    context = function(sidebar, args, cb)
+      -- Show current project context information
+      local selected_files = sidebar.file_selector and sidebar.file_selector.selected_filepaths or {}
+      local project_root = M.get_project_root()
+      local working_dir = vim.fn.getcwd()
+      
+      local context_text = string.format(
+        [[**Project Context**
+
+**Project Root:** %s
+**Working Directory:** %s
+
+**Selected Files (%d):**
+%s
+
+**Recent Files:**
+%s
+
+Use `/dir <path>` to add directories to context.
+Use `@` or the file selector to add individual files.]],
+        project_root,
+        working_dir,
+        #selected_files,
+        #selected_files > 0 and table.concat(vim.iter(selected_files):map(function(f) 
+          return "- " .. M.relative_path(f) 
+        end):totable(), "\n") or "(none)",
+        table.concat(vim.iter(vim.v.oldfiles):take(10):map(function(f)
+          return "- " .. M.relative_path(f)
+        end):totable(), "\n")
+      )
+      
+      sidebar:update_content(context_text, { focus = false, scroll = false })
+      if cb then cb(args) end
+    end,
+    memory = function(sidebar, args, cb)
+      -- Show conversation memory summary
+      local history = sidebar.chat_history
+      if not history or not history.memory then
+        sidebar:update_content("No conversation memory available.\n\nMemory is created after compacting history with `/compact`.", { focus = false, scroll = false })
+        if cb then cb(args) end
+        return
+      end
+      
+      local memory = history.memory
+      local memory_text = string.format(
+        [[**Conversation Memory**
+
+**Last Summarized:** %s
+**Last Message ID:** %s
+
+**Summary:**
+%s
+
+---
+
+This is the compressed memory of earlier conversation turns.
+Use `/compact` to update the memory with recent messages.]],
+        memory.last_summarized_timestamp or "unknown",
+        memory.last_message_uuid or "unknown",
+        memory.content or "(empty)"
+      )
+      
+      sidebar:update_content(memory_text, { focus = false, scroll = false })
+      if cb then cb(args) end
+    end,
+    dir = function(sidebar, args, cb)
+      -- Add a directory to the file selector
+      local path = args and M.trim_spaces(args) or ""
+      
+      if path == "" then
+        -- If no path provided, open directory picker
+        local function on_select(selected_paths)
+          if selected_paths and #selected_paths > 0 then
+            for _, selected_path in ipairs(selected_paths) do
+              if vim.fn.isdirectory(selected_path) == 1 then
+                sidebar.file_selector:process_directory(selected_path)
+                sidebar:update_content(
+                  "Added directory: " .. M.relative_path(selected_path),
+                  { focus = false, scroll = false }
+                )
+              end
+            end
+          end
+        end
+        
+        -- Use file selector to pick directory
+        if sidebar.file_selector then
+          sidebar.file_selector:open(on_select)
+        end
+        if cb then cb("") end
+        return
+      end
+      
+      -- Add the specified directory
+      local abs_path = M.to_absolute_path(path)
+      if vim.fn.isdirectory(abs_path) == 0 then
+        sidebar:update_content(
+          "Error: '" .. path .. "' is not a directory",
+          { focus = false, scroll = false }
+        )
+        if cb then cb(args) end
+        return
+      end
+      
+      if sidebar.file_selector then
+        sidebar.file_selector:process_directory(abs_path)
+        local files = M.scan_directory({ directory = abs_path, add_dirs = false })
+        sidebar:update_content(
+          string.format("Added directory: %s (%d files)", M.relative_path(abs_path), #files),
+          { focus = false, scroll = false }
+        )
+      end
+      
+      if cb then cb(args) end
+    end,
+    plan = function(sidebar, args, cb)
+      -- Show the current plan from todos
+      -- Ensure chat history is loaded
+      if not sidebar.chat_history then
+        sidebar:reload_chat_history()
+      end
+      
+      local history = sidebar.chat_history
+      if not history or not history.todos or #history.todos == 0 then
+        sidebar:update_content("No plan available.\n\nTodos will appear here when you use plan mode or when the assistant creates a plan.", { focus = false, scroll = false })
+        if cb then cb(args) end
+        return
+      end
+      
+      local todos = history.todos
+      local plan_text = "**Current Plan**\n\n"
+      
+      -- Group todos by status
+      local pending_todos = {}
+      local in_progress_todos = {}
+      local completed_todos = {}
+      
+      for _, todo in ipairs(todos) do
+        if todo.status == "pending" then
+          table.insert(pending_todos, todo)
+        elseif todo.status == "in_progress" then
+          table.insert(in_progress_todos, todo)
+        elseif todo.status == "completed" then
+          table.insert(completed_todos, todo)
+        end
+      end
+      
+      -- Display in-progress todos
+      if #in_progress_todos > 0 then
+        plan_text = plan_text .. "**In Progress:**\n"
+        for _, todo in ipairs(in_progress_todos) do
+          plan_text = plan_text .. "- 🔄 " .. todo.content .. "\n"
+        end
+        plan_text = plan_text .. "\n"
+      end
+      
+      -- Display pending todos
+      if #pending_todos > 0 then
+        plan_text = plan_text .. "**Pending:**\n"
+        for _, todo in ipairs(pending_todos) do
+          plan_text = plan_text .. "- ⏳ " .. todo.content .. "\n"
+        end
+        plan_text = plan_text .. "\n"
+      end
+      
+      -- Display completed todos
+      if #completed_todos > 0 then
+        plan_text = plan_text .. "**Completed:**\n"
+        for _, todo in ipairs(completed_todos) do
+          plan_text = plan_text .. "- ✅ " .. todo.content .. "\n"
+        end
+        plan_text = plan_text .. "\n"
+      end
+      
+      plan_text = plan_text .. string.format("\n**Progress:** %d/%d tasks completed", #completed_todos, #todos)
+      
+      sidebar:update_content(plan_text, { focus = false, scroll = false })
+      if cb then cb(args) end
+    end,
+    ["toggle-full-screen"] = function(sidebar, args, cb)
+      -- Toggle full-screen mode for the result window
+      sidebar:toggle_fullscreen_edit()
+      if cb then cb(args) end
+    end,
+    ["toggle-plan-mode"] = function(sidebar, args, cb)
+      -- Toggle plan-only mode
+      local Config = require("avante.config")
+      Config.plan_only_mode = not Config.plan_only_mode
+      local status = Config.plan_only_mode and "enabled" or "disabled"
+      
+      sidebar:update_content(
+        string.format("**Plan Mode %s**\n\nPlan mode is now %s.\n\n%s", 
+          status:upper(), 
+          status,
+          Config.plan_only_mode and "The assistant will only create plans, not execute code changes." or "The assistant will execute code changes normally."
+        ),
+        { focus = false, scroll = false }
+      )
+      
+      -- Update the header to reflect the change
+      sidebar:render_result()
+      
+      if cb then cb(args) end
     end,
   }
 

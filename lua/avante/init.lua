@@ -188,6 +188,12 @@ function H.keymaps()
     })
     Utils.safe_keymap_set(
       "n",
+      Config.mappings.toggle.plan_mode,
+      function() require("avante.api").toggle_plan_mode() end,
+      { desc = "avante: toggle plan mode" }
+    )
+    Utils.safe_keymap_set(
+      "n",
       Config.mappings.select_model,
       function() require("avante.api").select_model() end,
       { desc = "avante: select model" }
@@ -328,6 +334,43 @@ function H.autocmds()
     desc = "Cleanup all ACP processes before Neovim exits",
     callback = function()
       Utils.debug("VimLeavePre: Starting ACP cleanup...")
+
+      -- Check if there are active ACP sessions
+      local has_active_sessions = false
+      for _, _ in pairs(M.acp_clients) do
+        has_active_sessions = true
+        break
+      end
+
+      -- Prompt user if configured and there are active sessions
+      if has_active_sessions and Config.behaviour.prompt_on_exit_with_active_session then
+        local choice = vim.fn.confirm(
+          "Active ACP session detected. What would you like to do?",
+          "&Continue session in background\n&Stop session and exit\n&Cancel exit",
+          1
+        )
+
+        if choice == 1 then
+          -- Save session state for resumption
+          local sidebar = M.get()
+          if sidebar then
+            local SessionManager = require("avante.session_manager")
+            SessionManager.save_session(sidebar)
+            Utils.info("Session saved. Reopen Neovim in this project to resume.")
+          end
+          -- Don't cleanup - let the session terminate gracefully
+          return
+        elseif choice == 2 then
+          -- Stop and exit - proceed with cleanup
+          Utils.info("Stopping ACP session...")
+        elseif choice == 3 then
+          -- Cancel exit
+          vim.cmd("au! VimLeavePre")
+          Utils.info("Exit cancelled")
+          return
+        end
+      end
+
       -- Cancel any inflight requests first
       local ok, Llm = pcall(require, "avante.llm")
       if ok then pcall(function() Llm.cancel_inflight_request() end) end

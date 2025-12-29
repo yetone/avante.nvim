@@ -840,6 +840,27 @@ function ACPClient:cancel_session(session_id)
   })
 end
 
+---List all sessions
+---@param callback fun(sessions: table[]|nil, err: avante.acp.ACPError|nil)
+function ACPClient:list_sessions(callback)
+  callback = callback or function() end
+
+  self:_send_request("session/list", {}, function(result, err)
+    if err then
+      callback(nil, err)
+      return
+    end
+    if not result then
+      local error = self:_create_error(self.ERROR_CODES.PROTOCOL_ERROR, "Failed to list sessions: missing result")
+      callback(nil, error)
+      return
+    end
+    -- Result should be an array of session objects
+    local sessions = result.sessions or result or {}
+    callback(sessions, nil)
+  end)
+end
+
 ---Helper function: Create text content block
 ---@param text string
 ---@param annotations table?
