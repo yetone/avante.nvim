@@ -1049,13 +1049,20 @@ end
 
 function Sidebar:render_result()
   if not Utils.is_valid_container(self.containers.result) then return end
-  local header_text = Utils.icon("󰭻 ") .. "Avante"
-  
+
+  -- Use thread title if available, otherwise default to "Avante"
+  local title = "Avante"
+  if self.chat_history and self.chat_history.title and self.chat_history.title ~= "" and self.chat_history.title ~= "untitled" then
+    title = self.chat_history.title
+  end
+
+  local header_text = Utils.icon("󰭻 ") .. title
+
   -- Add plan mode indicator
   if Config.plan_only_mode then
     header_text = header_text .. " " .. Utils.icon(" ") .. "[PLAN]"
   end
-  
+
   self:render_header(
     self.containers.result.winid,
     self.containers.result.bufnr,
@@ -2446,17 +2453,43 @@ function Sidebar:add_history_messages(messages, opts)
   self.chat_history.messages = history_messages
   self._history_cache_invalidated = true
   self:save_history()
-  if
-    self.chat_history.title == "untitled"
-    and #messages > 0
-    and messages[1].just_for_display ~= true
-    and messages[1].state == "generated"
-  then
-    local first_msg_text = Render.message_to_text(messages[1], messages)
-    local lines_ = vim.iter(vim.split(first_msg_text, "\n")):filter(function(line) return line ~= "" end):totable()
-    if #lines_ > 0 then
-      self.chat_history.title = lines_[1]
-      self:save_history()
+
+  -- Update title from first user message if still untitled
+  if self.chat_history.title == "untitled" and #messages > 0 then
+    -- Find the first user message
+    local first_user_msg = nil
+    for _, msg in ipairs(messages) do
+      if msg.message and msg.message.role == "user" and not msg.just_for_display then
+        first_user_msg = msg
+        break
+      end
+    end
+
+    if first_user_msg then
+      local first_msg_text = Render.message_to_text(first_user_msg, messages)
+      local lines_ = vim.iter(vim.split(first_msg_text, "\n")):filter(function(line) return line ~= "" end):totable()
+      if #lines_ > 0 then
+        -- Extract just the text content, removing any template wrapper
+        local title = lines_[1]
+        -- Remove the template wrapper if present (e.g., "message (managed by avante)" -> extract "message")
+        local template = require("avante.config").history.session_title_template
+        if template and template:match("{{message}}") then
+          -- Try to extract the message from the template
+          local pattern = template:gsub("{{message}}", "(.+)")
+          pattern = pattern:gsub("([%(%)%.%%%+%-%*%?%[%]%^%$])", "%%%1") -- Escape special chars
+          pattern = pattern:gsub("%%%(%%.%+%%%)", "(.+)") -- Unescape the capture group
+          local extracted = title:match("^" .. pattern .. "$")
+          if extracted then
+            title = extracted
+          end
+        end
+        self.chat_history.title = title
+        self:save_history()
+        -- Also trigger render_result to update the sidebar header
+        vim.schedule(function()
+          self:render_result()
+        end)
+      end
     end
   end
   local last_message = messages[#messages]

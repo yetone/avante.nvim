@@ -423,8 +423,9 @@ function M.open_with_telescope(bufnr, cb)
   local action_state = require("telescope.actions.state")
   local previewers = require("telescope.previewers")
 
-  local histories = Path.history.list(bufnr)
-  
+  -- Load histories from all projects, not just current
+  local histories = Path.history.list_all()
+
   -- Fetch external ACP sessions asynchronously
   scan_external_acp_sessions(function(external_sessions)
     -- Create a map of existing ACP session IDs from Avante histories

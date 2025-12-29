@@ -73,6 +73,47 @@ function History.list(bufnr)
   return res
 end
 
+---List all chat histories across all projects
+---@return avante.ChatHistory[]
+function History.list_all()
+  local Scan = require("plenary.scandir")
+  local projects_dir = Path:new(Config.history.storage_path):joinpath("projects")
+  if not projects_dir:exists() then return {} end
+
+  local all_histories = {}
+  local dirs = Scan.scan_dir(tostring(projects_dir), { depth = 1, add_dirs = true, only_dirs = true })
+
+  for _, project_dir_path in ipairs(dirs) do
+    local project_dir = Path:new(project_dir_path)
+    local history_dir = project_dir:joinpath("history")
+
+    if history_dir:exists() then
+      local files = vim.fn.glob(tostring(history_dir:joinpath("*.json")), true, true)
+      for _, filename in ipairs(files) do
+        if not filename:match("metadata.json") then
+          local filepath = Path:new(filename)
+          local history = History.from_file(filepath)
+          if history then
+            table.insert(all_histories, history)
+          end
+        end
+      end
+    end
+  end
+
+  -- Sort by timestamp (most recent first)
+  table.sort(all_histories, function(a, b)
+    local H = require("avante.history")
+    local a_messages = H.get_history_messages(a)
+    local b_messages = H.get_history_messages(b)
+    local timestamp_a = #a_messages > 0 and a_messages[#a_messages].timestamp or a.timestamp
+    local timestamp_b = #b_messages > 0 and b_messages[#b_messages].timestamp or b.timestamp
+    return timestamp_a > timestamp_b
+  end)
+
+  return all_histories
+end
+
 -- Get a chat history file name given a buffer
 ---@param bufnr integer
 ---@param new boolean
@@ -150,8 +191,8 @@ function History.from_file(filepath)
     if content ~= nil then
       local decode_ok, history = pcall(vim.json.decode, content)
       if decode_ok and type(history) == "table" then
-        if not history.title or history.title ~= "string" then history.title = "untitled" end
-        if not history.timestamp or history.timestamp ~= "string" then history.timestamp = Utils.get_timestamp() end
+        if not history.title or type(history.title) ~= "string" then history.title = "untitled" end
+        if not history.timestamp or type(history.timestamp) ~= "string" then history.timestamp = Utils.get_timestamp() end
         -- TODO: sanitize individual entries of the lists below as well.
         if not vim.islist(history.entries) then history.entries = {} end
         if not vim.islist(history.messages) then history.messages = {} end
