@@ -493,7 +493,7 @@ M._defaults = {
     glm = {
       __inherited_from = "openai",
       endpoint = "https://open.bigmodel.cn/api/coding/paas/v4",
-      model = "GLM-4.6",
+      model = "GLM-4.7",
       api_key_name = "GLM_API_KEY",
     },
     qwen = {
