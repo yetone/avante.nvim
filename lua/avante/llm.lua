@@ -990,12 +990,13 @@ function M._stream_acp(opts)
   end
   local acp_client = opts.acp_client
   local session_id = opts.acp_session_id
-  if not acp_client then
-    local acp_config = vim.tbl_deep_extend("force", acp_provider, {
-      ---@type ACPHandlers
-      handlers = {
-        on_session_update = function(update)
-          if update.sessionUpdate == "plan" then
+  
+  -- CRITICAL FIX: Define handlers outside the client creation block
+  -- so they can be updated even when reusing an existing client
+  ---@type ACPHandlers
+  local handlers = {
+    on_session_update = function(update)
+      if update.sessionUpdate == "plan" then
             local todos = {}
             for idx, entry in ipairs(update.entries) do
               local status = "todo"
@@ -1308,7 +1309,12 @@ function M._stream_acp(opts)
           end
           callback("Failed to write file: " .. abs_path)
         end,
-      },
+  }
+  
+  -- Create new client if needed
+  if not acp_client then
+    local acp_config = vim.tbl_deep_extend("force", acp_provider, {
+      handlers = handlers,
     })
     acp_client = ACPClient:new(acp_config)
 
@@ -1345,7 +1351,13 @@ function M._stream_acp(opts)
       end
     end)
     return
-  elseif not session_id then
+  else
+    -- CRITICAL FIX: Update handlers when reusing existing client
+    -- This ensures fresh closures over get_history_messages, on_messages_add, etc.
+    acp_client.config.handlers = handlers
+  end
+  
+  if not session_id then
     M._create_acp_session_and_continue(opts, acp_client)
     return
   end
@@ -1738,7 +1750,8 @@ function M._continue_stream_acp(opts, acp_client, session_id)
       opts.on_stop({ reason = "cancelled" })
     end,
   })
-  acp_client:send_prompt(session_id, prompt, function(_, err_)
+  
+  acp_client:send_prompt(session_id, prompt, function(result, err_)
     if cancelled then return end
     vim.schedule(function() api.nvim_del_autocmd(stop_cmd_id) end)
     if err_ then

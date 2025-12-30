@@ -898,6 +898,13 @@ function Sidebar:retry_user_request()
   self:handle_submit(block.content)
 end
 
+--- Clear the input buffer
+function Sidebar:clear_input()
+  if not Utils.is_valid_container(self.containers.input) then return end
+  api.nvim_buf_set_lines(self.containers.input.bufnr, 0, -1, false, {})
+  api.nvim_win_set_cursor(self.containers.input.winid, { 1, 0 })
+end
+
 function Sidebar:handle_expand_message(message_uuid, expanded)
   Utils.debug("handle_expand_message", message_uuid, expanded)
   self.expanded_message_uuids[message_uuid] = expanded
@@ -2842,7 +2849,10 @@ function Sidebar:handle_submit(request)
     return
   end
 
-  if request:sub(1, 1) == "/" then
+  -- Track if this is a slash command for later clearing
+  local is_slash_command = request:sub(1, 1) == "/"
+
+  if is_slash_command then
     local command, args = request:match("^/(%S+)%s*(.*)")
     if command == nil then
       self:update_content("Invalid command", { focus = false, scroll = false })
@@ -2861,13 +2871,23 @@ function Sidebar:handle_submit(request)
         elseif command == "commit" then
           cmd.callback(self, args, function(question) request = question end)
         else
+          -- Execute local command and clear input if configured
           cmd.callback(self, args)
+          if Config.auto_clear_slash_commands then
+            self:clear_input()
+          end
           return
         end
       end
     else
-      self:update_content("Unknown command: " .. command, { focus = false, scroll = false })
-      return
+      -- Unknown command: check if we should pass to ACP agent
+      if Config.enable_acp_command_passthrough then
+        -- Don't return - let it fall through to ACP handling
+        -- The slash command text will be preserved in the request
+      else
+        self:update_content("Unknown command: " .. command, { focus = false, scroll = false })
+        return
+      end
     end
   end
 

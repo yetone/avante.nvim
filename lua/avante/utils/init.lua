@@ -1602,7 +1602,6 @@ function M.get_commands()
       name = "lines",
     },
     { description = "Commit the changes", name = "commit" },
-    { description = "Show current conversation cost", name = "cost" },
     { description = "Show project context summary", name = "context" },
     { description = "Show conversation memory summary", name = "memory" },
     { 
@@ -1632,65 +1631,6 @@ function M.get_commands()
     commit = function(_, _, cb)
       local question = "Please commit the changes"
       if cb then cb(question) end
-    end,
-    cost = function(sidebar, args, cb)
-      local history = sidebar.chat_history
-      if not history or not history.tokens_usage then
-        sidebar:update_content("No token usage information available", { focus = false, scroll = false })
-        if cb then cb(args) end
-        return
-      end
-      
-      local usage = history.tokens_usage
-      local prompt_tokens = usage.prompt_tokens or 0
-      local completion_tokens = usage.completion_tokens or 0
-      local total_tokens = prompt_tokens + completion_tokens
-      
-      -- Pricing (as of 2024, adjust as needed)
-      -- Claude Sonnet 4.5: $3/$15 per million tokens
-      local Config = require("avante.config")
-      local provider = Config.provider
-      local model = Config.providers[provider] and Config.providers[provider].model or "unknown"
-      
-      -- Default pricing (Claude Sonnet 4.5)
-      local input_price_per_million = 3.0
-      local output_price_per_million = 15.0
-      
-      -- Calculate costs
-      local input_cost = (prompt_tokens / 1000000) * input_price_per_million
-      local output_cost = (completion_tokens / 1000000) * output_price_per_million
-      local total_cost = input_cost + output_cost
-      
-      local cost_text = string.format(
-        [[**Conversation Cost**
-
-Provider: %s
-Model: %s
-
-**Token Usage:**
-- Prompt tokens: %s
-- Completion tokens: %s
-- Total tokens: %s
-
-**Estimated Cost (USD):**
-- Input: $%.4f
-- Output: $%.4f
-- Total: $%.4f
-
-Note: Pricing based on standard Claude Sonnet 4.5 rates ($3/$15 per million tokens).
-Actual costs may vary by provider and model.]],
-        provider,
-        model,
-        M.format_number(prompt_tokens),
-        M.format_number(completion_tokens),
-        M.format_number(total_tokens),
-        input_cost,
-        output_cost,
-        total_cost
-      )
-      
-      sidebar:update_content(cost_text, { focus = false, scroll = false })
-      if cb then cb(args) end
     end,
     context = function(sidebar, args, cb)
       -- Show current project context information

@@ -806,6 +806,12 @@ M._defaults = {
   custom_tools = {},
   ---@type AvanteSlashCommand[]
   slash_commands = {},
+  ---@type boolean Enable passthrough of unknown slash commands to ACP agent
+  enable_acp_command_passthrough = true,
+  ---@type string[] Commands that should only be handled locally (never sent to ACP)
+  local_only_commands = { "clear", "new", "help", "init", "compact" },
+  ---@type boolean Auto-clear input buffer after slash command is submitted
+  auto_clear_slash_commands = true,
   ---@type string | nil Path to directory containing .mdx shortcut files
   shortcuts_directory = nil,
   ---@type AvanteShortcut[]
