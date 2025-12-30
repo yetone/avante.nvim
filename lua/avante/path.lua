@@ -149,7 +149,7 @@ function History.from_file(filepath)
     if content ~= nil then
       local decode_ok, history = pcall(vim.json.decode, content)
       if decode_ok and type(history) == "table" then
-        if not history.title or history.title ~= "string" then history.title = "untitled" end
+        if not history.title or type(history.title) ~= "string" then history.title = "untitled" end
         if not history.timestamp or history.timestamp ~= "string" then history.timestamp = Utils.get_timestamp() end
         -- TODO: sanitize individual entries of the lists below as well.
         if not vim.islist(history.entries) then history.entries = {} end
