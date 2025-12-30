@@ -1065,9 +1065,15 @@ function Sidebar:render_result()
 
   local header_text = Utils.icon("󰭻 ") .. title
 
-  -- Add plan mode indicator
+  -- Add plan mode indicator (check both old plan_only_mode and new ACP plan mode)
   if Config.plan_only_mode then
     header_text = header_text .. " " .. Utils.icon(" ") .. "[PLAN]"
+  else
+    -- Check if agent is in ACP plan mode
+    local Llm = require("avante.llm")
+    if Llm.is_in_plan_mode() then
+      header_text = header_text .. " " .. Utils.icon("🗺️ ") .. "[PLAN]"
+    end
   end
 
   self:render_header(
@@ -2574,12 +2580,24 @@ function Sidebar:create_selected_code_container()
 end
 
 function Sidebar:close_input_hint()
+  -- Close floating window if exists
   if self.input_hint_window and api.nvim_win_is_valid(self.input_hint_window) then
     local buf = api.nvim_win_get_buf(self.input_hint_window)
     if INPUT_HINT_NAMESPACE then api.nvim_buf_clear_namespace(buf, INPUT_HINT_NAMESPACE, 0, -1) end
     api.nvim_win_close(self.input_hint_window, true)
     api.nvim_buf_delete(buf, { force = true })
     self.input_hint_window = nil
+  end
+  
+  -- Clear winbar/statusline if using those modes
+  local config = Config.behaviour.status_line
+  if config then
+    local position = config.position
+    if position == "winbar" and self.containers.input and api.nvim_win_is_valid(self.containers.input.winid) then
+      pcall(api.nvim_set_option_value, "winbar", "", { win = self.containers.input.winid })
+    elseif position == "statusline" and self.containers.input and api.nvim_win_is_valid(self.containers.input.winid) then
+      pcall(api.nvim_set_option_value, "statusline", "", { win = self.containers.input.winid })
+    end
   end
 end
 
@@ -2590,34 +2608,161 @@ function Sidebar:get_input_float_window_row()
   return winline
 end
 
--- Create a floating window as a hint
+-- Create a status display (hint window or winbar) with plan mode indicator
 function Sidebar:show_input_hint()
   self:close_input_hint() -- Close the existing hint window
 
-  local hint_text = (fn.mode() ~= "i" and Config.mappings.submit.normal or Config.mappings.submit.insert) .. ": submit"
-  if Config.behaviour.enable_token_counting then
+  local config = Config.behaviour.status_line
+  if not config or not config.enabled then return end
+
+  -- Build status line parts
+  local parts = {}
+  local plan_mode_text = nil
+
+  -- 1. Plan mode indicator
+  if config.show_plan_mode then
+    -- Check both Config.plan_only_mode (manual toggle) and ACP native plan mode
+    local Llm = require("avante.llm")
+    local is_plan_mode = Config.plan_only_mode or Llm.is_in_plan_mode()
+    
+    if is_plan_mode then
+      plan_mode_text = "🗺️  PLAN"
+      table.insert(parts, plan_mode_text)
+    else
+      plan_mode_text = "⚡ EXEC"
+      table.insert(parts, plan_mode_text)
+    end
+  end
+
+  -- 2. Token count
+  if config.show_tokens and Config.behaviour.enable_token_counting then
     local input_value = table.concat(api.nvim_buf_get_lines(self.containers.input.bufnr, 0, -1, false), "\n")
     if self.token_count == nil then self:initialize_token_count() end
     local tokens = self.token_count + Utils.tokens.calculate_tokens(input_value)
-    hint_text = "Tokens: " .. tostring(tokens) .. "; " .. hint_text
+    table.insert(parts, "Tokens: " .. tostring(tokens))
   end
 
+  -- 3. Submit keybinding
+  if config.show_submit_key then
+    local submit_key = (fn.mode() ~= "i" and Config.mappings.submit.normal or Config.mappings.submit.insert)
+    table.insert(parts, submit_key .. ": submit")
+  end
+
+  -- 4. Session info (optional)
+  if config.show_session_info and self.current_acp_session_id then
+    table.insert(parts, "S:" .. self.current_acp_session_id:sub(1, 8))
+  end
+
+  -- Build final text
+  local hint_text
+  if config.format then
+    -- Custom format string
+    hint_text = config.format
+      :gsub("{plan_mode}", parts[1] or "")
+      :gsub("{tokens}", parts[2] or "")
+      :gsub("{submit_key}", parts[3] or "")
+      :gsub("{session_info}", parts[4] or "")
+  else
+    -- Default: join with " | "
+    hint_text = table.concat(parts, " | ")
+  end
+
+  -- Create status display based on position
+  self:create_status_display(hint_text, plan_mode_text)
+end
+
+-- Create status display based on configured position
+---@param text string The full status text
+---@param plan_mode_text string|nil The plan mode indicator for highlighting
+function Sidebar:create_status_display(text, plan_mode_text)
+  local position = Config.behaviour.status_line.position
+  
+  if position == "winbar" then
+    -- Primary mode: Winbar at top of input container
+    if not self.containers.input or not api.nvim_win_is_valid(self.containers.input.winid) then
+      return
+    end
+    
+    -- Build winbar string with padding
+    local winbar_str = " " .. text .. " "
+    
+    -- Set winbar for input window
+    api.nvim_set_option_value("winbar", winbar_str, { 
+      win = self.containers.input.winid 
+    })
+    
+  elseif position == "floating" then
+    -- Fallback: Floating window (original implementation)
+    local buf = api.nvim_create_buf(false, true)
+    api.nvim_buf_set_lines(buf, 0, -1, false, { text })
+    api.nvim_buf_set_extmark(buf, INPUT_HINT_NAMESPACE, 0, 0, { 
+      hl_group = "AvantePopupHint", 
+      end_col = #text 
+    })
+    
+    local win_width = api.nvim_win_get_width(self.containers.input.winid)
+    local width = #text
+    
+    self.input_hint_window = api.nvim_open_win(buf, false, {
+      relative = "win",
+      win = self.containers.input.winid,
+      width = width,
+      height = 1,
+      row = self:get_input_float_window_row(),
+      col = math.max(win_width - width, 0),
+      style = "minimal",
+      border = "none",
+      focusable = false,
+      zindex = 100,
+    })
+    
+  elseif position == "statusline" then
+    -- Use statusline at bottom of input window
+    if not self.containers.input or not api.nvim_win_is_valid(self.containers.input.winid) then
+      return
+    end
+    api.nvim_set_option_value("statusline", text, { 
+      win = self.containers.input.winid 
+    })
+    
+  elseif position == "top" then
+    -- Floating window at very top of sidebar
+    self:create_floating_status(text, "top")
+    
+  elseif position == "bottom" then
+    -- Floating window at bottom (above input)
+    self:create_floating_status(text, "bottom")
+  end
+end
+
+-- Helper for floating status windows at top/bottom of sidebar
+---@param text string
+---@param location "top" | "bottom"
+function Sidebar:create_floating_status(text, location)
+  if not self.containers.result or not api.nvim_win_is_valid(self.containers.result.winid) then
+    return
+  end
+  
   local buf = api.nvim_create_buf(false, true)
-  api.nvim_buf_set_lines(buf, 0, -1, false, { hint_text })
-  api.nvim_buf_set_extmark(buf, INPUT_HINT_NAMESPACE, 0, 0, { hl_group = "AvantePopupHint", end_col = #hint_text })
-
-  -- Get the current window size
-  local win_width = api.nvim_win_get_width(self.containers.input.winid)
-  local width = #hint_text
-
-  -- Create the floating window
+  api.nvim_buf_set_lines(buf, 0, -1, false, { text })
+  
+  local win_width = api.nvim_win_get_width(self.containers.result.winid)
+  local width = #text
+  
+  local row
+  if location == "top" then
+    row = 0
+  else
+    row = api.nvim_win_get_height(self.containers.result.winid) - 1
+  end
+  
   self.input_hint_window = api.nvim_open_win(buf, false, {
     relative = "win",
-    win = self.containers.input.winid,
+    win = self.containers.result.winid,
     width = width,
     height = 1,
-    row = self:get_input_float_window_row(),
-    col = math.max(win_width - width, 0), -- Display in the bottom right corner
+    row = row,
+    col = math.floor((win_width - width) / 2),  -- Center
     style = "minimal",
     border = "none",
     focusable = false,

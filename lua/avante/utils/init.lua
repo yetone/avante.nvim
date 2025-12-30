@@ -1612,6 +1612,7 @@ function M.get_commands()
     { description = "Show current plan", name = "plan" },
     { description = "Toggle full-screen mode", name = "toggle-full-screen" },
     { description = "Toggle plan-only mode", name = "toggle-plan-mode" },
+    { description = "Toggle follow agent edits", name = "toggle-follow" },
   }
 
   ---@type {[AvanteSlashCommandBuiltInName]: AvanteSlashCommandCallback}
@@ -1817,9 +1818,11 @@ Use `/compact` to update the memory with recent messages.]],
       if cb then cb(args) end
     end,
     ["toggle-plan-mode"] = function(sidebar, args, cb)
-      -- Toggle plan-only mode
+      -- Toggle plan-only mode (backward compatible with old plan_only_mode)
+      -- This also triggers the same logic as :AvantePlanModeToggle
+      require("avante.api").toggle_plan_mode()
+      
       local Config = require("avante.config")
-      Config.plan_only_mode = not Config.plan_only_mode
       local status = Config.plan_only_mode and "enabled" or "disabled"
       
       sidebar:update_content(
@@ -1833,6 +1836,25 @@ Use `/compact` to update the memory with recent messages.]],
       
       -- Update the header to reflect the change
       sidebar:render_result()
+      
+      if cb then cb(args) end
+    end,
+    ["toggle-follow"] = function(sidebar, args, cb)
+      -- Toggle follow agent locations mode
+      local Config = require("avante.config")
+      Config.behaviour.acp_follow_agent_locations = not Config.behaviour.acp_follow_agent_locations
+      local status = Config.behaviour.acp_follow_agent_locations and "enabled" or "disabled"
+      
+      sidebar:update_content(
+        string.format("**Follow Mode %s**\n\nFollow mode is now %s.\n\n%s", 
+          status:upper(), 
+          status,
+          Config.behaviour.acp_follow_agent_locations 
+            and "The editor will automatically navigate to files and locations as the agent edits them, with visual indicators showing where changes are being made." 
+            or "The editor will not automatically follow agent edits. You can still see changes in the chat, but navigation is manual."
+        ),
+        { focus = false, scroll = false }
+      )
       
       if cb then cb(args) end
     end,

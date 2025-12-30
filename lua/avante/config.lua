@@ -32,7 +32,7 @@ M._defaults = {
   ---@type avante.Mode
   mode = "agentic",
   ---@type boolean
-  plan_only_mode = false,
+  plan_only_mode = true,  -- Default: new sessions start in plan mode
   ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | "watsonx_code_assistant" | string
   ---@type avante.ProviderName
   provider = "claude",
@@ -560,6 +560,17 @@ M._defaults = {
     --- Whether to prompt before exiting when there are active ACP sessions
     ---@type boolean
     prompt_on_exit_with_active_session = true,
+    --- Status line configuration for input container
+    ---@type table
+    status_line = {
+      enabled = true,
+      position = "winbar", -- "winbar" | "floating" | "statusline" | "top" | "bottom"
+      show_plan_mode = true, -- Show plan mode indicator (🗺️ PLAN or ⚡ EXEC)
+      show_tokens = true, -- Show token count
+      show_submit_key = true, -- Show submit keybinding
+      show_session_info = false, -- Show session ID
+      format = nil, -- Custom format string: "{plan_mode} | {tokens} | {submit_key}"
+    },
   },
   prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
     enabled = true, -- toggle logging entirely

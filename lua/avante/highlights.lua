@@ -66,6 +66,9 @@ local Highlights = {
   AVANTE_LOGO_LINE_12 = { name = "AvanteLogoLine12", fg = "#676767" },
   AVANTE_LOGO_LINE_13 = { name = "AvanteLogoLine13", fg = "#5a5a5a" },
   AVANTE_LOGO_LINE_14 = { name = "AvanteLogoLine14", fg = "#4d4d4d" },
+  -- Plan mode status indicators
+  AVANTE_STATUS_PLAN_MODE = { name = "AvanteStatusPlanMode", fg = "#61AFEF", bold = true },
+  AVANTE_STATUS_EXEC_MODE = { name = "AvanteStatusExecMode", fg = "#98c379", bold = true },
 }
 
 Highlights.conflict = {
