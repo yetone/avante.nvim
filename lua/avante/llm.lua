@@ -1749,10 +1749,17 @@ function M._stream(opts)
   -- Reset the cancellation flag at the start of a new request
   if LLMToolHelpers then LLMToolHelpers.is_cancelled = false end
 
-  local acp_provider = Config.acp_providers[Config.provider]
-  if acp_provider then return M._stream_acp(opts) end
+  local provider_name = opts.mode == "editing" and Config.edit_provider or Config.provider
+  local acp_provider = Config.acp_providers[provider_name]
+  if acp_provider then
+    if opts.mode == "editing" then
+      Utils.error("Editing is not supported with ACP, specify a separate `edit_provider` in your config")
+      return
+    end
+    return M._stream_acp(opts)
+  end
 
-  local provider = opts.provider or Providers[Config.provider]
+  local provider = opts.provider or Providers[provider_name]
   opts.session_ctx = opts.session_ctx or {}
 
   if not opts.session_ctx.on_messages_add then opts.session_ctx.on_messages_add = opts.on_messages_add end
