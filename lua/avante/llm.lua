@@ -354,6 +354,18 @@ function M.generate_prompts(opts)
     end
   end
 
+  -- Apply system_prompt_providers if available
+  if Config.system_prompt_providers and #Config.system_prompt_providers > 0 then
+    for _, provider_fn in ipairs(Config.system_prompt_providers) do
+      if type(provider_fn) == "function" then
+        local provider_prompt = provider_fn()
+        if provider_prompt and provider_prompt ~= "" then
+          system_prompt = system_prompt .. "\n\n" .. provider_prompt
+        end
+      end
+    end
+  end
+
   ---@type AvanteLLMMessage[]
   local context_messages = {}
   if opts.prompt_opts and opts.prompt_opts.messages then
@@ -522,6 +534,11 @@ function M.curl(opts)
       stopped = true
     end
     if orig_on_stop then return orig_on_stop(stop_opts) end
+  end
+
+  ---@type AvanteCurlOutput
+  if Config.lazy_loading and Config.lazy_loading.enabled then
+    prompt_opts.tools = require("avante.llm_tools.lazy_loading").add_loaded_tools(prompt_opts.tools)
   end
 
   local spec = provider:parse_curl_args(prompt_opts)
