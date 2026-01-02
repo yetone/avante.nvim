@@ -1277,24 +1277,20 @@ function M._stream_acp(opts)
         on_write_file = function(path, content, callback)
           local abs_path = Utils.to_absolute_path(path)
           local file = io.open(abs_path, "w")
-          if file then
-            file:write(content)
-            file:close()
-            local buffers = vim.tbl_filter(
-              function(bufnr)
-                return vim.api.nvim_buf_is_valid(bufnr)
-                  and vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":p")
-                    == vim.fn.fnamemodify(abs_path, ":p")
-              end,
-              vim.api.nvim_list_bufs()
-            )
-            for _, buf in ipairs(buffers) do
-              vim.api.nvim_buf_call(buf, function() vim.cmd("edit") end)
-            end
-            callback(nil)
+          if not file then
+            callback("Failed to write file: " .. abs_path)
             return
           end
-          callback("Failed to write file: " .. abs_path)
+          file:write(content)
+          file:close()
+          local buffers = vim.tbl_filter(function(bufnr) ---@param bufnr integer
+            return vim.api.nvim_buf_is_valid(bufnr)
+              and vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":p") == vim.fn.fnamemodify(abs_path, ":p")
+          end, vim.api.nvim_list_bufs())
+          for _, buf in ipairs(buffers) do
+            vim.api.nvim_buf_call(buf, function() vim.cmd("edit") end)
+          end
+          callback(nil)
         end,
       },
     })
