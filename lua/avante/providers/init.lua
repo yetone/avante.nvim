@@ -60,7 +60,6 @@ end
 ---@private
 function E.setup(opts)
   opts.provider.setup()
-  -- TODO: Add logic for checking if claude setup needs to initiate OAuth flow
 
   local var = opts.provider.api_key_name
 

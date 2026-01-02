@@ -4,6 +4,7 @@ local P = require("avante.providers")
 local HistoryMessage = require("avante.history.message")
 local JsonParser = require("avante.libs.jsonparser")
 local Config = require("avante.config")
+local Path = require("plenary.path")
 
 ---@class AvanteAnthropicProvider : AvanteDefaultBaseProvider
 ---@field auth_endpoint string
@@ -13,13 +14,25 @@ local Config = require("avante.config")
 ---@class AvanteProviderFunctor
 local M = {}
 
-M.api_key_name = "ANTHROPIC_API_KEY"
+local claude_path = vim.fn.stdpath("data") .. "/avante/claude-auth.json"
+local lockfile_path = vim.fn.stdpath("data") .. "/avante/claude-timer.lock"
+
+M.api_key_name = ""
 M.support_prompt_caching = true
 
 M.role_map = {
   user = "user",
   assistant = "assistant",
 }
+
+function M.setup()
+  local claude_token_file = Path:new(claude_path)
+  local auth_type = P[Config.provider].auth_type
+
+  if (auth_type == "api") then
+    M.api_key_name = "ANTRHOPIC_API_KEY"
+  end
+end
 
 ---@param headers table<string, string>
 ---@return integer|nil
