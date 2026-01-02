@@ -1282,6 +1282,7 @@ function M._stream_acp(opts)
             return
           end
           file:write(content)
+          if vim.fn.has("unix") == 1 then file:write("\n") end
           file:close()
           local buffers = vim.tbl_filter(function(bufnr) ---@param bufnr integer
             return vim.api.nvim_buf_is_valid(bufnr)
