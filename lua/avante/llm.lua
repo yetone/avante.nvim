@@ -1511,7 +1511,9 @@ function M._continue_stream_acp(opts, acp_client, session_id)
     local include_history_count = recovery_config.include_history_count or 5
     local user_messages_added = 0
 
-    for i = #history_messages, 1, -1 do
+    -- Iterate through history messages excluding the last one (current prompt)
+    -- The last message will be added separately without context tags
+    for i = #history_messages - 1, 1, -1 do
       local message = history_messages[i]
       if message.message.role == "user" and user_messages_added < include_history_count then
         local content = message.message.content
@@ -1546,6 +1548,14 @@ function M._continue_stream_acp(opts, acp_client, session_id)
         text = "<system_context>Continuing from previous session with "
           .. user_messages_added
           .. " recent user messages</system_context>",
+      })
+    end
+    -- Add the last message as the actual prompt (without previous_user_message tags)
+    -- This ensures it's treated as the current request, not historical context
+    if #history_messages > 0 then
+      table.insert(prompt, {
+        type = "text",
+        text = history_messages[#history_messages].message.content,
       })
     end
   else
