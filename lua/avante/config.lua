@@ -256,7 +256,7 @@ M._defaults = {
     },
     ["claude-code"] = {
       command = "npx",
-      args = { "-y", "@zed-industries/claude-code-acp" },
+      args = { "-y", "-g", "@zed-industries/claude-code-acp" },
       env = {
         NODE_NO_WARNINGS = "1",
         ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY"),
@@ -271,7 +271,7 @@ M._defaults = {
     },
     ["codex"] = {
       command = "npx",
-      args = { "-y", "@zed-industries/codex-acp" },
+      args = { "-y", "-g", "@zed-industries/codex-acp" },
       env = {
         NODE_NO_WARNINGS = "1",
         HOME = os.getenv("HOME"),
