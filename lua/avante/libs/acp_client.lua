@@ -355,18 +355,26 @@ function ACPClient:_create_stdio_transport()
     end
 
     local args = vim.deepcopy(self.config.args or {})
-    local env = self.config.env
 
-    -- Start with system environment and override with config env
-    local final_env = {}
+    -- Build the final environment map, inheriting from the current process
+    -- and allowing overrides from the plugin configuration.
+    local inherited_env = vim.fn.environ()
+    local override_env = self.config.env
 
-    local path = vim.fn.getenv("PATH")
-    if path then final_env[#final_env + 1] = "PATH=" .. path end
-
-    if env then
-      for k, v in pairs(env) do
-        final_env[#final_env + 1] = k .. "=" .. v
+    if override_env then
+      for k, v in pairs(override_env) do
+        if v == vim.NIL then
+          inherited_env[k] = nil
+        else
+          inherited_env[k] = v
+        end
       end
+    end
+
+    -- Convert map to list of "KEY=VALUE" strings for uv.spawn
+    local final_env = {}
+    for k, v in pairs(inherited_env) do
+      final_env[#final_env + 1] = k .. "=" .. v
     end
 
     ---@diagnostic disable-next-line: missing-fields
