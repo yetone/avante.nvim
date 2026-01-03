@@ -338,9 +338,7 @@ M._defaults = {
     ---@type AvanteAnthropicProvider
     claude = {
       endpoint = "https://api.anthropic.com",
-      auth_endpoint = "https://claude.ai/oauth/authorize",
-      token_endpoint = "https://console.anthropic.com/v1/oauth/token",
-      auth_type = "oauth",
+      auth_type = "api",
       model = "claude-sonnet-4-5-20250929",
       timeout = 30000, -- Timeout in milliseconds
       context_window = 200000,

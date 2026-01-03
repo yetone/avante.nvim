@@ -31,10 +31,10 @@ local function get_random_bytes(n)
   return table.concat(bytes)
 end
 
---- URL-safe base64 (no padding)
+--- URL-safe base64
 --- @param data string value to base64 encode
 local function base64url_encode(data)
-  local b64 = vim.fn.systemlist('echo -n "' .. data .. '" | base64')[1]
+  local b64 = vim.base64.encode(data)
   return b64:gsub("+", "-"):gsub("/", "_"):gsub("=", "")
 end
 
