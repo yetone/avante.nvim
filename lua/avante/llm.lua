@@ -1320,8 +1320,7 @@ function M._stream_acp(opts)
       if not session_id then
         M._create_acp_session_and_continue(opts, acp_client)
       else
-        if opts.just_connect_acp_client then return end
-        M._continue_stream_acp(opts, acp_client, session_id)
+        M._load_acp_session_and_continue(opts, acp_client, session_id)
       end
     end)
     return
@@ -1338,7 +1337,9 @@ end
 ---@param acp_client avante.acp.ACPClient
 function M._create_acp_session_and_continue(opts, acp_client)
   local project_root = Utils.root.get()
-  acp_client:create_session(project_root, {}, function(session_id_, err)
+  local acp_provider = Config.acp_providers[Config.provider] or {}
+  local mcp_servers = acp_provider.mcp_servers or {}
+  acp_client:create_session(project_root, mcp_servers, function(session_id_, err)
     if err then
       opts.on_stop({ reason = "error", error = err })
       return
@@ -1352,6 +1353,23 @@ function M._create_acp_session_and_continue(opts, acp_client)
 
     if opts.just_connect_acp_client then return end
     M._continue_stream_acp(opts, acp_client, session_id_)
+  end)
+end
+
+---@param opts AvanteLLMStreamOptions
+---@param acp_client avante.acp.ACPClient
+---@param session_id string
+function M._load_acp_session_and_continue(opts, acp_client, session_id)
+  local project_root = Utils.root.get()
+  acp_client:load_session(session_id, project_root, {}, function(_, err)
+    if err then
+      -- Failed to load session, create a new one. It happens after switching acp providers
+      M._create_acp_session_and_continue(opts, acp_client)
+      return
+    end
+
+    if opts.just_connect_acp_client then return end
+    M._continue_stream_acp(opts, acp_client, session_id)
   end)
 end
 

@@ -129,9 +129,7 @@ end
 ---@return boolean
 function M.is_ignored(abs_path)
   local project_root = Utils.get_project_root()
-  local exit_code = vim
-    .system({ "git", "-C", vim.fn.shellescape(project_root), "check-ignore", vim.fn.shellescape(abs_path) }, { text = true })
-    :wait().code
+  local exit_code = vim.system({ "git", "-C", project_root, "check-ignore", abs_path }, { text = true }):wait().code
 
   -- If command failed or git is not available or not a git repository, fall back to old method
   if exit_code ~= 0 and exit_code ~= 1 then return old_is_ignored(abs_path) end
@@ -152,8 +150,9 @@ function M.has_permission_to_access(abs_path)
   local config_dir = vim.fn.stdpath("config")
   local in_project = abs_path:sub(1, #project_root) == project_root
   local in_config = abs_path:sub(1, #config_dir) == config_dir
+  local bypass_ignore = Config.behaviour and Config.behaviour.allow_access_to_git_ignored_files
   if not in_project and not in_config then return false end
-  return not M.is_ignored(abs_path)
+  return bypass_ignore or not M.is_ignored(abs_path)
 end
 
 ---@param path string

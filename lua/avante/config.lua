@@ -58,6 +58,8 @@ M._defaults = {
     enabled = false, -- Enables the RAG service
     host_mount = os.getenv("HOME"), -- Host mount path for the RAG service (Docker will mount this path)
     runner = "docker", -- The runner for the RAG service (can use docker or nix)
+    -- The image to use to run the rag service if runner is docker
+    image = "quay.io/yetoneful/avante-rag-service:0.0.11",
     llm = { -- Configuration for the Language Model (LLM) used by the RAG service
       provider = "openai", -- The LLM provider
       endpoint = "https://api.openai.com/v1", -- The LLM API endpoint
@@ -254,7 +256,7 @@ M._defaults = {
     },
     ["claude-code"] = {
       command = "npx",
-      args = { "-y", "@zed-industries/claude-code-acp" },
+      args = { "-y", "-g", "@zed-industries/claude-code-acp" },
       env = {
         NODE_NO_WARNINGS = "1",
         ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY"),
@@ -268,7 +270,8 @@ M._defaults = {
       args = { "acp" },
     },
     ["codex"] = {
-      command = "codex-acp",
+      command = "npx",
+      args = { "-y", "-g", "@zed-industries/codex-acp" },
       env = {
         NODE_NO_WARNINGS = "1",
         HOME = os.getenv("HOME"),
@@ -491,7 +494,7 @@ M._defaults = {
     glm = {
       __inherited_from = "openai",
       endpoint = "https://open.bigmodel.cn/api/coding/paas/v4",
-      model = "GLM-4.6",
+      model = "GLM-4.7",
       api_key_name = "GLM_API_KEY",
     },
     qwen = {
@@ -546,6 +549,7 @@ M._defaults = {
     ---@type boolean | string[] -- true: auto-approve all tools, false: normal prompts, string[]: auto-approve specific tools by name
     auto_approve_tool_permissions = true, -- Default: auto-approve all tools (no prompts)
     auto_check_diagnostics = true,
+    allow_access_to_git_ignored_files = false,
     enable_fastapply = false,
     include_generated_by_commit_line = false, -- Controls if 'Generated-by: <provider/model>' line is added to git commit message
     auto_add_current_file = true, -- Whether to automatically add the current file when opening a new chat
