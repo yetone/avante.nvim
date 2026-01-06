@@ -127,16 +127,15 @@ function M.setup()
     return
   end
 
-  if not M.state then
-    M.state = {
-      claude_token = nil,
-    }
-  end
+  if not M.state then M.state = {
+    claude_token = nil,
+  } end
 
   if claude_token_file:exists() then
     local ok, token = pcall(vim.json.decode, claude_token_file:read())
-    if ok and token.expires_at and token.expires_at > math.floor(os.time()) then
-      -- vim.notify("Setting token to: " .. vim.inspect(token), vim.log.levels.INFO)
+    if
+      ok --[[ and token.expires_at and token.expires_at > math.floor(os.time()) ]]
+    then
       M.state.claude_token = token
     end
 
@@ -192,7 +191,8 @@ function M.setup_claude_timer()
   -- Refresh 2 minutes before expiration
   local initial_interval = math.max(0, (time_until_expiry - 120) * 1000)
   -- Regular interval of 28 minutes after the first refresh
-  local repeat_interval = 28 * 60 * 1000
+  -- local repeat_interval = 28 * 60 * 1000
+  local repeat_interval = 0 -- Try 0 as we should know exactly when the refresh is needed, rather than repeating
 
   M._refresh_timer = vim.uv.new_timer()
   M._refresh_timer:start(
@@ -279,10 +279,10 @@ function M:parse_messages(opts)
           has_tool_use = true
           table.insert(message_content, { type = "tool_use", name = item.name, id = item.id, input = item.input })
         elseif
-            not provider_conf.disable_tools
-            and type(item) == "table"
-            and item.type == "tool_result"
-            and has_tool_use
+          not provider_conf.disable_tools
+          and type(item) == "table"
+          and item.type == "tool_result"
+          and has_tool_use
         then
           table.insert(
             message_content,
@@ -328,9 +328,9 @@ function M.transform_anthropic_usage(usage)
   ---@type avante.LLMTokenUsage
   local res = {
     prompt_tokens = usage.cache_creation_input_tokens and (usage.input_tokens + usage.cache_creation_input_tokens)
-        or usage.input_tokens,
+      or usage.input_tokens,
     completion_tokens = usage.cache_read_input_tokens and (usage.output_tokens + usage.cache_read_input_tokens)
-        or usage.output_tokens,
+      or usage.output_tokens,
   }
 
   return res
@@ -360,8 +360,8 @@ function M:parse_response(ctx, data_stream, event_state, opts)
   local function new_assistant_message(content, uuid)
     assert(
       event_state == "content_block_start"
-      or event_state == "content_block_delta"
-      or event_state == "content_block_stop",
+        or event_state == "content_block_delta"
+        or event_state == "content_block_stop",
       "called with unexpected event_state: " .. event_state
     )
     return HistoryMessage:new("assistant", content, {
@@ -518,7 +518,7 @@ function M:parse_curl_args(prompt_opts)
     local api_key = M.state.claude_token.access_token
     headers["authorization"] = string.format("Bearer %s", api_key)
     headers["anthropic-beta"] =
-    "oauth-2025-04-20,claude-code-20250219,interleaved-thinking-2025-05-14,fine-grained-tool-streaming-2025-05-14,prompt-caching-2024-07-31"
+      "oauth-2025-04-20,claude-code-20250219,interleaved-thinking-2025-05-14,fine-grained-tool-streaming-2025-05-14,prompt-caching-2024-07-31"
   else
     if P.env.require_api_key(provider_conf) then
       local api_key = self.parse_api_key()
@@ -671,11 +671,13 @@ function M.authenticate()
   )
 
   -- Open browser to begin authentication
-  local open_success = pcall(vim.ui.open, auth_url)
-  if not open_success then
-    vim.fn.setreg("+", auth_url)
-    vim.notify("Copied URL to Clipboard, please open this URL in your browser:\n" .. auth_url, vim.log.levels.WARN)
-  end
+  vim.schedule(function()
+    local open_success = pcall(vim.ui.open, auth_url)
+    if not open_success then
+      vim.fn.setreg("+", auth_url)
+      vim.notify("Copied URL to Clipboard, please open this URL in your browser:\n" .. auth_url, vim.log.levels.WARN)
+    end
+  end)
 
   local function on_submit(input)
     if input then
@@ -695,20 +697,22 @@ function M.authenticate()
       })
 
       if response.status >= 400 then
-        vim.notify(string.format("HTTP %d: %s", response.status, response.body), vim.log.levels.ERROR)
+        vim.schedule(
+          function() vim.notify(string.format("HTTP %d: %s", response.status, response.body), vim.log.levels.ERROR) end
+        )
         return
       end
 
       local ok, tokens = pcall(vim.json.decode, response.body)
       if ok then
         M.store_tokens(tokens)
-        vim.notify("✓ Authentication successful!", vim.log.levels.INFO)
+        vim.schedule(function() vim.notify("✓ Authentication successful!", vim.log.levels.INFO) end)
         M._is_setup = true
       else
-        vim.notify("Failed to decode JSON", vim.log.levels.ERROR)
+        vim.schedule(function() vim.notify("Failed to decode JSON", vim.log.levels.ERROR) end)
       end
     else
-      vim.notify("Failed to parse code, authentication failed!", vim.log.levels.ERROR)
+      vim.schedule(function() vim.notify("Failed to parse code, authentication failed!", vim.log.levels.ERROR) end)
     end
   end
 
@@ -734,10 +738,10 @@ function M.refresh_token(async, force)
 
   -- Do not refresh token if not forced or not expired
   if
-      not force
-      and M.state.claude_token
-      and M.state.claude_token.expires_at
-      and M.state.claude_token.expires_at > math.floor(os.time())
+    not force
+    and M.state.claude_token
+    and M.state.claude_token.expires_at
+    and M.state.claude_token.expires_at > math.floor(os.time())
   then
     return false
   end
@@ -757,6 +761,14 @@ function M.refresh_token(async, force)
 
   local function handle_response(response)
     if response.status >= 400 then
+      vim.schedule(
+        function()
+          vim.notify(
+            string.format("[%s]Failed to refresh access token: %s", response.status, response.body),
+            vim.log.levels.ERROR
+          )
+        end
+      )
       return false
     else
       local ok, tokens = pcall(vim.json.decode, response.body)
@@ -787,17 +799,19 @@ function M.store_tokens(tokens)
   local json = {
     access_token = tokens["access_token"],
     refresh_token = tokens["refresh_token"],
-    expires_at = os.time() + tokens["expires_in"] * 1000,
+    expires_at = os.time() + tokens["expires_in"],
   }
   M.state.claude_token = json
 
-  local data_path = vim.fn.stdpath("data") .. "/avante/claude-auth.json"
-  local file = io.open(data_path, "w")
-  if file then
-    file:write(vim.json.encode(json))
-    file:close()
-    vim.fn.system("chmod 600 " .. data_path)
-  end
+  vim.schedule(function()
+    local data_path = vim.fn.stdpath("data") .. "/avante/claude-auth.json"
+    local file = io.open(data_path, "w")
+    if file then
+      file:write(vim.json.encode(json))
+      file:close()
+      vim.fn.system("chmod 600 " .. data_path)
+    end
+  end)
 end
 
 function M.cleanup_claude()

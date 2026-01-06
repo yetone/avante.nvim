@@ -15,8 +15,7 @@ local function get_random_bytes(n)
     local buf = ffi.new("unsigned char[?]", n)
     if lib.RAND_bytes(buf, n) == 1 then return ffi.string(buf, n) end
   end
-  -- Fallback: read from /dev/urandom (Unix) or use time-based seed
-  -- For Windows, you'd need CryptGenRandom via FFI
+  -- Fallback
   local f = io.open("/dev/urandom", "rb")
   if f then
     local bytes = f:read(n)
@@ -58,10 +57,8 @@ function M.generate_challenge(verifier)
     return base64url_encode(ffi.string(digest, 32))
   end
 
-  -- Pure Lua SHA-256 fallback
-  local sha256 = require("avante.auth.sha2")
-  local hash = sha256(verifier)
-  return base64url_encode(hash)
+  return nil
+
 end
 
 return M
