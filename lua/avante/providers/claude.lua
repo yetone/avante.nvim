@@ -759,7 +759,7 @@ function M.refresh_token(async, force)
     if response.status >= 400 then
       return false
     else
-      local ok, tokens = pcall(vim.decode.json, response.body)
+      local ok, tokens = pcall(vim.json.decode, response.body)
       if ok then
         M.store_tokens(tokens)
 
