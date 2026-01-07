@@ -55,24 +55,6 @@ local function is_valid_token(token)
     and token.refresh_token ~= ""
 end
 
--- Common token management setup (timer, file watcher, tokenizer)
-local function setup_token_management()
-  -- Setup timer management
-  local timer_lock_acquired = try_acquire_claude_timer_lock()
-  if timer_lock_acquired then
-    M.setup_claude_timer()
-  else
-    vim.schedule(function()
-      if M._is_setup then M.refresh_token(true, false) end
-    end)
-  end
-
-  M.setup_claude_file_watcher()
-  start_manager_check_timer()
-  require("avante.tokenizers").setup(M.tokenizer_id)
-  vim.g.avante_login = true
-end
-
 -- Lockfile management
 local function is_process_running(pid)
   local result = vim.uv.kill(pid, 0)
@@ -145,6 +127,24 @@ function M.setup_claude_file_watcher()
   )
 end
 
+-- Common token management setup (timer, file watcher, tokenizer)
+local function setup_token_management()
+  -- Setup timer management
+  local timer_lock_acquired = try_acquire_claude_timer_lock()
+  if timer_lock_acquired then
+    M.setup_claude_timer()
+  else
+    vim.schedule(function()
+      if M._is_setup then M.refresh_token(true, false) end
+    end)
+  end
+
+  M.setup_claude_file_watcher()
+  start_manager_check_timer()
+  require("avante.tokenizers").setup(M.tokenizer_id)
+  vim.g.avante_login = true
+end
+
 function M.setup()
   local claude_token_file = Path:new(claude_path)
   local auth_type = P[Config.provider].auth_type
@@ -173,12 +173,14 @@ function M.setup()
       vim.schedule(function()
         pcall(claude_token_file.rm, claude_token_file)
       end)
+      M.authenticate()
     elseif not ok then
       -- JSON decode failed - file is corrupted
       Utils.warn("Failed to parse Claude token file: " .. tostring(token) .. ", re-authenticating...", { title = "Avante" })
       vim.schedule(function()
         pcall(claude_token_file.rm, claude_token_file)
       end)
+      M.authenticate()
     end
 
     setup_token_management()
