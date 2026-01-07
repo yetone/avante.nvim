@@ -43,6 +43,36 @@ M.role_map = {
 M._is_setup = false
 M._refresh_timer = nil
 
+-- Token validation helper
+---@param token ClaudeAuthToken?
+---@return boolean
+local function is_valid_token(token)
+  return token ~= nil
+    and type(token.access_token) == "string"
+    and type(token.refresh_token) == "string"
+    and type(token.expires_at) == "number"
+    and token.access_token ~= ""
+    and token.refresh_token ~= ""
+end
+
+-- Common token management setup (timer, file watcher, tokenizer)
+local function setup_token_management()
+  -- Setup timer management
+  local timer_lock_acquired = try_acquire_claude_timer_lock()
+  if timer_lock_acquired then
+    M.setup_claude_timer()
+  else
+    vim.schedule(function()
+      if M._is_setup then M.refresh_token(true, false) end
+    end)
+  end
+
+  M.setup_claude_file_watcher()
+  start_manager_check_timer()
+  require("avante.tokenizers").setup(M.tokenizer_id)
+  vim.g.avante_login = true
+end
+
 -- Lockfile management
 local function is_process_running(pid)
   local result = vim.uv.kill(pid, 0)
@@ -133,48 +163,31 @@ function M.setup()
 
   if claude_token_file:exists() then
     local ok, token = pcall(vim.json.decode, claude_token_file:read())
-    if
-      ok --[[ and token.expires_at and token.expires_at > math.floor(os.time()) ]]
-    then
+    -- Note: We don't check expiration here because refresh logic needs the refresh_token field
+    -- from the existing token. Expired tokens will be refreshed automatically on next use.
+    if ok and is_valid_token(token) then
       M.state.claude_token = token
-    end
-
-    -- Setup timer management
-    local timer_lock_acquired = try_acquire_claude_timer_lock()
-    if timer_lock_acquired then
-      M.setup_claude_timer()
-    else
+    elseif ok and not is_valid_token(token) then
+      -- Token file exists but is malformed - delete and re-authenticate
+      Utils.warn("Claude token file is corrupted or invalid, re-authenticating...", { title = "Avante" })
       vim.schedule(function()
-        if M._is_setup then M.refresh_token(true, false) end
+        pcall(claude_token_file.rm, claude_token_file)
+      end)
+    elseif not ok then
+      -- JSON decode failed - file is corrupted
+      Utils.warn("Failed to parse Claude token file: " .. tostring(token) .. ", re-authenticating...", { title = "Avante" })
+      vim.schedule(function()
+        pcall(claude_token_file.rm, claude_token_file)
       end)
     end
 
-    M.setup_claude_file_watcher()
-
-    start_manager_check_timer()
-
-    require("avante.tokenizers").setup(M.tokenizer_id)
-    vim.g.avante_login = true
+    setup_token_management()
     M._is_setup = true
   else
     M.authenticate()
-
-    -- Setup timer management
-    local timer_lock_acquired = try_acquire_claude_timer_lock()
-    if timer_lock_acquired then
-      M.setup_claude_timer()
-    else
-      vim.schedule(function()
-        if M._is_setup then M.refresh_token(true, false) end
-      end)
-    end
-
-    M.setup_claude_file_watcher()
-
-    start_manager_check_timer()
-
-    require("avante.tokenizers").setup(M.tokenizer_id)
-    vim.g.avante_login = true
+    setup_token_management()
+    -- Note: M._is_setup is NOT set to true here because authenticate() is async
+    -- and may fail. The flag indicates setup was attempted, not that it succeeded.
   end
 end
 
@@ -656,13 +669,35 @@ function M.on_error(result)
 end
 
 function M.authenticate()
-  local verifier = pkce.generate_verifier()
-  local challenge = pkce.generate_challenge(verifier)
-  local state = pkce.generate_verifier()
+  local verifier, verifier_err = pkce.generate_verifier()
+  if not verifier then
+    vim.schedule(function()
+      vim.notify(
+        "Failed to generate PKCE verifier: " .. (verifier_err or "Unknown error"),
+        vim.log.levels.ERROR
+      )
+    end)
+    return
+  end
 
-  if not verifier or not challenge or not state then
-    vim.schedule(function ()
-      vim.notify("Failed to generate PKCE components, cannot authenticate.")
+  local challenge, challenge_err = pkce.generate_challenge(verifier)
+  if not challenge then
+    vim.schedule(function()
+      vim.notify(
+        "Failed to generate PKCE challenge: " .. (challenge_err or "Unknown error"),
+        vim.log.levels.ERROR
+      )
+    end)
+    return
+  end
+
+  local state, state_err = pkce.generate_verifier()
+  if not state then
+    vim.schedule(function()
+      vim.notify(
+        "Failed to generate PKCE state: " .. (state_err or "Unknown error"),
+        vim.log.levels.ERROR
+      )
     end)
     return
   end
@@ -812,11 +847,36 @@ function M.store_tokens(tokens)
 
   vim.schedule(function()
     local data_path = vim.fn.stdpath("data") .. "/avante/claude-auth.json"
-    local file = io.open(data_path, "w")
-    if file then
-      file:write(vim.json.encode(json))
-      file:close()
-      vim.fn.system("chmod 600 " .. data_path)
+
+    -- Safely encode JSON
+    local ok, json_str = pcall(vim.json.encode, json)
+    if not ok then
+      Utils.error("Failed to encode token data: " .. tostring(json_str), { once = true, title = "Avante" })
+      return
+    end
+
+    -- Open file for writing
+    local file, open_err = io.open(data_path, "w")
+    if not file then
+      Utils.error("Failed to save token file: " .. tostring(open_err), { once = true, title = "Avante" })
+      return
+    end
+
+    -- Write token data
+    local write_ok, write_err = pcall(file.write, file, json_str)
+    file:close()
+
+    if not write_ok then
+      Utils.error("Failed to write token file: " .. tostring(write_err), { once = true, title = "Avante" })
+      return
+    end
+
+    -- Set file permissions (Unix only)
+    if vim.fn.has("unix") == 1 then
+      local chmod_ok = vim.loop.fs_chmod(data_path, 384) -- 0600 in decimal
+      if not chmod_ok then
+        Utils.warn("Failed to set token file permissions", { once = true, title = "Avante" })
+      end
     end
   end)
 end
