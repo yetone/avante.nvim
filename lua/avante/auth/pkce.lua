@@ -1,9 +1,8 @@
 local M = {}
 
----Generates a random N number of bytes using crypto lib over ffi, falling back
----to less secure methods
+---Generates a random N number of bytes using crypto lib over ffi, falling back to urandom
 ---@param n integer number of bytes to generate
----@return string bytes string of bytes generated
+---@return string|nil bytes string of bytes generated, or nil if ffi fails
 local function get_random_bytes(n)
   local ok, ffi = pcall(require, "ffi")
   if ok then
@@ -22,28 +21,32 @@ local function get_random_bytes(n)
     f:close()
     return bytes
   end
-  -- Last resort (NOT crypto-secure): use math.random
-  local bytes = {}
-  for i = 1, n do
-    bytes[i] = string.char(math.random(0, 255))
-  end
-  return table.concat(bytes)
+
+  return nil
 end
 
 --- URL-safe base64
 --- @param data string value to base64 encode
+--- @return string base64String base64 encoded string
 local function base64url_encode(data)
   local b64 = vim.base64.encode(data)
-  return b64:gsub("+", "-"):gsub("/", "_"):gsub("=", "")
+  local b64_string, _ = b64:gsub("+", "-"):gsub("/", "_"):gsub("=", "")
+  return b64_string
 end
 
 -- Generate code_verifier (43-128 characters)
+--- @return string|nil verifier String representing pkce verifier or nil if ffi fails
 function M.generate_verifier()
   local bytes = get_random_bytes(32) -- 256 bits
-  return base64url_encode(bytes)
+  if bytes then
+    return base64url_encode(bytes)
+  end
+
+  return nil
 end
 
 -- Generate code_challenge (S256 method)
+---@return string|nil challenge String representing pkce challenge or nil if ffi fails
 function M.generate_challenge(verifier)
   local ok, ffi = pcall(require, "ffi")
   if ok then

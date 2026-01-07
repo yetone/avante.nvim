@@ -660,6 +660,13 @@ function M.authenticate()
   local challenge = pkce.generate_challenge(verifier)
   local state = pkce.generate_verifier()
 
+  if not verifier or not challenge or not state then
+    vim.schedule(function ()
+      vim.notify("Failed to generate PKCE components, cannot authenticate.")
+    end)
+    return
+  end
+
   local auth_url = string.format(
     "%s?client_id=%s&response_type=code&redirect_uri=%s&scope=%s&state=%s&code_challenge=%s&code_challenge_method=S256",
     auth_endpoint,
