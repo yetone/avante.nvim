@@ -2634,7 +2634,17 @@ function Sidebar:show_input_hint()
     end
   end
 
-  -- 2. Token count
+  -- 2. Following status indicator
+  if config.show_following_status then
+    local is_following = Config.behaviour.acp_follow_agent_locations
+    if is_following then
+      table.insert(parts, "👁️  FOLLOW")
+    else
+      table.insert(parts, "🔕 MANUAL")
+    end
+  end
+
+  -- 3. Token count
   if config.show_tokens and Config.behaviour.enable_token_counting then
     local input_value = table.concat(api.nvim_buf_get_lines(self.containers.input.bufnr, 0, -1, false), "\n")
     if self.token_count == nil then self:initialize_token_count() end
@@ -2642,13 +2652,13 @@ function Sidebar:show_input_hint()
     table.insert(parts, "Tokens: " .. tostring(tokens))
   end
 
-  -- 3. Submit keybinding
+  -- 4. Submit keybinding
   if config.show_submit_key then
     local submit_key = (fn.mode() ~= "i" and Config.mappings.submit.normal or Config.mappings.submit.insert)
     table.insert(parts, submit_key .. ": submit")
   end
 
-  -- 4. Session info (optional)
+  -- 5. Session info (optional)
   if config.show_session_info and self.current_acp_session_id then
     table.insert(parts, "S:" .. self.current_acp_session_id:sub(1, 8))
   end
@@ -2659,9 +2669,10 @@ function Sidebar:show_input_hint()
     -- Custom format string
     hint_text = config.format
       :gsub("{plan_mode}", parts[1] or "")
-      :gsub("{tokens}", parts[2] or "")
-      :gsub("{submit_key}", parts[3] or "")
-      :gsub("{session_info}", parts[4] or "")
+      :gsub("{following_status}", parts[2] or "")
+      :gsub("{tokens}", parts[3] or "")
+      :gsub("{submit_key}", parts[4] or "")
+      :gsub("{session_info}", parts[5] or "")
   else
     -- Default: join with " | "
     hint_text = table.concat(parts, " | ")

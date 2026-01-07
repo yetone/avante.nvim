@@ -1856,6 +1856,9 @@ Use `/compact` to update the memory with recent messages.]],
         { focus = false, scroll = false }
       )
       
+      -- Update the status line to reflect the new following mode
+      sidebar:show_input_hint()
+      
       if cb then cb(args) end
     end,
   }

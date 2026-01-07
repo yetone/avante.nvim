@@ -566,10 +566,11 @@ M._defaults = {
       enabled = true,
       position = "winbar", -- "winbar" | "floating" | "statusline" | "top" | "bottom"
       show_plan_mode = true, -- Show plan mode indicator (🗺️ PLAN or ⚡ EXEC)
+      show_following_status = true, -- Show following status indicator (👁️  FOLLOW or 🔕 MANUAL)
       show_tokens = true, -- Show token count
       show_submit_key = true, -- Show submit keybinding
       show_session_info = false, -- Show session ID
-      format = nil, -- Custom format string: "{plan_mode} | {tokens} | {submit_key}"
+      format = nil, -- Custom format string: "{plan_mode} | {following_status} | {tokens} | {submit_key}"
     },
   },
   prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
