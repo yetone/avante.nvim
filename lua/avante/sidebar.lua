@@ -3704,12 +3704,31 @@ function Sidebar:create_selected_files_container()
 
     local lines_to_set = {}
     local highlights_to_apply = {}
+    local annotation_positions = {}
 
     local project_path = Utils.root.get()
     for i, filepath in ipairs(selected_filepaths_) do
       local icon, hl = Utils.file.get_file_icon(filepath)
       local renderpath = PPath:new(filepath):normalize(project_path)
-      local formatted_line = string.format("%s %s", icon, renderpath)
+      
+      -- Check if this is a directory
+      local is_directory = vim.fn.isdirectory(filepath) == 1
+      
+      -- Format the line with optional directory annotation
+      local formatted_line
+      if is_directory then
+        local base_line = string.format("%s %s", icon, renderpath)
+        formatted_line = base_line .. " (managed by avante)"
+        -- Track where the annotation starts for highlighting
+        table.insert(annotation_positions, {
+          line_nr = i,
+          start_col = vim.fn.strwidth(base_line) + 1,
+          end_col = vim.fn.strwidth(formatted_line)
+        })
+      else
+        formatted_line = string.format("%s %s", icon, renderpath)
+      end
+      
       table.insert(lines_to_set, formatted_line)
       if hl and hl ~= "" then table.insert(highlights_to_apply, { line_nr = i, icon = icon, hl = hl }) end
     end
@@ -3718,6 +3737,7 @@ function Sidebar:create_selected_files_container()
     local selected_files_buf = api.nvim_win_get_buf(self.containers.selected_files.winid)
     Utils.unlock_buf(selected_files_buf)
     api.nvim_buf_clear_namespace(selected_files_buf, SELECTED_FILES_ICON_NAMESPACE, 0, -1)
+    api.nvim_buf_clear_namespace(selected_files_buf, SELECTED_FILES_HINT_NAMESPACE, 0, -1)
     api.nvim_buf_set_lines(selected_files_buf, 0, -1, true, lines_to_set)
 
     for _, highlight_info in ipairs(highlights_to_apply) do
@@ -3726,6 +3746,16 @@ function Sidebar:create_selected_files_container()
       pcall(api.nvim_buf_set_extmark, selected_files_buf, SELECTED_FILES_ICON_NAMESPACE, line_idx, 0, {
         end_col = icon_bytes,
         hl_group = highlight_info.hl,
+        priority = PRIORITY,
+      })
+    end
+    
+    -- Apply annotation highlights for directories
+    for _, annotation_info in ipairs(annotation_positions) do
+      local line_idx = annotation_info.line_nr - 1
+      pcall(api.nvim_buf_set_extmark, selected_files_buf, SELECTED_FILES_HINT_NAMESPACE, line_idx, annotation_info.start_col, {
+        end_col = annotation_info.end_col,
+        hl_group = "Comment",
         priority = PRIORITY,
       })
     end
