@@ -170,16 +170,15 @@ function M.setup()
     elseif ok and not is_valid_token(token) then
       -- Token file exists but is malformed - delete and re-authenticate
       Utils.warn("Claude token file is corrupted or invalid, re-authenticating...", { title = "Avante" })
-      vim.schedule(function()
-        pcall(claude_token_file.rm, claude_token_file)
-      end)
+      vim.schedule(function() pcall(claude_token_file.rm, claude_token_file) end)
       M.authenticate()
     elseif not ok then
       -- JSON decode failed - file is corrupted
-      Utils.warn("Failed to parse Claude token file: " .. tostring(token) .. ", re-authenticating...", { title = "Avante" })
-      vim.schedule(function()
-        pcall(claude_token_file.rm, claude_token_file)
-      end)
+      Utils.warn(
+        "Failed to parse Claude token file: " .. tostring(token) .. ", re-authenticating...",
+        { title = "Avante" }
+      )
+      vim.schedule(function() pcall(claude_token_file.rm, claude_token_file) end)
       M.authenticate()
     end
 
@@ -673,34 +672,29 @@ end
 function M.authenticate()
   local verifier, verifier_err = pkce.generate_verifier()
   if not verifier then
-    vim.schedule(function()
-      vim.notify(
-        "Failed to generate PKCE verifier: " .. (verifier_err or "Unknown error"),
-        vim.log.levels.ERROR
-      )
-    end)
+    vim.schedule(
+      function()
+        vim.notify("Failed to generate PKCE verifier: " .. (verifier_err or "Unknown error"), vim.log.levels.ERROR)
+      end
+    )
     return
   end
 
   local challenge, challenge_err = pkce.generate_challenge(verifier)
   if not challenge then
-    vim.schedule(function()
-      vim.notify(
-        "Failed to generate PKCE challenge: " .. (challenge_err or "Unknown error"),
-        vim.log.levels.ERROR
-      )
-    end)
+    vim.schedule(
+      function()
+        vim.notify("Failed to generate PKCE challenge: " .. (challenge_err or "Unknown error"), vim.log.levels.ERROR)
+      end
+    )
     return
   end
 
   local state, state_err = pkce.generate_verifier()
   if not state then
-    vim.schedule(function()
-      vim.notify(
-        "Failed to generate PKCE state: " .. (state_err or "Unknown error"),
-        vim.log.levels.ERROR
-      )
-    end)
+    vim.schedule(
+      function() vim.notify("Failed to generate PKCE state: " .. (state_err or "Unknown error"), vim.log.levels.ERROR) end
+    )
     return
   end
 
@@ -876,9 +870,7 @@ function M.store_tokens(tokens)
     -- Set file permissions (Unix only)
     if vim.fn.has("unix") == 1 then
       local chmod_ok = vim.loop.fs_chmod(data_path, 384) -- 0600 in decimal
-      if not chmod_ok then
-        Utils.warn("Failed to set token file permissions", { once = true, title = "Avante" })
-      end
+      if not chmod_ok then Utils.warn("Failed to set token file permissions", { once = true, title = "Avante" }) end
     end
   end)
 end

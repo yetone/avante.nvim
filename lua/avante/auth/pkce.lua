@@ -10,9 +10,12 @@ local function get_random_bytes(n)
     -- Try OpenSSL first (cross-platform)
     local lib_ok, lib = pcall(ffi.load, "crypto")
     if lib_ok then
-      local cdef_ok = pcall(ffi.cdef, [[
+      local cdef_ok = pcall(
+        ffi.cdef,
+        [[
         int RAND_bytes(unsigned char *buf, int num);
-      ]])
+      ]]
+      )
       if cdef_ok then
         local buf = ffi.new("unsigned char[?]", n)
         if lib.RAND_bytes(buf, n) == 1 then return ffi.string(buf, n), nil end
@@ -47,9 +50,7 @@ end
 --- @return string|nil error error message if generation failed
 function M.generate_verifier()
   local bytes, err = get_random_bytes(32) -- 256 bits
-  if bytes then
-    return base64url_encode(bytes), nil
-  end
+  if bytes then return base64url_encode(bytes), nil end
 
   return nil, err or "Failed to generate random bytes"
 end
@@ -62,10 +63,13 @@ function M.generate_challenge(verifier)
   if ok then
     local lib_ok, lib = pcall(ffi.load, "crypto")
     if lib_ok then
-      local cdef_ok = pcall(ffi.cdef, [[
+      local cdef_ok = pcall(
+        ffi.cdef,
+        [[
         typedef unsigned char SHA256_DIGEST[32];
         void SHA256(const unsigned char *d, size_t n, SHA256_DIGEST md);
-      ]])
+      ]]
+      )
       if cdef_ok then
         local digest = ffi.new("SHA256_DIGEST")
         lib.SHA256(verifier, #verifier, digest)
@@ -77,7 +81,6 @@ function M.generate_challenge(verifier)
   end
 
   return nil, "FFI not available - LuaJIT is required for PKCE authentication"
-
 end
 
 return M

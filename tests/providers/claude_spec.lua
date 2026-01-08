@@ -521,7 +521,7 @@ busted.describe("claude provider", function()
         -- Mock vim.notify
         vim.notify = function(msg, level)
           if level == vim.log.levels.ERROR then
-            assert.matches("[401]Failed to refresh access token: {\"error\":\"invalid_grant\"}", msg, nil, true)
+            assert.matches('[401]Failed to refresh access token: {"error":"invalid_grant"}', msg, nil, true)
           end
         end
         local result = claude_provider.refresh_token(false, false)
