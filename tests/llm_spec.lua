@@ -151,4 +151,46 @@ describe("generate_prompts", function()
     assert.are.same(#result.tools, 1)
     assert.are.same(result.tools[1].name, "test_tool")
   end)
+
+  it("should not duplicate instruction file content when called multiple times with same opts", function()
+    local opts = {}
+    llm.generate_prompts(opts)
+    local first_instructions = opts.instructions
+    
+    -- Call again with the same opts object
+    llm.generate_prompts(opts)
+    local second_instructions = opts.instructions
+    
+    -- Instructions should be the same, not duplicated
+    assert.are.same(first_instructions, second_instructions)
+    assert.are.same("\n# Mock Instructions\nThis is a mock instruction file.", opts.instructions)
+  end)
+
+  it("should not duplicate instructions in messages when called multiple times with same opts", function()
+    local opts = {
+      instructions = "Test instructions"
+    }
+    
+    -- First call
+    local result1 = llm.generate_prompts(opts)
+    local instruction_message_count1 = 0
+    for _, msg in ipairs(result1.session_ctx.messages) do
+      if msg.role == "user" and msg.content == "Test instructions" then
+        instruction_message_count1 = instruction_message_count1 + 1
+      end
+    end
+    
+    -- Second call with same opts
+    local result2 = llm.generate_prompts(opts)
+    local instruction_message_count2 = 0
+    for _, msg in ipairs(result2.session_ctx.messages) do
+      if msg.role == "user" and msg.content == "Test instructions" then
+        instruction_message_count2 = instruction_message_count2 + 1
+      end
+    end
+    
+    -- Should have instructions message only once in both calls
+    assert.are.same(1, instruction_message_count1)
+    assert.are.same(1, instruction_message_count2)
+  end)
 end)
