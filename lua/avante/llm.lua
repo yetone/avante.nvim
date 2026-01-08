@@ -268,8 +268,8 @@ function M.generate_prompts(opts)
 
     if instruction_content then 
       opts.instructions = (opts.instructions or "") .. "\n" .. instruction_content 
-      opts._instructions_loaded = true
     end
+    opts._instructions_loaded = true
   end
 
   local mode = opts.mode or Config.mode
