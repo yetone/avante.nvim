@@ -521,6 +521,7 @@ function M:parse_curl_args(prompt_opts)
   M.refresh_token(false, false)
 
   local provider_conf, request_body = P.parse_config(self)
+  ---@cast provider_conf AvanteAnthropicProvider
   local disable_tools = provider_conf.disable_tools or false
 
   local headers = {
