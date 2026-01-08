@@ -32,10 +32,23 @@ function M.setup()
   return true
 end
 
+--- Detect the model type from model ID or ARN
+---@param model string The model ID or inference profile ARN
+---@return string The detected model type (e.g., "claude")
+local function detect_model_type(model)
+  -- Check for Claude/Anthropic models
+  if model:match("anthropic") or model:match("claude") then return "claude" end
+
+  -- For inference profile ARNs, default to claude
+  -- as it's the most common use case for Bedrock inference profiles
+  if model:match("^arn:aws:bedrock:") then return "claude" end
+
+  return model
+end
+
 function M.load_model_handler()
   local provider_conf, _ = P.parse_config(P["bedrock"])
-  local bedrock_model = provider_conf.model
-  if provider_conf.model:match("anthropic") then bedrock_model = "claude" end
+  local bedrock_model = detect_model_type(provider_conf.model)
 
   local ok, model_module = pcall(require, "avante.providers.bedrock." .. bedrock_model)
   if ok then return model_module end
@@ -166,11 +179,15 @@ function M:parse_curl_args(prompt_opts)
     -- Use custom endpoint if provided
     endpoint = provider_conf.endpoint
   else
+    -- URL encode the model ID (required for ARNs which contain colons and slashes)
+    local encoded_model = provider_conf.model:gsub("([^%w%-_.~])", function(c)
+      return string.format("%%%02X", string.byte(c))
+    end)
     -- Default to AWS Bedrock endpoint
     endpoint = string.format(
       "https://bedrock-runtime.%s.amazonaws.com/model/%s/invoke-with-response-stream",
       region,
-      provider_conf.model
+      encoded_model
     )
   end
 
