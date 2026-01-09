@@ -239,7 +239,7 @@ function M.refresh(provider_name)
   Utils.info("Switch to provider: " .. provider_name, { once = true, title = "Avante" })
 end
 
----@param opts AvanteProvider | AvanteSupportedProvider | AvanteAnthropicProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor
+---@param opts AvanteProvider | AvanteSupportedProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor
 ---@return AvanteDefaultBaseProvider provider_opts
 ---@return table<string, any> request_body
 function M.parse_config(opts)
