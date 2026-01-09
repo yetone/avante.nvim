@@ -1613,6 +1613,11 @@ function M.get_commands()
     { description = "Toggle full-screen mode", name = "toggle-full-screen" },
     { description = "Toggle plan-only mode", name = "toggle-plan-mode" },
     { description = "Toggle follow agent edits", name = "toggle-follow" },
+    {
+      shorthelp = "Paste image from clipboard",
+      description = "/paste-image - Paste an image from clipboard into the chat",
+      name = "paste-image"
+    },
   }
 
   ---@type {[AvanteSlashCommandBuiltInName]: AvanteSlashCommandCallback}
@@ -1858,6 +1863,60 @@ Use `/compact` to update the memory with recent messages.]],
       
       -- Update the status line to reflect the new following mode
       sidebar:show_input_hint()
+      
+      if cb then cb(args) end
+    end,
+    ["paste-image"] = function(sidebar, args, cb)
+      -- Check if img-clip.nvim is available
+      local Config = require("avante.config")
+      if not Config.support_paste_image() then
+        sidebar:update_content(
+          "**Image pasting not available**\n\nImage pasting requires img-clip.nvim plugin.\n\nPlease install it with your package manager:\n- lazy.nvim: `{ 'HakonHarnes/img-clip.nvim', opts = {} }`",
+          { focus = false, scroll = false }
+        )
+        if cb then cb(args) end
+        return
+      end
+
+      -- Get the input buffer
+      if not sidebar.containers.input then
+        sidebar:update_content("Error: Input buffer not available", { focus = false, scroll = false })
+        if cb then cb(args) end
+        return
+      end
+
+      local input_bufnr = sidebar.containers.input.bufnr
+      if not vim.api.nvim_buf_is_valid(input_bufnr) then
+        sidebar:update_content("Error: Input buffer is not valid", { focus = false, scroll = false })
+        if cb then cb(args) end
+        return
+      end
+
+      -- Attempt to paste the image
+      local Clipboard = require("avante.clipboard")
+      local ok = Clipboard.paste_image(nil)
+      
+      if ok then
+        -- Success - the image path has been inserted into the input buffer
+        -- Move cursor to end of buffer
+        vim.schedule(function()
+          if vim.api.nvim_buf_is_valid(input_bufnr) then
+            local last_line = vim.api.nvim_buf_line_count(input_bufnr)
+            local last_line_content = vim.api.nvim_buf_get_lines(input_bufnr, last_line - 1, last_line, false)[1] or ""
+            -- Try to set cursor in the input window
+            local input_winid = sidebar.containers.input.winid
+            if input_winid and vim.api.nvim_win_is_valid(input_winid) then
+              vim.api.nvim_win_set_cursor(input_winid, { last_line, #last_line_content })
+            end
+          end
+        end)
+      else
+        -- Failed - likely no image in clipboard
+        sidebar:update_content(
+          "**No image in clipboard**\n\nCould not paste image. Please ensure you have an image copied to your clipboard.\n\nSupported sources:\n- Screenshot tools\n- Image files copied from file managers\n- Images copied from web browsers",
+          { focus = false, scroll = false }
+        )
+      end
       
       if cb then cb(args) end
     end,
