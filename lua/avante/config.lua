@@ -338,9 +338,10 @@ M._defaults = {
         reasoning_effort = "medium", -- low|medium|high, only used for reasoning models
       },
     },
-    ---@type AvanteSupportedProvider
+    ---@type AvanteAnthropicProvider
     claude = {
       endpoint = "https://api.anthropic.com",
+      auth_type = "api",
       model = "claude-sonnet-4-5-20250929",
       timeout = 30000, -- Timeout in milliseconds
       context_window = 200000,
