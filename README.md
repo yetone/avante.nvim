@@ -1708,3 +1708,14 @@ avante.nvim is licensed under the Apache 2.0 License. For more details, please r
     </picture>
   </a>
 </p>
+
+### Lazy Loading of MCP Tools
+
+To optimize token usage and improve performance, avante.nvim implements lazy loading for MCP tools. This feature provides summarized tool descriptions initially and allows the LLM to request detailed information about specific tools when needed.
+
+Benefits:
+- Reduced token usage in system prompts
+- More context available for actual conversation
+- Improved performance by loading tool details on demand
+
+The LLM can request detailed tool information using the `load_mcp_tool` function when needed. For more information, see [MCP Lazy Loading](./docs/mcp_lazy_loading.md).
