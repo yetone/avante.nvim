@@ -180,9 +180,10 @@ function M:parse_curl_args(prompt_opts)
     endpoint = provider_conf.endpoint
   else
     -- URL encode the model ID (required for ARNs which contain colons and slashes)
-    local encoded_model = provider_conf.model:gsub("([^%w%-_.~])", function(c)
-      return string.format("%%%02X", string.byte(c))
-    end)
+    local encoded_model = provider_conf.model:gsub(
+      "([^%w%-_.~])",
+      function(c) return string.format("%%%02X", string.byte(c)) end
+    )
     -- Default to AWS Bedrock endpoint
     endpoint = string.format(
       "https://bedrock-runtime.%s.amazonaws.com/model/%s/invoke-with-response-stream",
