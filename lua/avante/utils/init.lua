@@ -521,7 +521,7 @@ function M.scroll_to_end(winnr)
   local bufnr = api.nvim_win_get_buf(winnr)
   local lnum = api.nvim_buf_line_count(bufnr)
   local last_line = api.nvim_buf_get_lines(bufnr, -2, -1, true)[1]
-  api.nvim_win_set_cursor(winnr, { lnum, api.nvim_strwidth(last_line) })
+  api.nvim_win_set_cursor(winnr, { lnum, #last_line })
 end
 
 ---@param bufnr nil|integer
