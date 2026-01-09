@@ -32,6 +32,9 @@ if Config.support_paste_image() then
 
       ---@type string
       local line = lines[1]
+      -- NOTE: Inputing Chinese characters triggers paste events, which results in error if evn not setup for image pasting
+      -- Valid image data is usually long. So use length to filter out invalid image data
+      if not line or vim.fn.strlen(line) < 32 then return overridden(lines, phase) end
 
       local ok = Clipboard.paste_image(line)
       if not ok then return overridden(lines, phase) end
