@@ -442,6 +442,7 @@ _See [config.lua#L9](./lua/avante/config.lua) for the full config_
   providers = {
     claude = {
       endpoint = "https://api.anthropic.com",
+      auth_type = "api" -- Set to "max" to sign in with Claude Pro/Max subscription
       model = "claude-3-5-sonnet-20241022",
       extra_request_body = {
         temperature = 0.75,
@@ -837,6 +838,21 @@ Here's a complete blink.cmp configuration example with all Avante sources:
 </details>
 
 ## Usage
+
+### Using Claude Pro/Max Subscription
+To login with your Claude subscription, set the **auth_type** of the Claude provider entry in your config to "max", re-open Neovim then the authentication process will start in your browser. Once logged in and authorized, a code will show that needs to be copied into the prompt in Neovim, which should then give access to use your subscription with Avante.
+
+You may need to run `AvanteSwitchProvider claude` to initiate the authentication if you previously had a different provider selected.
+
+```lua
+-- Providers = { ...
+
+  claude = {
+    -- ...
+    auth_type = "max",
+  },
+
+```
 
 ### Basic Functionality
 
