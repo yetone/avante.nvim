@@ -32,7 +32,7 @@ M._defaults = {
   ---@type avante.Mode
   mode = "agentic",
   ---@type boolean
-  plan_only_mode = false,
+  plan_only_mode = true,  -- Default: new sessions start in plan mode
   ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | "watsonx_code_assistant" | string
   ---@type avante.ProviderName
   provider = "claude",
@@ -560,6 +560,18 @@ M._defaults = {
     --- Whether to prompt before exiting when there are active ACP sessions
     ---@type boolean
     prompt_on_exit_with_active_session = true,
+    --- Status line configuration for input container
+    ---@type table
+    status_line = {
+      enabled = true,
+      position = "winbar", -- "winbar" | "floating" | "statusline" | "top" | "bottom"
+      show_plan_mode = true, -- Show plan mode indicator (🗺️ PLAN or ⚡ EXEC)
+      show_following_status = true, -- Show following status indicator (👁️  FOLLOW or 🔕 MANUAL)
+      show_tokens = true, -- Show token count
+      show_submit_key = true, -- Show submit keybinding
+      show_session_info = false, -- Show session ID
+      format = nil, -- Custom format string: "{plan_mode} | {following_status} | {tokens} | {submit_key}"
+    },
   },
   prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
     enabled = true, -- toggle logging entirely
@@ -806,6 +818,12 @@ M._defaults = {
   custom_tools = {},
   ---@type AvanteSlashCommand[]
   slash_commands = {},
+  ---@type boolean Enable passthrough of unknown slash commands to ACP agent
+  enable_acp_command_passthrough = true,
+  ---@type string[] Commands that should only be handled locally (never sent to ACP)
+  local_only_commands = { "clear", "new", "help", "init", "compact" },
+  ---@type boolean Auto-clear input buffer after slash command is submitted
+  auto_clear_slash_commands = true,
   ---@type string | nil Path to directory containing .mdx shortcut files
   shortcuts_directory = nil,
   ---@type AvanteShortcut[]

@@ -2,14 +2,28 @@ local M = {}
 
 ---@param selector avante.ui.Selector
 function M.show(selector)
-  local items = {}
-  for _, item in ipairs(selector.items) do
-    if not vim.list_contains(selector.selected_item_ids, item.id) then table.insert(items, item) end
-  end
-  vim.ui.select(items, {
-    prompt = selector.title,
-    format_item = function(item) return item.title end,
-  }, function(item)
+  -- First, prompt for custom path input
+  vim.ui.input({
+    prompt = selector.title .. " (type path or leave empty to select from list): ",
+    default = "",
+    completion = "file", -- Enable file/directory tab completion
+  }, function(custom_path)
+    -- If user provided a custom path, use it
+    if custom_path and custom_path ~= "" then
+      selector.on_select({ custom_path })
+      return
+    end
+    
+    -- Otherwise show the selection list
+    local items = {}
+    for _, item in ipairs(selector.items) do
+      if not vim.list_contains(selector.selected_item_ids, item.id) then table.insert(items, item) end
+    end
+    
+    vim.ui.select(items, {
+      prompt = selector.title,
+      format_item = function(item) return item.title end,
+    }, function(item)
     if not item then
       selector.on_select(nil)
       return
@@ -46,6 +60,7 @@ function M.show(selector)
       -- Default behavior: directly select the item
       selector.on_select({ item.id })
     end
+    end)
   end)
 end
 

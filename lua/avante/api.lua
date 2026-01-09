@@ -413,11 +413,31 @@ function M.toggle_plan_mode()
   local Utils = require("avante.utils")
   Utils.info("Plan Mode " .. status)
 
-  -- Update sidebar header if sidebar is open
+  -- Update only the header and status line, not the full sidebar
   local sidebar = require("avante").get()
-  if sidebar and sidebar.containers and sidebar.containers.result then
-    sidebar:render()
+  if sidebar and sidebar:is_open() and sidebar.containers and sidebar.containers.result then
+    -- Update just the result header (doesn't re-render everything)
+    sidebar:render_result()
+    
+    -- Update the status line (input hint)
+    if sidebar.containers.input then
+      sidebar:show_input_hint()
+    end
   end
+end
+
+--- Request agent to enter plan mode (for ACP agents like claude-code)
+function M.request_plan_mode()
+  local Utils = require("avante.utils")
+  local sidebar = require("avante").get()
+  if not sidebar then
+    Utils.warn("Sidebar not available")
+    return
+  end
+  
+  local message = "Please enter plan mode to explore the codebase and design an implementation approach before making changes."
+  sidebar:add_message(message)
+  Utils.info("Requested agent to enter plan mode")
 end
 
 -- Session management functions

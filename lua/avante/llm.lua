@@ -22,6 +22,61 @@ local M = {}
 
 M.CANCEL_PATTERN = "AvanteLLMEscape"
 
+------------------------------Plan Mode State------------------------------
+
+-- Track plan mode state for ACP sessions
+local session_state = {
+  in_plan_mode = false,
+  plan_presented = false,
+  last_plan_entries = {},
+}
+
+------------------------------Edit Indicators------------------------------
+
+-- Create namespace for agent activity indicators
+local ns_agent_activity = api.nvim_create_namespace("avante_agent_activity")
+
+-- Show visual indicator at edit location
+---@param bufnr number
+---@param line number
+local function show_edit_indicator(bufnr, line)
+  if not Config.behaviour.acp_follow_agent_locations then return end
+  
+  -- Add virtual text indicator
+  pcall(api.nvim_buf_set_extmark, bufnr, ns_agent_activity, line - 1, 0, {
+    virt_text = { { " [🤖 Agent editing...] ", "Comment" } },
+    virt_text_pos = "eol",
+    hl_mode = "combine",
+  })
+  
+  -- Add line highlight
+  pcall(api.nvim_buf_add_highlight, bufnr, ns_agent_activity, "CursorLine", line - 1, 0, -1)
+  
+  -- Auto-clear after 3 seconds
+  vim.defer_fn(function()
+    pcall(api.nvim_buf_clear_namespace, bufnr, ns_agent_activity, line - 1, line)
+  end, 3000)
+end
+
+--- Check if agent is currently in plan mode
+---@return boolean
+function M.is_in_plan_mode()
+  return session_state.in_plan_mode
+end
+
+--- Set plan mode state
+---@param enabled boolean
+function M.set_plan_mode_state(enabled)
+  session_state.in_plan_mode = enabled
+end
+
+--- Reset plan mode state (call on new session)
+local function reset_plan_mode_state()
+  session_state.in_plan_mode = false
+  session_state.plan_presented = false
+  session_state.last_plan_entries = {}
+end
+
 ------------------------------Prompt and type------------------------------
 
 local group = api.nvim_create_augroup("avante_llm", { clear = true })
@@ -990,12 +1045,16 @@ function M._stream_acp(opts)
   end
   local acp_client = opts.acp_client
   local session_id = opts.acp_session_id
-  if not acp_client then
-    local acp_config = vim.tbl_deep_extend("force", acp_provider, {
-      ---@type ACPHandlers
-      handlers = {
-        on_session_update = function(update)
-          if update.sessionUpdate == "plan" then
+  
+  -- CRITICAL FIX: Define handlers outside the client creation block
+  -- so they can be updated even when reusing an existing client
+  ---@type ACPHandlers
+  local handlers = {
+    on_session_update = function(update)
+      if update.sessionUpdate == "plan" then
+            -- Store plan entries in session state
+            session_state.last_plan_entries = update.entries or {}
+            
             local todos = {}
             for idx, entry in ipairs(update.entries) do
               local status = "todo"
@@ -1079,6 +1138,27 @@ function M._stream_acp(opts)
           if update.sessionUpdate == "tool_call" then
             add_tool_call_message(update)
 
+            -- Detect plan mode transitions
+            local tool_title = update.title or ""
+            if tool_title:match("EnterPlanMode") or tool_title:lower():match("enter.*plan.*mode") then
+              session_state.in_plan_mode = true
+              Utils.info("Agent entered plan mode")
+              vim.schedule(function()
+                local sidebar = require("avante").get()
+                if sidebar then
+                  sidebar:render()
+                  sidebar:show_input_hint() -- Refresh status line
+                end
+              end)
+            elseif tool_title:match("ExitPlanMode") or tool_title:lower():match("exit.*plan.*mode") then
+              session_state.plan_presented = true
+              Utils.info("Plan ready for approval - provide feedback or approve to proceed")
+              vim.schedule(function()
+                local sidebar = require("avante").get()
+                if sidebar then sidebar:show_input_hint() end
+              end)
+            end
+
             local sidebar = require("avante").get()
 
             if
@@ -1138,6 +1218,9 @@ function M._stream_acp(opts)
                 pcall(api.nvim_win_call, code_winid, function()
                   vim.cmd("normal! zz") -- Center line in viewport
                 end)
+
+                -- Show visual edit indicator
+                show_edit_indicator(bufnr, target_line)
 
                 vim.g.avante_last_auto_nav = now
               end)
@@ -1308,7 +1391,12 @@ function M._stream_acp(opts)
           end
           callback("Failed to write file: " .. abs_path)
         end,
-      },
+  }
+  
+  -- Create new client if needed
+  if not acp_client then
+    local acp_config = vim.tbl_deep_extend("force", acp_provider, {
+      handlers = handlers,
     })
     acp_client = ACPClient:new(acp_config)
 
@@ -1345,7 +1433,13 @@ function M._stream_acp(opts)
       end
     end)
     return
-  elseif not session_id then
+  else
+    -- CRITICAL FIX: Update handlers when reusing existing client
+    -- This ensures fresh closures over get_history_messages, on_messages_add, etc.
+    acp_client.config.handlers = handlers
+  end
+  
+  if not session_id then
     M._create_acp_session_and_continue(opts, acp_client)
     return
   end
@@ -1738,7 +1832,8 @@ function M._continue_stream_acp(opts, acp_client, session_id)
       opts.on_stop({ reason = "cancelled" })
     end,
   })
-  acp_client:send_prompt(session_id, prompt, function(_, err_)
+  
+  acp_client:send_prompt(session_id, prompt, function(result, err_)
     if cancelled then return end
     vim.schedule(function() api.nvim_del_autocmd(stop_cmd_id) end)
     if err_ then

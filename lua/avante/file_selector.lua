@@ -33,7 +33,26 @@ function FileSelector:handle_path_selection(selected_paths)
   if not selected_paths then return end
 
   for _, selected_path in ipairs(selected_paths) do
-    local absolute_path = Utils.to_absolute_path(selected_path)
+    -- Handle special "../ (parent directory)" option
+    if selected_path:match("^%.%./.*%(parent directory%)") then
+      selected_path = "../"
+    end
+    
+    -- Expand tilde for home directory
+    if selected_path:sub(1, 2) == "~/" or selected_path == "~" then
+      selected_path = vim.fn.expand(selected_path)
+    end
+    
+    local absolute_path
+    if selected_path:sub(1, 1) == "/" or selected_path:match("^[A-Za-z]:") then
+      absolute_path = selected_path
+    else
+      absolute_path = Utils.to_absolute_path(selected_path)
+    end
+    
+    -- Normalize the path to resolve .., ., and redundant slashes
+    absolute_path = vim.fn.simplify(absolute_path)
+    
     if vim.fn.isdirectory(absolute_path) == 1 then
       -- Check the directory_mode configuration
       if Config.file_selector.directory_mode == "recursive" then
@@ -45,12 +64,12 @@ function FileSelector:handle_path_selection(selected_paths)
         end
       end
     else
-      local abs_path = Utils.to_absolute_path(selected_path)
+      -- It's a file, add it
       if Config.file_selector.provider == "native" then
-        table.insert(self.selected_filepaths, abs_path)
+        table.insert(self.selected_filepaths, absolute_path)
       else
-        if not vim.tbl_contains(self.selected_filepaths, abs_path) then
-          table.insert(self.selected_filepaths, abs_path)
+        if not vim.tbl_contains(self.selected_filepaths, absolute_path) then
+          table.insert(self.selected_filepaths, absolute_path)
         end
       end
     end
@@ -95,15 +114,25 @@ function FileSelector:add_selected_file(filepath)
   if not filepath or filepath == "" or has_scheme(filepath) then return end
   if filepath:match("^oil:") then filepath = filepath:gsub("^oil:", "") end
   
-  -- Use the filepath as-is if it's already absolute, otherwise make it absolute
+  -- Expand and normalize the filepath
   local absolute_path
+  
+  -- Handle tilde expansion for home directory
+  if filepath:sub(1, 2) == "~/" or filepath == "~" then
+    filepath = vim.fn.expand(filepath)
+  end
+  
+  -- Check if it's already an absolute path
   if filepath:sub(1, 1) == "/" or filepath:match("^[A-Za-z]:") then
     -- Already an absolute path (Unix or Windows)
     absolute_path = filepath
   else
-    -- Relative path, resolve against project root
+    -- Relative path (including ../, ./, etc), resolve against project root
     absolute_path = Utils.to_absolute_path(filepath)
   end
+  
+  -- Normalize the path to resolve .., ., and redundant slashes
+  absolute_path = vim.fn.simplify(absolute_path)
   
   if vim.fn.isdirectory(absolute_path) == 1 then
     -- Check the directory_mode configuration
@@ -210,7 +239,7 @@ function FileSelector:get_filepaths()
     end
   end)
 
-  return vim
+  local filepaths = vim
     .iter(file_info)
     :map(function(info)
       local rel_path = Utils.make_relative_path(info.path, project_root)
@@ -218,6 +247,11 @@ function FileSelector:get_filepaths()
       return rel_path
     end)
     :totable()
+  
+  -- Add "../" option at the beginning to allow navigating to parent directory
+  table.insert(filepaths, 1, "../ (parent directory)")
+  
+  return filepaths
 end
 
 ---@return nil
