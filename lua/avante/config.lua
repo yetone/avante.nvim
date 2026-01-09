@@ -39,6 +39,7 @@ M._defaults = {
   -- Of course, you can reduce the request frequency by increasing `suggestion.debounce`.
   auto_suggestions_provider = nil,
   memory_summary_provider = nil,
+  edit_provider = nil,
   ---@alias Tokenizer "tiktoken" | "hf"
   ---@type Tokenizer
   -- Used for counting tokens and encoding text.
