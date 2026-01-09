@@ -23,6 +23,7 @@ end
 ---@class avante.CoreConfig: avante.Config
 local M = {}
 
+---@type string | string[]
 --- Default configuration for project-specific instruction file
 M.instructions_file = "avante.md"
 ---@class avante.Config
