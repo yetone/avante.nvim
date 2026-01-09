@@ -565,8 +565,6 @@ function M.curl(opts)
     provider:parse_response_without_stream(data, current_event_state, handler_opts)
   end
 
-  local completed = false
-
   local active_job ---@type Job|nil
 
   local temp_file = fn.tempname()
@@ -613,6 +611,7 @@ function M.curl(opts)
   end
 
   local headers_reported = false
+  local cancelled = false
 
   local started_job, new_active_job = pcall(
     curl.post,
@@ -625,7 +624,8 @@ function M.curl(opts)
           opts.on_response_headers(parse_headers(headers_file))
         end
         if err then
-          completed = true
+          active_job = nil
+          cleanup()
           handler_opts.on_stop({ reason = "error", error = err })
           return
         end
@@ -666,17 +666,19 @@ function M.curl(opts)
             )
           end
         end
-
-        active_job = nil
-        if not completed then
-          completed = true
-          cleanup()
-          handler_opts.on_stop({ reason = "error", error = err })
-        end
-      end,
-      callback = function(result)
         active_job = nil
         cleanup()
+        handler_opts.on_stop({ reason = cancelled and "cancelled" or "error", error = err })
+      end,
+      callback = function(result) -- aka. on_exit
+        active_job = nil
+        cleanup()
+
+        if cancelled then
+          vim.schedule(function() handler_opts.on_stop({ reason = "cancelled" }) end)
+          return
+        end
+
         local headers_map = vim.iter(result.headers):fold({}, function(acc, value)
           local pieces = vim.split(value, ":")
           local key = pieces[1]
@@ -698,23 +700,19 @@ function M.curl(opts)
             handler_opts.on_stop({ reason = "rate_limit", retry_after = retry_after })
             return
           end
-          vim.schedule(function()
-            if not completed then
-              completed = true
+          vim.schedule(
+            function()
               handler_opts.on_stop({
                 reason = "error",
                 error = "API request failed with status " .. result.status .. ". Body: " .. vim.inspect(result.body),
               })
             end
-          end)
+          )
         end
 
         -- If stream is not enabled, then handle the response here
         if provider:is_disable_stream() and result.status == 200 then
-          vim.schedule(function()
-            completed = true
-            parse_response_without_stream(result.body)
-          end)
+          vim.schedule(function() parse_response_without_stream(result.body) end)
         end
 
         if result.status == 200 and spec.url:match("https://openrouter.ai") then
@@ -745,29 +743,8 @@ function M.curl(opts)
     callback = function()
       -- Error: cannot resume dead coroutine
       if active_job then
-        -- Mark as completed first to prevent error handler from running
-        completed = true
-
-        -- 检查 active_job 的状态
-        local job_is_alive = pcall(function() return active_job:is_closing() == false end)
-
-        -- 只有当 job 仍然活跃时才尝试关闭它
-        if job_is_alive then
-          -- Attempt to shutdown the active job, but ignore any errors
-          xpcall(function() active_job:shutdown() end, function(err)
-            Utils.debug("Ignored error during job shutdown: " .. vim.inspect(err))
-            return err
-          end)
-        else
-          Utils.debug("Job already closed, skipping shutdown")
-        end
-
-        Utils.debug("LLM request cancelled")
-        active_job = nil
-
-        -- Clean up and notify of cancellation
-        cleanup()
-        vim.schedule(function() handler_opts.on_stop({ reason = "cancelled" }) end)
+        uv.process_kill(active_job.handle, "sigterm") -- Job:_shutdown() => on_error/on_exit(callback)
+        cancelled = true
       end
     end,
   })
