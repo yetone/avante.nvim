@@ -1007,6 +1007,9 @@ function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl)
   else
     header_text = format_segment(" " .. header_text .. " ", hl)
   end
+  if Config.windows.sidebar_header.include_model then
+    header_text = header_text .. " " .. Config.providers[Config.provider].model
+  end
 
   local winbar_text
   if Config.windows.sidebar_header.align == "left" then

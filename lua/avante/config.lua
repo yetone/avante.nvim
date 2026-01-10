@@ -683,6 +683,7 @@ M._defaults = {
       enabled = true, -- true, false to enable/disable the header
       align = "center", -- left, center, right for title
       rounded = true,
+      include_model = false,
     },
     spinner = {
       editing = {
