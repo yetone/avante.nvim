@@ -8,7 +8,13 @@ function M.show(selector)
   end
   vim.ui.select(items, {
     prompt = selector.title,
-    format_item = function(item) return item.title end,
+    format_item = function(item)
+      local title = item.title
+      if item.id == selector.default_item_id then
+        title = title .. " (selected)"
+      end
+      return title
+    end,
   }, function(item)
     if not item then
       selector.on_select(nil)
