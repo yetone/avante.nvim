@@ -3049,7 +3049,10 @@ function Sidebar:handle_submit(request)
 
   -- Process shortcut replacements
   local new_content, has_shortcuts = Utils.extract_shortcuts(request)
-  if has_shortcuts then request = new_content end
+  if has_shortcuts then
+    Utils.debug("Shortcuts detected and replaced in request")
+    request = new_content
+  end
 
   local selected_filepaths = self.file_selector:get_selected_filepaths()
 

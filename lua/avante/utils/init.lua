@@ -1220,10 +1220,24 @@ function M.extract_shortcuts(content)
   local has_shortcuts = false
 
   for _, shortcut in ipairs(shortcuts) do
-    local pattern = "#" .. shortcut.name
-    if content:match(pattern) then
+    -- Create the search pattern (plain text)
+    local search_pattern = "#" .. shortcut.name
+    
+    -- Check if this shortcut exists in the content using plain text search
+    if content:find(search_pattern, 1, true) then -- true = plain text search
       has_shortcuts = true
-      new_content = new_content:gsub(pattern, shortcut.prompt)
+      M.debug("Replacing shortcut #" .. shortcut.name .. " with prompt: " .. shortcut.prompt)
+      
+      -- Escape both the shortcut name and # for use in Lua pattern
+      -- We need to escape all special pattern characters
+      local escaped_name = shortcut.name:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
+      local pattern = "%#" .. escaped_name -- %# escapes the # character
+      
+      -- Perform the replacement, escaping % in the replacement string
+      new_content = new_content:gsub(pattern, function()
+        -- Return the prompt, escaping any % characters for gsub
+        return (shortcut.prompt:gsub("%%", "%%%%"))
+      end)
     end
   end
 
