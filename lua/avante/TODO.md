@@ -1,0 +1,3 @@
+- [ ] improve plan vs none plan mode
+- [ ] better context adding for directory (use telescope)
+- [ ] ability to detect which agent is being used

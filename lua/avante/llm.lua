@@ -16,6 +16,7 @@ local LLMTools = require("avante.llm_tools")
 local History = require("avante.history")
 local HistoryRender = require("avante.history.render")
 local ACPConfirmAdapter = require("avante.ui.acp_confirm_adapter")
+local EnvUtils = require("avante.utils.environment")
 
 ---@class avante.LLM
 local M = {}
@@ -1395,8 +1396,17 @@ function M._stream_acp(opts)
   
   -- Create new client if needed
   if not acp_client then
+    -- Get current working directory and resolve environment variables with path-based overrides
+    local cwd = vim.fn.getcwd()
+    local resolved_env = EnvUtils.merge_env_with_overrides(
+      acp_provider.env or {},
+      acp_provider.envOverrides,
+      cwd
+    )
+    
     local acp_config = vim.tbl_deep_extend("force", acp_provider, {
       handlers = handlers,
+      env = resolved_env,
     })
     acp_client = ACPClient:new(acp_config)
 

@@ -253,6 +253,7 @@ M._defaults = {
         GEMINI_API_KEY = os.getenv("GEMINI_API_KEY"),
       },
       auth_method = "gemini-api-key",
+      envOverrides = {},
     },
     ["claude-code"] = {
       command = "npx",
@@ -264,10 +265,12 @@ M._defaults = {
         ACP_PATH_TO_CLAUDE_CODE_EXECUTABLE = vim.fn.exepath("claude"),
         ACP_PERMISSION_MODE = "bypassPermissions",
       },
+      envOverrides = {},
     },
     ["goose"] = {
       command = "goose",
       args = { "acp" },
+      envOverrides = {},
     },
     ["codex"] = {
       command = "codex-acp",
@@ -277,14 +280,17 @@ M._defaults = {
         PATH = os.getenv("PATH"),
         OPENAI_API_KEY = os.getenv("OPENAI_API_KEY"),
       },
+      envOverrides = {},
     },
     ["opencode"] = {
       command = "opencode",
       args = { "acp" },
+      envOverrides = {},
     },
     ["kimi-cli"] = {
       command = "kimi",
       args = { "--acp" },
+      envOverrides = {},
     },
   },
   ---To add support for custom provider, follow the format below
