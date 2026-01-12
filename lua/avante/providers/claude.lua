@@ -246,6 +246,7 @@ local function strip_tool_prefix(name)
   return name
 end
 
+---@param self AvanteProviderFunctor
 ---@param tool AvanteLLMTool
 ---@param use_prefix boolean Whether to prefix tool names (for OAuth)
 ---@return AvanteClaudeTool
@@ -274,6 +275,7 @@ function M:parse_messages(opts)
   local messages = {}
 
   local provider_conf, _ = P.parse_config(self)
+  ---@cast provider_conf AvanteAnthropicProvider
 
   ---@type {idx: integer, length: integer}[]
   local messages_with_length = {}
