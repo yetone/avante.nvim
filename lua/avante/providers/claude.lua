@@ -235,12 +235,28 @@ function M:get_rate_limit_sleep_time(headers)
   return Utils.datetime_diff(tostring(now), tostring(reset_dt))
 end
 
+-- Prefix for tool names when using OAuth to avoid Anthropic's tool name validation
+local OAUTH_TOOL_PREFIX = "av_"
+
+-- Strip the OAuth tool prefix from a tool name
+local function strip_tool_prefix(name)
+  if name and name:sub(1, #OAUTH_TOOL_PREFIX) == OAUTH_TOOL_PREFIX then
+    return name:sub(#OAUTH_TOOL_PREFIX + 1)
+  end
+  return name
+end
+
 ---@param tool AvanteLLMTool
+---@param use_prefix boolean Whether to prefix tool names (for OAuth)
 ---@return AvanteClaudeTool
-function M:transform_tool(tool)
+function M:transform_tool(tool, use_prefix)
   local input_schema_properties, required = Utils.llm_tool_param_fields_to_json_schema(tool.param.fields)
+  local tool_name = tool.name
+  if use_prefix then
+    tool_name = OAUTH_TOOL_PREFIX .. tool.name
+  end
   return {
-    name = tool.name,
+    name = tool_name,
     description = tool.get_description and tool.get_description() or tool.description,
     input_schema = {
       type = "object",
@@ -291,7 +307,12 @@ function M:parse_messages(opts)
           table.insert(message_content, { type = "image", source = item.source })
         elseif not provider_conf.disable_tools and type(item) == "table" and item.type == "tool_use" then
           has_tool_use = true
-          table.insert(message_content, { type = "tool_use", name = item.name, id = item.id, input = item.input })
+          -- Prefix tool name for OAuth to bypass Anthropic's tool name validation
+          local tool_name = item.name
+          if provider_conf.auth_type == "max" then
+            tool_name = OAUTH_TOOL_PREFIX .. item.name
+          end
+          table.insert(message_content, { type = "tool_use", name = tool_name, id = item.id, input = item.input })
         elseif
           not provider_conf.disable_tools
           and type(item) == "table"
@@ -415,7 +436,8 @@ function M:parse_response(ctx, data_stream, event_state, opts)
         local incomplete_json = JsonParser.parse(content_block.input_json)
         local msg = new_assistant_message({
           type = "tool_use",
-          name = content_block.name,
+          -- Strip OAuth tool prefix from tool name
+          name = strip_tool_prefix(content_block.name),
           id = content_block.id,
           input = incomplete_json or { dummy = "" },
         })
@@ -486,7 +508,8 @@ function M:parse_response(ctx, data_stream, event_state, opts)
         if not ok_ then complete_json = nil end
         local msg = new_assistant_message({
           type = "tool_use",
-          name = content_block.name,
+          -- Strip OAuth tool prefix from tool name
+          name = strip_tool_prefix(content_block.name),
           id = content_block.id,
           input = complete_json or { dummy = "" },
         }, content_block.uuid)
@@ -532,8 +555,11 @@ function M:parse_curl_args(prompt_opts)
   if provider_conf.auth_type == "max" then
     local api_key = M.state.claude_token.access_token
     headers["authorization"] = string.format("Bearer %s", api_key)
+    -- Match Claude CLI user-agent for OAuth requests (per opencode-anthropic-auth PR #11)
+    headers["user-agent"] = "claude-cli/2.1.2 (external, cli)"
+    -- OAuth beta headers - include claude-code identifier, exclude fine-grained-tool-streaming
     headers["anthropic-beta"] =
-      "oauth-2025-04-20,claude-code-20250219,interleaved-thinking-2025-05-14,fine-grained-tool-streaming-2025-05-14,prompt-caching-2024-07-31"
+      "oauth-2025-04-20,claude-code-20250219,interleaved-thinking-2025-05-14,prompt-caching-2024-07-31"
   else
     if P.env.require_api_key(provider_conf) then
       local api_key = self.parse_api_key()
@@ -549,6 +575,8 @@ function M:parse_curl_args(prompt_opts)
   local messages = self:parse_messages(prompt_opts)
 
   local tools = {}
+  -- Prefix tool names for OAuth to bypass Anthropic's tool name validation
+  local use_prefix = provider_conf.auth_type == "max"
   if not disable_tools and prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
       if Config.mode == "agentic" then
@@ -560,7 +588,7 @@ function M:parse_curl_args(prompt_opts)
         if tool.name == "undo_edit" then goto continue end
         if tool.name == "replace_in_file" then goto continue end
       end
-      table.insert(tools, self:transform_tool(tool))
+      table.insert(tools, self:transform_tool(tool, use_prefix))
       ::continue::
     end
   end
@@ -632,8 +660,14 @@ function M:parse_curl_args(prompt_opts)
     cache_control = self.support_prompt_caching and { type = "ephemeral" } or nil,
   })
 
+  -- Add ?beta=true for OAuth requests (per opencode-anthropic-auth PR #11)
+  local api_path = "/v1/messages"
+  if provider_conf.auth_type == "max" then
+    api_path = "/v1/messages?beta=true"
+  end
+
   return {
-    url = Utils.url_join(provider_conf.endpoint, "/v1/messages"),
+    url = Utils.url_join(provider_conf.endpoint, api_path),
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,
     headers = Utils.tbl_override(headers, self.extra_headers),
@@ -710,12 +744,11 @@ function M.authenticate()
   )
 
   -- Open browser to begin authentication
+  -- Always show URL for terminal environments without browsers
   vim.schedule(function()
-    local open_success = pcall(vim.ui.open, auth_url)
-    if not open_success then
-      vim.fn.setreg("+", auth_url)
-      vim.notify("Copied URL to Clipboard, please open this URL in your browser:\n" .. auth_url, vim.log.levels.WARN)
-    end
+    vim.fn.setreg("+", auth_url)
+    vim.notify("Please open this URL in your browser:\n" .. auth_url, vim.log.levels.WARN)
+    pcall(vim.ui.open, auth_url)
   end)
 
   local function on_submit(input)
