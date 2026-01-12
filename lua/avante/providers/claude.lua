@@ -240,9 +240,7 @@ local OAUTH_TOOL_PREFIX = "av_"
 
 -- Strip the OAuth tool prefix from a tool name
 local function strip_tool_prefix(name)
-  if name and name:sub(1, #OAUTH_TOOL_PREFIX) == OAUTH_TOOL_PREFIX then
-    return name:sub(#OAUTH_TOOL_PREFIX + 1)
-  end
+  if name and name:sub(1, #OAUTH_TOOL_PREFIX) == OAUTH_TOOL_PREFIX then return name:sub(#OAUTH_TOOL_PREFIX + 1) end
   return name
 end
 
@@ -252,9 +250,7 @@ end
 function M:transform_tool(tool, use_prefix)
   local input_schema_properties, required = Utils.llm_tool_param_fields_to_json_schema(tool.param.fields)
   local tool_name = tool.name
-  if use_prefix then
-    tool_name = OAUTH_TOOL_PREFIX .. tool.name
-  end
+  if use_prefix then tool_name = OAUTH_TOOL_PREFIX .. tool.name end
   return {
     name = tool_name,
     description = tool.get_description and tool.get_description() or tool.description,
@@ -309,9 +305,7 @@ function M:parse_messages(opts)
           has_tool_use = true
           -- Prefix tool name for OAuth to bypass Anthropic's tool name validation
           local tool_name = item.name
-          if provider_conf.auth_type == "max" then
-            tool_name = OAUTH_TOOL_PREFIX .. item.name
-          end
+          if provider_conf.auth_type == "max" then tool_name = OAUTH_TOOL_PREFIX .. item.name end
           table.insert(message_content, { type = "tool_use", name = tool_name, id = item.id, input = item.input })
         elseif
           not provider_conf.disable_tools
@@ -662,9 +656,7 @@ function M:parse_curl_args(prompt_opts)
 
   -- Add ?beta=true for OAuth requests (per opencode-anthropic-auth PR #11)
   local api_path = "/v1/messages"
-  if provider_conf.auth_type == "max" then
-    api_path = "/v1/messages?beta=true"
-  end
+  if provider_conf.auth_type == "max" then api_path = "/v1/messages?beta=true" end
 
   return {
     url = Utils.url_join(provider_conf.endpoint, api_path),
