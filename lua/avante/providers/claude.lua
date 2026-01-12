@@ -31,7 +31,7 @@ local claude_code_spoof_prompt = "You are Claude Code, Anthropic's official CLI 
 ---@field claude_token ClaudeAuthToken?
 M.state = nil
 
-M.api_key_name = ""
+M.api_key_name = "ANTHROPIC_API_KEY"
 M.support_prompt_caching = true
 
 M.tokenizer_id = "gpt-4o"
@@ -150,12 +150,12 @@ function M.setup()
   local auth_type = P[Config.provider].auth_type
 
   if auth_type == "api" then
-    M.api_key_name = "ANTRHOPIC_API_KEY"
     require("avante.tokenizers").setup(M.tokenizer_id)
-    vim.g.avante_login = true
     M._is_setup = true
     return
   end
+
+  M.api_key_name = ""
 
   if not M.state then M.state = {
     claude_token = nil,
