@@ -138,8 +138,12 @@ function PromptInput:show_shortcuts_hints()
   local win_height = api.nvim_win_get_height(self.winid)
   local buf_height = api.nvim_buf_line_count(self.bufnr)
 
-  local hint_text = (vim.fn.mode() ~= "i" and Config.mappings.submit.normal or Config.mappings.submit.insert)
-    .. ": submit"
+  local submit_config = (vim.fn.mode() ~= "i" and Config.mappings.submit.normal or Config.mappings.submit.insert)
+  local key_display = submit_config.key or submit_config
+  if type(submit_config) == "table" and submit_config.mode == "double_tap" then
+    key_display = key_display .. key_display -- Show double key for double-tap mode
+  end
+  local hint_text = key_display .. ": submit"
 
   local display_text = hint_text
 
@@ -229,17 +233,33 @@ function PromptInput:setup_keymaps()
     return lines[1] or ""
   end
 
+  local function create_submit_handler(submit_config)
+    local base_handler = function() self:submit(get_input()) end
+    
+    if type(submit_config) == "table" and submit_config.mode == "double_tap" then
+      return Utils.create_double_tap_handler(base_handler, submit_config.timeout, bufnr)
+    else
+      return base_handler
+    end
+  end
+
+  -- Insert mode submit
+  local insert_config = Config.mappings.submit.insert
+  local insert_key = type(insert_config) == "table" and insert_config.key or insert_config
   vim.keymap.set(
     "i",
-    Config.mappings.submit.insert,
-    function() self:submit(get_input()) end,
+    insert_key,
+    create_submit_handler(insert_config),
     { buffer = bufnr, noremap = true, silent = true }
   )
 
+  -- Normal mode submit
+  local normal_config = Config.mappings.submit.normal
+  local normal_key = type(normal_config) == "table" and normal_config.key or normal_config
   vim.keymap.set(
     "n",
-    Config.mappings.submit.normal,
-    function() self:submit(get_input()) end,
+    normal_key,
+    create_submit_handler(normal_config),
     { buffer = bufnr, noremap = true, silent = true }
   )
 

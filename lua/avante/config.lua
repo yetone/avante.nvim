@@ -939,6 +939,29 @@ local function apply_model_selection(config, model_name, provider_name)
   end
 end
 
+---Normalize submit configuration to support both simple strings and double-tap mode
+---@param submit_config string | { key: string, mode: "single" | "double_tap", timeout: number }
+---@return { key: string, mode: "single" | "double_tap", timeout: number }
+local function normalize_submit_config(submit_config)
+  if type(submit_config) == "string" then
+    return { key = submit_config, mode = "single", timeout = 300 }
+  elseif type(submit_config) == "table" then
+    local normalized = vim.tbl_extend("force", {
+      mode = "single",
+      timeout = 300,
+    }, submit_config)
+    
+    -- Backward compatibility: if no 'key' field, it might be the old format
+    if not normalized.key then
+      error("Invalid submit config: must specify 'key' field when using table format")
+    end
+    
+    return normalized
+  else
+    error("Invalid submit config: must be a string or table")
+  end
+end
+
 ---@param opts table<string, any>|nil -- Optional table parameter for configuration settings
 function M.setup(opts)
   opts = opts or {} -- Ensure `opts` is defined with a default table
@@ -1077,6 +1100,12 @@ function M.setup(opts)
 
   local last_model, last_provider = M.get_last_used_model(merged.providers or {})
   if last_model then apply_model_selection(merged, last_model, last_provider) end
+
+  -- Normalize submit configuration for backward compatibility and double-tap support
+  if merged.mappings and merged.mappings.submit then
+    merged.mappings.submit.normal = normalize_submit_config(merged.mappings.submit.normal)
+    merged.mappings.submit.insert = normalize_submit_config(merged.mappings.submit.insert)
+  end
 
   M._options = merged
 
