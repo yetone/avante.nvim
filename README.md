@@ -1225,6 +1225,7 @@ ACP providers are configured in the `acp_providers` section of your configuratio
         NODE_NO_WARNINGS = "1",
         GEMINI_API_KEY = os.getenv("GEMINI_API_KEY"),
       },
+      envOverrides = {}, -- Optional: path-based environment overrides (see below)
     },
     ["claude-code"] = {
       command = "npx",
@@ -1233,10 +1234,12 @@ ACP providers are configured in the `acp_providers` section of your configuratio
         NODE_NO_WARNINGS = "1",
         ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY"),
       },
+      envOverrides = {}, -- Optional: path-based environment overrides (see below)
     },
     ["goose"] = {
       command = "goose",
       args = { "acp" },
+      envOverrides = {}, -- Optional: path-based environment overrides (see below)
     },
     ["codex"] = {
       command = "codex-acp",
@@ -1244,11 +1247,70 @@ ACP providers are configured in the `acp_providers` section of your configuratio
         NODE_NO_WARNINGS = "1",
         OPENAI_API_KEY = os.getenv("OPENAI_API_KEY"),
       },
+      envOverrides = {}, -- Optional: path-based environment overrides (see below)
     },
   },
   -- other configuration options...
 }
 ```
+
+#### Path-Based Environment Overrides
+
+The `envOverrides` field allows you to define different environment variables for different project directories. This is useful when working with multiple projects that require different API keys or configurations.
+
+**Example: Using different API keys for different clients**
+
+```lua
+{
+  acp_providers = {
+    ["claude-code"] = {
+      command = "npx",
+      args = { "-y", "@zed-industries/claude-code-acp" },
+      env = {
+        -- Default/fallback environment variables
+        NODE_NO_WARNINGS = "1",
+        ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY"),
+        ANTHROPIC_BASE_URL = os.getenv("ANTHROPIC_BASE_URL"),
+      },
+      -- Path-based overrides (most specific path wins)
+      -- Supports tilde (~) expansion for home directory
+      envOverrides = {
+        ["~/work/client-a"] = {
+          ANTHROPIC_API_KEY = os.getenv("CLIENT_A_ANTHROPIC_KEY"),
+        },
+        ["~/work/client-b"] = {
+          ANTHROPIC_API_KEY = os.getenv("CLIENT_B_ANTHROPIC_KEY"),
+          ANTHROPIC_BASE_URL = "https://client-b-proxy.example.com",
+        },
+        ["~/personal/projects"] = {
+          ANTHROPIC_API_KEY = os.getenv("PERSONAL_ANTHROPIC_KEY"),
+        },
+      },
+    },
+  },
+}
+```
+
+**How it works:**
+- The plugin checks the current working directory (cwd) when creating an ACP client
+- It finds the most specific (longest) matching path from `envOverrides`
+- Environment variables from the matching override are merged with the base `env` configuration
+- Override values replace base values for matching keys
+- If no path matches, the base `env` is used as-is
+- When overrides are applied, you'll see a notification showing which variables were overridden
+
+**Features:**
+- **Tilde expansion**: Use `~/` in paths for home directory (e.g., `["~/work/client-a"]`)
+- **Automatic notifications**: See which overrides are active when opening projects
+- **Path specificity**: Most specific (deepest) path match wins when multiple paths match
+- **Inheritance**: Subdirectories automatically inherit from parent directory overrides unless a more specific match exists
+
+**Best practices:**
+- Store sensitive API keys in environment variables, not directly in your config
+- Use absolute paths or tilde (`~`) prefix in `envOverrides` for consistency
+- Review the notification messages to confirm correct overrides are being applied
+
+**Security note:** Never commit files containing actual API keys to version control. Always use environment variables or secure credential storage.
 
 ### Prerequisites
 

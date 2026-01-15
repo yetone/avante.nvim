@@ -778,6 +778,49 @@ function M.debounce(func, delay)
   end
 end
 
+---Creates a double-tap detector for a key
+---Tracks keypresses and executes callback only on double-tap within timeout window
+---@param callback function Function to call on double-tap
+---@param timeout integer Time window for double-tap in milliseconds (default 300)
+---@param bufnr integer|nil Optional buffer number to scope the state to
+---@return function Handler function for the key press
+function M.create_double_tap_handler(callback, timeout, bufnr)
+  timeout = timeout or 300
+  local state = {
+    last_press_time = 0,
+    timer = nil,
+  }
+
+  return function(...)
+    local args = { ... }
+    local current_time = vim.loop.now()
+    local time_diff = current_time - state.last_press_time
+
+    -- Clean up existing timer
+    if state.timer and not state.timer:is_closing() then
+      state.timer:stop()
+      state.timer:close()
+      state.timer = nil
+    end
+
+    -- Check if this is a double-tap (second press within timeout)
+    if time_diff < timeout and state.last_press_time > 0 then
+      -- Double-tap detected! Execute callback and reset state
+      state.last_press_time = 0
+      callback(unpack(args))
+    else
+      -- First press or timeout exceeded, record timestamp
+      state.last_press_time = current_time
+      
+      -- Set up timer to reset state after timeout
+      state.timer = vim.defer_fn(function()
+        state.last_press_time = 0
+        state.timer = nil
+      end, timeout)
+    end
+  end
+end
+
 ---Throttle a function call
 ---@param func fun(...) function to throttle
 ---@param delay integer delay in milliseconds
@@ -1220,10 +1263,24 @@ function M.extract_shortcuts(content)
   local has_shortcuts = false
 
   for _, shortcut in ipairs(shortcuts) do
-    local pattern = "#" .. shortcut.name
-    if content:match(pattern) then
+    -- Create the search pattern (plain text)
+    local search_pattern = "#" .. shortcut.name
+    
+    -- Check if this shortcut exists in the content using plain text search
+    if content:find(search_pattern, 1, true) then -- true = plain text search
       has_shortcuts = true
-      new_content = new_content:gsub(pattern, shortcut.prompt)
+      M.debug("Replacing shortcut #" .. shortcut.name .. " with prompt: " .. shortcut.prompt)
+      
+      -- Escape both the shortcut name and # for use in Lua pattern
+      -- We need to escape all special pattern characters
+      local escaped_name = shortcut.name:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
+      local pattern = "%#" .. escaped_name -- %# escapes the # character
+      
+      -- Perform the replacement, escaping % in the replacement string
+      new_content = new_content:gsub(pattern, function()
+        -- Return the prompt, escaping any % characters for gsub
+        return (shortcut.prompt:gsub("%%", "%%%%"))
+      end)
     end
   end
 

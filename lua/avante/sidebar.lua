@@ -2654,8 +2654,12 @@ function Sidebar:show_input_hint()
 
   -- 4. Submit keybinding
   if config.show_submit_key then
-    local submit_key = (fn.mode() ~= "i" and Config.mappings.submit.normal or Config.mappings.submit.insert)
-    table.insert(parts, submit_key .. ": submit")
+    local submit_config = (fn.mode() ~= "i" and Config.mappings.submit.normal or Config.mappings.submit.insert)
+    local key_display = type(submit_config) == "table" and submit_config.key or submit_config
+    if type(submit_config) == "table" and submit_config.mode == "double_tap" then
+      key_display = key_display .. key_display -- Show double key for double-tap mode
+    end
+    table.insert(parts, key_display .. ": submit")
   end
 
   -- 5. Session info (optional)
@@ -3049,7 +3053,10 @@ function Sidebar:handle_submit(request)
 
   -- Process shortcut replacements
   local new_content, has_shortcuts = Utils.extract_shortcuts(request)
-  if has_shortcuts then request = new_content end
+  if has_shortcuts then
+    Utils.debug("Shortcuts detected and replaced in request")
+    request = new_content
+  end
 
   local selected_filepaths = self.file_selector:get_selected_filepaths()
 
@@ -3341,8 +3348,23 @@ function Sidebar:create_input_container()
   end
 
   self:setup_window_navigation(self.containers.input)
-  self.containers.input:map("n", Config.mappings.submit.normal, on_submit)
-  self.containers.input:map("i", Config.mappings.submit.insert, on_submit)
+  
+  -- Setup submit keymaps with double-tap support
+  local function create_submit_mapping(mode, submit_config)
+    local key = type(submit_config) == "table" and submit_config.key or submit_config
+    local handler
+    
+    if type(submit_config) == "table" and submit_config.mode == "double_tap" then
+      handler = Utils.create_double_tap_handler(on_submit, submit_config.timeout, self.containers.input.bufnr)
+    else
+      handler = on_submit
+    end
+    
+    self.containers.input:map(mode, key, handler)
+  end
+  
+  create_submit_mapping("n", Config.mappings.submit.normal)
+  create_submit_mapping("i", Config.mappings.submit.insert)
   self.containers.input:map("n", Config.mappings.sidebar.toggle_input_fullscreen, function() self:toggle_input_fullscreen() end)
   self.containers.input:map("i", Config.mappings.sidebar.toggle_input_fullscreen, function() self:toggle_input_fullscreen() end)
   if Config.prompt_logger.next_prompt.normal then

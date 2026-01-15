@@ -4,6 +4,7 @@ local Path = require("avante.path")
 local PlPath = require("plenary.path")
 local ACPClient = require("avante.libs.acp_client")
 local Config = require("avante.config")
+local EnvUtils = require("avante.utils.environment")
 
 ---@class avante.ThreadViewer
 local M = {}
@@ -57,11 +58,19 @@ local function get_or_create_acp_client()
     return nil, "ACP not configured"
   end
 
+  -- Get current working directory and resolve environment variables with path-based overrides
+  local cwd = vim.fn.getcwd()
+  local resolved_env = EnvUtils.merge_env_with_overrides(
+    provider_config.acp_args.env or {},
+    provider_config.acp_args.envOverrides,
+    cwd
+  )
+
   local client = ACPClient:new({
     transport_type = "stdio",
     command = provider_config.acp_args.command,
     args = provider_config.acp_args.args or {},
-    env = provider_config.acp_args.env or {},
+    env = resolved_env,
     timeout = 5000,
   })
 
