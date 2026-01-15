@@ -192,3 +192,74 @@ cmd("SessionRestore", function() require("avante.api").restore_session() end, { 
 cmd("SessionDelete", function() require("avante.api").delete_session() end, { desc = "avante: delete saved session" })
 cmd("SessionList", function() require("avante.api").list_sessions() end, { desc = "avante: list all saved sessions" })
 cmd("Stop", function() require("avante.api").stop() end, { desc = "avante: stop current AI request" })
+cmd("Mode", function()
+  local sidebar = require("avante").get()
+  if not sidebar then
+    Utils.error("No sidebar found. Open Avante first with :AvanteChat or :AvanteChatNew")
+    return
+  end
+  sidebar:cycle_mode()
+end, { desc = "avante: cycle through session modes" })
+cmd("Modes", function()
+  local sidebar = require("avante").get()
+  if not sidebar then
+    Utils.error("No sidebar found. Open Avante first with :AvanteChat or :AvanteChatNew")
+    return
+  end
+  
+  -- Build mode information
+  local lines = { "Available Session Modes:", "" }
+  
+  if sidebar.acp_client and sidebar.acp_client.session_modes then
+    -- Show ACP client modes
+    table.insert(lines, "Source: ACP Server")
+    table.insert(lines, "")
+    for _, mode in ipairs(sidebar.acp_client.session_modes.modes) do
+      local is_current = mode.id == sidebar.current_mode_id
+      local marker = is_current and "→ " or "  "
+      local name = mode.name or mode.id
+      local desc = mode.description or "No description"
+      table.insert(lines, string.format("%s%s (%s)", marker, name, mode.id))
+      table.insert(lines, string.format("    %s", desc))
+      table.insert(lines, "")
+    end
+  else
+    -- Show config modes
+    table.insert(lines, "Source: Local Config")
+    table.insert(lines, "")
+    for mode_id, mode_config in pairs(Config.session_modes) do
+      local is_current = mode_id == sidebar.current_mode_id
+      local marker = is_current and "→ " or "  "
+      local name = mode_config.name or mode_id
+      table.insert(lines, string.format("%s%s (%s)", marker, name, mode_id))
+      table.insert(lines, "")
+    end
+  end
+  
+  table.insert(lines, "")
+  table.insert(lines, "Use :AvanteMode or 'M' in the sidebar to cycle modes")
+  
+  -- Display in a floating window
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  vim.api.nvim_buf_set_option(buf, "modifiable", false)
+  vim.api.nvim_buf_set_option(buf, "filetype", "markdown")
+  
+  local width = 80
+  local height = math.min(#lines + 2, vim.o.lines - 4)
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = "editor",
+    width = width,
+    height = height,
+    col = (vim.o.columns - width) / 2,
+    row = (vim.o.lines - height) / 2,
+    style = "minimal",
+    border = "rounded",
+    title = " Session Modes ",
+    title_pos = "center",
+  })
+  
+  -- Close on q or <Esc>
+  vim.keymap.set("n", "q", "<cmd>close<cr>", { buffer = buf, noremap = true, silent = true })
+  vim.keymap.set("n", "<Esc>", "<cmd>close<cr>", { buffer = buf, noremap = true, silent = true })
+end, { desc = "avante: show available session modes" })

@@ -167,15 +167,16 @@ function M.ask(opts)
     return true
   end
 
-  if opts.floating == true or (Config.windows.ask.floating == true and not has_question and opts.floating == nil) then
+  if opts.floating == true or (Config.windows and Config.windows.ask and Config.windows.ask.floating == true and not has_question and opts.floating == nil) then
+    local ask_config = (Config.windows and Config.windows.ask) or {}
     local prompt_input = PromptInput:new({
       submit_callback = function(input) ask(input) end,
       close_on_submit = true,
       win_opts = {
-        border = Config.windows.ask.border,
+        border = ask_config.border or "rounded",
         title = { { "Avante Ask", "FloatTitle" } },
       },
-      start_insert = Config.windows.ask.start_insert,
+      start_insert = ask_config.start_insert ~= false,
       default_value = opts.question,
     })
     prompt_input:open()
@@ -404,26 +405,6 @@ function M.view_threads()
       end
     end)
   end)
-end
-
-function M.toggle_plan_mode()
-  local Config = require("avante.config")
-  Config.plan_only_mode = not Config.plan_only_mode
-  local status = Config.plan_only_mode and "enabled" or "disabled"
-  local Utils = require("avante.utils")
-  Utils.info("Plan Mode " .. status)
-
-  -- Update only the header and status line, not the full sidebar
-  local sidebar = require("avante").get()
-  if sidebar and sidebar:is_open() and sidebar.containers and sidebar.containers.result then
-    -- Update just the result header (doesn't re-render everything)
-    sidebar:render_result()
-    
-    -- Update the status line (input hint)
-    if sidebar.containers.input then
-      sidebar:show_input_hint()
-    end
-  end
 end
 
 --- Request agent to enter plan mode (for ACP agents like claude-code)

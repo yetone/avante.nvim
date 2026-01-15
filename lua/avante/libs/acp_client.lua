@@ -119,6 +119,15 @@ local Utils = require("avante.utils")
 ---@class avante.acp.PlanEntry
 ---@field content string
 ---@field priority ACPPlanEntryPriority
+
+---@class avante.acp.SessionMode
+---@field id string
+---@field name string
+---@field description string|nil
+
+---@class avante.acp.SessionModeState
+---@field current_mode_id string
+---@field modes avante.acp.SessionMode[]
 ---@field status ACPPlanEntryStatus
 
 ---@class avante.acp.Plan
@@ -130,7 +139,7 @@ local Utils = require("avante.utils")
 ---@field input? table<string, any>
 
 ---@class avante.acp.BaseSessionUpdate
----@field sessionUpdate "user_message_chunk" | "agent_message_chunk" | "agent_thought_chunk" | "tool_call" | "tool_call_update" | "plan" | "available_commands_update"
+---@field sessionUpdate "user_message_chunk" | "agent_message_chunk" | "agent_thought_chunk" | "tool_call" | "tool_call_update" | "plan" | "available_commands_update" | "current_mode_update"
 
 ---@class avante.acp.UserMessageChunk : avante.acp.BaseSessionUpdate
 ---@field sessionUpdate "user_message_chunk"
@@ -162,6 +171,10 @@ local Utils = require("avante.utils")
 ---@class avante.acp.AvailableCommandsUpdate : avante.acp.BaseSessionUpdate
 ---@field sessionUpdate "available_commands_update"
 ---@field availableCommands avante.acp.AvailableCommand[]
+
+---@class avante.acp.CurrentModeUpdate : avante.acp.BaseSessionUpdate
+---@field sessionUpdate "current_mode_update"
+---@field currentModeId string
 
 ---@class avante.acp.PermissionOption
 ---@field optionId string
@@ -207,7 +220,7 @@ ACPClient.ERROR_CODES = {
 }
 
 ---@class ACPHandlers
----@field on_session_update? fun(update: avante.acp.UserMessageChunk | avante.acp.AgentMessageChunk | avante.acp.AgentThoughtChunk | avante.acp.ToolCallUpdate | avante.acp.PlanUpdate | avante.acp.AvailableCommandsUpdate)
+---@field on_session_update? fun(update: avante.acp.UserMessageChunk | avante.acp.AgentMessageChunk | avante.acp.AgentThoughtChunk | avante.acp.ToolCallUpdate | avante.acp.PlanUpdate | avante.acp.AvailableCommandsUpdate | avante.acp.CurrentModeUpdate)
 ---@field on_request_permission? fun(tool_call: table, options: table[], callback: fun(option_id: string | nil)): nil
 ---@field on_read_file? fun(path: string, line: integer | nil, limit: integer | nil, callback: fun(content: string), error_callback: fun(message: string, code: integer|nil)): nil
 ---@field on_write_file? fun(path: string, content: string, callback: fun(error: string|nil)): nil
@@ -248,6 +261,8 @@ function ACPClient:new(config)
     state = "disconnected",
     reconnect_count = 0,
     heartbeat_timer = nil,
+    session_modes = nil, ---@type avante.acp.SessionModeState|nil
+    on_mode_changed = nil, ---@type fun(mode_id: string)|nil
   }, { __index = self })
 
   client:_setup_transport()
@@ -604,6 +619,16 @@ function ACPClient:_handle_session_update(params)
     return
   end
 
+  -- Handle CurrentModeUpdate internally
+  if update.sessionUpdate == "current_mode_update" then
+    if self.session_modes then
+      self.session_modes.current_mode_id = update.currentModeId
+    end
+    if self.on_mode_changed then
+      vim.schedule(function() self.on_mode_changed(update.currentModeId) end)
+    end
+  end
+
   if self.config.handlers and self.config.handlers.on_session_update then
     vim.schedule(function() self.config.handlers.on_session_update(update) end)
   end
@@ -741,6 +766,14 @@ function ACPClient:initialize(callback)
     self.agent_capabilities = result.agentCapabilities
     self.auth_methods = result.authMethods or {}
 
+    -- Parse session modes from agent capabilities
+    if result.agentCapabilities and result.agentCapabilities.modes then
+      self.session_modes = {
+        current_mode_id = result.agentCapabilities.defaultMode or result.agentCapabilities.modes[1].id,
+        modes = result.agentCapabilities.modes
+      }
+    end
+
     -- Check if we need to authenticate
     local auth_method = self.config.auth_method
 
@@ -830,6 +863,19 @@ function ACPClient:send_prompt(session_id, prompt, callback)
     prompt = prompt,
   }
   return self:_send_request("session/prompt", params, callback)
+end
+
+---Set session mode
+---@param session_id string
+---@param mode_id string
+---@param callback fun(result: table|nil, err: avante.acp.ACPError|nil)
+function ACPClient:set_session_mode(session_id, mode_id, callback)
+  callback = callback or function() end
+  
+  self:_send_request("session/setMode", {
+    sessionId = session_id,
+    modeId = mode_id,
+  }, callback)
 end
 
 ---Cancel session

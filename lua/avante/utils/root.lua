@@ -193,9 +193,9 @@ local buf_names = {}
 ---@param opts? {normalize?:boolean, buf?:number}
 ---@return string
 function M.get(opts)
-  if Config.ask_opts.project_root then return Config.ask_opts.project_root end
+  if Config.ask_opts and Config.ask_opts.project_root then return Config.ask_opts.project_root end
   local cwd = vim.uv.cwd()
-  if Config.behaviour.use_cwd_as_project_root then
+  if Config.behaviour and Config.behaviour.use_cwd_as_project_root then
     if cwd and cwd ~= "" then return cwd end
   end
   opts = opts or {}

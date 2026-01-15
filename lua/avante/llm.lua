@@ -410,6 +410,14 @@ function M.generate_prompts(opts)
     end
   end
 
+  -- Apply mode-specific system prompt
+  if opts.sidebar and opts.sidebar.current_mode_id then
+    local mode_config = Config.session_modes[opts.sidebar.current_mode_id]
+    if mode_config and mode_config.system_prompt then
+      system_prompt = mode_config.system_prompt .. "\n\n" .. system_prompt
+    end
+  end
+
   ---@type AvanteLLMMessage[]
   local context_messages = {}
   if opts.prompt_opts and opts.prompt_opts.messages then

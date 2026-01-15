@@ -16,6 +16,7 @@ local M = {}
 ---@field acp_session_id string | nil
 ---@field todos avante.TODO[]
 ---@field last_user_input string | nil
+---@field current_mode_id string | nil
 
 ---Get the session storage directory
 ---@return Path
@@ -67,6 +68,7 @@ function M.save_session(sidebar)
     acp_session_id = sidebar.chat_history and sidebar.chat_history.acp_session_id or nil,
     todos = sidebar.chat_history and sidebar.chat_history.todos or {},
     last_user_input = nil,
+    current_mode_id = sidebar.current_mode_id or Config.default_session_mode,
   }
 
   -- Get selected files
@@ -131,6 +133,9 @@ function M.restore_session(sidebar, session_state)
       end
     end
   end
+
+  -- Restore current mode
+  sidebar.current_mode_id = session_state.current_mode_id or Config.default_session_mode
 
   -- Restore history if available
   if session_state.history_filename then

@@ -4,6 +4,11 @@
 ---@alias WebSearchEngineProviderResponseBodyFormatter fun(body: table): (string, string?)
 ---@alias avante.InputProvider "native" | "dressing" | "snacks" | fun(input: avante.ui.Input): nil
 
+---@class avante.SessionModeConfig
+---@field name string Display name
+---@field description string Description
+---@field system_prompt string|nil Mode-specific system prompt
+
 local Utils = require("avante.utils")
 
 local function copilot_use_response_api(opts)
@@ -31,8 +36,52 @@ M._defaults = {
   ---@alias avante.Mode "agentic" | "legacy"
   ---@type avante.Mode
   mode = "agentic",
-  ---@type boolean
-  plan_only_mode = true,  -- Default: new sessions start in plan mode
+  ---Default session mode for new sessions
+  ---@type string
+  default_session_mode = "code",
+  ---Session modes configuration
+  ---@type table<string, avante.SessionModeConfig>
+  session_modes = {
+    architect = {
+      name = "Architect",
+      description = "Planning and design mode - creates implementation plans before coding",
+      system_prompt = [[You are in ARCHITECT mode. Your role is to:
+1. Analyze requests thoroughly before implementation
+2. Create detailed step-by-step plans
+3. Identify files that need changes
+4. Consider edge cases and dependencies
+5. Use read-only tools to explore the codebase
+
+DO NOT make code changes. Focus on planning and design.]],
+    },
+    code = {
+      name = "Code",
+      description = "Full development mode - implements features with all tools available",
+      system_prompt = nil, -- Use default prompt
+    },
+    debug = {
+      name = "Debug",
+      description = "Debugging mode - focused on finding and fixing issues",
+      system_prompt = [[You are in DEBUG mode. Your role is to:
+1. Analyze error messages and stack traces
+2. Identify root causes of bugs
+3. Suggest targeted fixes
+4. Verify fixes resolve the issue
+
+Focus on debugging, not new features.]],
+    },
+    review = {
+      name = "Review",
+      description = "Code review mode - analyzes code quality and suggests improvements",
+      system_prompt = [[You are in REVIEW mode. Your role is to:
+1. Analyze code for quality, readability, and best practices
+2. Identify potential bugs or issues
+3. Suggest improvements
+4. Explain trade-offs
+
+Provide constructive feedback, but make minimal changes.]],
+    },
+  },
   ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | "watsonx_code_assistant" | string
   ---@type avante.ProviderName
   provider = "claude",
@@ -658,10 +707,10 @@ M._defaults = {
       selection = "<leader>aC",
       suggestion = "<leader>as",
       repomap = "<leader>aR",
-      plan_mode = "<leader>ap",
     },
     sidebar = {
-      expand_tool_use = "<S-Tab>",
+      cycle_mode = "<S-Tab>",
+      expand_tool_use = "<C-e>",
       next_prompt = "]p",
       prev_prompt = "[p",
       apply_all = "A",
@@ -669,7 +718,7 @@ M._defaults = {
       retry_user_request = "r",
       edit_user_request = "e",
       switch_windows = "<Tab>",
-      reverse_switch_windows = "<S-Tab>",
+      reverse_switch_windows = "<C-S-Tab>",
       toggle_code_window = "x",
       toggle_fullscreen_edit = "<S-f>",
       toggle_input_fullscreen = "<C-f>",

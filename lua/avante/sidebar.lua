@@ -86,6 +86,8 @@ Sidebar.__index = Sidebar
 ---@field current_tool_use_extmark_id integer | nil
 ---@field private win_size_store table<integer, {width: integer, height: integer}>
 ---@field is_in_full_view boolean
+---@field current_mode_id string | nil
+---@field available_modes string[]
 
 ---@param id integer the tabpage id retrieved from api.nvim_get_current_tabpage()
 function Sidebar:new(id)
@@ -105,8 +107,8 @@ function Sidebar:new(id)
     chat_history = nil,
     current_state = nil,
     state_timer = nil,
-    state_spinner_chars = Config.windows.spinner.generating,
-    thinking_spinner_chars = Config.windows.spinner.thinking,
+    state_spinner_chars = (Config.windows and Config.windows.spinner and Config.windows.spinner.generating) or { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" },
+    thinking_spinner_chars = (Config.windows and Config.windows.spinner and Config.windows.spinner.thinking) or { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" },
     state_spinner_idx = 1,
     state_extmark_id = nil,
     scroll = true,
@@ -123,6 +125,8 @@ function Sidebar:new(id)
     win_width_store = {},
     is_in_full_view = false,
     is_in_fullscreen_edit = false,
+    current_mode_id = nil,
+    available_modes = {},
   }, Sidebar)
 end
 
@@ -341,6 +345,87 @@ function Sidebar:toggle(opts)
     ---@cast opts SidebarOpenOptions
     self:open(opts)
     return true
+  end
+end
+
+---Initialize available modes from ACP client or config
+function Sidebar:initialize_modes()
+  if self.acp_client and self.acp_client.session_modes then
+    -- Server provides modes
+    self.available_modes = vim.tbl_map(function(m) return m.id end, self.acp_client.session_modes.modes)
+    self.current_mode_id = self.acp_client.session_modes.current_mode_id
+    
+    -- Setup mode change callback
+    self.acp_client.on_mode_changed = function(mode_id)
+      vim.schedule(function()
+        self.current_mode_id = mode_id
+        self:render_result()
+        self:show_input_hint()
+        Utils.info("Mode: " .. mode_id)
+      end)
+    end
+  else
+    -- Fallback to config modes
+    self.available_modes = vim.tbl_keys(Config.session_modes)
+    if not self.current_mode_id then
+      self.current_mode_id = Config.default_session_mode
+    end
+  end
+end
+
+---Cycle to next session mode
+function Sidebar:cycle_mode()
+  if #self.available_modes == 0 then
+    Utils.warn("No modes available")
+    return
+  end
+  
+  -- Find current index
+  local current_idx = 1
+  for i, mode_id in ipairs(self.available_modes) do
+    if mode_id == self.current_mode_id then
+      current_idx = i
+      break
+    end
+  end
+  
+  -- Cycle to next (wrap around)
+  local next_idx = (current_idx % #self.available_modes) + 1
+  local next_mode_id = self.available_modes[next_idx]
+  
+  -- Update immediately for responsive UI
+  self.current_mode_id = next_mode_id
+  self:render_result()
+  self:show_input_hint()
+  
+  -- Notify server if using ACP modes
+  if self.acp_client and self.acp_client.session_modes then
+    local session_id = self.chat_history and self.chat_history.acp_session_id
+    if session_id then
+      self.acp_client:set_session_mode(session_id, next_mode_id, function(result, err)
+        if err then
+          Utils.error("Failed to set mode: " .. tostring(err.message))
+          -- Revert on error
+          self.current_mode_id = self.available_modes[current_idx]
+          vim.schedule(function() 
+            self:render_result()
+            self:show_input_hint()
+          end)
+        else
+          local mode_config = Config.session_modes[next_mode_id]
+          local mode_name = mode_config and mode_config.name or next_mode_id
+          Utils.info("Mode: " .. mode_name)
+        end
+      end)
+    else
+      local mode_config = Config.session_modes[next_mode_id]
+      local mode_name = mode_config and mode_config.name or next_mode_id
+      Utils.info("Mode: " .. mode_name)
+    end
+  else
+    local mode_config = Config.session_modes[next_mode_id]
+    local mode_name = mode_config and mode_config.name or next_mode_id
+    Utils.info("Mode: " .. mode_name)
   end
 end
 
@@ -1065,15 +1150,11 @@ function Sidebar:render_result()
 
   local header_text = Utils.icon("󰭻 ") .. title
 
-  -- Add plan mode indicator (check both old plan_only_mode and new ACP plan mode)
-  if Config.plan_only_mode then
-    header_text = header_text .. " " .. Utils.icon(" ") .. "[PLAN]"
-  else
-    -- Check if agent is in ACP plan mode
-    local Llm = require("avante.llm")
-    if Llm.is_in_plan_mode() then
-      header_text = header_text .. " " .. Utils.icon("🗺️ ") .. "[PLAN]"
-    end
+  -- Add mode indicator
+  if self.current_mode_id then
+    local mode_config = Config.session_modes[self.current_mode_id]
+    local mode_name = mode_config and mode_config.name or self.current_mode_id:upper()
+    header_text = header_text .. " " .. Utils.icon("") .. "[" .. mode_name .. "]"
   end
 
   self:render_header(
@@ -1351,6 +1432,12 @@ function Sidebar:bind_sidebar_keys(codeblocks)
     function() jump_to_prompt("prev") end,
     { buffer = self.containers.result.bufnr, noremap = true, silent = true }
   )
+  vim.keymap.set(
+    "n",
+    Config.mappings.sidebar.cycle_mode,
+    function() self:cycle_mode() end,
+    { buffer = self.containers.result.bufnr, noremap = true, silent = true, desc = "avante: cycle session mode" }
+  )
 end
 
 function Sidebar:unbind_sidebar_keys()
@@ -1610,7 +1697,10 @@ function Sidebar:switch_window_focus(direction)
       error("Invalid 'direction' parameter: " .. direction)
     end
 
-    vim.api.nvim_set_current_win(ordered_winids[next_index])
+    local target_winid = ordered_winids[next_index]
+    if target_winid and vim.api.nvim_win_is_valid(target_winid) then
+      vim.api.nvim_set_current_win(target_winid)
+    end
   end
 end
 
@@ -1624,12 +1714,14 @@ function Sidebar:setup_window_navigation(container)
     function() self:switch_window_focus("next") end,
     { buffer = buf, noremap = true, silent = true, nowait = true }
   )
-  Utils.safe_keymap_set(
-    { "n", "i" },
-    Config.mappings.sidebar.reverse_switch_windows,
-    function() self:switch_window_focus("previous") end,
-    { buffer = buf, noremap = true, silent = true, nowait = true }
-  )
+  if Config.mappings.sidebar.reverse_switch_windows then
+    Utils.safe_keymap_set(
+      { "n", "i" },
+      Config.mappings.sidebar.reverse_switch_windows,
+      function() self:switch_window_focus("previous") end,
+      { buffer = buf, noremap = true, silent = true, nowait = true }
+    )
+  end
 end
 
 function Sidebar:resize()
@@ -2614,19 +2706,22 @@ function Sidebar:show_input_hint()
 
   local config = Config.behaviour.status_line
   if not config or not config.enabled then return end
+  
+  -- Safety check: ensure containers are initialized
+  if not self.containers or not self.containers.input then return end
+  if not self.containers.input.winid or not vim.api.nvim_win_is_valid(self.containers.input.winid) then return end
+  if not self.containers.input.bufnr or not vim.api.nvim_buf_is_valid(self.containers.input.bufnr) then return end
 
   -- Build status line parts
   local parts = {}
   local plan_mode_text = nil
 
-  -- 1. Plan mode indicator
+  -- 1. Mode indicator
   if config.show_plan_mode then
-    -- Check both Config.plan_only_mode (manual toggle) and ACP native plan mode
-    local Llm = require("avante.llm")
-    local is_plan_mode = Config.plan_only_mode or Llm.is_in_plan_mode()
-    
-    if is_plan_mode then
-      plan_mode_text = "🗺️  PLAN"
+    if self.current_mode_id then
+      local mode_config = Config.session_modes[self.current_mode_id]
+      local mode_name = mode_config and mode_config.name or self.current_mode_id:upper()
+      plan_mode_text = " " .. mode_name
       table.insert(parts, plan_mode_text)
     else
       plan_mode_text = "⚡ EXEC"
@@ -3210,8 +3305,12 @@ function Sidebar:handle_submit(request)
       on_tool_log = on_tool_log,
       on_messages_add = on_messages_add,
       on_state_change = on_state_change,
+      sidebar = self,
       acp_client = self.acp_client,
-      on_save_acp_client = function(client) self.acp_client = client end,
+      on_save_acp_client = function(client)
+        self.acp_client = client
+        self:initialize_modes()
+      end,
       acp_session_id = self.chat_history.acp_session_id,
       on_save_acp_session_id = function(session_id)
         self.chat_history.acp_session_id = session_id
