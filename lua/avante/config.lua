@@ -4,11 +4,6 @@
 ---@alias WebSearchEngineProviderResponseBodyFormatter fun(body: table): (string, string?)
 ---@alias avante.InputProvider "native" | "dressing" | "snacks" | fun(input: avante.ui.Input): nil
 
----@class avante.SessionModeConfig
----@field name string Display name
----@field description string Description
----@field system_prompt string|nil Mode-specific system prompt
-
 local Utils = require("avante.utils")
 
 local function copilot_use_response_api(opts)
@@ -36,52 +31,6 @@ M._defaults = {
   ---@alias avante.Mode "agentic" | "legacy"
   ---@type avante.Mode
   mode = "agentic",
-  ---Default session mode for new sessions
-  ---@type string
-  default_session_mode = "code",
-  ---Session modes configuration
-  ---@type table<string, avante.SessionModeConfig>
-  session_modes = {
-    architect = {
-      name = "Architect",
-      description = "Planning and design mode - creates implementation plans before coding",
-      system_prompt = [[You are in ARCHITECT mode. Your role is to:
-1. Analyze requests thoroughly before implementation
-2. Create detailed step-by-step plans
-3. Identify files that need changes
-4. Consider edge cases and dependencies
-5. Use read-only tools to explore the codebase
-
-DO NOT make code changes. Focus on planning and design.]],
-    },
-    code = {
-      name = "Code",
-      description = "Full development mode - implements features with all tools available",
-      system_prompt = nil, -- Use default prompt
-    },
-    debug = {
-      name = "Debug",
-      description = "Debugging mode - focused on finding and fixing issues",
-      system_prompt = [[You are in DEBUG mode. Your role is to:
-1. Analyze error messages and stack traces
-2. Identify root causes of bugs
-3. Suggest targeted fixes
-4. Verify fixes resolve the issue
-
-Focus on debugging, not new features.]],
-    },
-    review = {
-      name = "Review",
-      description = "Code review mode - analyzes code quality and suggests improvements",
-      system_prompt = [[You are in REVIEW mode. Your role is to:
-1. Analyze code for quality, readability, and best practices
-2. Identify potential bugs or issues
-3. Suggest improvements
-4. Explain trade-offs
-
-Provide constructive feedback, but make minimal changes.]],
-    },
-  },
   ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | "watsonx_code_assistant" | string
   ---@type avante.ProviderName
   provider = "claude",
@@ -624,7 +573,7 @@ Provide constructive feedback, but make minimal changes.]],
       show_following_status = true, -- Show following status indicator (👁️  FOLLOW or 🔕 MANUAL)
       show_tokens = true, -- Show token count
       show_submit_key = true, -- Show submit keybinding
-      show_session_info = false, -- Show session ID
+      show_session_info = true, -- Show session mode and ID
       format = nil, -- Custom format string: "{plan_mode} | {following_status} | {tokens} | {submit_key}"
     },
   },

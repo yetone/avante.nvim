@@ -410,13 +410,8 @@ function M.generate_prompts(opts)
     end
   end
 
-  -- Apply mode-specific system prompt
-  if opts.sidebar and opts.sidebar.current_mode_id then
-    local mode_config = Config.session_modes[opts.sidebar.current_mode_id]
-    if mode_config and mode_config.system_prompt then
-      system_prompt = mode_config.system_prompt .. "\n\n" .. system_prompt
-    end
-  end
+  -- Note: Mode-specific prompts are now handled by the ACP server/agent
+  -- The agent receives the mode ID via session/setMode and applies its own mode behavior
 
   ---@type AvanteLLMMessage[]
   local context_messages = {}

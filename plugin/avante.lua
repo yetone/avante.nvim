@@ -210,11 +210,11 @@ cmd("Modes", function()
   -- Build mode information
   local lines = { "Available Session Modes:", "" }
   
-  if sidebar.acp_client and sidebar.acp_client.session_modes then
+  if sidebar.acp_client and sidebar.acp_client:has_modes() then
     -- Show ACP client modes
-    table.insert(lines, "Source: ACP Server")
+    table.insert(lines, "Source: ACP Agent")
     table.insert(lines, "")
-    for _, mode in ipairs(sidebar.acp_client.session_modes.modes) do
+    for _, mode in ipairs(sidebar.acp_client:all_modes()) do
       local is_current = mode.id == sidebar.current_mode_id
       local marker = is_current and "→ " or "  "
       local name = mode.name or mode.id
@@ -224,16 +224,10 @@ cmd("Modes", function()
       table.insert(lines, "")
     end
   else
-    -- Show config modes
-    table.insert(lines, "Source: Local Config")
+    -- No modes available
+    table.insert(lines, "No modes available from agent")
     table.insert(lines, "")
-    for mode_id, mode_config in pairs(Config.session_modes) do
-      local is_current = mode_id == sidebar.current_mode_id
-      local marker = is_current and "→ " or "  "
-      local name = mode_config.name or mode_id
-      table.insert(lines, string.format("%s%s (%s)", marker, name, mode_id))
-      table.insert(lines, "")
-    end
+    table.insert(lines, "The connected agent does not provide session modes.")
   end
   
   table.insert(lines, "")

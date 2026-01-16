@@ -827,6 +827,16 @@ function ACPClient:create_session(cwd, mcp_servers, callback)
       callback(nil, error)
       return
     end
+    
+    -- Parse session modes from response (Zed-style: modes come from session/new response)
+    if result.modes and result.modes.availableModes and #result.modes.availableModes > 0 then
+      self.session_modes = {
+        current_mode_id = result.modes.currentModeId,
+        modes = result.modes.availableModes,
+      }
+      Utils.debug("Session modes from session/new: " .. #self.session_modes.modes .. " modes available")
+    end
+    
     callback(result.sessionId, nil)
   end)
 end
@@ -850,7 +860,19 @@ function ACPClient:load_session(session_id, cwd, mcp_servers, callback)
     sessionId = session_id,
     cwd = cwd,
     mcpServers = mcp_servers or {},
-  }, callback)
+  }, function(result, err)
+    if result then
+      -- Parse session modes from response (same as session/new)
+      if result.modes and result.modes.availableModes and #result.modes.availableModes > 0 then
+        self.session_modes = {
+          current_mode_id = result.modes.currentModeId,
+          modes = result.modes.availableModes,
+        }
+        Utils.debug("Session modes from session/load: " .. #self.session_modes.modes .. " modes available")
+      end
+    end
+    callback(result, err)
+  end)
 end
 
 ---Send prompt
@@ -865,17 +887,64 @@ function ACPClient:send_prompt(session_id, prompt, callback)
   return self:_send_request("session/prompt", params, callback)
 end
 
----Set session mode
+---Get current mode ID (Zed-style AgentSessionModes interface)
+---@return string|nil
+function ACPClient:current_mode()
+  if self.session_modes then
+    return self.session_modes.current_mode_id
+  end
+  return nil
+end
+
+---Get all available modes (Zed-style AgentSessionModes interface)
+---@return avante.acp.SessionMode[]
+function ACPClient:all_modes()
+  if self.session_modes and self.session_modes.modes then
+    return self.session_modes.modes
+  end
+  return {}
+end
+
+---Get mode by ID
+---@param mode_id string
+---@return avante.acp.SessionMode|nil
+function ACPClient:mode_by_id(mode_id)
+  if not self.session_modes or not self.session_modes.modes then
+    return nil
+  end
+  for _, mode in ipairs(self.session_modes.modes) do
+    if mode.id == mode_id then
+      return mode
+    end
+  end
+  return nil
+end
+
+---Check if modes are available from agent
+---@return boolean
+function ACPClient:has_modes()
+  return self.session_modes ~= nil and self.session_modes.modes ~= nil and #self.session_modes.modes > 0
+end
+
+---Set session mode (Zed-style AgentSessionModes interface)
 ---@param session_id string
 ---@param mode_id string
 ---@param callback fun(result: table|nil, err: avante.acp.ACPError|nil)
-function ACPClient:set_session_mode(session_id, mode_id, callback)
+function ACPClient:set_mode(session_id, mode_id, callback)
   callback = callback or function() end
   
   self:_send_request("session/setMode", {
     sessionId = session_id,
     modeId = mode_id,
   }, callback)
+end
+
+---@deprecated Use set_mode instead
+---@param session_id string
+---@param mode_id string
+---@param callback fun(result: table|nil, err: avante.acp.ACPError|nil)
+function ACPClient:set_session_mode(session_id, mode_id, callback)
+  self:set_mode(session_id, mode_id, callback)
 end
 
 ---Cancel session

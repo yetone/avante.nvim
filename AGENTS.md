@@ -45,3 +45,12 @@ You can find the zed code in ~/clones/zed and please reference how they use ACP.
 ### Agent vs ACP mode
 
 Most thing we're iterating on are in ACP mode here.
+
+### Atuin for prompts
+
+I want to take every prompt that we write in here, and turn it into a history, that I can then search through.
+
+### Managing Context
+
+Instead of a context box, let's make it so that typing @ in the prompt will let you manage the context. It should be a
+popup item.

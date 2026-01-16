@@ -348,12 +348,12 @@ function Sidebar:toggle(opts)
   end
 end
 
----Initialize available modes from ACP client or config
+---Initialize available modes from ACP client (no fallback)
 function Sidebar:initialize_modes()
-  if self.acp_client and self.acp_client.session_modes then
+  if self.acp_client and self.acp_client:has_modes() then
     -- Server provides modes
-    self.available_modes = vim.tbl_map(function(m) return m.id end, self.acp_client.session_modes.modes)
-    self.current_mode_id = self.acp_client.session_modes.current_mode_id
+    self.available_modes = vim.tbl_map(function(m) return m.id end, self.acp_client:all_modes())
+    self.current_mode_id = self.acp_client:current_mode()
     
     -- Setup mode change callback
     self.acp_client.on_mode_changed = function(mode_id)
@@ -361,71 +361,86 @@ function Sidebar:initialize_modes()
         self.current_mode_id = mode_id
         self:render_result()
         self:show_input_hint()
-        Utils.info("Mode: " .. mode_id)
+        local mode = self.acp_client:mode_by_id(mode_id)
+        local mode_name = mode and mode.name or mode_id
+        Utils.info("Mode: " .. mode_name)
       end)
     end
+    
+    Utils.debug("Initialized " .. #self.available_modes .. " modes from agent")
   else
-    -- Fallback to config modes
-    self.available_modes = vim.tbl_keys(Config.session_modes)
-    if not self.current_mode_id then
-      self.current_mode_id = Config.default_session_mode
-    end
+    -- No modes available from agent - this is OK, some agents don't support modes
+    self.available_modes = {}
+    self.current_mode_id = nil
+    Utils.debug("Agent does not provide session modes")
   end
 end
 
 ---Cycle to next session mode
 function Sidebar:cycle_mode()
-  if #self.available_modes == 0 then
-    Utils.warn("No modes available")
+  if not self.acp_client or not self.acp_client:has_modes() then
+    Utils.info("Mode cycling not supported by this agent")
+    return
+  end
+  
+  local all_modes = self.acp_client:all_modes()
+  if #all_modes == 0 then
+    Utils.info("Mode cycling not supported by this agent")
     return
   end
   
   -- Find current index
+  local current_mode_id = self.acp_client:current_mode()
   local current_idx = 1
-  for i, mode_id in ipairs(self.available_modes) do
-    if mode_id == self.current_mode_id then
+  for i, mode in ipairs(all_modes) do
+    if mode.id == current_mode_id then
       current_idx = i
       break
     end
   end
   
   -- Cycle to next (wrap around)
-  local next_idx = (current_idx % #self.available_modes) + 1
-  local next_mode_id = self.available_modes[next_idx]
+  local next_idx = (current_idx % #all_modes) + 1
+  local next_mode = all_modes[next_idx]
+  local next_mode_id = next_mode.id
   
   -- Update immediately for responsive UI
   self.current_mode_id = next_mode_id
+  -- Also update the ACP client's internal state for consistent current_mode() calls
+  if self.acp_client.session_modes then
+    self.acp_client.session_modes.current_mode_id = next_mode_id
+  end
   self:render_result()
   self:show_input_hint()
   
-  -- Notify server if using ACP modes
-  if self.acp_client and self.acp_client.session_modes then
-    local session_id = self.chat_history and self.chat_history.acp_session_id
-    if session_id then
-      self.acp_client:set_session_mode(session_id, next_mode_id, function(result, err)
-        if err then
-          Utils.error("Failed to set mode: " .. tostring(err.message))
-          -- Revert on error
-          self.current_mode_id = self.available_modes[current_idx]
+  -- Notify server (some agents don't support mode switching - that's OK)
+  local session_id = self.chat_history and self.chat_history.acp_session_id
+  if session_id then
+    self.acp_client:set_mode(session_id, next_mode_id, function(result, err)
+      if err then
+        -- Check if this is a "method not found" error - agent doesn't support mode switching
+        if err.message and err.message:match("Method not found") then
+          Utils.debug("Agent does not support mode switching: " .. tostring(err.message))
+          -- Keep the local mode change for UI purposes
+          Utils.info("Mode: " .. next_mode.name .. " (local only)")
+        else
+          Utils.warn("Failed to set mode: " .. tostring(err.message))
+          -- Revert on other errors
+          self.current_mode_id = current_mode_id
+          if self.acp_client.session_modes then
+            self.acp_client.session_modes.current_mode_id = current_mode_id
+          end
           vim.schedule(function() 
             self:render_result()
             self:show_input_hint()
           end)
-        else
-          local mode_config = Config.session_modes[next_mode_id]
-          local mode_name = mode_config and mode_config.name or next_mode_id
-          Utils.info("Mode: " .. mode_name)
         end
-      end)
-    else
-      local mode_config = Config.session_modes[next_mode_id]
-      local mode_name = mode_config and mode_config.name or next_mode_id
-      Utils.info("Mode: " .. mode_name)
-    end
+      else
+        Utils.info("Mode: " .. next_mode.name)
+      end
+    end)
   else
-    local mode_config = Config.session_modes[next_mode_id]
-    local mode_name = mode_config and mode_config.name or next_mode_id
-    Utils.info("Mode: " .. mode_name)
+    Utils.info("Mode: " .. next_mode.name)
   end
 end
 
@@ -1152,8 +1167,13 @@ function Sidebar:render_result()
 
   -- Add mode indicator
   if self.current_mode_id then
-    local mode_config = Config.session_modes[self.current_mode_id]
-    local mode_name = mode_config and mode_config.name or self.current_mode_id:upper()
+    local mode_name = self.current_mode_id:upper()
+    if self.acp_client then
+      local mode = self.acp_client:mode_by_id(self.current_mode_id)
+      if mode then
+        mode_name = mode.name
+      end
+    end
     header_text = header_text .. " " .. Utils.icon("") .. "[" .. mode_name .. "]"
   end
 
@@ -2718,10 +2738,13 @@ function Sidebar:show_input_hint()
 
   -- 1. Mode indicator
   if config.show_plan_mode then
-    if self.current_mode_id then
-      local mode_config = Config.session_modes[self.current_mode_id]
-      local mode_name = mode_config and mode_config.name or self.current_mode_id:upper()
+    if self.current_mode_id and self.acp_client then
+      local mode = self.acp_client:mode_by_id(self.current_mode_id)
+      local mode_name = mode and mode.name or self.current_mode_id:upper()
       plan_mode_text = " " .. mode_name
+      table.insert(parts, plan_mode_text)
+    elseif self.current_mode_id then
+      plan_mode_text = " " .. self.current_mode_id:upper()
       table.insert(parts, plan_mode_text)
     else
       plan_mode_text = "⚡ EXEC"
@@ -2757,9 +2780,18 @@ function Sidebar:show_input_hint()
     table.insert(parts, key_display .. ": submit")
   end
 
-  -- 5. Session info (optional)
-  if config.show_session_info and self.current_acp_session_id then
-    table.insert(parts, "S:" .. self.current_acp_session_id:sub(1, 8))
+  -- 5. Session info (mode ID + session ID)
+  if config.show_session_info then
+    local session_parts = {}
+    if self.current_mode_id then
+      table.insert(session_parts, self.current_mode_id)
+    end
+    if self.chat_history and self.chat_history.acp_session_id then
+      table.insert(session_parts, "S:" .. self.chat_history.acp_session_id:sub(1, 8))
+    end
+    if #session_parts > 0 then
+      table.insert(parts, table.concat(session_parts, " "))
+    end
   end
 
   -- Build final text
@@ -3309,7 +3341,7 @@ function Sidebar:handle_submit(request)
       acp_client = self.acp_client,
       on_save_acp_client = function(client)
         self.acp_client = client
-        self:initialize_modes()
+        -- Note: modes are initialized after session creation, not here
       end,
       acp_session_id = self.chat_history.acp_session_id,
       on_save_acp_session_id = function(session_id)
@@ -3317,6 +3349,10 @@ function Sidebar:handle_submit(request)
         Path.history.save(self.code.bufnr, self.chat_history)
         -- Clear the load flag after saving
         self._load_existing_session = false
+        -- Initialize modes after session is created (modes come from session/new response)
+        self:initialize_modes()
+        self:render_result()
+        self:show_input_hint()
       end,
       set_tool_use_store = set_tool_use_store,
       get_history_messages = function(opts) return self:get_history_messages_for_api(opts) end,
