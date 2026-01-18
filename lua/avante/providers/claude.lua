@@ -150,7 +150,7 @@ function M.setup()
   local auth_type = P[Config.provider].auth_type
 
   if auth_type == "api" then
-    M.api_key_name = "ANTRHOPIC_API_KEY"
+    M.api_key_name = "ANTHROPIC_API_KEY"
     require("avante.tokenizers").setup(M.tokenizer_id)
     vim.g.avante_login = true
     M._is_setup = true
