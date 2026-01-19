@@ -48,11 +48,11 @@ M._refresh_timer = nil
 ---@return boolean
 local function is_valid_token(token)
   return token ~= nil
-    and type(token.access_token) == "string"
-    and type(token.refresh_token) == "string"
-    and type(token.expires_at) == "number"
-    and token.access_token ~= ""
-    and token.refresh_token ~= ""
+      and type(token.access_token) == "string"
+      and type(token.refresh_token) == "string"
+      and type(token.expires_at) == "number"
+      and token.access_token ~= ""
+      and token.refresh_token ~= ""
 end
 
 -- Lockfile management
@@ -150,16 +150,18 @@ function M.setup()
   local auth_type = P[Config.provider].auth_type
 
   if auth_type == "api" then
-    M.api_key_name = "ANTRHOPIC_API_KEY"
+    M.api_key_name = "ANTHROPIC_API_KEY"
     require("avante.tokenizers").setup(M.tokenizer_id)
     vim.g.avante_login = true
     M._is_setup = true
     return
   end
 
-  if not M.state then M.state = {
-    claude_token = nil,
-  } end
+  if not M.state then
+    M.state = {
+      claude_token = nil,
+    }
+  end
 
   if claude_token_file:exists() then
     local ok, token = pcall(vim.json.decode, claude_token_file:read())
@@ -293,10 +295,10 @@ function M:parse_messages(opts)
           has_tool_use = true
           table.insert(message_content, { type = "tool_use", name = item.name, id = item.id, input = item.input })
         elseif
-          not provider_conf.disable_tools
-          and type(item) == "table"
-          and item.type == "tool_result"
-          and has_tool_use
+            not provider_conf.disable_tools
+            and type(item) == "table"
+            and item.type == "tool_result"
+            and has_tool_use
         then
           table.insert(
             message_content,
@@ -342,9 +344,9 @@ function M.transform_anthropic_usage(usage)
   ---@type avante.LLMTokenUsage
   local res = {
     prompt_tokens = usage.cache_creation_input_tokens and (usage.input_tokens + usage.cache_creation_input_tokens)
-      or usage.input_tokens,
+        or usage.input_tokens,
     completion_tokens = usage.cache_read_input_tokens and (usage.output_tokens + usage.cache_read_input_tokens)
-      or usage.output_tokens,
+        or usage.output_tokens,
   }
 
   return res
@@ -374,8 +376,8 @@ function M:parse_response(ctx, data_stream, event_state, opts)
   local function new_assistant_message(content, uuid)
     assert(
       event_state == "content_block_start"
-        or event_state == "content_block_delta"
-        or event_state == "content_block_stop",
+      or event_state == "content_block_delta"
+      or event_state == "content_block_stop",
       "called with unexpected event_state: " .. event_state
     )
     return HistoryMessage:new("assistant", content, {
@@ -533,7 +535,7 @@ function M:parse_curl_args(prompt_opts)
     local api_key = M.state.claude_token.access_token
     headers["authorization"] = string.format("Bearer %s", api_key)
     headers["anthropic-beta"] =
-      "oauth-2025-04-20,claude-code-20250219,interleaved-thinking-2025-05-14,fine-grained-tool-streaming-2025-05-14,prompt-caching-2024-07-31"
+    "oauth-2025-04-20,claude-code-20250219,interleaved-thinking-2025-05-14,fine-grained-tool-streaming-2025-05-14,prompt-caching-2024-07-31"
   else
     if P.env.require_api_key(provider_conf) then
       local api_key = self.parse_api_key()
@@ -777,10 +779,10 @@ function M.refresh_token(async, force)
 
   -- Do not refresh token if not forced or not expired
   if
-    not force
-    and M.state.claude_token
-    and M.state.claude_token.expires_at
-    and M.state.claude_token.expires_at > math.floor(os.time())
+      not force
+      and M.state.claude_token
+      and M.state.claude_token.expires_at
+      and M.state.claude_token.expires_at > math.floor(os.time())
   then
     return false
   end
