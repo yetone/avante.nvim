@@ -110,8 +110,10 @@ function M.open()
     end)
     :totable()
 
-  local current_model = Config.providers[Config.provider].model;
-  local default_item = vim.iter(models):find(function(item) return item.model == current_model and item.provider_name == Config.provider end)
+  local current_model = Config.providers[Config.provider].model
+  local default_item = vim.iter(models):find(
+    function(item) return item.model == current_model and item.provider_name == Config.provider end
+  )
 
   local function on_select(item_ids)
     if not item_ids then return end

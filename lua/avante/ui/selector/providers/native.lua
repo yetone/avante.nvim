@@ -10,9 +10,7 @@ function M.show(selector)
     prompt = selector.title,
     format_item = function(item)
       local title = item.title
-      if item.id == selector.default_item_id then
-        title = "● " .. title
-      end
+      if item.id == selector.default_item_id then title = "● " .. title end
       return title
     end,
   }, function(item)
