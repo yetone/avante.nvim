@@ -1,6 +1,10 @@
 local Config = require("avante.config")
 local Utils = require("avante.utils")
 
+---@class avante.acp.ClientInfo
+---@field name string
+---@field version string
+
 ---@class avante.acp.ClientCapabilities
 ---@field fs avante.acp.FileSystemCapability
 
@@ -186,6 +190,7 @@ local Utils = require("avante.utils")
 
 ---@class avante.acp.ACPClient
 ---@field protocol_version number
+---@field client_info avante.acp.ClientInfo
 ---@field capabilities avante.acp.ClientCapabilities
 ---@field agent_capabilities avante.acp.AgentCapabilities|nil
 ---@field config ACPConfig
@@ -225,6 +230,7 @@ ACPClient.ERROR_CODES = {
 ---@field max_reconnect_attempts? number Maximum reconnection attempts
 ---@field heartbeat_interval? number Heartbeat interval in milliseconds
 ---@field auth_method? string Authentication method
+---@field client_info? avante.acp.ClientInfo Client information (name and version)
 ---@field handlers? ACPHandlers
 ---@field on_state_change? fun(new_state: ACPConnectionState, old_state: ACPConnectionState)
 
@@ -232,9 +238,14 @@ ACPClient.ERROR_CODES = {
 ---@param config ACPConfig
 ---@return avante.acp.ACPClient
 function ACPClient:new(config)
+  config = config or {}
   local client = setmetatable({
     id_counter = 0,
     protocol_version = 1,
+    client_info = config.client_info or {
+      name = "avante.nvim",
+      version = "0.0.1",
+    },
     capabilities = {
       fs = {
         readTextFile = true,
@@ -244,7 +255,7 @@ function ACPClient:new(config)
     debug_log_file = nil,
     callbacks = {},
     transport = nil,
-    config = config or {},
+    config = config,
     state = "disconnected",
     reconnect_count = 0,
     heartbeat_timer = nil,
@@ -727,6 +738,7 @@ function ACPClient:initialize(callback)
 
   self:_send_request("initialize", {
     protocolVersion = self.protocol_version,
+    clientInfo = self.client_info,
     clientCapabilities = self.capabilities,
   }, function(result, err)
     if err or not result then
