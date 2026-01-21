@@ -230,7 +230,6 @@ ACPClient.ERROR_CODES = {
 ---@field max_reconnect_attempts? number Maximum reconnection attempts
 ---@field heartbeat_interval? number Heartbeat interval in milliseconds
 ---@field auth_method? string Authentication method
----@field client_info? avante.acp.ClientInfo Client information (name and version)
 ---@field handlers? ACPHandlers
 ---@field on_state_change? fun(new_state: ACPConnectionState, old_state: ACPConnectionState)
 
@@ -242,7 +241,7 @@ function ACPClient:new(config)
   local client = setmetatable({
     id_counter = 0,
     protocol_version = 1,
-    client_info = config.client_info or {
+    client_info = {
       name = "avante.nvim",
       version = "0.0.1",
     },
