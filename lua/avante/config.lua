@@ -510,7 +510,7 @@ M._defaults = {
       api_key_name = "MISTRAL_API_KEY",
       extra_request_body = {
         max_tokens = 4096, -- to avoid using the unsupported max_completion_tokens
-      }
+      },
     },
   },
   ---Specify the special dual_boost mode
