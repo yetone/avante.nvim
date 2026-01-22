@@ -17,7 +17,7 @@ function M.show(input)
     )
   end
 
-  vim.ui.input(opts, input.on_submit)
+  vim.ui.select(opts, input.on_submit)
 end
 
 return M
