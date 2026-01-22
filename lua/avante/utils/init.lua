@@ -784,14 +784,16 @@ end
 ---@param timeout integer Time window for double-tap in milliseconds (default 300)
 ---@param bufnr integer|nil Optional buffer number to scope the state to
 ---@return function Handler function for the key press
+---@return table State object with is_expr_mode flag for insert mode mappings
 function M.create_double_tap_handler(callback, timeout, bufnr)
   timeout = timeout or 300
   local state = {
     last_press_time = 0,
     timer = nil,
+    pending_newline = false,
   }
 
-  return function(...)
+  local handler = function(...)
     local args = { ... }
     local current_time = vim.loop.now()
     local time_diff = current_time - state.last_press_time
@@ -807,18 +809,37 @@ function M.create_double_tap_handler(callback, timeout, bufnr)
     if time_diff < timeout and state.last_press_time > 0 then
       -- Double-tap detected! Execute callback and reset state
       state.last_press_time = 0
+      state.pending_newline = false
       callback(unpack(args))
+      return "" -- Return empty string for expr mapping
     else
-      -- First press or timeout exceeded, record timestamp
+      -- First press, record timestamp and mark pending newline
       state.last_press_time = current_time
+      state.pending_newline = true
       
-      -- Set up timer to reset state after timeout
+      -- Set up timer to insert the pending newline after timeout
       state.timer = vim.defer_fn(function()
+        if state.pending_newline then
+          state.pending_newline = false
+          -- Insert the newline that was suppressed on first tap
+          vim.schedule(function()
+            if bufnr and vim.api.nvim_buf_is_valid(bufnr) then
+              local mode = vim.api.nvim_get_mode().mode
+              if mode == "i" or mode == "ic" then
+                vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<CR>", true, false, true), "n", false)
+              end
+            end
+          end)
+        end
         state.last_press_time = 0
         state.timer = nil
       end, timeout)
+      
+      return "" -- Suppress immediate newline, will be inserted by timer if not double-tapped
     end
   end
+  
+  return handler
 end
 
 ---Throttle a function call

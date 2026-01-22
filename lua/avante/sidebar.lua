@@ -125,6 +125,7 @@ function Sidebar:new(id)
     win_width_store = {},
     is_in_full_view = false,
     is_in_fullscreen_edit = false,
+    is_input_fullscreen = false,
     current_mode_id = nil,
     available_modes = {},
   }, Sidebar)
@@ -168,6 +169,7 @@ function Sidebar:reset()
   self.win_size_store = {}
   self.is_in_full_view = false
   self.is_in_fullscreen_edit = false
+  self.is_input_fullscreen = false
 end
 
 ---@class SidebarOpenOptions: AskOptions
@@ -1889,24 +1891,26 @@ function Sidebar:toggle_input_fullscreen()
   local input_winid = self.containers.input.winid
   
   if self.is_input_fullscreen then
-    -- Exit fullscreen mode: restore normal height
+    -- Exit fullscreen mode: restore saved height
     self.is_input_fullscreen = false
     
-    -- Restore to normal height based on layout
-    if self:get_layout() == "vertical" then
-      api.nvim_win_set_height(input_winid, Config.windows.input.height)
+    -- Restore the saved height
+    local saved_height = self._input_height_before_fullscreen
+    if saved_height and saved_height > 0 then
+      api.nvim_win_set_height(input_winid, saved_height)
     else
-      -- In horizontal layout, calculate normal height
-      if Utils.is_valid_container(self.containers.result, true) then
-        local result_height = api.nvim_win_get_height(self.containers.result.winid)
-        local selected_code_height = self:get_selected_code_container_height()
-        local normal_height = math.max(1, result_height - selected_code_height)
-        api.nvim_win_set_height(input_winid, normal_height)
-      end
+      -- Fallback to config height if saved height is invalid
+      api.nvim_win_set_height(input_winid, Config.windows.input.height)
     end
+    self._input_height_before_fullscreen = nil
     
+    -- Adjust layout to restore other containers
+    self:adjust_layout()
     Utils.info("Input: normal size")
   else
+    -- Save current height before going fullscreen
+    self._input_height_before_fullscreen = api.nvim_win_get_height(input_winid)
+    
     -- Enter fullscreen mode: maximize input height
     self.is_input_fullscreen = true
     
@@ -1924,6 +1928,7 @@ function Sidebar:toggle_input_fullscreen()
       end
     end
     
+    -- Don't call adjust_layout() when entering fullscreen - it would override our height
     Utils.info("Input: fullscreen mode (<C-f> to exit)")
   end
 end
@@ -3488,14 +3493,21 @@ function Sidebar:create_input_container()
   local function create_submit_mapping(mode, submit_config)
     local key = type(submit_config) == "table" and submit_config.key or submit_config
     local handler
+    local is_double_tap = type(submit_config) == "table" and submit_config.mode == "double_tap"
     
-    if type(submit_config) == "table" and submit_config.mode == "double_tap" then
+    if is_double_tap then
       handler = Utils.create_double_tap_handler(on_submit, submit_config.timeout, self.containers.input.bufnr)
     else
       handler = on_submit
     end
     
-    self.containers.input:map(mode, key, handler)
+    -- For insert mode double-tap on <CR>, use expr mapping to suppress immediate newline
+    local opts = { noremap = true, silent = true }
+    if mode == "i" and is_double_tap and (key == "<CR>" or key == "<Enter>") then
+      opts.expr = true
+    end
+    -- Pass true as 5th arg to force overwrite any existing mapping
+    self.containers.input:map(mode, key, handler, opts, true)
   end
   
   create_submit_mapping("n", Config.mappings.submit.normal)

@@ -933,7 +933,7 @@ end
 function ACPClient:set_mode(session_id, mode_id, callback)
   callback = callback or function() end
   
-  self:_send_request("session/setMode", {
+  self:_send_request("session/set_mode", {
     sessionId = session_id,
     modeId = mode_id,
   }, callback)
