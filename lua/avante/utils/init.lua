@@ -1696,6 +1696,11 @@ function M.get_commands()
       description = "/paste-image - Paste an image from clipboard into the chat",
       name = "paste-image"
     },
+    {
+      shorthelp = "Select prompt from history",
+      description = "/prompt - Open telescope picker to select and reuse a prompt from history",
+      name = "prompt"
+    },
   }
 
   ---@type {[AvanteSlashCommandBuiltInName]: AvanteSlashCommandCallback}
@@ -1996,6 +2001,11 @@ Use `/compact` to update the memory with recent messages.]],
         )
       end
       
+      if cb then cb(args) end
+    end,
+    prompt = function(sidebar, args, cb)
+      -- Open prompt selector to choose from history
+      require("avante.prompt_selector").open()
       if cb then cb(args) end
     end,
   }

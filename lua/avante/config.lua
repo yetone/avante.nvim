@@ -577,10 +577,22 @@ M._defaults = {
       format = nil, -- Custom format string: "{plan_mode} | {following_status} | {tokens} | {submit_key}"
     },
   },
-  prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
+  prompt_logger = { -- logs prompts to disk with rich metadata (per-project, searchable via telescope)
     enabled = true, -- toggle logging entirely
-    log_dir = vim.fn.stdpath("cache"), -- directory where logs are saved
-    max_entries = 100, -- the uplimit of entries that can be sotred
+    storage_path = Utils.join_paths(vim.fn.stdpath("state"), "avante"), -- base path for per-project prompt storage
+    max_entries = 100, -- max prompts per project (0 = unlimited)
+    use_index = true, -- enable index.json for fast Ctrl+N/P navigation
+    auto_rebuild_index = false, -- rebuild index on init (slower but ensures accuracy)
+    
+    -- Usage tracking options
+    track_usage = true, -- track how many times each prompt is reused
+    sort_by_usage = true, -- sort prompts by usage count first, then recency
+    show_usage_count = true, -- display usage count in selector
+    
+    -- Search options
+    search_full_prompt = true, -- search full prompt content (not just preview) in Telescope
+    max_keywords = 10, -- max keywords to extract for search optimization
+    
     next_prompt = {
       normal = "<C-n>", -- load the next (newer) prompt log in normal mode
       insert = "<C-n>",
@@ -687,6 +699,7 @@ M._defaults = {
     },
     select_model = "<leader>a?", -- Select model command
     select_history = "<leader>ah", -- Select history command
+    select_prompt = "<leader>ap", -- Select and reuse prompt command
     confirm = {
       focus_window = "<C-w>f",
       code = "c",

@@ -3113,6 +3113,43 @@ function Sidebar:get_generate_prompts_options(request, cb)
   if cb then cb(prompts_opts) end
 end
 
+---Collect metadata for prompt logging
+---@return table
+function Sidebar:collect_prompt_metadata()
+  local metadata = {}
+  
+  -- Project and directory
+  metadata.project_root = Utils.root.get({ buf = self.code.bufnr })
+  metadata.working_directory = vim.fn.getcwd()
+  
+  -- Detect first prompt in this chat
+  local History = require("avante.history")
+  metadata.is_first_prompt = #History.get_history_messages(self.chat_history) == 0
+  
+  -- Current file info
+  if self.code and self.code.bufnr then
+    metadata.current_file = api.nvim_buf_get_name(self.code.bufnr)
+    local ok, ft = pcall(api.nvim_get_option_value, "filetype", { buf = self.code.bufnr })
+    metadata.filetype = ok and ft or "unknown"
+  end
+  
+  -- Provider and model
+  metadata.provider = Config.provider or "unknown"
+  local ok, provider_config = pcall(Config.get_provider_config, Config.provider)
+  if ok and provider_config then
+    metadata.model = provider_config.model or "unknown"
+  else
+    metadata.model = "unknown"
+  end
+  
+  -- Session and files
+  metadata.chat_session_id = self.chat_history and self.chat_history.acp_session_id or nil
+  metadata.selected_files = self.file_selector and self.file_selector:get_selected_filepaths() or {}
+  metadata.current_mode_id = self.current_mode_id
+  
+  return metadata
+end
+
 function Sidebar:submit_input()
   if not vim.g.avante_login then
     Utils.warn("Sending message to fast!, API key is not yet set", { title = "Avante" })
@@ -3129,7 +3166,10 @@ end
 
 ---@param request string
 function Sidebar:handle_submit(request)
-  if Config.prompt_logger.enabled then PromptLogger.log_prompt(request) end
+  if Config.prompt_logger.enabled then
+    local metadata = self:collect_prompt_metadata()
+    PromptLogger.log_prompt_v2(request, metadata)
+  end
 
   if self.is_generating then
     self:add_history_messages({ History.Message:new("user", request) })

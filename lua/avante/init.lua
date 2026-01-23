@@ -199,6 +199,12 @@ function H.keymaps()
       function() require("avante.api").select_history() end,
       { desc = "avante: select history" }
     )
+    Utils.safe_keymap_set(
+      "n",
+      Config.mappings.select_prompt,
+      function() require("avante.api").select_prompt() end,
+      { desc = "avante: select and reuse prompt" }
+    )
 
     Utils.safe_keymap_set(
       "n",

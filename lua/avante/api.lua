@@ -273,6 +273,10 @@ function M.select_history()
   end)
 end
 
+function M.select_prompt()
+  require("avante.prompt_selector").open()
+end
+
 function M.view_threads()
   local buf = vim.api.nvim_get_current_buf()
   require("avante.thread_viewer").open(buf, function(filename, external_session_id)

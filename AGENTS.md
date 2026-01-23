@@ -54,3 +54,13 @@ I want to take every prompt that we write in here, and turn it into a history, t
 
 Instead of a context box, let's make it so that typing @ in the prompt will let you manage the context. It should be a
 popup item.
+
+### Profile Mode
+
+I want to define profiles that I can use. This should let me define  that I want to use model claude-code, add in
+additioanl context automatically (files or directories) and have a base prompt / agent I'm using with each one.
+
+### Plan Mode
+
+We need to make sure that the plan mode is actually working. I want to build a "review" mode where I can review the plan
+before submitting it.
