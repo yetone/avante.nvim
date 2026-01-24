@@ -356,7 +356,7 @@ function Sidebar:initialize_modes()
     -- Server provides modes
     self.available_modes = vim.tbl_map(function(m) return m.id end, self.acp_client:all_modes())
     self.current_mode_id = self.acp_client:current_mode()
-    
+
     -- Setup mode change callback
     self.acp_client.on_mode_changed = function(mode_id)
       vim.schedule(function()
@@ -368,8 +368,38 @@ function Sidebar:initialize_modes()
         Utils.info("Mode: " .. mode_name)
       end)
     end
-    
-    Utils.debug("Initialized " .. #self.available_modes .. " modes from agent")
+
+    Utils.debug("Initialized " .. #self.available_modes .. " modes from agent: " .. table.concat(self.available_modes, ", "))
+    Utils.debug("Current mode from ACP: " .. tostring(self.current_mode_id))
+
+    -- Set default mode if configured and available (like Zed does after session/new)
+    local default_mode = Config.behaviour.acp_default_mode
+    Utils.debug("acp_default_mode config: " .. tostring(default_mode))
+    if default_mode and self.chat_history.acp_session_id then
+      local has_mode = vim.tbl_contains(self.available_modes, default_mode)
+      if has_mode then
+        -- Only set if not already in the desired mode
+        if self.current_mode_id ~= default_mode then
+          Utils.debug("Setting default ACP mode: " .. default_mode .. " for session: " .. self.chat_history.acp_session_id)
+          self.acp_client:set_mode(self.chat_history.acp_session_id, default_mode, function(result, err)
+            vim.schedule(function()
+              if err then
+                Utils.warn("Failed to set default mode: " .. vim.inspect(err))
+              else
+                Utils.debug("set_mode succeeded, result: " .. vim.inspect(result))
+                -- Update local state immediately (server will also send current_mode_update)
+                self.current_mode_id = default_mode
+                self:render_result()
+                self:show_input_hint()
+              end
+            end)
+          end)
+        end
+      else
+        local available = table.concat(self.available_modes, ", ")
+        Utils.warn("Default mode '" .. default_mode .. "' not available. Available: " .. available)
+      end
+    end
   else
     -- No modes available from agent - this is OK, some agents don't support modes
     self.available_modes = {}
@@ -2548,11 +2578,24 @@ end
 
 ---@param todos avante.TODO[]
 function Sidebar:update_todos(todos)
-  if self.chat_history == nil then self:reload_chat_history() end
-  if self.chat_history == nil then return end
+  Utils.debug("Sidebar:update_todos called with " .. #todos .. " todos")
+  for i, todo in ipairs(todos) do
+    Utils.debug("  Todo " .. i .. ": status=" .. tostring(todo.status) .. ", content=" .. tostring(todo.content):sub(1, 50))
+  end
+  if self.chat_history == nil then
+    Utils.debug("update_todos: reloading chat_history")
+    self:reload_chat_history()
+  end
+  if self.chat_history == nil then
+    Utils.debug("WARNING: chat_history is nil after reload, cannot save todos")
+    return
+  end
   self.chat_history.todos = todos
+  Utils.debug("Saving todos to chat_history, bufnr=" .. tostring(self.code.bufnr) .. ", filename=" .. tostring(self.chat_history.filename))
   Path.history.save(self.code.bufnr, self.chat_history)
+  Utils.debug("Saved. Creating todos container")
   self:create_todos_container()
+  Utils.debug("update_todos complete")
 end
 
 ---@param messages avante.HistoryMessage | avante.HistoryMessage[]
@@ -3452,6 +3495,9 @@ function Sidebar:create_input_container()
 
   if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then return end
 
+  -- Guard: result container must exist first
+  if not self.containers.result or not self.containers.result.winid then return end
+
   if self.chat_history == nil then self:reload_chat_history() end
 
   local function get_position()
@@ -3721,6 +3767,9 @@ function Sidebar:get_result_container_width()
 end
 
 function Sidebar:adjust_result_container_layout()
+  -- Guard: result container must exist
+  if not self.containers.result or not self.containers.result.winid then return end
+
   local width = self:get_result_container_width()
   local height = self:get_result_container_height()
 
@@ -3732,6 +3781,10 @@ end
 
 ---@param opts AskOptions
 function Sidebar:render(opts)
+  -- Guard: prevent re-entrant rendering
+  if self._is_rendering then return end
+  self._is_rendering = true
+
   opts = opts or {}
   self.augroup = api.nvim_create_augroup("avante_sidebar_" .. self.id, { clear = true })
 
@@ -3834,6 +3887,7 @@ function Sidebar:render(opts)
     end,
   })
 
+  self._is_rendering = false
   return self
 end
 
@@ -4025,8 +4079,11 @@ function Sidebar:create_selected_files_container()
 end
 
 function Sidebar:create_todos_container()
+  Utils.debug("create_todos_container called, bufnr=" .. tostring(self.code.bufnr))
   local history = Path.history.load(self.code.bufnr)
+  Utils.debug("Loaded history from disk, todos count=" .. #history.todos)
   if #history.todos == 0 then
+    Utils.debug("No todos, unmounting container")
     if self.containers.todos and Utils.is_valid_container(self.containers.todos) then
       self.containers.todos:unmount()
     end
@@ -4106,6 +4163,9 @@ function Sidebar:create_todos_container()
 end
 
 function Sidebar:adjust_layout()
+  -- Guard: result container must exist before adjusting layout
+  if not self.containers.result or not self.containers.result.winid then return end
+
   self:adjust_result_container_layout()
   self:adjust_todos_container_layout()
   self:adjust_selected_code_container_layout()

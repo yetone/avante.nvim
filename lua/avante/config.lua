@@ -561,6 +561,10 @@ M._defaults = {
     --- Whether to automatically open files and navigate to lines when ACP agent makes edits
     ---@type boolean
     acp_follow_agent_locations = true,
+    --- Default mode to set when creating a new ACP session (e.g., "plan" for plan mode)
+    --- Set to nil to use whatever mode the ACP server defaults to
+    ---@type string|nil
+    acp_default_mode = nil,
     --- Whether to prompt before exiting when there are active ACP sessions
     ---@type boolean
     prompt_on_exit_with_active_session = true,
@@ -818,7 +822,7 @@ M._defaults = {
   selector = {
     ---@alias avante.SelectorProvider "native" | "fzf_lua" | "mini_pick" | "snacks" | "telescope" | fun(selector: avante.ui.Selector): nil
     ---@type avante.SelectorProvider
-    provider = "native",
+    provider = "telescope",
     provider_opts = {},
     exclude_auto_select = {}, -- List of items to exclude from auto selection
   },

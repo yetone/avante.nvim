@@ -525,9 +525,24 @@ function M.generate_prompts(opts)
     .. "</workspace_context>"
   system_prompt = system_prompt .. workspace_context
 
-  -- Add plan mode prompt if enabled
-  if Config.plan_only_mode then
+  -- Add plan mode prompt if enabled via config or current mode
+  local in_plan_mode = Config.plan_only_mode or false
+  
+  -- Check if current mode is plan mode (via ACP session mode)
+  if is_acp_provider and not in_plan_mode then
+    local sidebar = require("avante").get()
+    if sidebar and sidebar.current_mode_id and sidebar.acp_client then
+      local mode = sidebar.acp_client:mode_by_id(sidebar.current_mode_id)
+      if mode and (mode.name:lower():match("plan") or mode.id:lower():match("plan")) then
+        in_plan_mode = true
+        Utils.debug("Plan mode detected from ACP session mode: " .. mode.name)
+      end
+    end
+  end
+  
+  if in_plan_mode then
     system_prompt = system_prompt .. "\n\n" .. Prompts.get_plan_mode_prompt()
+    Utils.debug("Plan mode system prompt injected")
   end
 
   ---@type AvantePromptOptions
@@ -1055,12 +1070,14 @@ function M._stream_acp(opts)
   ---@type ACPHandlers
   local handlers = {
     on_session_update = function(update)
+      Utils.debug("llm.lua on_session_update: sessionUpdate=" .. tostring(update.sessionUpdate))
       if update.sessionUpdate == "plan" then
             -- Store plan entries in session state
             session_state.last_plan_entries = update.entries or {}
-            
+            Utils.debug("Plan update received with " .. #(update.entries or {}) .. " entries")
+
             local todos = {}
-            for idx, entry in ipairs(update.entries) do
+            for idx, entry in ipairs(update.entries or {}) do
               local status = "todo"
               if entry.status == "in_progress" then status = "doing" end
               if entry.status == "completed" then status = "done" end
@@ -1073,8 +1090,14 @@ function M._stream_acp(opts)
               }
               table.insert(todos, todo)
             end
+            Utils.debug("Calling update_todos with " .. #todos .. " todos")
             vim.schedule(function()
-              if opts.update_todos then opts.update_todos(todos) end
+              if opts.update_todos then
+                Utils.debug("Invoking opts.update_todos callback")
+                opts.update_todos(todos)
+              else
+                Utils.debug("WARNING: opts.update_todos is nil!")
+              end
             end)
             return
           end
@@ -1150,7 +1173,7 @@ function M._stream_acp(opts)
               vim.schedule(function()
                 local sidebar = require("avante").get()
                 if sidebar then
-                  sidebar:render()
+                  sidebar:render_result() -- Refresh display (not full render)
                   sidebar:show_input_hint() -- Refresh status line
                 end
               end)
@@ -1316,6 +1339,35 @@ function M._stream_acp(opts)
           end
 
           on_messages_add({ message })
+
+          -- Check if this tool should be auto-rejected in plan mode
+          local PlanModeValidator = require("avante.acp_plan_mode_validator")
+          local should_auto_reject, rejection_reason = PlanModeValidator.validate_permission_in_plan_mode({
+            tool = tool_call.kind,
+            method = tool_call.kind,
+            name = tool_call.kind,
+          }, sidebar)
+          
+          if should_auto_reject then
+            -- Auto-reject in plan mode
+            Utils.warn("Plan mode: " .. (rejection_reason or "Tool not allowed"))
+            local acp_mapped_options = ACPConfirmAdapter.map_acp_options(options)
+            if acp_mapped_options.no then
+              callback(acp_mapped_options.no)
+            else
+              -- Fallback to first reject option
+              for _, opt in ipairs(options) do
+                if opt.kind == "reject_once" or opt.kind == "reject_always" then
+                  callback(opt.optionId)
+                  break
+                end
+              end
+            end
+            sidebar.scroll = true
+            sidebar._history_cache_invalidated = true
+            sidebar:update_content("")
+            return
+          end
 
           local description = HistoryRender.get_tool_display_name(message)
           LLMToolHelpers.confirm(description, function(ok)
@@ -1846,7 +1898,17 @@ function M._continue_stream_acp(opts, acp_client, session_id)
     end,
   })
   
-  acp_client:send_prompt(session_id, prompt, function(result, err_)
+  -- Get current mode from sidebar to include in prompt
+  local current_mode_id = nil
+  local sidebar = require("avante").get()
+  if sidebar and sidebar.acp_client and sidebar.acp_client:has_modes() then
+    current_mode_id = sidebar.current_mode_id
+    if current_mode_id then
+      Utils.debug("Including mode in prompt: " .. current_mode_id)
+    end
+  end
+  
+  acp_client:send_prompt(session_id, prompt, current_mode_id, function(result, err_)
     if cancelled then return end
     vim.schedule(function() api.nvim_del_autocmd(stop_cmd_id) end)
     if err_ then

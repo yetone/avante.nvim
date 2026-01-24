@@ -437,25 +437,71 @@ function M.open_with_telescope(bufnr, cb)
 
   -- Fetch external ACP sessions asynchronously
   scan_external_acp_sessions(function(external_sessions)
-    -- Create a map of existing ACP session IDs from Avante histories
-    local existing_acp_sessions = {}
+    -- Create deduplicated map by session ID
+    local session_map = {}
+    
+    -- First, add all local histories (they have priority - more complete info)
     for _, history in ipairs(histories) do
-      if history.acp_session_id then
-        existing_acp_sessions[history.acp_session_id] = true
+      local session_id = history.acp_session_id
+      if session_id then
+        -- Use session_id as key
+        if not session_map[session_id] then
+          session_map[session_id] = history
+          Utils.debug("Added local history with session_id: " .. session_id)
+        else
+          -- Session already exists - check if we should update
+          -- Prefer histories with more messages
+          local existing_msg_count = #(History.get_history_messages(session_map[session_id]))
+          local new_msg_count = #(History.get_history_messages(history))
+          if new_msg_count > existing_msg_count then
+            Utils.debug("Replacing session " .. session_id .. " with more complete history (" .. new_msg_count .. " vs " .. existing_msg_count .. " messages)")
+            session_map[session_id] = history
+          else
+            Utils.debug("Skipping duplicate session: " .. session_id)
+          end
+        end
+      else
+        -- No session_id (legacy history), use filename as key
+        local key = history.filename or tostring(history)
+        if not session_map[key] then
+          session_map[key] = history
+          Utils.debug("Added legacy history: " .. key)
+        end
       end
     end
     
-    -- Add external sessions that don't have Avante histories
+    -- Now add external sessions that don't exist in local histories
     for _, session_info in ipairs(external_sessions) do
-      if not existing_acp_sessions[session_info.session_id] then
+      local session_id = session_info.session_id
+      if not session_map[session_id] then
         local synthetic_history = create_synthetic_history(session_info)
-        table.insert(histories, synthetic_history)
+        session_map[session_id] = synthetic_history
+        Utils.debug("Added external ACP session: " .. session_id)
+      else
+        Utils.debug("Skipping external session already in local histories: " .. session_id)
       end
     end
+    
+    -- Convert map back to array
+    local deduplicated_histories = {}
+    for _, history in pairs(session_map) do
+      table.insert(deduplicated_histories, history)
+    end
+    
+    -- Sort by timestamp (most recent first)
+    table.sort(deduplicated_histories, function(a, b)
+      local a_msgs = History.get_history_messages(a)
+      local b_msgs = History.get_history_messages(b)
+      local a_time = #a_msgs > 0 and a_msgs[#a_msgs].timestamp or a.timestamp
+      local b_time = #b_msgs > 0 and b_msgs[#b_msgs].timestamp or b.timestamp
+      return a_time > b_time
+    end)
+    
+    Utils.info("Loaded " .. #deduplicated_histories .. " unique threads (deduplicated from " .. #histories .. " local + " .. #external_sessions .. " external)")
     
     -- Continue with telescope picker inside the callback
     vim.schedule(function()
-      show_telescope_picker(histories, bufnr, cb, pickers, finders, conf, actions, action_state, previewers)
+      show_telescope_picker(deduplicated_histories, bufnr, cb, pickers, finders, conf, actions, action_state, previewers)
     end)
   end)
 end

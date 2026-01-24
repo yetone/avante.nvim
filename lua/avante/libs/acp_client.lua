@@ -119,6 +119,7 @@ local Utils = require("avante.utils")
 ---@class avante.acp.PlanEntry
 ---@field content string
 ---@field priority ACPPlanEntryPriority
+---@field status "pending"|"in_progress"|"completed"|nil
 
 ---@class avante.acp.SessionMode
 ---@field id string
@@ -619,6 +620,12 @@ function ACPClient:_handle_session_update(params)
     return
   end
 
+  -- Debug log the session update type
+  Utils.debug("session/update received: sessionUpdate=" .. tostring(update.sessionUpdate))
+  if update.sessionUpdate == "plan" then
+    Utils.debug("Plan update entries: " .. vim.inspect(update.entries))
+  end
+
   -- Handle CurrentModeUpdate internally
   if update.sessionUpdate == "current_mode_update" then
     if self.session_modes then
@@ -642,7 +649,13 @@ function ACPClient:_handle_request_permission(message_id, params)
   local tool_call = params.toolCall
   local options = params.options
 
-  if not session_id or not tool_call then return end
+  if not session_id or not tool_call then 
+    Utils.debug("Permission request missing sessionId or toolCall")
+    return 
+  end
+
+  Utils.debug("Permission request received: session=" .. session_id .. ", tool=" .. (tool_call.kind or "unknown") .. ", message_id=" .. message_id)
+  Utils.debug("Permission options: " .. vim.inspect(options))
 
   if self.config.handlers and self.config.handlers.on_request_permission then
     vim.schedule(function()
@@ -650,15 +663,19 @@ function ACPClient:_handle_request_permission(message_id, params)
         tool_call,
         options,
         function(option_id)
+          Utils.debug("Permission response: message_id=" .. message_id .. ", option_id=" .. option_id)
           self:_send_result(message_id, {
             outcome = {
               outcome = "selected",
               optionId = option_id,
             },
           })
+          Utils.debug("Permission response sent successfully")
         end
       )
     end)
+  else
+    Utils.warn("No permission handler configured")
   end
 end
 
@@ -829,14 +846,20 @@ function ACPClient:create_session(cwd, mcp_servers, callback)
     end
     
     -- Parse session modes from response (Zed-style: modes come from session/new response)
+    Utils.debug("session/new response keys: " .. vim.inspect(vim.tbl_keys(result)))
+    if result.modes then
+      Utils.debug("session/new modes: " .. vim.inspect(result.modes))
+    else
+      Utils.debug("session/new: no modes in response")
+    end
     if result.modes and result.modes.availableModes and #result.modes.availableModes > 0 then
       self.session_modes = {
         current_mode_id = result.modes.currentModeId,
         modes = result.modes.availableModes,
       }
-      Utils.debug("Session modes from session/new: " .. #self.session_modes.modes .. " modes available")
+      Utils.debug("Session modes from session/new: " .. #self.session_modes.modes .. " modes available, current: " .. tostring(self.session_modes.current_mode_id))
     end
-    
+
     callback(result.sessionId, nil)
   end)
 end
@@ -878,12 +901,26 @@ end
 ---Send prompt
 ---@param session_id string
 ---@param prompt table[]
+---@param mode_id string|nil Optional mode ID to include with the prompt
 ---@param callback fun(result: table|nil, err: avante.acp.ACPError|nil)
-function ACPClient:send_prompt(session_id, prompt, callback)
+function ACPClient:send_prompt(session_id, prompt, mode_id, callback)
+  -- Handle optional mode_id parameter for backward compatibility
+  if type(mode_id) == "function" then
+    callback = mode_id
+    mode_id = nil
+  end
+  
   local params = {
     sessionId = session_id,
     prompt = prompt,
   }
+
+  -- Include current mode if available and agent supports modes
+  if mode_id and self:has_modes() then
+    params.modeId = mode_id
+    Utils.debug("Sending prompt with modeId: " .. mode_id)
+  end
+  
   return self:_send_request("session/prompt", params, callback)
 end
 
@@ -932,7 +969,7 @@ end
 ---@param callback fun(result: table|nil, err: avante.acp.ACPError|nil)
 function ACPClient:set_mode(session_id, mode_id, callback)
   callback = callback or function() end
-  
+
   self:_send_request("session/set_mode", {
     sessionId = session_id,
     modeId = mode_id,

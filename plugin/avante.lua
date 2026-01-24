@@ -186,6 +186,12 @@ cmd("History", function() require("avante.api").select_history() end, { desc = "
 cmd("Threads", function() require("avante.api").view_threads() end, { desc = "avante: view all threads with telescope" })
 cmd("PlanModeToggle", function() require("avante.api").toggle_plan_mode() end, { desc = "avante: toggle plan-only mode" })
 cmd("PlanMode", function() require("avante.api").toggle_plan_mode() end, { desc = "avante: toggle plan-only mode (deprecated, use PlanModeToggle)" })
+cmd("Debug", function()
+  local Config = require("avante.config")
+  Config.debug = not Config.debug
+  local status = Config.debug and "enabled" or "disabled"
+  Utils.info("Debug mode " .. status .. (Config.debug and " - logs at /tmp/avante-debug.log and /tmp/avante-acp-session.log" or ""))
+end, { desc = "avante: toggle debug mode" })
 cmd("RequestPlanMode", function() require("avante.api").request_plan_mode() end, { desc = "avante: request agent to enter plan mode" })
 cmd("SessionSave", function() require("avante.api").save_session() end, { desc = "avante: save current session" })
 cmd("SessionRestore", function() require("avante.api").restore_session() end, { desc = "avante: restore saved session" })

@@ -439,6 +439,9 @@ function M.warn(msg, opts)
   M.notify(msg, opts)
 end
 
+-- Debug log file handle (shared across calls, stored outside M to avoid __index)
+local debug_log_file = nil
+
 function M.debug(...)
   if not require("avante.config").debug then return end
 
@@ -451,18 +454,28 @@ function M.debug(...)
   local caller_module = caller_source:gsub("^.*/lua/", ""):gsub("%.lua$", ""):gsub("/", ".")
 
   local timestamp = M.get_timestamp()
-  local formated_args = {
+  local parts = {
     "[" .. timestamp .. "] [AVANTE] [DEBUG] [" .. caller_module .. ":" .. info.currentline .. "]",
   }
 
   for _, arg in ipairs(args) do
     if type(arg) == "string" then
-      table.insert(formated_args, arg)
+      table.insert(parts, arg)
     else
-      table.insert(formated_args, vim.inspect(arg))
+      table.insert(parts, vim.inspect(arg))
     end
   end
-  print(unpack(formated_args))
+
+  local message = table.concat(parts, " ") .. "\n"
+
+  -- Write to log file instead of printing
+  if not debug_log_file then
+    debug_log_file = io.open("/tmp/avante-debug.log", "a")
+  end
+  if debug_log_file then
+    debug_log_file:write(message)
+    debug_log_file:flush()
+  end
 end
 
 function M.tbl_indexof(tbl, value)
@@ -1838,13 +1851,17 @@ Use `/compact` to update the memory with recent messages.]],
     end,
     plan = function(sidebar, args, cb)
       -- Show the current plan from todos
+      M.debug("/plan command called")
       -- Ensure chat history is loaded
       if not sidebar.chat_history then
+        M.debug("/plan: reloading chat history")
         sidebar:reload_chat_history()
       end
-      
+
       local history = sidebar.chat_history
+      M.debug("/plan: history=" .. tostring(history ~= nil) .. ", todos=" .. tostring(history and history.todos and #history.todos or 0))
       if not history or not history.todos or #history.todos == 0 then
+        M.debug("/plan: no todos available, showing empty message")
         sidebar:update_content("No plan available.\n\nTodos will appear here when you use plan mode or when the assistant creates a plan.", { focus = false, scroll = false })
         if cb then cb(args) end
         return
@@ -1859,11 +1876,12 @@ Use `/compact` to update the memory with recent messages.]],
       local completed_todos = {}
       
       for _, todo in ipairs(todos) do
-        if todo.status == "pending" then
+        -- Handle both old status names (pending/in_progress/completed) and new ones (todo/doing/done)
+        if todo.status == "pending" or todo.status == "todo" then
           table.insert(pending_todos, todo)
-        elseif todo.status == "in_progress" then
+        elseif todo.status == "in_progress" or todo.status == "doing" then
           table.insert(in_progress_todos, todo)
-        elseif todo.status == "completed" then
+        elseif todo.status == "completed" or todo.status == "done" then
           table.insert(completed_todos, todo)
         end
       end
