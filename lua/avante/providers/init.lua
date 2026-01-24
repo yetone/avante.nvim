@@ -10,6 +10,7 @@ local Utils = require("avante.utils")
 ---@field cohere AvanteProviderFunctor
 ---@field copilot AvanteProviderFunctor
 ---@field gemini AvanteProviderFunctor
+---@field mistral AvanteProviderFunctor
 ---@field ollama AvanteProviderFunctor
 ---@field openai AvanteProviderFunctor
 ---@field vertex_claude AvanteProviderFunctor
