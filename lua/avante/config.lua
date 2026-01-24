@@ -31,7 +31,7 @@ M._defaults = {
   ---@alias avante.Mode "agentic" | "legacy"
   ---@type avante.Mode
   mode = "agentic",
-  ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | "watsonx_code_assistant" | string
+  ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | "watsonx_code_assistant" | "mistral" | string
   ---@type avante.ProviderName
   provider = "claude",
   -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
@@ -502,6 +502,15 @@ M._defaults = {
       endpoint = "https://dashscope.aliyuncs.com/compatible-mode/v1",
       model = "qwen3-coder-plus",
       api_key_name = "DASHSCOPE_API_KEY",
+    },
+    mistral = {
+      __inherited_from = "openai",
+      endpoint = "https://api.mistral.ai/v1",
+      model = "mistral-large-latest",
+      api_key_name = "MISTRAL_API_KEY",
+      extra_request_body = {
+        max_tokens = 4096, -- to avoid using the unsupported max_completion_tokens
+      },
     },
   },
   ---Specify the special dual_boost mode
