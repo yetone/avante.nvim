@@ -3,6 +3,48 @@ local Config = require("avante.config")
 local Selector = require("avante.ui.selector")
 local Path = require("plenary.path")
 
+-- Define highlight groups for thread IDs
+local THREAD_HIGHLIGHT_GROUPS = {
+  "AvantePromptThread1",
+  "AvantePromptThread2",
+  "AvantePromptThread3",
+  "AvantePromptThread4",
+  "AvantePromptThread5",
+  "AvantePromptThread6",
+}
+
+-- Setup highlight groups with colors
+local function setup_thread_highlights()
+  local colors = {
+    { fg = "#61AFEF" }, -- Blue
+    { fg = "#98C379" }, -- Green
+    { fg = "#E5C07B" }, -- Yellow
+    { fg = "#C678DD" }, -- Purple
+    { fg = "#56B6C2" }, -- Cyan
+    { fg = "#E06C75" }, -- Red
+  }
+  
+  for i, hl_group in ipairs(THREAD_HIGHLIGHT_GROUPS) do
+    vim.api.nvim_set_hl(0, hl_group, colors[i])
+  end
+end
+
+-- Get a consistent highlight group for a thread ID
+local function get_thread_highlight(thread_id)
+  if thread_id == "none" then
+    return nil
+  end
+  
+  -- Use a simple hash to pick a color consistently
+  local hash = 0
+  for i = 1, #thread_id do
+    hash = hash + string.byte(thread_id, i)
+  end
+  
+  local idx = (hash % #THREAD_HIGHLIGHT_GROUPS) + 1
+  return THREAD_HIGHLIGHT_GROUPS[idx]
+end
+
 ---@class avante.PromptSelector
 local M = {}
 
@@ -121,14 +163,25 @@ local function to_selector_item(prompt_data)
     project_name = prompt_data.metadata.project_root:match("([^/]+)$") or "unknown"
   end
   
+  -- Extract thread ID from metadata
+  local thread_id = "none"
+  if prompt_data.metadata and prompt_data.metadata.chat_session_id then
+    thread_id = prompt_data.metadata.chat_session_id
+    -- Show only first 8 characters for readability
+    if #thread_id > 8 then
+      thread_id = thread_id:sub(1, 8)
+    end
+  end
+  
   -- Add usage count if greater than 0
   local usage_count = prompt_data.usage_count or 0
   local usage_display = usage_count > 0 and string.format(" (used %dx)", usage_count) or ""
   
   local display = string.format(
-    "%s | [%s] | %s%s",
+    "%s | [%s] | thread:%s | %s%s",
     prompt_data.timestamp,
     project_name,
+    thread_id,
     preview,
     usage_display
   )
@@ -137,6 +190,8 @@ local function to_selector_item(prompt_data)
     id = prompt_data.id,
     title = display,
     prompt_data = prompt_data,
+    project_name = project_name,
+    thread_id = thread_id,
   }
 end
 
@@ -147,6 +202,20 @@ local function generate_preview(prompt_data)
   local lines = {}
   
   table.insert(lines, "# Prompt Details")
+  table.insert(lines, "")
+  table.insert(lines, "> **Filters:** Type `project:name` or `thread:id` to filter | `<C-p>` current project | `<C-t>` expand highlighted thread")
+  table.insert(lines, "")
+  
+  -- Show prompt first (most important)
+  table.insert(lines, "## Prompt")
+  table.insert(lines, "")
+  table.insert(lines, "```")
+  table.insert(lines, prompt_data.prompt)
+  table.insert(lines, "```")
+  table.insert(lines, "")
+  
+  -- Then show metadata
+  table.insert(lines, "## Details")
   table.insert(lines, "")
   table.insert(lines, "**Timestamp:** " .. prompt_data.timestamp)
   table.insert(lines, "**ID:** " .. prompt_data.id)
@@ -202,13 +271,6 @@ local function generate_preview(prompt_data)
     end
   end
   
-  table.insert(lines, "")
-  table.insert(lines, "## Prompt")
-  table.insert(lines, "")
-  table.insert(lines, "```")
-  table.insert(lines, prompt_data.prompt)
-  table.insert(lines, "```")
-  
   return table.concat(lines, "\n"), "markdown"
 end
 
@@ -216,6 +278,9 @@ end
 ---@param opts? table
 function M.open(opts)
   opts = opts or {}
+  
+  -- Setup thread highlight groups
+  setup_thread_highlights()
   
   -- Get current project root
   local ok, project_root = pcall(Utils.root.get)
@@ -247,18 +312,97 @@ function M.open(opts)
     if has_telescope then
       local finders = require("telescope.finders")
       local conf = require("telescope.config").values
+      local action_state = require("telescope.actions.state")
+      local actions = require("telescope.actions")
       
       provider_opts.finder = finders.new_table({
         results = selector_items,
         entry_maker = function(entry)
+          -- Extract session/thread ID from metadata
+          local thread_id = "none"
+          if entry.prompt_data.metadata and entry.prompt_data.metadata.chat_session_id then
+            thread_id = entry.prompt_data.metadata.chat_session_id
+          end
+          
+          -- Build searchable ordinal with project and thread filters
+          local ordinal = string.format(
+            "%s project:%s thread:%s",
+            entry.prompt_data.prompt,
+            entry.project_name:lower(),
+            thread_id:lower()
+          )
+          
           return {
             value = entry.id,
             display = entry.title,
-            ordinal = entry.prompt_data.prompt,  -- Search full prompt, not just title
+            ordinal = ordinal,
           }
         end,
       })
       provider_opts.sorter = conf.generic_sorter({})  -- Use generic sorter for text matching
+      
+      -- Add custom keybindings for filtering
+      provider_opts.attach_mappings = function(prompt_bufnr, map)
+        -- <C-t>: Expand thread for currently highlighted prompt
+        map("i", "<C-t>", function()
+          local picker = action_state.get_current_picker(prompt_bufnr)
+          local selection = action_state.get_selected_entry()
+          
+          if not selection then
+            Utils.warn("No prompt selected")
+            return
+          end
+          
+          -- Find the selector item by ID
+          local selected_item = nil
+          for _, item in ipairs(selector_items) do
+            if item.id == selection.value then
+              selected_item = item
+              break
+            end
+          end
+          
+          if not selected_item then
+            Utils.warn("Could not find selected prompt")
+            return
+          end
+          
+          -- Get thread ID from the selected item
+          local full_thread_id = nil
+          if selected_item.prompt_data.metadata and selected_item.prompt_data.metadata.chat_session_id then
+            full_thread_id = selected_item.prompt_data.metadata.chat_session_id
+          end
+          
+          if not full_thread_id or full_thread_id == "" then
+            Utils.warn("Selected prompt has no thread ID")
+            return
+          end
+          
+          -- Set the filter to this thread (no trailing space)
+          picker:set_prompt("thread:" .. full_thread_id:lower())
+          Utils.info("Filtering by thread: " .. full_thread_id:sub(1, 8))
+        end)
+        
+        -- <C-p>: Filter by current project
+        map("i", "<C-p>", function()
+          local picker = action_state.get_current_picker(prompt_bufnr)
+          
+          -- Get current project root
+          local ok_root, current_project_root = pcall(Utils.root.get)
+          if not ok_root or not current_project_root then
+            Utils.warn("Could not determine current project root")
+            return
+          end
+          
+          -- Extract project name (last component)
+          local current_project_name = current_project_root:match("([^/]+)$") or ""
+          if current_project_name ~= "" then
+            picker:set_prompt("project:" .. current_project_name:lower() .. " ")
+          end
+        end)
+        
+        return true
+      end
     end
   end
   
@@ -291,8 +435,7 @@ function M.open(opts)
       PromptLogger.increment_usage_count(selected_prompt.id)
       
       -- Insert the prompt into the sidebar input
-      local Sidebar = require("avante.sidebar")
-      local sidebar = Sidebar.get()
+      local sidebar = require("avante").get()
       if sidebar and sidebar.containers.input then
         local prompt_lines = vim.split(selected_prompt.prompt, "\n", { plain = true })
         vim.api.nvim_buf_set_lines(sidebar.containers.input.bufnr, 0, -1, false, prompt_lines)
