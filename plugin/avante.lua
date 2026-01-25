@@ -206,6 +206,9 @@ cmd("Mode", function()
   end
   sidebar:cycle_mode()
 end, { desc = "avante: cycle through session modes" })
+cmd("Prompts", function()
+  require("avante.prompt_selector").open({ mode = "copy" })
+end, { desc = "avante: browse and copy prompts to clipboard" })
 cmd("Modes", function()
   local sidebar = require("avante").get()
   if not sidebar then

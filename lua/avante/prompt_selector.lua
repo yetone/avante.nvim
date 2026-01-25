@@ -275,9 +275,11 @@ local function generate_preview(prompt_data)
 end
 
 ---Open prompt selector
----@param opts? table
+---@param opts? table Options for the selector
+---@field mode? string Mode: "insert" (default) or "copy"
 function M.open(opts)
   opts = opts or {}
+  local mode = opts.mode or "insert"  -- Default to insert mode for backward compatibility
   
   -- Setup thread highlight groups
   setup_thread_highlights()
@@ -341,8 +343,10 @@ function M.open(opts)
       })
       provider_opts.sorter = conf.generic_sorter({})  -- Use generic sorter for text matching
       
-      -- Add custom keybindings for filtering
-      provider_opts.attach_mappings = function(prompt_bufnr, map)
+      -- Store custom keybindings to be merged later
+      -- We can't override attach_mappings directly because the Selector's telescope provider
+      -- has its own attach_mappings that handles on_select
+      provider_opts.custom_mappings = function(prompt_bufnr, map)
         -- <C-t>: Expand thread for currently highlighted prompt
         map("i", "<C-t>", function()
           local picker = action_state.get_current_picker(prompt_bufnr)
@@ -400,16 +404,17 @@ function M.open(opts)
             picker:set_prompt("project:" .. current_project_name:lower() .. " ")
           end
         end)
-        
-        return true
       end
     end
   end
   
+  -- Set title based on mode
+  local title = mode == "copy" and "Avante Prompts - Select to Copy" or "Avante Prompts - Select to Reuse"
+  
   -- Create selector
   local current_selector = Selector:new({
     provider = Config.selector.provider,
-    title = "Avante Prompts - Select to Reuse",
+    title = title,
     items = selector_items,
     provider_opts = provider_opts,
     on_select = function(item_ids)
@@ -430,28 +435,42 @@ function M.open(opts)
         return
       end
       
-      -- Increment usage count before inserting
+      -- Increment usage count
       local PromptLogger = require("avante.utils.promptLogger")
       PromptLogger.increment_usage_count(selected_prompt.id)
       
-      -- Insert the prompt into the sidebar input
-      local sidebar = require("avante").get()
-      if sidebar and sidebar.containers.input then
-        local prompt_lines = vim.split(selected_prompt.prompt, "\n", { plain = true })
-        vim.api.nvim_buf_set_lines(sidebar.containers.input.bufnr, 0, -1, false, prompt_lines)
-        
-        -- Focus the input window
-        if sidebar.containers.input.winid and vim.api.nvim_win_is_valid(sidebar.containers.input.winid) then
-          vim.api.nvim_set_current_win(sidebar.containers.input.winid)
-          -- Move cursor to end
-          local line_count = vim.api.nvim_buf_line_count(sidebar.containers.input.bufnr)
-          local last_line = vim.api.nvim_buf_get_lines(sidebar.containers.input.bufnr, -2, -1, false)[1]
-          vim.api.nvim_win_set_cursor(sidebar.containers.input.winid, { line_count, #last_line })
+      if mode == "copy" then
+        -- Copy mode: Copy to clipboard
+        if vim.fn.has('clipboard') == 0 then
+          Utils.warn("Clipboard not available. Compile Neovim with +clipboard support.")
+          return
         end
         
-        Utils.info("Prompt loaded into input")
+        -- Copy to both system clipboard and default register
+        vim.fn.setreg('+', selected_prompt.prompt)
+        vim.fn.setreg('"', selected_prompt.prompt)
+        
+        Utils.info("Prompt copied to clipboard")
       else
-        Utils.warn("Sidebar input not available")
+        -- Insert mode: Insert into sidebar input (default behavior)
+        local sidebar = require("avante").get()
+        if sidebar and sidebar.containers.input then
+          local prompt_lines = vim.split(selected_prompt.prompt, "\n", { plain = true })
+          vim.api.nvim_buf_set_lines(sidebar.containers.input.bufnr, 0, -1, false, prompt_lines)
+          
+          -- Focus the input window
+          if sidebar.containers.input.winid and vim.api.nvim_win_is_valid(sidebar.containers.input.winid) then
+            vim.api.nvim_set_current_win(sidebar.containers.input.winid)
+            -- Move cursor to end
+            local line_count = vim.api.nvim_buf_line_count(sidebar.containers.input.bufnr)
+            local last_line = vim.api.nvim_buf_get_lines(sidebar.containers.input.bufnr, -2, -1, false)[1]
+            vim.api.nvim_win_set_cursor(sidebar.containers.input.winid, { line_count, #last_line })
+          end
+          
+          Utils.info("Prompt loaded into input")
+        else
+          Utils.warn("Sidebar input not available")
+        end
       end
     end,
     get_preview_content = function(item_id)

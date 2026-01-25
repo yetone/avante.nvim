@@ -60,6 +60,11 @@ function M.show(selector)
           end,
         }),
         attach_mappings = function(prompt_bufnr, map)
+          -- Apply custom mappings first if provided
+          if selector.provider_opts and selector.provider_opts.custom_mappings then
+            selector.provider_opts.custom_mappings(prompt_bufnr, map)
+          end
+          
           map("i", "<esc>", require("telescope.actions").close)
           map("i", "<c-del>", function()
             local picker = action_state.get_current_picker(prompt_bufnr)
