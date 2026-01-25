@@ -738,6 +738,7 @@ M._defaults = {
     input = {
       prefix = "> ",
       height = 8, -- Height of the input window in vertical layout
+      width_percentage = 40, -- Width of the input window in horizontal layout
     },
     selected_files = {
       height = 6, -- Maximum height of the selected files window

@@ -1582,15 +1582,7 @@ function Sidebar:setup_window_navigation(container)
 end
 
 function Sidebar:resize()
-  for _, container in pairs(self.containers) do
-    if container.winid and api.nvim_win_is_valid(container.winid) then
-      if self.is_in_full_view then
-        api.nvim_win_set_width(container.winid, vim.o.columns - 1)
-      else
-        api.nvim_win_set_width(container.winid, Config.get_window_width())
-      end
-    end
-  end
+  self:adjust_layout()
   self:render_result()
   self:render_input()
   self:render_selected_code()
@@ -2921,15 +2913,14 @@ function Sidebar:create_input_container()
   end
 
   local function get_size()
-    if self:get_layout() == "vertical" then return {
-      height = Config.windows.input.height,
-    } end
-
-    local selected_code_container_height = self:get_selected_code_container_height()
+    if self:get_layout() == "vertical" then
+      return {
+        height = Config.windows.input.height,
+      }
+    end
 
     return {
-      width = "40%",
-      height = math.max(1, api.nvim_win_get_height(self.containers.result.winid) - selected_code_container_height),
+      width = tostring(Config.windows.input.width_percentage) .. "%",
     }
   end
 
@@ -3135,14 +3126,19 @@ end
 function Sidebar:get_result_container_width()
   if self:get_layout() == "vertical" then return math.floor(Config.windows.width / 100 * vim.o.columns) end
 
-  return math.max(1, api.nvim_win_get_width(self.code.winid))
+  local width = math.max(1, api.nvim_win_get_width(self.code.winid))
+  if Utils.is_valid_container(self.containers.input, true) then
+    local input_width = math.floor(width * (Config.windows.input.width_percentage / 100))
+    return width - input_width
+  end
+  return width
 end
 
 function Sidebar:adjust_result_container_layout()
   local width = self:get_result_container_width()
   local height = self:get_result_container_height()
 
-  if self.is_in_full_view then width = vim.o.columns - 1 end
+  if self.is_in_full_view and self:get_layout() == "vertical" then width = vim.o.columns - 1 end
 
   api.nvim_win_set_width(self.containers.result.winid, width)
   api.nvim_win_set_height(self.containers.result.winid, height)
@@ -3263,6 +3259,18 @@ function Sidebar:adjust_selected_files_container_layout()
 
   local win_height = self:get_selected_files_container_height()
   api.nvim_win_set_height(self.containers.selected_files.winid, win_height)
+end
+
+function Sidebar:adjust_input_container_layout()
+  if not Utils.is_valid_container(self.containers.input, true) then return end
+
+  if self:get_layout() == "vertical" then
+    api.nvim_win_set_height(self.containers.input.winid, Config.windows.input.height)
+  else
+    local total_width = math.max(1, api.nvim_win_get_width(self.code.winid))
+    local input_width = math.floor(total_width * (Config.windows.input.width_percentage / 100))
+    api.nvim_win_set_width(self.containers.input.winid, input_width)
+  end
 end
 
 function Sidebar:adjust_selected_code_container_layout()
@@ -3493,6 +3501,7 @@ end
 
 function Sidebar:adjust_layout()
   self:adjust_result_container_layout()
+  self:adjust_input_container_layout()
   self:adjust_todos_container_layout()
   self:adjust_selected_code_container_layout()
   self:adjust_selected_files_container_layout()
