@@ -49,7 +49,7 @@ function M.generate_buttons_for_acp_options(options)
       if item.kind == "reject_once" or item.kind == "reject_always" then hl = Highlights.BUTTON_DANGER_HOVER end
       ---@type avante.ui.ACPConfirmAdapter.ButtonOption
       local button = {
-        id = item.optionId,
+        id = item.kind,
         name = item.name,
         icon = icon,
         hl = hl,
