@@ -1267,6 +1267,13 @@ ACP providers are configured in the `acp_providers` section of your configuratio
 }
 ```
 
+### Environment Variables Handling
+
+When spawning an ACP agent, `avante.nvim` handles environment variables as follows:
+
+1.  **Inheritance**: The agent inherits all environment variables from the current Neovim process.
+2.  **Overrides**: Environment variables defined in the `env` table of the ACP provider configuration will override inherited values. Setting a variable to `vim.NIL` will remove it from the environment.
+
 ### Prerequisites
 
 Before using ACP agents, ensure you have the required tools installed:
