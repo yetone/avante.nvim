@@ -113,6 +113,7 @@ function M:parse_messages(opts)
   local messages = {}
   local provider_conf, _ = Providers.parse_config(self)
   local use_response_api = Providers.resolve_use_response_api(provider_conf, opts)
+  local pending_reasoning_content = nil
 
   local use_ReAct_prompt = provider_conf.use_ReAct_prompt == true
   local system_prompt = opts.system_prompt
@@ -166,6 +167,15 @@ function M:parse_messages(opts)
             encrypted_content = item.encrypted_content,
             summary = item.summary,
           })
+        elseif item.type == "thinking" then
+          local thinking_content = item.thinking or ""
+          if thinking_content ~= "" then
+            if pending_reasoning_content == nil then
+              pending_reasoning_content = thinking_content
+            else
+              pending_reasoning_content = pending_reasoning_content .. thinking_content
+            end
+          end
         elseif item.type == "tool_use" and not use_ReAct_prompt then
           has_tool_use = true
           table.insert(tool_calls, {
@@ -229,9 +239,23 @@ function M:parse_messages(opts)
               if last_message and last_message.role == self.role_map["assistant"] and last_message.tool_calls then
                 last_message.tool_calls = vim.list_extend(last_message.tool_calls, tool_calls)
 
+                if pending_reasoning_content then
+                  last_message.reasoning_content = pending_reasoning_content
+                  pending_reasoning_content = nil
+                end
+
                 if not last_message.content then last_message.content = "" end
               else
-                table.insert(messages, { role = self.role_map["assistant"], tool_calls = tool_calls, content = "" })
+                local tool_call_message = {
+                  role = self.role_map["assistant"],
+                  tool_calls = tool_calls,
+                  content = "",
+                }
+                if pending_reasoning_content then
+                  tool_call_message.reasoning_content = pending_reasoning_content
+                  pending_reasoning_content = nil
+                end
+                table.insert(messages, tool_call_message)
               end
             end
           end
@@ -256,6 +280,7 @@ function M:parse_messages(opts)
           end
         end
       end
+      pending_reasoning_content = nil
     end
   end)
 
