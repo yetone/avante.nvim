@@ -427,18 +427,18 @@ function M:add_text_message(ctx, text, state, opts)
 end
 
 function M:add_thinking_message(ctx, text, state, opts)
-  if ctx.reasonging_content == nil then ctx.reasonging_content = "" end
-  ctx.reasonging_content = ctx.reasonging_content .. text
+  if ctx.reasoning_content == nil then ctx.reasoning_content = "" end
+  ctx.reasoning_content = ctx.reasoning_content .. text
   local msg = HistoryMessage:new("assistant", {
     type = "thinking",
-    thinking = ctx.reasonging_content,
+    thinking = ctx.reasoning_content,
     signature = "",
   }, {
     state = state,
-    uuid = ctx.reasonging_content_uuid,
+    uuid = ctx.reasoning_content_uuid,
     turn_id = ctx.turn_id,
   })
-  ctx.reasonging_content_uuid = msg.uuid
+  ctx.reasoning_content_uuid = msg.uuid
   if opts.on_messages_add then opts.on_messages_add({ msg }) end
 end
 
