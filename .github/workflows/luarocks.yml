@@ -1,0 +1,38 @@
+name: Push to luarocks.org
+
+on:
+  push:
+    tags:
+      - '*'
+  release:
+    types:
+      - created
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  luarocks-upload:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Required to count the commits
+      - name: Get Version
+        run: echo "LUAROCKS_VERSION=$(git describe --abbrev=0 --tags)" >> $GITHUB_ENV
+      - name: LuaRocks Upload
+        uses: nvim-neorocks/luarocks-tag-release@v7
+        env:
+          LUAROCKS_API_KEY: ${{ secrets.LUAROCKS_API_KEY }}
+        with:
+          version: ${{ env.LUAROCKS_VERSION }}
+          dependencies: |
+            lua == 5.1
+            luarocks >= 3.11.1, < 4.0.0
+            plenary.nvim
+            nui.nvim
+          labels: |
+            neovim
+            ai
+            llm
+          detailed_description: |
+            **avante.nvim** is a Neovim plugin designed to emulate the behaviour of the [Cursor](https://www.cursor.com) AI IDE. It provides users with AI-driven code suggestions and the ability to apply these recommendations directly to their source files with minimal effort.
