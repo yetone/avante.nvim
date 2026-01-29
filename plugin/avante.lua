@@ -8,9 +8,9 @@ if vim.fn.has("nvim-0.10") == 0 then
   vim.cmd([[quit]])
 end
 
-if vim.g.avante ~= nil then return end
+if vim.g.avante_loaded ~= nil then return end
 
-vim.g.avante = 1
+vim.g.avante_loaded = 1
 
 --- NOTE: We will override vim.paste if img-clip.nvim is available to work with avante.nvim internal logic paste
 local Clipboard = require("avante.clipboard")
