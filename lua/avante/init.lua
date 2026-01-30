@@ -490,6 +490,7 @@ function M.setup(opts)
   ---PERF: we can still allow running require("avante").setup() multiple times to override config if users wish to
   ---but most of the other functionality will only be called once from lazy.nvim
   Config.setup(opts)
+  require("avante.utils.log").set_level(vim.g.avante.log_level)
 
   if M.did_setup then return end
 
