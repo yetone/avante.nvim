@@ -444,7 +444,6 @@ function M.warn(msg, opts)
 end
 
 function M.debug(...)
-
   local args = { ... }
   if #args == 0 then return end
 

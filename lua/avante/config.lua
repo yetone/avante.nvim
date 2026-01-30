@@ -1078,7 +1078,7 @@ function M.setup(opts)
   end
 
   vim.g.avante = {
-    log_level = merged.log_level
+    log_level = merged.log_level,
   }
 end
 
