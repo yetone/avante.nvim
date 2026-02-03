@@ -151,4 +151,25 @@ describe("generate_prompts", function()
     assert.are.same(#result.tools, 1)
     assert.are.same(result.tools[1].name, "test_tool")
   end)
+
+  describe("with multiple instruction file paths", function()
+    before_each(function()
+      local mock_file = PPath:new("tests", project_root, "another-one.md")
+      mock_file:write("# should not be read", "w")
+
+      local Config = require("avante.config")
+      Config.instructions_file = {
+        "not-a-real-path",
+        "/tmp/i-do-not-exist",
+        "avante.md",
+        "another-one.md",
+      }
+    end)
+
+    it("should read first found instruction file content", function()
+      local opts = {}
+      llm.generate_prompts(opts)
+      assert.are.same("\n# Mock Instructions\nThis is a mock instruction file.", opts.instructions)
+    end)
+  end)
 end)
