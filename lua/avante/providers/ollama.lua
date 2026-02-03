@@ -181,6 +181,21 @@ function M:parse_stream_data(ctx, data, opts)
         if opts.on_chunk then opts.on_chunk(content) end
       end
     end
+    if jsn.message.thinking then
+      if ctx.reasonging_content == nil then ctx.reasonging_content = "" end
+      ctx.reasonging_content = ctx.reasonging_content .. jsn.message.thinking
+      local msg = HistoryMessage:new("assistant", {
+        type = "thinking",
+        thinking = ctx.reasonging_content,
+        signature = "",
+      }, {
+        state = "generating",
+        uuid = ctx.reasonging_content_uuid,
+        turn_id = ctx.turn_id,
+      })
+      ctx.reasonging_content_uuid = msg.uuid
+      if opts.on_messages_add then opts.on_messages_add({ msg }) end
+    end
     if jsn.message.tool_calls then
       ctx.has_tool_use = true
       local tool_calls = jsn.message.tool_calls
