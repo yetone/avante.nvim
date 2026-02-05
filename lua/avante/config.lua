@@ -28,6 +28,7 @@ M.instructions_file = "avante.md"
 ---@class avante.Config
 M._defaults = {
   debug = false,
+  log_level = vim.log.levels.WARN,
   ---@alias avante.Mode "agentic" | "legacy"
   ---@type avante.Mode
   mode = "agentic",
@@ -1075,6 +1076,10 @@ function M.setup(opts)
   for k, v in pairs(M._options.providers) do
     M._options.providers[k] = type(v) == "function" and v() or v
   end
+
+  vim.g.avante = {
+    log_level = merged.log_level,
+  }
 end
 
 ---@param opts table<string, any>
