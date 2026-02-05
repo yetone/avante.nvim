@@ -1648,7 +1648,6 @@ function M.uuid()
 end
 
 function M.generate_call_tool_id()
-
   local allowed_chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
   local random_string = {}
   for _ = 1, 9 do
