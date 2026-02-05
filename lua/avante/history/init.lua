@@ -160,7 +160,7 @@ local function generate_view_messages(tool_use, path, stale_view)
 
   if view_error then view_result = "Error: " .. view_error end
 
-  local view_tool_use_id = Utils.uuid()
+  local view_tool_use_id = Utils.generate_call_tool_id()
   local view_tool_name = "view"
   local view_tool_input = { path = path }
 
@@ -194,7 +194,7 @@ end
 ---@param path string
 ---@return avante.HistoryMessage[]
 local function generate_diagnostic_messages(path)
-  local get_diagnostics_tool_use_id = Utils.uuid()
+  local get_diagnostics_tool_use_id = Utils.generate_call_tool_id()
   local diagnostics = Utils.lsp.get_diagnostics_from_filepath(path)
   return {
     Message:new_assistant_synthetic(

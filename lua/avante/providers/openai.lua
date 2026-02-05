@@ -445,9 +445,7 @@ end
 function M:add_tool_use_message(ctx, tool_use, state, opts)
   local jsn = JsonParser.parse(tool_use.input_json)
   -- Fix: Ensure empty arguments are encoded as {} (object) not [] (array)
-  if jsn == nil or (type(jsn) == "table" and vim.tbl_isempty(jsn)) then
-    jsn = vim.empty_dict()
-  end
+  if jsn == nil or (type(jsn) == "table" and vim.tbl_isempty(jsn)) then jsn = vim.empty_dict() end
   local msg = HistoryMessage:new("assistant", {
     type = "tool_use",
     name = tool_use.name,
