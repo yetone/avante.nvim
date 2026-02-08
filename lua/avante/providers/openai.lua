@@ -280,7 +280,6 @@ function M:parse_messages(opts)
           end
         end
       end
-      pending_reasoning_content = nil
     end
   end)
 
