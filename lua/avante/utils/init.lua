@@ -1647,6 +1647,16 @@ function M.uuid()
   end)
 end
 
+function M.generate_call_tool_id()
+  local allowed_chars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+  local random_string = {}
+  for _ = 1, 9 do
+    local random_index = math.random(1, #allowed_chars)
+    table.insert(random_string, allowed_chars:sub(random_index, random_index))
+  end
+  return table.concat(random_string)
+end
+
 ---Parse command arguments (fargs) into a structured format
 ---@param fargs string[] Command arguments
 ---@param options? {collect_remaining?: boolean, boolean_keys?: string[]} Options for parsing
