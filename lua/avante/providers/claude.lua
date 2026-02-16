@@ -551,16 +551,21 @@ function M:parse_curl_args(prompt_opts)
   local tools = {}
   if not disable_tools and prompt_opts.tools then
     for _, tool in ipairs(prompt_opts.tools) do
-      if Config.mode == "agentic" then
-        if tool.name == "create_file" then goto continue end
-        if tool.name == "view" then goto continue end
-        if tool.name == "str_replace" then goto continue end
-        if tool.name == "create" then goto continue end
-        if tool.name == "insert" then goto continue end
-        if tool.name == "undo_edit" then goto continue end
-        if tool.name == "replace_in_file" then goto continue end
+      -- Only include tool if lazy loading is disabled, or if it's always eager, or if it's been requested
+      local LazyLoading = require("avante.llm_tools.lazy_loading")
+
+      if LazyLoading.should_include_tool(tool.server_name or "avante", tool.name) then
+        if Config.mode == "agentic" then
+          if tool.name == "create_file" then goto continue end
+          if tool.name == "view" then goto continue end
+          if tool.name == "str_replace" then goto continue end
+          if tool.name == "create" then goto continue end
+          if tool.name == "insert" then goto continue end
+          if tool.name == "undo_edit" then goto continue end
+          if tool.name == "replace_in_file" then goto continue end
+        end
+        table.insert(tools, self:transform_tool(tool))
       end
-      table.insert(tools, self:transform_tool(tool))
       ::continue::
     end
   end

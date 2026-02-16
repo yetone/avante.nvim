@@ -44,10 +44,17 @@ setup_deps() {
 }
 
 run_tests() {
-    log "Running tests..."
-    nvim --headless --clean \
-        -c "set runtimepath+=$DEPS_DIR/plenary.nvim" \
-        -c "lua require('plenary.test_harness').test_directory('tests/', { minimal_init = 'NONE' })"
+    if [ -n "$SINGLE_TEST_FILE" ]; then
+        log "Running single test file: $SINGLE_TEST_FILE"
+        nvim --headless --clean \
+            -c "set runtimepath+=$DEPS_DIR/plenary.nvim" \
+            -c "lua require('plenary.test_harness').test_file('$SINGLE_TEST_FILE', { minimal_init = 'NONE' })"
+    else
+        log "Running all tests..."
+        nvim --headless --clean \
+            -c "set runtimepath+=$DEPS_DIR/plenary.nvim" \
+            -c "lua require('plenary.test_harness').test_directory('tests/', { minimal_init = 'NONE' })"
+    fi
 }
 
 main() {

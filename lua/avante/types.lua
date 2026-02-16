@@ -303,6 +303,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field name string
 ---@field id string
 ---@field input any
+---@field server_name? string
 ---
 ---@class AvantePartialLLMToolUse : AvanteLLMToolUse
 ---@field state avante.HistoryMessageState
@@ -468,6 +469,7 @@ vim.g.avante_login = vim.g.avante_login
 ---
 ---@class AvanteLLMTool
 ---@field name string
+---@field server_name? string
 ---@field description? string
 ---@field get_description? fun(): string
 ---@field func? AvanteLLMToolFunc
