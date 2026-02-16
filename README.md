@@ -233,6 +233,18 @@ For building binary if you wish to build from source, then `cargo` is required. 
 
 <details>
 
+  <summary><a href="https://github.com/lumen-oss/rocks.nvim">rocks.nvim</a></summary>
+
+Run `:Rocks install avante.nvim` then add to your init.lua:
+
+```lua
+require('avante').setup()
+```
+
+</details>
+
+<details>
+
   <summary>vim-plug</summary>
 
 ```vim
