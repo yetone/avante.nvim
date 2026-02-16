@@ -287,6 +287,10 @@ M._defaults = {
       command = "kimi",
       args = { "--acp" },
     },
+    ["kiro-cli"] = {
+      command = "kiro-cli",
+      args = { "acp" },
+    },
   },
   ---To add support for custom provider, follow the format below
   ---See https://github.com/yetone/avante.nvim/wiki#custom-providers for more details

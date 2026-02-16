@@ -1227,6 +1227,14 @@ To use ACP-compatible agents with Avante.nvim, you need to configure an ACP prov
 }
 ```
 
+#### Kiro CLI with ACP
+```lua
+{
+  provider = "kiro-cli",
+  -- other configuration options...
+}
+```
+
 ### ACP Configuration
 
 ACP providers are configured in the `acp_providers` section of your configuration:
