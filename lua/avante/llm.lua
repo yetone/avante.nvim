@@ -1414,6 +1414,27 @@ function M._continue_stream_acp(opts, acp_client, session_id)
       }
       table.insert(prompt, prompt_item)
     end
+    if opts.diagnostics ~= nil and opts.diagnostics ~= "" and opts.diagnostics ~= "null" then
+      local diagnostics_list = vim.json.decode(opts.diagnostics)
+      if #diagnostics_list > 0 then
+        local parts = { "<diagnostics>" }
+        for _, diag in ipairs(diagnostics_list) do
+          local location = diag.start_line == diag.end_line
+            and string.format("<location>Line %d</location>", diag.start_line)
+            or string.format("<location>Lines %d-%d</location>", diag.start_line, diag.end_line)
+          local source = diag.source and string.format("<source>%s</source>", diag.source) or ""
+          table.insert(parts, string.format(
+            "<diagnostic>%s<severity>%s</severity>%s<message>%s</message></diagnostic>",
+            location, diag.severity, source, diag.content
+          ))
+        end
+        table.insert(parts, "</diagnostics>")
+        table.insert(prompt, {
+          type = "text",
+          text = table.concat(parts),
+        })
+      end
+    end
   end
   local history_messages = opts.history_messages or {}
 
