@@ -910,6 +910,19 @@ local function truncate_history_for_recovery(history_messages)
 
   return truncated
 end
+
+---Helper to handle session continuation or completion
+---@param opts AvanteLLMStreamOptions
+---@param acp_client avante.acp.ACPClient
+---@param session_id string
+local function handle_session_ready(opts, acp_client, session_id)
+  if opts.just_connect_acp_client then
+    opts.on_stop({ reason = "complete" })
+    return
+  end
+  M._continue_stream_acp(opts, acp_client, session_id)
+end
+
 ---@param opts AvanteLLMStreamOptions
 function M._stream_acp(opts)
   Utils.debug("use ACP", Config.provider)
@@ -1329,9 +1342,13 @@ function M._stream_acp(opts)
     return
   end
 
-  if opts.just_connect_acp_client then return end
-  M._continue_stream_acp(opts, acp_client, session_id)
+  handle_session_ready(opts, acp_client, session_id)
 end
+
+---Helper to handle session continuation or completion
+---@param opts AvanteLLMStreamOptions
+---@param acp_client avante.acp.ACPClient
+---@param session_id string
 
 ---@param opts AvanteLLMStreamOptions
 ---@param acp_client avante.acp.ACPClient
@@ -1351,8 +1368,7 @@ function M._create_acp_session_and_continue(opts, acp_client)
     opts.acp_session_id = session_id_
     if opts.on_save_acp_session_id then opts.on_save_acp_session_id(session_id_) end
 
-    if opts.just_connect_acp_client then return end
-    M._continue_stream_acp(opts, acp_client, session_id_)
+    handle_session_ready(opts, acp_client, session_id_)
   end)
 end
 
@@ -1368,8 +1384,7 @@ function M._load_acp_session_and_continue(opts, acp_client, session_id)
       return
     end
 
-    if opts.just_connect_acp_client then return end
-    M._continue_stream_acp(opts, acp_client, session_id)
+    handle_session_ready(opts, acp_client, session_id)
   end)
 end
 
