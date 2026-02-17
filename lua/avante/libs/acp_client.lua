@@ -248,7 +248,14 @@ function ACPClient:new(config)
     state = "disconnected",
     reconnect_count = 0,
     heartbeat_timer = nil,
-  }, { __index = self })
+  }, { 
+    __index = self,
+    __gc = function(t)
+      if t.stop then
+        pcall(function() t:stop() end)
+      end
+    end
+  })
 
   client:_setup_transport()
   return client
