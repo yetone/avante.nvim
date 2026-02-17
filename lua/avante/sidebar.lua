@@ -752,7 +752,6 @@ function Sidebar:get_current_user_request_block(position)
     end
   end
   if start_line == nil then return nil end
-  content_lines = vim.list_slice(content_lines, 1, #content_lines - 1)
   local content = table.concat(content_lines, "\n")
   return {
     start_line = current_resp_start_line + start_line - 1,
