@@ -2250,8 +2250,34 @@ function Sidebar:new_chat(args, cb)
   vim.schedule(function()
     vim.api.nvim_win_call(self.containers.result.winid, function() vim.cmd("normal! ggG") end)
   end)
+
+  -- Eagerly create ACP session in background to allow slower agents a headstart
+  self:_ensure_acp_session()
+
   if cb then cb(args) end
   vim.schedule(function() self:create_todos_container() end)
+end
+
+function Sidebar:_ensure_acp_session()
+  if not Config.acp_providers[Config.provider] then return end
+  if self.chat_history.acp_session_id then return end
+
+  local filetype = api.nvim_get_option_value("filetype", { buf = self.code.bufnr })
+
+  Llm.stream({
+    just_connect_acp_client = true,
+    ask = true,
+    code_lang = filetype,
+    on_start = function() end,
+    acp_client = self.acp_client,
+    on_save_acp_client = function(client) self.acp_client = client end,
+    acp_session_id = nil, -- Force new session
+    on_save_acp_session_id = function(session_id)
+      self.chat_history.acp_session_id = session_id
+      Path.history.save(self.code.bufnr, self.chat_history)
+    end,
+    on_stop = function() end,
+  })
 end
 
 local debounced_save_history = Utils.debounce(
