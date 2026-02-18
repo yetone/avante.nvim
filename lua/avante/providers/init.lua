@@ -229,15 +229,14 @@ end
 ---@param provider_name avante.ProviderName
 function M.refresh(provider_name)
   require("avante.config").override({ provider = provider_name })
+  Config.provider = provider_name
 
-  if Config.acp_providers[provider_name] then
-    Config.provider = provider_name
-  else
+  if not Config.acp_providers[provider_name] then
     ---@type AvanteProviderFunctor | AvanteBedrockProviderFunctor
     local p = M[Config.provider]
     E.setup({ provider = p, refresh = true })
   end
-  Utils.info("Switch to provider: " .. provider_name, { once = true, title = "Avante" })
+  Utils.info("Switch to provider: " .. provider_name, { title = "Avante" })
 end
 
 ---@param opts AvanteProvider | AvanteSupportedProvider | AvanteAnthropicProvider | AvanteProviderFunctor | AvanteBedrockProviderFunctor
