@@ -169,7 +169,7 @@ describe("generate_prompts", function()
 
   it("should not duplicate instructions in messages when called multiple times with same opts", function()
     local opts = {
-      instructions = "Test instructions"
+      instructions = "Test instructions",
     }
 
     -- First call
