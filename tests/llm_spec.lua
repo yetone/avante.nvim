@@ -156,11 +156,11 @@ describe("generate_prompts", function()
     local opts = {}
     llm.generate_prompts(opts)
     local first_instructions = opts.instructions
-    
+
     -- Call again with the same opts object
     llm.generate_prompts(opts)
     local second_instructions = opts.instructions
-    
+
     -- Instructions should be the same, not duplicated
     assert.are.same(first_instructions, second_instructions)
     -- Verify that mock content is present (more flexible than hardcoded exact match)
@@ -169,9 +169,9 @@ describe("generate_prompts", function()
 
   it("should not duplicate instructions in messages when called multiple times with same opts", function()
     local opts = {
-      instructions = "Test instructions"
+      instructions = "Test instructions",
     }
-    
+
     -- First call
     local result1 = llm.generate_prompts(opts)
     local instruction_message_count1 = 0
@@ -180,7 +180,7 @@ describe("generate_prompts", function()
         instruction_message_count1 = instruction_message_count1 + 1
       end
     end
-    
+
     -- Second call with same opts
     local result2 = llm.generate_prompts(opts)
     local instruction_message_count2 = 0
@@ -189,7 +189,7 @@ describe("generate_prompts", function()
         instruction_message_count2 = instruction_message_count2 + 1
       end
     end
-    
+
     -- Should have instructions message only once in both calls
     assert.are.same(1, instruction_message_count1)
     assert.are.same(1, instruction_message_count2)
