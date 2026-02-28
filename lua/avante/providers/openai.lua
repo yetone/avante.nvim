@@ -316,10 +316,10 @@ function M:parse_messages(opts)
       else
         table.insert(final_messages, { role = self.role_map["assistant"], content = "Ok, I understand." })
       end
-    else
-      if role == "user" and prev_role == "tool" and M.is_mistral(provider_conf.endpoint) then
-        table.insert(final_messages, { role = self.role_map["assistant"], content = "Ok, I understand." })
-      end
+    -- else
+    --   if role == "user" and prev_role == "tool" and M.is_mistral(provider_conf.endpoint) then
+    --     table.insert(final_messages, { role = self.role_map["assistant"], content = "Ok, I understand." })
+    --   end
     end
     prev_role = role
     prev_type = message.type
