@@ -1,5 +1,4 @@
 local P = require("avante.providers")
-local Utils = require("avante.utils")
 local OpenAI = require("avante.providers.openai")
 
 local M = {}
@@ -55,3 +54,4 @@ function M.build_bedrock_payload(provider, prompt_opts, request_body)
 end
 
 return M
+
