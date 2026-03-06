@@ -6,6 +6,7 @@ from llama_index.core.base.embeddings.base import BaseEmbedding
 from llama_index.core.llms.llm import LLM
 from llama_index.embeddings.openai import OpenAIEmbedding
 from llama_index.llms.openai import OpenAI
+from llama_index.llms.openai import utils as openai_utils
 
 
 def initialize_embed_model(
@@ -57,6 +58,14 @@ def initialize_llm_model(
         The initialized llm_model.
 
     """
+    # Patch: Add custom model to allowed models list if not present
+    # This allows using custom/OpenAI-compatible models (e.g., Ollama, vLLM, etc.)
+    if llm_model not in openai_utils.ALL_AVAILABLE_MODELS:
+        # Default to 32k context window for unknown models
+        # This can be overridden via llm_extra.context_window
+        context_window = llm_extra.pop("context_window", 32768)
+        openai_utils.ALL_AVAILABLE_MODELS[llm_model] = context_window
+
     # Use the provided endpoint directly.
     # Note: OpenAI automatically picks up OPENAI_API_KEY env var
     # We are not using llm_api_key parameter here, relying on env var as original code did.
