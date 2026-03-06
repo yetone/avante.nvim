@@ -43,15 +43,15 @@ M.path_sep = M.path.SEP
 
 ---@return "linux" | "darwin" | "windows"
 function M.get_os_name()
-  local os_name = vim.uv.os_uname().sysname
-  if os_name == "Linux" then
+  platform = require("avante.utils.platform").platform
+  if platform == "linux" or platform == "wsl" or platform == "msys2" then
     return "linux"
-  elseif os_name == "Darwin" then
+  elseif platform == "macos" then
     return "darwin"
-  elseif os_name == "Windows_NT" then
+  elseif platform == "windows" then
     return "windows"
   else
-    error("Unsupported operating system: " .. os_name)
+    error("Unsupported operating system: " .. platform)
   end
 end
 
@@ -448,7 +448,7 @@ function M.debug(...)
   -- Get caller information
   local info = debug.getinfo(2, "Sl")
   local caller_source = info.source:match("@(.+)$") or "unknown"
-  local caller_module = caller_source:gsub("^.*/lua/", ""):gsub("%.lua$", ""):gsub("/", ".")
+  local caller_module = caller_source:gsub("\\", "/"):gsub("^.*/lua/", ""):gsub("%.lua$", ""):gsub("/", ".")
 
   local timestamp = M.get_timestamp()
   local formated_args = {
@@ -983,9 +983,9 @@ function M.scan_directory(options)
       .iter(files)
       :filter(function(file)
         local base_dir = options.directory
-        if base_dir:sub(-2) == "/." then base_dir = base_dir:sub(1, -3) end
+        if base_dir:sub(-2) == "/." or base_dir:sub(-2) == "\\." then base_dir = base_dir:sub(1, -3) end
         local rel_path = M.make_relative_path(file, base_dir)
-        local pieces = vim.split(rel_path, "/")
+        local pieces = vim.split(rel_path, "[/\\]", { plain = false })
         return #pieces <= options.max_depth
       end)
       :totable()
@@ -1029,7 +1029,7 @@ function M.is_absolute_path(path) return M.path.is_absolute(path) end
 
 function M.to_absolute_path(path)
   if not path or path == "" then return path end
-  if path:sub(1, 1) == "/" or path:sub(1, 7) == "term://" then return path end
+  if M.is_absolute_path(path) or path:sub(1, 7) == "term://" then return path end
   return M.join_paths(M.get_project_root(), path)
 end
 

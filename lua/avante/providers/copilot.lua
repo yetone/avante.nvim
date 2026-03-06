@@ -109,7 +109,8 @@ function H.get_oauth_token()
   elseif vim.tbl_contains({ "linux", "darwin" }, os_name) then
     config_dir = vim.fn.expand("~/.config")
   else
-    config_dir = vim.fn.expand("~/AppData/Local")
+    -- config_dir = vim.fn.expand("~/AppData/Local")
+    config_dir = vim.fn.expand("$LOCALAPPDATA")
   end
 
   --- hosts.json (copilot.lua), apps.json (copilot.vim)
