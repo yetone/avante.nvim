@@ -1572,13 +1572,13 @@ Environment variables required for providers:
 - Kagi: `KAGI_API_KEY` as the [API Token](https://kagi.com/settings?p=api)
 - Brave Search: `BRAVE_API_KEY` as the [API key](https://api-dashboard.search.brave.com/app/keys)
 - SearXNG: `SEARXNG_API_URL` as the [API URL](https://docs.searxng.org/dev/search_api.html)
-- Moonshot-Local ([local_moonie](https://github.com/yetone/local_moonie)):
-  - `MOONSHOT_LOCAL_API_KEY` as the API key (e.g., "shingshong")
+- Moonshot-Local ([local_moonie](https://github.com/gub-7/local_moonie)):
+  - `MOONSHOT_LOCAL_API_KEY` as the API key (e.g., "localmoonkey")
   - `MOONSHOT_LOCAL_API_URL` as the API URL (e.g., `http://127.0.0.1:8080`)
 
 ### Configuring Moonshot-Local for Web Search
 
-Moonshot-local refers to the [local_moonie](https://github.com/yetone/local_moonie) project, a local web search solution that uses Firefox/Selenium to perform web searches.
+Moonshot-local refers to the [local_moonie](https://github.com/gub-7/local_moonie) project, a local web search solution that uses Firefox/Selenium to perform web searches.
 
 **Prerequisites:**
 
@@ -1586,14 +1586,14 @@ Moonshot-local refers to the [local_moonie](https://github.com/yetone/local_moon
 2. Set up environment variables:
 
 ```bash
-export MOONSHOT_LOCAL_API_KEY="shingshong"
+export MOONSHOT_LOCAL_API_KEY="localmoonkey"
 export MOONSHOT_LOCAL_API_URL="http://127.0.0.1:8080"
 ```
 
 Or create a `.env` file:
 
 ```
-MOONSHOT_LOCAL_API_KEY=shingshong
+MOONSHOT_LOCAL_API_KEY=localmoonkey
 MOONSHOT_LOCAL_API_URL=http://127.0.0.1:8080
 ```
 
@@ -1644,7 +1644,7 @@ Moonshot-local (local_moonie) uses a chat completions endpoint (`/v1/chat/comple
    ```bash
    curl -X POST http://127.0.0.1:8080/v1/chat/completions \
      -H "Content-Type: application/json" \
-     -H "Authorization: Bearer shingshong" \
+     -H "Authorization: Bearer localmoonkey" \
      -d '{
        "model": "moonshot-v1-8k",
        "messages": [{"role": "user", "content": "Search the web: what is rust programming language"}],
