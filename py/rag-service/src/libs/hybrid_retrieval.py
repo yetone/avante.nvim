@@ -188,4 +188,3 @@ class HybridRetriever(BaseRetriever):
 
         """
         return self._retrieve(query_bundle)
-

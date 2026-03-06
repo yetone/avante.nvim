@@ -2,14 +2,9 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from llama_index.core.schema import NodeWithScore
 
 from libs.logger import logger
-
-if TYPE_CHECKING:
-    pass
 
 
 def calculate_redundancy(text1: str, text2: str) -> float:
@@ -266,4 +261,3 @@ def compress_context(
     ordered_nodes = order_context_for_llm(selected_nodes)
 
     return ordered_nodes
-

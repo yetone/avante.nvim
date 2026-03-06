@@ -256,7 +256,7 @@ class AdaptiveRetriever:
     ) -> list[NodeWithScore]:
         """Simple retrieval without modifications."""
         query_bundle = QueryBundle(query_str=query)
-        return self._base_retriever.retrieve(query_bundle)[: top_k]
+        return self._base_retriever.retrieve(query_bundle)[:top_k]
 
     def _retrieve_with_rewriting(
         self: AdaptiveRetriever,
@@ -270,7 +270,7 @@ class AdaptiveRetriever:
             rewritten_query = query
 
         query_bundle = QueryBundle(query_str=rewritten_query)
-        return self._base_retriever.retrieve(query_bundle)[: top_k]
+        return self._base_retriever.retrieve(query_bundle)[:top_k]
 
     def _retrieve_multi_query(
         self: AdaptiveRetriever,
@@ -293,7 +293,7 @@ class AdaptiveRetriever:
 
         fused_results = reciprocal_rank_fusion(all_results)
 
-        return fused_results[: top_k]
+        return fused_results[:top_k]
 
     def _retrieve_with_hyde(
         self: AdaptiveRetriever,
@@ -306,5 +306,4 @@ class AdaptiveRetriever:
 
         # Use hypothetical document for retrieval
         query_bundle = QueryBundle(query_str=hyde_doc)
-        return self._base_retriever.retrieve(query_bundle)[: top_k]
-
+        return self._base_retriever.retrieve(query_bundle)[:top_k]

@@ -53,7 +53,7 @@ if [ $? -eq 0 ]; then
     print_message "$GREEN" "Image details:"
     docker images "${REGISTRY}${IMAGE_NAME}:${IMAGE_TAG}"
     echo ""
-    
+
     print_message "$YELLOW" "To use this image, update your Neovim config:"
     echo ""
     echo "  rag_service = {"
@@ -63,13 +63,13 @@ if [ $? -eq 0 ]; then
     echo "    -- ... rest of config"
     echo "  }"
     echo ""
-    
+
     if [ -n "$REGISTRY" ]; then
         print_message "$YELLOW" "To push to registry:"
         echo "  docker push ${REGISTRY}${IMAGE_NAME}:${IMAGE_TAG}"
         echo ""
     fi
-    
+
     print_message "$GREEN" "To test the image locally:"
     echo "  docker run --rm -p 20250:20250 \\"
     echo "    -e RAG_EMBED_PROVIDER=ollama \\"
@@ -84,4 +84,3 @@ else
     print_message "$RED" "✗ Docker build failed!"
     exit 1
 fi
-

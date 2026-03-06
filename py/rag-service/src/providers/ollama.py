@@ -3,11 +3,11 @@
 
 from typing import Any
 
+from libs.logger import logger
 from llama_index.core.base.embeddings.base import BaseEmbedding
 from llama_index.core.llms.llm import LLM
 from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.llms.ollama import Ollama
-from libs.logger import logger
 
 
 def initialize_embed_model(
