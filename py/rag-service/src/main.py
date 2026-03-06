@@ -38,6 +38,9 @@ from libs.utils import (
     path_to_uri,
     uri_to_path,
 )
+from libs.contextual_chunking import split_documents_with_context
+from libs.context_compression import compress_context
+from libs.hybrid_retrieval import HybridRetriever
 from llama_index.core import (
     Settings,
     SimpleDirectoryReader,
@@ -849,61 +852,18 @@ def update_index_for_file(directory: Path, abs_file_path: Path) -> None:
 
 
 def split_documents(documents: list[Document]) -> list[Document]:
-    """Split documents into code and non-code documents."""
-    # Create file parser configuration
-    # Initialize CodeSplitter
-    # Split code documents using CodeSplitter
-    processed_documents = []
-    for doc in documents:
-        uri = get_node_uri(doc)
-        if not uri:
-            continue
-        if not is_path_node(doc):
-            processed_documents.append(doc)
-            continue
-        file_path = uri_to_path(uri)
-        file_ext = file_path.suffix.lower()
-        if file_ext in code_ext_map:
-            # Apply CodeSplitter to code files
-            language = code_ext_map.get(file_ext, "python")
-            parser = get_parser(language)
-            code_splitter = CodeSplitter(
-                language=language,  # Default is python, will auto-detect based on file extension
-                chunk_lines=80,  # Maximum number of lines per code block
-                chunk_lines_overlap=15,  # Number of overlapping lines to maintain context
-                max_chars=1500,  # Maximum number of characters per block
-                parser=parser,
-            )
-            try:
-                t = doc.get_content()
-                texts = code_splitter.split_text(t)
-            except ValueError as e:
-                logger.error(
-                    "Error splitting document: %s, so skipping split, error: %s",
-                    doc.doc_id,
-                    str(e),
-                )
-                processed_documents.append(doc)
-                continue
+    """
+    Split documents with contextual chunking.
 
-            for i, text in enumerate(texts):
-                new_doc = Document(
-                    text=text,
-                    doc_id=f"{doc.doc_id}__part_{i}",
-                    metadata={
-                        **doc.metadata,
-                        "chunk_number": i,
-                        "total_chunks": len(texts),
-                        "language": code_splitter.language,
-                        "orig_doc_id": doc.doc_id,
-                    },
-                )
-                processed_documents.append(new_doc)
-        else:
-            doc.metadata["orig_doc_id"] = doc.doc_id
-            # Add non-code files directly
-            processed_documents.append(doc)
-    return processed_documents
+    This function now delegates to the optimized contextual chunking module
+    which implements structure-aware splitting and adds contextual prefixes.
+    """
+    return split_documents_with_context(
+        documents=documents,
+        chunk_lines=80,
+        chunk_lines_overlap=15,
+        max_chars=1500,
+    )
 
 
 async def index_remote_resource_async(resource: Resource) -> None:

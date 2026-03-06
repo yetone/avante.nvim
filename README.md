@@ -1337,6 +1337,211 @@ The mount will be read only.
 
 After changing the rag_service configuration, you need to manually delete the rag_service container to ensure the new configuration is used: `docker rm -fv avante-rag-service`
 
+### RAG Service Configuration Examples
+
+#### 1. Single Ollama Instance (Simplest)
+
+```lua
+require('avante').setup({
+  rag_service = {
+    enabled = true,
+    runner = "docker",
+    image = "avante-rag-service:gpu-optimized",
+    host_mount = os.getenv("HOME"),
+    docker_extra_args = "--gpus all",  -- Enable GPU access
+
+    llm = {
+      provider = "ollama",
+      endpoint = "http://localhost:11434",
+      api_key = "",  -- Not needed for Ollama
+      model = "llama3.2",
+      extra = {
+        num_gpu = 1,
+        request_timeout = 300.0,
+        temperature = 0.7,
+      },
+    },
+
+    embed = {
+      provider = "ollama",
+      endpoint = "http://localhost:11434",  -- Same as LLM
+      api_key = "",
+      model = "nomic-embed-text",
+      extra = {
+        num_gpu = 1,
+        request_timeout = 120.0,
+      },
+    },
+  },
+})
+```
+
+#### 2. Dual Ollama Instances (Better GPU Management)
+
+```lua
+require('avante').setup({
+  rag_service = {
+    enabled = true,
+    runner = "docker",
+    image = "avante-rag-service:gpu-optimized",
+    host_mount = os.getenv("HOME"),
+    docker_extra_args = "--gpus all",
+
+    llm = {
+      provider = "ollama",
+      endpoint = "http://localhost:11434",  -- LLM port
+      api_key = "",
+      model = "llama3.2",
+      extra = {
+        num_gpu = 1,
+        request_timeout = 300.0,
+        temperature = 0.7,
+      },
+    },
+
+    embed = {
+      provider = "ollama",
+      endpoint = "http://localhost:11436",  -- Embedding port (different!)
+      api_key = "",
+      model = "nomic-embed-text",
+      extra = {
+        num_gpu = 1,
+        request_timeout = 120.0,
+      },
+    },
+  },
+})
+```
+
+To run dual Ollama instances:
+
+```bash
+# Terminal 1: Embedding service
+OLLAMA_HOST=0.0.0.0:11436 ollama serve
+
+# Terminal 2: LLM service
+ollama serve  # Uses default port 11434
+```
+
+#### 3. Mixed Providers (Ollama + OpenAI)
+
+```lua
+require('avante').setup({
+  rag_service = {
+    enabled = true,
+    runner = "docker",
+    image = "avante-rag-service:gpu-optimized",
+    host_mount = os.getenv("HOME"),
+    docker_extra_args = "--gpus all",
+
+    llm = {
+      provider = "openai",  -- Use OpenAI for LLM
+      endpoint = "https://api.openai.com/v1",
+      api_key = "OPENAI_API_KEY",
+      model = "gpt-4o-mini",
+      extra = {
+        temperature = 0.7,
+      },
+    },
+
+    embed = {
+      provider = "ollama",  -- Use local Ollama for embeddings
+      endpoint = "http://localhost:11434",
+      api_key = "",
+      model = "nomic-embed-text",
+      extra = {
+        num_gpu = 1,
+        request_timeout = 120.0,
+      },
+    },
+  },
+})
+```
+
+### RAG Service Optimization Guide
+
+#### Understanding the Architecture
+
+The RAG service runs as a separate Docker container with a Python FastAPI application:
+
+```
+Neovim Plugin (Lua)
+→ Docker Container (Python RAG Service)
+→ Ollama/OpenAI/Other Providers
+```
+
+#### Building a Custom RAG Service Image
+
+The official image may not include the latest optimizations. To build your own:
+
+```bash
+cd py/rag-service
+docker build -t avante-rag-service:custom .
+```
+
+Then update your config:
+
+```lua
+rag_service = {
+  image = "avante-rag-service:custom",  -- Use your custom image
+  -- ... rest of config
+}
+```
+
+#### GPU Optimization for Ollama
+
+When using Ollama with GPU:
+
+1. **Enable GPU access in Docker:**
+   ```lua
+   docker_extra_args = "--gpus all"
+   ```
+
+2. **Configure GPU parameters:**
+   ```lua
+   extra = {
+     num_gpu = 1,  -- Number of GPUs to use
+     request_timeout = 300.0,  -- Timeout in seconds
+   }
+   ```
+
+3. **Use separate Ollama instances** to prevent resource contention between embedding and LLM models
+
+#### Performance Tips
+
+- **Separate Ollama instances**: Run embedding and LLM on different ports to prevent resource contention
+- **GPU access**: Enable with `docker_extra_args = "--gpus all"`
+- **Adjust timeouts**:
+  - Fast GPU: 120s for embedding, 180s for LLM
+  - Slower hardware: 180s for embedding, 300s for LLM
+- **Monitor GPU usage**: Use `nvidia-smi` or `watch -n 1 nvidia-smi`
+
+#### Troubleshooting
+
+**Docker can't access GPU:**
+```lua
+docker_extra_args = "--gpus all"  -- Or for specific GPU: "--gpus device=0"
+```
+
+**Ollama connection refused:**
+1. Check if Ollama is running: `ollama serve`
+2. Verify the port: `ps aux | grep ollama`
+3. Ensure endpoint matches in config
+
+**Models not found:**
+```bash
+ollama pull llama3.2
+ollama pull nomic-embed-text
+```
+
+**Out of memory:**
+```lua
+extra = {
+  num_gpu = 1,
+  num_thread = 4,  -- Limit CPU threads
+}
+```
+
 ## Web Search Engines
 
 Avante's tools include some web search engines, currently support:
@@ -1352,7 +1557,7 @@ The default is Tavily, and can be changed through configuring `Config.web_search
 
 ```lua
 web_search_engine = {
-  provider = "tavily", -- tavily, serpapi, google, kagi, brave, or searxng
+  provider = "tavily", -- tavily, serpapi, google, kagi, brave, searxng, or moonshot-local
   proxy = nil, -- proxy support, e.g., http://127.0.0.1:7890
 }
 ```
@@ -1367,6 +1572,93 @@ Environment variables required for providers:
 - Kagi: `KAGI_API_KEY` as the [API Token](https://kagi.com/settings?p=api)
 - Brave Search: `BRAVE_API_KEY` as the [API key](https://api-dashboard.search.brave.com/app/keys)
 - SearXNG: `SEARXNG_API_URL` as the [API URL](https://docs.searxng.org/dev/search_api.html)
+- Moonshot-Local ([local_moonie](https://github.com/gub-7/local_moonie)):
+  - `MOONSHOT_LOCAL_API_KEY` as the API key (e.g., "localmoonkey")
+  - `MOONSHOT_LOCAL_API_URL` as the API URL (e.g., `http://127.0.0.1:8080`)
+
+### Configuring Moonshot-Local for Web Search
+
+Moonshot-local refers to the [local_moonie](https://github.com/gub-7/local_moonie) project, a local web search solution that uses Firefox/Selenium to perform web searches.
+
+**Prerequisites:**
+
+1. Have moonshot-local (local_moonie) running locally
+2. Set up environment variables:
+
+```bash
+export MOONSHOT_LOCAL_API_KEY="localmoonkey"
+export MOONSHOT_LOCAL_API_URL="http://127.0.0.1:8080"
+```
+
+Or create a `.env` file:
+
+```
+MOONSHOT_LOCAL_API_KEY=localmoonkey
+MOONSHOT_LOCAL_API_URL=http://127.0.0.1:8080
+```
+
+**Configuration:**
+
+For lazy.nvim users:
+
+```lua
+{
+  "yetone/avante.nvim",
+  opts = {
+    web_search_engine = {
+      provider = "moonshot-local",
+      proxy = nil, -- Optional: proxy support, e.g., http://127.0.0.1:7890
+    },
+  },
+}
+```
+
+For other plugin managers:
+
+```lua
+require("avante").setup({
+  web_search_engine = {
+    provider = "moonshot-local",
+    proxy = nil, -- Optional: proxy support
+  },
+})
+```
+
+**How It Works:**
+
+Moonshot-local (local_moonie) uses a chat completions endpoint (`/v1/chat/completions`) that automatically performs web search when the prompt includes search-related queries:
+
+1. Takes your search query
+2. Sends it to moonshot-local (local_moonie) with a "Search the web:" prefix
+3. Moonshot-local (local_moonie) uses Firefox/Selenium to search the web
+4. Returns the search results formatted as a chat response
+
+**Verifying the Setup:**
+
+1. Start moonshot-local (local_moonie):
+   ```bash
+   ./start.sh
+   ```
+
+2. Test the API manually:
+   ```bash
+   curl -X POST http://127.0.0.1:8080/v1/chat/completions \
+     -H "Content-Type: application/json" \
+     -H "Authorization: Bearer localmoonkey" \
+     -d '{
+       "model": "moonshot-v1-8k",
+       "messages": [{"role": "user", "content": "Search the web: what is rust programming language"}],
+       "stream": false
+     }'
+   ```
+
+3. Open Neovim and try using the web_search tool in avante.nvim
+
+**Troubleshooting:**
+
+- **Connection refused**: Make sure moonshot-local (local_moonie) is running on the specified URL
+- **Authentication failed**: Verify that `MOONSHOT_LOCAL_API_KEY` matches the API key configured in moonshot-local (local_moonie)
+- **No search results**: Check the moonshot-local (local_moonie) logs to see if the search is being performed correctly
 
 ## Disable Tools
 
