@@ -43,7 +43,7 @@ M.path_sep = M.path.SEP
 
 ---@return "linux" | "darwin" | "windows"
 function M.get_os_name()
-  platform = require("avante.utils.platform").platform
+  local platform = require("avante.utils.platform").platform
   if platform == "linux" or platform == "wsl" or platform == "msys2" then
     return "linux"
   elseif platform == "macos" then
