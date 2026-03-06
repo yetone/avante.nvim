@@ -8,7 +8,7 @@ local Utils = require("avante.utils")
 
 local function copilot_use_response_api(opts)
   local model = opts and opts.model
-  return type(model) == "string" and model:match("gpt%-5%-codex") ~= nil
+  return type(model) == "string" and model:match("gpt%-%d+%.?%d*%-codex") ~= nil
 end
 
 ---@class avante.file_selector.IParams
