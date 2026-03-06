@@ -266,9 +266,7 @@ function M.generate_prompts(opts)
     local lines = Utils.read_file_from_buf_or_disk(instruction_file_path:absolute())
     local instruction_content = lines and table.concat(lines, "\n") or ""
 
-    if instruction_content then 
-      opts.instructions = (opts.instructions or "") .. "\n" .. instruction_content 
-    end
+    if instruction_content then opts.instructions = (opts.instructions or "") .. "\n" .. instruction_content end
     opts._instructions_loaded = true
   end
 
@@ -441,9 +439,8 @@ function M.generate_prompts(opts)
     :filter(function(msg) return type(msg.content) ~= "string" or msg.content ~= "" end)
     :totable()
 
-  if opts.instructions ~= nil and opts.instructions ~= "" and not opts._instructions_added_to_messages then
+  if opts.instructions ~= nil and opts.instructions ~= "" then
     messages = vim.list_extend(messages, { { role = "user", content = opts.instructions } })
-    opts._instructions_added_to_messages = true
   end
 
   opts.session_ctx = opts.session_ctx or {}
