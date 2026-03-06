@@ -61,20 +61,30 @@ M._defaults = {
     -- The image to use to run the rag service if runner is docker
     image = "quay.io/yetoneful/avante-rag-service:0.0.11",
     llm = { -- Configuration for the Language Model (LLM) used by the RAG service
-      provider = "openai", -- The LLM provider
+      provider = "openai", -- The LLM provider (supports: openai, ollama, openrouter, dashscope)
       endpoint = "https://api.openai.com/v1", -- The LLM API endpoint
-      api_key = "OPENAI_API_KEY", -- The environment variable name for the LLM API key
+      -- For Ollama: use "http://localhost:11434" or custom port like "http://localhost:11435"
+      api_key = "OPENAI_API_KEY", -- The environment variable name for the LLM API key (not needed for Ollama)
       model = "gpt-4o-mini", -- The LLM model name
+      -- For Ollama: use model names like "llama3.2", "qwen2.5", etc.
       extra = nil, -- Extra configuration options for the LLM
+      -- For Ollama GPU optimization, use:
+      -- extra = { num_gpu = 1, request_timeout = 300.0, temperature = 0.7 }
     },
     embed = { -- Configuration for the Embedding model used by the RAG service
-      provider = "openai", -- The embedding provider
+      provider = "openai", -- The embedding provider (supports: openai, ollama, openrouter, dashscope)
       endpoint = "https://api.openai.com/v1", -- The embedding API endpoint
-      api_key = "OPENAI_API_KEY", -- The environment variable name for the embedding API key
+      -- For Ollama: use "http://localhost:11434" or custom port like "http://localhost:11436"
+      -- You can run multiple Ollama instances on different ports for embedding and LLM
+      api_key = "OPENAI_API_KEY", -- The environment variable name for the embedding API key (not needed for Ollama)
       model = "text-embedding-3-large", -- The embedding model name
+      -- For Ollama: use embedding models like "nomic-embed-text", "mxbai-embed-large", etc.
       extra = nil, -- Extra configuration options for the embedding model
+      -- For Ollama GPU optimization, use:
+      -- extra = { num_gpu = 1, request_timeout = 120.0 }
     },
     docker_extra_args = "", -- Extra arguments to pass to the docker command
+    -- For GPU access in Docker, use: docker_extra_args = "--gpus all"
   },
   web_search_engine = {
     provider = "tavily",
@@ -240,6 +250,19 @@ M._defaults = {
           )
 
           return vim.json.encode(jsn), nil
+        end,
+      },
+      ["moonshot-local"] = {
+        api_key_name = "MOONSHOT_LOCAL_API_KEY",
+        api_url_name = "MOONSHOT_LOCAL_API_URL",
+        extra_request_body = {},
+        ---@type WebSearchEngineProviderResponseBodyFormatter
+        format_response_body = function(body)
+          -- moonshot-local returns the answer directly in the chat completion response
+          if body.choices and body.choices[1] and body.choices[1].message then
+            return body.choices[1].message.content, nil
+          end
+          return "", "No response from moonshot-local"
         end,
       },
     },

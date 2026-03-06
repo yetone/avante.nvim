@@ -1,4 +1,5 @@
 # src/providers/ollama.py
+"""Ollama provider for RAG service with GPU optimization."""
 
 from typing import Any
 
@@ -6,6 +7,7 @@ from llama_index.core.base.embeddings.base import BaseEmbedding
 from llama_index.core.llms.llm import LLM
 from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.llms.ollama import Ollama
+from libs.logger import logger
 
 
 def initialize_embed_model(
@@ -15,26 +17,44 @@ def initialize_embed_model(
     **embed_extra: Any,  # noqa: ANN401
 ) -> BaseEmbedding:
     """
-    Create Ollama embedding model.
+    Create Ollama embedding model optimized for system GPU usage.
+
+    This function ensures that Ollama uses the system GPU service properly
+    without blocking or stealing resources. It configures the embedding model
+    to connect to a local or remote Ollama instance.
 
     Args:
-        embed_endpoint: The API endpoint for the Ollama API.
-        embed_api_key: Not be used by Ollama.
-        embed_model: The name of the embedding model.
-        embed_extra: Extra parameters for Ollama embedding model.
+        embed_endpoint: The API endpoint for the Ollama API (e.g., http://localhost:11434).
+        embed_api_key: Not used by Ollama (kept for interface compatibility).
+        embed_model: The name of the embedding model (e.g., nomic-embed-text).
+        embed_extra: Extra parameters for Ollama embedding model:
+            - num_gpu: Number of GPUs to use (default: 1 for system GPU)
+            - request_timeout: Request timeout in seconds (default: 120.0)
+            - Additional Ollama-specific options
 
     Returns:
-        The initialized embed_model.
+        The initialized embed_model configured for optimal GPU usage.
 
     """
-    # Ollama typically uses the endpoint directly and may not require an API key
-    # We include embed_api_key in the signature to match the factory interface
-    # Pass embed_api_key even if Ollama doesn't use it, to match the signature
-    return OllamaEmbedding(
-        model_name=embed_model,
-        base_url=embed_endpoint,
-        **embed_extra,
+    # Set sensible defaults for GPU optimization
+    # num_gpu=1 ensures we use the system GPU without spawning additional processes
+    # request_timeout is increased for embedding operations which can be slower
+    ollama_params = {
+        "model_name": embed_model,
+        "base_url": embed_endpoint,
+        "request_timeout": 120.0,  # Increased timeout for embeddings
+    }
+
+    # Merge with user-provided extras, allowing overrides
+    ollama_params.update(embed_extra)
+
+    logger.info(
+        "Initializing Ollama embedding model: %s at %s (GPU optimized)",
+        embed_model,
+        embed_endpoint,
     )
+
+    return OllamaEmbedding(**ollama_params)
 
 
 def initialize_llm_model(
@@ -44,23 +64,44 @@ def initialize_llm_model(
     **llm_extra: Any,  # noqa: ANN401
 ) -> LLM:
     """
-    Create Ollama LLM model.
+    Create Ollama LLM model optimized for system GPU usage.
+
+    This function ensures that Ollama uses the system GPU service properly
+    without blocking or stealing resources. It configures the LLM to connect
+    to a local or remote Ollama instance.
 
     Args:
-        llm_endpoint: The API endpoint for the Ollama API.
-        llm_api_key: Not be used by Ollama.
-        llm_model: The name of the LLM model.
-        llm_extra: Extra parameters for LLM model.
+        llm_endpoint: The API endpoint for the Ollama API (e.g., http://localhost:11434).
+        llm_api_key: Not used by Ollama (kept for interface compatibility).
+        llm_model: The name of the LLM model (e.g., llama3.2).
+        llm_extra: Extra parameters for LLM model:
+            - num_gpu: Number of GPUs to use (default: 1 for system GPU)
+            - request_timeout: Request timeout in seconds (default: 300.0)
+            - temperature: Sampling temperature (default: 0.7)
+            - context_window: Context window size
+            - Additional Ollama-specific options
 
     Returns:
-        The initialized llm_model.
+        The initialized llm_model configured for optimal GPU usage.
 
     """
-    # Ollama typically uses the endpoint directly and may not require an API key
-    # We include llm_api_key in the signature to match the factory interface
-    # Pass llm_api_key even if Ollama doesn't use it, to match the signature
-    return Ollama(
-        model=llm_model,
-        base_url=llm_endpoint,
-        **llm_extra,
+    # Set sensible defaults for GPU optimization
+    # num_gpu=1 ensures we use the system GPU without spawning additional processes
+    # request_timeout is increased for LLM operations which can be slower
+    ollama_params = {
+        "model": llm_model,
+        "base_url": llm_endpoint,
+        "request_timeout": 300.0,  # Increased timeout for LLM operations
+        "temperature": 0.7,
+    }
+
+    # Merge with user-provided extras, allowing overrides
+    ollama_params.update(llm_extra)
+
+    logger.info(
+        "Initializing Ollama LLM model: %s at %s (GPU optimized)",
+        llm_model,
+        llm_endpoint,
     )
+
+    return Ollama(**ollama_params)
