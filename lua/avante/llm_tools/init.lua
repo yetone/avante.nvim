@@ -379,7 +379,7 @@ function M.web_search(input, opts)
       body = vim.json.encode(vim.tbl_deep_extend("force", {
         model = "moonshot-v1-8k",
         messages = {
-          { role = "user", content = "Search the web: " .. input.query }
+          { role = "user", content = "Search the web: " .. input.query },
         },
         stream = false,
       }, search_engine.extra_request_body)),

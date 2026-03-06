@@ -2,19 +2,12 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-from typing import TYPE_CHECKING
-
 from llama_index.core.node_parser import CodeSplitter
 from llama_index.core.schema import Document
 from tree_sitter_language_pack import SupportedLanguage, get_parser
 
 from libs.logger import logger
 from libs.utils import get_node_uri, is_path_node, uri_to_path
-
-if TYPE_CHECKING:
-    pass
-
 
 # Mapping of file extensions to programming languages
 CODE_EXT_MAP: dict[str, SupportedLanguage] = {
@@ -259,4 +252,3 @@ def split_documents_with_context(
     )
 
     return processed_documents
-
