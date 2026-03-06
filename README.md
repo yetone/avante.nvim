@@ -1572,17 +1572,17 @@ Environment variables required for providers:
 - Kagi: `KAGI_API_KEY` as the [API Token](https://kagi.com/settings?p=api)
 - Brave Search: `BRAVE_API_KEY` as the [API key](https://api-dashboard.search.brave.com/app/keys)
 - SearXNG: `SEARXNG_API_URL` as the [API URL](https://docs.searxng.org/dev/search_api.html)
-- Moonshot-Local:
+- Moonshot-Local ([local_moonie](https://github.com/yetone/local_moonie)):
   - `MOONSHOT_LOCAL_API_KEY` as the API key (e.g., "shingshong")
   - `MOONSHOT_LOCAL_API_URL` as the API URL (e.g., `http://127.0.0.1:8080`)
 
 ### Configuring Moonshot-Local for Web Search
 
-Moonshot-local is a local web search solution that uses Firefox/Selenium to perform web searches.
+Moonshot-local refers to the [local_moonie](https://github.com/yetone/local_moonie) project, a local web search solution that uses Firefox/Selenium to perform web searches.
 
 **Prerequisites:**
 
-1. Have moonshot-local running locally
+1. Have moonshot-local (local_moonie) running locally
 2. Set up environment variables:
 
 ```bash
@@ -1626,16 +1626,16 @@ require("avante").setup({
 
 **How It Works:**
 
-Moonshot-local uses a chat completions endpoint (`/v1/chat/completions`) that automatically performs web search when the prompt includes search-related queries:
+Moonshot-local (local_moonie) uses a chat completions endpoint (`/v1/chat/completions`) that automatically performs web search when the prompt includes search-related queries:
 
 1. Takes your search query
-2. Sends it to moonshot-local with a "Search the web:" prefix
-3. Moonshot-local uses Firefox/Selenium to search the web
+2. Sends it to moonshot-local (local_moonie) with a "Search the web:" prefix
+3. Moonshot-local (local_moonie) uses Firefox/Selenium to search the web
 4. Returns the search results formatted as a chat response
 
 **Verifying the Setup:**
 
-1. Start moonshot-local:
+1. Start moonshot-local (local_moonie):
    ```bash
    ./start.sh
    ```
@@ -1656,9 +1656,9 @@ Moonshot-local uses a chat completions endpoint (`/v1/chat/completions`) that au
 
 **Troubleshooting:**
 
-- **Connection refused**: Make sure moonshot-local is running on the specified URL
-- **Authentication failed**: Verify that `MOONSHOT_LOCAL_API_KEY` matches the API key configured in moonshot-local
-- **No search results**: Check the moonshot-local logs to see if the search is being performed correctly
+- **Connection refused**: Make sure moonshot-local (local_moonie) is running on the specified URL
+- **Authentication failed**: Verify that `MOONSHOT_LOCAL_API_KEY` matches the API key configured in moonshot-local (local_moonie)
+- **No search results**: Check the moonshot-local (local_moonie) logs to see if the search is being performed correctly
 
 ## Disable Tools
 

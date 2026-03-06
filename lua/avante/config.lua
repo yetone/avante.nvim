@@ -252,17 +252,17 @@ M._defaults = {
           return vim.json.encode(jsn), nil
         end,
       },
-      ["moonshot-local"] = {
+      ["moonshot-local"] = { -- moonshot-local refers to the local_moonie project (https://github.com/yetone/local_moonie)
         api_key_name = "MOONSHOT_LOCAL_API_KEY",
         api_url_name = "MOONSHOT_LOCAL_API_URL",
         extra_request_body = {},
         ---@type WebSearchEngineProviderResponseBodyFormatter
         format_response_body = function(body)
-          -- moonshot-local returns the answer directly in the chat completion response
+          -- moonshot-local (local_moonie) returns the answer directly in the chat completion response
           if body.choices and body.choices[1] and body.choices[1].message then
             return body.choices[1].message.content, nil
           end
-          return "", "No response from moonshot-local"
+          return "", "No response from moonshot-local (local_moonie)"
         end,
       },
     },
