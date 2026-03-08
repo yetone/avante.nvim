@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
-from llama_index.core.schema import NodeWithScore
+from typing import TYPE_CHECKING
 
 from libs.logger import logger
 
+if TYPE_CHECKING:
+    from llama_index.core.schema import NodeWithScore
+
+# Minimum number of nodes required for reordering
+MIN_NODES_FOR_REORDER = 2
 
 def calculate_redundancy(text1: str, text2: str) -> float:
     """
@@ -63,15 +68,13 @@ def select_optimal_context(
     query: str,
     max_tokens: int = 4000,
     redundancy_threshold: float = 0.7,
-    relevance_weight: float = 1.0,
     redundancy_penalty: float = 0.5,
-    coverage_weight: float = 0.3,
 ) -> list[NodeWithScore]:
     """
     Select optimal context from retrieved nodes.
 
     This implements the context selection objective:
-    C* = argmax(sum(Rel(q,d)) - λ*sum(Red(di,dj)) + γ*Cov(C))
+    C* = argmax(sum(Rel(q,d)) - λ*sum(Red(di,dj)) + gamma*Cov(C))
 
     The algorithm uses a greedy approximation:
     1. Sort nodes by relevance score
@@ -83,9 +86,7 @@ def select_optimal_context(
         query: Query string
         max_tokens: Maximum token budget
         redundancy_threshold: Threshold for considering nodes redundant
-        relevance_weight: Weight for relevance scores
         redundancy_penalty: Penalty for redundancy
-        coverage_weight: Weight for query coverage
 
     Returns:
         Selected nodes optimized for relevance, coverage, and non-redundancy
@@ -145,7 +146,7 @@ def select_optimal_context(
 
         # Calculate objective score
         relevance_score = node.score if node.score is not None else 0.0
-        redundancy_cost = max_redundancy * redundancy_penalty
+        max_redundancy * redundancy_penalty
 
         # Add node
         selected_nodes.append(node)
@@ -194,7 +195,7 @@ def order_context_for_llm(nodes: list[NodeWithScore]) -> list[NodeWithScore]:
         Reordered list of nodes
 
     """
-    if len(nodes) <= 2:
+    if len(nodes) <= MIN_NODES_FOR_REORDER:
         return nodes
 
     # Sort by relevance
@@ -258,6 +259,10 @@ def compress_context(
     )
 
     # Step 2: Order for optimal LLM processing
-    ordered_nodes = order_context_for_llm(selected_nodes)
+    return order_context_for_llm(selected_nodes)
 
+<<<<<<< HEAD
     return ordered_nodes
+=======
+
+>>>>>>> main

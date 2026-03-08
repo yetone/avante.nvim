@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 from llama_index.core import PromptTemplate
 from llama_index.core.schema import NodeWithScore, QueryBundle
 
+from libs.hybrid_retrieval import reciprocal_rank_fusion
 from libs.logger import logger
 
 if TYPE_CHECKING:
@@ -186,6 +187,7 @@ class AdaptiveRetriever:
         self: AdaptiveRetriever,
         base_retriever: BaseRetriever,
         llm: LLM,
+        *,
         enable_classification: bool = True,
         enable_rewriting: bool = True,
         enable_hyde: bool = False,
@@ -242,7 +244,7 @@ class AdaptiveRetriever:
             # Synthesis: use query rewriting
             return self._retrieve_with_rewriting(query, top_k)
 
-        if query_type == QueryType.MULTI_HOP or query_type == QueryType.EXPLORATORY:
+        if query_type in (QueryType.MULTI_HOP, QueryType.EXPLORATORY):
             # Multi-hop or exploratory: use multi-query expansion
             return self._retrieve_multi_query(query, top_k)
 
@@ -254,7 +256,7 @@ class AdaptiveRetriever:
         query: str,
         top_k: int,
     ) -> list[NodeWithScore]:
-        """Simple retrieval without modifications."""
+        """Retrieve documents without modifications."""
         query_bundle = QueryBundle(query_str=query)
         return self._base_retriever.retrieve(query_bundle)[:top_k]
 
@@ -263,11 +265,8 @@ class AdaptiveRetriever:
         query: str,
         top_k: int,
     ) -> list[NodeWithScore]:
-        """Retrieval with query rewriting."""
-        if self._enable_rewriting:
-            rewritten_query = rewrite_query(query, self._llm)
-        else:
-            rewritten_query = query
+        """Retrieve documents with query rewriting."""
+        rewritten_query = rewrite_query(query, self._llm) if self._enable_rewriting else query
 
         query_bundle = QueryBundle(query_str=rewritten_query)
         return self._base_retriever.retrieve(query_bundle)[:top_k]
@@ -277,7 +276,7 @@ class AdaptiveRetriever:
         query: str,
         top_k: int,
     ) -> list[NodeWithScore]:
-        """Retrieval with multi-query expansion and fusion."""
+        """Retrieve documents with multi-query expansion and fusion."""
         # Expand query into variations
         queries = expand_query(query, self._llm)
 
@@ -289,8 +288,6 @@ class AdaptiveRetriever:
             all_results.append(results)
 
         # Fuse results using RRF
-        from libs.hybrid_retrieval import reciprocal_rank_fusion
-
         fused_results = reciprocal_rank_fusion(all_results)
 
         return fused_results[:top_k]
@@ -300,7 +297,7 @@ class AdaptiveRetriever:
         query: str,
         top_k: int,
     ) -> list[NodeWithScore]:
-        """Retrieval using HyDE (Hypothetical Document Embeddings)."""
+        """Retrieve documents using HyDE (Hypothetical Document Embeddings)."""
         # Generate hypothetical document
         hyde_doc = generate_hyde_document(query, self._llm)
 

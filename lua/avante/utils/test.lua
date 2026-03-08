@@ -2,7 +2,7 @@
 local M = {}
 
 function M.read_file(fn)
-  fn = vim.uv.cwd() .. "/" .. fn
+  fn = vim.fs.joinpath(vim.uv.cwd(), fn)
   local file = io.open(fn, "r")
   if file then
     local data = file:read("*all")

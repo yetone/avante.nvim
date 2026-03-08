@@ -64,6 +64,7 @@ if TYPE_CHECKING:
 
     from llama_index.core.schema import NodeWithScore, QueryBundle
     from models.indexing_history import IndexingHistory
+    from tree_sitter_language_pack import SupportedLanguage
     from watchdog.observers.api import BaseObserver
 
 # Lock file for leader election

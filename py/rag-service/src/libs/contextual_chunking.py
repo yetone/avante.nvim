@@ -241,7 +241,7 @@ def split_documents_with_context(
             # Add contextual prefix
             contextual_prefix = generate_contextual_prefix(doc)
             if contextual_prefix:
-                doc.text = contextual_prefix + doc.get_content()
+                doc.set_content(contextual_prefix + doc.get_content())
 
             processed_documents.append(doc)
 
