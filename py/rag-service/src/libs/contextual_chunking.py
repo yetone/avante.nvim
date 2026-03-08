@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from llama_index.core.node_parser import CodeSplitter
+from llama_index.core.node_parser import CodeSplitter, SentenceSplitter
 from llama_index.core.schema import Document
 from tree_sitter_language_pack import SupportedLanguage, get_parser
 
@@ -93,7 +93,7 @@ def split_code_document(
     file_ext: str,
     chunk_lines: int = 80,
     chunk_lines_overlap: int = 15,
-    max_chars: int = 1500,
+    max_chars: int = 512,
 ) -> list[Document]:
     """
     Split code document using structure-aware code splitting.
@@ -179,7 +179,7 @@ def split_documents_with_context(
     documents: list[Document],
     chunk_lines: int = 80,
     chunk_lines_overlap: int = 15,
-    max_chars: int = 1500,
+    max_chars: int = 512,
 ) -> list[Document]:
     """
     Split documents with structure-aware and contextual chunking.
@@ -234,16 +234,44 @@ def split_documents_with_context(
             )
             processed_documents.extend(split_docs)
         else:
-            # Non-code file: add contextual prefix and keep as-is
-            doc.metadata["orig_doc_id"] = doc.doc_id
-            doc.metadata["chunking_method"] = "none"
+            # Non-code file: split aggressively to avoid exceeding embedding context length
+            # Using 512 chars with 50 overlap to ensure hard cap is never exceeded
+            splitter = SentenceSplitter(
+                chunk_size=512,
+                chunk_overlap=50,
+            )
 
-            # Add contextual prefix
-            contextual_prefix = generate_contextual_prefix(doc)
-            if contextual_prefix:
-                doc.set_content(contextual_prefix + doc.get_content())
+            content = doc.get_content()
+            texts = splitter.split_text(content)
+            total = len(texts)
 
-            processed_documents.append(doc)
+            logger.debug(
+                "Split non-code document %s into %d chunks (file: %s)",
+                doc.doc_id,
+                total,
+                doc.metadata.get("file_name", "<unknown>"),
+            )
+
+            for i, text in enumerate(texts):
+                chunk_metadata = {
+                    **doc.metadata,
+                    "orig_doc_id": doc.doc_id,
+                    "chunk_number": i,
+                    "total_chunks": total,
+                    "chunking_method": "sentence_splitter",
+                }
+
+                contextual_prefix = generate_contextual_prefix(
+                    Document(text="", metadata=chunk_metadata)
+                )
+
+                processed_documents.append(
+                    Document(
+                        text=contextual_prefix + text,
+                        doc_id=f"{doc.doc_id}__part_{i}",
+                        metadata=chunk_metadata,
+                    )
+                )
 
     logger.info(
         "Processed %d documents into %d chunks with contextual information",

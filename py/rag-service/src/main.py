@@ -500,6 +500,38 @@ def clean_text(text: str) -> str:
     return "".join(char for char in text if char.isprintable() or char in "\n\r\t")
 
 
+def split_text_hard_cap(text: str, max_chars: int = 512, overlap: int = 50) -> list[str]:
+    """
+    Split text with a hard character limit to prevent embedding context overflow.
+
+    This is a safety pass applied after all other chunking and prefix addition,
+    ensuring no chunk exceeds the embedding model's context window.
+
+    Args:
+        text: Text to split
+        max_chars: Maximum characters per chunk (default 512 to ensure hard cap is never exceeded)
+        overlap: Character overlap between chunks
+
+    Returns:
+        List of text chunks, each guaranteed to be <= max_chars
+    """
+    if len(text) <= max_chars:
+        return [text]
+
+    chunks = []
+    start = 0
+    n = len(text)
+
+    while start < n:
+        end = min(start + max_chars, n)
+        chunks.append(text[start:end])
+        if end >= n:
+            break
+        start = max(0, end - overlap)
+
+    return chunks
+
+
 def process_document_batch(documents: list[Document]) -> bool:  # noqa: PLR0915, C901, PLR0912, RUF100
     """Process a batch of documents for embedding."""
     try:
@@ -543,16 +575,13 @@ def process_document_batch(documents: list[Document]) -> bool:  # noqa: PLR0915,
                     invalid_documents.append(doc_id)
                     continue
 
+                # Clean the text but preserve the document structure (already chunked)
                 cleaned_content = clean_text(content)
-                metadata = getattr(doc, "metadata", {}).copy()
+                doc.set_content(cleaned_content)
 
-                new_doc = Document(
-                    text=cleaned_content,
-                    doc_id=doc_id,
-                    metadata=metadata,
-                )
-                inject_uri_to_node(new_doc)
-                valid_documents.append(new_doc)
+                # Ensure URI is injected
+                inject_uri_to_node(doc)
+                valid_documents.append(doc)
                 # Update status to indexing for valid documents
                 indexing_history_service.update_indexing_status(doc, "indexing")
 
@@ -564,8 +593,84 @@ def process_document_batch(documents: list[Document]) -> bool:  # noqa: PLR0915,
 
         try:
             if valid_documents:
+                # Log chunk sizes before embedding to help diagnose context length issues
+                docs_with_sizes = []
+                for doc in valid_documents:
+                    text = doc.get_content()
+                    chars = len(text)
+                    lines = text.count("\n") + 1
+                    approx_tokens = chars // 4  # rough estimate
+                    docs_with_sizes.append((
+                        chars,
+                        doc.doc_id,
+                        doc.metadata.get("file_name", "<unknown>"),
+                        lines,
+                        approx_tokens,
+                    ))
+
+                # Log top 20 largest chunks BEFORE hard cap
+                for chars, doc_id, file_name, lines, approx_tokens in sorted(docs_with_sizes, reverse=True)[:20]:
+                    logger.warning(
+                        "EMBED INPUT (before hard cap) file=%s doc_id=%s chars=%d lines=%d approx_tokens=%d",
+                        file_name,
+                        doc_id,
+                        chars,
+                        lines,
+                        approx_tokens,
+                    )
+
+                # Apply hard cap safety pass to ensure NO chunk exceeds embedding limit
+                safe_documents = []
+                for doc in valid_documents:
+                    text = doc.get_content()
+                    pieces = split_text_hard_cap(text, max_chars=512, overlap=50)
+
+                    if len(pieces) == 1:
+                        safe_documents.append(doc)
+                        continue
+
+                    # Document was too large, split it further
+                    logger.info(
+                        "Hard-cap splitting oversized chunk %s (%d chars) into %d pieces",
+                        doc.doc_id,
+                        len(text),
+                        len(pieces),
+                    )
+
+                    for i, piece in enumerate(pieces):
+                        meta = dict(doc.metadata)
+                        meta["hard_cap_split"] = True
+                        meta["hard_cap_part"] = i
+                        meta["hard_cap_total"] = len(pieces)
+
+                        safe_documents.append(
+                            Document(
+                                text=piece,
+                                doc_id=f"{doc.doc_id}__hardcap_{i}",
+                                metadata=meta,
+                            )
+                        )
+
+                # Log final chunk sizes after hard cap
+                final_sizes = [(len(doc.get_content()), doc.doc_id) for doc in safe_documents]
+                max_size = max(final_sizes, key=lambda x: x[0]) if final_sizes else (0, "none")
+                logger.info(
+                    "After hard cap: %d chunks, largest=%d chars (doc_id=%s)",
+                    len(safe_documents),
+                    max_size[0],
+                    max_size[1],
+                )
+
                 with index_lock:
-                    index.refresh_ref_docs(valid_documents)
+                    try:
+                        index.refresh_ref_docs(safe_documents)
+                    except Exception as e:
+                        error_msg = f"Embedding failed: {e!s}"
+                        logger.exception(error_msg)
+                        # Update status to failed for all documents in the batch
+                        for doc in valid_documents:
+                            indexing_history_service.update_indexing_status(doc, "failed", error_message=error_msg)
+                        return False
 
             # Update status to completed for successfully processed documents
             for doc in valid_documents:
@@ -791,14 +896,42 @@ def scan_directory(directory: Path) -> list[str]:
         ".DS_Store",
     ]
 
+    # Low-value files that create large noisy chunks with minimal retrieval benefit
+    skip_filenames = [
+        "LICENSE",
+        "LICENSE.txt",
+        "LICENSE.md",
+        "COPYING",
+        "COPYING.txt",
+        "COPYRIGHT",
+        "Cargo.lock",
+        "package-lock.json",
+        "yarn.lock",
+        "pnpm-lock.yaml",
+        "poetry.lock",
+        "Pipfile.lock",
+        "Gemfile.lock",
+        "composer.lock",
+        "go.sum",
+    ]
+
     matched_files = []
 
     for root, _, files in os.walk(directory):
         file_paths = [str(Path(root) / file) for file in files]
         for file in file_paths:
-            file_ext = Path(file).suffix.lower()
+            file_path = Path(file)
+            file_ext = file_path.suffix.lower()
+            file_name = file_path.name
+
+            # Skip binary files
             if file_ext in binary_extensions:
                 logger.debug("Skipping binary file: %s", file)
+                continue
+
+            # Skip low-value large files
+            if file_name in skip_filenames:
+                logger.debug("Skipping low-value file: %s", file)
                 continue
 
             if spec and spec.match_file(os.path.relpath(file, directory)):
@@ -860,7 +993,7 @@ def split_documents(documents: list[Document]) -> list[Document]:
         documents=documents,
         chunk_lines=80,
         chunk_lines_overlap=15,
-        max_chars=1500,
+        max_chars=512,
     )
 
 
