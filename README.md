@@ -1337,6 +1337,36 @@ The mount will be read only.
 
 After changing the rag_service configuration, you need to manually delete the rag_service container to ensure the new configuration is used: `docker rm -fv avante-rag-service`
 
+### Using Ollama with RAG Service
+
+To use Ollama with GPU support:
+
+```lua
+rag_service = {
+  enabled = true,
+  docker_extra_args = "--gpus all",  -- Enable GPU
+  llm = {
+    provider = "ollama",
+    endpoint = "http://localhost:11434",
+    model = "llama3.2",
+    extra = { num_gpu = 1, request_timeout = 300.0 },
+  },
+  embed = {
+    provider = "ollama",
+    endpoint = "http://localhost:11434",
+    model = "nomic-embed-text",
+    extra = { num_gpu = 1, request_timeout = 120.0 },
+  },
+}
+```
+
+For better performance, run separate Ollama instances on different ports (e.g., 11434 for LLM, 11436 for embeddings):
+
+```bash
+OLLAMA_HOST=0.0.0.0:11436 ollama serve  # Terminal 1
+ollama serve                             # Terminal 2 (default port 11434)
+```
+
 ## Web Search Engines
 
 Avante's tools include some web search engines, currently support:
@@ -1352,7 +1382,7 @@ The default is Tavily, and can be changed through configuring `Config.web_search
 
 ```lua
 web_search_engine = {
-  provider = "tavily", -- tavily, serpapi, google, kagi, brave, or searxng
+  provider = "tavily", -- tavily, serpapi, google, kagi, brave, searxng, or moonshot-local
   proxy = nil, -- proxy support, e.g., http://127.0.0.1:7890
 }
 ```
@@ -1367,6 +1397,7 @@ Environment variables required for providers:
 - Kagi: `KAGI_API_KEY` as the [API Token](https://kagi.com/settings?p=api)
 - Brave Search: `BRAVE_API_KEY` as the [API key](https://api-dashboard.search.brave.com/app/keys)
 - SearXNG: `SEARXNG_API_URL` as the [API URL](https://docs.searxng.org/dev/search_api.html)
+- Moonshot-Local ([local_moonie](https://github.com/gub-7/local_moonie)): `MOONSHOT_LOCAL_API_KEY` and `MOONSHOT_LOCAL_API_URL` (e.g., `http://127.0.0.1:8080`)
 
 ## Disable Tools
 

@@ -366,6 +366,29 @@ function M.web_search(input, opts)
     if resp.status ~= 200 then return nil, "Error: " .. resp.body end
     local jsn = vim.json.decode(resp.body)
     return search_engine.format_response_body(jsn)
+  elseif provider_type == "moonshot-local" then -- moonshot-local refers to the local_moonie project (https://github.com/gub-7/local_moonie)
+    local moonshot_api_url = Utils.environment.parse(search_engine.api_url_name)
+    if moonshot_api_url == nil or moonshot_api_url == "" then
+      return nil, "Environment variable " .. search_engine.api_url_name .. " is not set"
+    end
+    local curl_opts = {
+      headers = {
+        ["Content-Type"] = "application/json",
+        ["Authorization"] = "Bearer " .. api_key,
+      },
+      body = vim.json.encode(vim.tbl_deep_extend("force", {
+        model = "moonshot-v1-8k",
+        messages = {
+          { role = "user", content = "Search the web: " .. input.query },
+        },
+        stream = false,
+      }, search_engine.extra_request_body)),
+    }
+    if proxy then curl_opts.proxy = proxy end
+    local resp = curl.post(moonshot_api_url .. "/v1/chat/completions", curl_opts)
+    if resp.status ~= 200 then return nil, "Error: " .. resp.body end
+    local jsn = vim.json.decode(resp.body)
+    return search_engine.format_response_body(jsn)
   end
   return nil, "Error: No search engine found"
 end
