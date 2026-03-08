@@ -27,6 +27,7 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException
 
 # Local application imports
 from libs.configs import BASE_DATA_DIR, CHROMA_PERSIST_DIR
+from libs.contextual_chunking import split_documents_with_context
 from libs.db import init_db
 from libs.logger import logger
 from libs.utils import (
@@ -38,9 +39,6 @@ from libs.utils import (
     path_to_uri,
     uri_to_path,
 )
-from libs.contextual_chunking import split_documents_with_context
-from libs.context_compression import compress_context
-from libs.hybrid_retrieval import HybridRetriever
 from llama_index.core import (
     Settings,
     SimpleDirectoryReader,
@@ -48,7 +46,6 @@ from llama_index.core import (
     VectorStoreIndex,
     load_index_from_storage,
 )
-from llama_index.core.node_parser import CodeSplitter
 from llama_index.core.postprocessor import MetadataReplacementPostProcessor
 from llama_index.core.schema import Document
 from llama_index.vector_stores.chroma import ChromaVectorStore
@@ -58,7 +55,6 @@ from providers.factory import initialize_embed_model, initialize_llm_model
 from pydantic import BaseModel, Field
 from services.indexing_history import indexing_history_service
 from services.resource import resource_service
-from tree_sitter_language_pack import SupportedLanguage, get_parser
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
@@ -67,6 +63,7 @@ if TYPE_CHECKING:
 
     from llama_index.core.schema import NodeWithScore, QueryBundle
     from models.indexing_history import IndexingHistory
+    from tree_sitter_language_pack import SupportedLanguage
     from watchdog.observers.api import BaseObserver
 
 # Lock file for leader election
