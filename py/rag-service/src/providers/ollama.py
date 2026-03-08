@@ -3,11 +3,11 @@
 
 from typing import Any
 
+from libs.logger import logger
 from llama_index.core.base.embeddings.base import BaseEmbedding
 from llama_index.core.llms.llm import LLM
 from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.llms.ollama import Ollama
-from libs.logger import logger
 
 
 def initialize_embed_model(
@@ -39,14 +39,7 @@ def initialize_embed_model(
     # Set sensible defaults for GPU optimization
     # num_gpu=1 ensures we use the system GPU without spawning additional processes
     # request_timeout is increased for embedding operations which can be slower
-    ollama_params = {
-        "model_name": embed_model,
-        "base_url": embed_endpoint,
-        "request_timeout": 120.0,  # Increased timeout for embeddings
-    }
-
-    # Merge with user-provided extras, allowing overrides
-    ollama_params.update(embed_extra)
+    request_timeout = embed_extra.pop("request_timeout", 120.0)
 
     logger.info(
         "Initializing Ollama embedding model: %s at %s (GPU optimized)",
@@ -54,7 +47,12 @@ def initialize_embed_model(
         embed_endpoint,
     )
 
-    return OllamaEmbedding(**ollama_params)
+    return OllamaEmbedding(
+        model_name=embed_model,
+        base_url=embed_endpoint,
+        request_timeout=request_timeout,
+        **embed_extra,
+    )
 
 
 def initialize_llm_model(
@@ -88,15 +86,8 @@ def initialize_llm_model(
     # Set sensible defaults for GPU optimization
     # num_gpu=1 ensures we use the system GPU without spawning additional processes
     # request_timeout is increased for LLM operations which can be slower
-    ollama_params = {
-        "model": llm_model,
-        "base_url": llm_endpoint,
-        "request_timeout": 300.0,  # Increased timeout for LLM operations
-        "temperature": 0.7,
-    }
-
-    # Merge with user-provided extras, allowing overrides
-    ollama_params.update(llm_extra)
+    request_timeout = llm_extra.pop("request_timeout", 300.0)
+    temperature = llm_extra.pop("temperature", 0.7)
 
     logger.info(
         "Initializing Ollama LLM model: %s at %s (GPU optimized)",
@@ -104,4 +95,10 @@ def initialize_llm_model(
         llm_endpoint,
     )
 
-    return Ollama(**ollama_params)
+    return Ollama(
+        model=llm_model,
+        base_url=llm_endpoint,
+        request_timeout=request_timeout,
+        temperature=temperature,
+        **llm_extra,
+    )
