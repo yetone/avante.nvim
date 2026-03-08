@@ -811,6 +811,95 @@ def scan_directory(directory: Path) -> list[str]:
     """Scan directory and return a list of matched files."""
     spec = get_pathspec(directory)
 
+    # Directories to exclude from scanning (dependencies, build artifacts, caches, etc.)
+    excluded_dirs = {
+        # Version control
+        ".git",
+        ".svn",
+        ".hg",
+        ".bzr",
+        # Python
+        "__pycache__",
+        ".pytest_cache",
+        ".mypy_cache",
+        ".ruff_cache",
+        ".tox",
+        ".nox",
+        ".venv",
+        "venv",
+        "env",
+        "ENV",
+        ".env",
+        "virtualenv",
+        ".Python",
+        "pip-wheel-metadata",
+        ".eggs",
+        "*.egg-info",
+        "dist",
+        "build",
+        "*.egg",
+        # Node.js
+        "node_modules",
+        ".npm",
+        ".yarn",
+        ".pnp",
+        "bower_components",
+        # Ruby
+        ".bundle",
+        "vendor/bundle",
+        # Java
+        "target",
+        ".gradle",
+        ".m2",
+        # .NET
+        "bin",
+        "obj",
+        "packages",
+        # Go
+        "vendor",
+        # Rust
+        "target",
+        # IDEs and editors
+        ".idea",
+        ".vscode",
+        ".vs",
+        ".eclipse",
+        ".settings",
+        "*.swp",
+        "*.swo",
+        "*~",
+        # OS
+        ".DS_Store",
+        "Thumbs.db",
+        # Caches and temp
+        ".cache",
+        "cache",
+        ".temp",
+        "temp",
+        "tmp",
+        ".tmp",
+        # Build outputs
+        "out",
+        "output",
+        ".next",
+        ".nuxt",
+        ".output",
+        # Coverage
+        "coverage",
+        ".coverage",
+        "htmlcov",
+        ".nyc_output",
+        # Documentation builds
+        "_build",
+        ".docusaurus",
+        "site",
+        # Other
+        ".terraform",
+        ".serverless",
+        ".vercel",
+        ".netlify",
+    }
+
     binary_extensions = [
         # Images
         ".png",
@@ -917,7 +1006,10 @@ def scan_directory(directory: Path) -> list[str]:
 
     matched_files = []
 
-    for root, _, files in os.walk(directory):
+    for root, dirs, files in os.walk(directory):
+        # Remove excluded directories from dirs list to prevent os.walk from descending into them
+        dirs[:] = [d for d in dirs if d not in excluded_dirs]
+
         file_paths = [str(Path(root) / file) for file in files]
         for file in file_paths:
             file_path = Path(file)
