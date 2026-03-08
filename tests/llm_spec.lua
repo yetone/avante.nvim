@@ -175,8 +175,12 @@ describe("generate_prompts", function()
     -- First call
     local result1 = llm.generate_prompts(opts)
     local instruction_message_count1 = 0
-    for _, msg in ipairs(result1.session_ctx.messages) do
-      if msg.role == "user" and msg.content == "Test instructions" then
+    for _, msg in ipairs(result1.messages) do
+      if
+        msg.role == "user"
+        and type(msg.content) == "string"
+        and string.find(msg.content, "Test instructions", 1, true)
+      then
         instruction_message_count1 = instruction_message_count1 + 1
       end
     end
@@ -184,8 +188,12 @@ describe("generate_prompts", function()
     -- Second call with same opts
     local result2 = llm.generate_prompts(opts)
     local instruction_message_count2 = 0
-    for _, msg in ipairs(result2.session_ctx.messages) do
-      if msg.role == "user" and msg.content == "Test instructions" then
+    for _, msg in ipairs(result2.messages) do
+      if
+        msg.role == "user"
+        and type(msg.content) == "string"
+        and string.find(msg.content, "Test instructions", 1, true)
+      then
         instruction_message_count2 = instruction_message_count2 + 1
       end
     end

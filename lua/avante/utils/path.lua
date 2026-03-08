@@ -1,5 +1,4 @@
-local OS_NAME = vim.uv.os_uname().sysname ---@type string|nil
-local IS_WIN = OS_NAME == "Windows_NT" ---@type boolean
+local IS_WIN = require("avante.utils.platform").platform == "windows" ---@type boolean
 
 local SEP = IS_WIN and "\\" or "/" ---@type string
 
