@@ -89,6 +89,10 @@ M.func = vim.schedule_wrap(function(input, opts)
     model = provider_conf.model,
     messages = {
       {
+        role = "system",
+        content = "You are a code editing assistant. You will receive the original code, instructions, and an update snippet. Apply the update to the original code and return ONLY the complete updated file content. Do not include any explanations, markdown formatting, code fences, or additional text. Output nothing but the raw updated file content.",
+      },
+      {
         role = "user",
         content = "<instructions>"
           .. input.instructions
@@ -215,11 +219,33 @@ M.func = vim.schedule_wrap(function(input, opts)
         return
       end
 
+      local new_content = jsn.choices[1].message.content or ""
+
+      -- Sanity check: reject obvious refusals or garbage responses
+      local lower_content = new_content:lower()
+      if
+        #new_content < (#original_code * 0.3)
+        or lower_content:match("^%s*i'm sorry")
+        or lower_content:match("^%s*i cannot")
+        or lower_content:match("^%s*sorry,")
+        or lower_content:match("^%s*```")
+      then
+        on_complete(
+          false,
+          "Fast apply model returned an invalid response (possible refusal or truncation). "
+            .. "Response length: "
+            .. #new_content
+            .. " vs original: "
+            .. #original_code
+        )
+        return
+      end
+
       local str_replace = require("avante.llm_tools.str_replace")
       local new_input = {
         path = input.path,
         old_str = original_code,
-        new_str = jsn.choices[1].message.content,
+        new_str = new_content,
       }
       str_replace.func(new_input, opts)
     end)

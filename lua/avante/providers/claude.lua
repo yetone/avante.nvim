@@ -332,6 +332,29 @@ function M:parse_messages(opts)
     messages[#messages].content = message_content
   end
 
+  -- Claude Opus 4.6+ does not support assistant message prefill
+  -- Ensure conversation does not end with an assistant message
+  if #messages > 0 and messages[#messages].role == self.role_map["assistant"] then
+    local last_msg = messages[#messages]
+    local has_content = false
+    
+    -- Check if the assistant message has any actual content
+    for _, item in ipairs(last_msg.content) do
+      if item.type == "text" and item.text and item.text ~= "" then
+        has_content = true
+        break
+      elseif item.type == "tool_use" then
+        has_content = true
+        break
+      end
+    end
+    
+    -- Remove empty trailing assistant messages to prevent prefill error
+    if not has_content then
+      table.remove(messages, #messages)
+    end
+  end
+
   return messages
 end
 

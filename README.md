@@ -1136,6 +1136,29 @@ Morph provides different models optimized for different use cases:
 | `morph-v3-large` | 2500+ tok/sec     | 98%      | 16k tokens    |
 | `auto`           | 2500-4500 tok/sec | 98%      | 16k tokens    |
 
+### Using a Local Model Instead of Morph
+
+Fast apply is hardcoded to the `morph` provider name. You can override it to point at any OpenAI-compatible endpoint (e.g., a local Ollama instance) by using `__inherited_from`:
+
+```lua
+providers = {
+  morph = {
+    __inherited_from = "openai",
+    endpoint = "http://127.0.0.1:11435/v1",  -- Ollama on a dedicated port
+    model = "qwen2.5-coder:14b",
+    api_key_name = "",
+    timeout = 30000,
+    extra_request_body = { temperature = 0 },
+  },
+}
+```
+
+Run a dedicated Ollama instance for fast apply to avoid contention with other models:
+
+```bash
+OLLAMA_HOST=0.0.0.0:11435 ollama serve
+```
+
 ### How It Works
 
 When Fast Apply is enabled and a Morph provider is configured, avante.nvim will:
@@ -1339,33 +1362,92 @@ After changing the rag_service configuration, you need to manually delete the ra
 
 ### Using Ollama with RAG Service
 
-To use Ollama with GPU support:
+#### No GPU (CPU-only)
+
+Use the default RAG service image without GPU flags:
 
 ```lua
 rag_service = {
   enabled = true,
-  docker_extra_args = "--gpus all",  -- Enable GPU
   llm = {
     provider = "ollama",
-    endpoint = "http://localhost:11434",
-    model = "llama3.2",
-    extra = { num_gpu = 1, request_timeout = 300.0 },
+    endpoint = "http://host.docker.internal:11434",
+    model = "llama3.2:3b",
   },
   embed = {
     provider = "ollama",
-    endpoint = "http://localhost:11434",
-    model = "nomic-embed-text",
-    extra = { num_gpu = 1, request_timeout = 120.0 },
+    endpoint = "http://host.docker.internal:11434",
+    model = "mxbai-embed-large",
   },
+  docker_extra_args = "--add-host=host.docker.internal:host-gateway",
 }
 ```
 
-For better performance, run separate Ollama instances on different ports (e.g., 11434 for LLM, 11436 for embeddings):
+> **Linux note:** `--add-host=host.docker.internal:host-gateway` is required on Linux so the Docker container can reach Ollama on the host. macOS and Windows Docker Desktop provide this automatically.
+
+#### Single GPU
+
+Build and use the GPU-optimized image:
 
 ```bash
-OLLAMA_HOST=0.0.0.0:11436 ollama serve  # Terminal 1
-ollama serve                             # Terminal 2 (default port 11434)
+cd py/rag-service && bash build-docker.sh  # builds avante-rag-service:gpu-optimized
 ```
+
+```lua
+rag_service = {
+  enabled = true,
+  image = "avante-rag-service:gpu-optimized",
+  llm = {
+    provider = "ollama",
+    endpoint = "http://host.docker.internal:11434",
+    model = "llama3.2:3b",
+    extra = { request_timeout = 300.0 },
+  },
+  embed = {
+    provider = "ollama",
+    endpoint = "http://host.docker.internal:11434",
+    model = "mxbai-embed-large",
+    extra = { request_timeout = 120.0 },
+  },
+  docker_extra_args = "--gpus all --add-host=host.docker.internal:host-gateway",
+}
+```
+
+#### Multi-GPU
+
+Use the GPU-optimized image with separate Ollama instances to distribute work across GPUs:
+
+```bash
+# Instance 1 — LLM on GPU 0
+CUDA_VISIBLE_DEVICES=0 OLLAMA_HOST=0.0.0.0:11434 ollama serve
+
+# Instance 2 — Embeddings on GPU 1
+CUDA_VISIBLE_DEVICES=1 OLLAMA_HOST=0.0.0.0:11436 ollama serve
+```
+
+```lua
+rag_service = {
+  enabled = true,
+  image = "avante-rag-service:gpu-optimized",
+  llm = {
+    provider = "ollama",
+    endpoint = "http://host.docker.internal:11434",  -- GPU 0
+    model = "llama3.2:3b",
+  },
+  embed = {
+    provider = "ollama",
+    endpoint = "http://host.docker.internal:11436",  -- GPU 1
+    model = "mxbai-embed-large",
+  },
+  docker_extra_args = "--gpus all --add-host=host.docker.internal:host-gateway",
+}
+```
+
+**GPU grouping notes:**
+
+- **NVIDIA**: GPUs of the same architecture (e.g., two RTX 4090s) can share a single Ollama instance — set `CUDA_VISIBLE_DEVICES=0,1` and run one process. Different architectures (e.g., RTX 3090 + RTX 4090) should each get their own instance.
+- **AMD (ROCm)**: Same principle — use `HIP_VISIBLE_DEVICES` instead of `CUDA_VISIBLE_DEVICES`. Same-generation GPUs can share one instance; mixed generations should be split.
+- You can also run a third dedicated instance for fast apply (see [Using a Local Model Instead of Morph](#using-a-local-model-instead-of-morph)).
 
 ## Web Search Engines
 
