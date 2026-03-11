@@ -994,21 +994,35 @@ local base_win_options = {
   statusline = vim.o.laststatus == 0 and " " or "",
 }
 
-function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl)
+function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl, opts)
+  opts = vim.tbl_extend("force", { include_model = false }, opts or {})
   if not Config.windows.sidebar_header.enabled then return end
   if not bufnr or not api.nvim_buf_is_valid(bufnr) then return end
 
   local function format_segment(text, highlight) return "%#" .. highlight .. "#" .. text end
 
+  local model_name = nil
+  if opts.include_model and Config.windows.sidebar_header.include_model then
+    model_name = Config.provider .. " | " .. Config.providers[Config.provider].model
+  end
+
   if Config.windows.sidebar_header.rounded then
     header_text = format_segment(Utils.icon("", "『"), reverse_hl)
       .. format_segment(header_text, hl)
       .. format_segment(Utils.icon("", "』"), reverse_hl)
+
+    if model_name and model_name ~= "" then
+      header_text = header_text
+        .. " "
+        .. format_segment(Utils.icon("", "『"), reverse_hl)
+        .. format_segment(model_name, hl)
+        .. format_segment(Utils.icon("", "』"), reverse_hl)
+    end
   else
     header_text = format_segment(" " .. header_text .. " ", hl)
-  end
-  if Config.windows.sidebar_header.include_model then
-    header_text = header_text .. " " .. Config.providers[Config.provider].model
+    if model_name and model_name ~= "" then
+      header_text = header_text .. format_segment(" " .. model_name .. " ", hl)
+    end
   end
 
   local winbar_text
@@ -1033,7 +1047,8 @@ function Sidebar:render_result()
     self.containers.result.bufnr,
     header_text,
     Highlights.TITLE,
-    Highlights.REVERSED_TITLE
+    Highlights.REVERSED_TITLE,
+    { include_model = Config.windows.sidebar_header.include_model }
   )
 end
 
