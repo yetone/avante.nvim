@@ -439,9 +439,8 @@ function M.generate_prompts(opts)
     :filter(function(msg) return type(msg.content) ~= "string" or msg.content ~= "" end)
     :totable()
 
-  if opts.instructions ~= nil and opts.instructions ~= "" and not opts._instructions_added_to_messages then
+  if opts.instructions ~= nil and opts.instructions ~= "" then
     messages = vim.list_extend(messages, { { role = "user", content = opts.instructions } })
-    opts._instructions_added_to_messages = true
   end
 
   opts.session_ctx = opts.session_ctx or {}
