@@ -45,27 +45,27 @@ end
 
 function M.is_openrouter(url) return url:match("^https://openrouter%.ai/") end
 
-function M.is_mistral(url) return url:match("^https://api%.mistral%.ai/") end
+function M.is_mistral(url) return url and url:match("^https://api%.mistral%.ai/") end
 
 ---@param opts AvantePromptOptions
 function M.get_user_message(opts)
   vim.deprecate("get_user_message", "parse_messages", "0.1.0", "avante.nvim")
   return table.concat(
     vim
-      .iter(opts.messages)
-      :filter(function(_, value) return value == nil or value.role ~= "user" end)
-      :fold({}, function(acc, value)
-        acc = vim.list_extend({}, acc)
-        acc = vim.list_extend(acc, { value.content })
-        return acc
-      end),
+    .iter(opts.messages)
+    :filter(function(_, value) return value == nil or value.role ~= "user" end)
+    :fold({}, function(acc, value)
+      acc = vim.list_extend({}, acc)
+      acc = vim.list_extend(acc, { value.content })
+      return acc
+    end),
     "\n"
   )
 end
 
 function M.is_reasoning_model(model)
   return model
-    and (string.match(model, "^o%d+") ~= nil or (string.match(model, "gpt%-5") ~= nil and model ~= "gpt-5-chat"))
+      and (string.match(model, "^o%d+") ~= nil or (string.match(model, "gpt%-5") ~= nil and model ~= "gpt-5-chat"))
 end
 
 function M.set_allowed_params(provider_conf, request_body)
@@ -306,10 +306,10 @@ function M:parse_messages(opts)
   vim.iter(messages):each(function(message)
     local role = message.role
     if
-      role == prev_role
-      and role ~= "tool"
-      and prev_type ~= "function_call"
-      and prev_type ~= "function_call_output"
+        role == prev_role
+        and role ~= "tool"
+        and prev_type ~= "function_call"
+        and prev_type ~= "function_call_output"
     then
       if role == self.role_map["assistant"] then
         table.insert(final_messages, { role = self.role_map["user"], content = "Ok" })
@@ -345,7 +345,7 @@ function M:add_text_message(ctx, text, state, opts)
   if ctx.content == nil then ctx.content = "" end
   ctx.content = ctx.content .. text
   local content =
-    ctx.content:gsub("<tool_code>", ""):gsub("</tool_code>", ""):gsub("<tool_call>", ""):gsub("</tool_call>", "")
+      ctx.content:gsub("<tool_code>", ""):gsub("</tool_code>", ""):gsub("<tool_call>", ""):gsub("</tool_call>", "")
   ctx.content = content
   local msg = HistoryMessage:new("assistant", ctx.content, {
     state = state,
@@ -595,14 +595,14 @@ function M:parse_response(ctx, data_stream, _, opts)
         self.last_response_id = jsn.response.id
       end
       if
-        ctx.returned_think_start_tag ~= nil and (ctx.returned_think_end_tag == nil or not ctx.returned_think_end_tag)
+          ctx.returned_think_start_tag ~= nil and (ctx.returned_think_end_tag == nil or not ctx.returned_think_end_tag)
       then
         ctx.returned_think_end_tag = true
         if opts.on_chunk then
           if
-            ctx.last_think_content
-            and ctx.last_think_content ~= vim.NIL
-            and ctx.last_think_content:sub(-1) ~= "\n"
+              ctx.last_think_content
+              and ctx.last_think_content ~= vim.NIL
+              and ctx.last_think_content:sub(-1) ~= "\n"
           then
             opts.on_chunk("\n</think>\n")
           else
@@ -693,7 +693,7 @@ function M:parse_response(ctx, data_stream, _, opts)
     end
   elseif delta.content then
     if
-      ctx.returned_think_start_tag ~= nil and (ctx.returned_think_end_tag == nil or not ctx.returned_think_end_tag)
+        ctx.returned_think_start_tag ~= nil and (ctx.returned_think_end_tag == nil or not ctx.returned_think_end_tag)
     then
       ctx.returned_think_end_tag = true
       if opts.on_chunk then

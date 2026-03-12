@@ -36,14 +36,16 @@ end
 ---@param model string The model ID or inference profile ARN
 ---@return string The detected model type (e.g., "claude")
 local function detect_model_type(model)
-  -- Check for Claude/Anthropic models
-  if model:match("anthropic") or model:match("claude") then return "claude" end
+   -- Check for Claude/Anthropic models
+   if model:match("anthropic") or model:match("claude") then return "claude" end
 
-  -- For inference profile ARNs, default to claude
-  -- as it's the most common use case for Bedrock inference profiles
-  if model:match("^arn:aws:bedrock:") then return "claude" end
+  -- GPT-style models (e.g., Bedrock-hosted OpenAI-compatible models)
+  if model:match("gpt") or model:match("openai") then return "openai" end
 
-  return model
+   -- For inference profile ARNs, default to claude as it's the most common
+   if model:match("^arn:aws:bedrock:") then return "claude" end
+
+   return model
 end
 
 function M.load_model_handler()
