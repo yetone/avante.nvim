@@ -1066,6 +1066,7 @@ function M._stream_acp(opts)
           end
 
           if update.sessionUpdate == "tool_call" then
+            update.status = update.status or "pending"
             add_tool_call_message(update)
 
             local sidebar = require("avante").get()
@@ -1134,6 +1135,7 @@ function M._stream_acp(opts)
           end
 
           if update.sessionUpdate == "tool_call_update" then
+            update.status = update.status or "pending"
             local tool_call_message = tool_call_messages[update.toolCallId]
             if not tool_call_message then
               tool_call_message = History.Message:new("assistant", {
