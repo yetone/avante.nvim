@@ -176,43 +176,93 @@ end, {
 })
 cmd("ShowRepoMap", function() require("avante.repo_map").show() end, { desc = "avante: show repo map" })
 cmd("Models", function() require("avante.model_selector").open() end, { desc = "avante: show models" })
-cmd("ACPConfig", function()
-  local sidebar = require("avante").get(false)
-  if not sidebar or not sidebar.acp_client or not sidebar.acp_client.config_options then
-    require("avante.utils").warn("No ACP config options available")
+---Show a vim.ui.select picker for ACP config options of the given category.
+---If no ACP session exists yet, automatically creates one first.
+---@param category string "model" or "mode"
+---@param prompt_label string Display label for vim.ui.select
+local function acp_config_select(category, prompt_label)
+  if not Config.acp_providers[Config.provider] then
+    Utils.warn("Current provider is not an ACP provider")
     return
   end
-  local items = {}
-  local display = {}
-  for _, opt in ipairs(sidebar.acp_client.config_options) do
-    if opt.category == "thought_level" then goto continue end
-    for _, val in ipairs(opt.options) do
-      local prefix = val.value == opt.currentValue and "* " or "  "
-      local label = prefix .. "[" .. (opt.category or opt.id) .. "] " .. val.name
-      table.insert(display, label)
-      table.insert(items, { config_id = opt.id, value = val.value })
-    end
-    ::continue::
+  local sidebar = require("avante").get(false)
+  if not sidebar then
+    Utils.warn("Please open the Avante sidebar first")
+    return
   end
-  vim.ui.select(display, { prompt = "ACP Config> " }, function(_, idx)
-    if not idx then return end
-    local choice = items[idx]
-    sidebar.acp_client:set_config_option(
-      sidebar.chat_history.acp_session_id,
-      choice.config_id,
-      choice.value,
-      function(_, err)
-        vim.schedule(function()
-          if err then
-            require("avante.utils").error("Failed: " .. (err.message or ""))
-            return
-          end
-          require("avante.utils").info("ACP config updated")
-          if sidebar:is_open() then sidebar:render_result() end
-        end)
+
+  local function show_selector()
+    local client = sidebar.acp_client
+    if not client or not client.config_options then
+      Utils.warn("No ACP config options available")
+      return
+    end
+    local items = {}
+    local display = {}
+    for _, opt in ipairs(client.config_options) do
+      if opt.category == category and opt.options then
+        for _, val in ipairs(opt.options) do
+          local prefix = val.value == opt.currentValue and "* " or "  "
+          local label = prefix .. val.name
+          if val.description then label = label .. " - " .. val.description end
+          table.insert(display, label)
+          table.insert(items, { config_id = opt.id, value = val.value })
+        end
       end
-    )
-  end)
-end, { desc = "avante: ACP session config" })
+    end
+    if #items == 0 then
+      Utils.warn("No " .. category .. " options available from ACP agent")
+      return
+    end
+    vim.ui.select(display, { prompt = prompt_label }, function(_, idx)
+      if not idx then return end
+      local choice = items[idx]
+      client:set_config_option(
+        sidebar.chat_history.acp_session_id,
+        choice.config_id,
+        choice.value,
+        function(_, err)
+          vim.schedule(function()
+            if err then
+              Utils.error("Failed: " .. (err.message or ""))
+              return
+            end
+            Utils.info("ACP " .. category .. " updated")
+            if sidebar:is_open() then sidebar:render_result() end
+          end)
+        end
+      )
+    end)
+  end
+
+  -- If we already have config_options, show the selector immediately
+  if sidebar.acp_client and sidebar.acp_client.config_options then
+    show_selector()
+    return
+  end
+
+  -- No session yet — trigger ACP init by submitting an empty request
+  sidebar:handle_submit("")
+  -- Poll until config_options become available (timeout ~10s)
+  local attempts = 0
+  local timer = vim.uv.new_timer()
+  timer:start(200, 200, vim.schedule_wrap(function()
+    attempts = attempts + 1
+    if sidebar.acp_client and sidebar.acp_client.config_options then
+      timer:stop()
+      timer:close()
+      show_selector()
+    elseif attempts > 50 then
+      timer:stop()
+      timer:close()
+      Utils.warn("Timed out waiting for ACP session to initialize")
+    end
+  end))
+end
+
+cmd("ACPModels", function() acp_config_select("model", "ACP Model> ") end,
+  { desc = "avante: switch ACP model" })
+cmd("ACPModes", function() acp_config_select("mode", "ACP Mode> ") end,
+  { desc = "avante: switch ACP mode" })
 cmd("History", function() require("avante.api").select_history() end, { desc = "avante: show histories" })
 cmd("Stop", function() require("avante.api").stop() end, { desc = "avante: stop current AI request" })
