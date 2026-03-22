@@ -1003,7 +1003,17 @@ function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl, opts)
 
   local model_name = nil
   if opts.include_model and Config.windows.sidebar_header.include_model then
-    model_name = Config.provider .. " | " .. Config.providers[Config.provider].model
+    local provider_name = Config.provider
+    if Config.acp_providers[provider_name] then
+      model_name = provider_name
+    else
+      local provider_config = Config.providers[provider_name]
+      if provider_config and provider_config.model then
+        model_name = provider_name .. " | " .. provider_config.model
+      else
+        model_name = provider_name
+      end
+    end
   end
 
   if Config.windows.sidebar_header.rounded then
