@@ -176,5 +176,43 @@ end, {
 })
 cmd("ShowRepoMap", function() require("avante.repo_map").show() end, { desc = "avante: show repo map" })
 cmd("Models", function() require("avante.model_selector").open() end, { desc = "avante: show models" })
+cmd("ACPConfig", function()
+  local sidebar = require("avante").get(false)
+  if not sidebar or not sidebar.acp_client or not sidebar.acp_client.config_options then
+    require("avante.utils").warn("No ACP config options available")
+    return
+  end
+  local items = {}
+  local display = {}
+  for _, opt in ipairs(sidebar.acp_client.config_options) do
+    if opt.category == "thought_level" then goto continue end
+    for _, val in ipairs(opt.options) do
+      local prefix = val.value == opt.currentValue and "* " or "  "
+      local label = prefix .. "[" .. (opt.category or opt.id) .. "] " .. val.name
+      table.insert(display, label)
+      table.insert(items, { config_id = opt.id, value = val.value })
+    end
+    ::continue::
+  end
+  vim.ui.select(display, { prompt = "ACP Config> " }, function(_, idx)
+    if not idx then return end
+    local choice = items[idx]
+    sidebar.acp_client:set_config_option(
+      sidebar.chat_history.acp_session_id,
+      choice.config_id,
+      choice.value,
+      function(_, err)
+        vim.schedule(function()
+          if err then
+            require("avante.utils").error("Failed: " .. (err.message or ""))
+            return
+          end
+          require("avante.utils").info("ACP config updated")
+          if sidebar:is_open() then sidebar:render_result() end
+        end)
+      end
+    )
+  end)
+end, { desc = "avante: ACP session config" })
 cmd("History", function() require("avante.api").select_history() end, { desc = "avante: show histories" })
 cmd("Stop", function() require("avante.api").stop() end, { desc = "avante: stop current AI request" })

@@ -124,13 +124,31 @@ local Utils = require("avante.utils")
 ---@class avante.acp.Plan
 ---@field entries avante.acp.PlanEntry[]
 
+---@class avante.acp.ConfigOptionValue
+---@field value string
+---@field name string
+---@field description string|nil
+
+---@class avante.acp.ConfigOption
+---@field id string
+---@field name string
+---@field description string|nil
+---@field category string|nil
+---@field type string
+---@field currentValue string
+---@field options avante.acp.ConfigOptionValue[]
+
+---@class avante.acp.ConfigOptionUpdate : avante.acp.BaseSessionUpdate
+---@field sessionUpdate "config_option_update"
+---@field configOptions avante.acp.ConfigOption[]
+
 ---@class avante.acp.AvailableCommand
 ---@field name string
 ---@field description string
 ---@field input? table<string, any>
 
 ---@class avante.acp.BaseSessionUpdate
----@field sessionUpdate "user_message_chunk" | "agent_message_chunk" | "agent_thought_chunk" | "tool_call" | "tool_call_update" | "plan" | "available_commands_update"
+---@field sessionUpdate "user_message_chunk" | "agent_message_chunk" | "agent_thought_chunk" | "tool_call" | "tool_call_update" | "plan" | "available_commands_update" | "config_option_update"
 
 ---@class avante.acp.UserMessageChunk : avante.acp.BaseSessionUpdate
 ---@field sessionUpdate "user_message_chunk"
@@ -188,6 +206,7 @@ local Utils = require("avante.utils")
 ---@field protocol_version number
 ---@field capabilities avante.acp.ClientCapabilities
 ---@field agent_capabilities avante.acp.AgentCapabilities|nil
+---@field config_options avante.acp.ConfigOption[]|nil
 ---@field config ACPConfig
 ---@field callbacks table<number, fun(result: table|nil, err: avante.acp.ACPError|nil)>
 ---@field debug_log_file file*|nil
@@ -245,6 +264,7 @@ function ACPClient:new(config)
     callbacks = {},
     transport = nil,
     config = config or {},
+    config_options = nil,
     state = "disconnected",
     reconnect_count = 0,
     heartbeat_timer = nil,
@@ -604,6 +624,10 @@ function ACPClient:_handle_session_update(params)
     return
   end
 
+  if update.sessionUpdate == "config_option_update" and update.configOptions then
+    self.config_options = update.configOptions
+  end
+
   if self.config.handlers and self.config.handlers.on_session_update then
     vim.schedule(function() self.config.handlers.on_session_update(update) end)
   end
@@ -794,6 +818,7 @@ function ACPClient:create_session(cwd, mcp_servers, callback)
       callback(nil, error)
       return
     end
+    self.config_options = result.configOptions
     callback(result.sessionId, nil)
   end)
 end
@@ -817,7 +842,36 @@ function ACPClient:load_session(session_id, cwd, mcp_servers, callback)
     sessionId = session_id,
     cwd = cwd,
     mcpServers = mcp_servers or {},
-  }, callback)
+  }, function(result, err)
+    if result and result.configOptions then
+      self.config_options = result.configOptions
+    end
+    callback(result, err)
+  end)
+end
+
+---Set a session config option (model, mode, etc.)
+---@param session_id string
+---@param config_id string
+---@param value string
+---@param callback fun(config_options: avante.acp.ConfigOption[]|nil, err: avante.acp.ACPError|nil)
+function ACPClient:set_config_option(session_id, config_id, value, callback)
+  callback = callback or function() end
+
+  self:_send_request("session/set_config_option", {
+    sessionId = session_id,
+    configId = config_id,
+    value = value,
+  }, function(result, err)
+    if err then
+      callback(nil, err)
+      return
+    end
+    if result and result.configOptions then
+      self.config_options = result.configOptions
+    end
+    callback(self.config_options, nil)
+  end)
 end
 
 ---Send prompt
