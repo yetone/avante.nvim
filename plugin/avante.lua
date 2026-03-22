@@ -217,11 +217,27 @@ local function acp_config_select(category, prompt_label)
     vim.ui.select(display, { prompt = prompt_label }, function(_, idx)
       if not idx then return end
       local choice = items[idx]
-      client:set_config_option(
-        sidebar.chat_history.acp_session_id,
-        choice.config_id,
-        choice.value,
-        function(_, err)
+      local session_id = sidebar.chat_history.acp_session_id
+
+      if client._legacy_api then
+        -- Legacy API: use set_mode for mode, warn for model
+        if choice.config_id == "mode" then
+          client:set_mode(session_id, choice.value, function(_, err)
+            vim.schedule(function()
+              if err then
+                Utils.error("Failed: " .. (err.message or ""))
+                return
+              end
+              Utils.info("ACP mode updated")
+              if sidebar:is_open() then sidebar:render_result() end
+            end)
+          end)
+        elseif choice.config_id == "model" then
+          Utils.warn("Model switching is not supported by this ACP agent")
+        end
+      else
+        -- New configOptions API
+        client:set_config_option(session_id, choice.config_id, choice.value, function(_, err)
           vim.schedule(function()
             if err then
               Utils.error("Failed: " .. (err.message or ""))
@@ -230,8 +246,8 @@ local function acp_config_select(category, prompt_label)
             Utils.info("ACP " .. category .. " updated")
             if sidebar:is_open() then sidebar:render_result() end
           end)
-        end
-      )
+        end)
+      end
     end)
   end
 
@@ -252,6 +268,13 @@ local function acp_config_select(category, prompt_label)
       timer:stop()
       timer:close()
       show_selector()
+    elseif sidebar.acp_client and sidebar.acp_client:is_ready()
+      and sidebar.chat_history and sidebar.chat_history.acp_session_id
+      and not sidebar.acp_client.config_options then
+      -- Session created but agent provides no config options at all
+      timer:stop()
+      timer:close()
+      Utils.warn("No " .. category .. " options available from this ACP agent")
     elseif attempts > 50 then
       timer:stop()
       timer:close()

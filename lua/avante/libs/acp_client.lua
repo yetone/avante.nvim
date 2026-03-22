@@ -148,7 +148,7 @@ local Utils = require("avante.utils")
 ---@field input? table<string, any>
 
 ---@class avante.acp.BaseSessionUpdate
----@field sessionUpdate "user_message_chunk" | "agent_message_chunk" | "agent_thought_chunk" | "tool_call" | "tool_call_update" | "plan" | "available_commands_update" | "config_option_update"
+---@field sessionUpdate "user_message_chunk" | "agent_message_chunk" | "agent_thought_chunk" | "tool_call" | "tool_call_update" | "plan" | "available_commands_update" | "config_option_update" | "current_mode_update"
 
 ---@class avante.acp.UserMessageChunk : avante.acp.BaseSessionUpdate
 ---@field sessionUpdate "user_message_chunk"
@@ -207,6 +207,7 @@ local Utils = require("avante.utils")
 ---@field capabilities avante.acp.ClientCapabilities
 ---@field agent_capabilities avante.acp.AgentCapabilities|nil
 ---@field config_options avante.acp.ConfigOption[]|nil
+---@field _legacy_api boolean|nil Whether agent uses old modes/models API instead of configOptions
 ---@field config ACPConfig
 ---@field callbacks table<number, fun(result: table|nil, err: avante.acp.ACPError|nil)>
 ---@field debug_log_file file*|nil
@@ -628,6 +629,18 @@ function ACPClient:_handle_session_update(params)
     self.config_options = update.configOptions
   end
 
+  -- Handle legacy current_mode_update notification
+  if update.sessionUpdate == "current_mode_update" and update.modeId then
+    if self.config_options then
+      for _, opt in ipairs(self.config_options) do
+        if opt.id == "mode" and opt.category == "mode" then
+          opt.currentValue = update.modeId
+          break
+        end
+      end
+    end
+  end
+
   if self.config.handlers and self.config.handlers.on_session_update then
     vim.schedule(function() self.config.handlers.on_session_update(update) end)
   end
@@ -818,7 +831,7 @@ function ACPClient:create_session(cwd, mcp_servers, callback)
       callback(nil, error)
       return
     end
-    self.config_options = result.configOptions
+    self:_convert_legacy_session_fields(result)
     callback(result.sessionId, nil)
   end)
 end
@@ -843,8 +856,8 @@ function ACPClient:load_session(session_id, cwd, mcp_servers, callback)
     cwd = cwd,
     mcpServers = mcp_servers or {},
   }, function(result, err)
-    if result and result.configOptions then
-      self.config_options = result.configOptions
+    if result then
+      self:_convert_legacy_session_fields(result)
     end
     callback(result, err)
   end)
@@ -872,6 +885,96 @@ function ACPClient:set_config_option(session_id, config_id, value, callback)
     end
     callback(self.config_options, nil)
   end)
+end
+
+---Set session mode via legacy session/set_mode API
+---@param session_id string
+---@param mode_id string
+---@param callback fun(config_options: avante.acp.ConfigOption[]|nil, err: avante.acp.ACPError|nil)
+function ACPClient:set_mode(session_id, mode_id, callback)
+  callback = callback or function() end
+
+  self:_send_request("session/set_mode", {
+    sessionId = session_id,
+    modeId = mode_id,
+  }, function(result, err)
+    if err then
+      callback(nil, err)
+      return
+    end
+    -- Update the synthetic mode config option's currentValue locally
+    if self.config_options then
+      for _, opt in ipairs(self.config_options) do
+        if opt.id == "mode" and opt.category == "mode" then
+          opt.currentValue = mode_id
+          break
+        end
+      end
+    end
+    callback(self.config_options, nil)
+  end)
+end
+
+---Convert legacy session fields (modes/models) to synthetic config_options.
+---If result.configOptions exists, use it directly and clear _legacy_api flag.
+---Otherwise, build synthetic ConfigOption[] from result.modes and result.models.
+---@param result table The session/new or session/load result
+function ACPClient:_convert_legacy_session_fields(result)
+  if result.configOptions then
+    self.config_options = result.configOptions
+    self._legacy_api = false
+    return
+  end
+
+  local config_options = {}
+
+  -- Convert legacy modes field
+  if result.modes and result.modes.availableModes then
+    local options = {}
+    for _, m in ipairs(result.modes.availableModes) do
+      table.insert(options, {
+        value = m.id,
+        name = m.name or m.id,
+        description = m.description,
+      })
+    end
+    table.insert(config_options, {
+      id = "mode",
+      name = "Mode",
+      category = "mode",
+      type = "select",
+      currentValue = result.modes.currentModeId or "",
+      options = options,
+    })
+  end
+
+  -- Convert legacy models field
+  if result.models and result.models.availableModels then
+    local options = {}
+    for _, m in ipairs(result.models.availableModels) do
+      table.insert(options, {
+        value = m.modelId,
+        name = m.name or m.modelId,
+        description = m.description,
+      })
+    end
+    table.insert(config_options, {
+      id = "model",
+      name = "Model",
+      category = "model",
+      type = "select",
+      currentValue = result.models.currentModelId or "",
+      options = options,
+    })
+  end
+
+  if #config_options > 0 then
+    self.config_options = config_options
+    self._legacy_api = true
+  else
+    self.config_options = nil
+    self._legacy_api = false
+  end
 end
 
 ---Send prompt

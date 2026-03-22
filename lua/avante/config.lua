@@ -256,7 +256,7 @@ M._defaults = {
     },
     ["claude-code"] = {
       command = "npx",
-      args = { "-y", "-g", "@zed-industries/claude-code-acp" },
+      args = { "-y", "-g", "@zed-industries/claude-agent-acp" },
       env = {
         NODE_NO_WARNINGS = "1",
         ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY"),
@@ -285,6 +285,10 @@ M._defaults = {
     },
     ["kimi-cli"] = {
       command = "kimi",
+      args = { "--acp" },
+    },
+    ["copilot-cli"] = {
+      command = "copilot",
       args = { "--acp" },
     },
   },
