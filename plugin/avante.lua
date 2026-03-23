@@ -271,30 +271,40 @@ local function acp_config_select(category, prompt_label)
   -- Poll until config_options become available (timeout ~10s)
   local attempts = 0
   local timer = vim.uv.new_timer()
-  timer:start(200, 200, vim.schedule_wrap(function()
-    attempts = attempts + 1
-    if sidebar.acp_client and sidebar.acp_client.config_options then
-      timer:stop()
-      timer:close()
-      show_selector()
-    elseif sidebar.acp_client and sidebar.acp_client:is_ready()
-      and sidebar.chat_history and sidebar.chat_history.acp_session_id
-      and not sidebar.acp_client.config_options then
-      -- Session created but agent provides no config options at all
-      timer:stop()
-      timer:close()
-      Utils.warn("No " .. category .. " options available from this ACP agent")
-    elseif attempts > 50 then
-      timer:stop()
-      timer:close()
-      Utils.warn("Timed out waiting for ACP session to initialize")
-    end
-  end))
+  timer:start(
+    200,
+    200,
+    vim.schedule_wrap(function()
+      attempts = attempts + 1
+      if sidebar.acp_client and sidebar.acp_client.config_options then
+        timer:stop()
+        timer:close()
+        show_selector()
+      elseif
+        sidebar.acp_client
+        and sidebar.acp_client:is_ready()
+        and sidebar.chat_history
+        and sidebar.chat_history.acp_session_id
+        and not sidebar.acp_client.config_options
+      then
+        -- Session created but agent provides no config options at all
+        timer:stop()
+        timer:close()
+        Utils.warn("No " .. category .. " options available from this ACP agent")
+      elseif attempts > 50 then
+        timer:stop()
+        timer:close()
+        Utils.warn("Timed out waiting for ACP session to initialize")
+      end
+    end)
+  )
 end
 
-cmd("ACPModels", function() acp_config_select("model", "ACP Agent Models> ") end,
-  { desc = "avante: switch ACP model" })
-cmd("ACPModes", function() acp_config_select("mode", "ACP Agent Modes> ") end,
-  { desc = "avante: switch ACP mode" })
+cmd(
+  "ACPModels",
+  function() acp_config_select("model", "ACP Agent Models> ") end,
+  { desc = "avante: switch ACP model" }
+)
+cmd("ACPModes", function() acp_config_select("mode", "ACP Agent Modes> ") end, { desc = "avante: switch ACP mode" })
 cmd("History", function() require("avante.api").select_history() end, { desc = "avante: show histories" })
 cmd("Stop", function() require("avante.api").stop() end, { desc = "avante: stop current AI request" })

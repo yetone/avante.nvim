@@ -1856,12 +1856,8 @@ local function render_chat_record_prefix(timestamp, provider, model, mode, reque
   local acp_provider = Config.acp_providers[provider]
   if acp_provider then
     res = "- Datetime: " .. timestamp .. "\n" .. "- ACP:      " .. provider
-    if model and model ~= "" and model ~= "unknown" then
-      res = res .. "\n" .. "- Model:    " .. model
-    end
-    if mode and mode ~= "" and mode ~= "unknown" then
-      res = res .. "\n" .. "- Mode:     " .. mode
-    end
+    if model and model ~= "" and model ~= "unknown" then res = res .. "\n" .. "- Model:    " .. model end
+    if mode and mode ~= "" and mode ~= "unknown" then res = res .. "\n" .. "- Mode:     " .. mode end
   else
     provider = provider or "unknown"
     model = model or "unknown"

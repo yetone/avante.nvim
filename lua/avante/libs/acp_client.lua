@@ -856,9 +856,7 @@ function ACPClient:load_session(session_id, cwd, mcp_servers, callback)
     cwd = cwd,
     mcpServers = mcp_servers or {},
   }, function(result, err)
-    if result then
-      self:_convert_legacy_session_fields(result)
-    end
+    if result then self:_convert_legacy_session_fields(result) end
     callback(result, err)
   end)
 end
@@ -880,9 +878,7 @@ function ACPClient:set_config_option(session_id, config_id, value, callback)
       callback(nil, err)
       return
     end
-    if result and result.configOptions then
-      self.config_options = result.configOptions
-    end
+    if result and result.configOptions then self.config_options = result.configOptions end
     callback(self.config_options, nil)
   end)
 end
