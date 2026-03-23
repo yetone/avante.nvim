@@ -915,6 +915,36 @@ function ACPClient:set_mode(session_id, mode_id, callback)
   end)
 end
 
+---Set session model via non-standard session/set_model API.
+---Some agents (e.g. OpenCode) support this even without configOptions.
+---Agents that don't support it will return -32601 (Method not found).
+---@param session_id string
+---@param model_id string
+---@param callback fun(config_options: avante.acp.ConfigOption[]|nil, err: avante.acp.ACPError|nil)
+function ACPClient:set_model(session_id, model_id, callback)
+  callback = callback or function() end
+
+  self:_send_request("session/set_model", {
+    sessionId = session_id,
+    modelId = model_id,
+  }, function(result, err)
+    if err then
+      callback(nil, err)
+      return
+    end
+    -- Update the synthetic model config option's currentValue locally
+    if self.config_options then
+      for _, opt in ipairs(self.config_options) do
+        if opt.id == "model" and opt.category == "model" then
+          opt.currentValue = model_id
+          break
+        end
+      end
+    end
+    callback(self.config_options, nil)
+  end)
+end
+
 ---Convert legacy session fields (modes/models) to synthetic config_options.
 ---If result.configOptions exists, use it directly and clear _legacy_api flag.
 ---Otherwise, build synthetic ConfigOption[] from result.modes and result.models.

@@ -233,7 +233,16 @@ local function acp_config_select(category, prompt_label)
             end)
           end)
         elseif choice.config_id == "model" then
-          Utils.warn("Model switching is not supported by this ACP agent")
+          client:set_model(session_id, choice.value, function(_, err)
+            vim.schedule(function()
+              if err then
+                Utils.warn("Model switching is not supported by this ACP agent")
+                return
+              end
+              Utils.info("ACP model updated")
+              if sidebar:is_open() then sidebar:render_result() end
+            end)
+          end)
         end
       else
         -- New configOptions API
@@ -283,9 +292,9 @@ local function acp_config_select(category, prompt_label)
   end))
 end
 
-cmd("ACPModels", function() acp_config_select("model", "ACP Model> ") end,
+cmd("ACPModels", function() acp_config_select("model", "ACP Agent Models> ") end,
   { desc = "avante: switch ACP model" })
-cmd("ACPModes", function() acp_config_select("mode", "ACP Mode> ") end,
+cmd("ACPModes", function() acp_config_select("mode", "ACP Agent Modes> ") end,
   { desc = "avante: switch ACP mode" })
 cmd("History", function() require("avante.api").select_history() end, { desc = "avante: show histories" })
 cmd("Stop", function() require("avante.api").stop() end, { desc = "avante: stop current AI request" })
