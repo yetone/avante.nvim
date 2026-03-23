@@ -285,7 +285,7 @@ M._defaults = {
     },
     ["kimi-cli"] = {
       command = "kimi",
-      args = { "--acp" },
+      args = { "acp" },
     },
     ["copilot-cli"] = {
       command = "copilot",
