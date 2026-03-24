@@ -48,7 +48,11 @@ function M.open(category, prompt_label)
       if not idx then return end
 
       local choice = items[idx]
-      local session_id = sidebar.chat_history.acp_session_id
+      local session_id = sidebar.chat_history and sidebar.chat_history.acp_session_id
+      if not session_id then
+        Utils.warn("ACP session is not initialized yet")
+        return
+      end
 
       if client._legacy_api then
         if choice.config_id == "mode" then
@@ -98,32 +102,34 @@ function M.open(category, prompt_label)
 
   local attempts = 0
   local timer = vim.uv.new_timer()
-  timer:start(
-    200,
-    200,
-    vim.schedule_wrap(function()
-      attempts = attempts + 1
-      if sidebar.acp_client and sidebar.acp_client.config_options then
-        timer:stop()
-        timer:close()
-        show_selector()
-      elseif
-        sidebar.acp_client
-        and sidebar.acp_client:is_ready()
-        and sidebar.chat_history
-        and sidebar.chat_history.acp_session_id
-        and not sidebar.acp_client.config_options
-      then
-        timer:stop()
-        timer:close()
-        Utils.warn("No " .. category .. " options available from this ACP agent")
-      elseif attempts > 50 then
-        timer:stop()
-        timer:close()
-        Utils.warn("Timed out waiting for ACP session to initialize")
-      end
-    end)
-  )
+  if timer then
+    timer:start(
+      200,
+      200,
+      vim.schedule_wrap(function()
+        attempts = attempts + 1
+        if sidebar.acp_client and sidebar.acp_client.config_options then
+          timer:stop()
+          timer:close()
+          show_selector()
+        elseif
+          sidebar.acp_client
+          and sidebar.acp_client:is_ready()
+          and sidebar.chat_history
+          and sidebar.chat_history.acp_session_id
+          and not sidebar.acp_client.config_options
+        then
+          timer:stop()
+          timer:close()
+          Utils.warn("No " .. category .. " options available from this ACP agent")
+        elseif attempts > 50 then
+          timer:stop()
+          timer:close()
+          Utils.warn("Timed out waiting for ACP session to initialize")
+        end
+      end)
+    )
+  end
 end
 
 function M.open_model() M.open("model", "ACP Agent Models> ") end
