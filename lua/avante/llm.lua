@@ -314,16 +314,7 @@ function M.generate_prompts(opts)
   local model_name = "unknown"
   local context_window = nil
   local use_react_prompt = false
-  if is_acp_provider then
-    if opts.acp_client and opts.acp_client.config_options then
-      for _, opt in ipairs(opts.acp_client.config_options) do
-        if opt.category == "model" then
-          model_name = opt.currentValue
-          break
-        end
-      end
-    end
-  else
+  if not is_acp_provider then
     local provider = opts.provider or Providers[Config.provider]
     model_name = provider.model or "unknown"
     local provider_conf = Providers.parse_config(provider)
