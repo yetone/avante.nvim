@@ -117,6 +117,12 @@ function H.keymaps()
   vim.keymap.set("n", "<Plug>(AvanteConflictNextConflict)", function() Diff.find_next("ours") end)
   vim.keymap.set("n", "<Plug>(AvanteConflictPrevConflict)", function() Diff.find_prev("ours") end)
   vim.keymap.set("n", "<Plug>(AvanteSelectModel)", function() require("avante.api").select_model() end)
+  vim.keymap.set("n", "<Plug>(AvanteSelectACPModel)", function() require("avante.api").select_acp_model() end, {
+    noremap = true,
+  })
+  vim.keymap.set("n", "<Plug>(AvanteSelectACPMode)", function() require("avante.api").select_acp_mode() end, {
+    noremap = true,
+  })
 
   if Config.behaviour.auto_set_keymaps then
     Utils.safe_keymap_set(
@@ -197,6 +203,18 @@ function H.keymaps()
       Config.mappings.select_history,
       function() require("avante.api").select_history() end,
       { desc = "avante: select history" }
+    )
+    Utils.safe_keymap_set(
+      "n",
+      Config.mappings.select_acp_model,
+      function() require("avante.api").select_acp_model() end,
+      { desc = "avante: select ACP model" }
+    )
+    Utils.safe_keymap_set(
+      "n",
+      Config.mappings.select_acp_mode,
+      function() require("avante.api").select_acp_mode() end,
+      { desc = "avante: select ACP mode" }
     )
 
     Utils.safe_keymap_set(

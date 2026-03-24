@@ -673,6 +673,8 @@ M._defaults = {
     },
     select_model = "<leader>a?", -- Select model command
     select_history = "<leader>ah", -- Select history command
+    select_acp_model = "<leader>aM", -- Select ACP agent model
+    select_acp_mode = "<leader>am", -- Select ACP agent mode
     confirm = {
       focus_window = "<C-w>f",
       code = "c",
