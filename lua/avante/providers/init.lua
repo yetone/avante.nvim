@@ -230,9 +230,8 @@ end
 function M.refresh(provider_name)
   require("avante.config").override({ provider = provider_name })
 
-  if Config.acp_providers[provider_name] then
-    Config.provider = provider_name
-  else
+  Config.provider = provider_name
+  if Config.acp_providers[provider_name] == nil then
     ---@type AvanteProviderFunctor | AvanteBedrockProviderFunctor
     local p = M[Config.provider]
     E.setup({ provider = p, refresh = true })
