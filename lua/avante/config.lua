@@ -908,7 +908,9 @@ local function apply_model_selection(config, model_name, provider_name)
         table.insert(target_provider.model_names, model_name_)
       end
     end
-    Utils.info(string.format("Using previously selected model: %s/%s", target_provider_name, model_name))
+    if not config.windows.sidebar_header.include_model then
+      Utils.info(string.format("Using previously selected model: %s/%s", target_provider_name, model_name))
+    end
   end
 end
 
