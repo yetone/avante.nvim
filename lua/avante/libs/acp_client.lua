@@ -328,6 +328,8 @@ function ACPClient:_create_stdio_transport()
     stdout = nil,
     --- @type uv.uv_process_t|nil
     process = nil,
+    --- @type number|nil
+    pid = nil,
   }
 
   --- @param transport_self avante.acp.ACPTransportInstance
@@ -338,6 +340,55 @@ function ACPClient:_create_stdio_transport()
       return true
     end
     return false
+  end
+
+  --- Get all child process IDs of a given PID
+  --- @param pid number
+  --- @return number[]
+  local function get_child_pids(pid)
+    if not pid then return {} end
+
+    local child_pids = {}
+
+    -- Use pgrep to find child processes (works on Unix-like systems)
+    local handle = io.popen("pgrep -P " .. pid .. " 2>/dev/null")
+    if handle then
+      local result = handle:read("*a")
+      handle:close()
+
+      -- Parse the output to get PIDs
+      for line in result:gmatch("[^\r\n]+") do
+        local child_pid = tonumber(line)
+        if child_pid then
+          table.insert(child_pids, child_pid)
+          -- Recursively get grandchildren
+          local grandchildren = get_child_pids(child_pid)
+          for _, grandchild_pid in ipairs(grandchildren) do
+            table.insert(child_pids, grandchild_pid)
+          end
+        end
+      end
+    end
+
+    return child_pids
+  end
+
+  --- Kill a process and all its children
+  --- @param pid number
+  --- @param signal number
+  local function kill_process_tree(pid, signal)
+    if not pid then return end
+
+    -- Get all child processes first
+    local child_pids = get_child_pids(pid)
+
+    -- Kill children first (bottom-up)
+    for i = #child_pids, 1, -1 do
+      pcall(function() vim.loop.kill(child_pids[i], signal) end)
+    end
+
+    -- Then kill the parent
+    pcall(function() vim.loop.kill(pid, signal) end)
   end
 
   --- @param transport_self avante.acp.ACPTransportInstance
@@ -400,6 +451,7 @@ function ACPClient:_create_stdio_transport()
     end
 
     transport_self.process = handle
+    transport_self.pid = pid
     transport_self.stdin = stdin
     transport_self.stdout = stdout
 
@@ -452,14 +504,21 @@ function ACPClient:_create_stdio_transport()
   function transport.stop(transport_self)
     if transport_self.process and not transport_self.process:is_closing() then
       local process = transport_self.process
+      local pid = transport_self.pid
       transport_self.process = nil
+      transport_self.pid = nil
 
       if not process then return end
 
-      -- Try to terminate gracefully
-      pcall(function() process:kill(15) end)
-      -- then force kill, it'll fail harmlessly if already exited
-      pcall(function() process:kill(9) end)
+      -- Kill the process tree (parent and all children)
+      if pid then
+        kill_process_tree(pid, 15) -- SIGTERM
+        -- Wait a bit and force kill if needed
+        vim.defer_fn(function()
+          kill_process_tree(pid, 9) -- SIGKILL
+        end, 100)
+      end
+
       process:close()
     end
     if transport_self.stdin then
@@ -583,6 +642,10 @@ function ACPClient:_handle_notification(message_id, method, params)
     self:_handle_read_text_file(message_id, params)
   elseif method == "fs/write_text_file" then
     self:_handle_write_text_file(message_id, params)
+  elseif method:find("^_kiro%.dev/") then
+    self:_debug_log(
+      "kiro.dev notification: " .. vim.inspect({ message_id = message_id, method = method, params = params })
+    )
   else
     vim.notify("Unknown notification method: " .. method, vim.log.levels.WARN)
   end

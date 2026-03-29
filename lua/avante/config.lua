@@ -269,6 +269,10 @@ M._defaults = {
       command = "goose",
       args = { "acp" },
     },
+    ["kiro"] = {
+      command = "kiro-cli",
+      args = { "acp" },
+    },
     ["codex"] = {
       command = "npx",
       args = { "-y", "-g", "@zed-industries/codex-acp" },
