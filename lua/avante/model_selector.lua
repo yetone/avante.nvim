@@ -110,7 +110,8 @@ function M.open()
     end)
     :totable()
 
-  local current_model = Config.providers[Config.provider].model
+  local current_provider = Config.providers[Config.provider]
+  local current_model = current_provider and current_provider.model
   local default_item = vim.iter(models):find(
     function(item) return item.model == current_model and item.provider_name == Config.provider end
   )
