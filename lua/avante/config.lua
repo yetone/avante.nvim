@@ -285,7 +285,7 @@ M._defaults = {
     },
     ["kimi-cli"] = {
       command = "kimi",
-      args = { "--acp" },
+      args = { "acp" },
     },
   },
   ---To add support for custom provider, follow the format below
