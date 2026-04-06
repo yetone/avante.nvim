@@ -262,11 +262,12 @@ function M.generate_prompts(opts)
   local project_root = Utils.root.get()
   local instruction_file_path = PPath:new(project_root, project_instruction_file)
 
-  if instruction_file_path:exists() then
+  if instruction_file_path:exists() and not opts._instructions_loaded then
     local lines = Utils.read_file_from_buf_or_disk(instruction_file_path:absolute())
     local instruction_content = lines and table.concat(lines, "\n") or ""
 
     if instruction_content then opts.instructions = (opts.instructions or "") .. "\n" .. instruction_content end
+    opts._instructions_loaded = true
   end
 
   local mode = opts.mode or Config.mode

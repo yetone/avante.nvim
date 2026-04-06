@@ -32,6 +32,7 @@ function M.is_env_set() return false end
 function M:parse_messages(opts)
   local messages = {}
   local provider_conf, _ = Providers.parse_config(self)
+  local pending_reasoning_content = nil
 
   local system_prompt = Prompts.get_ReAct_system_prompt(provider_conf, opts)
 
@@ -58,6 +59,15 @@ function M:parse_messages(opts)
               url = "data:" .. item.source.media_type .. ";" .. item.source.type .. "," .. item.source.data,
             },
           })
+        elseif item.type == "thinking" then
+          local thinking_content = item.thinking or ""
+          if thinking_content ~= "" then
+            if pending_reasoning_content == nil then
+              pending_reasoning_content = thinking_content
+            else
+              pending_reasoning_content = pending_reasoning_content .. thinking_content
+            end
+          end
         end
       end
       if not provider_conf.disable_tools then
@@ -93,7 +103,12 @@ function M:parse_messages(opts)
         for _, item in ipairs(content) do
           if type(item) == "table" and item.type == "text" then table.insert(text_content, item.text) end
         end
-        table.insert(messages, { role = self.role_map[msg.role], content = table.concat(text_content, "\n\n") })
+        local message = { role = self.role_map[msg.role], content = table.concat(text_content, "\n\n") }
+        if msg.role == "assistant" and pending_reasoning_content then
+          message.reasoning_content = pending_reasoning_content
+          pending_reasoning_content = nil
+        end
+        table.insert(messages, message)
       end
     end
   end)
@@ -174,6 +189,11 @@ function M:parse_stream_data(ctx, data, opts)
   end
 
   if jsn.message then
+    local thinking = jsn.message.thinking or jsn.message.reasoning_content
+    if thinking and thinking ~= "" then
+      Providers.openai:add_thinking_message(ctx, thinking, "generating", opts)
+      if opts.on_chunk then opts.on_chunk(thinking) end
+    end
     if jsn.message.content then
       local content = jsn.message.content
       if content and content ~= "" then
@@ -189,6 +209,9 @@ function M:parse_stream_data(ctx, data, opts)
   end
 
   if jsn.done then
+    if ctx.reasoning_content ~= nil and ctx.reasoning_content ~= "" then
+      Providers.openai:add_thinking_message(ctx, "", "generated", opts)
+    end
     Providers.openai:finish_pending_messages(ctx, opts)
     if ctx.has_tool_use or (ctx.tool_use_list and #ctx.tool_use_list > 0) then
       opts.on_stop({ reason = "tool_use" })

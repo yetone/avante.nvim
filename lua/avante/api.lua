@@ -256,6 +256,10 @@ end
 
 function M.select_model() require("avante.model_selector").open() end
 
+function M.select_acp_model() require("avante.acp_config_selector").open_model() end
+
+function M.select_acp_mode() require("avante.acp_config_selector").open_mode() end
+
 function M.select_history()
   local buf = vim.api.nvim_get_current_buf()
   require("avante.history_selector").open(buf, function(filename)

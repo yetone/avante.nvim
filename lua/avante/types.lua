@@ -105,6 +105,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field is_user_submission boolean | nil
 ---@field provider string | nil
 ---@field model string | nil
+---@field mode string | nil
 ---@field selected_code AvanteSelectedCode | nil
 ---@field selected_filepaths string[] | nil
 ---@field tool_use_logs string[] | nil
@@ -418,6 +419,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field update_snippets? string[]
 ---@field prompt_opts? AvantePromptOptions
 ---@field session_ctx? table
+---@field _instructions_loaded? boolean
 ---
 ---@class AvanteLLMToolHistory
 ---@field tool_result? AvanteLLMToolResult

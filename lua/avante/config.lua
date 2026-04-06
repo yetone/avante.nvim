@@ -8,7 +8,7 @@ local Utils = require("avante.utils")
 
 local function copilot_use_response_api(opts)
   local model = opts and opts.model
-  return type(model) == "string" and model:match("gpt%-5%-codex") ~= nil
+  return type(model) == "string" and model:match("gpt%-%d+%.?%d*%-codex") ~= nil
 end
 
 ---@class avante.file_selector.IParams
@@ -31,7 +31,7 @@ M._defaults = {
   ---@alias avante.Mode "agentic" | "legacy"
   ---@type avante.Mode
   mode = "agentic",
-  ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | "watsonx_code_assistant" | string
+  ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | "watsonx_code_assistant" | "mistral" | string
   ---@type avante.ProviderName
   provider = "claude",
   -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
@@ -503,6 +503,15 @@ M._defaults = {
       model = "qwen3-coder-plus",
       api_key_name = "DASHSCOPE_API_KEY",
     },
+    mistral = {
+      __inherited_from = "openai",
+      endpoint = "https://api.mistral.ai/v1",
+      model = "mistral-large-latest",
+      api_key_name = "MISTRAL_API_KEY",
+      extra_request_body = {
+        max_tokens = 4096, -- to avoid using the unsupported max_completion_tokens
+      },
+    },
   },
   ---Specify the special dual_boost mode
   ---1. enabled: Whether to enable dual_boost mode. Default to false.
@@ -664,6 +673,8 @@ M._defaults = {
     },
     select_model = "<leader>a?", -- Select model command
     select_history = "<leader>ah", -- Select history command
+    select_acp_model = "<leader>aM", -- Select ACP agent model
+    select_acp_mode = "<leader>am", -- Select ACP agent mode
     confirm = {
       focus_window = "<C-w>f",
       code = "c",
@@ -683,6 +694,7 @@ M._defaults = {
       enabled = true, -- true, false to enable/disable the header
       align = "center", -- left, center, right for title
       rounded = true,
+      include_model = false,
     },
     spinner = {
       editing = {
@@ -897,7 +909,9 @@ local function apply_model_selection(config, model_name, provider_name)
         table.insert(target_provider.model_names, model_name_)
       end
     end
-    Utils.info(string.format("Using previously selected model: %s/%s", target_provider_name, model_name))
+    if not config.windows.sidebar_header.include_model then
+      Utils.info(string.format("Using previously selected model: %s/%s", target_provider_name, model_name))
+    end
   end
 end
 

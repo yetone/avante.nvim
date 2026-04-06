@@ -44,12 +44,12 @@ if Config.support_paste_image() then
   end)(vim.paste)
 end
 
----@param n string
----@param c vim.api.keyset.user_command.callback
----@param o vim.api.keyset.user_command.opts
-local function cmd(n, c, o)
-  o = vim.tbl_extend("force", { nargs = 0 }, o or {})
-  api.nvim_create_user_command("Avante" .. n, c, o)
+---@param suffix string command suffix
+---@param callback vim.api.keyset.user_command.callback
+---@param opts vim.api.keyset.user_command.opts
+local function cmd(suffix, callback, opts)
+  opts = vim.tbl_extend("force", { nargs = 0 }, opts or {})
+  api.nvim_create_user_command("Avante" .. suffix, callback, opts)
 end
 
 local function ask_complete(prefix, _, _)
@@ -123,21 +123,15 @@ cmd(
 )
 cmd("Refresh", function() require("avante.api").refresh() end, { desc = "avante: refresh windows" })
 cmd("Focus", function() require("avante.api").focus() end, { desc = "avante: switch focus windows" })
-cmd("SwitchProvider", function(opts) require("avante.api").switch_provider(vim.trim(opts.args or "")) end, {
-  nargs = 1,
+cmd("SwitchProvider", function(_opts)
+  local providers = vim.tbl_keys(Config.providers)
+  vim.tbl_extend("force", providers, Config.acp_providers)
+  vim.ui.select(providers, { prompt = "Provider> " }, function(choice, idx)
+    if idx ~= nil then require("avante.api").switch_provider(vim.trim(choice)) end
+  end)
+end, {
+  nargs = 0,
   desc = "avante: switch provider",
-  complete = function(_, line, _)
-    local prefix = line:match("AvanteSwitchProvider%s*(.*)$") or ""
-    local providers = vim.tbl_filter(
-      ---@param key string
-      function(key) return key:find(prefix, 1, true) == 1 end,
-      vim.tbl_keys(Config.providers)
-    )
-    for acp_provider_name, _ in pairs(Config.acp_providers) do
-      if acp_provider_name:find(prefix, 1, true) == 1 then providers[#providers + 1] = acp_provider_name end
-    end
-    return providers
-  end,
 })
 cmd(
   "SwitchSelectorProvider",
@@ -182,5 +176,7 @@ end, {
 })
 cmd("ShowRepoMap", function() require("avante.repo_map").show() end, { desc = "avante: show repo map" })
 cmd("Models", function() require("avante.model_selector").open() end, { desc = "avante: show models" })
+cmd("ACPModels", function() require("avante.api").select_acp_model() end, { desc = "avante: switch ACP model" })
+cmd("ACPModes", function() require("avante.api").select_acp_mode() end, { desc = "avante: switch ACP mode" })
 cmd("History", function() require("avante.api").select_history() end, { desc = "avante: show histories" })
 cmd("Stop", function() require("avante.api").stop() end, { desc = "avante: stop current AI request" })

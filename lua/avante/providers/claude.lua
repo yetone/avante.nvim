@@ -581,9 +581,8 @@ function M:parse_curl_args(prompt_opts)
     headers["x-app"] = "cli"
     headers["x-client-request-id"] = random_uuid()
     headers["X-Claude-Code-Session-Id"] = get_session_uuid()
-    headers["x-anthropic-billing-header"] = string.format(
-      "cc_version=%s.%s; cc_entrypoint=cli;", CLI_VERSION, provider_conf.model
-    )
+    headers["x-anthropic-billing-header"] =
+      string.format("cc_version=%s.%s; cc_entrypoint=cli;", CLI_VERSION, provider_conf.model)
     -- OAuth beta headers - match current Claude CLI headers exactly
     headers["anthropic-beta"] =
       "claude-code-20250219,interleaved-thinking-2025-05-14,prompt-caching-scope-2026-01-05,context-management-2025-06-27,structured-outputs-2025-12-15,redact-thinking-2026-02-12,oauth-2025-04-20"
@@ -728,9 +727,7 @@ end
 
 function M.on_error(result)
   if result.status == 429 then
-    if result.body then
-      Utils.warn("Rate limit (429) response: " .. result.body, { once = true, title = "Avante" })
-    end
+    if result.body then Utils.warn("Rate limit (429) response: " .. result.body, { once = true, title = "Avante" }) end
     return
   end
   if not result.body then

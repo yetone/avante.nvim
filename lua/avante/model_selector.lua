@@ -110,7 +110,8 @@ function M.open()
     end)
     :totable()
 
-  local current_model = Config.providers[Config.provider].model
+  local current_provider = Config.providers[Config.provider]
+  local current_model = current_provider and current_provider.model
   local default_item = vim.iter(models):find(
     function(item) return item.model == current_model and item.provider_name == Config.provider end
   )
@@ -137,7 +138,13 @@ function M.open()
     local provider_cfg = Providers[choice.provider_name]
     if provider_cfg then provider_cfg.model = choice.model end
 
-    Utils.info("Switched to model: " .. choice.name)
+    if Config.windows.sidebar_header.include_model then
+      local sidebar = require("avante").get()
+      if sidebar and sidebar:is_open() then sidebar:render_result() end
+    else
+      Utils.info("Switched to model: " .. choice.name)
+    end
+
     -- Persist last used provider and model
     Config.save_last_model(choice.model, choice.provider_name)
   end
