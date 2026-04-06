@@ -25,6 +25,31 @@ local auth_endpoint = "https://claude.ai/oauth/authorize"
 local token_endpoint = "https://console.anthropic.com/v1/oauth/token"
 local client_id = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
 local claude_code_spoof_prompt = "You are Claude Code, Anthropic's official CLI for Claude."
+local CLI_VERSION = "2.1.90"
+
+-- Generate a stable session ID (persists for the lifetime of this Neovim process)
+local session_uuid = nil
+local function get_session_uuid()
+  if not session_uuid then
+    local random = math.random
+    local template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
+    session_uuid = string.gsub(template, "[xy]", function(c)
+      local v = (c == "x") and random(0, 0xf) or random(8, 0xb)
+      return string.format("%x", v)
+    end)
+  end
+  return session_uuid
+end
+
+-- Generate a random UUID for each request
+local function random_uuid()
+  local random = math.random
+  local template = "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx"
+  return string.gsub(template, "[xy]", function(c)
+    local v = (c == "x") and random(0, 0xf) or random(8, 0xb)
+    return string.format("%x", v)
+  end)
+end
 
 ---@private
 ---@class AvanteAnthropicState
@@ -550,12 +575,17 @@ function M:parse_curl_args(prompt_opts)
 
   if provider_conf.auth_type == "max" then
     local api_key = M.state.claude_token.access_token
-    headers["authorization"] = string.format("Bearer %s", api_key)
-    -- Match Claude CLI user-agent for OAuth requests (per opencode-anthropic-auth PR #11)
-    headers["user-agent"] = "claude-cli/2.1.2 (external, cli)"
-    -- OAuth beta headers - include claude-code identifier, exclude fine-grained-tool-streaming
+    headers["Authorization"] = string.format("Bearer %s", api_key)
+    -- Match Claude CLI fingerprint exactly
+    headers["user-agent"] = string.format("claude-cli/%s (external, cli)", CLI_VERSION)
+    headers["x-app"] = "cli"
+    headers["x-client-request-id"] = random_uuid()
+    headers["X-Claude-Code-Session-Id"] = get_session_uuid()
+    headers["x-anthropic-billing-header"] =
+      string.format("cc_version=%s.%s; cc_entrypoint=cli;", CLI_VERSION, provider_conf.model)
+    -- OAuth beta headers - match current Claude CLI headers exactly
     headers["anthropic-beta"] =
-      "oauth-2025-04-20,claude-code-20250219,interleaved-thinking-2025-05-14,prompt-caching-2024-07-31"
+      "claude-code-20250219,interleaved-thinking-2025-05-14,prompt-caching-scope-2026-01-05,context-management-2025-06-27,structured-outputs-2025-12-15,redact-thinking-2026-02-12,oauth-2025-04-20"
   else
     if P.env.require_api_key(provider_conf) then
       local api_key = self.parse_api_key()
@@ -660,6 +690,26 @@ function M:parse_curl_args(prompt_opts)
   local api_path = "/v1/messages"
   if provider_conf.auth_type == "max" then api_path = "/v1/messages?beta=true" end
 
+  -- For OAuth/Max, match the Claude CLI request body shape exactly
+  local extra_oauth_body = {}
+  if provider_conf.auth_type == "max" then
+    -- CLI sends metadata with user_id containing device_id and session_id
+    extra_oauth_body.metadata = {
+      user_id = vim.json.encode({
+        device_id = get_session_uuid(),
+        account_uuid = "",
+        session_id = get_session_uuid(),
+      }),
+    }
+    -- CLI always sends thinking config; without it, interleaved-thinking beta causes rejection
+    extra_oauth_body.thinking = {
+      type = "enabled",
+      budget_tokens = 10000,
+    }
+    -- With thinking enabled, temperature must not be set (defaults to 1)
+    request_body.temperature = nil
+  end
+
   return {
     url = Utils.url_join(provider_conf.endpoint, api_path),
     proxy = provider_conf.proxy,
@@ -671,12 +721,15 @@ function M:parse_curl_args(prompt_opts)
       messages = messages,
       tools = tools,
       stream = true,
-    }, request_body),
+    }, request_body, extra_oauth_body),
   }
 end
 
 function M.on_error(result)
-  if result.status == 429 then return end
+  if result.status == 429 then
+    if result.body then Utils.warn("Rate limit (429) response: " .. result.body, { once = true, title = "Avante" }) end
+    return
+  end
   if not result.body then
     return Utils.error("API request failed with status " .. result.status, { once = true, title = "Avante" })
   end
@@ -759,6 +812,10 @@ function M.authenticate()
         }),
         headers = {
           ["Content-Type"] = "application/json",
+          ["user-agent"] = string.format("claude-cli/%s (external, cli)", CLI_VERSION),
+          ["x-app"] = "cli",
+          ["x-client-request-id"] = random_uuid(),
+          ["X-Claude-Code-Session-Id"] = get_session_uuid(),
         },
       })
 
@@ -822,6 +879,10 @@ function M.refresh_token(async, force)
     body = vim.json.encode(body),
     headers = {
       ["Content-Type"] = "application/json",
+      ["user-agent"] = string.format("claude-cli/%s (external, cli)", CLI_VERSION),
+      ["x-app"] = "cli",
+      ["x-client-request-id"] = random_uuid(),
+      ["X-Claude-Code-Session-Id"] = get_session_uuid(),
     },
   }
 
