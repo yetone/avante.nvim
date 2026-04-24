@@ -1,1 +1,1 @@
-vim.wo.statusline=''
+vim.wo.statusline = ""
