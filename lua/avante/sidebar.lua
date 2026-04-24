@@ -816,7 +816,7 @@ local function minimize_snippet(original_lines, snippet)
   local snippet_content = snippet.content
   local snippet_lines = vim.split(snippet_content, "\n")
   ---@diagnostic disable-next-line: assign-type-mismatch
-  local patch = vim.diff( ---@type integer[][]
+  local patch = vim.text.diff( ---@type integer[][]
     original_snippet_content,
     snippet_content,
     ---@diagnostic disable-next-line: missing-fields
