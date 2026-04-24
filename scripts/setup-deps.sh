@@ -41,12 +41,8 @@ process_single_dep() {
         (
             cd "$repo_path"
             git fetch -q
-            if git show-ref --verify --quiet refs/remotes/origin/main; then
-                git reset -q --hard origin/main
-            elif git show-ref --verify --quiet refs/remotes/origin/master; then
-                git reset -q --hard origin/master
-            else
-                log "Could not find main or master branch for $repo_name"
+            if ! git reset -q --hard $(git symbolic-ref HEAD); then
+                log "Could not hardreset $repo_name to default ref"
                 return 1
             fi
         )
