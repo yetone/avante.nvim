@@ -49,7 +49,7 @@
 
             shellHook = ''
               echo "Welcome to the avante development environment!"
-              export DEPS_PATH="$PWD/target/tests"
+              export DEPS_PATH="target/tests"
             '';
           };
         }

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://raw.githubusercontent.com/sumneko/vscode-lua/master/setting/schema.json",
+  "runtime": {
+    "version": "LuaJIT",
+    "pathStrict": true
+  },
+  "workspace": {
+    "library": [
+      "$VIMRUNTIME/lua",
+      "$VIMRUNTIME/lua/vim/lsp",
+      "$PWD/lua",
+      "${3rd}/luv/library",
+      "$DEPS_PATH/luvit-meta/library"
+      ,
+      "target/tests/deps/neodev.nvim/lua",
+      "target/tests/deps/plenary.nvim/lua",
+      "target/tests/deps/nui.nvim/lua",
+      "target/tests/deps/dressing.nvim/lua",
+      "target/tests/deps/snacks.nvim/lua",
+      "target/tests/deps/mini.nvim/lua",
+      "target/tests/deps/telescope.nvim/lua",
+      "target/tests/deps/nvim-cmp/lua",
+      "target/tests/deps/fzf-lua/lua",
+      "target/tests/deps/nvim-web-devicons/lua",
+      "target/tests/deps/copilot.lua/lua",
+      "target/tests/deps/lazy.nvim/lua"
+    ],
+    "ignoreDir": [
+      "/lua"
+    ],
+    "checkThirdParty": false
+  }
+}

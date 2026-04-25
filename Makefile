@@ -117,6 +117,10 @@ luatest:
 .PHONY: lint
 lint: luacheck luastylecheck ruststylecheck rustlint
 
+.PHONY: .luarc.json
+.luarc.json:
+	./scripts/setup-deps.sh generate-luarc ./.luarc.json
+
 .PHONY: lua-typecheck
 lua-typecheck:
 	@./scripts/lua-typecheck.sh

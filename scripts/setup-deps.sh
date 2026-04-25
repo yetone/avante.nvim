@@ -215,7 +215,7 @@ install_nvim_runtime() {
 }
 
 generate_luarc() {
-    local luarc_path=${1:-"$PWD/target/tests/luarc.json"}
+    local luarc_path=${1:-"target/tests/luarc.json"}
     local luarc_template="luarc.json.template"
 
     log_verbose "Generating luarc file at: $luarc_path"
@@ -224,7 +224,7 @@ generate_luarc() {
     local lua_deps=""
     for dep in "${DEPS[@]}"; do
         repo_name="$(echo "$dep" | cut -d'/' -f2)"
-        lua_deps="${lua_deps},\n      \"\$DEPS_PATH/${repo_name}/lua\""
+        lua_deps="${lua_deps},\n      \"$DEPS_PATH/deps/${repo_name}/lua\""
     done
     sed "s#{{DEPS}}#${lua_deps}#" "$luarc_template" > "$luarc_path"
 }
