@@ -122,6 +122,24 @@ function H.get_oauth_token()
   end)
   if #paths == 0 then error("You must setup copilot with either copilot.lua or copilot.vim", 2) end
 
+  -- Note: copilot must be configured this way.
+  -- {
+  --   "zbirenbaum/copilot.lua",
+  --   config = function()
+  --     require("copilot").setup({
+  --       server_opts_overrides = {
+  --         settings = {
+  --           ["github"] = { -- For standard copilot.
+  --             endpoint = "https://api.githubcopilot.com",
+  --           },
+  --           ["github-enterprise"] = { -- For GHE enterprise copilot server.
+  --             uri = "https://my-enterprise.ghe.com",
+  --           },
+  --         },
+  --       },
+  --     })
+  --   end,
+  -- }
   local yason = paths[1]
   return vim
     .iter(
@@ -129,7 +147,7 @@ function H.get_oauth_token()
       ---@diagnostic disable-next-line: param-type-mismatch
       vim.json.decode(yason:read())
     )
-    :filter(function(k, _) return k:match("github.com") end)
+    :filter(function(k, _) return k:match("github%.com") or k:match("ghe%.com") end)
     ---@param acc {oauth_token: string}
     :fold({}, function(acc, _, v)
       acc.oauth_token = v.oauth_token
@@ -138,7 +156,23 @@ function H.get_oauth_token()
     .oauth_token
 end
 
-H.chat_auth_url = "https://api.github.com/copilot_internal/v2/token"
+local function _get_chat_auth_url()
+  local ok, provider_conf = pcall(Providers.get_config, "copilot")
+  if ok and provider_conf and provider_conf.endpoint then
+    local endpoint = provider_conf.endpoint
+    local host = endpoint:match("https?://([^/]+)")
+    if host and host:match("%.ghe%.com$") then
+      -- GHE Cloud: token exchange via api.<tenant>.ghe.com
+      local tenant = host:match("^(.+)%.ghe%.com$")
+      return "https://api." .. tenant .. ".ghe.com/copilot_internal/v2/token"
+    elseif host and not host:match("githubcopilot%.com$") and not host:match("^api%.github%.com$") then
+      -- Self-hosted GHES
+      return Utils.url_join(endpoint, "/copilot_internal/v2/token")
+    end
+  end
+  return "https://api.github.com/copilot_internal/v2/token"
+end
+H.chat_auth_url = _get_chat_auth_url()
 function H.chat_completion_url(base_url) return Utils.url_join(base_url, "/chat/completions") end
 function H.response_url(base_url) return Utils.url_join(base_url, "/responses") end
 
