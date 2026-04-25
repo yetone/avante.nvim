@@ -2,6 +2,7 @@ local api = vim.api
 local fn = vim.fn
 local lsp = vim.lsp
 
+local log = require("avante.utils.log")
 local LRUCache = require("avante.utils.lru_cache")
 local diff2search_replace = require("avante.utils.diff2search_replace")
 
@@ -420,6 +421,7 @@ end
 function M.error(msg, opts)
   opts = opts or {}
   opts.level = vim.log.levels.ERROR
+  log.error(msg)
   M.notify(msg, opts)
 end
 
@@ -428,6 +430,7 @@ end
 function M.info(msg, opts)
   opts = opts or {}
   opts.level = vim.log.levels.INFO
+  log.info(msg)
   M.notify(msg, opts)
 end
 
@@ -436,12 +439,11 @@ end
 function M.warn(msg, opts)
   opts = opts or {}
   opts.level = vim.log.levels.WARN
+  log.warn(msg)
   M.notify(msg, opts)
 end
 
 function M.debug(...)
-  if not require("avante.config").debug then return end
-
   local args = { ... }
   if #args == 0 then return end
 
@@ -462,6 +464,10 @@ function M.debug(...)
       table.insert(formated_args, vim.inspect(arg))
     end
   end
+
+  log.debug(formated_args)
+  -- print only on debug (todo: spellfix format(t)ed_args)
+  if not require("avante.config").debug then return end
   print(unpack(formated_args))
 end
 
