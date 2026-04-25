@@ -60,7 +60,7 @@ manage_plugin_dependencies() {
 }
 
 run_typechecker() {
-    local config_path=$1
+    local config_path="$1"
     if [ -z "$VIMRUNTIME" ]; then
         die "VIMRUNTIME is not set. Cannot proceed."
     fi
