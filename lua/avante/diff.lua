@@ -23,7 +23,7 @@ local M = {}
 -- Types
 -----------------------------------------------------------------------------//
 
----@alias ConflictSide "'ours'"|"'theirs'"|"'all_theirs'"|"'both'"|"'cursor'"|"'base'"|"'none'"
+---@alias ConflictSide "ours"|"theirs"|"all_theirs"|"both"|"cursor"|"base"|"none"
 
 --- @class AvanteConflictHighlights
 --- @field current string
@@ -306,6 +306,7 @@ local function register_cursor_move_events(bufnr)
       local position = get_current_position(bufnr)
       if (event.event == "CursorMoved" or event.event == "CursorMovedI") and position then
         show_keybinding_hint(position.current.range_start + 1)
+
         M.override_timeoutlen(bufnr)
       else
         api.nvim_buf_clear_namespace(bufnr, KEYBINDING_NAMESPACE, 0, -1)
