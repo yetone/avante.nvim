@@ -178,8 +178,6 @@ function M.shell_run_async(input_cmd, shell_cmd, on_complete, cwd, timeout)
   end
 end
 
----@see https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/util/toggle.lua
----
 ---@alias _ToggleSet fun(state: boolean): nil
 ---@alias _ToggleGet fun(): boolean
 ---
@@ -190,6 +188,8 @@ end
 ---
 ---@class ToggleBind.wrap: ToggleBind
 ---@operator call:boolean
+---
+---@see https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/util/toggle.lua
 
 ---@param toggle ToggleBind
 function M.toggle_wrap(toggle)
