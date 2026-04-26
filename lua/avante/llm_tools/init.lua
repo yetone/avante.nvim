@@ -568,7 +568,7 @@ function M.python(input, opts)
         return
       end
       if vim.fn.executable("docker") == 0 then
-        on_complete(nil, "Python tool is not available to execute any code")
+        on_complete(nil, "Python tool via docker is not available to execute any code")
         return
       end
 
