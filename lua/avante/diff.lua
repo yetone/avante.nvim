@@ -23,7 +23,7 @@ local M = {}
 -- Types
 -----------------------------------------------------------------------------//
 
----@alias ConflictSide "'ours'"|"'theirs'"|"'all_theirs'"|"'both'"|"'cursor'"|"'base'"|"'none'"
+---@alias ConflictSide "ours"|"theirs"|"all_theirs"|"both"|"cursor"|"base"|"none"
 
 --- @class AvanteConflictHighlights
 --- @field current string
