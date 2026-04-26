@@ -917,7 +917,7 @@ function M._stream_acp(opts)
   Utils.debug("use ACP", Config.provider)
   ---@type table<string, avante.HistoryMessage>
   local tool_call_messages = {}
-  ---@type avante.HistoryMessage
+  ---@type avante.HistoryMessage?
   local last_tool_call_message = nil
   local acp_provider = Config.acp_providers[Config.provider]
   local prev_text_message_content = ""

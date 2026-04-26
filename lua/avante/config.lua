@@ -26,6 +26,7 @@ local M = {}
 --- Default configuration for project-specific instruction file
 M.instructions_file = "avante.md"
 ---@class avante.Config
+---@field public session_recovery any
 M._defaults = {
   debug = false,
   log_level = vim.log.levels.WARN,
