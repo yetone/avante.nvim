@@ -9,8 +9,8 @@ local glob = require("avante.llm_tools.glob")
 local view = require("avante.llm_tools.view")
 local bash = require("avante.llm_tools.bash")
 
-LlmToolHelpers.confirm = function(msg, cb) return cb(true) end
-LlmToolHelpers.already_in_context = function(path) return false end
+LlmToolHelpers.confirm = function(_msg, cb) return cb(true) end
+LlmToolHelpers.already_in_context = function(_path) return false end
 
 describe("llm_tools", function()
   local test_dir = "/tmp/test_llm_tools"
