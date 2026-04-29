@@ -29,6 +29,11 @@ log_verbose() {
     fi
 }
 
+die() {
+    echo "Error: $1" >&2
+    exit 1
+}
+
 # Process a single dependency (used for parallel execution)
 process_single_dep() {
     local dep="$1"
