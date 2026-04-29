@@ -62,6 +62,13 @@ function M.is_absolute(filepath)
   return string.byte(filepath, 1, 1) == BYTE_PATHSEP
 end
 
+---@param filepath string
+---@return string
+function M.abspath(filepath)
+  if filepath == "" then return "." end
+  return vim.fs.abspath(filepath)
+end
+
 ---@param filepath                      string
 ---@return boolean
 function M.is_exist(filepath)

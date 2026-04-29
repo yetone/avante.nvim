@@ -1033,10 +1033,12 @@ function M.make_relative_path(filepath, base_dir) return M.path.relative(base_di
 
 function M.is_absolute_path(path) return M.path.is_absolute(path) end
 
+function M.abspath(path) return M.path.abspath(path) end
+
 function M.to_absolute_path(path)
   if not path or path == "" then return path end
   if M.is_absolute_path(path) or path:sub(1, 7) == "term://" then return path end
-  return M.join_paths(M.get_project_root(), path)
+  return M.abspath(M.join_paths(M.get_project_root(), path))
 end
 
 function M.join_paths(...)
