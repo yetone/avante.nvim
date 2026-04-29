@@ -243,7 +243,7 @@ function M.to_local_uri(uri)
 
   if scheme == "file" and path ~= nil then
     local host_dir = Config.rag_service.host_mount
-    local full_path = Path:new(host_dir):joinpath(path:sub(2)):absolute()
+    local full_path = vim.fs.abspath(vim.fs.joinpath(host_dir, path:sub(2)))
     uri = string.format("file://%s", full_path)
   end
 

@@ -42,7 +42,7 @@ end
 function M.is_in_project(filepath)
   local Root = require("avante.utils.root")
   local project_root = Root.get()
-  local abs_filepath = vim.fn.fnamemodify(filepath, ":p")
+  local abs_filepath = vim.fs.abspath(filepath)
   return abs_filepath:sub(1, #project_root) == project_root
 end
 

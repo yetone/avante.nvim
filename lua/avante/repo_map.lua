@@ -90,7 +90,6 @@ function RepoMap._get_repo_map(file_ext)
   local cached = cache[cache_key]
   if cached then return cached end
 
-  local PPath = require("plenary.path")
   local Path = require("avante.path")
   local repo_map
 
@@ -122,7 +121,7 @@ function RepoMap._get_repo_map(file_ext)
 
   local update_repo_map = vim.schedule_wrap(function(rel_filepath)
     if rel_filepath and Utils.is_same_file_ext(file_ext, rel_filepath) then
-      local abs_filepath = PPath:new(project_root):joinpath(rel_filepath):absolute()
+      local abs_filepath = vim.fs.abspath(vim.fs.joinpath(project_root, rel_filepath))
       local lines = Utils.read_file_from_buf_or_disk(abs_filepath)
       local content = lines and table.concat(lines, "\n") or ""
       local definitions = repo_map_lib.stringify_definitions(RepoMap.get_ts_lang(abs_filepath), content)
