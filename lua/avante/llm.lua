@@ -268,7 +268,7 @@ function M.generate_prompts(opts)
     local lines = Utils.read_file_from_buf_or_disk(vim.fs.abspath(instruction_file_path))
     local instruction_content = lines and table.concat(lines, "\n") or ""
 
-    if instruction_content then opts.instructions = (opts.instructions or "") .. "\n" .. instruction_content end
+    opts.instructions = (opts.instructions or "") .. "\n" .. instruction_content
     opts._instructions_loaded = true
   end
 
