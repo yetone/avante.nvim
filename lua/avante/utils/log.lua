@@ -23,7 +23,7 @@ local function format_log(arg) return vim.inspect(arg) end
 ---Get the avante.nvim log file path.
 ---@package
 ---@return string filepath
-function log.get_logfile() return vim.fs.joinpath(vim.fn.stdpath("cache"), "avante.log") end
+function log.get_logfile() return vim.fs.joinpath(vim.fn.stdpath("log"), "avante.log") end
 
 ---Open the avante.nvim log file.
 ---@package
