@@ -1255,8 +1255,8 @@ ACP providers are configured in the `acp_providers` section of your configuratio
       },
     },
     ["claude-code"] = {
-      command = "npx",
-      args = { "@zed-industries/claude-code-acp" },
+      command = "claude-agent-acp",
+      args = { },
       env = {
         NODE_NO_WARNINGS = "1",
         ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY"),
