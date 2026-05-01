@@ -417,7 +417,7 @@ function ACPClient:_create_stdio_transport()
 
     if not handle then
       self:_set_state("error")
-      error("Failed to spawn ACP agent process ["..table.concat({self.config.command, unpack(args)}, " ").."]")
+      error("Failed to spawn ACP agent process [" .. table.concat({ self.config.command, unpack(args) }, " ") .. "]")
     end
 
     transport_self.process = handle
