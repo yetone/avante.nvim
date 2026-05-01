@@ -23,8 +23,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-22.04
             rev: v0.10.0
+          - os: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
