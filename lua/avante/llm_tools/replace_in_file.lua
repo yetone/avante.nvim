@@ -253,7 +253,7 @@ Please make sure the diff is formatted correctly, and that the SEARCH/REPLACE bl
       local patch
       if Config.behaviour.minimize_diff then
         ---@diagnostic disable-next-line: assign-type-mismatch, missing-fields
-        patch = vim.text.diff(old_string, new_string, { ---@type integer[][]
+        patch = vim.diff(old_string, new_string, { ---@type integer[][]
           algorithm = "histogram",
           result_type = "indices",
           ctxlen = vim.o.scrolloff,

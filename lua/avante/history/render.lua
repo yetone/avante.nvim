@@ -135,7 +135,7 @@ function M.get_diff_lines(old_str, new_str, decoration, truncate)
   local old_lines = vim.split(old_str, "\n")
   local new_lines = vim.split(new_str, "\n")
   ---@diagnostic disable-next-line: assign-type-mismatch, missing-fields
-  local patch = vim.text.diff(old_str, new_str, { ---@type integer[][]
+  local patch = vim.diff(old_str, new_str, { ---@type integer[][]
     algorithm = "histogram",
     result_type = "indices",
     ctxlen = vim.o.scrolloff,
