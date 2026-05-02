@@ -305,7 +305,7 @@ function Suggestion:show()
         virt_text_win_col = #current_lines[start_row]
         lines[1] = string.sub(lines[1], #current_lines[start_row] + 1)
       else
-        local patch = vim.text.diff(
+        local patch = vim.diff(
           current_lines[start_row],
           lines[1],
           ---@diagnostic disable-next-line: missing-fields

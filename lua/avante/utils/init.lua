@@ -1801,7 +1801,7 @@ function M.get_unified_diff(text1, text2, opts)
   opts.result_type = "unified"
   opts.ctxlen = opts.ctxlen or 3
 
-  return vim.text.diff(text1, text2, opts)
+  return vim.diff(text1, text2, opts)
 end
 
 function M.is_floating_window(win_id)
