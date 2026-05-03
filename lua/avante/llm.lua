@@ -15,6 +15,7 @@ local LLMTools = require("avante.llm_tools")
 local History = require("avante.history")
 local HistoryRender = require("avante.history.render")
 local ACPConfirmAdapter = require("avante.ui.acp_confirm_adapter")
+local log = require("avante.utils.log")
 
 ---@class avante.LLM
 local M = {}
@@ -262,6 +263,7 @@ function M.generate_prompts(opts)
   local instruction_file_path = vim.fs.joinpath(project_root, project_instruction_file)
 
   if vim.uv.fs_stat(instruction_file_path) and not opts._instructions_loaded then
+    log.info("Loading instructions from " .. instruction_file_path)
     local lines = Utils.read_file_from_buf_or_disk(vim.fs.abspath(instruction_file_path))
     local instruction_content = lines and table.concat(lines, "\n") or ""
 
