@@ -69,7 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        nvim_version: [ v0.11.0 ]
+        nvim_version: [ v0.10.0 ]
         luals_version: [ 3.13.6 ]
     steps:
       - uses: actions/checkout@v6
