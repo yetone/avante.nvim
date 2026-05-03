@@ -16,7 +16,7 @@ M.confirm_popup = nil
 ---@return string
 function M.get_abs_path(rel_path)
   local project_root = Utils.get_project_root()
-  local p = Utils.join_paths(project_root, rel_path)
+  local p = Utils.is_absolute_path(rel_path) and rel_path or vim.fs.normalize(vim.fs.joinpath(project_root, rel_path))
   if p:sub(-2) == "/." then p = p:sub(1, -3) end
   return p
 end
