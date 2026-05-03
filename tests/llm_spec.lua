@@ -76,16 +76,16 @@ describe("generate_prompts", function()
 
     -- Mock the Prompt functions directly since _templates_lib is a local variable
     -- that we can't easily access from outside the module
-    Path.prompts.initialize = function(cache_directory, project_directory)
+    Path.prompts.initialize = function(_cache_directory, _project_directory)
       -- Mock initialization - no-op for tests
     end
 
-    Path.prompts.render_file = function(path, opts)
+    Path.prompts.render_file = function(_path, _opts)
       -- Mock render - return empty string for tests
       return ""
     end
 
-    Path.prompts.render_mode = function(mode, opts)
+    Path.prompts.render_mode = function(_mode, _opts)
       -- Mock render_mode - return empty string for tests
       return ""
     end
