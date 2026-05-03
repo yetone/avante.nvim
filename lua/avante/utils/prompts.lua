@@ -144,7 +144,7 @@ Parameters:
   return system_prompt
 end
 
---- Get the content of AGENTS.md or CLAUDE.md or OPENCODE.md
+--- Get the content of AGENTS.md and the likes (CLAUDE.md, .cursorrules, ...)
 ---@return string | nil
 function M.get_agents_rules_prompt()
   local Utils = require("avante.utils")
@@ -161,7 +161,7 @@ function M.get_agents_rules_prompt()
     local file_path = vim.fs.joinpath(project_root, file_name)
     if vim.fn.filereadable(file_path) == 1 then
       local content = vim.fn.readfile(file_path)
-      if content then return table.concat(content, "\n") end
+      return table.concat(content, "\n")
     end
   end
   return nil
