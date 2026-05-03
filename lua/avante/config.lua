@@ -587,7 +587,7 @@ M._defaults = {
   history = {
     max_tokens = 4096,
     carried_entry_count = nil,
-    storage_path = Utils.join_paths(vim.fn.stdpath("state"), "avante"),
+    storage_path = vim.fs.joinpath(vim.fn.stdpath("state"), "avante"),
     paste = {
       extension = "png",
       filename = "pasted-%Y-%m-%d-%H-%M-%S",
@@ -817,8 +817,8 @@ M._defaults = {
 ---@diagnostic disable-next-line: missing-fields
 M._options = {}
 
-local function get_config_dir_path() return Utils.join_paths(vim.fn.expand("~"), ".config", "avante.nvim") end
-local function get_config_file_path() return Utils.join_paths(get_config_dir_path(), "config.json") end
+local function get_config_dir_path() return vim.fs.joinpath(vim.fn.expand("~"), ".config", "avante.nvim") end
+local function get_config_file_path() return vim.fs.joinpath(get_config_dir_path(), "config.json") end
 
 --- Function to save the last used model
 ---@param model_name string

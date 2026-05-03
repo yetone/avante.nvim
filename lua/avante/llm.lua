@@ -1108,7 +1108,8 @@ function M._stream_acp(opts)
                 local location = update.locations[1]
                 if not location or not location.path then return end
 
-                local abs_path = Utils.join_paths(Utils.get_project_root(), location.path)
+                local abs_path = Utils.is_absolute_path(location.path) and location.path
+                  or vim.fs.joinpath(Utils.get_project_root(), location.path)
                 local bufnr = vim.fn.bufnr(abs_path, true)
 
                 if not bufnr or bufnr == -1 then return end

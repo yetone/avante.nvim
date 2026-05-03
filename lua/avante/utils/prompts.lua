@@ -148,17 +148,17 @@ end
 ---@return string | nil
 function M.get_agents_rules_prompt()
   local Utils = require("avante.utils")
-  local project_root = Utils.get_project_root()
+  local project_root = tostring(Utils.get_project_root())
   local file_names = {
     "AGENTS.md",
     "CLAUDE.md",
     "OPENCODE.md",
     ".cursorrules",
     ".windsurfrules",
-    Utils.join_paths(".github", "copilot-instructions.md"),
+    vim.fs.joinpath(".github", "copilot-instructions.md"),
   }
   for _, file_name in ipairs(file_names) do
-    local file_path = Utils.join_paths(project_root, file_name)
+    local file_path = vim.fs.joinpath(project_root, file_name)
     if vim.fn.filereadable(file_path) == 1 then
       local content = vim.fn.readfile(file_path)
       if content then return table.concat(content, "\n") end
@@ -171,11 +171,11 @@ end
 ---@return string | nil
 function M.get_cursor_rules_prompt(selected_files)
   local Utils = require("avante.utils")
-  local project_root = Utils.get_project_root()
+  local project_root = tostring(Utils.get_project_root())
   local accumulated_content = ""
 
   ---@type string[]
-  local mdc_files = vim.fn.globpath(Utils.join_paths(project_root, ".cursor/rules"), "*.mdc", false, true)
+  local mdc_files = vim.fn.globpath(vim.fs.joinpath(project_root, ".cursor/rules"), "*.mdc", false, true)
   for _, file_path in ipairs(mdc_files) do
     ---@type string[]
     local content = vim.fn.readfile(file_path)
