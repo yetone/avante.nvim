@@ -13,7 +13,7 @@ endif
 
 LUA_VERSIONS := luajit lua51
 
-BUILD_DIR := build
+BUILD_DIR := lua
 BUILD_FROM_SOURCE ?= false
 TARGET_LIBRARY ?= all
 
@@ -48,7 +48,7 @@ $(foreach lua_version,$(LUA_VERSIONS),$(eval $(call make_definitions,$(lua_versi
 define build_package
 $1-$2:
 	cargo build --release --features=$1 -p avante-$2
-	cp target/release/libavante_$(shell echo $2 | tr - _).$(EXT) $(BUILD_DIR)/avante_$(shell echo $2 | tr - _).$(EXT)
+	cp target/release/libavante_$(shell echo $2 | tr - _).$(EXT) $(BUILD_DIR)/avante_$(shell echo $2 | tr - _).so
 endef
 
 define build_targets
@@ -68,7 +68,7 @@ $(BUILD_DIR):
 	@mkdir -p $(BUILD_DIR)
 
 clean:
-	@rm -rf $(BUILD_DIR)
+	@rm -rf $(BUILD_DIR)/*.$(EXT)
 
 luacheck:
 	@luacheck `find \( -path './target' -prune \) -o -name "*.lua" -print` --codes
