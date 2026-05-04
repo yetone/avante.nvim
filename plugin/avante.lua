@@ -193,3 +193,4 @@ cmd("ACPModels", function() require("avante.api").select_acp_model() end, { desc
 cmd("ACPModes", function() require("avante.api").select_acp_mode() end, { desc = "avante: switch ACP mode" })
 cmd("History", function() require("avante.api").select_history() end, { desc = "avante: show histories" })
 cmd("Stop", function() require("avante.api").stop() end, { desc = "avante: stop current AI request" })
+cmd("Auth", function() require("avante.providers.claude").authenticate() end, { desc = "avante: authenticate with Claude" })

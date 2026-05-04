@@ -41,6 +41,7 @@ M.role_map = {
 }
 
 M._is_setup = false
+M._authenticating = false
 M._refresh_timer = nil
 
 -- Token validation helper
@@ -185,10 +186,13 @@ function M.setup()
     setup_token_management()
     M._is_setup = true
   else
-    M.authenticate()
     setup_token_management()
-    -- Note: M._is_setup is NOT set to true here because authenticate() is async
-    -- and may fail. The flag indicates setup was attempted, not that it succeeded.
+    vim.schedule(function()
+      Utils.info(
+        "Claude: not authenticated. Run :AvanteAuth to sign in.",
+        { title = "Avante" }
+      )
+    end)
   end
 end
 
@@ -699,8 +703,12 @@ function M.on_error(result)
 end
 
 function M.authenticate()
+  if M._authenticating then return end
+  M._authenticating = true
+
   local verifier, verifier_err = pkce.generate_verifier()
   if not verifier then
+    M._authenticating = false
     vim.schedule(
       function()
         vim.notify("Failed to generate PKCE verifier: " .. (verifier_err or "Unknown error"), vim.log.levels.ERROR)
@@ -711,6 +719,7 @@ function M.authenticate()
 
   local challenge, challenge_err = pkce.generate_challenge(verifier)
   if not challenge then
+    M._authenticating = false
     vim.schedule(
       function()
         vim.notify("Failed to generate PKCE challenge: " .. (challenge_err or "Unknown error"), vim.log.levels.ERROR)
@@ -721,6 +730,7 @@ function M.authenticate()
 
   local state, state_err = pkce.generate_verifier()
   if not state then
+    M._authenticating = false
     vim.schedule(
       function() vim.notify("Failed to generate PKCE state: " .. (state_err or "Unknown error"), vim.log.levels.ERROR) end
     )
@@ -763,6 +773,7 @@ function M.authenticate()
       })
 
       if response.status >= 400 then
+        M._authenticating = false
         vim.schedule(
           function() vim.notify(string.format("HTTP %d: %s", response.status, response.body), vim.log.levels.ERROR) end
         )
@@ -775,9 +786,11 @@ function M.authenticate()
         vim.schedule(function() vim.notify("✓ Authentication successful!", vim.log.levels.INFO) end)
         M._is_setup = true
       else
+        M._authenticating = false
         vim.schedule(function() vim.notify("Failed to decode JSON", vim.log.levels.ERROR) end)
       end
     else
+      M._authenticating = false
       vim.schedule(function() vim.notify("Failed to parse code, authentication failed!", vim.log.levels.ERROR) end)
     end
   end
@@ -871,6 +884,8 @@ function M.store_tokens(tokens)
 
   vim.schedule(function()
     local data_path = vim.fn.stdpath("data") .. "/avante/claude-auth.json"
+
+    vim.fn.mkdir(vim.fn.fnamemodify(data_path, ":h"), "p")
 
     -- Safely encode JSON
     local ok, json_str = pcall(vim.json.encode, json)
