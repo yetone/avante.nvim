@@ -3,7 +3,6 @@ local IS_WIN = require("avante.utils.platform").platform == "windows" ---@type b
 local SEP = IS_WIN and "\\" or "/" ---@type string
 
 local BYTE_SLASH = 0x2f ---@type integer '/'
-local BYTE_BACKSLASH = 0x5c ---@type integer '\\'
 local BYTE_COLON = 0x3a ---@type integer ':'
 local BYTE_PATHSEP = string.byte(SEP) ---@type integer
 
@@ -14,30 +13,6 @@ M.SEP = SEP
 
 ---@return boolean
 function M.is_win() return IS_WIN end
-
----@param filepath                      string
----@return string
-function M.basename(filepath)
-  if filepath == "" then return "" end
-
-  local pos_invalid = #filepath + 1 ---@type integer
-  local pos_sep = 0 ---@type integer
-
-  for i = #filepath, 1, -1 do
-    local byte = string.byte(filepath, i, i) ---@type integer
-    if byte == BYTE_SLASH or byte == BYTE_BACKSLASH then
-      if i + 1 == pos_invalid then
-        pos_invalid = i
-      else
-        pos_sep = i
-        break
-      end
-    end
-  end
-
-  if pos_sep == 0 and pos_invalid == #filepath + 1 then return filepath end
-  return string.sub(filepath, pos_sep + 1, pos_invalid - 1)
-end
 
 ---@param filepath                      string
 ---@return string
