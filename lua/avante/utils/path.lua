@@ -13,10 +13,6 @@ M.SEP = SEP
 ---@return boolean
 function M.is_win() return IS_WIN end
 
----@param filename                      string
----@return string
-function M.extname(filename) return filename:match("%.[^.]+$") or "" end
-
 ---@param filepath                      string
 ---@return boolean
 function M.is_absolute(filepath)
