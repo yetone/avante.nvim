@@ -60,7 +60,7 @@ function M.show(selector)
           end,
         }),
         attach_mappings = function(prompt_bufnr, map)
-          map("i", "<esc>", require("telescope.actions").close)
+          map("n", "<esc>", require("telescope.actions").close)
           map("i", "<c-del>", function()
             local picker = action_state.get_current_picker(prompt_bufnr)
 
