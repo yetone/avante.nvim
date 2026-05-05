@@ -1165,6 +1165,34 @@ The process uses a specialized prompt format that includes:
 
 This approach ensures that the apply model can quickly and accurately merge your changes without the overhead of full code generation.
 
+## LM Studio
+
+LM Studio is a local AI server that supports **three API modes**:
+
+```lua
+{
+  provider = "lmstudio",
+  providers = {
+    lmstudio = {
+      mode = "openai",  -- "openai" | "anthropic" | "lmstudio"
+      endpoint = "http://127.0.0.1:1234",
+      model = "qwen3.6-35b",
+      api_key = "",  -- Optional: only when LM Studio "Require Authentication" is enabled
+      timeout = 30000,
+      context_window = 128000,
+      extra_request_body = { temperature = 0.75, max_tokens = 16384 },
+      --- When enabled, omits temperature and max_tokens from the request body so the server applies its own defaults.
+      use_server_defaults = false,
+      --- When enabled, dynamically fetches context_window from the LM Studio server's model metadata.
+      --- Falls back to the configured context_window value if fetching fails.
+      use_server_context_window = false,
+    },
+  },
+}
+```
+
+> **Models**: Run `:AvanteModels` to list loaded models. `openai` mode queries `/v1/models`; others fall back to `/api/v1/models`.
+
 ## Ollama
 
 Ollama is a first-class provider for avante.nvim. To start using it you need to set `provider = "ollama"`
