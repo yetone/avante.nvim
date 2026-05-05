@@ -137,7 +137,10 @@ end
 E.REQUEST_LOGIN_PATTERN = "AvanteRequestLogin"
 
 ---@param provider AvanteDefaultBaseProvider
-function E.require_api_key(provider) return provider.api_key_name ~= nil and provider.api_key_name ~= "" end
+function E.require_api_key(provider)
+  log.warn("key  name=", provider.api_key_name)
+  return provider.api_key_name ~= nil and provider.api_key_name ~= ""
+end
 
 M.env = E
 
