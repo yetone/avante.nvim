@@ -11,33 +11,16 @@ local M = {}
 -- functions without triggering the exclusion.
 setmetatable(M, {
   __index = function(_, k)
-    if
-        k == "model"
-        or k == "model_names"
-        or k == "list_models"
-        or k == "parse_curl_args"
-        or k == "get_mode"
-        or k == "setup"
-        or k == "parse_response"
-        or k == "role_map"
-        or k == "transform_tool"
-        or k == "parse_messages"
-        or k == "add_text_message"
-        or k == "add_thinking_message"
-        or k == "add_tool_use_message"
-        or k == "finish_pending_messages"
-        or k == "add_reasoning_message"
-        or k == "transform_lmstudio_usage"
-        or k == "is_disable_stream"
-        or k == "parse_api_key"
-    then
-      return nil
+    -- Filter out keys that should not be delegated
+    if k == "model" or k == "model_names" or k == "check_endpoint_alive" then return nil end
+    -- Read mode from Config.providers (plain table, zero recursion risk)
+    local ok, Config = pcall(require, "avante.config")
+    if ok then
+      local lm_cfg = Config.providers and Config.providers.lmstudio
+      local mode = lm_cfg and lm_cfg.mode or "openai"
+      if mode == "anthropic" then return Providers.claude[k] end
     end
-    -- Delegate to the appropriate base provider based on mode
-    local mode = M:get_mode()
-    if mode == "openai" then return Providers.openai[k] end
-    if mode == "anthropic" then return Providers.claude[k] end
-    return Providers.openai[k] -- fallback for "lmstudio" native mode
+    return Providers.openai[k]
   end,
 })
 
@@ -50,15 +33,17 @@ M.role_map = {
 ---Parse the LM Studio API key from config
 ---Returns empty string if not configured (LM Studio auth is optional)
 ---@return string
-function M:parse_api_key()
-  local provider_conf = Providers.parse_config(self)
+function M.parse_api_key()
+  local provider_conf = Providers.parse_config(M)
   return provider_conf.api_key or ""
 end
 
----Get the current API mode
+---Read the mode from the resolved provider config.
+---Safe to call from methods (NOT from __index — use Config.providers there).
 ---@return LmStudioMode
-function M:get_mode()
-  local provider_conf = Providers.parse_config(self)
+local function get_mode_safe()
+  local ok, provider_conf = pcall(Providers.parse_config, M)
+  if not ok then return "openai" end
   local mode = provider_conf.mode or "openai"
   if mode ~= "openai" and mode ~= "anthropic" and mode ~= "lmstudio" then
     Utils.warn("LM Studio: Invalid mode '" .. mode .. "', defaulting to 'openai'")
@@ -69,8 +54,8 @@ end
 
 ---Check if server defaults should be used
 ---@return boolean
-function M:use_server_defaults()
-  local provider_conf = Providers.parse_config(self)
+local function use_server_defaults()
+  local provider_conf = Providers.parse_config(M)
   ---@diagnostic disable-next-line: undefined-field
   return provider_conf.use_server_defaults == true
 end
@@ -89,7 +74,7 @@ local function get_model_info(model_name, timeout)
   }
 
   -- Add Authorization header if API key is configured
-  local api_key = M:parse_api_key()
+  local api_key = M.parse_api_key()
   if api_key and api_key ~= "" then headers["Authorization"] = "Bearer " .. api_key end
 
   local response = {}
@@ -124,23 +109,6 @@ local function filter_server_defaults(body)
   return filtered
 end
 
-function M.is_env_set()
-  local provider_conf = Providers.parse_config(self)
-  if not provider_conf.endpoint then return false end
-
-  local curl = require("plenary.curl")
-  local endpoint = Utils.url_join(provider_conf.endpoint, "/v1/models")
-  local response = {}
-  local job = curl.get(endpoint, {
-    callback = function(output) response = output end,
-    timeout = 2000,
-  })
-  job.wait(job, 2000)
-  return response.status == 200
-end
-
-function M:setup() require("avante.tokenizers").setup(self.tokenizer_id or "gpt-4o") end
-
 ---Queries the configured endpoint for available models
 ---@param opts AvanteProviderFunctor Provider settings
 ---@param timeout? integer Timeout in milliseconds
@@ -152,7 +120,7 @@ local function query_models(opts, timeout)
 
   local curl = require("plenary.curl")
 
-  local mode = opts:get_mode()
+  local mode = get_mode_safe()
   local models_endpoint
   if mode == "openai" then
     models_endpoint = Utils.url_join(provider_conf.endpoint, "/v1/models")
@@ -167,7 +135,7 @@ local function query_models(opts, timeout)
     ["Accept"] = "application/json",
   }
 
-  local api_key = opts:parse_api_key()
+  local api_key = M.parse_api_key()
   if api_key and api_key ~= "" then headers["Authorization"] = "Bearer " .. api_key end
 
   local response = {}
@@ -225,24 +193,24 @@ end
 ---@param prompt_opts AvantePromptOptions
 ---@return AvanteCurlOutput|nil
 function M:parse_curl_args(prompt_opts)
-  local mode = self:get_mode()
+  local mode = get_mode_safe()
   local provider_conf, request_body = Providers.parse_config(self)
 
   if mode == "openai" then
     local openai_args = Providers.openai.parse_curl_args(self, prompt_opts)
     if not openai_args then return nil end
     openai_args.url = Utils.url_join(provider_conf.endpoint, "/v1/chat/completions")
-    local api_key = M:parse_api_key()
+    local api_key = M.parse_api_key()
     if api_key and api_key ~= "" then openai_args.headers["Authorization"] = "Bearer " .. api_key end
-    if self:use_server_defaults() then openai_args.body = filter_server_defaults(openai_args.body or {}) end
+    if use_server_defaults() then openai_args.body = filter_server_defaults(openai_args.body or {}) end
     return openai_args
   elseif mode == "anthropic" then
     local claude_args = Providers.claude.parse_curl_args(self, prompt_opts)
     if not claude_args then return nil end
     claude_args.url = Utils.url_join(provider_conf.endpoint, "/v1/messages")
-    local api_key = M:parse_api_key()
+    local api_key = M.parse_api_key()
     if api_key and api_key ~= "" then claude_args.headers["Authorization"] = "Bearer " .. api_key end
-    if self:use_server_defaults() then claude_args.body = filter_server_defaults(claude_args.body or {}) end
+    if use_server_defaults() then claude_args.body = filter_server_defaults(claude_args.body or {}) end
     return claude_args
   end
 
@@ -251,7 +219,7 @@ function M:parse_curl_args(prompt_opts)
     ["Content-Type"] = "application/json",
   }
 
-  local api_key = M:parse_api_key()
+  local api_key = M.parse_api_key()
   if api_key and api_key ~= "" then headers["Authorization"] = "Bearer " .. api_key end
 
   local messages = {}
@@ -281,7 +249,7 @@ function M:parse_curl_args(prompt_opts)
   }
 
   local body = vim.tbl_deep_extend("force", base_body, request_body)
-  if self:use_server_defaults() then body = filter_server_defaults(body) end
+  if use_server_defaults() then body = filter_server_defaults(body) end
 
   return {
     url = Utils.url_join(provider_conf.endpoint, "/api/v1/chat"),
@@ -300,11 +268,6 @@ M.on_error = function(result)
   Utils.error(error_msg, { title = "LM Studio" })
 end
 
-function M.check_endpoint_alive()
-  local result = query_models(Providers.lmstudio, 1000)
-  return result ~= nil
-end
-
 ---Get the context window size for the current model.
 ---If use_server_context_window is enabled, dynamically fetches context_length
 ---from the LM Studio server's model metadata. Otherwise returns the configured
@@ -318,6 +281,7 @@ function M:get_context_window()
   local provider_conf = Providers.parse_config(self)
 
   -- If server context window fetching is disabled, return configured default
+  ---@diagnostic disable-next-line: undefined-field
   if provider_conf.use_server_context_window ~= true then
     self._context_window_cache = provider_conf.context_window or 128000
     return self._context_window_cache
