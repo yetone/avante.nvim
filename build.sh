@@ -4,6 +4,7 @@ set -e
 
 REPO_OWNER="yetone"
 REPO_NAME="avante.nvim"
+REPO_REMOTE="${1:-origin}"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 
@@ -66,7 +67,7 @@ test_gh_auth() {
 }
 
 fetch_remote_tags() {
-  git ls-remote --tags origin | cut -f2 | sed 's|refs/tags/||' | while read tag; do
+  git ls-remote --tags "$REPO_REMOTE" | cut -f2 | sed 's|refs/tags/||' | while read tag; do
     if ! git rev-parse "$tag" >/dev/null 2>&1; then
       git fetch origin "refs/tags/$tag:refs/tags/$tag"
     fi
