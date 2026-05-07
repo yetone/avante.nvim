@@ -98,7 +98,6 @@ install_luals() {
     local os_name=""
     local arch=""
     local file_ext=""
-    local extract_cmd=""
 
     case "$(uname -s)" in
         Linux*)
@@ -131,13 +130,6 @@ install_luals() {
             arch="x64"
             ;;
     esac
-
-    # Set up extraction command based on file type
-    if [ "$file_ext" = "tar.gz" ]; then
-        extract_cmd="tar zx --directory"
-    else
-        extract_cmd="unzip -q -d"
-    fi
 
     local platform="${os_name}-${arch}"
     local luals_url_template="https://github.com/LuaLS/lua-language-server/releases/download/__VERSION__/lua-language-server-__VERSION__-__PLATFORM__.__EXT__"
