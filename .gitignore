@@ -45,4 +45,6 @@ coverage/
 # If you have any personal configuration files, you should ignore them too
 config.personal.lua
 
+# create by avante
+/lua/.tag
 target
