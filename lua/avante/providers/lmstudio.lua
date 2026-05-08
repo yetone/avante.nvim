@@ -202,7 +202,10 @@ function M:parse_curl_args(prompt_opts)
     openai_args.url = Utils.url_join(provider_conf.endpoint, "/v1/chat/completions")
     local api_key = M.parse_api_key()
     if api_key and api_key ~= "" then openai_args.headers["Authorization"] = "Bearer " .. api_key end
-    if use_server_defaults() then openai_args.body = filter_server_defaults(openai_args.body or {}) end
+    if use_server_defaults() then
+      local body = openai_args.body
+      if type(body) == "table" then openai_args.body = filter_server_defaults(body) end
+    end
     return openai_args
   elseif mode == "anthropic" then
     local claude_args = Providers.claude.parse_curl_args(self, prompt_opts)
@@ -210,7 +213,10 @@ function M:parse_curl_args(prompt_opts)
     claude_args.url = Utils.url_join(provider_conf.endpoint, "/v1/messages")
     local api_key = M.parse_api_key()
     if api_key and api_key ~= "" then claude_args.headers["Authorization"] = "Bearer " .. api_key end
-    if use_server_defaults() then claude_args.body = filter_server_defaults(claude_args.body or {}) end
+    if use_server_defaults() then
+      local body = claude_args.body
+      if type(body) == "table" then claude_args.body = filter_server_defaults(body) end
+    end
     return claude_args
   end
 
