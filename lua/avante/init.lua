@@ -154,12 +154,7 @@ function H.keymaps()
   end, { noremap = true, silent = true })
 
   if Config.behaviour.auto_set_keymaps then
-    Utils.safe_keymap_set(
-      { "n", "v" },
-      Config.mappings.ask,
-      "<Plug>(AvanteAsk)",
-      { desc = "avante: ask" }
-    )
+    Utils.safe_keymap_set({ "n", "v" }, Config.mappings.ask, "<Plug>(AvanteAsk)", { desc = "avante: ask" })
     Utils.safe_keymap_set(
       { "n", "v" },
       Config.mappings.zen_mode,
@@ -172,30 +167,10 @@ function H.keymaps()
       "<Plug>(AvanteAskNew)",
       { desc = "avante: create new ask" }
     )
-    Utils.safe_keymap_set(
-      "v",
-      Config.mappings.edit,
-      "<Plug>(AvanteEdit)",
-      { desc = "avante: edit" }
-    )
-    Utils.safe_keymap_set(
-      "n",
-      Config.mappings.stop,
-      "<Plug>(AvanteStop)",
-      { desc = "avante: stop" }
-    )
-    Utils.safe_keymap_set(
-      "n",
-      Config.mappings.refresh,
-      "<Plug>(AvanteRefresh)",
-      { desc = "avante: refresh" }
-    )
-    Utils.safe_keymap_set(
-      "n",
-      Config.mappings.focus,
-      "<Plug>(AvanteFocus)",
-      { desc = "avante: focus" }
-    )
+    Utils.safe_keymap_set("v", Config.mappings.edit, "<Plug>(AvanteEdit)", { desc = "avante: edit" })
+    Utils.safe_keymap_set("n", Config.mappings.stop, "<Plug>(AvanteStop)", { desc = "avante: stop" })
+    Utils.safe_keymap_set("n", Config.mappings.refresh, "<Plug>(AvanteRefresh)", { desc = "avante: refresh" })
+    Utils.safe_keymap_set("n", Config.mappings.focus, "<Plug>(AvanteFocus)", { desc = "avante: focus" })
 
     Utils.safe_keymap_set("n", Config.mappings.toggle.default, "<Plug>(AvanteToggle)", { desc = "avante: toggle" })
     Utils.safe_keymap_set(
