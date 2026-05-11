@@ -1596,16 +1596,28 @@ end
 ---@param container NuiSplit
 function Sidebar:setup_window_navigation(container)
   local buf = api.nvim_win_get_buf(container.winid)
+  vim.keymap.set(
+    { "n", "i" },
+    "<Plug>(AvanteSidebarSwitchWindow)",
+    function() self:switch_window_focus("next") end,
+    { buffer = buf, noremap = true, silent = true, nowait = true }
+  )
+  vim.keymap.set(
+    { "n", "i" },
+    "<Plug>(AvanteSidebarReverseSwitchWindow)",
+    function() self:switch_window_focus("previous") end,
+    { buffer = buf, noremap = true, silent = true, nowait = true }
+  )
   Utils.safe_keymap_set(
     { "n", "i" },
     Config.mappings.sidebar.switch_windows,
-    function() self:switch_window_focus("next") end,
+    "<Plug>(AvanteSidebarSwitchWindow)",
     { buffer = buf, noremap = true, silent = true, nowait = true }
   )
   Utils.safe_keymap_set(
     { "n", "i" },
     Config.mappings.sidebar.reverse_switch_windows,
-    function() self:switch_window_focus("previous") end,
+    "<Plug>(AvanteSidebarReverseSwitchWindow)",
     { buffer = buf, noremap = true, silent = true, nowait = true }
   )
 end
