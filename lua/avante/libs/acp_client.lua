@@ -226,6 +226,8 @@ ACPClient.ERROR_CODES = {
   RESOURCE_NOT_FOUND = -32002,
 }
 
+local LOG_SEPARATOR = string.rep("=", 80) .. "\n"
+
 ---@class ACPHandlers
 ---@field on_session_update? fun(update: avante.acp.UserMessageChunk | avante.acp.AgentMessageChunk | avante.acp.AgentThoughtChunk | avante.acp.ToolCallUpdate | avante.acp.PlanUpdate | avante.acp.AvailableCommandsUpdate)
 ---@field on_request_permission? fun(tool_call: table, options: table[], callback: fun(option_id: string | nil)): nil
@@ -528,7 +530,7 @@ function ACPClient:_send_request(method, params, callback)
   self.callbacks[id] = callback
 
   local data = vim.json.encode(message)
-  self:_debug_log("request: " .. data .. string.rep("=", 100) .. "\n")
+  self:_debug_log("request: " .. data .. "\n" .. LOG_SEPARATOR)
   self.transport:send(data)
 end
 
