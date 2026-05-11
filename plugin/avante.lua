@@ -1,6 +1,6 @@
-if vim.fn.has("nvim-0.10") == 0 then
+if vim.fn.has("nvim-0.11") == 0 then
   vim.api.nvim_echo({
-    { "Avante requires at least nvim-0.10", "ErrorMsg" },
+    { "Avante requires at least nvim-0.11", "ErrorMsg" },
     { "Please upgrade your neovim version", "WarningMsg" },
     { "Press any key to exit", "ErrorMsg" },
   }, true, {})
