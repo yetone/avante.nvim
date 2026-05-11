@@ -98,14 +98,16 @@ function M:list_models()
   local models = vim
     .iter(res_body.data)
     :filter(function(model) return type(model) == "table" and type(model.id) == "string" end)
-    :map(function(model)
-      return {
-        id = model.id,
-        name = model.id,
-        display_name = model.id,
-        version = tostring(model.created or model.owned_by or ""),
-      }
-    end)
+    :map(
+      function(model)
+        return {
+          id = model.id,
+          name = model.id,
+          display_name = model.id,
+          version = tostring(model.created or model.owned_by or ""),
+        }
+      end
+    )
     :totable()
 
   self._model_list_cache = models
