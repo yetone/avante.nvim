@@ -318,7 +318,7 @@ describe("ACPClient", function()
         { type = "http", name = "lookup", url = "http://localhost:8080/mcp" },
       }
       local session_id = nil
-      client:create_session("/tmp/test", mcp_servers, function(sid, err) session_id = sid end)
+      client:create_session("/tmp/test", mcp_servers, function(sid, _err) session_id = sid end)
 
       assert.is_not_nil(sent_request)
       assert.equals("/tmp/test", sent_request.cwd)
@@ -356,8 +356,8 @@ describe("ACPClient", function()
             )
           end
         end,
-        start = function(self, on_message) end,
-        stop = function(self) end,
+        start = function(_self, _on_message) end,
+        stop = function(_self) end,
       }
 
       client = ACPClient:new({ transport_type = "stdio", handlers = {} })

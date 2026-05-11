@@ -811,7 +811,7 @@ function ACPClient:authenticate(method_id, callback)
 
   self:_send_request("authenticate", {
     methodId = method_id,
-  }, function(result, err) callback(err) end)
+  }, function(_result, err) callback(err) end)
 end
 
 ---Create new session
@@ -897,7 +897,7 @@ function ACPClient:set_mode(session_id, mode_id, callback)
   self:_send_request("session/set_mode", {
     sessionId = session_id,
     modeId = mode_id,
-  }, function(result, err)
+  }, function(_result, err)
     if err then
       callback(nil, err)
       return
@@ -927,7 +927,7 @@ function ACPClient:set_model(session_id, model_id, callback)
   self:_send_request("session/set_model", {
     sessionId = session_id,
     modelId = model_id,
-  }, function(result, err)
+  }, function(_result, err)
     if err then
       callback(nil, err)
       return
