@@ -284,7 +284,7 @@ function ACPClient:_debug_log(message)
   end
 
   -- Open file if needed
-  if not self.debug_log_file then self.debug_log_file = io.open("/tmp/avante-acp-session.log", "a") end
+  if not self.debug_log_file then self.debug_log_file = io.open(vim.fs.joinpath(vim.fn.stdpath("log"), "avante-acp-session.log"),"a") end
 
   if self.debug_log_file then
     self.debug_log_file:write(message)
