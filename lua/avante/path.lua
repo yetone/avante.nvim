@@ -73,6 +73,12 @@ function Path:read()
   return data
 end
 
+local function decode_json_file(path, default)
+  local content = path:read()
+  if not content then return default end
+  return vim.json.decode(content) or default
+end
+
 function Path:write(data, mode)
   local flags = mode == "a" and "a" or "w"
   local fd = assert(uv.fs_open(self.filename, flags, 438))
@@ -225,8 +231,7 @@ function History.get_latest_filename(bufnr, new)
   local filename
   local metadata_filepath = History.get_metadata_filepath(bufnr)
   if metadata_filepath:exists() and not new then
-    local metadata_content = metadata_filepath:read()
-    local metadata = vim.json.decode(metadata_content)
+    local metadata = decode_json_file(metadata_filepath, {})
     filename = metadata.latest_filename
   end
   if not filename or filename == "" then
@@ -241,10 +246,7 @@ end
 function History.save_latest_filename(bufnr, filename)
   local metadata_filepath = History.get_metadata_filepath(bufnr)
   local metadata = {}
-  if metadata_filepath:exists() then
-    local metadata_content = metadata_filepath:read()
-    metadata = vim.json.decode(metadata_content)
-  end
+  if metadata_filepath:exists() then metadata = decode_json_file(metadata_filepath, {}) end
   if metadata.project_root == nil then metadata.project_root = Utils.root.get({
     buf = bufnr,
   }) end
@@ -326,8 +328,7 @@ function History.delete(bufnr, filename)
         -- No histories left, clear the latest_filename from metadata
         local metadata_filepath = History.get_metadata_filepath(bufnr)
         if metadata_filepath:exists() then
-          local metadata_content = metadata_filepath:read()
-          local metadata = vim.json.decode(metadata_content)
+          local metadata = decode_json_file(metadata_filepath, {})
           metadata.latest_filename = nil -- Or "", depending on desired behavior for an empty latest
           metadata_filepath:write(vim.json.encode(metadata), "w")
         end
@@ -483,7 +484,7 @@ function Prompt.get_templates_dir(project_root)
             local piece = vim.fs.basename(entry)
 
             if piece == "base.avanterules" then
-              local content = file:read()
+              local content = file:read() or ""
 
               if not content:match("{%% block extra_prompt %%}[%s,\\n]*{%% endblock %%}") then
                 file:write("{% block extra_prompt %}\n", "a")
