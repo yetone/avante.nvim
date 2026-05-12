@@ -101,7 +101,7 @@ for level, levelnr in pairs(vim.log.levels) do
       end
     end
     logfile:write(table.concat(parts, " "), "\n")
-    logfile:flush()
+    if logfile.flush then logfile:flush() end
   end
 end
 
