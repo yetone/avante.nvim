@@ -66,7 +66,7 @@ end
 ---@return table|nil model_info Model metadata including context_length
 local function get_model_info(model_name, timeout)
   local curl = require("plenary.curl")
-  local models_endpoint = Utils.url_join("http://127.0.0.1:1234", "/api/v1/models")
+  local models_endpoint = Utils.url_join(provider_conf.endpoint, "/api/v1/models")
 
   local headers = {
     ["Content-Type"] = "application/json",
