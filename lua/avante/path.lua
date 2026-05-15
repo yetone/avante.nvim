@@ -294,7 +294,9 @@ function Prompt.get_templates_dir(project_root)
 
   -- get root directory of given bufnr
   local directory = Path:new(project_root)
-  if Utils.get_os_name() == "windows" then directory = Path:new(vim.fs.abspath(tostring(directory)):gsub("^%a:", "")) end
+  if Utils.get_os_name() == "windows" then
+    directory = Path:new(vim.fs.abspath(tostring(directory)):gsub("^%a:", ""))
+  end
   ---@cast directory Path
   ---@type Path
   local cache_prompt_dir = P.cache_path:joinpath(directory)
@@ -350,7 +352,8 @@ function Prompt.get_templates_dir(project_root)
     if override_prompt_dir then
       local user_template_path = Path:new(override_prompt_dir)
       if user_template_path:exists() then
-        local user_scanner = Scan.scan_dir(vim.fs.abspath(tostring(user_template_path)), { depth = 1, add_dirs = false })
+        local user_scanner =
+          Scan.scan_dir(vim.fs.abspath(tostring(user_template_path)), { depth = 1, add_dirs = false })
         for _, entry in ipairs(user_scanner) do
           local file = Path:new(entry)
           if file:is_file() then
