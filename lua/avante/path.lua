@@ -1,8 +1,141 @@
 local fn = vim.fn
 local Utils = require("avante.utils")
-local Path = require("plenary.path")
-local Scan = require("plenary.scandir")
 local Config = require("avante.config")
+
+local uv = vim.uv or vim.loop
+
+local Path = {}
+Path.__index = Path
+
+local function normalize(path)
+  path = tostring(path)
+  if vim.fs and vim.fs.normalize then return vim.fs.normalize(path) end
+  return fn.fnamemodify(path, ":p")
+end
+
+local function is_absolute(path)
+  if vim.fs and vim.fs.is_absolute then return vim.fs.is_absolute(path) end
+  return path:match("^/") ~= nil or path:match("^%a:[/\\]") ~= nil or path:match("^[/\\][/\\]") ~= nil
+end
+
+function Path:new(...)
+  local parts = vim.iter({ ... }):map(function(part) return tostring(part) end):totable()
+  return setmetatable({ filename = normalize(vim.fs.joinpath(unpack(parts))) }, self)
+end
+
+function Path:__tostring() return self.filename end
+
+function Path:joinpath(...)
+  local parts = { self.filename }
+  for _, part in ipairs({ ... }) do
+    table.insert(parts, tostring(part))
+  end
+  return Path:new(unpack(parts))
+end
+
+function Path:parent() return Path:new(vim.fs.dirname(self.filename)) end
+
+function Path:absolute()
+  if is_absolute(self.filename) then return normalize(self.filename) end
+  return normalize(fn.fnamemodify(self.filename, ":p"))
+end
+
+function Path:is_absolute() return is_absolute(self.filename) end
+
+function Path:exists() return uv.fs_stat(self.filename) ~= nil end
+
+function Path:is_file()
+  local stat = uv.fs_stat(self.filename)
+  return stat ~= nil and stat.type == "file"
+end
+
+function Path:is_dir()
+  local stat = uv.fs_stat(self.filename)
+  return stat ~= nil and stat.type == "directory"
+end
+
+function Path:mkdir(opts)
+  opts = opts or {}
+  local flags = opts.parents and "p" or ""
+  fn.mkdir(self.filename, flags)
+end
+
+function Path:read()
+  local fd = uv.fs_open(self.filename, "r", 438)
+  if not fd then return nil end
+  local stat = uv.fs_fstat(fd)
+  if not stat then
+    uv.fs_close(fd)
+    return nil
+  end
+  local data = uv.fs_read(fd, stat.size, 0)
+  uv.fs_close(fd)
+  return data
+end
+
+local function decode_json_file(path, default)
+  local content = path:read()
+  if not content then return default end
+  return vim.json.decode(content) or default
+end
+
+function Path:write(data, mode)
+  local flags = mode == "a" and "a" or "w"
+  local fd = assert(uv.fs_open(self.filename, flags, 438))
+  assert(uv.fs_write(fd, data))
+  uv.fs_close(fd)
+end
+
+function Path:rm(opts)
+  opts = opts or {}
+  fn.delete(self.filename, opts.recursive and "rf" or "")
+end
+
+function Path:copy(opts)
+  local destination = Path:new(opts.destination)
+
+  if self:is_dir() then
+    destination:mkdir({ parents = true })
+    local scanner = uv.fs_scandir(self.filename)
+    if not scanner then return end
+    while true do
+      local name = uv.fs_scandir_next(scanner)
+      if not name then break end
+      self:joinpath(name):copy({
+        destination = destination:joinpath(name),
+        recursive = opts.recursive,
+        override = opts.override,
+      })
+    end
+    return
+  end
+
+  if destination:exists() and not opts.override then return end
+  destination:parent():mkdir({ parents = true })
+  local data = self:read()
+  if data ~= nil then destination:write(data, "w") end
+end
+
+local function scan_dir(dir, opts)
+  opts = opts or {}
+  local result = {}
+  local scanner = uv.fs_scandir(tostring(dir))
+  if not scanner then return result end
+
+  while true do
+    local name, entry_type = uv.fs_scandir_next(scanner)
+    if not name then break end
+    local path = tostring(Path:new(dir):joinpath(name))
+    local is_dir = entry_type == "directory"
+    if opts.only_dirs then
+      if is_dir then table.insert(result, path) end
+    elseif not is_dir or opts.add_dirs then
+      table.insert(result, path)
+    end
+  end
+
+  return result
+end
 
 ---@class avante.Path
 ---@field history_path Path
@@ -98,8 +231,7 @@ function History.get_latest_filename(bufnr, new)
   local filename
   local metadata_filepath = History.get_metadata_filepath(bufnr)
   if metadata_filepath:exists() and not new then
-    local metadata_content = metadata_filepath:read()
-    local metadata = vim.json.decode(metadata_content)
+    local metadata = decode_json_file(metadata_filepath, {})
     filename = metadata.latest_filename
   end
   if not filename or filename == "" then
@@ -114,10 +246,7 @@ end
 function History.save_latest_filename(bufnr, filename)
   local metadata_filepath = History.get_metadata_filepath(bufnr)
   local metadata = {}
-  if metadata_filepath:exists() then
-    local metadata_content = metadata_filepath:read()
-    metadata = vim.json.decode(metadata_content)
-  end
+  if metadata_filepath:exists() then metadata = decode_json_file(metadata_filepath, {}) end
   if metadata.project_root == nil then metadata.project_root = Utils.root.get({
     buf = bufnr,
   }) end
@@ -199,8 +328,7 @@ function History.delete(bufnr, filename)
         -- No histories left, clear the latest_filename from metadata
         local metadata_filepath = History.get_metadata_filepath(bufnr)
         if metadata_filepath:exists() then
-          local metadata_content = metadata_filepath:read()
-          local metadata = vim.json.decode(metadata_content)
+          local metadata = decode_json_file(metadata_filepath, {})
           metadata.latest_filename = nil -- Or "", depending on desired behavior for an empty latest
           metadata_filepath:write(vim.json.encode(metadata), "w")
         end
@@ -219,7 +347,7 @@ function P.list_projects()
   if not projects_dir:exists() then return {} end
 
   local projects = {}
-  local dirs = Scan.scan_dir(tostring(projects_dir), { depth = 1, add_dirs = true, only_dirs = true })
+  local dirs = scan_dir(tostring(projects_dir), { depth = 1, add_dirs = true, only_dirs = true })
 
   for _, dir_path in ipairs(dirs) do
     local project_dir = Path:new(dir_path)
@@ -294,7 +422,7 @@ function Prompt.get_templates_dir(project_root)
 
   -- get root directory of given bufnr
   local directory = Path:new(project_root)
-  if Utils.get_os_name() == "windows" then directory = Path:new(directory:absolute():gsub("^%a:", "")[1]) end
+  if Utils.get_os_name() == "windows" then directory = Path:new((directory:absolute():gsub("^%a:", ""))) end
   ---@cast directory Path
   ---@type Path
   local cache_prompt_dir = P.cache_path:joinpath(directory)
@@ -304,12 +432,11 @@ function Prompt.get_templates_dir(project_root)
     if not dir then return end
     if vim.fn.isdirectory(dir) ~= 1 then return end
 
-    local scanner = Scan.scan_dir(dir, { depth = 1, add_dirs = true })
+    local scanner = scan_dir(dir, { depth = 1, add_dirs = true })
     for _, entry in ipairs(scanner) do
       local file = Path:new(entry)
       if file:is_file() then
-        local pieces = vim.split(entry, "/")
-        local piece = pieces[#pieces]
+        local piece = vim.fs.basename(entry)
         local mode = piece:match("([^.]+)%.avanterules$")
         if not mode or not Prompt.custom_modes[mode] then goto continue end
         if Prompt.custom_prompts_contents[mode] == nil then
@@ -350,15 +477,14 @@ function Prompt.get_templates_dir(project_root)
     if override_prompt_dir then
       local user_template_path = Path:new(override_prompt_dir)
       if user_template_path:exists() then
-        local user_scanner = Scan.scan_dir(user_template_path:absolute(), { depth = 1, add_dirs = false })
+        local user_scanner = scan_dir(user_template_path:absolute(), { depth = 1, add_dirs = false })
         for _, entry in ipairs(user_scanner) do
           local file = Path:new(entry)
           if file:is_file() then
-            local pieces = vim.split(entry, "/")
-            local piece = pieces[#pieces]
+            local piece = vim.fs.basename(entry)
 
             if piece == "base.avanterules" then
-              local content = file:read()
+              local content = file:read() or ""
 
               if not content:match("{%% block extra_prompt %%}[%s,\\n]*{%% endblock %%}") then
                 file:write("{% block extra_prompt %}\n", "a")
