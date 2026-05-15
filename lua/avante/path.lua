@@ -189,7 +189,7 @@ function History.delete(bufnr, filename)
   local history_filepath = History.get_filepath(bufnr, filename)
   if history_filepath:exists() then
     local was_latest = (filename == History.get_latest_filename(bufnr, false))
-    history_filepath:rm()
+    vim.fs.rm(tostring(history_filepath))
 
     if was_latest then
       local remaining_histories = History.list(bufnr) -- This list is sorted by recency
@@ -480,8 +480,8 @@ end
 function P.available() return P._init_templates_lib() ~= nil end
 
 function P.clear()
-  P.cache_path:rm({ recursive = true })
-  P.history_path:rm({ recursive = true })
+  vim.fs.rm(tostring(P.cache_path), { recursive = true })
+  vim.fs.rm(tostring(P.history_path), { recursive = true })
 
   if not P.cache_path:exists() then P.cache_path:mkdir({ parents = true }) end
   if not P.history_path:exists() then P.history_path:mkdir({ parents = true }) end
