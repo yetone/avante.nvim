@@ -174,8 +174,8 @@ cmd("Clear", function(opts)
     end
     sidebar:clear_history()
   elseif arg == "cache" then
-    local history_path = P.history_path:absolute()
-    local cache_path = P.cache_path:absolute()
+    local history_path = vim.fs.abspath(tostring(P.history_path))
+    local cache_path = vim.fs.abspath(tostring(P.cache_path))
     local prompt = string.format("Recursively delete %s and %s?", history_path, cache_path)
     if vim.fn.confirm(prompt, "&Yes\n&No", 2) == 1 then P.clear() end
   else
