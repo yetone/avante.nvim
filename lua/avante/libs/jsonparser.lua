@@ -110,6 +110,34 @@ local function unescapeJsonString(str)
     end
   end)
 
+  result = result:gsub("\\u(%x%x%x%x)\\u(%x%x%x%x)", function(high_hex, low_hex)
+    local high_surrogate = tonumber(high_hex, 16)
+    local low_surrogate = tonumber(low_hex, 16)
+
+    -- 检查否为代对
+    if
+      high_surrogate
+      and low_surrogate
+      and high_surrogate >= 0xD800
+      and high_surrogate <= 0xDBFF
+      and low_surrogate >= 0xDC00
+      and low_surrogate <= 0xDFFF
+    then
+      -- 计算实际码
+      local codepoint = 0x10000 + ((high_surrogate - 0xD800) * 0x400) + (low_surrogate - 0xDC00)
+
+      -- 码点编码为 UTF-8（4节
+      return string.char(
+        0xF0 + math.floor(codepoint / 0x40000),
+        0x80 + math.floor((codepoint % 0x40000) / 0x1000),
+        0x80 + math.floor((codepoint % 0x1000) / 0x40),
+        0x80 + (codepoint % 0x40)
+      )
+    end
+
+    return "\\u" .. high_hex .. "\\u" .. low_hex -- 保持未知转义序列
+  end)
+
   -- 处理 Unicode 转义序列 \uXXXX
   result = result:gsub("\\u(%x%x%x%x)", function(hex)
     local codepoint = tonumber(hex, 16)
