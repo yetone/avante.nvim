@@ -915,7 +915,7 @@ function M.cleanup_claude()
     if lockfile:exists() then
       local content = lockfile:read()
       local pid = tonumber(content)
-      if pid and pid == vim.fn.getpid() then lockfile:rm() end
+      if pid and pid == vim.fn.getpid() then vim.fs.rm(tostring(lockfile)) end
     end
   end
 

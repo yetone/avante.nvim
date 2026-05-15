@@ -158,7 +158,7 @@ function M.copy_path(input, opts)
           if entry:match("^%.") then goto continue end
           if Path:new(new_entry_path):exists() then
             if Path:new(new_entry_path):is_dir() then
-              Path:new(new_entry_path):rmdir()
+              vim.fs.rm(tostring(new_entry_path), { recursive = true })
             else
               Path:new(new_entry_path):unlink()
             end
