@@ -407,6 +407,13 @@ describe("JsonParser", function()
         assert.equals(1, #results)
         assert.equals("Hello", results[1].unicode)
       end)
+
+      it("should handle surrogate pairs in Unicode escape sequences", function()
+        parser:addData('{"unicode": "\\uD83D\\uDE03"}')
+        local results = parser:getAllObjects()
+        assert.equals(1, #results)
+        assert.equals("😃", results[1].unicode)
+      end)
     end)
 
     describe("real-world scenarios", function()
