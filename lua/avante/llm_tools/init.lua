@@ -151,13 +151,13 @@ function M.copy_path(input, opts)
         return
       end
       if on_log then on_log("Copying path: " .. abs_path .. " to " .. new_abs_path) end
-      if Path:new(abs_path):is_dir() then
+      if vim.fn.isdirectory(abs_path) == 1 then
         Path:new(new_abs_path):mkdir({ parents = true })
         for _, entry in ipairs(Path:new(abs_path):list()) do
           local new_entry_path = Path:new(new_abs_path):joinpath(entry)
           if entry:match("^%.") then goto continue end
           if Path:new(new_entry_path):exists() then
-            if Path:new(new_entry_path):is_dir() then
+            if vim.fn.isdirectory(tostring(new_entry_path)) == 1 then
               vim.fs.rm(tostring(new_entry_path), { recursive = true })
             else
               Path:new(new_entry_path):unlink()
