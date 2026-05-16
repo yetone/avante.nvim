@@ -919,11 +919,7 @@ end
 ---@param opts table<string, any>|nil -- Optional table parameter for configuration settings
 function M.setup(opts)
   opts = opts or {} -- Ensure `opts` is defined with a default table
-  if vim.fn.has("nvim-0.11") == 1 then
-    vim.validate("opts", opts, "table", true)
-  else
-    vim.validate({ opts = { opts, "table", true } })
-  end
+  vim.validate("opts", opts, "table", true)
 
   opts = opts or {}
 
@@ -1072,11 +1068,7 @@ function M.setup(opts)
     )
   end
 
-  if vim.fn.has("nvim-0.11") == 1 then
-    vim.validate("provider", M._options.provider, "string", false)
-  else
-    vim.validate({ provider = { M._options.provider, "string", false } })
-  end
+  vim.validate("provider", M._options.provider, "string", false)
 
   for k, v in pairs(M._options.providers) do
     M._options.providers[k] = type(v) == "function" and v() or v
