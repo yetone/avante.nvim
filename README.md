@@ -436,6 +436,32 @@ require('avante').setup({
 
 _See [config.lua#L9](./lua/avante/config.lua) for the full config_
 
+You can pass options directly to `setup()`:
+
+```lua
+require("avante").setup({
+  provider = "claude",
+  behaviour = {
+    auto_suggestions = false,
+  },
+})
+```
+
+Alternatively, define the same options in `vim.g.avante` before calling `setup()`:
+
+```lua
+vim.g.avante = {
+  provider = "claude",
+  behaviour = {
+    auto_suggestions = false,
+  },
+}
+
+require("avante").setup()
+```
+
+If both are used, options passed to `setup()` override values from `vim.g.avante`.
+
 <details>
 <summary>Default configuration</summary>
 
