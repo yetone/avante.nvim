@@ -922,7 +922,13 @@ function M.setup(opts)
   opts = opts or {} -- Ensure `opts` is defined with a default table
   vim.validate("opts", opts, "table", true)
 
-  opts = opts or {}
+  local global_opts = {}
+  if vim.g.avante ~= nil then
+    vim.validate("vim.g.avante", vim.g.avante, "table", true)
+    global_opts = vim.deepcopy(vim.g.avante, true)
+  end
+
+  opts = vim.tbl_deep_extend("force", global_opts, opts or {})
 
   local migration_url = "https://github.com/yetone/avante.nvim/wiki/Provider-configuration-migration-guide"
 
@@ -1075,9 +1081,9 @@ function M.setup(opts)
     M._options.providers[k] = type(v) == "function" and v() or v
   end
 
-  vim.g.avante = {
+  vim.g.avante = vim.tbl_deep_extend("force", vim.g.avante or {}, {
     log_level = merged.log_level,
-  }
+  })
 end
 
 ---@param opts table<string, any>
