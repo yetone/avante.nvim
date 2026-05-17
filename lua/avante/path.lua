@@ -6,7 +6,7 @@ local Config = require("avante.config")
 
 ---@class avante.Path
 ---@field history_path Path
----@field cache_path Path
+---@field cache_path string
 ---@field data_path Path
 local P = {}
 
@@ -297,9 +297,7 @@ function Prompt.get_templates_dir(project_root)
   if Utils.get_os_name() == "windows" then
     directory = Path:new(vim.fs.abspath(tostring(directory)):gsub("^%a:", ""))
   end
-  ---@cast directory Path
-  ---@type Path
-  local cache_prompt_dir = P.cache_path:joinpath(directory)
+  local cache_prompt_dir = Path:new(P.cache_path):joinpath(directory)
   if not cache_prompt_dir:exists() then cache_prompt_dir:mkdir({ parents = true }) end
 
   local function find_rules(dir)
@@ -466,8 +464,8 @@ function P.setup()
   if not history_path:exists() then history_path:mkdir({ parents = true }) end
   P.history_path = history_path
 
-  local cache_path = Path:new(vim.fs.joinpath(vim.fn.stdpath("cache"), "avante"))
-  if not cache_path:exists() then cache_path:mkdir({ parents = true }) end
+  local cache_path = vim.fs.joinpath(vim.fn.stdpath("cache"), "avante")
+  if vim.uv.fs_stat(cache_path) == nil then vim.fn.mkdir(cache_path, "p") end
   P.cache_path = cache_path
 
   local data_path = Path:new(vim.fs.joinpath(vim.fn.stdpath("data"), "avante"))
@@ -480,10 +478,10 @@ end
 function P.available() return P._init_templates_lib() ~= nil end
 
 function P.clear()
-  vim.fs.rm(tostring(P.cache_path), { recursive = true })
+  vim.fs.rm(P.cache_path, { recursive = true })
   vim.fs.rm(tostring(P.history_path), { recursive = true })
 
-  if not P.cache_path:exists() then P.cache_path:mkdir({ parents = true }) end
+  if vim.uv.fs_stat(P.cache_path) == nil then vim.fn.mkdir(P.cache_path, "p") end
   if not P.history_path:exists() then P.history_path:mkdir({ parents = true }) end
 end
 
