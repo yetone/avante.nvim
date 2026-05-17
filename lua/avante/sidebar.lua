@@ -2449,7 +2449,7 @@ end
 function Sidebar:close_input_hint()
   if self.input_hint_window and api.nvim_win_is_valid(self.input_hint_window) then
     local buf = api.nvim_win_get_buf(self.input_hint_window)
-    if INPUT_HINT_NAMESPACE then api.nvim_buf_clear_namespace(buf, INPUT_HINT_NAMESPACE, 0, -1) end
+    api.nvim_buf_clear_namespace(buf, INPUT_HINT_NAMESPACE, 0, -1)
     api.nvim_win_close(self.input_hint_window, true)
     api.nvim_buf_delete(buf, { force = true })
     self.input_hint_window = nil
