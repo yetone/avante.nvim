@@ -5,9 +5,9 @@ local Scan = require("plenary.scandir")
 local Config = require("avante.config")
 
 ---@class avante.Path
----@field history_path Path
+---@field history_path string
 ---@field cache_path string
----@field data_path Path
+---@field data_path string
 local P = {}
 
 ---@param bufnr integer | nil
@@ -460,16 +460,16 @@ function P._init_templates_lib()
 end
 
 function P.setup()
-  local history_path = Path:new(Config.history.storage_path)
-  if not history_path:exists() then history_path:mkdir({ parents = true }) end
+  local history_path = Config.history.storage_path
+  if vim.uv.fs_stat(history_path) == nil then vim.fn.mkdir(history_path, "p") end
   P.history_path = history_path
 
   local cache_path = vim.fs.joinpath(vim.fn.stdpath("cache"), "avante")
   if vim.uv.fs_stat(cache_path) == nil then vim.fn.mkdir(cache_path, "p") end
   P.cache_path = cache_path
 
-  local data_path = Path:new(vim.fs.joinpath(vim.fn.stdpath("data"), "avante"))
-  if not data_path:exists() then data_path:mkdir({ parents = true }) end
+  local data_path = vim.fs.joinpath(vim.fn.stdpath("data"), "avante")
+  if vim.uv.fs_stat(data_path) == nil then vim.fn.mkdir(data_path, "p") end
   P.data_path = data_path
 
   vim.defer_fn(P._init_templates_lib, 1000)
@@ -479,10 +479,10 @@ function P.available() return P._init_templates_lib() ~= nil end
 
 function P.clear()
   vim.fs.rm(P.cache_path, { recursive = true })
-  vim.fs.rm(tostring(P.history_path), { recursive = true })
+  vim.fs.rm(P.history_path, { recursive = true })
 
   if vim.uv.fs_stat(P.cache_path) == nil then vim.fn.mkdir(P.cache_path, "p") end
-  if not P.history_path:exists() then P.history_path:mkdir({ parents = true }) end
+  if vim.uv.fs_stat(P.history_path) == nil then vim.fn.mkdir(P.history_path, "p") end
 end
 
 return P
