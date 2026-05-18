@@ -3,13 +3,9 @@ local Input = require("avante.ui.input")
 describe("Input", function()
   local original_input
 
-  before_each(function()
-    original_input = vim.ui.input
-  end)
+  before_each(function() original_input = vim.ui.input end)
 
-  after_each(function()
-    vim.ui.input = original_input
-  end)
+  after_each(function() vim.ui.input = original_input end)
 
   it("uses vim.ui.input for the native provider", function()
     local captured_opts
