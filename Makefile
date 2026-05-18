@@ -6,14 +6,15 @@ ifeq ($(UNAME), Linux)
 	EXT := so
 else ifeq ($(UNAME), Darwin)
 	OS := macOS
-	EXT := dylib
+	# looks interchangeable with "dylib", but nvim will find .so automatically in rtp
+	EXT := so
 else
 	$(error Unsupported operating system: $(UNAME))
 endif
 
 LUA_VERSIONS := luajit lua51
 
-BUILD_DIR := build
+BUILD_DIR := lua
 BUILD_FROM_SOURCE ?= false
 TARGET_LIBRARY ?= all
 
@@ -68,7 +69,7 @@ $(BUILD_DIR):
 	@mkdir -p $(BUILD_DIR)
 
 clean:
-	@rm -rf $(BUILD_DIR)
+	@rm -rf $(BUILD_DIR)/*.$(EXT)
 
 luacheck:
 	@luacheck `find \( -path './target' -prune \) -o -name "*.lua" -print` --codes
