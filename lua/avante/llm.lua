@@ -320,7 +320,7 @@ function M.generate_prompts(opts)
     model_name = provider.model or "unknown"
     local provider_conf = Providers.parse_config(provider)
     use_react_prompt = provider_conf.use_ReAct_prompt
-    context_window = provider.context_window
+    context_window = provider.get_context_window and provider:get_context_window() or provider.context_window
   end
 
   local template_opts = {

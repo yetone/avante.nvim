@@ -514,6 +514,24 @@ M._defaults = {
         max_tokens = 4096, -- to avoid using the unsupported max_completion_tokens
       },
     },
+    ---@type AvanteSupportedProvider
+    lmstudio = {
+      mode = "openai", -- "openai" | "anthropic" | "lmstudio" (native)
+      endpoint = "http://127.0.0.1:1234",
+      api_key = "", -- Optional: only when LM Studio "Require Authentication" is enabled in Server Settings
+      model = "", -- Empty; will be populated by list_models or user selection via :AvanteModels
+      timeout = 30000,
+      context_window = 128000, -- Default fallback; dynamically fetched from server when use_server_context_window is enabled
+      extra_request_body = {
+        temperature = 0.75,
+        max_tokens = 16384,
+      },
+      --- When enabled, omits temperature and max_tokens from the request body so the server applies its own defaults.
+      use_server_defaults = false,
+      --- When enabled, dynamically fetches context_window from the LM Studio server's model metadata.
+      --- Falls back to the configured context_window value if fetching fails.
+      use_server_context_window = false,
+    },
   },
   ---Specify the special dual_boost mode
   ---1. enabled: Whether to enable dual_boost mode. Default to false.
