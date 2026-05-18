@@ -1,5 +1,6 @@
 local M = {}
 
+---Let user enter freeform value
 ---@param input avante.ui.Input
 function M.show(input)
   local opts = {
@@ -17,7 +18,7 @@ function M.show(input)
     )
   end
 
-  vim.ui.select(opts, input.on_submit)
+  vim.ui.input(opts, input.on_submit)
 end
 
 return M
