@@ -929,6 +929,7 @@ function M.setup(opts)
   end
 
   opts = vim.tbl_deep_extend("force", global_opts, opts or {})
+  local provider_configured = opts.provider ~= nil
 
   local migration_url = "https://github.com/yetone/avante.nvim/wiki/Provider-configuration-migration-guide"
 
@@ -1056,7 +1057,13 @@ function M.setup(opts)
   )
 
   local last_model, last_provider = M.get_last_used_model(merged.providers or {})
-  if last_model then apply_model_selection(merged, last_model, last_provider) end
+  if last_model then
+    if provider_configured then
+      if last_provider == nil or last_provider == merged.provider then apply_model_selection(merged, last_model) end
+    else
+      apply_model_selection(merged, last_model, last_provider)
+    end
+  end
 
   M._options = merged
 
