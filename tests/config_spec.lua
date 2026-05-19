@@ -48,9 +48,7 @@ describe("config", function()
   end)
 
   it("uses the last provider and model when no provider is configured", function()
-    Config.get_last_used_model = function()
-      return "gpt-test", "openai"
-    end
+    Config.get_last_used_model = function() return "gpt-test", "openai" end
 
     Config.setup({
       windows = {
@@ -65,9 +63,7 @@ describe("config", function()
   end)
 
   it("does not let the last provider override an explicit setup provider", function()
-    Config.get_last_used_model = function()
-      return "gpt-test", "openai"
-    end
+    Config.get_last_used_model = function() return "gpt-test", "openai" end
 
     Config.setup({ provider = "claude" })
 
@@ -79,9 +75,7 @@ describe("config", function()
     vim.g.avante = {
       provider = "claude",
     }
-    Config.get_last_used_model = function()
-      return "gpt-test", "openai"
-    end
+    Config.get_last_used_model = function() return "gpt-test", "openai" end
 
     Config.setup({})
 
