@@ -40,7 +40,7 @@ function M.open(category, prompt_label)
     end
 
     if #items == 0 then
-      Utils.warn("No " .. category .. " options available from ACP agent")
+      Utils.warn("No " .. category .. " options available from " .. (Config.provider or "current") .. " ACP agent")
       return
     end
 
@@ -121,7 +121,7 @@ function M.open(category, prompt_label)
         then
           timer:stop()
           timer:close()
-          Utils.warn("No " .. category .. " options available from this ACP agent")
+          Utils.warn("No " .. category .. " options available from " .. (Config.provider or "current") .. " ACP agent")
         elseif attempts > 50 then
           timer:stop()
           timer:close()
