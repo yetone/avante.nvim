@@ -72,6 +72,7 @@ describe("generate_prompts", function()
 
     -- Mock P.available to always return true
     local Path = require("avante.path")
+    ---@diagnostic disable-next-line: duplicate-set-field
     Path.available = function() return true end
 
     -- Mock the Prompt functions directly since _templates_lib is a local variable

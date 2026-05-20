@@ -70,6 +70,21 @@ $(BUILD_DIR):
 clean:
 	@rm -rf $(BUILD_DIR)
 
+.PHONY: docgen
+docgen:
+	vimcats --prefix-func \
+		lua/avante/init.lua \
+		lua/avante/config.lua \
+		lua/avante/commands.lua \
+		lua/avante/sidebar.lua \
+		lua/cmp_avante/mentions.lua \
+		lua/avante/rag_service.lua \
+		lua/avante/llm_tools/init.lua \
+		lua/avante/utils/prompts.lua \
+		lua/avante/extensions/init.lua \
+		lua/avante/utils/init.lua \
+		> doc/avante.txt
+
 luacheck:
 	@luacheck `find \( -path './target' -prune \) -o -name "*.lua" -print` --codes
 

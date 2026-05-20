@@ -1,3 +1,50 @@
+---@mod avante-prompts avante custom prompts
+---@brief [[
+---
+--- Avante uses different prompts for planning, editing, suggesting, and
+--- agentic flows. You can set a global prompt:
+--->
+---   require("avante").setup({
+---     system_prompt = "MY CUSTOM SYSTEM PROMPT",
+---   })
+---<
+---
+--- Or override the prompt directory:
+--->
+---   require("avante").setup({
+---     override_prompt_dir = vim.fn.expand("~/.config/nvim/avante_prompts"),
+---   })
+---<
+---
+--- Project prompt rules~
+---
+--- Avante can load `*.avanterules` files from a project. Configure rule
+--- directories:
+--->
+---   require("avante").setup({
+---     rules = {
+---       project_dir = ".avante/rules",
+---       global_dir = "~/.config/avante/rules",
+---     },
+---   })
+---<
+---
+--- Rule loading priority:
+---
+--- 1. `rules.project_dir`
+--- 2. `rules.global_dir`
+--- 3. Project root
+---
+--- Example files:
+---
+--- - `typescript.planning.avanterules`
+--- - `snippets.editing.avanterules`
+--- - `suggesting.avanterules`
+---
+--- `*.avanterules` files are Jinja templates rendered with minijinja.
+---
+---@brief ]]
+
 local Config = require("avante.config")
 local M = {}
 

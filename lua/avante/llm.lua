@@ -255,6 +255,7 @@ function M.agent_loop(opts)
   M._stream(stream_options)
 end
 
+--- Loads prompt from various locations (avante.md, )
 ---@param opts AvanteGeneratePromptsOptions
 ---@return AvantePromptOptions
 function M.generate_prompts(opts)

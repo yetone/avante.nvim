@@ -1,3 +1,72 @@
+---@mod avante-sidebar avante sidebar
+---@brief [[
+--- The 'sidebar' is made of several containers, each with its own 'Avante*' filetype that you can use to customize its behavior, e.g. "AvanteInput", "AvanteResult"...
+---
+--- Keymaps~
+---
+--- Default keymaps are installed when `behaviour.auto_set_keymaps` is enabled.
+--- If a mapping already exists, Avante leaves it to the user to configure.
+---
+--- Sidebar~
+---
+---                                             *avante-sidebar-keymaps*
+--- `A`             Apply all
+--- `a`             Apply cursor
+--- `r`             Retry user request
+--- `e`             Edit user request
+--- `<Tab>`         Switch windows
+--- `<S-Tab>`       Reverse switch windows
+--- `d`             Remove file
+--- `@`             Add file
+--- `q`             Close sidebar
+--- `<leader>aa`    Show sidebar
+--- `<leader>at`    Toggle sidebar visibility
+--- `<leader>ar`    Refresh sidebar
+--- `<leader>af`    Switch sidebar focus
+--- `]p`            Next prompt
+--- `[p`            Previous prompt
+---
+--- Suggestion~
+---
+---                                          *avante-suggestion-keymaps*
+--- `<leader>a?`    Select model
+--- `<leader>an`    New ask
+--- `<leader>ae`    Edit selected blocks
+--- `<leader>aS`    Stop current AI request
+--- `<leader>ah`    Select between chat histories
+--- `<M-l>`         Accept suggestion
+--- `<M-]>`         Next suggestion
+--- `<M-[>`         Previous suggestion
+--- `<C-]>`         Dismiss suggestion
+--- `<leader>ad`    Toggle debug mode
+--- `<leader>as`    Toggle suggestion display
+--- `<leader>aR`    Toggle repository map
+---
+--- Files~
+---
+---                                               *avante-file-keymaps*
+--- `<leader>ac`    Add current buffer to selected files
+--- `<leader>aB`    Add all buffer files to selected files
+---
+--- Diff~
+---
+---                                               *avante-diff-keymaps*
+--- `co`            Choose ours
+--- `ct`            Choose theirs
+--- `ca`            Choose all theirs
+--- `cb`            Choose both
+--- `cc`            Choose cursor
+--- `]x`            Move to next conflict
+--- `[x`            Move to previous conflict
+---
+--- Confirm~
+---
+---                                            *avante-confirm-keymaps*
+--- `<C-w>f`        Focus confirm window
+--- `c`             Confirm code
+--- `r`             Confirm response
+--- `i`             Confirm input
+---@brief ]]
 local api = vim.api
 local fn = vim.fn
 
@@ -302,6 +371,7 @@ function Sidebar:focus_input()
   end
 end
 
+---Checks if sidebar is visible/open
 function Sidebar:is_open() return Utils.is_valid_container(self.containers.result, true) end
 
 function Sidebar:in_code_win() return self.code.winid == api.nvim_get_current_win() end
