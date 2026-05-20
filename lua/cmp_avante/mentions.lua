@@ -1,3 +1,42 @@
+---@mod avante-completion avante completion sources
+---@brief [[
+---
+--- Avante provides nvim-cmp-compatible sources that can also be used with
+--- blink.cmp through blink.compat.
+---
+--- Mentions, triggered with `@`:
+---
+--- - `@codebase`: enable project context and repository mapping
+--- - `@diagnostics`: add diagnostics information
+--- - `@file`: open file selector to add files to chat context
+--- - `@quickfix`: add files from the quickfix list
+--- - `@buffers`: add open buffers
+---
+--- Slash commands, triggered with `/`:
+---
+--- - `/help`: show available commands
+--- - `/init`: initialize AGENTS.md based on the current project
+--- - `/clear`: clear chat history
+--- - `/new`: start a new chat
+--- - `/compact`: compact history messages
+--- - `/lines <start>-<end> <question>`: ask about specific lines
+--- - `/commit`: generate a commit message
+---
+--- Shortcuts, triggered with `#`, expand configured prompt templates:
+--->
+---   require("avante").setup({
+---     shortcuts = {
+---       {
+---         name = "refactor",
+---         description = "Refactor code with best practices",
+---         prompt = "Please refactor this code following best practices.",
+---       },
+---     },
+---   })
+---<
+---
+---@brief ]]
+
 local api = vim.api
 
 ---@class mentions_source : cmp.Source

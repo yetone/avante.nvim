@@ -1,3 +1,129 @@
+---@mod avante-nvim avante.nvim
+---
+---@brief [[
+---
+--- avante.nvim is a Neovim plugin designed to emulate the behaviour of the Cursor
+--- AI IDE. It provides AI-driven code suggestions, chat, code editing, and the
+--- ability to apply recommendations directly to source files.
+---
+--- Main features:
+---
+--- - AI-powered code assistance for the current file or selected context.
+--- - One-command application of suggested changes.
+--- - Project-specific instruction files with `avante.md`.
+--- - Agentic mode with tool use.
+--- - ACP integration for agents such as Gemini CLI, Claude Code, Goose, Codex,
+---   and Kimi CLI.
+--- - Optional RAG service and web-search tools.
+---
+--- Installation~
+---
+--- Requirements~
+---
+--- avante.nvim requires Neovim 0.11.0 or later.
+---
+---
+--- See the official README at https://github.com/yetone/avante.nvim for installation instructions.
+---
+--- Usage~
+---
+--- Basic workflow:
+---
+--- 1. Open a code file in Neovim.
+--- 2. Run |:AvanteAsk| with a question, or open the chat with |:AvanteChat|.
+--- 3. Review the AI response and suggested changes.
+--- 4. Apply edits from the sidebar with the configured keymaps.
+---
+--- API keys~
+---
+--- Scoped API keys are recommended when you want credentials used only by
+--- Avante:
+--->
+---   export AVANTE_ANTHROPIC_API_KEY=your-claude-api-key
+---   export AVANTE_OPENAI_API_KEY=your-openai-api-key
+---   export AVANTE_AZURE_OPENAI_API_KEY=your-azure-api-key
+---   export AVANTE_GEMINI_API_KEY=your-gemini-api-key
+---   export AVANTE_CO_API_KEY=your-cohere-api-key
+---   export AVANTE_MOONSHOT_API_KEY=your-moonshot-api-key
+---<
+---
+--- Legacy/global keys are also supported:
+--->
+---   export ANTHROPIC_API_KEY=your-api-key
+---   export OPENAI_API_KEY=your-api-key
+---   export AZURE_OPENAI_API_KEY=your-api-key
+---<
+---
+--- Bedrock can use `BEDROCK_KEYS` or the AWS default credentials chain:
+--->
+---   export BEDROCK_KEYS=aws_access_key_id,aws_secret_access_key,aws_region[,aws_session_token]
+---<
+---
+--- Claude Pro/Max subscription~
+---
+--- Set the Claude provider `auth_type` to `"max"`:
+--->
+---   require("avante").setup({
+---     providers = {
+---       claude = {
+---         auth_type = "max",
+---       },
+---     },
+---   })
+---<
+---
+--- After reopening Neovim, complete the browser authentication flow. If needed,
+--- run:
+--->
+---   :AvanteSwitchProvider
+---<
+---
+--- FAQ~
+---
+--- How do I disable agentic mode?~
+---
+--- Set:
+--->
+---   require("avante").setup({
+---     mode = "legacy",
+---   })
+---<
+---
+--- Agentic mode uses AI tools to automatically generate and apply changes.
+--- Legacy mode uses the traditional planning flow without automatic tool
+--- execution.
+---
+--- To keep agentic mode but disable specific tools:
+--->
+---   require("avante").setup({
+---     mode = "agentic",
+---     disabled_tools = { "bash", "python" },
+---   })
+---<
+---
+--- Why are my default keymaps missing?~
+---
+--- If a default mapping conflicts with an existing mapping, Avante does not
+--- override it. Configure your own keymaps or change the existing mappings.
+---
+--- How do I use markdown rendering?~
+---
+--- Install a markdown renderer and include the `Avante` filetype in its
+--- supported filetypes. For render-markdown.nvim:
+--->
+---   {
+---     "MeanderingProgrammer/render-markdown.nvim",
+---     opts = {
+---       file_types = { "markdown", "Avante" },
+---     },
+---     ft = { "markdown", "Avante" },
+---   }
+---<
+---
+---@brief ]]
+
+---@toc avante-contents
+
 local api = vim.api
 
 local Utils = require("avante.utils")
@@ -10,8 +136,10 @@ local RagService = require("avante.rag_service")
 
 ---@class Avante
 local M = {
+  --- per tab sidebar
   ---@type avante.Sidebar[] we use this to track chat command across tabs
   sidebars = {},
+  --- per tab selection
   ---@type avante.Selection[]
   selections = {},
   ---@type avante.Suggestion[]
@@ -495,6 +623,8 @@ setmetatable(M.toggle, {
 
 M.slash_commands_id = nil
 
+---@tag avante-init-setup
+---Main setup function that calls each submodule setup.
 ---@param opts? avante.Config
 function M.setup(opts)
   ---PERF: we can still allow running require("avante").setup() multiple times to override config if users wish to

@@ -1,3 +1,18 @@
+---@mod avante-acp-client avante-acp
+---
+---@brief [[
+---
+---Avante.nvim now supports the Agent Client Protocol (ACP) (https://agentclientprotocol.com/overview/introduction), enabling seamless integration with AI agents that follow this standardized communication protocol. ACP provides a unified way for AI agents to interact with development environments, offering enhanced capabilities for code editing, file operations, and tool execution.
+---
+---What is ACP?~
+---
+---The Agent Client Protocol (ACP) is a standardized protocol that enables AI agents to communicate with development tools and environments. It provides:
+---
+---- **Standardized Communication**: A unified JSON-RPC based protocol for agent-client interactions
+---- **Tool Integration**: Support for various development tools like file operations, code execution, and search
+---- **Session Management**: Persistent sessions that maintain context across interactions
+---- **Permission System**: Granular control over what agents can access and modify
+---@brief ]]
 local Config = require("avante.config")
 local Utils = require("avante.utils")
 

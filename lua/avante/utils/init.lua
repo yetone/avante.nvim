@@ -1,3 +1,7 @@
+---@mod avante-utils avante utilities
+---@brief [[
+---Contains basic utilities used across the codebase, notably the notification system and logging methods
+---@brief ]]
 local api = vim.api
 local fn = vim.fn
 local lsp = vim.lsp

@@ -19,6 +19,7 @@ Thumbs.db
 *~
 .vscode/
 .idea/
+doc/tags
 
 # Dependency manager generated directories
 /lua_modules/

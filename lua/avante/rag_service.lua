@@ -1,3 +1,42 @@
+---@mod avante-rag-service avante RAG service
+---@brief [[
+---
+--- The RAG service provides additional project context for AI responses. It is
+--- disabled by default.
+--->
+---   require("avante").setup({
+---     rag_service = {
+---       enabled = false,
+---       host_mount = os.getenv("HOME"),
+---       runner = "docker",
+---       llm = {
+---         provider = "openai",
+---         endpoint = "https://api.openai.com/v1",
+---         api_key = "OPENAI_API_KEY",
+---         model = "gpt-4o-mini",
+---         extra = nil,
+---       },
+---       embed = {
+---         provider = "openai",
+---         endpoint = "https://api.openai.com/v1",
+---         api_key = "OPENAI_API_KEY",
+---         model = "text-embedding-3-large",
+---         extra = nil,
+---       },
+---       docker_extra_args = "",
+---     },
+---   })
+---<
+---
+--- The RAG service depends on Docker or Nix. The `host_mount` path is mounted
+--- read-only into the service container. After changing RAG configuration,
+--- remove the old container so the new configuration is used:
+--->
+---   docker rm -fv avante-rag-service
+---<
+---
+---@brief ]]
+
 local curl = require("plenary.curl")
 local Path = require("plenary.path")
 local Config = require("avante.config")

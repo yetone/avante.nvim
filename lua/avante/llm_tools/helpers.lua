@@ -125,6 +125,7 @@ local function old_is_ignored(abs_path)
   return Utils.is_ignored(rel_path, gitignore_patterns, gitignore_negate_patterns)
 end
 
+---Is path git ignored
 ---@param abs_path string
 ---@return boolean
 function M.is_ignored(abs_path)
@@ -141,6 +142,7 @@ function M.is_ignored(abs_path)
   return exit_code == 0
 end
 
+---Check if path belongs to allowed directories
 ---@param abs_path string
 ---@return boolean
 function M.has_permission_to_access(abs_path)

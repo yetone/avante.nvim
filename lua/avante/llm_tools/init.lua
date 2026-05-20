@@ -1,3 +1,70 @@
+---@mod avante-tools avante tools
+---@brief [[
+---
+--- Agentic mode enables tool use. If a model does not support tools, disable
+--- them for that provider:
+--->
+---   require("avante").setup({
+---     providers = {
+---       claude = {
+---         disable_tools = true,
+---       },
+---     },
+---   })
+---<
+---
+--- Disable selected tools only:
+--->
+---   require("avante").setup({
+---     disabled_tools = { "python" },
+---   })
+---<
+---
+--- Built-in tool names include:
+--->
+---   rag_search, python, git_diff, git_commit, glob, search_keyword,
+---   read_file_toplevel_symbols, read_file, create_file, move_path, copy_path,
+---   delete_path, create_dir, bash, web_search, fetch
+---<
+---
+--- Custom tools~
+---
+--- Custom tools can run shell commands, scripts, or Lua functions:
+--->
+---   require("avante").setup({
+---     custom_tools = {
+---       {
+---         name = "run_go_tests",
+---         description = "Run Go unit tests and return results",
+---         param = {
+---           type = "table",
+---           fields = {
+---             {
+---               name = "target",
+---               description = "Package or directory to test",
+---               type = "string",
+---               optional = true,
+---             },
+---           },
+---         },
+---         returns = {
+---           {
+---             name = "result",
+---             description = "Test output",
+---             type = "string",
+---           },
+---         },
+---         func = function(params)
+---           local target = params.target or "./..."
+---           return vim.system({ "go", "test", "-v", target }, { text = true }):wait().stdout
+---         end,
+---       },
+---     },
+---   })
+---<
+---
+---@brief ]]
+
 local curl = require("plenary.curl")
 local Utils = require("avante.utils")
 local Path = require("plenary.path")
