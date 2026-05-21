@@ -43,12 +43,18 @@ function M:transform_tool(tool)
   return res
 end
 
+---Check if url belongs to openrouter
+---@return boolean
 function M.is_openrouter(url) return url:match("^https://openrouter%.ai/") end
 
+---Check if url belongs to mistral
+---@return boolean
 function M.is_mistral(url) return url:match("^https://api%.mistral%.ai/") end
 
+---Asking remote provider to list available models
 ---@return AvanteProviderModelList
 function M:list_models()
+  Utils.info("Asking remote for available models")
   if self == nil or self == M then
     local ok, provider = pcall(function() return Providers[Config.provider] end)
     if not ok or provider.list_models ~= M.list_models then provider = Providers.openai end

@@ -290,9 +290,9 @@ M.instructions_file = "avante.md"
 ---@field auto_suggestions_provider? boolean
 ---To add support for custom provider, follow the format below
 ---See https://github.com/yetone/avante.nvim/wiki#custom-providers for more details
----@field providers? {string: AvanteProvider}
+---@field providers {string: AvanteProvider}
 ---Agent Client Protocol providers.  |avante-acp|
----@field acp_providers? {string: AvanteACPProvider}
+---@field acp_providers {string: AvanteACPProvider}
 ---
 ---You can choose to disable tools by their names to in case you want to avoid its usage (like Claude 3.7 overusing the python tool)
 ---@field disabled_tools? string[]
