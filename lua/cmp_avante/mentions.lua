@@ -12,15 +12,7 @@
 --- - `@quickfix`: add files from the quickfix list
 --- - `@buffers`: add open buffers
 ---
---- Slash commands, triggered with `/`:
----
---- - `/help`: show available commands
---- - `/init`: initialize AGENTS.md based on the current project
---- - `/clear`: clear chat history
---- - `/new`: start a new chat
---- - `/compact`: compact history messages
---- - `/lines <start>-<end> <question>`: ask about specific lines
---- - `/commit`: generate a commit message
+--- For slash commands, triggered with `/`, see |*avante-slashcommands|.
 ---
 --- Shortcuts, triggered with `#`, expand configured prompt templates:
 --->
