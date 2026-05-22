@@ -323,6 +323,9 @@ M.instructions_file = "avante.md"
 ---@field behaviour avante.Config.Behaviour Behaviour and automation options.
 ---@field prompt_logger? avante.Config.PromptLogger Prompt logging options.
 ---@field windows table
+---@field slash_commands AvanteSlashCommand[] see |*avante-slashcommands*|
+---@field shortcuts AvanteShortcut[]  see |*avante-shortcuts*|
+---@field ask_opts AskOptions
 
 M._defaults = {
   debug = false,
@@ -1085,11 +1088,8 @@ M._defaults = {
   disabled_tools = {},
   ---@type AvanteLLMToolPublic[] | fun(): AvanteLLMToolPublic[]
   custom_tools = {},
-  ---@type AvanteSlashCommand[]
   slash_commands = {},
-  ---@type AvanteShortcut[]
   shortcuts = {},
-  ---@type AskOptions
   ask_opts = {},
 }
 
@@ -1097,6 +1097,7 @@ M._defaults = {
 ---@diagnostic disable-next-line: missing-fields
 M._options = {}
 
+ ---@diagnostic disable-next-line: param-type-mismatch
 local function get_config_dir_path() return vim.fs.joinpath(vim.fn.expand("~"), ".config", "avante.nvim") end
 local function get_config_file_path() return vim.fs.joinpath(get_config_dir_path(), "config.json") end
 
