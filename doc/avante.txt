@@ -418,7 +418,7 @@ WebSearchEngineProviderResponseBodyFormatter
 avante.InputProvider                                      *avante.InputProvider*
 
     Type: ~
-
+        
 
 
 avante.file_selector.IParams                      *avante.file_selector.IParams*
@@ -533,19 +533,19 @@ avante.Config                                                    *avante.Config*
 avante.Mode                                                        *avante.Mode*
 
     Type: ~
-
+        
 
 
 avante.ProviderName                                        *avante.ProviderName*
 
     Type: ~
-
+        
 
 
 Tokenizer                                                            *Tokenizer*
 
     Type: ~
-
+        
 
 
 AvanteConflictMappings                                  *AvanteConflictMappings*
@@ -566,19 +566,19 @@ AvanteToggleCodeWindowFromInput                *AvanteToggleCodeWindowFromInput*
 AvantePosition                                                  *AvantePosition*
 
     Type: ~
-
+        
 
 
 AvanteInitialDiff                                            *AvanteInitialDiff*
 
     Type: ~
-
+        
 
 
 avante.SelectorProvider                                *avante.SelectorProvider*
 
     Type: ~
-
+        
 
 
 M.save_last_model({model_name})                  *avante-config.save_last_model*
@@ -778,19 +778,6 @@ avante sidebar                                                  *avante-sidebar*
 
 avante.Sidebar                                                  *avante.Sidebar*
 
-
-avante.CodeState                                              *avante.CodeState*
-
-    Fields: ~
-        {winid}      (integer)
-        {bufnr}      (integer)
-        {selection}  (avante.SelectionResult|nil)
-        {old_winhl}  (string|nil)
-        {win_width}  (integer|nil)
-
-
-avante.Sidebar                                                  *avante.Sidebar*
-
     Fields: ~
         {id}                         (integer)
         {augroup}                    (integer)
@@ -814,6 +801,16 @@ avante.Sidebar                                                  *avante.Sidebar*
         {permission_button_options}  ({id:string,icon:string|nil,name:string}[]|nil)
         {expanded_message_uuids}     (table<string,boolean>)
         {tool_message_positions}     (table)
+
+
+avante.CodeState                                              *avante.CodeState*
+
+    Fields: ~
+        {winid}      (integer)
+        {bufnr}      (integer)
+        {selection}  (avante.SelectionResult|nil)
+        {old_winhl}  (string|nil)
+        {win_width}  (integer|nil)
 
 
 Sidebar:new({id})                                           *avante-sidebar:new*
