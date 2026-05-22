@@ -128,6 +128,7 @@ avante.nvim ··································
 avante configuration ··········································· |avante-config|
 avante commands ·············································· |avante-commands|
 avante sidebar ················································ |avante-sidebar|
+avante slash commands ··································· |avante-slashcommands|
 avante completion sources ·································· |avante-completion|
 avante RAG service ········································ |avante-rag-service|
 avante tools ···················································· |avante-tools|
@@ -417,7 +418,7 @@ WebSearchEngineProviderResponseBodyFormatter
 avante.InputProvider                                      *avante.InputProvider*
 
     Type: ~
-
+        
 
 
 avante.file_selector.IParams                      *avante.file_selector.IParams*
@@ -454,7 +455,7 @@ avante.Config.Behaviour                                *avante.Config.Behaviour*
         {auto_approve_tool_permissions?}      (boolean|string[])  Auto-approve all tools, no tools, or only specific tool names.
         {auto_check_diagnostics?}             (boolean)           Automatically check diagnostics.
         {allow_access_to_git_ignored_files?}  (boolean)           Allow tools to access git-ignored files.
-        {enable_fastapply?}                   (boolean)           Enable the fast-apply model flow.
+        {enable_fastapply}                    (boolean)           Enable the fast-apply model flow.
         {include_generated_by_commit_line?}   (boolean)           Controls if 'Generated-by: <provider/model>' line is added to git commit message
         {auto_add_current_file?}              (boolean)           Automatically add the current file when opening a new chat.
         {confirmation_ui_style?}              ()
@@ -471,7 +472,7 @@ avante.Config.PromptLogger                          *avante.Config.PromptLogger*
 
     Fields: ~
         {enabled?}      (boolean)                           Enable prompt logging.
-        {log_dir?}      (string)                            Directory where prompt logs are saved.
+        {log_dir}       (string)                            Directory where prompt logs are saved.
         {max_entries?}  (integer)                           Maximum number of prompt log entries to keep.
         {next_prompt?}  (avante.Config.PromptLoggerKeymap)  Mapping used to load the next newer prompt log.
         {prev_prompt?}  (avante.Config.PromptLoggerKeymap)  Mapping used to load the previous older prompt log.
@@ -486,7 +487,7 @@ avante.Config                                                    *avante.Config*
     Fields: ~
         {log_level?}                  (vim.log.levels)
         {session_recovery}            (any)
-        {mode?}                       (avante.Mode)                  Avante.nvim provides two interaction modes:
+        {mode}                        (avante.Mode)                  Avante.nvim provides two interaction modes:
                                                                      - *agentic* (default): Uses AI tools to automatically generate and apply code changes
                                                                      - *legacy*: Uses the traditional planning method without automatic tool execution
 
@@ -495,12 +496,12 @@ avante.Config                                                    *avante.Config*
                                                                      - If you're concerned about security with automatic tool execution
                                                                      - If you want to manually review each step before applying changes
                                                                      - If you're working in a sensitive environment where automatic code changes aren't desired
-        {auto_suggestions_provider?}  (bool)                         WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
+        {auto_suggestions_provider?}  (boolean)                      WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
                                                                      currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
                                                                      Of course, you can reduce the request frequency by increasing `suggestion.debounce`.
-        {providers?}                  ({string:AvanteProvider})     To add support for custom provider, follow the format below
+        {providers}                   ({string:AvanteProvider})     To add support for custom provider, follow the format below
                                                                     See https://github.com/yetone/avante.nvim/wiki#custom-providers for more details
-        {acp_providers?}              ({string:AvanteACPProvider})  Agent Client Protocol providers. See |avante-acp|
+        {acp_providers}               ({string:AvanteACPProvider})  Agent Client Protocol providers.  |avante-acp|
         {disabled_tools?}             (string[])
                                                                     You can choose to disable tools by their names to in case you want to avoid its usage (like Claude 3.7 overusing the python tool)
         {provider?}                   (avante.ProviderName)
@@ -523,27 +524,28 @@ avante.Config                                                    *avante.Config*
                                                                      })
                                                                     <
         {rules}                       (table)
-        {behaviour?}                  (avante.Config.Behaviour)     Behaviour and automation options.
+        {behaviour}                   (avante.Config.Behaviour)     Behaviour and automation options.
 
         {prompt_logger?}              (avante.Config.PromptLogger)  Prompt logging options.
+        {windows}                     (table)
 
 
 avante.Mode                                                        *avante.Mode*
 
     Type: ~
-
+        
 
 
 avante.ProviderName                                        *avante.ProviderName*
 
     Type: ~
-
+        
 
 
 Tokenizer                                                            *Tokenizer*
 
     Type: ~
-
+        
 
 
 AvanteConflictMappings                                  *AvanteConflictMappings*
@@ -564,19 +566,19 @@ AvanteToggleCodeWindowFromInput                *AvanteToggleCodeWindowFromInput*
 AvantePosition                                                  *AvantePosition*
 
     Type: ~
-
+        
 
 
 AvanteInitialDiff                                            *AvanteInitialDiff*
 
     Type: ~
-
+        
 
 
 avante.SelectorProvider                                *avante.SelectorProvider*
 
     Type: ~
-
+        
 
 
 M.save_last_model({model_name})                  *avante-config.save_last_model*
@@ -774,6 +776,9 @@ avante sidebar                                                  *avante-sidebar*
  `r`             Confirm response
  `i`             Confirm input
 
+avante.Sidebar                                                  *avante.Sidebar*
+
+
 avante.CodeState                                              *avante.CodeState*
 
     Fields: ~
@@ -872,6 +877,7 @@ Sidebar:focus_input()                               *avante-sidebar:focus_input*
 
 
 Sidebar:is_open()                                       *avante-sidebar:is_open*
+    Checks if sidebar is visible/open
 
 
 Sidebar:in_code_win()                               *avante-sidebar:in_code_win*
@@ -1325,6 +1331,36 @@ Sidebar:adjust_layout()                           *avante-sidebar:adjust_layout*
 
 
 ==============================================================================
+avante slash commands                                     *avante-slashcommands*
+
+Built-in slash commands available in the Avante input buffer.
+
+ Slash commands are triggered by typing `/` at the beginning of a chat
+ message. Commands with callbacks are handled locally by Avante; other
+ commands may rewrite the prompt before it is submitted.
+
+ - `/help`: show available commands
+ - `/init`: initialize AGENTS.md based on the current project
+ - `/clear`: clear chat history
+ - `/new`: start a new chat
+ - `/compact`: compact history messages
+ - `/model`: select model
+ - `/lines <start>-<end> <question>`: ask about specific lines
+ - `/commit`: generate a commit message
+
+avante.SlashCommands                                      *avante.SlashCommands*
+
+    Fields: ~
+        {get_builtin_commands}  (fun():AvanteSlashCommand[])
+
+
+M.get_builtin_commands()             *avante-slashcommands.get_builtin_commands*
+
+    Returns: ~
+        (AvanteSlashCommand[])
+
+
+==============================================================================
 avante completion sources                                    *avante-completion*
 
 
@@ -1339,15 +1375,7 @@ avante completion sources                                    *avante-completion*
  - `@quickfix`: add files from the quickfix list
  - `@buffers`: add open buffers
 
- Slash commands, triggered with `/`:
-
- - `/help`: show available commands
- - `/init`: initialize AGENTS.md based on the current project
- - `/clear`: clear chat history
- - `/new`: start a new chat
- - `/compact`: compact history messages
- - `/lines <start>-<end> <question>`: ask about specific lines
- - `/commit`: generate a commit message
+ For slash commands, triggered with `/`, see |*avante-slashcommands|.
 
  Shortcuts, triggered with `#`, expand configured prompt templates:
 >
@@ -2379,6 +2407,7 @@ M.llm_tool_param_fields_to_json_schema({fields})
 
 
 M.get_commands()                                     *avante-utils.get_commands*
+    Return available "/commands"
 
     Returns: ~
         (AvanteSlashCommand[])
