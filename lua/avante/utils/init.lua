@@ -1551,6 +1551,7 @@ function M.llm_tool_param_fields_to_json_schema(fields)
   return properties, required
 end
 
+---Return available "/commands"
 ---@return AvanteSlashCommand[]
 function M.get_commands()
   local Config = require("avante.config")
@@ -1571,6 +1572,7 @@ function M.get_commands()
     { description = "Clear chat history", name = "clear" },
     { description = "New chat", name = "new" },
     { description = "Compact history messages to save tokens", name = "compact" },
+    { description = "Select model", name = "model" },
     {
       shorthelp = "Ask a question about specific lines",
       description = "/lines <start>-<end> <question>",
@@ -1596,6 +1598,15 @@ function M.get_commands()
     commit = function(_, _, cb)
       local question = "Please commit the changes"
       if cb then cb(question) end
+    end,
+    model = function(_, _, cb)
+      local api_ = require("avante.api")
+      if Config.acp_providers[Config.provider] then
+        api_.select_acp_model()
+      else
+        api_.select_model()
+      end
+      if cb then cb("") end
     end,
   }
 
