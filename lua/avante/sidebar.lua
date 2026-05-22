@@ -117,16 +117,6 @@ local SIDEBAR_CONTAINERS = {
   "input",
 }
 
----@class avante.Sidebar
-local Sidebar = {}
-Sidebar.__index = Sidebar
-
----@class avante.CodeState
----@field winid integer
----@field bufnr integer
----@field selection avante.SelectionResult | nil
----@field old_winhl string | nil
----@field win_width integer | nil
 
 ---@class avante.Sidebar
 ---@field id integer
@@ -155,6 +145,15 @@ Sidebar.__index = Sidebar
 ---@field current_tool_use_extmark_id integer | nil
 ---@field private win_size_store table<integer, {width: integer, height: integer}>
 ---@field is_in_full_view boolean
+local Sidebar = {}
+Sidebar.__index = Sidebar
+
+---@class avante.CodeState
+---@field winid integer
+---@field bufnr integer
+---@field selection avante.SelectionResult | nil
+---@field old_winhl string | nil
+---@field win_width integer | nil
 
 ---@param id integer the tabpage id retrieved from api.nvim_get_current_tabpage()
 function Sidebar:new(id)
