@@ -542,7 +542,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field content string
 ---@field uri string
 ---
----@alias AvanteSlashCommandBuiltInName "clear" | "help" | "lines" | "commit" | "new" | "model"
+---@alias AvanteSlashCommandBuiltInName "clear" | "help" | "lines" | "commit" | "new" | "init" | "compact" | "model"
 ---@alias AvanteSlashCommandCallback fun(self: avante.Sidebar, args: string, cb?: fun(args: string): nil): nil
 ---@class AvanteSlashCommand
 ---@field name AvanteSlashCommandBuiltInName | string
