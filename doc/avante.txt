@@ -776,8 +776,6 @@ avante sidebar                                                  *avante-sidebar*
  `r`             Confirm response
  `i`             Confirm input
 
-avante.Sidebar                                                  *avante.Sidebar*
-
 
 avante.CodeState                                              *avante.CodeState*
 
