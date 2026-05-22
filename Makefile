@@ -77,6 +77,7 @@ docgen:
 		lua/avante/config.lua \
 		lua/avante/commands.lua \
 		lua/avante/sidebar.lua \
+		lua/avante/slashcommands.lua \
 		lua/cmp_avante/mentions.lua \
 		lua/avante/rag_service.lua \
 		lua/avante/llm_tools/init.lua \
