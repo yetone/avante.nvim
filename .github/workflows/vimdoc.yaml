@@ -1,0 +1,40 @@
+name: Vimdoc
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "lua/**/*.lua"
+      - "Makefile"
+      - "doc/avante.txt"
+      - ".github/workflows/vimdoc.yaml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "lua/**/*.lua"
+      - "Makefile"
+      - "doc/avante.txt"
+      - ".github/workflows/vimdoc.yaml"
+  workflow_dispatch:
+
+jobs:
+  check-docgen:
+    name: Check generated docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: DeterminateSystems/nix-installer-action@v22
+
+      - name: Generate docs
+        run: nix develop --command make docgen
+
+      - name: Check docs are up to date
+        run: |
+          if ! git diff --quiet -- doc/avante.txt; then
+            echo "::error file=doc/avante.txt::doc/avante.txt is out of date. Run 'make docgen' and commit the result."
+            git --no-pager diff -- doc/avante.txt
+            exit 1
+          fi
