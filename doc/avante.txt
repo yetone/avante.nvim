@@ -418,7 +418,7 @@ WebSearchEngineProviderResponseBodyFormatter
 avante.InputProvider                                      *avante.InputProvider*
 
     Type: ~
-        
+
 
 
 avante.file_selector.IParams                      *avante.file_selector.IParams*
@@ -533,19 +533,19 @@ avante.Config                                                    *avante.Config*
 avante.Mode                                                        *avante.Mode*
 
     Type: ~
-        
+
 
 
 avante.ProviderName                                        *avante.ProviderName*
 
     Type: ~
-        
+
 
 
 Tokenizer                                                            *Tokenizer*
 
     Type: ~
-        
+
 
 
 AvanteConflictMappings                                  *AvanteConflictMappings*
@@ -566,19 +566,19 @@ AvanteToggleCodeWindowFromInput                *AvanteToggleCodeWindowFromInput*
 AvantePosition                                                  *AvantePosition*
 
     Type: ~
-        
+
 
 
 AvanteInitialDiff                                            *AvanteInitialDiff*
 
     Type: ~
-        
+
 
 
 avante.SelectorProvider                                *avante.SelectorProvider*
 
     Type: ~
-        
+
 
 
 M.save_last_model({model_name})                  *avante-config.save_last_model*

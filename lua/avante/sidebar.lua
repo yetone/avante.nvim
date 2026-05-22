@@ -117,7 +117,6 @@ local SIDEBAR_CONTAINERS = {
   "input",
 }
 
-
 ---@class avante.Sidebar
 ---@field id integer
 ---@field augroup integer
