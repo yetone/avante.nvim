@@ -11,22 +11,25 @@ M.list_models_returned = {}
 
 local list_models_cached_result = {}
 
+---@brief Lists models available for a single provider
+--- Calls provider's list_models and caches result
 ---@param provider_name string
 ---@param provider_cfg table
 ---@return table
 local function create_model_entries(provider_name, provider_cfg)
   local res = {}
-  if provider_cfg.list_models and provider_cfg.__inherited_from == nil then
+  if provider_cfg.list_models then
     local models
+    local cache_key = provider_cfg.endpoint
     if type(provider_cfg.list_models) == "function" then
-      if M.list_models_invoked[provider_cfg.list_models] then return {} end
-      M.list_models_invoked[provider_cfg.list_models] = true
-      local cached_result = list_models_cached_result[provider_cfg.list_models]
+      if M.list_models_invoked[cache_key] then return {} end
+      M.list_models_invoked[cache_key] = true
+      local cached_result = list_models_cached_result[cache_key]
       if cached_result then
         models = cached_result
       else
         models = provider_cfg:list_models()
-        list_models_cached_result[provider_cfg.list_models] = models
+        list_models_cached_result[cache_key] = models
       end
     else
       if M.list_models_returned[provider_cfg.list_models] then return {} end
@@ -81,6 +84,8 @@ function M.open()
   M.list_models_invoked = {}
   M.list_models_returned = {}
   local models = {}
+
+  Utils.info("listing models")
 
   -- Collect models from providers
   for provider_name, _ in pairs(Config.providers) do
