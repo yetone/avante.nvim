@@ -24,6 +24,8 @@
           pkgs = import nixpkgs { inherit system; };
           mylua = pkgs.lua5_1.withPackages (lp: [
             lp.luassert
+
+            # not needed (yet), hopefully
             lp.busted
             lp.luarocks
             lp.nlua
