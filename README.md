@@ -1689,7 +1689,7 @@ You can also disable specific tools while keeping agentic mode enabled by config
 
 ## Contributing
 
-Contributions to avante.nvim are welcome! If you're interested in helping out, please feel free to submit pull requests or open issues. Before contributing, ensure that your code has been thoroughly tested.
+Contributions to avante.nvim are welcome! If you're interested in helping out, please feel free to submit pull requests or open issues.
 
 See [wiki](https://github.com/yetone/avante.nvim/wiki) for more recipes and tricks.
 
