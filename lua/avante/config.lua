@@ -1097,7 +1097,7 @@ M._defaults = {
 ---@diagnostic disable-next-line: missing-fields
 M._options = {}
 
- ---@diagnostic disable-next-line: param-type-mismatch
+---@diagnostic disable-next-line: param-type-mismatch
 local function get_config_dir_path() return vim.fs.joinpath(vim.fn.expand("~"), ".config", "avante.nvim") end
 local function get_config_file_path() return vim.fs.joinpath(get_config_dir_path(), "config.json") end
 
