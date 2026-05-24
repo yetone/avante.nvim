@@ -1,3 +1,42 @@
+---@mod avante-rag-service avante RAG service
+---@brief [[
+---
+--- The RAG service provides additional project context for AI responses. It is
+--- disabled by default.
+--->
+---   require("avante").setup({
+---     rag_service = {
+---       enabled = false,
+---       host_mount = os.getenv("HOME"),
+---       runner = "docker",
+---       llm = {
+---         provider = "openai",
+---         endpoint = "https://api.openai.com/v1",
+---         api_key = "OPENAI_API_KEY",
+---         model = "gpt-4o-mini",
+---         extra = nil,
+---       },
+---       embed = {
+---         provider = "openai",
+---         endpoint = "https://api.openai.com/v1",
+---         api_key = "OPENAI_API_KEY",
+---         model = "text-embedding-3-large",
+---         extra = nil,
+---       },
+---       docker_extra_args = "",
+---     },
+---   })
+---<
+---
+--- The RAG service depends on Docker or Nix. The `host_mount` path is mounted
+--- read-only into the service container. After changing RAG configuration,
+--- remove the old container so the new configuration is used:
+--->
+---   docker rm -fv avante-rag-service
+---<
+---
+---@brief ]]
+
 local curl = require("plenary.curl")
 local Path = require("plenary.path")
 local Config = require("avante.config")
@@ -243,7 +282,7 @@ function M.to_local_uri(uri)
 
   if scheme == "file" and path ~= nil then
     local host_dir = Config.rag_service.host_mount
-    local full_path = Path:new(host_dir):joinpath(path:sub(2)):absolute()
+    local full_path = vim.fs.abspath(vim.fs.joinpath(host_dir, path:sub(2)))
     uri = string.format("file://%s", full_path)
   end
 

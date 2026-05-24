@@ -23,8 +23,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-22.04
-            rev: v0.10.0
+          - os: ubuntu-24.04
+            rev: v0.11.0
     steps:
       - uses: actions/checkout@v6
 
@@ -47,7 +47,7 @@ jobs:
           mkdir -p _neovim
           gh release download \
             --output - \
-            --pattern nvim-linux64.tar.gz \
+            --pattern nvim-linux-x86_64.tar.gz \
             --repo neovim/neovim \
             "$NEOVIM_VERSION" | tar xvz --strip-components 1 --directory _neovim
 
@@ -69,7 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        nvim_version: [ stable ]
+        nvim_version: [ v0.11.0 ]
         luals_version: [ 3.13.6 ]
     steps:
       - uses: actions/checkout@v6

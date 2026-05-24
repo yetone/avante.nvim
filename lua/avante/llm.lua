@@ -9,13 +9,13 @@ local Utils = require("avante.utils")
 local Prompts = require("avante.utils.prompts")
 local Config = require("avante.config")
 local Path = require("avante.path")
-local PPath = require("plenary.path")
 local Providers = require("avante.providers")
 local LLMToolHelpers = require("avante.llm_tools.helpers")
 local LLMTools = require("avante.llm_tools")
 local History = require("avante.history")
 local HistoryRender = require("avante.history.render")
 local ACPConfirmAdapter = require("avante.ui.acp_confirm_adapter")
+local log = require("avante.utils.log")
 
 ---@class avante.LLM
 local M = {}
@@ -255,15 +255,17 @@ function M.agent_loop(opts)
   M._stream(stream_options)
 end
 
+--- Loads prompt from various locations (avante.md, )
 ---@param opts AvanteGeneratePromptsOptions
 ---@return AvantePromptOptions
 function M.generate_prompts(opts)
   local project_instruction_file = Config.instructions_file or "avante.md"
-  local project_root = Utils.root.get()
-  local instruction_file_path = PPath:new(project_root, project_instruction_file)
+  local project_root = tostring(Utils.root.get())
+  local instruction_file_path = vim.fs.joinpath(project_root, project_instruction_file)
 
-  if instruction_file_path:exists() and not opts._instructions_loaded then
-    local lines = Utils.read_file_from_buf_or_disk(instruction_file_path:absolute())
+  if vim.uv.fs_stat(instruction_file_path) and not opts._instructions_loaded then
+    log.info("Loading instructions from " .. instruction_file_path)
+    local lines = Utils.read_file_from_buf_or_disk(vim.fs.abspath(instruction_file_path))
     local instruction_content = lines and table.concat(lines, "\n") or ""
 
     if instruction_content then opts.instructions = (opts.instructions or "") .. "\n" .. instruction_content end
@@ -916,7 +918,7 @@ function M._stream_acp(opts)
   Utils.debug("use ACP", Config.provider)
   ---@type table<string, avante.HistoryMessage>
   local tool_call_messages = {}
-  ---@type avante.HistoryMessage
+  ---@type avante.HistoryMessage?
   local last_tool_call_message = nil
   local acp_provider = Config.acp_providers[Config.provider]
   local prev_text_message_content = ""
@@ -1109,7 +1111,8 @@ function M._stream_acp(opts)
                 local location = update.locations[1]
                 if not location or not location.path then return end
 
-                local abs_path = Utils.join_paths(Utils.get_project_root(), location.path)
+                local abs_path = Utils.is_absolute_path(location.path) and location.path
+                  or vim.fs.joinpath(Utils.get_project_root(), location.path)
                 local bufnr = vim.fn.bufnr(abs_path, true)
 
                 if not bufnr or bufnr == -1 then return end
@@ -1277,6 +1280,7 @@ function M._stream_acp(opts)
         end,
         on_write_file = function(path, content, callback)
           local abs_path = Utils.to_absolute_path(path)
+          local normalized_abs_path = Utils.abspath(abs_path)
           local file = io.open(abs_path, "w")
           if file then
             file:write(content)
@@ -1284,8 +1288,7 @@ function M._stream_acp(opts)
             local buffers = vim.tbl_filter(
               function(bufnr)
                 return vim.api.nvim_buf_is_valid(bufnr)
-                  and vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":p")
-                    == vim.fn.fnamemodify(abs_path, ":p")
+                  and Utils.abspath(vim.api.nvim_buf_get_name(bufnr)) == normalized_abs_path
               end,
               vim.api.nvim_list_bufs()
             )

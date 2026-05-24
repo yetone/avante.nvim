@@ -590,7 +590,7 @@ function M:parse_curl_args(prompt_opts)
   end
 
   if prompt_opts.tools and #prompt_opts.tools > 0 and Config.mode == "agentic" then
-    if provider_conf.model:match("claude%-sonnet%-4%-5") then
+    if provider_conf.model:match("claude%-sonnet%-4%-[5-9]") then
       table.insert(tools, {
         type = "text_editor_20250728",
         name = "str_replace_based_edit_tool",
@@ -915,7 +915,7 @@ function M.cleanup_claude()
     if lockfile:exists() then
       local content = lockfile:read()
       local pid = tonumber(content)
-      if pid and pid == vim.fn.getpid() then lockfile:rm() end
+      if pid and pid == vim.fn.getpid() then vim.fs.rm(tostring(lockfile)) end
     end
   end
 

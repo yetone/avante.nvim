@@ -1,0 +1,86 @@
+---@mod avante-commands avante commands
+---
+---@brief [[
+---
+--- Commands~
+---
+---                                                     *:AvanteAsk*
+--- :AvanteAsk [question] [position=left|right|top|bottom] [ask=true|false]
+---         Ask AI about your code. Example:
+--->
+---         :AvanteAsk position=right Refactor this function
+---<
+---
+---                                                     *:AvanteChat*
+--- :AvanteChat [args]
+---         Start a chat session with AI about your codebase.
+---
+---                                                     *:AvanteChatNew*
+--- :AvanteChatNew [args]
+---         Start a new chat session.
+---
+---                                                     *:AvanteHistory*
+--- :AvanteHistory
+---         Open a picker for previous chat sessions.
+---
+---                                                     *:AvanteClear*
+--- :AvanteClear [history|cache]
+---         Clear the current chat history or Avante cache.
+---
+---                                                     *:AvanteBuild*
+--- :AvanteBuild [source=true|false]
+---         Build dependencies for the project.
+---
+---                                                     *:AvanteEdit*
+--- :[range]AvanteEdit [instruction]
+---         Edit the selected code blocks or range.
+---
+---                                                     *:AvanteFocus*
+--- :AvanteFocus
+---         Switch focus to or from the sidebar.
+---
+---                                                     *:AvanteRefresh*
+--- :AvanteRefresh
+---         Refresh all Avante windows.
+---
+---                                                     *:AvanteStop*
+--- :AvanteStop
+---         Stop the current AI request.
+---
+---                                                     *:AvanteSwitchProvider*
+--- :AvanteSwitchProvider
+---         Switch AI provider.
+---
+---                                                     *:AvanteSwitchSelectorProvider*
+--- :AvanteSwitchSelectorProvider {provider}
+---         Switch selector provider.
+---
+---                                                     *:AvanteSwitchInputProvider*
+--- :AvanteSwitchInputProvider {native|dressing|snacks}
+---         Switch input provider.
+---
+---                                                     *:AvanteShowRepoMap*
+--- :AvanteShowRepoMap
+---         Show the repository map for the project.
+---
+---                                                     *:AvanteToggle*
+--- :AvanteToggle
+---         Toggle the Avante sidebar.
+---
+---                                                     *:AvanteModels*
+--- :AvanteModels
+---         Show the model list.
+---
+---                                                     *:AvanteACPModels*
+--- :AvanteACPModels
+---         Switch ACP model.
+---
+---                                                     *:AvanteACPModes*
+--- :AvanteACPModes
+---         Switch ACP mode.
+---
+---@brief ]]
+
+local M = {}
+
+return M

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 DEPS=(
   "folke/neodev.nvim"
@@ -29,6 +29,11 @@ log_verbose() {
     fi
 }
 
+die() {
+    echo "Error: $1" >&2
+    exit 1
+}
+
 # Process a single dependency (used for parallel execution)
 process_single_dep() {
     local dep="$1"
@@ -41,12 +46,8 @@ process_single_dep() {
         (
             cd "$repo_path"
             git fetch -q
-            if git show-ref --verify --quiet refs/remotes/origin/main; then
-                git reset -q --hard origin/main
-            elif git show-ref --verify --quiet refs/remotes/origin/master; then
-                git reset -q --hard origin/master
-            else
-                log "Could not find main or master branch for $repo_name"
+            if ! git reset -q --hard $(git symbolic-ref HEAD); then
+                log "Could not hardreset $repo_name to default ref"
                 return 1
             fi
         )
@@ -97,7 +98,6 @@ install_luals() {
     local os_name=""
     local arch=""
     local file_ext=""
-    local extract_cmd=""
 
     case "$(uname -s)" in
         Linux*)
@@ -130,13 +130,6 @@ install_luals() {
             arch="x64"
             ;;
     esac
-
-    # Set up extraction command based on file type
-    if [ "$file_ext" = "tar.gz" ]; then
-        extract_cmd="tar zx --directory"
-    else
-        extract_cmd="unzip -q -d"
-    fi
 
     local platform="${os_name}-${arch}"
     local luals_url_template="https://github.com/LuaLS/lua-language-server/releases/download/__VERSION__/lua-language-server-__VERSION__-__PLATFORM__.__EXT__"

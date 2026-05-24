@@ -5,9 +5,9 @@ local Scan = require("plenary.scandir")
 local Config = require("avante.config")
 
 ---@class avante.Path
----@field history_path Path
----@field cache_path Path
----@field data_path Path
+---@field history_path string
+---@field cache_path string
+---@field data_path string
 local P = {}
 
 ---@param bufnr integer | nil
@@ -191,7 +191,7 @@ function History.delete(bufnr, filename)
   local history_filepath = History.get_filepath(bufnr, filename)
   if history_filepath:exists() then
     local was_latest = (filename == History.get_latest_filename(bufnr, false))
-    history_filepath:rm()
+    vim.fs.rm(tostring(history_filepath))
 
     if was_latest then
       local remaining_histories = History.list(bufnr) -- This list is sorted by recency
@@ -296,10 +296,10 @@ function Prompt.get_templates_dir(project_root)
 
   -- get root directory of given bufnr
   local directory = Path:new(project_root)
-  if Utils.get_os_name() == "windows" then directory = Path:new(directory:absolute():gsub("^%a:", "")[1]) end
-  ---@cast directory Path
-  ---@type Path
-  local cache_prompt_dir = P.cache_path:joinpath(directory)
+  if Utils.get_os_name() == "windows" then
+    directory = Path:new(vim.fs.abspath(tostring(directory)):gsub("^%a:", ""))
+  end
+  local cache_prompt_dir = Path:new(P.cache_path):joinpath(directory)
   if not cache_prompt_dir:exists() then cache_prompt_dir:mkdir({ parents = true }) end
 
   local function find_rules(dir)
@@ -329,7 +329,7 @@ function Prompt.get_templates_dir(project_root)
     find_rules(tostring(project_rules_path))
   end
   find_rules(Config.rules.global_dir)
-  find_rules(directory:absolute())
+  find_rules(vim.fs.abspath(tostring(directory)))
 
   local source_dir =
     Path:new(debug.getinfo(1).source:match("@?(.*/)"):gsub("/lua/avante/path.lua$", "") .. "templates")
@@ -352,7 +352,8 @@ function Prompt.get_templates_dir(project_root)
     if override_prompt_dir then
       local user_template_path = Path:new(override_prompt_dir)
       if user_template_path:exists() then
-        local user_scanner = Scan.scan_dir(user_template_path:absolute(), { depth = 1, add_dirs = false })
+        local user_scanner =
+          Scan.scan_dir(vim.fs.abspath(tostring(user_template_path)), { depth = 1, add_dirs = false })
         for _, entry in ipairs(user_scanner) do
           local file = Path:new(entry)
           if file:is_file() then
@@ -389,7 +390,7 @@ function Prompt.get_templates_dir(project_root)
     f:write("\n{%- endblock %}", "a")
   end)
 
-  local dir = cache_prompt_dir:absolute()
+  local dir = vim.fs.abspath(tostring(cache_prompt_dir))
   return dir
 end
 
@@ -461,16 +462,16 @@ function P._init_templates_lib()
 end
 
 function P.setup()
-  local history_path = Path:new(Config.history.storage_path)
-  if not history_path:exists() then history_path:mkdir({ parents = true }) end
+  local history_path = Config.history.storage_path
+  if vim.uv.fs_stat(history_path) == nil then vim.fn.mkdir(history_path, "p") end
   P.history_path = history_path
 
-  local cache_path = Path:new(Utils.join_paths(vim.fn.stdpath("cache"), "avante"))
-  if not cache_path:exists() then cache_path:mkdir({ parents = true }) end
+  local cache_path = vim.fs.joinpath(vim.fn.stdpath("cache"), "avante")
+  if vim.uv.fs_stat(cache_path) == nil then vim.fn.mkdir(cache_path, "p") end
   P.cache_path = cache_path
 
-  local data_path = Path:new(Utils.join_paths(vim.fn.stdpath("data"), "avante"))
-  if not data_path:exists() then data_path:mkdir({ parents = true }) end
+  local data_path = vim.fs.joinpath(vim.fn.stdpath("data"), "avante")
+  if vim.uv.fs_stat(data_path) == nil then vim.fn.mkdir(data_path, "p") end
   P.data_path = data_path
 
   vim.defer_fn(P._init_templates_lib, 1000)
@@ -479,11 +480,11 @@ end
 function P.available() return P._init_templates_lib() ~= nil end
 
 function P.clear()
-  P.cache_path:rm({ recursive = true })
-  P.history_path:rm({ recursive = true })
+  vim.fs.rm(P.cache_path, { recursive = true })
+  vim.fs.rm(P.history_path, { recursive = true })
 
-  if not P.cache_path:exists() then P.cache_path:mkdir({ parents = true }) end
-  if not P.history_path:exists() then P.history_path:mkdir({ parents = true }) end
+  if vim.uv.fs_stat(P.cache_path) == nil then vim.fn.mkdir(P.cache_path, "p") end
+  if vim.uv.fs_stat(P.history_path) == nil then vim.fn.mkdir(P.history_path, "p") end
 end
 
 return P

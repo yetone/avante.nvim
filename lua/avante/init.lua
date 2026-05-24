@@ -1,3 +1,129 @@
+---@mod avante-nvim avante.nvim
+---
+---@brief [[
+---
+--- avante.nvim is a Neovim plugin designed to emulate the behaviour of the Cursor
+--- AI IDE. It provides AI-driven code suggestions, chat, code editing, and the
+--- ability to apply recommendations directly to source files.
+---
+--- Main features:
+---
+--- - AI-powered code assistance for the current file or selected context.
+--- - One-command application of suggested changes.
+--- - Project-specific instruction files with `avante.md`.
+--- - Agentic mode with tool use.
+--- - ACP integration for agents such as Gemini CLI, Claude Code, Goose, Codex,
+---   and Kimi CLI.
+--- - Optional RAG service and web-search tools.
+---
+--- Installation~
+---
+--- Requirements~
+---
+--- avante.nvim requires Neovim 0.11.0 or later.
+---
+---
+--- See the official README at https://github.com/yetone/avante.nvim for installation instructions.
+---
+--- Usage~
+---
+--- Basic workflow:
+---
+--- 1. Open a code file in Neovim.
+--- 2. Run |:AvanteAsk| with a question, or open the chat with |:AvanteChat|.
+--- 3. Review the AI response and suggested changes.
+--- 4. Apply edits from the sidebar with the configured keymaps.
+---
+--- API keys~
+---
+--- Scoped API keys are recommended when you want credentials used only by
+--- Avante:
+--->
+---   export AVANTE_ANTHROPIC_API_KEY=your-claude-api-key
+---   export AVANTE_OPENAI_API_KEY=your-openai-api-key
+---   export AVANTE_AZURE_OPENAI_API_KEY=your-azure-api-key
+---   export AVANTE_GEMINI_API_KEY=your-gemini-api-key
+---   export AVANTE_CO_API_KEY=your-cohere-api-key
+---   export AVANTE_MOONSHOT_API_KEY=your-moonshot-api-key
+---<
+---
+--- Legacy/global keys are also supported:
+--->
+---   export ANTHROPIC_API_KEY=your-api-key
+---   export OPENAI_API_KEY=your-api-key
+---   export AZURE_OPENAI_API_KEY=your-api-key
+---<
+---
+--- Bedrock can use `BEDROCK_KEYS` or the AWS default credentials chain:
+--->
+---   export BEDROCK_KEYS=aws_access_key_id,aws_secret_access_key,aws_region[,aws_session_token]
+---<
+---
+--- Claude Pro/Max subscription~
+---
+--- Set the Claude provider `auth_type` to `"max"`:
+--->
+---   require("avante").setup({
+---     providers = {
+---       claude = {
+---         auth_type = "max",
+---       },
+---     },
+---   })
+---<
+---
+--- After reopening Neovim, complete the browser authentication flow. If needed,
+--- run:
+--->
+---   :AvanteSwitchProvider
+---<
+---
+--- FAQ~
+---
+--- How do I disable agentic mode?~
+---
+--- Set:
+--->
+---   require("avante").setup({
+---     mode = "legacy",
+---   })
+---<
+---
+--- Agentic mode uses AI tools to automatically generate and apply changes.
+--- Legacy mode uses the traditional planning flow without automatic tool
+--- execution.
+---
+--- To keep agentic mode but disable specific tools:
+--->
+---   require("avante").setup({
+---     mode = "agentic",
+---     disabled_tools = { "bash", "python" },
+---   })
+---<
+---
+--- Why are my default keymaps missing?~
+---
+--- If a default mapping conflicts with an existing mapping, Avante does not
+--- override it. Configure your own keymaps or change the existing mappings.
+---
+--- How do I use markdown rendering?~
+---
+--- Install a markdown renderer and include the `Avante` filetype in its
+--- supported filetypes. For render-markdown.nvim:
+--->
+---   {
+---     "MeanderingProgrammer/render-markdown.nvim",
+---     opts = {
+---       file_types = { "markdown", "Avante" },
+---     },
+---     ft = { "markdown", "Avante" },
+---   }
+---<
+---
+---@brief ]]
+
+---@toc avante-contents
+
 local api = vim.api
 
 local Utils = require("avante.utils")
@@ -10,8 +136,10 @@ local RagService = require("avante.rag_service")
 
 ---@class Avante
 local M = {
+  --- per tab sidebar
   ---@type avante.Sidebar[] we use this to track chat command across tabs
   sidebars = {},
+  --- per tab selection
   ---@type avante.Selection[]
   selections = {},
   ---@type avante.Suggestion[]
@@ -100,7 +228,11 @@ function H.keymaps()
     function() require("avante.api").ask({ ask = false }) end,
     { noremap = true }
   )
+  vim.keymap.set({ "n", "v" }, "<Plug>(AvanteZenMode)", function() require("avante.api").zen_mode() end, {
+    noremap = true,
+  })
   vim.keymap.set("v", "<Plug>(AvanteEdit)", function() require("avante.api").edit() end, { noremap = true })
+  vim.keymap.set("n", "<Plug>(AvanteStop)", function() require("avante.api").stop() end, { noremap = true })
   vim.keymap.set("n", "<Plug>(AvanteRefresh)", function() require("avante.api").refresh() end, { noremap = true })
   vim.keymap.set("n", "<Plug>(AvanteFocus)", function() require("avante.api").focus() end, { noremap = true })
   vim.keymap.set("n", "<Plug>(AvanteBuild)", function() require("avante.api").build() end, { noremap = true })
@@ -117,71 +249,77 @@ function H.keymaps()
   vim.keymap.set("n", "<Plug>(AvanteConflictNextConflict)", function() Diff.find_next("ours") end)
   vim.keymap.set("n", "<Plug>(AvanteConflictPrevConflict)", function() Diff.find_prev("ours") end)
   vim.keymap.set("n", "<Plug>(AvanteSelectModel)", function() require("avante.api").select_model() end)
+  vim.keymap.set("n", "<Plug>(AvanteSelectHistory)", function() require("avante.api").select_history() end)
+  vim.keymap.set("n", "<Plug>(AvanteSelectACPModel)", function() require("avante.api").select_acp_model() end, {
+    noremap = true,
+  })
+  vim.keymap.set("n", "<Plug>(AvanteSelectACPMode)", function() require("avante.api").select_acp_mode() end, {
+    noremap = true,
+  })
+  vim.keymap.set("n", "<Plug>(AvanteShowRepoMap)", function() require("avante.repo_map").show() end, {
+    noremap = true,
+    silent = true,
+  })
+  vim.keymap.set("n", "<Plug>(AvanteAddAllBuffers)", function() require("avante.api").add_buffer_files() end, {
+    noremap = true,
+  })
+
+  vim.keymap.set("i", "<Plug>(AvanteSuggestionAccept)", function()
+    local _, _, sg = M.get()
+    sg:accept()
+  end, { noremap = true, silent = true })
+  vim.keymap.set("i", "<Plug>(AvanteSuggestionDismiss)", function()
+    local _, _, sg = M.get()
+    if sg:is_visible() then sg:dismiss() end
+  end, { noremap = true, silent = true })
+  vim.keymap.set("i", "<Plug>(AvanteSuggestionNext)", function()
+    local _, _, sg = M.get()
+    sg:next()
+  end, { noremap = true, silent = true })
+  vim.keymap.set("i", "<Plug>(AvanteSuggestionPrev)", function()
+    local _, _, sg = M.get()
+    sg:prev()
+  end, { noremap = true, silent = true })
 
   if Config.behaviour.auto_set_keymaps then
-    Utils.safe_keymap_set(
-      { "n", "v" },
-      Config.mappings.ask,
-      function() require("avante.api").ask() end,
-      { desc = "avante: ask" }
-    )
+    Utils.safe_keymap_set({ "n", "v" }, Config.mappings.ask, "<Plug>(AvanteAsk)", { desc = "avante: ask" })
     Utils.safe_keymap_set(
       { "n", "v" },
       Config.mappings.zen_mode,
-      function() require("avante.api").zen_mode() end,
+      "<Plug>(AvanteZenMode)",
       { desc = "avante: toggle Zen Mode" }
     )
     Utils.safe_keymap_set(
       { "n", "v" },
       Config.mappings.new_ask,
-      function() require("avante.api").ask({ new_chat = true }) end,
+      "<Plug>(AvanteAskNew)",
       { desc = "avante: create new ask" }
     )
-    Utils.safe_keymap_set(
-      "v",
-      Config.mappings.edit,
-      function() require("avante.api").edit() end,
-      { desc = "avante: edit" }
-    )
-    Utils.safe_keymap_set(
-      "n",
-      Config.mappings.stop,
-      function() require("avante.api").stop() end,
-      { desc = "avante: stop" }
-    )
-    Utils.safe_keymap_set(
-      "n",
-      Config.mappings.refresh,
-      function() require("avante.api").refresh() end,
-      { desc = "avante: refresh" }
-    )
-    Utils.safe_keymap_set(
-      "n",
-      Config.mappings.focus,
-      function() require("avante.api").focus() end,
-      { desc = "avante: focus" }
-    )
+    Utils.safe_keymap_set("v", Config.mappings.edit, "<Plug>(AvanteEdit)", { desc = "avante: edit" })
+    Utils.safe_keymap_set("n", Config.mappings.stop, "<Plug>(AvanteStop)", { desc = "avante: stop" })
+    Utils.safe_keymap_set("n", Config.mappings.refresh, "<Plug>(AvanteRefresh)", { desc = "avante: refresh" })
+    Utils.safe_keymap_set("n", Config.mappings.focus, "<Plug>(AvanteFocus)", { desc = "avante: focus" })
 
-    Utils.safe_keymap_set("n", Config.mappings.toggle.default, function() M.toggle() end, { desc = "avante: toggle" })
+    Utils.safe_keymap_set("n", Config.mappings.toggle.default, "<Plug>(AvanteToggle)", { desc = "avante: toggle" })
     Utils.safe_keymap_set(
       "n",
       Config.mappings.toggle.debug,
-      function() M.toggle.debug() end,
+      "<Plug>(AvanteToggleDebug)",
       { desc = "avante: toggle debug" }
     )
     Utils.safe_keymap_set(
       "n",
       Config.mappings.toggle.selection,
-      function() M.toggle.hint() end,
+      "<Plug>(AvanteToggleSelection)",
       { desc = "avante: toggle selection" }
     )
     Utils.safe_keymap_set(
       "n",
       Config.mappings.toggle.suggestion,
-      function() M.toggle.suggestion() end,
+      "<Plug>(AvanteToggleSuggestion)",
       { desc = "avante: toggle suggestion" }
     )
-    Utils.safe_keymap_set("n", Config.mappings.toggle.repomap, function() require("avante.repo_map").show() end, {
+    Utils.safe_keymap_set("n", Config.mappings.toggle.repomap, "<Plug>(AvanteShowRepoMap)", {
       desc = "avante: display repo map",
       noremap = true,
       silent = true,
@@ -189,56 +327,56 @@ function H.keymaps()
     Utils.safe_keymap_set(
       "n",
       Config.mappings.select_model,
-      function() require("avante.api").select_model() end,
+      "<Plug>(AvanteSelectModel)",
       { desc = "avante: select model" }
     )
     Utils.safe_keymap_set(
       "n",
       Config.mappings.select_history,
-      function() require("avante.api").select_history() end,
+      "<Plug>(AvanteSelectHistory)",
       { desc = "avante: select history" }
+    )
+    Utils.safe_keymap_set(
+      "n",
+      Config.mappings.select_acp_model,
+      "<Plug>(AvanteSelectACPModel)",
+      { desc = "avante: select ACP model" }
+    )
+    Utils.safe_keymap_set(
+      "n",
+      Config.mappings.select_acp_mode,
+      "<Plug>(AvanteSelectACPMode)",
+      { desc = "avante: select ACP mode" }
     )
 
     Utils.safe_keymap_set(
       "n",
       Config.mappings.files.add_all_buffers,
-      function() require("avante.api").add_buffer_files() end,
+      "<Plug>(AvanteAddAllBuffers)",
       { desc = "avante: add all open buffers" }
     )
   end
 
   if Config.behaviour.auto_suggestions then
-    Utils.safe_keymap_set("i", Config.mappings.suggestion.accept, function()
-      local _, _, sg = M.get()
-      sg:accept()
-    end, {
+    Utils.safe_keymap_set("i", Config.mappings.suggestion.accept, "<Plug>(AvanteSuggestionAccept)", {
       desc = "avante: accept suggestion",
       noremap = true,
       silent = true,
     })
 
-    Utils.safe_keymap_set("i", Config.mappings.suggestion.dismiss, function()
-      local _, _, sg = M.get()
-      if sg:is_visible() then sg:dismiss() end
-    end, {
+    Utils.safe_keymap_set("i", Config.mappings.suggestion.dismiss, "<Plug>(AvanteSuggestionDismiss)", {
       desc = "avante: dismiss suggestion",
       noremap = true,
       silent = true,
     })
 
-    Utils.safe_keymap_set("i", Config.mappings.suggestion.next, function()
-      local _, _, sg = M.get()
-      sg:next()
-    end, {
+    Utils.safe_keymap_set("i", Config.mappings.suggestion.next, "<Plug>(AvanteSuggestionNext)", {
       desc = "avante: next suggestion",
       noremap = true,
       silent = true,
     })
 
-    Utils.safe_keymap_set("i", Config.mappings.suggestion.prev, function()
-      local _, _, sg = M.get()
-      sg:prev()
-    end, {
+    Utils.safe_keymap_set("i", Config.mappings.suggestion.prev, "<Plug>(AvanteSuggestionPrev)", {
       desc = "avante: previous suggestion",
       noremap = true,
       silent = true,
@@ -485,11 +623,14 @@ setmetatable(M.toggle, {
 
 M.slash_commands_id = nil
 
+---@tag avante-init-setup
+---Main setup function that calls each submodule setup.
 ---@param opts? avante.Config
 function M.setup(opts)
   ---PERF: we can still allow running require("avante").setup() multiple times to override config if users wish to
   ---but most of the other functionality will only be called once from lazy.nvim
   Config.setup(opts)
+  require("avante.utils.log").set_level(vim.g.avante.log_level)
 
   if M.did_setup then return end
 

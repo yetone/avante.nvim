@@ -21,7 +21,7 @@ function M.init()
 
   entries = {}
   local dir = Config.prompt_logger.log_dir
-  local log_file = Utils.join_paths(dir, "avante_prompts.log")
+  local log_file = vim.fs.joinpath(dir, "avante_prompts.log")
   local file = io.open(log_file, "r")
   if file then
     local content = file:read("*a"):gsub("\n$", "")
@@ -41,7 +41,7 @@ end
 function M.log_prompt(request)
   if request == "" then return end
   local log_dir = Config.prompt_logger.log_dir
-  local log_file = Utils.join_paths(log_dir, "avante_prompts.log")
+  local log_file = vim.fs.joinpath(log_dir, "avante_prompts.log")
 
   if vim.fn.isdirectory(log_dir) == 0 then vim.fn.mkdir(log_dir, "p") end
 

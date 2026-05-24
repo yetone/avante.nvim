@@ -43,9 +43,82 @@ function M:transform_tool(tool)
   return res
 end
 
+---Check if url belongs to openrouter
+---@return boolean
 function M.is_openrouter(url) return url:match("^https://openrouter%.ai/") end
 
+---Check if url belongs to mistral
+---@return boolean
 function M.is_mistral(url) return url:match("^https://api%.mistral%.ai/") end
+
+---Asking remote provider to list available models
+---@return AvanteProviderModelList
+function M:list_models()
+  Utils.info("Asking remote for available models")
+  if self == nil or self == M then
+    local ok, provider = pcall(function() return Providers[Config.provider] end)
+    if not ok or provider.list_models ~= M.list_models then provider = Providers.openai end
+    self = provider
+  end
+  if self._model_list_cache then return self._model_list_cache end
+
+  local provider_conf = Providers.parse_config(self)
+  if not provider_conf.endpoint then
+    Utils.error("OpenAI-compatible provider requires endpoint configuration")
+    return {}
+  end
+
+  local headers = {
+    ["Content-Type"] = "application/json",
+    ["Accept"] = "application/json",
+  }
+
+  if Providers.env.require_api_key(provider_conf) then
+    local api_key = self.parse_api_key()
+    if api_key == nil then
+      Utils.error(Config.provider .. ": API key is not set, please set it in your environment variable or config file")
+      return {}
+    end
+    headers["Authorization"] = "Bearer " .. api_key
+  end
+
+  local curl = require("plenary.curl")
+  local response = curl.get(Utils.url_join(provider_conf.endpoint, "/models"), {
+    headers = Utils.tbl_override(headers, self.extra_headers),
+    proxy = provider_conf.proxy,
+    insecure = provider_conf.allow_insecure,
+    timeout = provider_conf.timeout,
+  })
+
+  if response.status ~= 200 then
+    Utils.error("Failed to fetch OpenAI-compatible models: " .. (response.body or response.status))
+    return {}
+  end
+
+  local ok, res_body = pcall(vim.json.decode, response.body)
+  if not ok or type(res_body) ~= "table" or type(res_body.data) ~= "table" then
+    Utils.error("Failed to parse OpenAI-compatible model list response")
+    return {}
+  end
+
+  local models = vim
+    .iter(res_body.data)
+    :filter(function(model) return type(model) == "table" and type(model.id) == "string" end)
+    :map(
+      function(model)
+        return {
+          id = model.id,
+          name = model.id,
+          display_name = model.id,
+          version = tostring(model.created or model.owned_by or ""),
+        }
+      end
+    )
+    :totable()
+
+  self._model_list_cache = models
+  return models
+end
 
 ---@param opts AvantePromptOptions
 function M.get_user_message(opts)
@@ -239,10 +312,8 @@ function M:parse_messages(opts)
               if last_message and last_message.role == self.role_map["assistant"] and last_message.tool_calls then
                 last_message.tool_calls = vim.list_extend(last_message.tool_calls, tool_calls)
 
-                if pending_reasoning_content then
-                  last_message.reasoning_content = pending_reasoning_content
-                  pending_reasoning_content = nil
-                end
+                last_message.reasoning_content = pending_reasoning_content or ""
+                pending_reasoning_content = nil
 
                 if not last_message.content then last_message.content = "" end
               else
@@ -251,10 +322,10 @@ function M:parse_messages(opts)
                   tool_calls = tool_calls,
                   content = "",
                 }
-                if pending_reasoning_content then
-                  tool_call_message.reasoning_content = pending_reasoning_content
-                  pending_reasoning_content = nil
-                end
+
+                tool_call_message.reasoning_content = pending_reasoning_content or ""
+                pending_reasoning_content = nil
+
                 table.insert(messages, tool_call_message)
               end
             end

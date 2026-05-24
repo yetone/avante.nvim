@@ -24,9 +24,9 @@ function M.read_content(filepath)
   local cached_content = _file_content_lru_cache:get(filepath)
   if cached_content then return cached_content end
 
-  local content = fn.readfile(filepath)
-  if content then
-    content = table.concat(content, "\n")
+  local lines = fn.readfile(filepath)
+  if lines then
+    local content = table.concat(lines, "\n")
     _file_content_lru_cache:set(filepath, content)
     return content
   end
@@ -42,7 +42,7 @@ end
 function M.is_in_project(filepath)
   local Root = require("avante.utils.root")
   local project_root = Root.get()
-  local abs_filepath = vim.fn.fnamemodify(filepath, ":p")
+  local abs_filepath = vim.fs.abspath(filepath)
   return abs_filepath:sub(1, #project_root) == project_root
 end
 

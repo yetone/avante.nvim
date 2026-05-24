@@ -1,3 +1,214 @@
+---@mod avante-config avante configuration
+---
+---@brief [[
+---
+--- Recommended Neovim option:
+---
+--->lua
+---   vim.opt.laststatus = 3
+---<
+---
+--- Call `require("avante").setup()` from your Neovim configuration.
+---
+--- Common options:
+---
+--->lua
+---   require("avante").setup({
+---     provider = "claude",
+---     mode = "agentic",
+---     instructions_file = "avante.md",
+---     providers = {
+---       claude = {
+---         endpoint = "https://api.anthropic.com",
+---         model = "claude-sonnet-4-20250514",
+---         timeout = 30000,
+---         extra_request_body = {
+---           temperature = 0.75,
+---           max_tokens = 20480,
+---         },
+---       },
+---     },
+---     behaviour = {
+---       auto_suggestions = false,
+---       auto_set_highlight_group = true,
+---       auto_set_keymaps = true,
+---       auto_apply_diff_after_generation = false,
+---       support_paste_from_clipboard = false,
+---       minimize_diff = true,
+---       enable_token_counting = true,
+---       auto_add_current_file = true,
+---       auto_approve_tool_permissions = true,
+---       confirmation_ui_style = "inline_buttons",
+---       acp_follow_agent_locations = true,
+---     },
+---     windows = {
+---       position = "right",
+---       wrap = true,
+---       width = 30,
+---     },
+---   })
+---<
+---
+--- For the full default configuration, see `lua/avante/config.lua`.
+---
+--- Project instructions~
+---
+--- By default Avante reads `avante.md` from the project root as
+--- project-specific instructions. Change the filename with:
+--->
+---   require("avante").setup({
+---     instructions_file = "avante.md",
+---   })
+---<
+---
+--- Input providers~
+---
+--- Avante supports `native`, `dressing`, `snacks`, or a custom function:
+--->
+---   require("avante").setup({
+---     input = {
+---       provider = "snacks",
+---       provider_opts = {
+---         title = "Avante Input",
+---         icon = " ",
+---       },
+---     },
+---   })
+---<
+---
+--- Selector providers~
+---
+--- Avante supports `native`, `fzf_lua`, `mini_pick`, `snacks`, `telescope`, or
+--- a custom function:
+--->
+---   require("avante").setup({
+---     selector = {
+---       provider = "fzf_lua",
+---       provider_opts = {},
+---     },
+---   })
+---<
+---
+--- Providers~
+---
+--- Avante ships with default providers and supports custom providers.
+---
+--- Common provider names include:
+---
+--- - `claude`
+--- - `openai`
+--- - `azure`
+--- - `gemini`
+--- - `vertex`
+--- - `cohere`
+--- - `copilot`
+--- - `bedrock`
+--- - `ollama`
+--- - `watsonx_code_assistant`
+--- - `mistral`
+---
+--- Ollama~
+---
+--- Ollama is disabled by default. Configure its endpoint check to enable it:
+--->
+---   require("avante").setup({
+---     provider = "ollama",
+---     providers = {
+---       ollama = {
+---         model = "qwq:32b",
+---         is_env_set = require("avante.providers.ollama").check_endpoint_alive,
+---       },
+---     },
+---   })
+---<
+---
+--- Fast Apply~
+---
+--- Fast Apply uses a specialized apply model for faster code edits. Enable it
+--- and configure Morph:
+--->
+---   require("avante").setup({
+---     behaviour = {
+---       enable_fastapply = true,
+---     },
+---     providers = {
+---       morph = {
+---         model = "morph-v3-large",
+---       },
+---     },
+---   })
+---<
+---
+--- Set:
+--->
+---   export MORPH_API_KEY="your-api-key"
+---<
+---
+--- ACP Support~
+---
+--- Avante supports the Agent Client Protocol (ACP), allowing compatible coding
+--- agents to interact with Neovim through a standardized protocol.
+---
+--- Supported ACP agents include:
+---
+--- - Gemini CLI
+--- - Claude Code
+--- - Goose
+--- - Codex
+--- - Kimi CLI
+---
+--- Configure ACP providers with `acp_providers`:
+---
+--->lua
+---   require("avante").setup({
+---     acp_providers = {
+---       ["gemini-cli"] = {
+---         command = "gemini",
+---         args = { "--experimental-acp" },
+---         env = {
+---           NODE_NO_WARNINGS = "1",
+---           GEMINI_API_KEY = os.getenv("GEMINI_API_KEY"),
+---         },
+---       },
+---       ["codex"] = {
+---         command = "codex-acp",
+---         args = {},
+---         env = {
+---           NODE_NO_WARNINGS = "1",
+---           OPENAI_API_KEY = os.getenv("OPENAI_API_KEY"),
+---         },
+---       },
+---     },
+---   })
+---<
+---
+--- Select an ACP-backed provider with |:AvanteSwitchProvider|.
+---
+--- Web Search~
+---
+--- Avante tools can use web search engines. Configure the provider with:
+--->
+---   require("avante").setup({
+---     web_search_engine = {
+---       provider = "tavily",
+---       proxy = nil,
+---     },
+---   })
+---<
+---
+--- Supported providers and environment variables:
+---
+--- - Tavily: `TAVILY_API_KEY`
+--- - SerpApi: `SERPAPI_API_KEY`
+--- - Google: `GOOGLE_SEARCH_API_KEY` and `GOOGLE_SEARCH_ENGINE_ID`
+--- - Kagi: `KAGI_API_KEY`
+--- - Brave Search: `BRAVE_API_KEY`
+--- - SearXNG: `SEARXNG_API_URL`
+---
+--- You can also set avante options via `vim.g.avante`.
+---
+---@brief ]]
+
 ---NOTE: user will be merged with defaults and
 ---we add a default var_accessor for this table to config values.
 
@@ -20,23 +231,113 @@ end
 ---@field public cwd                string
 ---@field public selected_filepaths string[]
 
+---@class avante.Config.Behaviour
+---@field auto_focus_sidebar? boolean Automatically focus the sidebar when opening Avante.
+---@field auto_suggestions? boolean Enable automatic suggestions (defaults to false because experimental)
+---@field auto_suggestions_respect_ignore? boolean Respect ignore rules for automatic suggestions.
+---@field auto_set_highlight_group? boolean Automatically set Avante highlight groups.
+---@field auto_set_keymaps? boolean Automatically install default keymaps when they do not conflict.
+---@field auto_apply_diff_after_generation? boolean Automatically apply diffs after an LLM response.
+---@field jump_result_buffer_on_finish? boolean Jump to the result buffer after generation finishes.
+---@field support_paste_from_clipboard? boolean Enable image paste support from clipboard when img-clip.nvim is available.
+---@field minimize_diff? boolean Remove unchanged lines when applying a code block.
+---@field enable_token_counting? boolean Enable token counting.
+---@field use_cwd_as_project_root? boolean Use the current working directory as project root.
+---@field auto_focus_on_diff_view? boolean Focus the diff view automatically.
+---@field auto_approve_tool_permissions? boolean|string[] Auto-approve all tools, no tools, or only specific tool names.
+---@field auto_check_diagnostics? boolean Automatically check diagnostics.
+---@field allow_access_to_git_ignored_files? boolean Allow tools to access git-ignored files.
+---@field enable_fastapply boolean Enable the fast-apply model flow.
+---@field include_generated_by_commit_line? boolean Controls if 'Generated-by: <provider/model>' line is added to git commit message
+---@field auto_add_current_file? boolean Automatically add the current file when opening a new chat.
+---@field confirmation_ui_style? "popup"|"inline_buttons" Tool permission confirmation UI style.
+---@field acp_follow_agent_locations? boolean Open files and navigate to lines when ACP agents make edits.
+
+---@class avante.Config.PromptLoggerKeymap
+---@field normal? string Normal-mode mapping.
+---@field insert? string Insert-mode mapping.
+
+---@class avante.Config.PromptLogger
+---@field enabled? boolean Enable prompt logging.
+---@field log_dir string Directory where prompt logs are saved.
+---@field max_entries? integer Maximum number of prompt log entries to keep.
+---@field next_prompt? avante.Config.PromptLoggerKeymap Mapping used to load the next newer prompt log.
+---@field prev_prompt? avante.Config.PromptLoggerKeymap Mapping used to load the previous older prompt log.
+
 ---@class avante.CoreConfig: avante.Config
 local M = {}
 
 --- Default configuration for project-specific instruction file
 M.instructions_file = "avante.md"
+
+---@tag vim.g.avante
 ---@class avante.Config
+---@field log_level? vim.log.levels
+---@field public session_recovery any
+--- Avante.nvim provides two interaction modes:
+--- - *agentic* (default): Uses AI tools to automatically generate and apply code changes
+--- - *legacy*: Uses the traditional planning method without automatic tool execution
+---
+--- **When should you use legacy mode?**
+--- - If you prefer more control over what actions the AI takes
+--- - If you're concerned about security with automatic tool execution
+--- - If you want to manually review each step before applying changes
+--- - If you're working in a sensitive environment where automatic code changes aren't desired
+---@field mode avante.Mode
+--- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
+--- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
+--- Of course, you can reduce the request frequency by increasing `suggestion.debounce`.
+---@field auto_suggestions_provider? boolean
+---To add support for custom provider, follow the format below
+---See https://github.com/yetone/avante.nvim/wiki#custom-providers for more details
+---@field providers {string: AvanteProvider}
+---Agent Client Protocol providers.  |avante-acp|
+---@field acp_providers {string: AvanteACPProvider}
+---
+---You can choose to disable tools by their names to in case you want to avoid its usage (like Claude 3.7 overusing the python tool)
+---@field disabled_tools? string[]
+---
+---Default provider on startup. If undefined, avante loads the last provider used.
+---@field provider? avante.ProviderName
+---
+---System prompt
+---@field system_prompt? string | nil | fun(): string
+--- override_prompt_dir allows you to specify a directory containing your own custom prompt templates, which will override the built-in templates. This is useful if you want to maintain a set of custom prompts outside of your Neovim configuration.
+---<lua
+--- -- Example: Override with prompts from a specific directory
+--- require("avante").setup({
+---   override_prompt_dir = vim.fn.expand("~/.config/nvim/avante_prompts"),
+--- })
+---
+--- -- Example: Override with prompts from a function (dynamic directory)
+--- require("avante").setup({
+---   override_prompt_dir = function()
+---     -- Your logic to determine the prompt directory
+---     return vim.fn.expand("~/.config/nvim/my_dynamic_prompts")
+---   end,
+--- })
+---<
+---@field override_prompt_dir string | nil | fun(): string
+---@field rules table
+---
+---@field behaviour avante.Config.Behaviour Behaviour and automation options.
+---@field prompt_logger? avante.Config.PromptLogger Prompt logging options.
+---@field windows table
+---@field slash_commands AvanteSlashCommand[] see |*avante-slashcommands*|
+---@field shortcuts AvanteShortcut[]  see |*avante-shortcuts*|
+---@field ask_opts AskOptions
+
 M._defaults = {
   debug = false,
+  log_level = vim.log.levels.WARN,
   ---@alias avante.Mode "agentic" | "legacy"
+  --- Avante.nvim provides two interaction modes:
+  --- - *agentic* (default): Uses AI tools to automatically generate and apply code changes
+  --- - *legacy*: Uses the traditional planning method without automatic tool execution
   ---@type avante.Mode
   mode = "agentic",
   ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | "watsonx_code_assistant" | "mistral" | string
-  ---@type avante.ProviderName
   provider = "claude",
-  -- WARNING: Since auto-suggestions are a high-frequency operation and therefore expensive,
-  -- currently designating it as `copilot` provider is dangerous because: https://github.com/yetone/avante.nvim/issues/1048
-  -- Of course, you can reduce the request frequency by increasing `suggestion.debounce`.
   auto_suggestions_provider = nil,
   memory_summary_provider = nil,
   ---@alias Tokenizer "tiktoken" | "hf"
@@ -46,9 +347,7 @@ M._defaults = {
   -- For most providers that we support we will determine this automatically.
   -- If you wish to use a given implementation, then you can override it here.
   tokenizer = "tiktoken",
-  ---@type string | fun(): string | nil
   system_prompt = nil,
-  ---@type string | fun(): string | nil
   override_prompt_dir = nil,
   rules = {
     project_dir = nil, ---@type string | nil (could be relative dirpath)
@@ -255,8 +554,8 @@ M._defaults = {
       auth_method = "gemini-api-key",
     },
     ["claude-code"] = {
-      command = "npx",
-      args = { "-y", "-g", "@zed-industries/claude-code-acp" },
+      command = "claude-agent-acp",
+      args = {},
       env = {
         NODE_NO_WARNINGS = "1",
         ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY"),
@@ -270,8 +569,8 @@ M._defaults = {
       args = { "acp" },
     },
     ["codex"] = {
-      command = "npx",
-      args = { "-y", "-g", "@zed-industries/codex-acp" },
+      command = "codex-acp",
+      args = {},
       env = {
         NODE_NO_WARNINGS = "1",
         HOME = os.getenv("HOME"),
@@ -285,12 +584,9 @@ M._defaults = {
     },
     ["kimi-cli"] = {
       command = "kimi",
-      args = { "--acp" },
+      args = { "acp" },
     },
   },
-  ---To add support for custom provider, follow the format below
-  ---See https://github.com/yetone/avante.nvim/wiki#custom-providers for more details
-  ---@type {[string]: AvanteProvider}
   providers = {
     ---@type AvanteSupportedProvider
     openai = {
@@ -529,19 +825,6 @@ M._defaults = {
     prompt = "Based on the two reference outputs below, generate a response that incorporates elements from both but reflects your own judgment and unique perspective. Do not provide any explanation, just give the response directly. Reference Output 1: [{{provider1_output}}], Reference Output 2: [{{provider2_output}}]",
     timeout = 60000, -- Timeout in milliseconds
   },
-  ---Specify the behaviour of avante.nvim
-  ---1. auto_focus_sidebar              : Whether to automatically focus the sidebar when opening avante.nvim. Default to true.
-  ---2. auto_suggestions = false, -- Whether to enable auto suggestions. Default to false.
-  ---3. auto_apply_diff_after_generation: Whether to automatically apply diff after LLM response.
-  ---                                     This would simulate similar behaviour to cursor. Default to false.
-  ---4. auto_set_keymaps                : Whether to automatically set the keymap for the current line. Default to true.
-  ---                                     Note that avante will safely set these keymap. See https://github.com/yetone/avante.nvim/wiki#keymaps-and-api-i-guess for more details.
-  ---5. auto_set_highlight_group        : Whether to automatically set the highlight group for the current line. Default to true.
-  ---6. jump_result_buffer_on_finish = false, -- Whether to automatically jump to the result buffer after generation
-  ---7. support_paste_from_clipboard    : Whether to support pasting image from clipboard. This will be determined automatically based whether img-clip is available or not.
-  ---8. minimize_diff                   : Whether to remove unchanged lines when applying a code block
-  ---9. enable_token_counting           : Whether to enable token counting. Default to true.
-  ---10. auto_add_current_file          : Whether to automatically add the current file when opening a new chat. Default to true.
   behaviour = {
     auto_focus_sidebar = true,
     auto_suggestions = false, -- Experimental stage
@@ -560,8 +843,8 @@ M._defaults = {
     auto_check_diagnostics = true,
     allow_access_to_git_ignored_files = false,
     enable_fastapply = false,
-    include_generated_by_commit_line = false, -- Controls if 'Generated-by: <provider/model>' line is added to git commit message
-    auto_add_current_file = true, -- Whether to automatically add the current file when opening a new chat
+    include_generated_by_commit_line = false,
+    auto_add_current_file = true,
     --- popup is the original yes,all,no in a floating window
     --- inline_buttons is the new inline buttons in the sidebar
     ---@type "popup" | "inline_buttons"
@@ -570,6 +853,7 @@ M._defaults = {
     ---@type boolean
     acp_follow_agent_locations = true,
   },
+  ---@type avante.Config.PromptLogger
   prompt_logger = { -- logs prompts to disk (timestamped, for replay/debugging)
     enabled = true, -- toggle logging entirely
     log_dir = vim.fn.stdpath("cache"), -- directory where logs are saved
@@ -586,7 +870,7 @@ M._defaults = {
   history = {
     max_tokens = 4096,
     carried_entry_count = nil,
-    storage_path = Utils.join_paths(vim.fn.stdpath("state"), "avante"),
+    storage_path = vim.fs.joinpath(vim.fn.stdpath("state"), "avante"),
     paste = {
       extension = "png",
       filename = "pasted-%Y-%m-%d-%H-%M-%S",
@@ -673,6 +957,8 @@ M._defaults = {
     },
     select_model = "<leader>a?", -- Select model command
     select_history = "<leader>ah", -- Select history command
+    select_acp_model = "<leader>aM", -- Select ACP agent model
+    select_acp_mode = "<leader>am", -- Select ACP agent mode
     confirm = {
       focus_window = "<C-w>f",
       code = "c",
@@ -799,14 +1085,11 @@ M._defaults = {
     debounce = 600,
     throttle = 600,
   },
-  disabled_tools = {}, ---@type string[]
+  disabled_tools = {},
   ---@type AvanteLLMToolPublic[] | fun(): AvanteLLMToolPublic[]
   custom_tools = {},
-  ---@type AvanteSlashCommand[]
   slash_commands = {},
-  ---@type AvanteShortcut[]
   shortcuts = {},
-  ---@type AskOptions
   ask_opts = {},
 }
 
@@ -814,8 +1097,9 @@ M._defaults = {
 ---@diagnostic disable-next-line: missing-fields
 M._options = {}
 
-local function get_config_dir_path() return Utils.join_paths(vim.fn.expand("~"), ".config", "avante.nvim") end
-local function get_config_file_path() return Utils.join_paths(get_config_dir_path(), "config.json") end
+---@diagnostic disable-next-line: param-type-mismatch
+local function get_config_dir_path() return vim.fs.joinpath(vim.fn.expand("~"), ".config", "avante.nvim") end
+local function get_config_file_path() return vim.fs.joinpath(get_config_dir_path(), "config.json") end
 
 --- Function to save the last used model
 ---@param model_name string
@@ -916,13 +1200,16 @@ end
 ---@param opts table<string, any>|nil -- Optional table parameter for configuration settings
 function M.setup(opts)
   opts = opts or {} -- Ensure `opts` is defined with a default table
-  if vim.fn.has("nvim-0.11") == 1 then
-    vim.validate("opts", opts, "table", true)
-  else
-    vim.validate({ opts = { opts, "table", true } })
+  vim.validate("opts", opts, "table", true)
+
+  local global_opts = {}
+  if vim.g.avante ~= nil then
+    vim.validate("vim.g.avante", vim.g.avante, "table", true)
+    global_opts = vim.deepcopy(vim.g.avante, true)
   end
 
-  opts = opts or {}
+  opts = vim.tbl_deep_extend("force", global_opts, opts or {})
+  local provider_configured = opts.provider ~= nil
 
   local migration_url = "https://github.com/yetone/avante.nvim/wiki/Provider-configuration-migration-guide"
 
@@ -1050,7 +1337,13 @@ function M.setup(opts)
   )
 
   local last_model, last_provider = M.get_last_used_model(merged.providers or {})
-  if last_model then apply_model_selection(merged, last_model, last_provider) end
+  if last_model then
+    if provider_configured then
+      if last_provider == nil or last_provider == merged.provider then apply_model_selection(merged, last_model) end
+    else
+      apply_model_selection(merged, last_model, last_provider)
+    end
+  end
 
   M._options = merged
 
@@ -1069,15 +1362,15 @@ function M.setup(opts)
     )
   end
 
-  if vim.fn.has("nvim-0.11") == 1 then
-    vim.validate("provider", M._options.provider, "string", false)
-  else
-    vim.validate({ provider = { M._options.provider, "string", false } })
-  end
+  vim.validate("provider", M._options.provider, "string", false)
 
   for k, v in pairs(M._options.providers) do
     M._options.providers[k] = type(v) == "function" and v() or v
   end
+
+  vim.g.avante = vim.tbl_deep_extend("force", vim.g.avante or {}, {
+    log_level = merged.log_level,
+  })
 end
 
 ---@param opts table<string, any>

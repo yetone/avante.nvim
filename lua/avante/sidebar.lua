@@ -1,3 +1,72 @@
+---@mod avante-sidebar avante sidebar
+---@brief [[
+--- The 'sidebar' is made of several containers, each with its own 'Avante*' filetype that you can use to customize its behavior, e.g. "AvanteInput", "AvanteResult"...
+---
+--- Keymaps~
+---
+--- Default keymaps are installed when `behaviour.auto_set_keymaps` is enabled.
+--- If a mapping already exists, Avante leaves it to the user to configure.
+---
+--- Sidebar~
+---
+---                                             *avante-sidebar-keymaps*
+--- `A`             Apply all
+--- `a`             Apply cursor
+--- `r`             Retry user request
+--- `e`             Edit user request
+--- `<Tab>`         Switch windows
+--- `<S-Tab>`       Reverse switch windows
+--- `d`             Remove file
+--- `@`             Add file
+--- `q`             Close sidebar
+--- `<leader>aa`    Show sidebar
+--- `<leader>at`    Toggle sidebar visibility
+--- `<leader>ar`    Refresh sidebar
+--- `<leader>af`    Switch sidebar focus
+--- `]p`            Next prompt
+--- `[p`            Previous prompt
+---
+--- Suggestion~
+---
+---                                          *avante-suggestion-keymaps*
+--- `<leader>a?`    Select model
+--- `<leader>an`    New ask
+--- `<leader>ae`    Edit selected blocks
+--- `<leader>aS`    Stop current AI request
+--- `<leader>ah`    Select between chat histories
+--- `<M-l>`         Accept suggestion
+--- `<M-]>`         Next suggestion
+--- `<M-[>`         Previous suggestion
+--- `<C-]>`         Dismiss suggestion
+--- `<leader>ad`    Toggle debug mode
+--- `<leader>as`    Toggle suggestion display
+--- `<leader>aR`    Toggle repository map
+---
+--- Files~
+---
+---                                               *avante-file-keymaps*
+--- `<leader>ac`    Add current buffer to selected files
+--- `<leader>aB`    Add all buffer files to selected files
+---
+--- Diff~
+---
+---                                               *avante-diff-keymaps*
+--- `co`            Choose ours
+--- `ct`            Choose theirs
+--- `ca`            Choose all theirs
+--- `cb`            Choose both
+--- `cc`            Choose cursor
+--- `]x`            Move to next conflict
+--- `[x`            Move to previous conflict
+---
+--- Confirm~
+---
+---                                            *avante-confirm-keymaps*
+--- `<C-w>f`        Focus confirm window
+--- `c`             Confirm code
+--- `r`             Confirm response
+--- `i`             Confirm input
+---@brief ]]
 local api = vim.api
 local fn = vim.fn
 
@@ -49,23 +118,6 @@ local SIDEBAR_CONTAINERS = {
 }
 
 ---@class avante.Sidebar
-local Sidebar = {}
-Sidebar.__index = Sidebar
-
----@param state avante.GenerateState | nil
----@return boolean
-local function is_active_request_state(state)
-  return state == "generating" or state == "thinking" or state == "tool calling"
-end
-
----@class avante.CodeState
----@field winid integer
----@field bufnr integer
----@field selection avante.SelectionResult | nil
----@field old_winhl string | nil
----@field win_width integer | nil
-
----@class avante.Sidebar
 ---@field id integer
 ---@field augroup integer
 ---@field code avante.CodeState
@@ -92,6 +144,15 @@ end
 ---@field current_tool_use_extmark_id integer | nil
 ---@field private win_size_store table<integer, {width: integer, height: integer}>
 ---@field is_in_full_view boolean
+local Sidebar = {}
+Sidebar.__index = Sidebar
+
+---@class avante.CodeState
+---@field winid integer
+---@field bufnr integer
+---@field selection avante.SelectionResult | nil
+---@field old_winhl string | nil
+---@field win_width integer | nil
 
 ---@param id integer the tabpage id retrieved from api.nvim_get_current_tabpage()
 function Sidebar:new(id)
@@ -307,6 +368,7 @@ function Sidebar:focus_input()
   end
 end
 
+---Checks if sidebar is visible/open
 function Sidebar:is_open() return Utils.is_valid_container(self.containers.result, true) end
 
 function Sidebar:in_code_win() return self.code.winid == api.nvim_get_current_win() end
@@ -1008,7 +1070,18 @@ function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl, opts)
 
   local model_name = nil
   if opts.include_model and Config.windows.sidebar_header.include_model then
-    model_name = Config.provider .. " | " .. Config.providers[Config.provider].model
+    if Config.acp_providers[Config.provider] then
+      local parts = { Config.provider }
+      if self.acp_client and self.acp_client.config_options then
+        for _, opt in ipairs(self.acp_client.config_options) do
+          if opt.category == "model" then table.insert(parts, opt.currentValue) end
+          if opt.category == "mode" then table.insert(parts, opt.currentValue) end
+        end
+      end
+      model_name = table.concat(parts, " | ")
+    else
+      model_name = Config.provider .. " | " .. Config.providers[Config.provider].model
+    end
   end
 
   if Config.windows.sidebar_header.rounded then
@@ -1590,16 +1663,28 @@ end
 ---@param container NuiSplit
 function Sidebar:setup_window_navigation(container)
   local buf = api.nvim_win_get_buf(container.winid)
+  vim.keymap.set(
+    { "n", "i" },
+    "<Plug>(AvanteSidebarSwitchWindow)",
+    function() self:switch_window_focus("next") end,
+    { buffer = buf, noremap = true, silent = true, nowait = true }
+  )
+  vim.keymap.set(
+    { "n", "i" },
+    "<Plug>(AvanteSidebarReverseSwitchWindow)",
+    function() self:switch_window_focus("previous") end,
+    { buffer = buf, noremap = true, silent = true, nowait = true }
+  )
   Utils.safe_keymap_set(
     { "n", "i" },
     Config.mappings.sidebar.switch_windows,
-    function() self:switch_window_focus("next") end,
+    "<Plug>(AvanteSidebarSwitchWindow)",
     { buffer = buf, noremap = true, silent = true, nowait = true }
   )
   Utils.safe_keymap_set(
     { "n", "i" },
     Config.mappings.sidebar.reverse_switch_windows,
-    function() self:switch_window_focus("previous") end,
+    "<Plug>(AvanteSidebarReverseSwitchWindow)",
     { buffer = buf, noremap = true, silent = true, nowait = true }
   )
 end
@@ -1845,11 +1930,13 @@ end
 ---@param selected_filepaths string[]
 ---@param selected_code AvanteSelectedCode?
 ---@return string
-local function render_chat_record_prefix(timestamp, provider, model, request, selected_filepaths, selected_code)
+local function render_chat_record_prefix(timestamp, provider, model, mode, request, selected_filepaths, selected_code)
   local res
   local acp_provider = Config.acp_providers[provider]
   if acp_provider then
     res = "- Datetime: " .. timestamp .. "\n" .. "- ACP:      " .. provider
+    if model and model ~= "" and model ~= "unknown" then res = res .. "\n" .. "- Model:    " .. model end
+    if mode and mode ~= "" and mode ~= "unknown" then res = res .. "\n" .. "- Mode:     " .. mode end
   else
     provider = provider or "unknown"
     model = model or "unknown"
@@ -1914,6 +2001,7 @@ function Sidebar:_get_message_lines(ctx, message, messages, ignore_record_prefix
       message.timestamp,
       message.provider,
       message.model,
+      message.mode,
       text,
       message.selected_filepaths,
       message.selected_code
@@ -1949,6 +2037,12 @@ function Sidebar:_get_message_lines(ctx, message, messages, ignore_record_prefix
 end
 
 local _message_to_lines_lru_cache = LRUCache:new(100)
+
+---@param state avante.GenerateState | nil
+---@return boolean
+local function is_active_request_state(state)
+  return state == "generating" or state == "thinking" or state == "tool calling"
+end
 
 ---@param ctx table
 ---@param message avante.HistoryMessage
@@ -2056,6 +2150,7 @@ local function render_message(message, messages, ctx)
       message.timestamp,
       message.provider,
       message.model,
+      message.mode,
       text,
       message.selected_filepaths,
       message.selected_code
@@ -2310,7 +2405,14 @@ function Sidebar:add_history_messages(messages, opts)
   for _, message in ipairs(messages) do
     if message.is_user_submission then
       message.provider = Config.provider
-      if not Config.acp_providers[Config.provider] then
+      if Config.acp_providers[Config.provider] then
+        if self.acp_client and self.acp_client.config_options then
+          for _, opt in ipairs(self.acp_client.config_options) do
+            if opt.category == "model" then message.model = opt.currentValue end
+            if opt.category == "mode" then message.mode = opt.currentValue end
+          end
+        end
+      else
         message.model = Config.get_provider_config(Config.provider).model
       end
     end
@@ -2425,7 +2527,7 @@ end
 function Sidebar:close_input_hint()
   if self.input_hint_window and api.nvim_win_is_valid(self.input_hint_window) then
     local buf = api.nvim_win_get_buf(self.input_hint_window)
-    if INPUT_HINT_NAMESPACE then api.nvim_buf_clear_namespace(buf, INPUT_HINT_NAMESPACE, 0, -1) end
+    api.nvim_buf_clear_namespace(buf, INPUT_HINT_NAMESPACE, 0, -1)
     api.nvim_win_close(self.input_hint_window, true)
     api.nvim_buf_delete(buf, { force = true })
     self.input_hint_window = nil

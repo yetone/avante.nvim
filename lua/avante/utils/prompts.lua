@@ -1,3 +1,50 @@
+---@mod avante-prompts avante custom prompts
+---@brief [[
+---
+--- Avante uses different prompts for planning, editing, suggesting, and
+--- agentic flows. You can set a global prompt:
+--->
+---   require("avante").setup({
+---     system_prompt = "MY CUSTOM SYSTEM PROMPT",
+---   })
+---<
+---
+--- Or override the prompt directory:
+--->
+---   require("avante").setup({
+---     override_prompt_dir = vim.fn.expand("~/.config/nvim/avante_prompts"),
+---   })
+---<
+---
+--- Project prompt rules~
+---
+--- Avante can load `*.avanterules` files from a project. Configure rule
+--- directories:
+--->
+---   require("avante").setup({
+---     rules = {
+---       project_dir = ".avante/rules",
+---       global_dir = "~/.config/avante/rules",
+---     },
+---   })
+---<
+---
+--- Rule loading priority:
+---
+--- 1. `rules.project_dir`
+--- 2. `rules.global_dir`
+--- 3. Project root
+---
+--- Example files:
+---
+--- - `typescript.planning.avanterules`
+--- - `snippets.editing.avanterules`
+--- - `suggesting.avanterules`
+---
+--- `*.avanterules` files are Jinja templates rendered with minijinja.
+---
+---@brief ]]
+
 local Config = require("avante.config")
 local M = {}
 
@@ -144,24 +191,24 @@ Parameters:
   return system_prompt
 end
 
---- Get the content of AGENTS.md or CLAUDE.md or OPENCODE.md
+--- Get the content of AGENTS.md and the likes (CLAUDE.md, .cursorrules, ...)
 ---@return string | nil
 function M.get_agents_rules_prompt()
   local Utils = require("avante.utils")
-  local project_root = Utils.get_project_root()
+  local project_root = tostring(Utils.get_project_root())
   local file_names = {
     "AGENTS.md",
     "CLAUDE.md",
     "OPENCODE.md",
     ".cursorrules",
     ".windsurfrules",
-    Utils.join_paths(".github", "copilot-instructions.md"),
+    vim.fs.joinpath(".github", "copilot-instructions.md"),
   }
   for _, file_name in ipairs(file_names) do
-    local file_path = Utils.join_paths(project_root, file_name)
+    local file_path = vim.fs.joinpath(project_root, file_name)
     if vim.fn.filereadable(file_path) == 1 then
       local content = vim.fn.readfile(file_path)
-      if content then return table.concat(content, "\n") end
+      return table.concat(content, "\n")
     end
   end
   return nil
@@ -171,11 +218,11 @@ end
 ---@return string | nil
 function M.get_cursor_rules_prompt(selected_files)
   local Utils = require("avante.utils")
-  local project_root = Utils.get_project_root()
+  local project_root = tostring(Utils.get_project_root())
   local accumulated_content = ""
 
   ---@type string[]
-  local mdc_files = vim.fn.globpath(Utils.join_paths(project_root, ".cursor/rules"), "*.mdc", false, true)
+  local mdc_files = vim.fn.globpath(vim.fs.joinpath(project_root, ".cursor/rules"), "*.mdc", false, true)
   for _, file_path in ipairs(mdc_files) do
     ---@type string[]
     local content = vim.fn.readfile(file_path)

@@ -1,3 +1,70 @@
+---@mod avante-tools avante tools
+---@brief [[
+---
+--- Agentic mode enables tool use. If a model does not support tools, disable
+--- them for that provider:
+--->
+---   require("avante").setup({
+---     providers = {
+---       claude = {
+---         disable_tools = true,
+---       },
+---     },
+---   })
+---<
+---
+--- Disable selected tools only:
+--->
+---   require("avante").setup({
+---     disabled_tools = { "python" },
+---   })
+---<
+---
+--- Built-in tool names include:
+--->
+---   rag_search, python, git_diff, git_commit, glob, search_keyword,
+---   read_file_toplevel_symbols, read_file, create_file, move_path, copy_path,
+---   delete_path, create_dir, bash, web_search, fetch
+---<
+---
+--- Custom tools~
+---
+--- Custom tools can run shell commands, scripts, or Lua functions:
+--->
+---   require("avante").setup({
+---     custom_tools = {
+---       {
+---         name = "run_go_tests",
+---         description = "Run Go unit tests and return results",
+---         param = {
+---           type = "table",
+---           fields = {
+---             {
+---               name = "target",
+---               description = "Package or directory to test",
+---               type = "string",
+---               optional = true,
+---             },
+---           },
+---         },
+---         returns = {
+---           {
+---             name = "result",
+---             description = "Test output",
+---             type = "string",
+---           },
+---         },
+---         func = function(params)
+---           local target = params.target or "./..."
+---           return vim.system({ "go", "test", "-v", target }, { text = true }):wait().stdout
+---         end,
+---       },
+---     },
+---   })
+---<
+---
+---@brief ]]
+
 local curl = require("plenary.curl")
 local Utils = require("avante.utils")
 local Path = require("plenary.path")
@@ -151,14 +218,14 @@ function M.copy_path(input, opts)
         return
       end
       if on_log then on_log("Copying path: " .. abs_path .. " to " .. new_abs_path) end
-      if Path:new(abs_path):is_dir() then
+      if vim.fn.isdirectory(abs_path) == 1 then
         Path:new(new_abs_path):mkdir({ parents = true })
         for _, entry in ipairs(Path:new(abs_path):list()) do
           local new_entry_path = Path:new(new_abs_path):joinpath(entry)
           if entry:match("^%.") then goto continue end
           if Path:new(new_entry_path):exists() then
-            if Path:new(new_entry_path):is_dir() then
-              Path:new(new_entry_path):rmdir()
+            if vim.fn.isdirectory(tostring(new_entry_path)) == 1 then
+              vim.fs.rm(tostring(new_entry_path), { recursive = true })
             else
               Path:new(new_entry_path):unlink()
             end
@@ -568,7 +635,7 @@ function M.python(input, opts)
         return
       end
       if vim.fn.executable("docker") == 0 then
-        on_complete(nil, "Python tool is not available to execute any code")
+        on_complete(nil, "Python tool via docker is not available to execute any code")
         return
       end
 
