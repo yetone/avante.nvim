@@ -418,7 +418,7 @@ WebSearchEngineProviderResponseBodyFormatter
 avante.InputProvider                                      *avante.InputProvider*
 
     Type: ~
-
+        
 
 
 avante.file_selector.IParams                      *avante.file_selector.IParams*
@@ -528,24 +528,27 @@ avante.Config                                                    *avante.Config*
 
         {prompt_logger?}              (avante.Config.PromptLogger)  Prompt logging options.
         {windows}                     (table)
+        {slash_commands}              (AvanteSlashCommand[])        see |*avante-slashcommands*|
+        {shortcuts}                   (AvanteShortcut[])            see |*avante-shortcuts*|
+        {ask_opts}                    (AskOptions)
 
 
 avante.Mode                                                        *avante.Mode*
 
     Type: ~
-
+        
 
 
 avante.ProviderName                                        *avante.ProviderName*
 
     Type: ~
-
+        
 
 
 Tokenizer                                                            *Tokenizer*
 
     Type: ~
-
+        
 
 
 AvanteConflictMappings                                  *AvanteConflictMappings*
@@ -566,19 +569,19 @@ AvanteToggleCodeWindowFromInput                *AvanteToggleCodeWindowFromInput*
 AvantePosition                                                  *AvantePosition*
 
     Type: ~
-
+        
 
 
 AvanteInitialDiff                                            *AvanteInitialDiff*
 
     Type: ~
-
+        
 
 
 avante.SelectorProvider                                *avante.SelectorProvider*
 
     Type: ~
-
+        
 
 
 M.save_last_model({model_name})                  *avante-config.save_last_model*
