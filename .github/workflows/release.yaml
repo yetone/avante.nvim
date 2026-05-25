@@ -114,7 +114,11 @@ jobs:
         shell: bash
         run: |
           mkdir -p results
-          EXT="so"
+          if [ "${{ matrix.config.os_name }}" == "linux" ]; then
+            EXT="so"
+          else
+            EXT="dylib"
+          fi
           cp target/release/libavante_templates.$EXT results/avante_templates.$EXT
           cp target/release/libavante_tokenizers.$EXT results/avante_tokenizers.$EXT
           cp target/release/libavante_repo_map.$EXT results/avante_repo_map.$EXT
