@@ -294,9 +294,10 @@ function Prompt.get_templates_dir(project_root)
 
   -- get root directory of given bufnr
   local directory = Path:new(project_root)
-  if Utils.get_os_name() == "windows" then
-    directory = Path:new(vim.fs.abspath(tostring(directory)):gsub("^%a:", ""))
-  end
+if Utils.get_os_name() == "windows" then
+  local win_path = vim.fs.abspath(tostring(directory)):gsub("^%a:", ""):gsub("^[/\\]+", "")
+  directory = Path:new(vim.fs.normalize(win_path))
+end
   local cache_prompt_dir = Path:new(P.cache_path):joinpath(directory)
   if not cache_prompt_dir:exists() then cache_prompt_dir:mkdir({ parents = true }) end
 
