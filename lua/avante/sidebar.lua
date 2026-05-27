@@ -2671,7 +2671,7 @@ function Sidebar:get_generate_prompts_options(request, cb)
 
   -- Get file extension safely
   local buf_name = api.nvim_buf_get_name(self.code.bufnr)
-  if buf_name and buf_name ~= "" then file_ext = vim.fn.fnamemodify(buf_name, ":e") end
+  if buf_name and buf_name ~= "" then file_ext = fn.fnamemodify(buf_name, ":e") end
 
   ---@type AvanteSelectedCode | nil
   local selected_code = nil

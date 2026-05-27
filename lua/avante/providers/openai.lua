@@ -580,10 +580,13 @@ function M.transform_openai_usage(usage)
   local res = {
     prompt_tokens = usage.prompt_tokens,
     completion_tokens = usage.completion_tokens,
+    -- total_tokens is the sum of both
   }
   return res
 end
 
+--- Parse response
+--- Updates status
 function M:parse_response(ctx, data_stream, _, opts)
   if data_stream:match('"%[DONE%]":') or data_stream == "[DONE]" then
     self:finish_pending_messages(ctx, opts)
@@ -596,6 +599,7 @@ function M:parse_response(ctx, data_stream, _, opts)
     return
   end
 
+  ---@type any
   local jsn = vim.json.decode(data_stream)
 
   -- Check if this is a Response API event (has 'type' field)
@@ -862,9 +866,6 @@ function M:parse_curl_args(prompt_opts)
       table.insert(tools, transformed_tool)
     end
   end
-
-  Utils.debug("endpoint", provider_conf.endpoint)
-  Utils.debug("model", provider_conf.model)
 
   local stop = nil
   if use_ReAct_prompt then stop = { "</tool_use>" } end
