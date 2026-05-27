@@ -1425,6 +1425,7 @@ function M.icon(string_with_icon, utf8_fallback)
   end
 end
 
+---@return table
 function M.deep_extend_with_metatable(behavior, ...)
   local tables = { ... }
   local base = tables[1]

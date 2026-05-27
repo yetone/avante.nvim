@@ -489,8 +489,8 @@ local parse_headers = function(headers_file)
   local file = io.open(headers_file, "r")
   if file then
     for line in file:lines() do
-      line = line:gsub("\r$", "")
-      local key, value = line:match("^%s*(.-)%s*:%s*(.*)$")
+      local linep = line:gsub("\r$", "")
+      local key, value = linep:match("^%s*(.-)%s*:%s*(.*)$")
       if key and value then headers[key] = value end
     end
     if Config.debug then
@@ -533,7 +533,7 @@ function M.curl(opts)
     return
   end
 
-  ---@type string
+  ---@type string?
   local current_event_state = nil
   local turn_ctx = {}
   turn_ctx.turn_id = Utils.uuid()
