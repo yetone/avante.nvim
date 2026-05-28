@@ -12,18 +12,18 @@
       "${3rd}/luv/library",
       "$DEPS_PATH/luvit-meta/library"
       ,
-      "target/tests/deps/neodev.nvim/lua",
-      "target/tests/deps/plenary.nvim/lua",
-      "target/tests/deps/nui.nvim/lua",
-      "target/tests/deps/dressing.nvim/lua",
-      "target/tests/deps/snacks.nvim/lua",
-      "target/tests/deps/mini.nvim/lua",
-      "target/tests/deps/telescope.nvim/lua",
-      "target/tests/deps/nvim-cmp/lua",
-      "target/tests/deps/fzf-lua/lua",
-      "target/tests/deps/nvim-web-devicons/lua",
-      "target/tests/deps/copilot.lua/lua",
-      "target/tests/deps/lazy.nvim/lua"
+      "$DEPS_PATH/neodev.nvim/lua",
+      "$DEPS_PATH/plenary.nvim/lua",
+      "$DEPS_PATH/nui.nvim/lua",
+      "$DEPS_PATH/dressing.nvim/lua",
+      "$DEPS_PATH/snacks.nvim/lua",
+      "$DEPS_PATH/mini.nvim/lua",
+      "$DEPS_PATH/telescope.nvim/lua",
+      "$DEPS_PATH/nvim-cmp/lua",
+      "$DEPS_PATH/fzf-lua/lua",
+      "$DEPS_PATH/nvim-web-devicons/lua",
+      "$DEPS_PATH/copilot.lua/lua",
+      "$DEPS_PATH/lazy.nvim/lua"
     ],
     "ignoreDir": [
       "/lua"
