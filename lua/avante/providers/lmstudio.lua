@@ -17,6 +17,7 @@ setmetatable(M, {
     local ok, Config = pcall(require, "avante.config")
     if ok then
       local lm_cfg = Config.providers and Config.providers.lmstudio
+      ---@diagnostic disable-next-line: undefined-field
       local mode = lm_cfg and lm_cfg.mode or "openai"
       if mode == "anthropic" then return Providers.claude[k] end
     end
@@ -34,6 +35,7 @@ M.role_map = {
 ---Returns empty string if not configured (LM Studio auth is optional)
 ---@return string
 function M.parse_api_key()
+  ---@type AvanteLmStudioProvider
   local provider_conf = Providers.parse_config(M)
   return provider_conf.api_key or ""
 end
@@ -44,7 +46,9 @@ end
 local function get_mode_safe()
   local ok, provider_conf = pcall(Providers.parse_config, M)
   if not ok then return "openai" end
-  local mode = provider_conf.mode or "openai"
+  ---@type AvanteLmStudioProvider
+  local lm_conf = provider_conf
+  local mode = lm_conf.mode or "openai"
   if mode ~= "openai" and mode ~= "anthropic" and mode ~= "lmstudio" then
     Utils.warn("LM Studio: Invalid mode '" .. mode .. "', defaulting to 'openai'")
     mode = "openai"
@@ -63,10 +67,11 @@ end
 ---Fetch model metadata from LM Studio to get context_length
 ---@param model_name string
 ---@param timeout? integer Timeout in milliseconds
+---@param endpoint string LM Studio server endpoint
 ---@return table|nil model_info Model metadata including context_length
-local function get_model_info(model_name, timeout)
+local function get_model_info(model_name, timeout, endpoint)
   local curl = require("plenary.curl")
-  local models_endpoint = Utils.url_join(provider_conf.endpoint, "/api/v1/models")
+  local models_endpoint = Utils.url_join(endpoint, "/api/v1/models")
 
   local headers = {
     ["Content-Type"] = "application/json",
@@ -81,10 +86,12 @@ local function get_model_info(model_name, timeout)
   local job = curl.get(models_endpoint, {
     headers = headers,
     callback = function(output) response = output end,
+    on_error = function(err) response = { exit = err.exit } end,
     timeout = timeout or 5000,
   })
-  job.wait(job, timeout or 5000)
-
+  local job_ok = pcall(job.wait, job, timeout or 5000)
+  if not job_ok then return nil end
+  if response.exit ~= 0 then return nil end
   if response.status ~= 200 then return nil end
 
   local ok, res_body = pcall(vim.json.decode, response.body)
@@ -177,10 +184,22 @@ function M:list_models()
   for _, model in ipairs(result) do
     local model_id = model.id or model.model or ""
     if model_id ~= "" then
+      local display = model_id
+      -- Build a more descriptive display name from model details if available
+      local details = model.details
+      if details then
+        if details.parameter_size and details.quantization_level then
+          display = model_id .. " (" .. details.parameter_size .. " " .. details.quantization_level .. ")"
+        elseif details.format then
+          display = model_id .. " (" .. details.format .. ")"
+        end
+      end
       table.insert(models, {
         id = model_id,
-        name = "lmstudio/" .. model_id,
+        name = string.format("lmstudio/%s (%s)", model_id, display),
         display_name = model_id,
+        provider_name = "lmstudio",
+        version = details and details.parent_model or model.digest,
       })
     end
   end
@@ -195,6 +214,12 @@ end
 function M:parse_curl_args(prompt_opts)
   local mode = get_mode_safe()
   local provider_conf, request_body = Providers.parse_config(self)
+
+  -- Validate model is selected
+  if not provider_conf.model or provider_conf.model == "" then
+    Utils.error("LM Studio: model must be specified in config or selected via :AvanteModels")
+    return nil
+  end
 
   if mode == "openai" then
     local openai_args = Providers.openai.parse_curl_args(self, prompt_opts)
@@ -237,14 +262,22 @@ function M:parse_curl_args(prompt_opts)
       table.insert(messages, { role = msg.role, content = msg.content })
     elseif type(msg.content) == "table" then
       local text_parts = {}
+      local thinking_parts = {}
       for _, item in ipairs(msg.content) do
         if type(item) == "string" then
           table.insert(text_parts, item)
         elseif item.type == "text" and item.text then
           table.insert(text_parts, item.text)
+        elseif item.type == "thinking" then
+          local thinking_content = item.thinking or ""
+          if thinking_content ~= "" then table.insert(thinking_parts, thinking_content) end
         end
       end
-      if #text_parts > 0 then table.insert(messages, { role = msg.role, content = table.concat(text_parts, "\n") }) end
+      if #text_parts > 0 then
+        local message = { role = msg.role, content = table.concat(text_parts, "\n") }
+        if #thinking_parts > 0 then message.thinking = table.concat(thinking_parts, "\n") end
+        table.insert(messages, message)
+      end
     end
   end)
 
@@ -268,8 +301,17 @@ M.on_error = function(result)
   local error_msg = "LM Studio API error"
   if result.body then
     local ok, body = pcall(vim.json.decode, result.body)
-    if ok and body.error then error_msg = body.error end
-    if ok and body.message then error_msg = body.message end
+    if ok and body.error then
+      -- Handle OpenAI/Anthropic nested error format: { error: { message: "..." } }
+      if type(body.error) == "table" and body.error.message then
+        error_msg = body.error.message
+      elseif type(body.error) == "string" then
+        error_msg = body.error
+      end
+    elseif ok and body.message then
+      -- Handle legacy/other formats with top-level message
+      error_msg = body.message
+    end
   end
   Utils.error(error_msg, { title = "LM Studio" })
 end
@@ -301,7 +343,7 @@ function M:get_context_window()
     return self._context_window_cache
   end
 
-  local model_info = get_model_info(model_name, provider_conf.timeout)
+  local model_info = get_model_info(model_name, provider_conf.timeout, provider_conf.endpoint)
   if model_info and model_info.context_length then
     self._context_window_cache = model_info.context_length
     return self._context_window_cache
