@@ -55,7 +55,7 @@ function M.encode(prompt)
   local success, result = pcall(tokenizers.encode, prompt)
   -- Some output like terminal command output might not be utf-8 encoded, which will cause an error here
   if not success then
-    Utils.warn("Failed to encode prompt: " .. result)
+    Utils.warn("Failed to encode prompt: " .. prompt)
     return nil
   end
   return result

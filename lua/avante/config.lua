@@ -642,7 +642,7 @@ M._defaults = {
       timeout = 30000, -- Timeout in milliseconds
       context_window = 200000,
       extra_request_body = {
-        temperature = 0.75,
+        -- temperature = 0.75,
         max_tokens = 64000,
       },
     },
