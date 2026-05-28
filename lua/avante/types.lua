@@ -273,8 +273,6 @@ vim.g.avante_login = vim.g.avante_login
 ---@class AvanteSupportedProvider: AvanteDefaultBaseProvider
 ---@field __inherited_from? string
 ---@field display_name? string
----@field api_key? string
----@field mode? string
 ---
 ---@class avante.OpenAITokenUsage
 ---@field total_tokens number
