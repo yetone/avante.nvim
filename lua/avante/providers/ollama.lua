@@ -158,7 +158,7 @@ function M:is_disable_stream() return false end
 ---@field function avante.OllamaFunction
 
 ---@param tool_calls avante.OllamaToolCall[]
----@param opts AvanteLLMStreamOptions
+---@param opts AvanteHandlerOptions
 function M:add_tool_use_messages(tool_calls, opts)
   if opts.on_messages_add then
     local msgs = {}
