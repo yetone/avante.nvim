@@ -69,8 +69,16 @@ function Download-Prebuilt($feature, $tag) {
         gh release download $latestTag --repo "$REPO_OWNER/$REPO_NAME" --pattern "*$ARTIFACT_NAME_PATTERN*" --output $TempFile --clobber
     } else {
       # Get the artifact download URL
-      $RELEASE = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$tag"
-      $ARTIFACT_URL = $RELEASE.assets | Where-Object { $_.name -like "*$ARTIFACT_NAME_PATTERN*" } | Select-Object -ExpandProperty browser_download_url
+          $RELEASE = Invoke-RestMethod -Uri "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$tag"
+          $ARTIFACT_URL = $RELEASE.assets | Where-Object { $_.name -like "*$ARTIFACT_NAME_PATTERN*" } | Select-Object -ExpandProperty browser_download_url
+
+      # Defensive validation
+      if ([string]::IsNullOrWhiteSpace($ARTIFACT_URL)) {
+          Write-Error "Prebuilt binary matching '$ARTIFACT_NAME_PATTERN' not found for release tag '$tag'."
+          Write-Host "The required binary is not available. Please build from source using:" -ForegroundColor Yellow
+          Write-Host "powershell -ExecutionPolicy Bypass -File Build.ps1 -BuildFromSource true" -ForegroundColor Yellow
+          exit 1
+      }
 
       # Download and extract the artifact
       Invoke-WebRequest -Uri $ARTIFACT_URL -OutFile $TempFile
