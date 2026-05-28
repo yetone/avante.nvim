@@ -1739,7 +1739,16 @@ function M.get_unified_diff(text1, text2, opts)
   opts.result_type = "unified"
   opts.ctxlen = opts.ctxlen or 3
 
-  return vim.diff(text1, text2, opts)
+  return M.diff(text1, text2, opts)
+end
+
+function M.diff(text1, text2, opts)
+  local diff = vim.text and vim.text.diff
+  if not diff then
+    ---@diagnostic disable-next-line: deprecated
+    diff = vim.diff
+  end
+  return diff(text1, text2, opts)
 end
 
 function M.is_floating_window(win_id)
