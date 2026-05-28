@@ -63,3 +63,16 @@ You can also use the following config for `lazydev.nvim`:
 ```
 
 Then you can set `dev = true` in your `lazy` config for development.
+
+# How to run the tests ?
+
+The infra attempts by default to setup everything in "--managed" mode.
+
+```
+make lint
+make lua-typecheck
+make luatest
+```
+
+If the previous doesn't work you can check the Makefile targets and run the files in scripts/ with `--live` instead.
+
