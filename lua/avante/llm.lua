@@ -1253,9 +1253,10 @@ function M._stream_acp(opts)
             end
             return
           end
-          lines = lines or {}
-          if line ~= nil and limit ~= nil then lines = vim.list_slice(lines, line, line + limit) end
-          local content = table.concat(lines, "\n")
+          ---@type string[]
+          local file_lines = lines or {}
+          if line ~= nil and limit ~= nil then file_lines = vim.list_slice(file_lines, line, line + limit) end
+          local content = table.concat(file_lines, "\n")
           if
             last_tool_call_message
             and last_tool_call_message.acp_tool_call
