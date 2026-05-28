@@ -75,4 +75,3 @@ make luatest
 ```
 
 If the previous doesn't work you can check the Makefile targets and run the files in scripts/ with `--live` instead.
-
