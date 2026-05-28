@@ -15,7 +15,7 @@ DEPS=(
   "folke/lazy.nvim"
 )
 
-LUALS_VERSION="3.13.6"
+LUALS_VERSION="3.18.2"
 
 verbose=false
 
@@ -140,7 +140,7 @@ install_luals() {
     local luals_dir="$dest_dir/lua-language-server-${LUALS_VERSION}-${platform}"
 
     if [ ! -d "$luals_dir" ]; then
-        log "Installing lua-language-server ${LUALS_VERSION} for ${platform}..."
+        log "Installing lua-language-server ${LUALS_VERSION} for ${platform} from https://github.com/LuaLS/lua-language-server/releases..."
         mkdir -p "$luals_dir"
 
         if [ "$file_ext" = "tar.gz" ]; then
