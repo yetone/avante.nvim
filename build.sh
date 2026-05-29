@@ -2,9 +2,17 @@
 
 set -e
 
-REPO_OWNER="yetone"
-REPO_NAME="avante.nvim"
 REPO_REMOTE="${1:-origin}"
+remote_url=$(git config --get remote.${REPO_REMOTE}.url 2>/dev/null || true)
+if [[ "$remote_url" == *"github.com"* ]]; then
+  tmp="${remote_url#*github.com[:/]}"
+  tmp="${tmp%.git}"
+  REPO_OWNER="${tmp%/*}"
+  REPO_NAME="${tmp#*/}"
+else
+  REPO_OWNER="yetone"
+  REPO_NAME="avante.nvim"
+fi
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 
