@@ -81,4 +81,3 @@ If the previous doesn't work you can check the Makefile targets and run the file
 1. Create a branch `release-vX.X` if it doesn't exist yet
 2. Create a tag. The CI will create a release as a "draft"
 3. Edit the release notes and "publish" the release
-
