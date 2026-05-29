@@ -451,6 +451,11 @@ P.repo_map = RepoMap
 ---@return AvanteTemplates|nil
 function P._init_templates_lib()
   if _templates_lib ~= nil then return _templates_lib end
+
+  local build_dir = vim.fn.fnamemodify(debug.getinfo(1, "S").source:sub(2), ":h:h:h") .. "/build"
+  local ext = vim.fn.has("win32") == 1 and "dll" or "so"
+  package.cpath = package.cpath .. ";" .. build_dir .. "/?." .. ext
+
   local ok, module = pcall(require, "avante_templates")
   ---@cast module AvanteTemplates
   ---@cast ok boolean
