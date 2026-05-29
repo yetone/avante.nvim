@@ -9,8 +9,14 @@ $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
 $BuildDir = "build"
-$REPO_OWNER = "yetone"
-$REPO_NAME = "avante.nvim"
+$remoteUrl = git config --get remote.origin.url 2>$null
+if ($remoteUrl -match "github\.com[:/]([^/]+)/([^/]+?)(?:\.git)?$") {
+    $REPO_OWNER = $matches[1]
+    $REPO_NAME = $matches[2]
+} else {
+    $REPO_OWNER = "yetone"
+    $REPO_NAME = "avante.nvim"
+}
 
 function Build-FromSource($feature) {
     if (-not (Test-Path $BuildDir)) {
