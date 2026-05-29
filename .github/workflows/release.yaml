@@ -2,6 +2,7 @@ name: Release
 
 on:
   push:
+    branches: ["release-v*"]
     tags: [v\d+\.\d+\.\d+]
 
 permissions:
@@ -22,7 +23,7 @@ jobs:
       release_body: "${{ steps.tag.outputs.message }}"
 
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # ratchet:actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Get version
         id: get_version
@@ -38,7 +39,7 @@ jobs:
 
       - name: Create Release
         id: create-release
-        uses: ncipollo/release-action@2c591bcc8ecdcd2db72b97d6147f871fcd833ba5 # ratchet:ncipollo/release-action@v1
+        uses: ncipollo/release-action@v1
         with:
           draft: true
           name: "avante-libs ${{ steps.get_version.outputs.version }}"
@@ -64,7 +65,7 @@ jobs:
             rust_target: x86_64-unknown-linux-gnu
             docker_platform: linux/amd64
             container: quay.io/pypa/manylinux2014_x86_64 # for glibc 2.17
-          - os: macos-13
+          - os: macos-14
             os_name: darwin
             arch: x86_64
             rust_target: x86_64-apple-darwin
@@ -84,7 +85,7 @@ jobs:
     runs-on: ${{ matrix.config.os }}
 
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # ratchet:actions/checkout@v4
+      - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@82a92a6e8fbeee089604da2575dc567ae9ddeaab # ratchet:Swatinem/rust-cache@v2
         if: ${{ matrix.config.container == null }}
       - uses: dtolnay/rust-toolchain@7b1c307e0dcbda6122208f10795a713336a9b35a # ratchet:dtolnay/rust-toolchain@master
@@ -95,6 +96,7 @@ jobs:
       - name: Build all crates
         if: ${{ matrix.config.container == null }}
         run: |
+          # TODO leverage AvanteBuild
           cargo build --release --features ${{ matrix.feature }}
 
       - name: Build all crates with glibc 2.17 # for glibc 2.17
@@ -109,16 +111,23 @@ jobs:
             ${{ matrix.config.container }} \
             bash -c "yum install -y perl-IPC-Cmd openssl-devel && curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && . /root/.cargo/env && cargo build --release --features ${{ matrix.feature }}"
 
-      - name: Handle binaries
+      - name: Handle binaries (Linux/MacOS)
         if: ${{ matrix.config.os_name != 'windows' }}
         shell: bash
         run: |
           mkdir -p results
+          if [ "${{ matrix.config.os_name }}" == "linux" ]; then
+            CARGO_EXT="so"
+          else
+            # cargo generates .dylib extensions
+            CARGO_EXT="dylib"
+          fi
+          # we rename extension to .so even on darwin to let neovim find the library
           EXT="so"
-          cp target/release/libavante_templates.$EXT results/avante_templates.$EXT
-          cp target/release/libavante_tokenizers.$EXT results/avante_tokenizers.$EXT
-          cp target/release/libavante_repo_map.$EXT results/avante_repo_map.$EXT
-          cp target/release/libavante_html2md.$EXT results/avante_html2md.$EXT
+          cp -v target/release/libavante_templates.$CARGO_EXT results/avante_templates.$EXT
+          cp -v target/release/libavante_tokenizers.$CARGO_EXT results/avante_tokenizers.$EXT
+          cp -v target/release/libavante_repo_map.$CARGO_EXT results/avante_repo_map.$EXT
+          cp -v target/release/libavante_html2md.$CARGO_EXT results/avante_html2md.$EXT
 
           cd results
           tar zcvf avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.tar.gz *.${EXT}
@@ -140,7 +149,7 @@ jobs:
           Compress-Archive -Path $dllFiles -DestinationPath "avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.zip"
 
       - name: Upload Release Asset
-        uses: shogo82148/actions-upload-release-asset@8482bd769644976d847e96fb4b9354228885e7b4 # ratchet:shogo82148/actions-upload-release-asset@v1
+        uses: shogo82148/actions-upload-release-asset@v1.10.1
         if: ${{ matrix.config.os_name != 'windows' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
