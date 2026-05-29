@@ -299,7 +299,8 @@ function Prompt.get_templates_dir(project_root)
     directory = Path:new(vim.fs.normalize(win_path))
   end
   local cache_prompt_dir = Path:new(P.cache_path):joinpath(directory)
-  if not cache_prompt_dir:exists() then cache_prompt_dir:mkdir({ parents = true }) end
+  local cache_dir_str = tostring(cache_prompt_dir):gsub("\\", "/")
+  if vim.fn.isdirectory(cache_dir_str) == 0 then vim.fn.mkdir(cache_dir_str, "p") end
 
   local function find_rules(dir)
     if not dir then return end
