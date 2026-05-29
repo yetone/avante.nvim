@@ -64,7 +64,7 @@ jobs:
             rust_target: x86_64-unknown-linux-gnu
             docker_platform: linux/amd64
             container: quay.io/pypa/manylinux2014_x86_64 # for glibc 2.17
-          - os: macos-13
+          - os: macos-latest
             os_name: darwin
             arch: x86_64
             rust_target: x86_64-apple-darwin
@@ -95,7 +95,7 @@ jobs:
       - name: Build all crates
         if: ${{ matrix.config.container == null }}
         run: |
-          cargo build --release --features ${{ matrix.feature }}
+          cargo build --release --features ${{ matrix.feature }} --target ${{ matrix.config.rust_target }}
 
       - name: Build all crates with glibc 2.17 # for glibc 2.17
         if: ${{ matrix.config.container != null }}
@@ -116,13 +116,15 @@ jobs:
           mkdir -p results
           if [ "${{ matrix.config.os_name }}" == "darwin" ]; then
             EXT="dylib"
+            TARGET_DIR="target/${{ matrix.config.rust_target }}/release"
           else
             EXT="so"
+            TARGET_DIR="target/release"
           fi
-          cp target/release/libavante_templates.$EXT results/avante_templates.$EXT
-          cp target/release/libavante_tokenizers.$EXT results/avante_tokenizers.$EXT
-          cp target/release/libavante_repo_map.$EXT results/avante_repo_map.$EXT
-          cp target/release/libavante_html2md.$EXT results/avante_html2md.$EXT
+          cp $TARGET_DIR/libavante_templates.$EXT results/avante_templates.$EXT
+          cp $TARGET_DIR/libavante_tokenizers.$EXT results/avante_tokenizers.$EXT
+          cp $TARGET_DIR/libavante_repo_map.$EXT results/avante_repo_map.$EXT
+          cp $TARGET_DIR/libavante_html2md.$EXT results/avante_html2md.$EXT
 
           cd results
           tar zcvf avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.tar.gz *.${EXT}
@@ -133,10 +135,11 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path results
 
-          Copy-Item -Path "target\release\avante_templates.dll" -Destination "results\avante_templates.dll"
-          Copy-Item -Path "target\release\avante_tokenizers.dll" -Destination "results\avante_tokenizers.dll"
-          Copy-Item -Path "target\release\avante_repo_map.dll" -Destination "results\avante_repo_map.dll"
-          Copy-Item -Path "target\release\avante_html2md.dll" -Destination "results\avante_html2md.dll"
+          $TargetDir = "target\${{ matrix.config.rust_target }}\release"
+          Copy-Item -Path "$TargetDir\avante_templates.dll" -Destination "results\avante_templates.dll"
+          Copy-Item -Path "$TargetDir\avante_tokenizers.dll" -Destination "results\avante_tokenizers.dll"
+          Copy-Item -Path "$TargetDir\avante_repo_map.dll" -Destination "results\avante_repo_map.dll"
+          Copy-Item -Path "$TargetDir\avante_html2md.dll" -Destination "results\avante_html2md.dll"
 
           Set-Location -Path results
 
