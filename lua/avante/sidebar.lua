@@ -85,6 +85,7 @@ local Highlights = require("avante.highlights")
 local RepoMap = require("avante.repo_map")
 local FileSelector = require("avante.file_selector")
 local LLMTools = require("avante.llm_tools")
+local DispatchRegistry = require("avante.dispatch_registry")
 local History = require("avante.history")
 local Render = require("avante.history.render")
 local Line = require("avante.ui.line")
@@ -3342,7 +3343,9 @@ function Sidebar:handle_submit(request)
       -- Avante instance and return a different session's todos.
       get_todos = function() return self.chat_history and self.chat_history.todos or {} end,
       update_todos = function(todos) self:update_todos(todos) end,
-      session_ctx = {},
+      session_ctx = {
+        dispatch_session_id = tostring(self.code.bufnr or "default"),
+      },
       ---@param usage avante.LLMTokenUsage
       update_tokens_usage = function(usage)
         if not usage then return end
@@ -3373,6 +3376,43 @@ function Sidebar:handle_submit(request)
     end
 
     stream_options.on_memory_summarize = on_memory_summarize
+
+    -- Register dispatch completion callback so results are injected into chat history
+    local dispatch_session_id = tostring(self.code.bufnr or "default")
+    DispatchRegistry.set_on_complete(dispatch_session_id, function(dispatch)
+      -- Inject the dispatch result as a visible user message into the chat history
+      local content_text
+      if dispatch.status == "completed" then
+        content_text = string.format(
+          "[Dispatch #%s completed] (provider: %s, model: %s)\nTask: %s\n\nResult:\n%s",
+          dispatch.id,
+          dispatch.provider or "unknown",
+          dispatch.model or "unknown",
+          dispatch.prompt:sub(1, 200),
+          dispatch.result or "(no result)"
+        )
+      else
+        content_text = string.format(
+          "[Dispatch #%s failed] (provider: %s, model: %s)\nTask: %s\n\nError: %s",
+          dispatch.id,
+          dispatch.provider or "unknown",
+          dispatch.model or "unknown",
+          dispatch.prompt:sub(1, 200),
+          dispatch.error or "unknown error"
+        )
+      end
+      local message = History.Message:new("user", content_text, {
+        visible = true,
+        is_dispatch_result = true,
+      })
+      self:add_history_messages({ message })
+      self:save_history()
+      -- Re-render the chat to show the dispatch result.
+      -- Guard against missing/closed sidebar containers.
+      if Utils.is_valid_container(self.containers.result, true) then
+        pcall(function() self:update_content_with_history() end)
+      end
+    end)
 
     if request ~= "" then on_state_change("generating") end
     Llm.stream(stream_options)

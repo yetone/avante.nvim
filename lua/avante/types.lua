@@ -267,6 +267,8 @@ vim.g.avante_login = vim.g.avante_login
 ---@field context_window? integer
 ---@field use_response_api? boolean | fun(provider: AvanteDefaultBaseProvider, ctx?: any): boolean
 ---@field support_previous_response_id? boolean
+---@field cost_per_input_token? number -- Cost in dollars per input token (e.g. 0.000003 for $3/1M tokens)
+---@field cost_per_output_token? number -- Cost in dollars per output token (e.g. 0.000015 for $15/1M tokens)
 ---
 ---@class AvanteSupportedProvider: AvanteDefaultBaseProvider
 ---@field __inherited_from? string

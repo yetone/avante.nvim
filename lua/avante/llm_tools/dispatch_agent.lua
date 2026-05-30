@@ -5,6 +5,7 @@ local Base = require("avante.llm_tools.base")
 local History = require("avante.history")
 local Line = require("avante.ui.line")
 local Highlights = require("avante.highlights")
+local DispatchRegistry = require("avante.dispatch_registry")
 
 ---@class AvanteLLMTool
 local M = setmetatable({}, Base)
@@ -14,30 +15,49 @@ M.name = "dispatch_agent"
 M.get_description = function()
   local provider = Providers[Config.provider]
   if Config.provider:match("copilot") and provider.model and provider.model:match("gpt") then
-    return [[Launch a new agent that has access to the following tools: `glob`, `grep`, `ls`, `view`, `attempt_completion`. When you are searching for a keyword or file and are not confident that you will find the right match on the first try, use the Agent tool to perform the search for you.]]
+    return [[Launch a new agent that has access to the following tools: `glob`, `grep`, `ls`, `view`, `attempt_completion`. Use dispatch_agent when you need to search for keywords, files, or patterns across the codebase, or gather and SYNTHESIZE context while you continue working on other tasks.
+
+IMPORTANT: dispatch_agent is ASYNCHRONOUS. It returns immediately with a dispatch ID. The sub-agent runs in the background. Results will be delivered to you automatically when the dispatch completes. You can continue working on other tasks while dispatches are running. Check the dispatch status section at the top of the conversation for updates.
+
+KEY RULE: The sub-agent must REDUCE and SYNTHESIZE information — it must NOT dump raw file contents. Ask specific questions; get concise answers back.]]
   end
 
-  return [[Launch a new agent that has access to the following tools: `glob`, `grep`, `ls`, `view`, `attempt_completion`. When you are searching for a keyword or file and are not confident that you will find the right match on the first try, use the Agent tool to perform the search for you. For example:
+  return [[Launch a new agent that has access to the following tools: `glob`, `grep`, `ls`, `view`, `attempt_completion`. Use dispatch_agent when you need to:
 
-- If you are searching for a keyword like "config" or "logger", the Agent tool is appropriate
-- If you want to read a specific file path, use the `view` or `glob` tool instead of the `dispatch_agent` tool, to find the match more quickly
-- If you are searching for a specific class definition like "class Foo", use the `glob` tool instead, to find the match more quickly
+- Search for keywords, files, or patterns across the codebase
+- Gather and SYNTHESIZE context while you continue working on other tasks
 
-RULES:
-- Do not ask for more information than necessary. Use the tools provided to accomplish the user's request efficiently and effectively. When you've completed your task, you must use the attempt_completion tool to present the result to the user. The user may provide feedback, which you can use to make improvements and try again.
-- NEVER end attempt_completion result with a question or request to engage in further conversation! Formulate the end of your result in a way that is final and does not require further input from the user.
-
-OBJECTIVE:
-1. Analyze the user's task and set clear, achievable goals to accomplish it. Prioritize these goals in a logical order.
-2. Work through these goals sequentially, utilizing available tools one at a time as necessary. Each goal should correspond to a distinct step in your problem-solving process. You will be informed on the work completed and what's remaining as you go.
-3. Once you've completed the user's task, you must use the attempt_completion tool to present the result of the task to the user. You may also provide a CLI command to showcase the result of your task; this can be particularly useful for web development tasks, where you can run e.g. \`open index.html\` to show the website you've built.
+IMPORTANT RULES:
+- dispatch_agent is ASYNCHRONOUS and FIRE-AND-FORGET. It returns immediately with a dispatch ID.
+- The sub-agent runs in the background. You do NOT wait for results.
+- Results are delivered to you automatically when the dispatch completes (appears as a message in the conversation).
+- You can dispatch MULTIPLE agents concurrently for maximum parallelism.
+- Check the "Active & Recent Dispatches" section in your context for status updates.
+- Continue working on other tasks while dispatches are running.
+- Each dispatch invocation is stateless - provide all context the agent needs in the prompt.
 
 Usage notes:
-1. Launch multiple agents concurrently whenever possible, to maximize performance; to do that, use a single message with multiple tool uses
-2. When the agent is done, it will return a single message back to you. The result returned by the agent is not visible to the user. To show the user the result, you should send a text message back to the user with a concise summary of the result.
-3. Each agent invocation is stateless. You will not be able to send additional messages to the agent, nor will the agent be able to communicate with you outside of its final report. Therefore, your prompt should contain a highly detailed task description for the agent to perform autonomously and you should specify exactly what information the agent should return back to you in its final and only message to you.
-4. The agent's outputs should generally be trusted
-5. IMPORTANT: The agent can not use `bash`, `write`, `str_replace`, so can not modify files. If you want to use these tools, use them directly instead of going through the agent.]]
+1. Launch multiple dispatches concurrently whenever possible for maximum performance.
+2. When a dispatch is done, its result will appear in your conversation context automatically.
+3. If your only remaining work is to wait for dispatch results, DO NOT poll `dispatch_status`
+   in a loop. Instead call `dispatch_await` once — it blocks until the next dispatch finishes,
+   returns its full result inline, and compacts the polling noise out of your context.
+4. Your prompt should ask SPECIFIC QUESTIONS — the agent must return synthesized answers, not raw file dumps.
+5. The agent can NOT use `bash`, `write`, `str_replace` - it can only read/search files.
+6. The agent will use the cheapest available LLM provider that can fit the workload within its context window.
+
+## CRITICAL: The sub-agent's job is to REDUCE context, not amplify it.
+
+BAD prompt (wastes tokens — agent reads a file and dumps it back verbatim):
+  "Read lib/store.ts and return its complete contents"
+  "Read the following files in FULL and return their content verbatim: ..."
+
+GOOD prompt (agent searches, synthesizes, and returns only what matters):
+  "In lib/store.ts, find the VideoEntry type definition — list its field names and types only"
+  "In lib/processing.ts, what function handles face detection? What are its inputs/outputs?"
+  "Search for all callers of updateVideo() across the codebase and list them with file:line"
+
+If you just need to read a file yourself, use the `view` tool directly — do NOT dispatch an agent just to pass file contents back to you.]]
 end
 
 ---@type AvanteLLMToolParam
@@ -46,13 +66,17 @@ M.param = {
   fields = {
     {
       name = "prompt",
-      description = "The task for the agent to perform",
+      description = "A specific question or set of questions for the agent to research and answer. "
+        .. "The agent must SYNTHESIZE and REDUCE information — do NOT ask it to return raw file contents. "
+        .. "Ask targeted questions like 'What fields does the VideoEntry type have?' or "
+        .. "'What function handles face detection in lib/processing.ts and what are its parameters?' "
+        .. "instead of 'Read lib/store.ts and return it verbatim'.",
       type = "string",
     },
   },
   required = { "prompt" },
   usage = {
-    prompt = "The task for the agent to perform",
+    prompt = "Specific question(s) for the agent to research and synthesize (NOT a request to dump raw file contents)",
   },
 }
 
@@ -60,12 +84,12 @@ M.param = {
 M.returns = {
   {
     name = "result",
-    description = "The result of the agent",
+    description = "The dispatch ID and status message (agent runs asynchronously)",
     type = "string",
   },
   {
     name = "error",
-    description = "The error message if the agent fails",
+    description = "The error message if the dispatch could not be started",
     type = "string",
     optional = true,
   },
@@ -81,6 +105,17 @@ local function get_available_tools()
   }
 end
 
+--- Estimate tokens for a string (rough: ~1.3 tokens per word)
+---@param text string
+---@return integer
+local function estimate_tokens(text)
+  local words = 0
+  for _ in text:gmatch("%S+") do
+    words = words + 1
+  end
+  return math.ceil(words * 1.3)
+end
+
 ---@class avante.DispatchAgentInput
 ---@field prompt string
 
@@ -89,6 +124,7 @@ function M.on_render(input, opts)
   local result_message = opts.result_message
   local store = opts.store or {}
   local messages = store.messages or {}
+  local dispatch_id = store.dispatch_id
   local tool_use_summary = {}
   for _, msg in ipairs(messages) do
     local summary
@@ -138,31 +174,32 @@ function M.on_render(input, opts)
           end
         end
       end
-      if summary then summary = "  " .. Utils.icon("🛠️ ") .. summary end
+      if summary then summary = "  " .. Utils.icon("tool ") .. summary end
     else
       summary = History.Helpers.get_text_data(msg)
     end
     if summary then table.insert(tool_use_summary, summary) end
   end
   local state = "running"
-  local icon = Utils.icon("🔄 ")
+  local icon = Utils.icon("running ")
   local hl = Highlights.AVANTE_TASK_RUNNING
   if result_message then
     local result = History.Helpers.get_tool_result_data(result_message)
     if result then
       if result.is_error then
         state = "failed"
-        icon = Utils.icon("❌ ")
+        icon = Utils.icon("failed ")
         hl = Highlights.AVANTE_TASK_FAILED
       else
         state = "completed"
-        icon = Utils.icon("✅ ")
+        icon = Utils.icon("completed ")
         hl = Highlights.AVANTE_TASK_COMPLETED
       end
     end
   end
   local lines = {}
-  table.insert(lines, Line:new({ { icon .. "Subtask " .. state, hl } }))
+  local dispatch_label = dispatch_id and ("Dispatch #" .. dispatch_id) or "Dispatch"
+  table.insert(lines, Line:new({ { icon .. dispatch_label .. " " .. state, hl } }))
   table.insert(lines, Line:new({ { "" } }))
   table.insert(lines, Line:new({ { "  Task:" } }))
   local prompt_lines = vim.split(input.prompt or "", "\n")
@@ -170,11 +207,13 @@ function M.on_render(input, opts)
     table.insert(lines, Line:new({ { "    " .. line } }))
   end
   table.insert(lines, Line:new({ { "" } }))
-  table.insert(lines, Line:new({ { "  Task summary:" } }))
-  for _, summary in ipairs(tool_use_summary) do
-    local summary_lines = vim.split(summary, "\n")
-    for _, line in ipairs(summary_lines) do
-      table.insert(lines, Line:new({ { "    " .. line } }))
+  if #tool_use_summary > 0 then
+    table.insert(lines, Line:new({ { "  Task summary:" } }))
+    for _, summary in ipairs(tool_use_summary) do
+      local summary_lines = vim.split(summary, "\n")
+      for _, line in ipairs(summary_lines) do
+        table.insert(lines, Line:new({ { "    " .. line } }))
+      end
     end
   end
   return lines
@@ -187,22 +226,56 @@ function M.func(input, opts)
   local session_ctx = opts.session_ctx
 
   local Llm = require("avante.llm")
-  if not on_complete then return false, "on_complete not provided" end
 
   local prompt = input.prompt
   local tools = get_available_tools()
-  local start_time = Utils.get_timestamp()
 
   if on_log then on_log("prompt: " .. prompt) end
 
-  local system_prompt = ([[You are a helpful assistant with access to various tools.
-Your task is to help the user with their request: "${prompt}"
-Be thorough and use the tools available to you to find the most relevant information.
-When you're done, provide a clear and concise summary of what you found.]]):gsub("${prompt}", prompt)
+  -- Determine the session_id for the dispatch registry
+  local session_id = session_ctx.dispatch_session_id or "default"
+
+  -- Estimate tokens for the prompt to pick the cheapest provider
+  local prompt_tokens = estimate_tokens(prompt)
+  local dispatch_provider_name, _ = DispatchRegistry.pick_cheapest_provider(prompt_tokens + 2000) -- add headroom
+
+  -- Fall back to default provider if no cheap provider fits
+  if not dispatch_provider_name then dispatch_provider_name = Config.provider end
+
+  local dispatch_provider = Providers[dispatch_provider_name]
+  local dispatch_model = dispatch_provider and dispatch_provider.model or "unknown"
+
+  -- Register the dispatch in the registry
+  local dispatch_id = DispatchRegistry.register(session_id, prompt, dispatch_provider_name, dispatch_model)
+
+  if on_log then
+    on_log(string.format(
+      "Dispatch #%s started (provider: %s, model: %s)",
+      dispatch_id, dispatch_provider_name, dispatch_model
+    ))
+  end
+
+  -- Store the dispatch_id for rendering
+  if opts.set_store then opts.set_store("dispatch_id", dispatch_id) end
+
+  local system_prompt = "You are a focused research assistant with access to file-system tools. "
+    .. "Your ONLY job is to answer this specific request: " .. prompt .. "\n\n"
+    .. "CRITICAL RULES — follow these or you are wasting tokens and defeating the purpose:\n"
+    .. "1. SYNTHESIZE and REDUCE — never return raw file contents or long verbatim excerpts. "
+    .. "Extract exactly the information requested and discard everything else.\n"
+    .. "2. Use grep/glob FIRST to pinpoint the exact lines/symbols you need before opening a file. "
+    .. "Do NOT read an entire file when a targeted search will do.\n"
+    .. "3. Your result in attempt_completion should be COMPACT — only the facts needed to answer "
+    .. "the question. Think: could someone implement code from your answer without needing to ask "
+    .. "follow-up questions? If so, it's complete. Would they need to re-read the source file? "
+    .. "Then you're not synthesizing enough.\n"
+    .. "4. NEVER read a file and return its full contents verbatim — that is strictly forbidden. "
+    .. "If you are tempted to do that, use grep to extract only the relevant section instead.\n"
+    .. "When you have gathered exactly what is needed, call attempt_completion with a concise, "
+    .. "structured answer."
 
   local history_messages = {}
   local tool_use_messages = {}
-
   local total_tokens = 0
   local result = ""
 
@@ -238,6 +311,12 @@ When you're done, provide a clear and concise summary of what you found.]]):gsub
           end
         end
       end
+      -- Update dispatch progress
+      local last_msg = msgs[#msgs]
+      if last_msg then
+        local text = History.Helpers.get_text_data(last_msg)
+        if text and #text > 0 then DispatchRegistry.update_progress(session_id, dispatch_id, text:sub(1, 200)) end
+      end
     end,
     session_ctx = session_ctx,
     on_start = session_ctx.on_start,
@@ -247,31 +326,33 @@ When you're done, provide a clear and concise summary of what you found.]]):gsub
     end,
     on_complete = function(err)
       if err ~= nil then
-        err = string.format("dispatch_agent failed: %s", vim.inspect(err))
-        on_complete(err, nil)
+        DispatchRegistry.fail(session_id, dispatch_id, vim.inspect(err))
         return
       end
-      local end_time = Utils.get_timestamp()
-      local elapsed_time = Utils.datetime_diff(start_time, end_time)
-      local tool_use_count = vim.tbl_count(tool_use_messages)
-      local summary = "dispatch_agent Done ("
-        .. (tool_use_count <= 1 and "1 tool use" or tool_use_count .. " tool uses")
-        .. " · "
-        .. math.ceil(total_tokens)
-        .. " tokens · "
-        .. elapsed_time
-        .. "s)"
-      if session_ctx.on_messages_add then
-        local message = History.Message:new("assistant", "\n\n" .. summary, {
-          just_for_display = true,
-        })
-        session_ctx.on_messages_add({ message })
-      end
-      on_complete(result, nil)
+      DispatchRegistry.complete(session_id, dispatch_id, result)
     end,
   }
 
-  Llm.agent_loop(agent_loop_options)
+  -- Start the agent loop asynchronously (fire-and-forget)
+  -- Use vim.schedule to ensure it runs on the next event loop tick
+  vim.schedule(function() Llm.agent_loop(agent_loop_options) end)
+
+  -- Return IMMEDIATELY with the dispatch ID - do not wait for completion
+  local response = string.format(
+    "Dispatch #%s started. The sub-agent is working on your request in the background using provider '%s' (model: %s). "
+      .. "Results will be delivered to you automatically when the dispatch completes. "
+      .. "You can continue working on other tasks.",
+    dispatch_id,
+    dispatch_provider_name,
+    dispatch_model
+  )
+
+  -- Return synchronously - this makes the tool non-blocking
+  if on_complete then
+    on_complete(response, nil)
+    return
+  end
+  return response, nil
 end
 
 return M
