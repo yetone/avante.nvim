@@ -746,10 +746,11 @@ M._defaults = {
     ---@type AvanteSupportedProvider
     ["claude-opus"] = {
       __inherited_from = "claude",
-      model = "claude-3-opus-20240229",
+      model = "claude-opus-4-8",
       timeout = 30000, -- Timeout in milliseconds
       extra_request_body = {
-        temperature = 0.75,
+        -- anthropic doesn't let you set the temp anymore
+        --temperature = 0.75,
         max_tokens = 20480,
       },
     },
