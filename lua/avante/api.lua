@@ -43,6 +43,8 @@ local function to_windows_path(path)
   return winpath
 end
 
+---Command to install the necessary rust libraries
+---Defaults to download the libraries but passing `source=true` will force a local build via cargo
 ---@param opts? {source: boolean}
 function M.build(opts)
   opts = opts or { source = true }

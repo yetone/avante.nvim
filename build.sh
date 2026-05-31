@@ -98,14 +98,14 @@ if [[ "$latest_tag" = "$built_tag" && -n "$latest_tag" ]]; then
   echo "Local build is up to date $latest_tag. No download needed."
 elif [[ "$latest_tag" != "$built_tag" && -n "$latest_tag" ]]; then
   echo "Local build is out of date $built_tag. Downloading latest $latest_tag."
+
+  set -x
   if test_command "gh" && test_gh_auth; then
     gh release download "$latest_tag" --repo "github.com/$REPO_OWNER/$REPO_NAME" --pattern "*$ARTIFACT_NAME_PATTERN*" --clobber --output - | tar -zxv -C "$TARGET_DIR"
     save_tag
   else
     # Get the artifact download URL
-    ARTIFACT_URL=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$latest_tag" | grep "browser_download_url" | cut -d '"' -f 4 | grep $ARTIFACT_NAME_PATTERN)
-
-    set -x
+    ARTIFACT_URL=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$latest_tag" | grep "browser_download_url" | cut -d '"' -f 4 | grep "$ARTIFACT_NAME_PATTERN")
 
     mkdir -p "$TARGET_DIR"
 
@@ -114,8 +114,8 @@ elif [[ "$latest_tag" != "$built_tag" && -n "$latest_tag" ]]; then
   fi
 else
   echo "No latest tag found. Building from source."
-  cargo build --release --features=$LUA_VERSION
-  for f in target/release/lib*.$LIB_EXT; do
+  cargo build --release --features="$LUA_VERSION"
+  for f in target/release/lib*."$LIB_EXT"; do
     cp "$f" "${TARGET_DIR}/$(echo $f | sed 's#.*/lib##')"
   done
 fi
