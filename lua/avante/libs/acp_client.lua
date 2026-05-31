@@ -253,7 +253,7 @@ local LOG_SEPARATOR = string.rep("=", 80) .. "\n"
 ---@class ACPConfig
 ---@field transport_type "stdio" | "websocket" | "tcp"
 ---@field command? string Command to spawn agent (for stdio)
----@field args? string[] Arguments for agent command
+---@field args string[] Arguments for agent command
 ---@field env? table Environment variables
 ---@field host? string Host for tcp/websocket
 ---@field port? number Port for tcp/websocket
@@ -394,7 +394,7 @@ function ACPClient:_create_stdio_transport()
       error("Failed to create pipes for ACP agent")
     end
 
-    local args = vim.deepcopy(self.config.args or {})
+    local args = vim.deepcopy(self.config.args)
     local env = self.config.env
 
     -- Start with system environment and override with config env

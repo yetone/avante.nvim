@@ -147,6 +147,17 @@ local SIDEBAR_CONTAINERS = {
 local Sidebar = {}
 Sidebar.__index = Sidebar
 
+---@param acp_client avante.acp.ACPClient | nil
+---@param provider avante.ProviderName
+---@return avante.acp.ConfigOption[]
+local function get_acp_config_options(acp_client, provider)
+  local acp_provider = Config.acp_providers[provider]
+  if not acp_provider or not acp_client or not acp_client.config_options then return {} end
+  if not acp_client.config or acp_client.config.command ~= acp_provider.command then return {} end
+  if not vim.deep_equal(acp_client.config.args, acp_provider.args) then return {} end
+  return acp_client.config_options
+end
+
 ---@class avante.CodeState
 ---@field winid integer
 ---@field bufnr integer
@@ -1073,11 +1084,9 @@ function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl, opts)
   if opts.include_model and Config.windows.sidebar_header.include_model then
     if Config.acp_providers[Config.provider] then
       local parts = { Config.provider }
-      if self.acp_client and self.acp_client.config_options then
-        for _, opt in ipairs(self.acp_client.config_options) do
-          if opt.category == "model" then table.insert(parts, opt.currentValue) end
-          if opt.category == "mode" then table.insert(parts, opt.currentValue) end
-        end
+      for _, opt in ipairs(get_acp_config_options(self.acp_client, Config.provider)) do
+        if opt.category == "model" then table.insert(parts, opt.currentValue) end
+        if opt.category == "mode" then table.insert(parts, opt.currentValue) end
       end
       model_name = table.concat(parts, " | ")
     else
@@ -2241,6 +2250,7 @@ function Sidebar:clear_history(args, cb)
   if next(self.chat_history) ~= nil then
     self.chat_history.messages = {}
     self.chat_history.entries = {}
+    self.chat_history.acp_session_id = nil
     Path.history.save(self.code.bufnr, self.chat_history)
     self._history_cache_invalidated = true
     self:reload_chat_history()
@@ -2401,11 +2411,9 @@ function Sidebar:add_history_messages(messages, opts)
     if message.is_user_submission then
       message.provider = Config.provider
       if Config.acp_providers[Config.provider] then
-        if self.acp_client and self.acp_client.config_options then
-          for _, opt in ipairs(self.acp_client.config_options) do
-            if opt.category == "model" then message.model = opt.currentValue end
-            if opt.category == "mode" then message.mode = opt.currentValue end
-          end
+        for _, opt in ipairs(get_acp_config_options(self.acp_client, Config.provider)) do
+          if opt.category == "model" then message.model = opt.currentValue end
+          if opt.category == "mode" then message.mode = opt.currentValue end
         end
       else
         message.model = Config.get_provider_config(Config.provider).model
