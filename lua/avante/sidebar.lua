@@ -124,6 +124,8 @@ local SIDEBAR_CONTAINERS = {
 ---@field containers { result?: NuiSplit, todos?: NuiSplit, selected_code?: NuiSplit, selected_files?: NuiSplit, input?: NuiSplit }
 ---@field file_selector FileSelector
 ---@field chat_history avante.ChatHistory | nil
+---@field current_history_filename string | nil Tracks which history file this sidebar is using; prevents concurrent instances from hijacking each other's session via the shared metadata.json pointer.
+---@field _chat_history_mtime integer | nil Disk mtime (seconds) of the history file at the last load/save; used to detect concurrent writes from other Avante instances.
 ---@field current_state avante.GenerateState | nil
 ---@field state_timer table | nil
 ---@field state_spinner_chars string[]
@@ -170,6 +172,13 @@ function Sidebar:new(id)
     file_selector = FileSelector:new(id),
     is_generating = false,
     chat_history = nil,
+    -- Tracks which history file THIS sidebar instance is using so that two
+    -- Avante instances open on the same project do not steal each other's
+    -- session when one of them saves or creates a new chat.
+    current_history_filename = nil,
+    -- mtime (seconds) of the history file as it was when last loaded or saved
+    -- by THIS instance. Used to detect concurrent writes from other instances.
+    _chat_history_mtime = nil,
     current_state = nil,
     state_timer = nil,
     state_spinner_chars = Config.windows.spinner.generating,
@@ -229,6 +238,12 @@ function Sidebar:reset()
   self.current_tool_use_extmark_id = nil
   self.win_size_store = {}
   self.is_in_full_view = false
+  -- Clear the pinned history filename so that initialize() → reload_chat_history()
+  -- reads from metadata.json for whatever project/buffer is opened next.
+  -- The per-session isolation guarantee (two tabs on the same project not
+  -- stealing each other's history) is preserved because each tab has its own
+  -- Sidebar instance and reset() is never called on another tab's sidebar.
+  self.current_history_filename = nil
 end
 
 ---@class SidebarOpenOptions: AskOptions
@@ -1120,7 +1135,9 @@ end
 
 function Sidebar:render_result()
   if not Utils.is_valid_container(self.containers.result) then return end
+  local instance_name = self.chat_history and self.chat_history.instance_name
   local header_text = Utils.icon("󰭻 ") .. "Avante"
+  if instance_name then header_text = header_text .. " [" .. instance_name .. "]" end
   self:render_header(
     self.containers.result.winid,
     self.containers.result.bufnr,
@@ -2014,6 +2031,18 @@ function Sidebar:_get_message_lines(ctx, message, messages, ignore_record_prefix
     return res
   end
   if message.message.role == "user" then
+    -- Cross-instance messages are rendered with a special "← From <name>" header
+    -- instead of the standard "> " user prefix.
+    if message.from_instance then
+      local from_label = "← From [" .. message.from_instance .. "]"
+      local res = { Line:new({ { from_label } }) }
+      for _, line_ in ipairs(lines) do
+        local sections = { { "> " } }
+        sections = vim.list_extend(sections, line_.sections)
+        table.insert(res, Line:new(sections))
+      end
+      return res
+    end
     local res = {}
     for _, line_ in ipairs(lines) do
       local sections = { { "> " } }
@@ -2350,8 +2379,127 @@ function Sidebar:compact_history_messages(args, cb)
   end)
 end
 
+--- /simplify command: run all history messages through the model with an
+--- aggressive prompt that distils only the information an engineer needs to
+--- continue the work.  The result replaces the chat memory so that old
+--- messages are hidden from subsequent API calls.
+function Sidebar:simplify_history_messages(args, cb)
+  local history_memory = self.chat_history.memory
+  local messages = History.get_history_messages(self.chat_history)
+  self.current_state = "compacting"
+  self:render_state()
+  self:update_content(
+    "simplifying history …",
+    { focus = false, scroll = true, callback = function() self:focus_input() end }
+  )
+  Llm.simplify_history(history_memory and history_memory.content, messages, function(memory)
+    if memory then
+      self.chat_history.memory = memory
+      Path.history.save(self.code.bufnr, self.chat_history)
+    end
+    self:update_content(
+      "simplified!",
+      { focus = false, scroll = true, callback = function() self:focus_input() end }
+    )
+    self.current_state = "compacted"
+    self:clear_state()
+    if cb then cb(args) end
+  end)
+end
+
+--- /send <instance_name> <intent> command: ask the current conversation's model
+--- to draft a message for another active Avante instance based on the user's
+--- intent and the current conversation context, then deliver that drafted
+--- message to the target instance.  The message appears in the receiver's chat
+--- with a "← From [name]" header, but is stored as a plain user message so
+--- the API receives valid turn order.
+---@param args string   e.g. "swift-fox tell them about the auth bug we found"
+---@param cb? fun(args: string): nil
+function Sidebar:send_message_to_instance(args, cb)
+  local target_name, user_intent = args:match("^(%S+)%s+(.*)")
+  if not target_name or not user_intent or user_intent == "" then
+    self:update_content(
+      "Usage: /send <instance-name> <message intent>\n"
+        .. "The current chat will draft the message based on conversation context.",
+      { focus = false, scroll = false, callback = function() self:focus_input() end }
+    )
+    if cb then cb(args) end
+    return
+  end
+
+  local Avante = require("avante")
+  local target_sidebar = Avante.instance_registry[target_name]
+  if not target_sidebar then
+    self:update_content(
+      "Instance not found: " .. target_name .. "\nAvailable: " .. table.concat(
+        vim.tbl_keys(Avante.instance_registry),
+        ", "
+      ),
+      { focus = false, scroll = false, callback = function() self:focus_input() end }
+    )
+    if cb then cb(args) end
+    return
+  end
+
+  local sender_name = self.chat_history and self.chat_history.instance_name or "unknown"
+  local history_messages = History.get_history_messages(self.chat_history)
+
+  -- Show drafting status in the current instance.
+  self.current_state = "generating"
+  self:render_state()
+  self:update_content(
+    "drafting message to [" .. target_name .. "] …",
+    { focus = false, scroll = false, callback = function() self:focus_input() end }
+  )
+
+  -- Ask the current conversation's model to draft the message.
+  Llm.draft_inter_instance_message(history_messages, user_intent, sender_name, target_name, function(drafted)
+    self.current_state = nil
+    self:clear_state()
+
+    if not drafted or drafted == "" then
+      self:update_content(
+        "Failed to draft message to [" .. target_name .. "]",
+        { focus = false, scroll = false, callback = function() self:focus_input() end }
+      )
+      if cb then cb(args) end
+      return
+    end
+
+    -- Inject the LLM-drafted message into the target sidebar as a user message
+    -- tagged with `from_instance` so the renderer shows the special header.
+    local injected = History.Message:new("user", drafted, {
+      from_instance = sender_name,
+      is_user_submission = false,
+      visible = true,
+    })
+    target_sidebar:add_history_messages({ injected })
+    target_sidebar:save_history()
+    -- Force the target sidebar to re-render so the new message is visible.
+    if Utils.is_valid_container(target_sidebar.containers.result, true) then
+      pcall(function() target_sidebar:update_content_with_history() end)
+    end
+
+    self:update_content(
+      "Message sent to [" .. target_name .. "]",
+      { focus = false, scroll = false, callback = function() self:focus_input() end }
+    )
+    if cb then cb(args) end
+  end)
+end
+
 function Sidebar:new_chat(args, cb)
   local history = Path.history.new(self.code.bufnr)
+  local Avante = require("avante")
+  -- Eagerly update the instance registry so other sidebars can find the new
+  -- name immediately, before the save → reload cycle completes.
+  if self.chat_history and self.chat_history.instance_name then
+    Avante.instance_registry[self.chat_history.instance_name] = nil
+  end
+  if history.instance_name then Avante.instance_registry[history.instance_name] = self end
+  -- Pin this sidebar to the new file BEFORE saving so reload_chat_history()
+  -- uses the correct file and doesn't read a stale metadata.json value.
+  self.current_history_filename = history.filename
   Path.history.save(self.code.bufnr, history)
   self:reload_chat_history()
   self.current_state = nil
@@ -2368,7 +2516,7 @@ function Sidebar:new_chat(args, cb)
 end
 
 local debounced_save_history = Utils.debounce(
-  function(self) Path.history.save(self.code.bufnr, self.chat_history) end,
+  function(self) self:_save_chat_history() end,
   1000
 )
 
@@ -2605,8 +2753,99 @@ end
 function Sidebar:reload_chat_history()
   self.token_count = nil
   if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then return end
-  self.chat_history = Path.history.load(self.code.bufnr)
+
+  local Avante = require("avante")
+  -- Deregister the old instance name before loading the new history so that
+  -- stale entries don't accumulate across /new cycles.
+  if self.chat_history and self.chat_history.instance_name then
+    Avante.instance_registry[self.chat_history.instance_name] = nil
+  end
+
+  -- Load the specific file this sidebar is pinned to (if any), so that a
+  -- concurrent Avante instance saving to the shared metadata.json cannot
+  -- hijack this sidebar's history.
+  self.chat_history = Path.history.load(self.code.bufnr, self.current_history_filename)
+
+  -- Isolation guard: if the history we just loaded is already owned by a
+  -- *different* live sidebar, fork to a fresh independent history.  This
+  -- prevents two Avante windows that share the same source buffer from
+  -- inheriting the same chat timeline, and guarantees each window gets a
+  -- unique instance_name for cross-instance messaging.
+  if self.chat_history and self.chat_history.instance_name then
+    local existing_owner = Avante.instance_registry[self.chat_history.instance_name]
+    if existing_owner ~= nil and existing_owner ~= self then
+      -- The loaded history is already in use — branch off to a fresh session.
+      -- The fresh history is intentionally not saved here; it will be written
+      -- to disk the first time the user sends a message (via save_history()).
+      local fresh = Path.history.new(self.code.bufnr)
+      self.chat_history = fresh
+      self.current_history_filename = fresh.filename
+      self._chat_history_mtime = nil -- no disk file yet; suppress false conflicts
+    end
+  end
+
+  -- Pin ourselves to whatever file we now hold so future reloads stay on the
+  -- same file even if another instance updates metadata.json.
+  if self.chat_history then self.current_history_filename = self.chat_history.filename end
+  -- Record the disk mtime so _save_chat_history() can detect concurrent writes.
+  -- Skip if mtime was already cleared above (fresh-history branch).
+  if self._chat_history_mtime == nil and self.current_history_filename then
+    local fp = Path.history.get_filepath(self.code.bufnr, self.current_history_filename)
+    local stat = vim.uv.fs_stat(tostring(fp))
+    self._chat_history_mtime = stat and stat.mtime.sec or nil
+  end
+  -- Register this sidebar under its (now-unique) instance name.
+  if self.chat_history and self.chat_history.instance_name then
+    Avante.instance_registry[self.chat_history.instance_name] = self
+  end
   self._history_cache_invalidated = true
+  -- Update the result header to reflect the (possibly new) instance name.
+  vim.schedule(function() self:render_result() end)
+end
+
+--- Save self.chat_history to disk, forking to a new file first when a
+--- concurrent Avante instance (in another Neovim process) has modified the
+--- file since we last loaded or saved it.  This prevents two instances that
+--- both open the same "latest" history file from overwriting each other's
+--- messages.
+function Sidebar:_save_chat_history()
+  if not self.chat_history or not self.code.bufnr then return end
+
+  -- Conflict detection: if the file on disk has a newer mtime than the one
+  -- we recorded, someone else wrote to it.  Fork to a fresh file so our
+  -- session is independent going forward.
+  if self.current_history_filename and self._chat_history_mtime then
+    local fp = Path.history.get_filepath(self.code.bufnr, self.current_history_filename)
+    local stat = vim.uv.fs_stat(tostring(fp))
+    local disk_mtime = stat and stat.mtime.sec or nil
+    if disk_mtime and disk_mtime ~= self._chat_history_mtime then
+      -- Another instance wrote to our file.  Branch to a new file that carries
+      -- our in-memory messages so both sessions stay independent.
+      local new_stub = Path.history.new(self.code.bufnr)
+      -- Copy all relevant fields from the current in-memory history.
+      new_stub.title = self.chat_history.title
+      new_stub.timestamp = self.chat_history.timestamp
+      new_stub.entries = self.chat_history.entries
+      new_stub.messages = self.chat_history.messages
+      new_stub.todos = self.chat_history.todos
+      if self.chat_history.memory then new_stub.memory = self.chat_history.memory end
+      if self.chat_history.system_prompt then new_stub.system_prompt = self.chat_history.system_prompt end
+      if self.chat_history.tokens_usage then new_stub.tokens_usage = self.chat_history.tokens_usage end
+      if self.chat_history.acp_session_id then new_stub.acp_session_id = self.chat_history.acp_session_id end
+      self.chat_history = new_stub
+      self.current_history_filename = new_stub.filename
+      self._chat_history_mtime = nil -- will be set after the save below
+    end
+  end
+
+  Path.history.save(self.code.bufnr, self.chat_history)
+
+  -- Update the stored mtime so the NEXT conflict check has a fresh baseline.
+  if self.current_history_filename then
+    local fp = Path.history.get_filepath(self.code.bufnr, self.current_history_filename)
+    local stat = vim.uv.fs_stat(tostring(fp))
+    self._chat_history_mtime = stat and stat.mtime.sec or nil
+  end
 end
 
 ---@param opts? {all?: boolean}
@@ -2728,6 +2967,123 @@ function Sidebar:get_generate_prompts_options(request, cb)
       fields = { { name = "rel_path", description = "Relative path to the file", type = "string" } },
     },
     returns = {},
+  })
+
+  -- Build the sender name now so the closure captures the current value.
+  local sender_name = self.chat_history and self.chat_history.instance_name or "unknown"
+
+  table.insert(tools, {
+    name = "send_message",
+    description = string.format(
+      [[Send a message to another active Avante instance.
+
+⚠️  IMPORTANT: Only use this tool when:
+1. The user EXPLICITLY asks you to send a message to another instance, OR
+2. You have received a message FROM another instance (shown with a "← From [name]" header) and the user wants you to reply.
+
+Do NOT proactively contact other instances on your own initiative.
+
+YOUR instance name: [%s]
+
+To see available target instances call this tool with action="list". Then call it again with action="send" to deliver the message.
+
+When action="send":
+- "target_instance": the exact name of the destination instance (e.g. "swift-fox")
+- "message": the fully-composed text to deliver — be concise and contextual]],
+      sender_name
+    ),
+    ---@type AvanteLLMToolFunc<{ action: "list"|"send", target_instance?: string, message?: string }>
+    func = function(input, opts)
+      local Avante = require("avante")
+      if input.action == "list" then
+        local names = vim.tbl_keys(Avante.instance_registry)
+        -- Exclude self from the list so the model doesn't try to message itself.
+        names = vim.iter(names):filter(function(n) return n ~= sender_name end):totable()
+        if #names == 0 then return "No other active Avante instances found.", nil end
+        return "Active instances: " .. table.concat(names, ", "), nil
+      end
+
+      if input.action == "send" then
+        local target_name = input.target_instance
+        local message_text = input.message
+        if not target_name or target_name == "" then return nil, "target_instance is required" end
+        if not message_text or message_text == "" then return nil, "message is required" end
+
+        local target_sidebar = Avante.instance_registry[target_name]
+        if not target_sidebar then
+          local available = table.concat(
+            vim.iter(vim.tbl_keys(Avante.instance_registry))
+              :filter(function(n) return n ~= sender_name end)
+              :totable(),
+            ", "
+          )
+          return nil,
+            string.format(
+              "Instance '%s' not found. Available: %s",
+              target_name,
+              available ~= "" and available or "(none)"
+            )
+        end
+
+        if target_sidebar == self then return nil, "Cannot send a message to yourself" end
+
+        local on_log = opts.on_log
+        if on_log then on_log(string.format("sending to [%s]: %s", target_name, message_text:sub(1, 80))) end
+
+        local injected = History.Message:new("user", message_text, {
+          from_instance = sender_name,
+          is_user_submission = false,
+          visible = true,
+        })
+        target_sidebar:add_history_messages({ injected })
+        target_sidebar:save_history()
+        if Utils.is_valid_container(target_sidebar.containers.result, true) then
+          pcall(function() target_sidebar:update_content_with_history() end)
+        end
+
+        return string.format("Message delivered to [%s].", target_name), nil
+      end
+
+      return nil, "Unknown action '" .. tostring(input.action) .. "'. Use 'list' or 'send'."
+    end,
+    param = {
+      type = "table",
+      fields = {
+        {
+          name = "action",
+          description = "'list' to see available instances, 'send' to deliver a message",
+          type = "string",
+        },
+        {
+          name = "target_instance",
+          description = "The name of the destination instance (required when action='send')",
+          type = "string",
+          optional = true,
+        },
+        {
+          name = "message",
+          description = "The message text to deliver (required when action='send')",
+          type = "string",
+          optional = true,
+        },
+      },
+      usage = {
+        action = "list",
+      },
+    },
+    returns = {
+      {
+        name = "result",
+        description = "Confirmation or list of available instances",
+        type = "string",
+      },
+      {
+        name = "error",
+        description = "Error message if the send failed",
+        type = "string",
+        optional = true,
+      },
+    },
   })
 
   local selected_filepaths = self.file_selector.selected_filepaths or {}
@@ -2982,10 +3338,9 @@ function Sidebar:handle_submit(request)
       end,
       set_tool_use_store = set_tool_use_store,
       get_history_messages = function(opts) return self:get_history_messages_for_api(opts) end,
-      get_todos = function()
-        local history = Path.history.load(self.code.bufnr)
-        return history.todos
-      end,
+      -- Use in-memory todos to avoid a disk read that could race with another
+      -- Avante instance and return a different session's todos.
+      get_todos = function() return self.chat_history and self.chat_history.todos or {} end,
       update_todos = function(todos) self:update_todos(todos) end,
       session_ctx = {},
       ---@param usage avante.LLMTokenUsage
@@ -3230,8 +3585,10 @@ function Sidebar:get_selected_code_container_height()
 end
 
 function Sidebar:get_todos_container_height()
-  local history = Path.history.load(self.code.bufnr)
-  if #history.todos == 0 then return 0 end
+  -- Use the in-memory chat_history to avoid a disk read that could return a
+  -- different instance's file via the shared metadata.json pointer.
+  local todos = self.chat_history and self.chat_history.todos or {}
+  if #todos == 0 then return 0 end
   return 3
 end
 
@@ -3338,6 +3695,10 @@ function Sidebar:render(opts)
           if not self.code.winid or not api.nvim_win_is_valid(self.code.winid) then return end
           local bufnr = api.nvim_win_get_buf(self.code.winid)
           self.code.bufnr = bufnr
+          -- The code buffer changed (different project/root), so let
+          -- reload_chat_history() pick up the correct file from metadata.json
+          -- for the new buffer rather than staying pinned to the old file.
+          self.current_history_filename = nil
           self:reload_chat_history()
         end)
       end,
@@ -3531,7 +3892,9 @@ function Sidebar:create_selected_files_container()
 end
 
 function Sidebar:create_todos_container()
-  local history = Path.history.load(self.code.bufnr)
+  -- Use in-memory history to avoid loading from disk (which would follow
+  -- the shared metadata.json and could pull in another instance's file).
+  local history = self.chat_history or Path.history.load(self.code.bufnr, self.current_history_filename)
   if #history.todos == 0 then
     if self.containers.todos and Utils.is_valid_container(self.containers.todos) then
       self.containers.todos:unmount()

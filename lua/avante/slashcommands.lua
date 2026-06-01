@@ -11,9 +11,11 @@
 --- - `/clear`: clear chat history
 --- - `/new`: start a new chat
 --- - `/compact`: compact history messages
+--- - `/simplify`: aggressively simplify chat history, keeping only critical engineering context
 --- - `/model`: select model
 --- - `/lines <start>-<end> <question>`: ask about specific lines
 --- - `/commit`: generate a commit message
+--- - `/send <instance-name> <message>`: send a message to another Avante instance
 ---@brief ]]
 
 ---@class avante.SlashCommands
@@ -49,6 +51,11 @@ local builtin_commands = {
     name = "compact",
   },
   {
+    description = "Maximally simplify history, keeping only critical engineering context",
+    details = "Maximally simplify history, keeping only critical engineering context",
+    name = "simplify",
+  },
+  {
     description = "Select model",
     details = "Select model",
     name = "model",
@@ -63,6 +70,12 @@ local builtin_commands = {
     description = "Commit the changes",
     details = "Commit the changes",
     name = "commit",
+  },
+  {
+    shorthelp = "Send a message to another Avante instance",
+    description = "/send <instance-name> <intent>",
+    details = "Ask the current chat's model to draft and send a message to another active Avante instance\n/send <instance-name> <what to communicate>",
+    name = "send",
   },
 }
 
@@ -85,6 +98,7 @@ local callbacks = {
   clear = function(sidebar, args, cb) sidebar:clear_history(args, cb) end,
   new = function(sidebar, args, cb) sidebar:new_chat(args, cb) end,
   compact = function(sidebar, args, cb) sidebar:compact_history_messages(args, cb) end,
+  simplify = function(sidebar, args, cb) sidebar:simplify_history_messages(args, cb) end,
   init = function(sidebar, args, cb) sidebar:init_current_project(args, cb) end,
   lines = function(_, args, cb)
     if cb then cb(args) end
@@ -103,6 +117,7 @@ local callbacks = {
     end
     if cb then cb("") end
   end,
+  send = function(sidebar, args, cb) sidebar:send_message_to_instance(args, cb) end,
 }
 
 ---@return AvanteSlashCommand[]

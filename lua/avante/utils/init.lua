@@ -101,8 +101,8 @@ local function get_cmd_for_shell(input_cmd, shell_cmd)
     cmd = { "powershell.exe", "-NoProfile", "-Command", input_cmd:gsub('"', "'") }
   else
     -- linux and macos we will just do sh -c
-    local effective_shell_cmd = shell_cmd or "sh -c"
-    for _, cmd_part in ipairs(vim.split(effective_shell_cmd, " ")) do
+    shell_cmd = shell_cmd or "sh -c"
+    for _, cmd_part in ipairs(vim.split(shell_cmd, " ")) do
       table.insert(cmd, cmd_part)
     end
     table.insert(cmd, input_cmd)
@@ -1524,6 +1524,8 @@ function M.llm_tool_param_fields_to_json_schema(fields)
   for _, field in ipairs(fields) do
     if field.type == "object" and field.fields then
       local properties_, required_ = M.llm_tool_param_fields_to_json_schema(field.fields)
+      -- Ensure nested properties is always a JSON object, not array
+      if vim.tbl_isempty(properties_) then properties_ = vim.empty_dict() end
       properties[field.name] = {
         type = field.type,
         description = field.get_description and field.get_description() or field.description,

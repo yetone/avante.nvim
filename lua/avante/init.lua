@@ -148,6 +148,9 @@ local M = {
   current = { sidebar = nil, selection = nil, suggestion = nil },
   ---@type table<string, any> Global ACP client registry for cleanup on exit
   acp_clients = {},
+  --- instance_name → Sidebar: cross-instance messaging registry
+  ---@type table<string, avante.Sidebar>
+  instance_registry = {},
 }
 
 M.did_setup = false
@@ -423,7 +426,13 @@ function H.autocmds()
       local tab = tonumber(ev.file)
       local s = M.sidebars[tab]
       local sl = M.selections[tab]
-      if s then s:reset() end
+      if s then
+        -- Remove this sidebar from the cross-instance registry before reset.
+        if s.chat_history and s.chat_history.instance_name then
+          M.instance_registry[s.chat_history.instance_name] = nil
+        end
+        s:reset()
+      end
       if sl then sl:delete_autocmds() end
       if tab ~= nil then M.sidebars[tab] = nil end
     end,
