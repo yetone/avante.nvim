@@ -118,7 +118,8 @@ elif [[ "$latest_tag" != "$built_tag" && -n "$latest_tag" ]]; then
 else
   echo "No latest tag found. Building from source."
   cargo build --release --features="$LUA_VERSION"
-  for f in target/release/lib*."$LIB_EXT"; do
-    cp "$f" "${TARGET_DIR}/$(echo $f | sed 's#.*/lib##')"
+  for f in target/release/lib*."$CARGO_EXT"; do
+    filename=$(basename "$f" | sed 's/^lib//' | sed "s/\.$CARGO_EXT$/.$LIB_EXT/")
+    cp "$f" "${TARGET_DIR}/${filename}"
   done
 fi

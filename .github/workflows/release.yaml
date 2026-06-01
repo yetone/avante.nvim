@@ -126,7 +126,9 @@ jobs:
           EXT="so"
 
           cp -v $TARGET_DIR/libavante_templates.$CARGO_EXT results/avante_templates.$EXT 
-
+          cp -v $TARGET_DIR/libavante_tokenizers.$CARGO_EXT results/avante_tokenizers.$EXT
+          cp -v $TARGET_DIR/libavante_repo_map.$CARGO_EXT results/avante_repo_map.$EXT
+          cp -v $TARGET_DIR/libavante_html2md.$CARGO_EXT results/avante_html2md.$EXT
           cd results
           tar zcvf avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.tar.gz *.${EXT}
 
