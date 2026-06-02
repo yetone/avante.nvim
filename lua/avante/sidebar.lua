@@ -124,6 +124,8 @@ local SIDEBAR_CONTAINERS = {
 ---@field containers { result?: NuiSplit, todos?: NuiSplit, selected_code?: NuiSplit, selected_files?: NuiSplit, input?: NuiSplit }
 ---@field file_selector FileSelector
 ---@field chat_history avante.ChatHistory | nil
+---@field current_history_filename string | nil Tracks which history file this sidebar is using; prevents concurrent instances from hijacking each other's session via the shared metadata.json pointer.
+---@field _chat_history_mtime integer | nil Disk mtime (seconds) of the history file at the last load/save; used to detect concurrent writes from other Avante instances.
 ---@field current_state avante.GenerateState | nil
 ---@field state_timer table | nil
 ---@field state_spinner_chars string[]
@@ -170,6 +172,13 @@ function Sidebar:new(id)
     file_selector = FileSelector:new(id),
     is_generating = false,
     chat_history = nil,
+    -- Tracks which history file THIS sidebar instance is using so that two
+    -- Avante instances open on the same project do not steal each other's
+    -- session when one of them saves or creates a new chat.
+    current_history_filename = nil,
+    -- mtime (seconds) of the history file as it was when last loaded or saved
+    -- by THIS instance. Used to detect concurrent writes from other instances.
+    _chat_history_mtime = nil,
     current_state = nil,
     state_timer = nil,
     state_spinner_chars = Config.windows.spinner.generating,
@@ -229,6 +238,9 @@ function Sidebar:reset()
   self.current_tool_use_extmark_id = nil
   self.win_size_store = {}
   self.is_in_full_view = false
+  -- Clear the pinned history filename so that initialize() -> reload_chat_history()
+  -- reads from metadata.json for whatever project/buffer is opened next.
+  self.current_history_filename = nil
 end
 
 ---@class SidebarOpenOptions: AskOptions
@@ -1120,7 +1132,9 @@ end
 
 function Sidebar:render_result()
   if not Utils.is_valid_container(self.containers.result) then return end
+  local instance_name = self.chat_history and self.chat_history.instance_name
   local header_text = Utils.icon("󰭻 ") .. "Avante"
+  if instance_name then header_text = header_text .. " [" .. instance_name .. "]" end
   self:render_header(
     self.containers.result.winid,
     self.containers.result.bufnr,
@@ -2352,6 +2366,16 @@ end
 
 function Sidebar:new_chat(args, cb)
   local history = Path.history.new(self.code.bufnr)
+  local Avante = require("avante")
+  -- Eagerly update the instance registry so other sidebars can find the new
+  -- name immediately, before the save -> reload cycle completes.
+  if self.chat_history and self.chat_history.instance_name then
+    Avante.instance_registry[self.chat_history.instance_name] = nil
+  end
+  if history.instance_name then Avante.instance_registry[history.instance_name] = self end
+  -- Pin this sidebar to the new file BEFORE saving so reload_chat_history()
+  -- uses the correct file and doesn't read a stale metadata.json value.
+  self.current_history_filename = history.filename
   Path.history.save(self.code.bufnr, history)
   self:reload_chat_history()
   self.current_state = nil
@@ -2368,7 +2392,7 @@ function Sidebar:new_chat(args, cb)
 end
 
 local debounced_save_history = Utils.debounce(
-  function(self) Path.history.save(self.code.bufnr, self.chat_history) end,
+  function(self) self:_save_chat_history() end,
   1000
 )
 
@@ -2605,8 +2629,87 @@ end
 function Sidebar:reload_chat_history()
   self.token_count = nil
   if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then return end
-  self.chat_history = Path.history.load(self.code.bufnr)
+
+  local Avante = require("avante")
+  -- Deregister the old instance name before loading the new history so that
+  -- stale entries don't accumulate across /new cycles.
+  if self.chat_history and self.chat_history.instance_name then
+    Avante.instance_registry[self.chat_history.instance_name] = nil
+  end
+
+  -- Load the specific file this sidebar is pinned to (if any), so that a
+  -- concurrent Avante instance saving to the shared metadata.json cannot
+  -- hijack this sidebar's history.
+  self.chat_history = Path.history.load(self.code.bufnr, self.current_history_filename)
+
+  -- Isolation guard: if the history we just loaded is already owned by a
+  -- *different* live sidebar, fork to a fresh independent history.  This
+  -- prevents two Avante windows that share the same source buffer from
+  -- inheriting the same chat timeline, and guarantees each window gets a
+  -- unique instance_name for cross-instance messaging.
+  if self.chat_history and self.chat_history.instance_name then
+    local existing_owner = Avante.instance_registry[self.chat_history.instance_name]
+    if existing_owner ~= nil and existing_owner ~= self then
+      -- The loaded history is already in use -- branch off to a fresh session.
+      local fresh = Path.history.new(self.code.bufnr)
+      self.chat_history = fresh
+      self.current_history_filename = fresh.filename
+      self._chat_history_mtime = nil -- no disk file yet; suppress false conflicts
+    end
+  end
+
+  if self.chat_history then self.current_history_filename = self.chat_history.filename end
+  -- Record the disk mtime so _save_chat_history() can detect concurrent writes.
+  if self._chat_history_mtime == nil and self.current_history_filename then
+    local fp = Path.history.get_filepath(self.code.bufnr, self.current_history_filename)
+    local stat = vim.uv.fs_stat(tostring(fp))
+    self._chat_history_mtime = stat and stat.mtime.sec or nil
+  end
+  -- Register this sidebar under its (now-unique) instance name.
+  if self.chat_history and self.chat_history.instance_name then
+    Avante.instance_registry[self.chat_history.instance_name] = self
+  end
   self._history_cache_invalidated = true
+  -- Update the result header to reflect the (possibly new) instance name.
+  vim.schedule(function() self:render_result() end)
+end
+
+--- Save self.chat_history to disk, forking to a new file first when a
+--- concurrent Avante instance has modified the file since we last loaded it.
+function Sidebar:_save_chat_history()
+  if not self.chat_history or not self.code.bufnr then return end
+
+  -- Conflict detection: if the file on disk has a newer mtime, someone else wrote to it.
+  if self.current_history_filename and self._chat_history_mtime then
+    local fp = Path.history.get_filepath(self.code.bufnr, self.current_history_filename)
+    local stat = vim.uv.fs_stat(tostring(fp))
+    local disk_mtime = stat and stat.mtime.sec or nil
+    if disk_mtime and disk_mtime ~= self._chat_history_mtime then
+      -- Another instance wrote to our file. Branch to a new file.
+      local new_stub = Path.history.new(self.code.bufnr)
+      new_stub.title = self.chat_history.title
+      new_stub.timestamp = self.chat_history.timestamp
+      new_stub.entries = self.chat_history.entries
+      new_stub.messages = self.chat_history.messages
+      new_stub.todos = self.chat_history.todos
+      if self.chat_history.memory then new_stub.memory = self.chat_history.memory end
+      if self.chat_history.system_prompt then new_stub.system_prompt = self.chat_history.system_prompt end
+      if self.chat_history.tokens_usage then new_stub.tokens_usage = self.chat_history.tokens_usage end
+      if self.chat_history.acp_session_id then new_stub.acp_session_id = self.chat_history.acp_session_id end
+      self.chat_history = new_stub
+      self.current_history_filename = new_stub.filename
+      self._chat_history_mtime = nil
+    end
+  end
+
+  Path.history.save(self.code.bufnr, self.chat_history)
+
+  -- Update the stored mtime for the next conflict check.
+  if self.current_history_filename then
+    local fp = Path.history.get_filepath(self.code.bufnr, self.current_history_filename)
+    local stat = vim.uv.fs_stat(tostring(fp))
+    self._chat_history_mtime = stat and stat.mtime.sec or nil
+  end
 end
 
 ---@param opts? {all?: boolean}
@@ -2982,10 +3085,9 @@ function Sidebar:handle_submit(request)
       end,
       set_tool_use_store = set_tool_use_store,
       get_history_messages = function(opts) return self:get_history_messages_for_api(opts) end,
-      get_todos = function()
-        local history = Path.history.load(self.code.bufnr)
-        return history.todos
-      end,
+      -- Use in-memory todos to avoid a disk read that could race with another
+      -- Avante instance and return a different session's todos.
+      get_todos = function() return self.chat_history and self.chat_history.todos or {} end,
       update_todos = function(todos) self:update_todos(todos) end,
       session_ctx = {},
       ---@param usage avante.LLMTokenUsage
@@ -3230,8 +3332,10 @@ function Sidebar:get_selected_code_container_height()
 end
 
 function Sidebar:get_todos_container_height()
-  local history = Path.history.load(self.code.bufnr)
-  if #history.todos == 0 then return 0 end
+  -- Use the in-memory chat_history to avoid a disk read that could return a
+  -- different instance's file via the shared metadata.json pointer.
+  local todos = self.chat_history and self.chat_history.todos or {}
+  if #todos == 0 then return 0 end
   return 3
 end
 
@@ -3338,6 +3442,10 @@ function Sidebar:render(opts)
           if not self.code.winid or not api.nvim_win_is_valid(self.code.winid) then return end
           local bufnr = api.nvim_win_get_buf(self.code.winid)
           self.code.bufnr = bufnr
+          -- The code buffer changed (different project/root), so let
+          -- reload_chat_history() pick up the correct file from metadata.json
+          -- for the new buffer rather than staying pinned to the old file.
+          self.current_history_filename = nil
           self:reload_chat_history()
         end)
       end,
@@ -3531,7 +3639,9 @@ function Sidebar:create_selected_files_container()
 end
 
 function Sidebar:create_todos_container()
-  local history = Path.history.load(self.code.bufnr)
+  -- Use in-memory history to avoid loading from disk (which would follow
+  -- the shared metadata.json and could pull in another instance's file).
+  local history = self.chat_history or Path.history.load(self.code.bufnr, self.current_history_filename)
   if #history.todos == 0 then
     if self.containers.todos and Utils.is_valid_container(self.containers.todos) then
       self.containers.todos:unmount()

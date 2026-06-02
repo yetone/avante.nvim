@@ -268,8 +268,12 @@ function M.select_history()
     vim.api.nvim_buf_call(buf, function()
       if not require("avante").is_sidebar_open() then require("avante").open_sidebar({}) end
       local Path = require("avante.path")
+      -- Update the global metadata pointer so the NEXT fresh instance opens
+      -- the right file, but also pin THIS sidebar to the selected file so
+      -- it doesn't get hijacked by a concurrent instance's save.
       Path.history.save_latest_filename(buf, filename)
       local sidebar = require("avante").get()
+      sidebar.current_history_filename = filename
       sidebar:update_content_with_history()
       sidebar:create_todos_container()
       sidebar:initialize_token_count()

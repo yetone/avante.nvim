@@ -118,7 +118,8 @@ vim.g.avante_login = vim.g.avante_login
 ---@field turn_id string | nil
 ---@field is_calling boolean | nil
 ---@field original_content AvanteLLMMessageContent | nil
----@field acp_tool_call? avante.acp.ToolCall | avante.acp.ToolCallUpdate
+---@field acp_tool_call? avante.acp.ToolCall
+---@field from_instance string | nil   -- instance_name of the sending chat (cross-instance message)
 
 ---@class AvanteLLMToolResult
 ---@field tool_name string
@@ -526,6 +527,8 @@ vim.g.avante_login = vim.g.avante_login
 ---@field system_prompt string | nil
 ---@field tokens_usage avante.LLMTokenUsage | nil
 ---@field acp_session_id string | nil
+---@field instance_id string | nil   -- UUID for this chat session
+---@field instance_name string | nil -- human-readable name (e.g. "swift-fox")
 ---
 ---@class avante.ChatMemory
 ---@field content string
@@ -542,7 +545,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field content string
 ---@field uri string
 ---
----@alias AvanteSlashCommandBuiltInName "clear" | "help" | "lines" | "commit" | "new" | "init" | "compact" | "model"
+---@alias AvanteSlashCommandBuiltInName "clear" | "help" | "lines" | "commit" | "new" | "init" | "compact" | "model" | "simplify" | "send"
 ---@alias AvanteSlashCommandCallback fun(self: avante.Sidebar, args: string, cb?: fun(args: string): nil): nil
 ---@class AvanteSlashCommand
 ---@field name AvanteSlashCommandBuiltInName | string
