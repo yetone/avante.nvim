@@ -64,6 +64,12 @@ function M:parse_curl_args(prompt_opts)
     tools = tools,
   })
 
+  -- Strip temperature for models that don't support it (e.g. Claude 4+ with always-on thinking)
+  local model = provider_conf.model or ""
+  if model:match("claude%-opus%-[4-9]") or model:match("claude%-sonnet%-[4-9]") or model:match("claude%-haiku%-[4-9]") then
+    request_body.temperature = nil
+  end
+
   return {
     url = url,
     headers = Utils.tbl_override({

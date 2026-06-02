@@ -235,6 +235,19 @@ function M:get_rate_limit_sleep_time(headers)
   return Utils.datetime_diff(tostring(now), tostring(reset_dt))
 end
 
+-- Models that do not support the temperature parameter.
+-- Claude 4+ generation models (new naming: claude-{tier}-{version}) deprecate temperature entirely.
+local function is_temperature_unsupported(model)
+  if not model then return false end
+  -- Claude 4+ models use new naming convention: claude-{tier}-{major}[-{minor}]-{date}
+  -- e.g. claude-opus-4-20250514, claude-sonnet-4-5-20250929, claude-sonnet-4-20250514
+  -- Also handles bedrock/vertex prefixed names like us.anthropic.claude-opus-4-*
+  if model:match("claude%-opus%-[4-9]") then return true end
+  if model:match("claude%-sonnet%-[4-9]") then return true end
+  if model:match("claude%-haiku%-[4-9]") then return true end
+  return false
+end
+
 -- Prefix for tool names when using OAuth to avoid Anthropic's tool name validation
 local OAUTH_TOOL_PREFIX = "av_"
 
@@ -252,7 +265,11 @@ function M:transform_tool(tool, use_prefix)
   local input_schema_properties, required = Utils.llm_tool_param_fields_to_json_schema(tool.param.fields)
   local tool_name = tool.name
   if use_prefix then tool_name = OAUTH_TOOL_PREFIX .. tool.name end
-  return {
+  -- Ensure properties is always a JSON object (not array) even when empty
+  if not input_schema_properties or vim.tbl_isempty(input_schema_properties) then
+    input_schema_properties = vim.empty_dict()
+  end
+  local tool_def = {
     name = tool_name,
     description = tool.get_description and tool.get_description() or tool.description,
     input_schema = {
@@ -261,6 +278,9 @@ function M:transform_tool(tool, use_prefix)
       required = required,
     },
   }
+  -- OAuth/claude-code beta requires discriminated tool type
+  if use_prefix then tool_def.type = "custom" end
+  return tool_def
 end
 
 function M:is_disable_stream() return false end
@@ -660,18 +680,23 @@ function M:parse_curl_args(prompt_opts)
   local api_path = "/v1/messages"
   if provider_conf.auth_type == "max" then api_path = "/v1/messages?beta=true" end
 
+  local body = vim.tbl_deep_extend("force", {
+    model = provider_conf.model,
+    system = system,
+    messages = messages,
+    tools = tools,
+    stream = true,
+  }, request_body)
+
+  -- Strip temperature for models that don't support it (e.g. Opus 4 with always-on thinking)
+  if is_temperature_unsupported(provider_conf.model) then body.temperature = nil end
+
   return {
     url = Utils.url_join(provider_conf.endpoint, api_path),
     proxy = provider_conf.proxy,
     insecure = provider_conf.allow_insecure,
     headers = Utils.tbl_override(headers, self.extra_headers),
-    body = vim.tbl_deep_extend("force", {
-      model = provider_conf.model,
-      system = system,
-      messages = messages,
-      tools = tools,
-      stream = true,
-    }, request_body),
+    body = body,
   }
 end
 
@@ -692,7 +717,8 @@ function M.on_error(result)
   if error_type == "insufficient_quota" then
     error_msg = "You don't have any credits or have exceeded your quota. Please check your plan and billing details."
   elseif error_type == "invalid_request_error" and error_msg:match("temperature") then
-    error_msg = "Invalid temperature value. Please ensure it's between 0 and 1."
+    error_msg = error_msg
+      .. " Try removing 'temperature' from your provider's extra_request_body config."
   end
 
   Utils.error(error_msg, { once = true, title = "Avante" })
@@ -930,6 +956,7 @@ function M.cleanup_claude()
   if M._file_watcher then
     ---@diagnostic disable-next-line: param-type-mismatch
     M._file_watcher:stop()
+    pcall(function() M._file_watcher:close() end)
     M._file_watcher = nil
   end
 end
