@@ -8,7 +8,7 @@ $Build = [System.Convert]::ToBoolean($BuildFromSource)
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 
-$BuildDir = "build"
+$BuildDir = "lua"
 $remoteUrl = git config --get remote.origin.url 2>$null
 if ($remoteUrl -match "github\.com[:/]([^/]+)/([^/]+?)(?:\.git)?$") {
     $REPO_OWNER = $matches[1]
@@ -53,7 +53,7 @@ function Download-Prebuilt($feature, $tag) {
 
     $SCRIPT_DIR = $PSScriptRoot
     # Set the target directory to clone the artifact
-    $TARGET_DIR = Join-Path $SCRIPT_DIR "build"
+    $TARGET_DIR = Join-Path $SCRIPT_DIR "lua"
 
     # Set the platform to Windows
     $PLATFORM = "windows"
@@ -105,14 +105,14 @@ function Main {
         Build-FromSource $Version
     } else {
         $latestTag = git describe --tags --abbrev=0 2>&1 | Where-Object { $_ -ne $null }
-        $builtTag = if (Test-Path "build/.tag") {
-            Get-Content "build/.tag"
+        $builtTag = if (Test-Path "lua/.tag") {
+            Get-Content "lua/.tag"
         } else {
             $null
         }
 
         function Save-Tag($tag) {
-            $tag | Set-Content "build/.tag"
+            $tag | Set-Content "lua/.tag"
         }
 
         if ($latestTag -eq $builtTag -and $latestTag) {
@@ -124,7 +124,7 @@ function Main {
         } else {
             cargo build --release --features=$Version
             Get-ChildItem -Path "target/release/avante_*.dll" | ForEach-Object {
-                Copy-Item $_.FullName "build/$($_.Name)"
+                Copy-Item $_.FullName "lua/$($_.Name)"
             }
             Save-Tag $latestTag
         }
