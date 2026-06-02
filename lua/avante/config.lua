@@ -328,9 +328,6 @@ M.instructions_file = "avante.md"
 ---@field behaviour avante.Config.Behaviour Behaviour and automation options.
 ---@field prompt_logger avante.Config.PromptLogger Prompt logging options.
 ---@field windows table
----@field slash_commands AvanteSlashCommand[] see |*avante-slashcommands*|
----@field shortcuts AvanteShortcut[]  see |*avante-shortcuts*|
----@field ask_opts AskOptions
 
 M._defaults = {
   debug = false,
@@ -599,6 +596,8 @@ M._defaults = {
       model = "gpt-4o",
       timeout = 30000,
       context_window = 128000, -- Number of tokens to send to the model for context
+      cost_per_input_token = 0.0000025, -- $2.50 per 1M tokens
+      cost_per_output_token = 0.00001, -- $10 per 1M tokens
       use_response_api = copilot_use_response_api, -- Automatically switch to Response API for GPT-5 Codex models
       support_previous_response_id = true, -- OpenAI Response API supports previous_response_id for stateful conversations
       extra_request_body = {
@@ -617,6 +616,8 @@ M._defaults = {
       allow_insecure = false, -- Allow insecure server connections
       timeout = 30000, -- Timeout in milliseconds
       context_window = 64000, -- Number of tokens to send to the model for context
+      cost_per_input_token = 0, -- Free with GitHub Copilot subscription
+      cost_per_output_token = 0,
       use_response_api = copilot_use_response_api, -- Automatically switch to Response API for GPT-5 Codex models
       support_previous_response_id = false, -- Copilot doesn't support previous_response_id, must send full history
       -- NOTE: Copilot doesn't support previous_response_id, always sends full conversation history including tool_calls
@@ -645,6 +646,8 @@ M._defaults = {
       model = "claude-sonnet-4-5-20250929",
       timeout = 30000, -- Timeout in milliseconds
       context_window = 200000,
+      cost_per_input_token = 0.000003, -- $3 per 1M tokens
+      cost_per_output_token = 0.000015, -- $15 per 1M tokens
       extra_request_body = {
         temperature = 0.75,
         max_tokens = 64000,
@@ -675,6 +678,8 @@ M._defaults = {
       model = "gemini-2.0-flash",
       timeout = 30000, -- Timeout in milliseconds
       context_window = 1048576,
+      cost_per_input_token = 0.0000001, -- $0.10 per 1M tokens
+      cost_per_output_token = 0.0000004, -- $0.40 per 1M tokens
       use_ReAct_prompt = true,
       extra_request_body = {
         generationConfig = {
@@ -688,6 +693,8 @@ M._defaults = {
       model = "gemini-1.5-flash-002",
       timeout = 30000, -- Timeout in milliseconds
       context_window = 1048576,
+      cost_per_input_token = 0.000000075, -- $0.075 per 1M tokens
+      cost_per_output_token = 0.0000003, -- $0.30 per 1M tokens
       use_ReAct_prompt = true,
       extra_request_body = {
         generationConfig = {
@@ -709,6 +716,8 @@ M._defaults = {
     ollama = {
       endpoint = "http://127.0.0.1:11434",
       timeout = 30000, -- Timeout in milliseconds
+      cost_per_input_token = 0, -- Local model, free
+      cost_per_output_token = 0,
       use_ReAct_prompt = true,
       extra_request_body = {
         options = {
@@ -744,6 +753,8 @@ M._defaults = {
       endpoint = "https://api.anthropic.com",
       model = "claude-3-5-haiku-20241022",
       timeout = 30000, -- Timeout in milliseconds
+      cost_per_input_token = 0.0000008, -- $0.80 per 1M tokens
+      cost_per_output_token = 0.000004, -- $4 per 1M tokens
       extra_request_body = {
         temperature = 0.75,
         max_tokens = 8192,
@@ -755,6 +766,8 @@ M._defaults = {
       endpoint = "https://api.anthropic.com",
       model = "claude-3-opus-20240229",
       timeout = 30000, -- Timeout in milliseconds
+      cost_per_input_token = 0.000015, -- $15 per 1M tokens
+      cost_per_output_token = 0.000075, -- $75 per 1M tokens
       extra_request_body = {
         temperature = 0.75,
         max_tokens = 20480,
@@ -763,6 +776,8 @@ M._defaults = {
     ["openai-gpt-4o-mini"] = {
       __inherited_from = "openai",
       model = "gpt-4o-mini",
+      cost_per_input_token = 0.00000015, -- $0.15 per 1M tokens
+      cost_per_output_token = 0.0000006, -- $0.60 per 1M tokens
     },
     aihubmix = {
       __inherited_from = "openai",
@@ -1087,11 +1102,22 @@ M._defaults = {
     debounce = 600,
     throttle = 600,
   },
+  --- Dispatch agent configuration
+  --- Controls how dispatch_agent selects providers for sub-tasks
+  dispatch = {
+    --- Maximum ratio of a provider's context_window that a dispatch request+file may occupy.
+    --- The cheapest provider whose context fits the payload within this ratio is selected.
+    --- @type number
+    max_context_ratio = 0.6,
+  },
   disabled_tools = {},
   ---@type AvanteLLMToolPublic[] | fun(): AvanteLLMToolPublic[]
   custom_tools = {},
+  ---@type AvanteSlashCommand[]
   slash_commands = {},
+  ---@type AvanteShortcut[]
   shortcuts = {},
+  ---@type AskOptions
   ask_opts = {},
 }
 
@@ -1099,7 +1125,6 @@ M._defaults = {
 ---@diagnostic disable-next-line: missing-fields
 M._options = {}
 
----@diagnostic disable-next-line: param-type-mismatch
 local function get_config_dir_path() return vim.fs.joinpath(vim.fn.expand("~"), ".config", "avante.nvim") end
 local function get_config_file_path() return vim.fs.joinpath(get_config_dir_path(), "config.json") end
 

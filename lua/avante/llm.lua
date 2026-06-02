@@ -11,6 +11,7 @@ local Config = require("avante.config")
 local Path = require("avante.path")
 local Providers = require("avante.providers")
 local LLMToolHelpers = require("avante.llm_tools.helpers")
+local DispatchRegistry = require("avante.dispatch_registry")
 local LLMTools = require("avante.llm_tools")
 local History = require("avante.history")
 local HistoryRender = require("avante.history.render")
@@ -461,6 +462,14 @@ function M.generate_prompts(opts)
   if agents_rules then system_prompt = system_prompt .. "\n\n" .. agents_rules end
   local cursor_rules = Prompts.get_cursor_rules_prompt(selected_files)
   if cursor_rules then system_prompt = system_prompt .. "\n\n" .. cursor_rules end
+
+  -- Inject dispatch agent status context so the primary agent knows what is in-flight
+  if opts.session_ctx and opts.session_ctx.dispatch_session_id then
+    local dispatch_context = DispatchRegistry.get_context(opts.session_ctx.dispatch_session_id)
+    if dispatch_context and dispatch_context ~= "" then
+      system_prompt = system_prompt .. "\n\n" .. dispatch_context
+    end
+  end
 
   ---@type AvantePromptOptions
   return {
