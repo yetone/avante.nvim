@@ -2,6 +2,7 @@ name: Release
 
 on:
   push:
+    branches: ["release-v*"]
     tags: ["v*"]
 
 permissions:
@@ -64,11 +65,11 @@ jobs:
             rust_target: x86_64-unknown-linux-gnu
             docker_platform: linux/amd64
             container: quay.io/pypa/manylinux2014_x86_64 # for glibc 2.17
-          - os: macos-14
+          - os: macos-latest
             os_name: darwin
             arch: x86_64
             rust_target: x86_64-apple-darwin
-          - os: macos-14
+          - os: macos-latest
             os_name: darwin
             arch: aarch64
             rust_target: aarch64-apple-darwin
@@ -95,6 +96,7 @@ jobs:
       - name: Build all crates
         if: ${{ matrix.config.container == null }}
         run: |
+          # TODO leverage AvanteBuild
           cargo build --release --features ${{ matrix.feature }} --target ${{ matrix.config.rust_target }}
 
       - name: Build all crates with glibc 2.17 # for glibc 2.17
