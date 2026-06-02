@@ -133,6 +133,7 @@ local Suggestion = require("avante.suggestion")
 local Config = require("avante.config")
 local Diff = require("avante.diff")
 local RagService = require("avante.rag_service")
+local IpcService = require("avante.ipc_service")
 
 ---@class Avante
 local M = {
@@ -658,6 +659,51 @@ function M.setup(opts)
   end
 
   if Config.rag_service.enabled then run_rag_service() end
+
+  -- Launch the IPC service when enabled.  Once the service is ready, all
+  -- currently open sidebars register themselves and start their heartbeat +
+  -- message-poll timers.  New sidebars register in reload_chat_history().
+  if Config.ipc_service and Config.ipc_service.enabled then
+    local started_at = os.time()
+    local function try_ipc_ready()
+      if IpcService.is_ready() then
+        Utils.debug("IPC service is ready; registering open sidebars")
+        -- Register every currently open sidebar.
+        for _, sidebar in pairs(M.instance_registry) do
+          if sidebar and sidebar.chat_history then
+            sidebar:ipc_register()
+          end
+        end
+      else
+        local elapsed = os.time() - started_at
+        if elapsed < 60 * 5 then
+          vim.defer_fn(try_ipc_ready, 5000)
+        else
+          Utils.warn("IPC service did not become ready within 5 minutes — giving up")
+        end
+      end
+    end
+    vim.schedule(function()
+      Utils.info("Starting IPC Service ...")
+      IpcService.launch_ipc_service(function()
+        vim.defer_fn(try_ipc_ready, 2000)
+      end)
+    end)
+
+    -- Unregister all sidebars from IPC on nvim exit.
+    api.nvim_create_autocmd("VimLeavePre", {
+      group = H.augroup,
+      desc = "Unregister all Avante sidebars from the IPC service",
+      callback = function()
+        for _, sidebar in pairs(M.instance_registry) do
+          if sidebar and sidebar.chat_history then
+            pcall(function() sidebar:ipc_unregister() end)
+          end
+        end
+        IpcService.stop_timers()
+      end,
+    })
+  end
 
   local has_cmp, cmp = pcall(require, "cmp")
   if has_cmp then

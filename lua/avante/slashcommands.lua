@@ -15,7 +15,7 @@
 --- - `/model`: select model
 --- - `/lines <start>-<end> <question>`: ask about specific lines
 --- - `/commit`: generate a commit message
---- - `/send <instance-name> <message>`: send a message to another Avante instance
+--- - `/send <instance-name> <message>`: send a message to another Avante instance (hidden when ipc_service is enabled)
 ---@brief ]]
 
 ---@class avante.SlashCommands
@@ -117,13 +117,27 @@ local callbacks = {
     end
     if cb then cb("") end
   end,
+  -- /send is a convenience wrapper around the send_message LLM tool for
+  -- in-process (same-nvim) instance messaging.  When the IPC service is
+  -- enabled the LLM tool handles cross-process delivery directly, so /send
+  -- is redundant and would only confuse the model with stale in-process-only
+  -- semantics.  We keep the callback in case someone invokes it at runtime
+  -- but filter the command out of the visible list below.
   send = function(sidebar, args, cb) sidebar:send_message_to_instance(args, cb) end,
 }
 
 ---@return AvanteSlashCommand[]
 function M.get_builtin_commands()
+  local Config = require("avante.config")
+  local ipc_enabled = Config.ipc_service and Config.ipc_service.enabled
   return vim
     .iter(builtin_commands)
+    :filter(function(command)
+      -- Hide /send when the IPC service is enabled — cross-process messaging
+      -- is handled transparently by the send_message LLM tool instead.
+      if command.name == "send" and ipc_enabled then return false end
+      return true
+    end)
     :map(
       ---@param command AvanteSlashCommand
       function(command)

@@ -546,6 +546,54 @@ function M.generate_prompts(opts)
     messages = vim.list_extend(messages, { { role = "user", content = opts.instructions } })
   end
 
+  -- Normalize the messages array so it satisfies all provider constraints:
+  --   1. No two consecutive messages with the same role (merge their content).
+  --   2. The last message must be role = "user".
+  -- Violating either rule causes hard API errors on Anthropic-compatible models
+  -- ("assistant message prefill" / "conversation must end with a user message").
+  do
+    local normalized = {}
+    for _, msg in ipairs(messages) do
+      local prev = normalized[#normalized]
+      if prev and prev.role == msg.role then
+        -- Merge content into the previous message of the same role.
+        if type(prev.content) == "string" and type(msg.content) == "string" then
+          prev.content = prev.content .. "\n\n" .. msg.content
+        elseif type(prev.content) == "table" and type(msg.content) == "string" then
+          table.insert(prev.content, { type = "text", text = msg.content })
+        elseif type(prev.content) == "string" and type(msg.content) == "table" then
+          local merged = { { type = "text", text = prev.content } }
+          for _, item in ipairs(msg.content) do
+            table.insert(merged, item)
+          end
+          prev.content = merged
+        else
+          -- Both table form -- extend in place.
+          for _, item in ipairs(msg.content) do
+            table.insert(prev.content, item)
+          end
+        end
+      else
+        -- Different role -- add as a distinct entry (shallow-copy so we do not
+        -- mutate the caller's history_messages array).
+        table.insert(normalized, vim.tbl_extend("keep", {}, msg))
+      end
+    end
+    -- If the final message is still "assistant" after merging, drop it so the
+    -- conversation ends with a user turn. A dangling assistant message means
+    -- either a partially-streamed response slipped through the state filter, or
+    -- context messages were assembled in the wrong order. Either way the model
+    -- should reply to the preceding user message.
+    if #normalized > 0 and normalized[#normalized].role == "assistant" then
+      Utils.debug(
+        "generate_prompts: dropping trailing assistant message to satisfy "
+          .. "provider turn-order constraint"
+      )
+      table.remove(normalized)
+    end
+    messages = normalized
+  end
+
   opts.session_ctx = opts.session_ctx or {}
   opts.session_ctx.system_prompt = system_prompt
   opts.session_ctx.messages = messages
@@ -619,20 +667,114 @@ local parse_headers = function(headers_file)
   return headers
 end
 
---- Recursively sanitize a value so it can be safely JSON-encoded.
---- Removes UTF-8 surrogate code points (U+D800–U+DFFF) from all strings, replacing each
---- 3-byte surrogate sequence with the Unicode replacement character U+FFFD.
---- `vim.json.encode` (backed by cjson) rejects strings containing surrogate bytes with
---- "surrogates not allowed", which can happen when file content, clipboard data, or
---- terminal output contains lone surrogate pairs encoded in modified UTF-8 (CESU-8).
+--- Sanitize a string so it contains only valid UTF-8 and no surrogate code points.
+---
+--- Two sources of bad bytes can reach JSON encoding:
+---   1. CESU-8 / modified-UTF-8 surrogates (3 bytes: 0xED [0xA0-0xBF] [0x80-0xBF]).
+---      Produced by the JVM and some editors for codepoints above U+FFFF.
+---   2. Arbitrary non-UTF-8 bytes from binary file content, latin-1 encoded comments,
+---      clipboard data, grep output, etc.  vim.json.encode (cjson) encodes these as
+---      WTF-8 lone surrogates (\uDCxx), which strict API parsers reject with
+---      "surrogates not allowed".
+---
+--- Strategy: strip CESU-8 surrogate triplets first, then validate byte-by-byte and
+--- replace any remaining invalid bytes with U+FFFD.
+---@param s string
+---@return string
+local function sanitize_string(s)
+  -- Step 1: strip CESU-8 / modified-UTF-8 surrogate triplets.
+  s = s:gsub("\xED[\xA0-\xBF][\x80-\xBF]", "\xEF\xBF\xBD")
+
+  -- Step 2: validate remaining bytes as UTF-8; replace bad bytes with U+FFFD.
+  local out = {}
+  local i = 1
+  local len = #s
+  local repl = "\xEF\xBF\xBD" -- U+FFFD
+  while i <= len do
+    local b = s:byte(i)
+    if b < 0x80 then
+      -- ASCII: always valid.
+      out[#out + 1] = s:sub(i, i)
+      i = i + 1
+    elseif b < 0xC2 then
+      -- Lone continuation byte (0x80-0xBF) or overlong 2-byte leader (0xC0-0xC1).
+      out[#out + 1] = repl
+      i = i + 1
+    elseif b < 0xE0 then
+      -- 2-byte sequence: leader 0xC2-0xDF, one continuation 0x80-0xBF.
+      if i + 1 <= len then
+        local b2 = s:byte(i + 1)
+        if b2 >= 0x80 and b2 <= 0xBF then
+          out[#out + 1] = s:sub(i, i + 1)
+          i = i + 2
+        else
+          out[#out + 1] = repl
+          i = i + 1
+        end
+      else
+        out[#out + 1] = repl
+        i = i + 1
+      end
+    elseif b < 0xF0 then
+      -- 3-byte sequence: leader 0xE0-0xEF, two continuations.
+      if i + 2 <= len then
+        local b2, b3 = s:byte(i + 1), s:byte(i + 2)
+        local ok2 = b2 >= 0x80 and b2 <= 0xBF
+        local ok3 = b3 >= 0x80 and b3 <= 0xBF
+        -- Over-long: E0 must be followed by A0-BF.
+        if b == 0xE0 and b2 < 0xA0 then ok2 = false end
+        -- Surrogate range ED A0-BF already handled in step 1; defensive check.
+        if b == 0xED and b2 >= 0xA0 then ok2 = false end
+        if ok2 and ok3 then
+          out[#out + 1] = s:sub(i, i + 2)
+          i = i + 3
+        else
+          out[#out + 1] = repl
+          i = i + 1
+        end
+      else
+        out[#out + 1] = repl
+        i = i + 1
+      end
+    elseif b < 0xF5 then
+      -- 4-byte sequence: leader 0xF0-0xF4, three continuations.
+      -- F0 must be followed by 90-BF (over-long); F4 by 80-8F (max U+10FFFF).
+      if i + 3 <= len then
+        local b2, b3, b4 = s:byte(i + 1), s:byte(i + 2), s:byte(i + 3)
+        local ok2 = b2 >= 0x80 and b2 <= 0xBF
+        local ok3 = b3 >= 0x80 and b3 <= 0xBF
+        local ok4 = b4 >= 0x80 and b4 <= 0xBF
+        if b == 0xF0 and b2 < 0x90 then ok2 = false end
+        if b == 0xF4 and b2 > 0x8F then ok2 = false end
+        if ok2 and ok3 and ok4 then
+          out[#out + 1] = s:sub(i, i + 3)
+          i = i + 4
+        else
+          out[#out + 1] = repl
+          i = i + 1
+        end
+      else
+        out[#out + 1] = repl
+        i = i + 1
+      end
+    else
+      -- 0xF5-0xFF are never valid UTF-8.
+      out[#out + 1] = repl
+      i = i + 1
+    end
+  end
+  return table.concat(out)
+end
+
+--- Recursively sanitize a value so it can be safely JSON-encoded by cjson / vim.json.encode.
+--- All strings are passed through sanitize_string which ensures valid UTF-8 with no
+--- surrogate code points.  Tables are traversed recursively; other types are returned as-is.
 ---@param value any
 ---@return any
 local function sanitize_for_json(value)
   local t = type(value)
   if t == "string" then
-    -- UTF-8 surrogates occupy 3 bytes: 0xED [0xA0-0xBF] [0x80-0xBF]
-    -- Replace with U+FFFD (0xEF 0xBF 0xBD) to preserve string length parity.
-    return (value:gsub("\xED[\xA0-\xBF][\x80-\xBF]", "\xEF\xBF\xBD"))
+    return sanitize_string(value)
   elseif t == "table" then
     -- Preserve vim.empty_dict() marker so cjson encodes as {} not []
     if vim.tbl_isempty(value) and not vim.islist(value) then return vim.empty_dict() end

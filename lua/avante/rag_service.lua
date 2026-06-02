@@ -290,12 +290,11 @@ function M.to_local_uri(uri)
 end
 
 function M.is_ready()
-  return vim
-    .system(
-      { "curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", M.get_rag_service_url() .. "/api/health" },
-      { text = true }
-    )
-    :wait().code == 0
+  local result = vim.system(
+    { "curl", "-s", "-o", "/dev/null", "-w", "%{http_code}", M.get_rag_service_url() .. "/api/health" },
+    { text = true }
+  ):wait()
+  return result.code == 0 and vim.trim(result.stdout or "") == "200"
 end
 
 ---@class AvanteRagServiceAddResourceResponse
@@ -468,9 +467,10 @@ function M.get_resources()
     headers = {
       ["Content-Type"] = "application/json",
     },
+    timeout = 10000, -- 10 seconds; the RAG service can be slow to respond on startup
   })
-  if resp.status ~= 200 then
-    Utils.error("Failed to get resources: " .. resp.body)
+  if not resp or resp.status ~= 200 then
+    Utils.error("Failed to get resources: " .. (resp and resp.body or "no response"))
     return
   end
   local jsn = vim.json.decode(resp.body)

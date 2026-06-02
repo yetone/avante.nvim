@@ -372,6 +372,15 @@ M._defaults = {
     },
     docker_extra_args = "", -- Extra arguments to pass to the docker command
   },
+  ipc_service = { -- Cross-process instance IPC service configuration
+    -- Enables the IPC service so root Avante instances in *different* Neovim
+    -- processes can discover each other, share responsibility context, and
+    -- exchange messages via send_message.  Requires Docker or Nix.
+    enabled = false,
+    runner = "docker", -- "docker" or "nix"
+    image = "quay.io/yetoneful/avante-ipc-service:0.0.1",
+    docker_extra_args = "",
+  },
   web_search_engine = {
     provider = "tavily",
     proxy = nil,
