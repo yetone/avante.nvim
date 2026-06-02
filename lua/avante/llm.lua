@@ -29,9 +29,28 @@ local group = api.nvim_create_augroup("avante_llm", { clear = true })
 ---@param prev_memory string | nil
 ---@param history_messages avante.HistoryMessage[]
 ---@param cb fun(memory: avante.ChatMemory | nil): nil
-function M.summarize_memory(prev_memory, history_messages, cb)
-  local system_prompt =
-    [[You are an expert coding assistant. Your goal is to generate a concise, structured summary of the conversation below that captures all essential information needed to continue development after context replacement. Include tasks performed, code areas modified or reviewed, key decisions or assumptions, test results or errors, and outstanding tasks or next steps.]]
+---@param prev_memory string | nil
+---@param history_messages avante.HistoryMessage[]
+---@param cb fun(memory: avante.ChatMemory | nil): nil
+---@param mode? "compact" | "simplify"  -- "compact" (default): readable structured summary; "simplify": ultra-terse bullet points
+function M.summarize_memory(prev_memory, history_messages, cb, mode)
+  local system_prompt
+  local user_prompt_suffix
+  if mode == "simplify" then
+    system_prompt = [[You are an expert software engineering assistant.
+Your task is to create the most compact possible summary of a coding conversation.
+Be EXTREMELY concise. Include only what an engineer MUST know to continue the work:
+- Current state of the code (what was built, changed, or fixed)
+- Exact errors or blockers still unresolved
+- The precise next step(s) remaining
+- Any critical decisions, constraints, or gotchas
+Omit all explanations, rationale, and conversational filler. Output dense, terse bullet points.]]
+    user_prompt_suffix = "\n\nProvide the minimal engineering-context summary. Use terse bullet points only."
+  else
+    system_prompt = [[You are an expert coding assistant. Your goal is to generate a concise, structured summary of the conversation below that captures all essential information needed to continue development after context replacement. Include tasks performed, code areas modified or reviewed, key decisions or assumptions, test results or errors, and outstanding tasks or next steps.]]
+    user_prompt_suffix = "\n\nPlease summarize this conversation, covering:\n1. Tasks performed and outcomes\n2. Code files, modules, or functions modified or examined\n3. Important decisions or assumptions made\n4. Errors encountered and test or build results\n5. Remaining tasks, open questions, or next steps\nProvide the summary in a clear, concise format."
+  end
+
   if #history_messages == 0 then
     cb(nil)
     return
@@ -55,9 +74,7 @@ function M.summarize_memory(prev_memory, history_messages, cb)
     :map(function(msg) return msg.message.role .. ": " .. HistoryRender.message_to_text(msg, history_messages) end)
     :totable()
   local conversation_text = table.concat(conversation_items, "\n")
-  local user_prompt = "Here is the conversation so far:\n"
-    .. conversation_text
-    .. "\n\nPlease summarize this conversation, covering:\n1. Tasks performed and outcomes\n2. Code files, modules, or functions modified or examined\n3. Important decisions or assumptions made\n4. Errors encountered and test or build results\n5. Remaining tasks, open questions, or next steps\nProvide the summary in a clear, concise format."
+  local user_prompt = "Here is the conversation so far:\n" .. conversation_text .. user_prompt_suffix
   if prev_memory then user_prompt = user_prompt .. "\n\nThe previous summary is:\n\n" .. prev_memory end
   local messages = {
     {
@@ -92,6 +109,89 @@ function M.summarize_memory(prev_memory, history_messages, cb)
             last_message_uuid = latest_message_uuid,
           }
           cb(memory)
+        else
+          cb(nil)
+        end
+      end,
+    },
+  })
+end
+
+--- Alias for `summarize_memory` with mode="simplify".
+--- Kept as a separate entry-point so call-sites remain explicit.
+---@param prev_memory string | nil
+---@param history_messages avante.HistoryMessage[]
+---@param cb fun(memory: avante.ChatMemory | nil): nil
+function M.simplify_history(prev_memory, history_messages, cb)
+  M.summarize_memory(prev_memory, history_messages, cb, "simplify")
+end
+
+--- Draft a message to send to another Avante chat instance.
+--- The LLM uses the current conversation history as context and composes a
+--- self-contained message that captures the user's intent so that the
+--- receiving instance has all the information it needs.
+---@param history_messages avante.HistoryMessage[]  current chat's history
+---@param user_intent string                        what the user wants to communicate
+---@param sender_name string                        instance name of the sending chat
+---@param target_name string                        instance name of the receiving chat
+---@param cb fun(drafted_message: string | nil): nil
+function M.draft_inter_instance_message(history_messages, user_intent, sender_name, target_name, cb)
+  local system_prompt = string.format(
+    [[You are the AI assistant for the coding chat session "%s".
+You are composing a message to send to another AI assistant session named "%s".
+Both sessions are running concurrently inside the same editor on the same codebase.
+
+Given the conversation history below and the user's stated intent, draft a clear,
+self-contained message for the receiving session.  The message must:
+- Include all context the receiving session needs (it cannot see our history)
+- Be concise but complete — the receiver will act on it directly
+- Sound like a peer-to-peer handoff, not a forwarded chat log
+
+Output ONLY the message body — no preamble, no "Here is the message:", no quotes.]],
+    sender_name,
+    target_name
+  )
+
+  local conversation_items = vim
+    .iter(history_messages)
+    :filter(function(msg) return not msg.is_dummy and not msg.just_for_display end)
+    :map(function(msg) return msg.message.role .. ": " .. HistoryRender.message_to_text(msg, history_messages) end)
+    :totable()
+  local conversation_text = table.concat(conversation_items, "\n")
+
+  local user_prompt = "Current conversation history:\n"
+    .. conversation_text
+    .. "\n\nUser's intent for the message to send:\n"
+    .. user_intent
+    .. "\n\nDraft the message to send to ["
+    .. target_name
+    .. "]:"
+
+  local messages = { { role = "user", content = user_prompt } }
+  local response_content = ""
+  local provider = Providers.get_memory_summary_provider()
+
+  M.curl({
+    provider = provider,
+    prompt_opts = {
+      system_prompt = system_prompt,
+      messages = messages,
+    },
+    handler_opts = {
+      on_start = function(_) end,
+      on_chunk = function(chunk)
+        if not chunk then return end
+        response_content = response_content .. chunk
+      end,
+      on_stop = function(stop_opts)
+        if stop_opts.error ~= nil then
+          Utils.error(string.format("draft_inter_instance_message failed: %s", vim.inspect(stop_opts.error)))
+          cb(nil)
+          return
+        end
+        if stop_opts.reason == "complete" then
+          response_content = Utils.trim_think_content(response_content)
+          cb(response_content ~= "" and response_content or nil)
         else
           cb(nil)
         end
