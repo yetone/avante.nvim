@@ -484,6 +484,134 @@ function M.calculate_tokens(opts)
   return tokens
 end
 
+--- Strip CESU-8 surrogate pairs and any other invalid UTF-8 byte sequences,
+--- replacing them with the UTF-8 replacement character U+FFFD.
+--- cjson rejects strings that contain surrogate code points (0xED 0xA0-0xBF …)
+--- with "surrogates not allowed", so all user-supplied strings must be cleaned
+--- before being JSON-encoded.
+---@param s string
+---@return string
+local function sanitize_string(s)
+  if type(s) ~= "string" then return s end
+  local out = {}
+  local repl = "ï¿½" -- U+FFFD replacement character in UTF-8
+  local len = #s
+  local i = 1
+  while i <= len do
+    local b = s:byte(i)
+    if b < 0x80 then
+      -- ASCII fast path.
+      out[#out + 1] = s:sub(i, i)
+      i = i + 1
+    elseif b >= 0xED and b <= 0xED then
+      -- Surrogate range: ED [A0-BF] [80-BF] — always invalid UTF-8.
+      if i + 2 <= len then
+        local b2 = s:byte(i + 1)
+        if b2 >= 0xA0 and b2 <= 0xBF then
+          out[#out + 1] = repl
+          i = i + 3 -- skip the full 3-byte surrogate sequence
+        else
+          out[#out + 1] = repl
+          i = i + 1
+        end
+      else
+        out[#out + 1] = repl
+        i = i + 1
+      end
+    elseif b < 0xC0 then
+      -- Stray continuation byte (0x80-0xBF outside a multi-byte sequence).
+      out[#out + 1] = repl
+      i = i + 1
+    elseif b < 0xE0 then
+      -- 2-byte sequence: leader 0xC2-0xDF, one continuation 0x80-0xBF.
+      if i + 1 <= len then
+        local b2 = s:byte(i + 1)
+        if b2 >= 0x80 and b2 <= 0xBF then
+          out[#out + 1] = s:sub(i, i + 1)
+          i = i + 2
+        else
+          out[#out + 1] = repl
+          i = i + 1
+        end
+      else
+        out[#out + 1] = repl
+        i = i + 1
+      end
+    elseif b < 0xF0 then
+      -- 3-byte sequence: leader 0xE0-0xEF, two continuations.
+      if i + 2 <= len then
+        local b2, b3 = s:byte(i + 1), s:byte(i + 2)
+        local ok2 = b2 >= 0x80 and b2 <= 0xBF
+        local ok3 = b3 >= 0x80 and b3 <= 0xBF
+        -- Over-long: E0 must be followed by A0-BF.
+        if b == 0xE0 and b2 < 0xA0 then ok2 = false end
+        -- Surrogate range ED A0-BF already handled in step 1; defensive check.
+        if b == 0xED and b2 >= 0xA0 then ok2 = false end
+        if ok2 and ok3 then
+          out[#out + 1] = s:sub(i, i + 2)
+          i = i + 3
+        else
+          out[#out + 1] = repl
+          i = i + 1
+        end
+      else
+        out[#out + 1] = repl
+        i = i + 1
+      end
+    elseif b < 0xF5 then
+      -- 4-byte sequence: leader 0xF0-0xF4, three continuations.
+      -- F0 must be followed by 90-BF (over-long); F4 by 80-8F (max U+10FFFF).
+      if i + 3 <= len then
+        local b2, b3, b4 = s:byte(i + 1), s:byte(i + 2), s:byte(i + 3)
+        local ok2 = b2 >= 0x80 and b2 <= 0xBF
+        local ok3 = b3 >= 0x80 and b3 <= 0xBF
+        local ok4 = b4 >= 0x80 and b4 <= 0xBF
+        if b == 0xF0 and b2 < 0x90 then ok2 = false end
+        if b == 0xF4 and b2 > 0x8F then ok2 = false end
+        if ok2 and ok3 and ok4 then
+          out[#out + 1] = s:sub(i, i + 3)
+          i = i + 4
+        else
+          out[#out + 1] = repl
+          i = i + 1
+        end
+      else
+        out[#out + 1] = repl
+        i = i + 1
+      end
+    else
+      -- 0xF5-0xFF are never valid UTF-8.
+      out[#out + 1] = repl
+      i = i + 1
+    end
+  end
+  return table.concat(out)
+end
+
+--- Recursively sanitize a value so it can be safely JSON-encoded by cjson / vim.json.encode.
+--- All strings are passed through sanitize_string which ensures valid UTF-8 with no
+--- surrogate code points.  Tables are traversed recursively; other types are returned as-is.
+---@param value any
+---@return any
+local function sanitize_for_json(value)
+  local t = type(value)
+  if t == "string" then
+    return sanitize_string(value)
+  elseif t == "table" then
+    -- Preserve vim.empty_dict() marker so cjson encodes as {} not []
+    if vim.tbl_isempty(value) and not vim.islist(value) then return vim.empty_dict() end
+    local out = {}
+    for k, v in pairs(value) do
+      out[sanitize_for_json(k)] = sanitize_for_json(v)
+    end
+    -- Preserve array vs. hash-table metatable so cjson encodes them correctly.
+    if vim.islist(value) then return vim.list_slice(out, 1) end
+    return out
+  else
+    return value
+  end
+end
+
 local parse_headers = function(headers_file)
   local headers = {}
   local file = io.open(headers_file, "r")
@@ -592,8 +720,16 @@ function M.curl(opts)
       raw = spec.rawArgs,
     }
   else
-    -- For regular JSON requests, encode as JSON and write to file
-    local json_content = vim.json.encode(spec.body)
+    -- For regular JSON requests, encode as JSON and write to file.
+    -- sanitize_for_json strips invalid UTF-8 surrogates that cause cjson to reject the body.
+    local ok, json_content = pcall(vim.json.encode, sanitize_for_json(spec.body))
+    if not ok then
+      Utils.error("Failed to encode request body: " .. tostring(json_content), { title = "Avante" })
+      if handler_opts.on_stop then
+        handler_opts.on_stop({ reason = "error", error = { message = "Failed to encode request body: " .. tostring(json_content) } })
+      end
+      return
+    end
     fn.writefile(vim.split(json_content, "\n"), curl_body_file)
     curl_options = {
       headers = spec.headers,

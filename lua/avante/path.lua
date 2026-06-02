@@ -173,12 +173,43 @@ function History.load(bufnr, filename)
   return History.from_file(history_filepath) or History.new(bufnr)
 end
 
+--- Recursively strip UTF-8 surrogate code points (CESU-8: 0xED [0xA0-0xBF] [0x80-0xBF])
+--- from all string values in `value`, replacing each 3-byte sequence with U+FFFD.
+--- This prevents cjson from rejecting the JSON with "surrogates not allowed" when
+--- file content or tool results contain characters encoded in modified UTF-8.
+---@param value any
+---@return any
+local function deep_sanitize_utf8(value)
+  local t = type(value)
+  if t == "string" then
+    return (value:gsub("\xED[\xA0-\xBF][\x80-\xBF]", "\xEF\xBF\xBD"))
+  elseif t == "table" then
+    local out = {}
+    for k, v in pairs(value) do
+      out[deep_sanitize_utf8(k)] = deep_sanitize_utf8(v)
+    end
+    if vim.islist(value) then return vim.list_slice(out, 1) end
+    return out
+  else
+    return value
+  end
+end
+
 -- Saves the chat history for the given buffer.
 ---@param bufnr integer
 ---@param history avante.ChatHistory
 function History.save(bufnr, history)
   local history_filepath = History.get_filepath(bufnr, history.filename)
-  history_filepath:write(vim.json.encode(history), "w")
+  -- Sanitize surrogate code points before encoding so that history files
+  -- remain valid UTF-8 JSON even when tool results or file contents contain
+  -- CESU-8 / modified-UTF-8 surrogate bytes.
+  local ok, json_content = pcall(vim.json.encode, deep_sanitize_utf8(history))
+  if not ok then
+    -- Fallback: encode without sanitization (better to save something than nothing)
+    ok, json_content = pcall(vim.json.encode, history)
+    if not ok then return end
+  end
+  history_filepath:write(json_content, "w")
   History.save_latest_filename(bufnr, history.filename)
 end
 
@@ -295,8 +326,7 @@ function Prompt.get_templates_dir(project_root)
   -- get root directory of given bufnr
   local directory = Path:new(project_root)
   if Utils.get_os_name() == "windows" then
-    local win_path = vim.fs.abspath(tostring(directory)):gsub("^%a:", ""):gsub("^[/\\]+", "")
-    directory = Path:new(vim.fs.normalize(win_path))
+    directory = Path:new(vim.fs.abspath(tostring(directory)):gsub("^%a:", ""))
   end
   local cache_prompt_dir = Path:new(P.cache_path):joinpath(directory)
   if not cache_prompt_dir:exists() then cache_prompt_dir:mkdir({ parents = true }) end
