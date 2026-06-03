@@ -227,29 +227,38 @@ function M.func(input, opts)
     return nil, msg
   end
 
+  -- Guard against multiple scheduled callbacks trying to close the same timer.
+  -- vim.schedule_wrap can queue several ticks before any of them runs, so the
+  -- first callback that decides to stop must prevent the rest from closing again.
+  local timer_active = true
+  local function stop_timer()
+    if not timer_active then return end
+    timer_active = false
+    timer:stop()
+    timer:close()
+  end
+
   timer:start(
     poll_interval_ms,
     poll_interval_ms,
     vim.schedule_wrap(function()
+      if not timer_active then return end
       elapsed = elapsed + poll_interval_ms
       local d = DispatchRegistry.get(session_id, target.id)
       if not d then
-        timer:stop()
-        timer:close()
+        stop_timer()
         if on_complete then on_complete(nil, "Dispatch #" .. target.id .. " disappeared from registry") end
         return
       end
       if d.status ~= "running" then
-        timer:stop()
-        timer:close()
+        stop_timer()
         local result = format_result(d)
         compact_dispatch_messages(session_ctx, d.id)
         if on_complete then on_complete(result, nil) end
         return
       end
       if elapsed >= max_wait_ms then
-        timer:stop()
-        timer:close()
+        stop_timer()
         if on_complete then
           on_complete(
             nil,
