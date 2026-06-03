@@ -236,8 +236,12 @@ function M:get_rate_limit_sleep_time(headers)
 end
 
 -- Models that do not support the temperature parameter.
--- Claude 4+ generation models (new naming: claude-{tier}-{version}) deprecate temperature entirely.
-local function is_temperature_unsupported(model)
+-- Claude 4+ generation models (new naming: claude-{tier}-{version}) use always-on extended thinking,
+-- which is incompatible with the temperature parameter (API hard error if sent).
+-- See: https://docs.anthropic.com/en/docs/build-with-claude/extended-thinking#important-considerations
+---@param model string|nil
+---@return boolean
+function M.is_temperature_unsupported(model)
   if not model then return false end
   -- Claude 4+ models use new naming convention: claude-{tier}-{major}[-{minor}]-{date}
   -- e.g. claude-opus-4-20250514, claude-sonnet-4-5-20250929, claude-sonnet-4-20250514
@@ -265,10 +269,6 @@ function M:transform_tool(tool, use_prefix)
   local input_schema_properties, required = Utils.llm_tool_param_fields_to_json_schema(tool.param.fields)
   local tool_name = tool.name
   if use_prefix then tool_name = OAUTH_TOOL_PREFIX .. tool.name end
-  -- Ensure properties is always a JSON object (not array) even when empty
-  if not input_schema_properties or vim.tbl_isempty(input_schema_properties) then
-    input_schema_properties = vim.empty_dict()
-  end
   local tool_def = {
     name = tool_name,
     description = tool.get_description and tool.get_description() or tool.description,
@@ -277,9 +277,9 @@ function M:transform_tool(tool, use_prefix)
       properties = input_schema_properties,
       required = required,
     },
+    -- OAuth/claude-code beta requires discriminated tool type
+    type = use_prefix and "custom" or nil,
   }
-  -- OAuth/claude-code beta requires discriminated tool type
-  if use_prefix then tool_def.type = "custom" end
   return tool_def
 end
 
@@ -689,7 +689,7 @@ function M:parse_curl_args(prompt_opts)
   }, request_body)
 
   -- Strip temperature for models that don't support it (e.g. Opus 4 with always-on thinking)
-  if is_temperature_unsupported(provider_conf.model) then body.temperature = nil end
+  if M.is_temperature_unsupported(provider_conf.model) then body.temperature = nil end
 
   return {
     url = Utils.url_join(provider_conf.endpoint, api_path),
@@ -718,7 +718,9 @@ function M.on_error(result)
     error_msg = "You don't have any credits or have exceeded your quota. Please check your plan and billing details."
   elseif error_type == "invalid_request_error" and error_msg:match("temperature") then
     error_msg = error_msg
-      .. " Try removing 'temperature' from your provider's extra_request_body config."
+      .. "\nPossible fixes:"
+      .. "\n  - Remove 'temperature' from your provider's extra_request_body config"
+      .. "\n  - Ensure the temperature value is between 0 and 1"
   end
 
   Utils.error(error_msg, { once = true, title = "Avante" })
