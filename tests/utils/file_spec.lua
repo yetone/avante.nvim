@@ -1,6 +1,13 @@
-local File = require("avante.utils.file")
 local mock = require("luassert.mock")
 local stub = require("luassert.stub")
+
+package.loaded["plenary.filetype"] = package.loaded["plenary.filetype"]
+  or {
+    detect = function(filepath) return vim.filetype.match({ filename = filepath }) end,
+  }
+
+local Filetype = package.loaded["plenary.filetype"]
+local File = require("avante.utils.file")
 
 describe("File", function()
   local test_file = "test.txt"
@@ -71,12 +78,10 @@ describe("File", function()
   end)
 
   describe("get_file_icon", function()
-    local Filetype
     local devicons_mock
 
     before_each(function()
-      -- Mock plenary.filetype
-      Filetype = mock(require("plenary.filetype"), true)
+      Filetype = mock(Filetype, true)
       -- Prepare devicons mock
       devicons_mock = {
         get_icon = stub().returns(""),
