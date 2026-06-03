@@ -1112,11 +1112,7 @@ M._defaults = {
     throttle = 600,
   },
   --- Dispatch agent configuration
-  --- Controls how dispatch_agent selects providers for sub-tasks
->>>>>>> feat/async-dispatch-system
-=======
-  --- Controls how dispatch_agent selects providers for sub-tasks
->>>>>>> feat/async-dispatch-system
+  --- Controls how dispatch_agent selects providers for sub-tasks (e.g. file reading)
   dispatch = {
     --- Maximum ratio of a provider's context_window that a dispatch request+file may occupy.
     --- The cheapest provider whose context fits the payload within this ratio is selected.
