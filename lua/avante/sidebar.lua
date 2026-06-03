@@ -202,6 +202,13 @@ function Sidebar:new(id)
   }, Sidebar)
 end
 
+function Sidebar.place_sign_at_first_line(bufnr)
+  local group = "avante_input_prompt_group"
+
+  fn.sign_unplace(group, { buffer = bufnr })
+  fn.sign_place(0, group, "AvanteInputPromptSign", bufnr, { lnum = 1 })
+end
+
 function Sidebar:delete_autocmds()
   if self.augroup then api.nvim_del_augroup_by_id(self.augroup) end
   self.augroup = nil
@@ -2991,7 +2998,7 @@ function Sidebar:get_generate_prompts_options(request, cb)
 
   -- Get file extension safely
   local buf_name = api.nvim_buf_get_name(self.code.bufnr)
-  if buf_name and buf_name ~= "" then file_ext = vim.fn.fnamemodify(buf_name, ":e") end
+  if buf_name and buf_name ~= "" then file_ext = fn.fnamemodify(buf_name, ":e") end
 
   ---@type AvanteSelectedCode | nil
   local selected_code = nil
@@ -3606,8 +3613,10 @@ function Sidebar:handle_submit(request)
       })
       self:add_history_messages({ message })
       self:save_history()
-      -- Re-render the chat to show the dispatch result.
-      -- Guard against missing/closed sidebar containers.
+>>>>>>> feat/async-dispatch-system
+      if Utils.is_valid_container(self.containers.result, true) then
+=======
+>>>>>>> feat/async-dispatch-system
       if Utils.is_valid_container(self.containers.result, true) then
         pcall(function() self:update_content_with_history() end)
       end
@@ -3667,14 +3676,7 @@ function Sidebar:create_input_container()
   self.containers.input:mount()
   PromptLogger.init()
 
-  local function place_sign_at_first_line(bufnr)
-    local group = "avante_input_prompt_group"
-
-    fn.sign_unplace(group, { buffer = bufnr })
-    fn.sign_place(0, group, "AvanteInputPromptSign", bufnr, { lnum = 1 })
-  end
-
-  place_sign_at_first_line(self.containers.input.bufnr)
+  self.place_sign_at_first_line(self.containers.input.bufnr)
 
   if Utils.in_visual_mode() then
     -- Exit visual mode. Unfortunately there is no appropriate command
@@ -3726,75 +3728,6 @@ function Sidebar:create_input_container()
   end
 
   api.nvim_set_option_value("filetype", "AvanteInput", { buf = self.containers.input.bufnr })
-
-  -- Setup completion
-  api.nvim_create_autocmd("InsertEnter", {
-    group = self.augroup,
-    buffer = self.containers.input.bufnr,
-    once = true,
-    desc = "Setup the completion of helpers in the input buffer",
-    callback = function() end,
-  })
-
-  local debounced_show_input_hint = Utils.debounce(function()
-    if vim.api.nvim_win_is_valid(self.containers.input.winid) then self:show_input_hint() end
-  end, 200)
-  api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "VimResized" }, {
-    group = self.augroup,
-    buffer = self.containers.input.bufnr,
-    callback = function()
-      debounced_show_input_hint()
-      place_sign_at_first_line(self.containers.input.bufnr)
-    end,
-  })
-
-  api.nvim_create_autocmd("QuitPre", {
-    group = self.augroup,
-    buffer = self.containers.input.bufnr,
-    callback = function() self:close_input_hint() end,
-  })
-
-  api.nvim_create_autocmd("WinClosed", {
-    group = self.augroup,
-    pattern = tostring(self.containers.input.winid),
-    callback = function() self:close_input_hint() end,
-  })
-
-  api.nvim_create_autocmd("BufEnter", {
-    group = self.augroup,
-    buffer = self.containers.input.bufnr,
-    callback = function()
-      if Config.windows.ask.start_insert then vim.cmd("noautocmd startinsert!") end
-    end,
-  })
-
-  api.nvim_create_autocmd("BufLeave", {
-    group = self.augroup,
-    buffer = self.containers.input.bufnr,
-    callback = function()
-      vim.cmd("noautocmd stopinsert")
-      self:close_input_hint()
-    end,
-  })
-
-  -- Update hint on mode change as submit key sequence may be different
-  api.nvim_create_autocmd("ModeChanged", {
-    group = self.augroup,
-    buffer = self.containers.input.bufnr,
-    callback = function() self:show_input_hint() end,
-  })
-
-  api.nvim_create_autocmd("WinEnter", {
-    group = self.augroup,
-    callback = function()
-      local cur_win = api.nvim_get_current_win()
-      if self.containers.input and cur_win == self.containers.input.winid then
-        self:show_input_hint()
-      else
-        self:close_input_hint()
-      end
-    end,
-  })
 end
 
 -- FIXME: this is used by external plugin users
