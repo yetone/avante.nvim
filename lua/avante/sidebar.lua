@@ -3156,6 +3156,14 @@ function Sidebar:_save_chat_history()
       if self.chat_history.system_prompt then new_stub.system_prompt = self.chat_history.system_prompt end
       if self.chat_history.tokens_usage then new_stub.tokens_usage = self.chat_history.tokens_usage end
       if self.chat_history.acp_session_id then new_stub.acp_session_id = self.chat_history.acp_session_id end
+      -- Preserve the instance identity (name + id).  This is a file-level fork
+      -- only — the logical session and its human-readable name must NOT change.
+      -- Path.history.new() generates a fresh random name; release it and keep
+      -- the existing one so the sidebar header and IPC registration stay stable.
+      local Names = require("avante.utils.names")
+      Names.release(new_stub.instance_name)
+      new_stub.instance_name = self.chat_history.instance_name
+      new_stub.instance_id = self.chat_history.instance_id
       self.chat_history = new_stub
       self.current_history_filename = new_stub.filename
       self._chat_history_mtime = nil -- will be set after the save below
