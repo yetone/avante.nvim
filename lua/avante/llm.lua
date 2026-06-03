@@ -473,9 +473,14 @@ function M.generate_prompts(opts)
           end
         end
       else
-        -- Different role -- add as a distinct entry (shallow-copy so we do not
-        -- mutate the caller's history_messages array).
-        table.insert(normalized, vim.tbl_extend("keep", {}, msg))
+        -- Different role -- add as a distinct entry.  We deep-copy so that the
+        -- merge branches above (which call table.insert on prev.content) never
+        -- mutate the original history message's content table.  A shallow copy
+        -- via vim.tbl_extend would leave prev.content pointing at the same
+        -- Lua table as the source message; subsequent merges would then
+        -- corrupt the caller's history_messages, causing duplicate tool_use /
+        -- tool_result blocks to accumulate across recursive _stream calls.
+        table.insert(normalized, vim.deepcopy(msg))
       end
     end
     -- If the final message is still "assistant" after merging, drop it so the
