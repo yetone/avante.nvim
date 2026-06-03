@@ -3849,10 +3849,7 @@ function Sidebar:handle_submit(request)
       })
       self:add_history_messages({ message })
       self:save_history()
->>>>>>> feat/async-dispatch-system
-      if Utils.is_valid_container(self.containers.result, true) then
-=======
->>>>>>> feat/async-dispatch-system
+      -- Guard against missing/closed sidebar containers.
       if Utils.is_valid_container(self.containers.result, true) then
         pcall(function() self:update_content_with_history() end)
       end
