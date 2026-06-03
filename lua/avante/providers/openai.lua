@@ -24,10 +24,6 @@ function M:is_disable_stream() return false end
 ---@return AvanteOpenAITool
 function M:transform_tool(tool)
   local input_schema_properties, required = Utils.llm_tool_param_fields_to_json_schema(tool.param.fields)
-  -- Ensure properties is always a JSON object (not array) even when empty
-  if not input_schema_properties or vim.tbl_isempty(input_schema_properties) then
-    input_schema_properties = vim.empty_dict()
-  end
   ---@type AvanteOpenAIToolFunctionParameters
   local parameters = {
     type = "object",
