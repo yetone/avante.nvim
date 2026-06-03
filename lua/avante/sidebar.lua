@@ -270,8 +270,16 @@ function Sidebar:open(opts)
     self:focus()
   else
     if in_visual_mode or opts.selection then
+      -- Preserve the history pin across the close/reset cycle so that this
+      -- sidebar does not lose its identity and fall back to reading
+      -- metadata.json (a shared last-writer-wins pointer that races between
+      -- all concurrent instances).  reset() was designed to clear the pin
+      -- only when the sidebar is truly starting from scratch (first open);
+      -- for visual-mode re-renders we are staying in the same session.
+      local saved_filename = self.current_history_filename
       self:close()
       self:reset()
+      self.current_history_filename = saved_filename
       self:initialize()
       if opts.selection then self.code.selection = opts.selection end
       self:render(opts)
@@ -4106,12 +4114,20 @@ function Sidebar:render(opts)
       on_detach = function(_, _)
         vim.schedule(function()
           if not self.code.winid or not api.nvim_win_is_valid(self.code.winid) then return end
-          local bufnr = api.nvim_win_get_buf(self.code.winid)
-          self.code.bufnr = bufnr
-          -- The code buffer changed (different project/root), so let
-          -- reload_chat_history() pick up the correct file from metadata.json
-          -- for the new buffer rather than staying pinned to the old file.
-          self.current_history_filename = nil
+          local old_root = Utils.root.get({ buf = self.code.bufnr })
+          local new_bufnr = api.nvim_win_get_buf(self.code.winid)
+          local new_root = Utils.root.get({ buf = new_bufnr })
+          self.code.bufnr = new_bufnr
+          -- Only drop the history pin when the buffer genuinely moved to a
+          -- different project root.  Within the same project the pin MUST be
+          -- kept so that reload_chat_history() continues to load *this*
+          -- instance's own file instead of reading metadata.json — which is a
+          -- shared, last-writer-wins pointer that races between all concurrent
+          -- instances saving their histories.  Without this guard, any buffer
+          -- detach (e.g. :bdelete of a file in the same project) would clear
+          -- the pin and cause the sidebar to converge onto whichever instance
+          -- wrote metadata.json most recently.
+          if old_root ~= new_root then self.current_history_filename = nil end
           self:reload_chat_history()
         end)
       end,
