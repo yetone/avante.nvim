@@ -3,6 +3,19 @@ local Utils = require("avante.utils")
 local Helpers = require("avante.llm_tools.helpers")
 local Base = require("avante.llm_tools.base")
 
+--- Maximum output size in bytes before results are truncated.
+--- Keeps context window usage bounded when searching large codebases.
+local MAX_GREP_OUTPUT_BYTES = 50000
+
+--- Grep tool: search for a pattern across the project using ripgrep (rg), falling
+--- back to ag or grep if rg is unavailable.
+---
+--- Results include file path, line number, and a configurable number of context
+--- lines around each match, so the LLM can understand matches without a separate
+--- file-read step.
+---
+--- Output is capped at MAX_GREP_OUTPUT_BYTES bytes and annotated with a truncation
+--- notice when the limit is hit.
 ---@class AvanteLLMTool
 local M = setmetatable({}, Base)
 
@@ -98,62 +111,30 @@ function M.func(input, opts)
     -- ripgrep: return content with line numbers and context
     cmd = { search_cmd, "-n", "--hidden", "--no-heading" }
     -- Add context lines
-    if context_lines > 0 then
-      table.insert(cmd, "-C")
-      table.insert(cmd, tostring(context_lines))
-    end
+    if context_lines > 0 then vim.list_extend(cmd, { "-C", tostring(context_lines) }) end
     if input.case_sensitive then
       table.insert(cmd, "--case-sensitive")
     else
       table.insert(cmd, "--ignore-case")
     end
-    if input.include_pattern then
-      table.insert(cmd, "--glob")
-      table.insert(cmd, input.include_pattern)
-    end
-    if input.exclude_pattern then
-      table.insert(cmd, "--glob")
-      table.insert(cmd, "!" .. input.exclude_pattern)
-    end
+    if input.include_pattern then vim.list_extend(cmd, { "--glob", input.include_pattern }) end
+    if input.exclude_pattern then vim.list_extend(cmd, { "--glob", "!" .. input.exclude_pattern }) end
     -- Limit output to avoid overwhelming context
-    table.insert(cmd, "--max-count")
-    table.insert(cmd, "50")
-    table.insert(cmd, input.query)
-    table.insert(cmd, abs_path)
+    vim.list_extend(cmd, { "--max-count", "50", input.query, abs_path })
   elseif search_cmd:find("ag") then
     cmd = { search_cmd, "--nocolor", "--nogroup", "--hidden" }
-    if context_lines > 0 then
-      table.insert(cmd, "-C")
-      table.insert(cmd, tostring(context_lines))
-    end
+    if context_lines > 0 then vim.list_extend(cmd, { "-C", tostring(context_lines) }) end
     if input.case_sensitive then table.insert(cmd, "--case-sensitive") end
-    if input.include_pattern then
-      table.insert(cmd, "--ignore")
-      table.insert(cmd, "!" .. input.include_pattern)
-    end
-    if input.exclude_pattern then
-      table.insert(cmd, "--ignore")
-      table.insert(cmd, input.exclude_pattern)
-    end
-    table.insert(cmd, input.query)
-    table.insert(cmd, abs_path)
+    if input.include_pattern then vim.list_extend(cmd, { "--ignore", "!" .. input.include_pattern }) end
+    if input.exclude_pattern then vim.list_extend(cmd, { "--ignore", input.exclude_pattern }) end
+    vim.list_extend(cmd, { input.query, abs_path })
   elseif search_cmd:find("grep") then
     cmd = { "grep", "-rnH" }
-    if context_lines > 0 then
-      table.insert(cmd, "-C")
-      table.insert(cmd, tostring(context_lines))
-    end
+    if context_lines > 0 then vim.list_extend(cmd, { "-C", tostring(context_lines) }) end
     if not input.case_sensitive then table.insert(cmd, "-i") end
-    if input.include_pattern then
-      table.insert(cmd, "--include")
-      table.insert(cmd, input.include_pattern)
-    end
-    if input.exclude_pattern then
-      table.insert(cmd, "--exclude")
-      table.insert(cmd, input.exclude_pattern)
-    end
-    table.insert(cmd, input.query)
-    table.insert(cmd, abs_path)
+    if input.include_pattern then vim.list_extend(cmd, { "--include", input.include_pattern }) end
+    if input.exclude_pattern then vim.list_extend(cmd, { "--exclude", input.exclude_pattern }) end
+    vim.list_extend(cmd, { input.query, abs_path })
   end
 
   Utils.debug("cmd", table.concat(cmd, " "))
@@ -162,9 +143,8 @@ function M.func(input, opts)
   local output = result.stdout or ""
 
   -- Truncate if too large (avoid blowing up context)
-  local max_output_size = 50000
-  if #output > max_output_size then
-    output = output:sub(1, max_output_size) .. "\n\n...[output truncated, " .. #output .. " total bytes]"
+  if #output > MAX_GREP_OUTPUT_BYTES then
+    output = output:sub(1, MAX_GREP_OUTPUT_BYTES) .. "\n\n...[output truncated, " .. #output .. " total bytes]"
   end
 
   if output == "" then return vim.json.encode({ matches = {}, total = 0 }), nil end
