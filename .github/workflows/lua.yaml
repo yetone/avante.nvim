@@ -24,45 +24,16 @@ jobs:
       matrix:
         include:
           - os: ubuntu-24.04
-            rev: v0.11.0
     steps:
       - uses: actions/checkout@v6
 
-      - id: todays-date
-        run: echo "date=$(date +%F)" >> "$GITHUB_OUTPUT"
-
-      - name: Restore cache for today's nightly.
-        id: cache-neovim
-        uses: actions/cache@v4
-        with:
-          path: _neovim
-          key: ${{ runner.os }}-${{ matrix.rev }}-${{ steps.todays-date.outputs.date }}
-
-      - name: Download neovim ${{ matrix.rev }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          NEOVIM_VERSION: ${{ matrix.rev }}
-        if: steps.cache-neovim.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p _neovim
-          gh release download \
-            --output - \
-            --pattern nvim-linux-x86_64.tar.gz \
-            --repo neovim/neovim \
-            "$NEOVIM_VERSION" | tar xvz --strip-components 1 --directory _neovim
-
-      - name: Prepare
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ripgrep
-          sudo apt-get install -y silversearcher-ag
-          echo "${PWD}/_neovim/bin" >> "$GITHUB_PATH"
-          echo VIM="${PWD}/_neovim/share/nvim/runtime" >> "$GITHUB_ENV"
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v16
 
       - name: Run tests
         run: |
-          nvim --version
-          make luatest
+          nix develop .#ci --command nvim --version
+          nix develop .#ci --command make luatest
 
   typecheck:
     name: Typecheck
