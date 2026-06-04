@@ -1,4 +1,4 @@
-local api, fn = vim.api, vim.fn
+local api = vim.api
 
 local Config = require("avante.config")
 local Utils = require("avante.utils")
@@ -244,7 +244,6 @@ end
 ---@return AvanteDefaultBaseProvider provider_opts
 ---@return table<string, any> request_body
 function M.parse_config(opts)
-  ---@type AvanteDefaultBaseProvider
   local provider_opts = {}
 
   for key, value in pairs(opts) do

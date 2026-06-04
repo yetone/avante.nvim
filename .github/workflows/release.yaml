@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     branches: ["release-v*"]
-    tags: [v\d+\.\d+\.\d+]
+    tags: ["v*"]
 
 permissions:
   contents: write
@@ -65,7 +65,7 @@ jobs:
             rust_target: x86_64-unknown-linux-gnu
             docker_platform: linux/amd64
             container: quay.io/pypa/manylinux2014_x86_64 # for glibc 2.17
-          - os: macos-14
+          - os: macos-latest
             os_name: darwin
             arch: x86_64
             rust_target: x86_64-apple-darwin
@@ -97,7 +97,7 @@ jobs:
         if: ${{ matrix.config.container == null }}
         run: |
           # TODO leverage AvanteBuild
-          cargo build --release --features ${{ matrix.feature }}
+          cargo build --release --features ${{ matrix.feature }} --target ${{ matrix.config.rust_target }}
 
       - name: Build all crates with glibc 2.17 # for glibc 2.17
         if: ${{ matrix.config.container != null }}
@@ -116,19 +116,21 @@ jobs:
         shell: bash
         run: |
           mkdir -p results
-          if [ "${{ matrix.config.os_name }}" == "linux" ]; then
-            CARGO_EXT="so"
-          else
-            # cargo generates .dylib extensions
+          if [ "${{ matrix.config.os_name }}" == "darwin" ]; then
             CARGO_EXT="dylib"
+            TARGET_DIR="target/${{ matrix.config.rust_target }}/release"
+          else
+            CARGO_EXT="so"
+            TARGET_DIR="target/release"
           fi
-          # we rename extension to .so even on darwin to let neovim find the library
-          EXT="so"
-          cp -v target/release/libavante_templates.$CARGO_EXT results/avante_templates.$EXT
-          cp -v target/release/libavante_tokenizers.$CARGO_EXT results/avante_tokenizers.$EXT
-          cp -v target/release/libavante_repo_map.$CARGO_EXT results/avante_repo_map.$EXT
-          cp -v target/release/libavante_html2md.$CARGO_EXT results/avante_html2md.$EXT
 
+          # Rename the extension to .so on all Unix platforms
+          EXT="so"
+
+          cp -v $TARGET_DIR/libavante_templates.$CARGO_EXT results/avante_templates.$EXT
+          cp -v $TARGET_DIR/libavante_tokenizers.$CARGO_EXT results/avante_tokenizers.$EXT
+          cp -v $TARGET_DIR/libavante_repo_map.$CARGO_EXT results/avante_repo_map.$EXT
+          cp -v $TARGET_DIR/libavante_html2md.$CARGO_EXT results/avante_html2md.$EXT
           cd results
           tar zcvf avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.tar.gz *.${EXT}
 
@@ -138,10 +140,11 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path results
 
-          Copy-Item -Path "target\release\avante_templates.dll" -Destination "results\avante_templates.dll"
-          Copy-Item -Path "target\release\avante_tokenizers.dll" -Destination "results\avante_tokenizers.dll"
-          Copy-Item -Path "target\release\avante_repo_map.dll" -Destination "results\avante_repo_map.dll"
-          Copy-Item -Path "target\release\avante_html2md.dll" -Destination "results\avante_html2md.dll"
+          $TargetDir = "target\${{ matrix.config.rust_target }}\release"
+          Copy-Item -Path "$TargetDir\avante_templates.dll" -Destination "results\avante_templates.dll"
+          Copy-Item -Path "$TargetDir\avante_tokenizers.dll" -Destination "results\avante_tokenizers.dll"
+          Copy-Item -Path "$TargetDir\avante_repo_map.dll" -Destination "results\avante_repo_map.dll"
+          Copy-Item -Path "$TargetDir\avante_html2md.dll" -Destination "results\avante_html2md.dll"
 
           Set-Location -Path results
 
