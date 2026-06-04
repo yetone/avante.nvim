@@ -642,7 +642,6 @@ M._defaults = {
       timeout = 30000, -- Timeout in milliseconds
       context_window = 200000,
       extra_request_body = {
-        -- temperature = 0.75,
         max_tokens = 64000,
       },
     },
@@ -749,8 +748,6 @@ M._defaults = {
       model = "claude-opus-4-8",
       timeout = 30000, -- Timeout in milliseconds
       extra_request_body = {
-        -- anthropic doesn't let you set the temp anymore
-        --temperature = 0.75,
         max_tokens = 20480,
       },
     },
