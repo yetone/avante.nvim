@@ -76,12 +76,21 @@ function M.show(selector)
           end
         end)
       end,
+      write_selection = function(picker)
+        if type(selector.on_write_item) ~= "function" then return end
+        local selections = picker:selected({ fallback = true })
+        if #selections == 0 then return end
+        for _, selection in ipairs(selections) do
+          selector.on_write_item(selection.item.id)
+        end
+      end,
     },
 
     win = {
       input = {
         keys = {
           ["<C-DEL>"] = { "delete_selection", mode = { "i", "n" } },
+          ["<C-w>"] = { "write_selection", mode = { "i", "n" } },
         },
       },
     },

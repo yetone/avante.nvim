@@ -66,6 +66,16 @@ function M.show(selector)
           end,
           reload = true,
         },
+        ["ctrl-w"] = {
+          fn = function(selected)
+            if type(selector.on_write_item) ~= "function" then return end
+            if not selected or #selected == 0 then return end
+            for _, entry in ipairs(selected) do
+              local id = title_to_id[entry]
+              if id then selector.on_write_item(id) end
+            end
+          end,
+        },
       },
     }, selector.provider_opts)
   )

@@ -264,12 +264,27 @@ function M.select_acp_mode() require("avante.acp_config_selector").open_mode() e
 
 function M.select_history()
   local buf = vim.api.nvim_get_current_buf()
-  require("avante.history_selector").open(buf, function(filename)
+  require("avante.history_selector").open(buf, function(filepath)
     vim.api.nvim_buf_call(buf, function()
       if not require("avante").is_sidebar_open() then require("avante").open_sidebar({}) end
       local Path = require("avante.path")
-      Path.history.save_latest_filename(buf, filename)
+      -- filepath is the full absolute path to the selected history JSON.
+      -- plenary.path:joinpath() with an absolute path resolves to that absolute path,
+      -- so passing the full path works transparently for both same-project and
+      -- cross-project selections.
+      Path.history.save_latest_filename(buf, filepath)
       local sidebar = require("avante").get()
+      sidebar.current_history_filename = filepath
+>>>>>>> 1f930ab (prog)
+=======
+      -- filepath is the full absolute path to the selected history JSON.
+      -- plenary.path:joinpath() with an absolute path resolves to that absolute path,
+      -- so passing the full path works transparently for both same-project and
+      -- cross-project selections.
+      Path.history.save_latest_filename(buf, filepath)
+      local sidebar = require("avante").get()
+      sidebar.current_history_filename = filepath
+>>>>>>> 1f930ab (prog)
       sidebar:update_content_with_history()
       sidebar:create_todos_container()
       sidebar:initialize_token_count()

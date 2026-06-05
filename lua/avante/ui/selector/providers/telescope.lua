@@ -104,6 +104,12 @@ function M.show(selector)
               end
             end)
           end, { desc = "delete_selection" })
+          if type(selector.on_write_item) == "function" then
+            map("i", "<c-w>", function()
+              local entry = action_state.get_selected_entry()
+              if entry then selector.on_write_item(entry.value) end
+            end, { desc = "write_selection" })
+          end
           actions.select_default:replace(function()
             local picker = action_state.get_current_picker(prompt_bufnr)
 
