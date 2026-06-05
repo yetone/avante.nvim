@@ -24,6 +24,7 @@ jobs:
       matrix:
         include:
           - os: ubuntu-24.04
+          - os: macos-latest
     steps:
       - uses: actions/checkout@v6
 
