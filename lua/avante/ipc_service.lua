@@ -228,6 +228,7 @@ end
 function M.register(name, instance_id, description, project)
   _instance_id = instance_id
   _instance_name = name
+  Utils.debug("ipc_service: register", name, instance_id, project)
   post_async("/api/v1/register", {
     name = name,
     instance_id = instance_id,
@@ -242,6 +243,7 @@ end
 ---Unregister this instance (call on sidebar close).
 function M.unregister()
   if not _instance_id then return end
+  Utils.debug("ipc_service: unregister", _instance_id, _instance_name)
   M.stop_timers()
   post_async("/api/v1/unregister", { instance_id = _instance_id }, nil)
   _instance_id = nil
@@ -343,6 +345,7 @@ end
 ---Start periodic heartbeat and message-poll timers.
 ---@param on_message fun(from_name: string, message: string)
 function M.start_timers(on_message)
+  Utils.debug("ipc_service: start_timers for", _instance_name)
   _on_message_cb = on_message
 
   if _heartbeat_timer then
@@ -362,6 +365,7 @@ end
 
 ---Stop heartbeat and poll timers.
 function M.stop_timers()
+  Utils.debug("ipc_service: stop_timers for", _instance_name)
   if _heartbeat_timer then
     _heartbeat_timer:stop()
     _heartbeat_timer:close()

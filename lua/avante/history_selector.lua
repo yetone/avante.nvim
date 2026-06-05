@@ -58,7 +58,10 @@ function M.open(bufnr, cb)
       cb(item_ids[1])
     end,
     get_preview_content = function(item_id)
-      local history = Path.history.load(vim.api.nvim_get_current_buf(), item_id)
+      -- Use the captured bufnr (the code buffer) rather than the current buffer,
+      -- which inside the selector might be a floating/preview window pointing at
+      -- a completely different project root.
+      local history = Path.history.load(bufnr, item_id)
       local Sidebar = require("avante.sidebar")
       local content = Sidebar.render_history_content(history)
       return content, "markdown"

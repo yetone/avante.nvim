@@ -1808,6 +1808,7 @@ end
 --- Initialize the sidebar instance.
 --- @return avante.Sidebar The Sidebar instance.
 function Sidebar:initialize()
+  Utils.debug("Sidebar:initialize bufnr=" .. tostring(api.nvim_get_current_buf()))
   self.code.winid = api.nvim_get_current_win()
   self.code.bufnr = api.nvim_get_current_buf()
   self.code.selection = Utils.get_visual_selection_and_range()
@@ -3003,13 +3004,18 @@ When action="send":
 end
 
 function Sidebar:reload_chat_history()
+  Utils.debug("Sidebar:reload_chat_history called, pinned_file=" .. tostring(self.current_history_filename))
   self.token_count = nil
-  if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then return end
+  if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then
+    Utils.debug("Sidebar:reload_chat_history aborted: invalid bufnr")
+    return
+  end
 
   local Avante = require("avante")
   -- Deregister the old instance name before loading the new history so that
   -- stale entries don't accumulate across /new cycles.
   if self.chat_history and self.chat_history.instance_name then
+    Utils.debug("Sidebar:reload_chat_history deregistering", self.chat_history.instance_name)
     Avante.instance_registry[self.chat_history.instance_name] = nil
   end
 
@@ -3017,6 +3023,7 @@ function Sidebar:reload_chat_history()
   -- concurrent Avante instance saving to the shared metadata.json cannot
   -- hijack this sidebar's history.
   self.chat_history = Path.history.load(self.code.bufnr, self.current_history_filename)
+  Utils.debug("Sidebar:reload_chat_history loaded", tostring(self.chat_history and self.chat_history.filename), tostring(self.chat_history and self.chat_history.instance_name))
 
   -- Isolation guard: if the history we just loaded is already owned by a
   -- *different* live sidebar, fork to a fresh independent history.  This
@@ -3029,6 +3036,7 @@ function Sidebar:reload_chat_history()
       -- The loaded history is already in use — branch off to a fresh session.
       -- The fresh history is intentionally not saved here; it will be written
       -- to disk the first time the user sends a message (via save_history()).
+      Utils.debug("Sidebar:reload_chat_history isolation guard triggered for", self.chat_history.instance_name, "— forking fresh history")
       local fresh = Path.history.new(self.code.bufnr)
       self.chat_history = fresh
       self.current_history_filename = fresh.filename
@@ -3049,6 +3057,7 @@ function Sidebar:reload_chat_history()
   -- Register this sidebar under its (now-unique) instance name.
   if self.chat_history and self.chat_history.instance_name then
     Avante.instance_registry[self.chat_history.instance_name] = self
+    Utils.debug("Sidebar:reload_chat_history registered", self.chat_history.instance_name)
   end
   self._history_cache_invalidated = true
   -- Update the result header to reflect the (possibly new) instance name.
@@ -3058,6 +3067,55 @@ function Sidebar:reload_chat_history()
   if Config.ipc_service and Config.ipc_service.enabled then
     vim.schedule(function() self:ipc_register() end)
   end
+end
+
+--- Explicitly switch this sidebar to a selected history file.
+--- Unlike reload_chat_history(), this does NOT apply the isolation guard — the
+--- user intentionally chose this history, so we allow it even if another sidebar
+--- in the same session also holds that instance_name.  The "other" sidebar will
+--- naturally receive a fresh identity on its next reload.
+---@param filename string  Relative filename as returned by Path.history.list()
+function Sidebar:switch_to_history(filename)
+  Utils.debug("Sidebar:switch_to_history", filename)
+  local Avante = require("avante")
+
+  -- Release the current instance from the registry.
+  if self.chat_history and self.chat_history.instance_name then
+    Avante.instance_registry[self.chat_history.instance_name] = nil
+  end
+
+  -- Load the requested history directly — no isolation guard.
+  local history = Path.history.load(self.code.bufnr, filename)
+  if not history then
+    Utils.debug("Sidebar:switch_to_history load returned nil, aborting")
+    return
+  end
+
+  -- If another sidebar currently owns this instance_name, evict it so it will
+  -- pick up a fresh identity on its next reload cycle.
+  if history.instance_name then
+    local prev_owner = Avante.instance_registry[history.instance_name]
+    if prev_owner and prev_owner ~= self then
+      Utils.debug("Sidebar:switch_to_history evicting previous owner of", history.instance_name)
+      prev_owner.current_history_filename = nil
+      prev_owner._history_cache_invalidated = true
+    end
+  end
+
+  self.chat_history = history
+  self.current_history_filename = filename
+  self._chat_history_mtime = nil -- mtime will be refreshed on next explicit save
+  self.token_count = nil
+  self._history_cache_invalidated = true
+
+  -- Register under the new identity.
+  if history.instance_name then Avante.instance_registry[history.instance_name] = self end
+
+  vim.schedule(function() self:render_result() end)
+  if Config.ipc_service and Config.ipc_service.enabled then
+    vim.schedule(function() self:ipc_register() end)
+  end
+  Utils.debug("Sidebar:switch_to_history done", filename, history.instance_name)
 end
 
 --- Register this sidebar with the cross-process IPC service.

@@ -267,12 +267,15 @@ function M.select_history()
       if not require("avante").is_sidebar_open() then require("avante").open_sidebar({}) end
       local Path = require("avante.path")
       -- Update the global metadata pointer so the NEXT fresh instance opens
-      -- the right file, but also pin THIS sidebar to the selected file so
-      -- it doesn't get hijacked by a concurrent instance's save.
+      -- the right file.
       Path.history.save_latest_filename(buf, filename)
       local sidebar = require("avante").get()
-      sidebar.current_history_filename = filename
-      sidebar:update_content_with_history()
+      -- Use switch_to_history() which bypasses the isolation guard — the user
+      -- explicitly picked this history so it must be loaded as-is even if
+      -- another sidebar currently holds the same instance_name.
+      sidebar:switch_to_history(filename)
+      -- Re-render the content with the newly loaded history.
+      sidebar:update_content("")
       sidebar:create_todos_container()
       sidebar:initialize_token_count()
       vim.schedule(function() sidebar:focus_input() end)

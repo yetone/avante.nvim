@@ -49,18 +49,46 @@ end
 ---@return avante.ChatHistory[]
 function History.list(bufnr)
   local history_dir = History.get_history_dir(bufnr)
-  local files = vim.fn.glob(tostring(history_dir:joinpath("*.json")), true, true)
   local latest_filename = History.get_latest_filename(bufnr, false)
   local res = {}
-  for _, filename in ipairs(files) do
-    if not filename:match("metadata.json") then
-      local filepath = Path:new(filename)
+
+  Utils.debug("History.list scanning", tostring(history_dir))
+
+  -- New format: per-instance subdirectories (<instance_name>/*.json)
+  local subdirs = Scan.scan_dir(tostring(history_dir), { depth = 1, only_dirs = true, add_dirs = true })
+  for _, subdir_path in ipairs(subdirs) do
+    local subdir = Path:new(subdir_path)
+    local instance_dirname = filepath_to_filename(subdir)
+    local json_files = vim.fn.glob(tostring(subdir:joinpath("*.json")), true, true)
+    table.sort(json_files) -- 0.json first for consistency
+    for _, json_file in ipairs(json_files) do
+      local filepath = Path:new(json_file)
       local history = History.from_file(filepath)
-      if history then table.insert(res, history) end
+      if history then
+        -- Override filename with path relative to history_dir so callers use
+        -- the correct relative key (e.g. "swift-fox/0.json").
+        history.filename = instance_dirname .. "/" .. filepath_to_filename(filepath)
+        Utils.debug("History.list found (new)", history.filename, history.instance_name)
+        table.insert(res, history)
+      end
     end
   end
-  --- sort by timestamp
-  --- sort by latest_filename
+
+  -- Legacy format: flat *.json files directly inside history_dir
+  local flat_files = vim.fn.glob(tostring(history_dir:joinpath("*.json")), true, true)
+  for _, file_path in ipairs(flat_files) do
+    if not file_path:match("metadata.json") then
+      local filepath = Path:new(file_path)
+      local history = History.from_file(filepath)
+      if history then
+        history.filename = filepath_to_filename(filepath) -- just basename for legacy
+        Utils.debug("History.list found (legacy)", history.filename, history.instance_name)
+        table.insert(res, history)
+      end
+    end
+  end
+
+  -- Sort: latest_filename pinned first, then descending by last-message timestamp
   table.sort(res, function(a, b)
     local H = require("avante.history")
     if a.filename == latest_filename then return true end
@@ -128,8 +156,11 @@ end
 
 ---@param bufnr integer
 function History.new(bufnr)
-  local filepath = History.get_latest_filepath(bufnr, true)
   local instance_name = Names.generate()
+  -- New layout: one subfolder per instance, history stored as 0.json inside it.
+  -- e.g.  <history_dir>/swift-fox/0.json
+  local filename = instance_name .. "/0.json"
+  Utils.debug("History.new creating", filename, instance_name)
   ---@type avante.ChatHistory
   local history = {
     title = "untitled",
@@ -137,7 +168,7 @@ function History.new(bufnr)
     entries = {},
     messages = {},
     todos = {},
-    filename = filepath_to_filename(filepath),
+    filename = filename,
     instance_id = Utils.uuid(),
     instance_name = instance_name,
   }
@@ -182,7 +213,17 @@ end
 function History.load(bufnr, filename)
   local history_filepath = filename and History.get_filepath(bufnr, filename)
     or History.get_latest_filepath(bufnr, false)
-  return History.from_file(history_filepath) or History.new(bufnr)
+  local h = History.from_file(history_filepath)
+  if h then
+    -- Ensure the filename stored in the history object uses the relative path
+    -- passed by the caller (e.g. "swift-fox/0.json") rather than just the
+    -- basename that from_file() sets.
+    if filename then h.filename = filename end
+    Utils.debug("History.load loaded", h.filename, h.instance_name)
+    return h
+  end
+  Utils.debug("History.load creating new (file missing or unreadable)", tostring(history_filepath))
+  return History.new(bufnr)
 end
 
 --- Recursively strip UTF-8 surrogate code points (CESU-8: 0xED [0xA0-0xBF] [0x80-0xBF])
@@ -212,6 +253,10 @@ end
 ---@param history avante.ChatHistory
 function History.save(bufnr, history)
   local history_filepath = History.get_filepath(bufnr, history.filename)
+  -- Ensure parent directory exists (needed for per-instance subfolders like
+  -- <history_dir>/swift-fox/0.json — the swift-fox dir might not exist yet).
+  local parent = history_filepath:parent()
+  if not parent:exists() then parent:mkdir({ parents = true }) end
   -- Sanitize surrogate code points before encoding so that history files
   -- remain valid UTF-8 JSON even when tool results or file contents contain
   -- CESU-8 / modified-UTF-8 surrogate bytes.
@@ -221,6 +266,7 @@ function History.save(bufnr, history)
     ok, json_content = pcall(vim.json.encode, history)
     if not ok then return end
   end
+  Utils.debug("History.save writing", history.filename)
   history_filepath:write(json_content, "w")
   History.save_latest_filename(bufnr, history.filename)
 end
@@ -233,6 +279,17 @@ function History.delete(bufnr, filename)
   if history_filepath:exists() then
     local was_latest = (filename == History.get_latest_filename(bufnr, false))
     vim.fs.rm(tostring(history_filepath))
+
+    -- Clean up the per-instance subdirectory if it's now empty.
+    -- Only remove direct subdirectories of history_dir (not history_dir itself).
+    local history_dir = History.get_history_dir(bufnr)
+    local parent = history_filepath:parent()
+    if tostring(parent) ~= tostring(history_dir) then
+      local remaining = vim.fn.glob(tostring(parent:joinpath("*")), true, true)
+      if #remaining == 0 then
+        pcall(vim.fs.rm, tostring(parent), { recursive = true })
+      end
+    end
 
     if was_latest then
       local remaining_histories = History.list(bufnr) -- This list is sorted by recency
