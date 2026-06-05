@@ -242,6 +242,7 @@ end
 ---@field support_paste_from_clipboard? boolean Enable image paste support from clipboard when img-clip.nvim is available.
 ---@field minimize_diff? boolean Remove unchanged lines when applying a code block.
 ---@field enable_token_counting? boolean Enable token counting.
+---Some APIs return the number of tokens consumed.
 ---@field use_cwd_as_project_root? boolean Use the current working directory as project root.
 ---@field auto_focus_on_diff_view? boolean Focus the diff view automatically.
 ---@field auto_approve_tool_permissions? boolean|string[] Auto-approve all tools, no tools, or only specific tool names.
@@ -251,6 +252,8 @@ end
 ---@field include_generated_by_commit_line? boolean Controls if 'Generated-by: <provider/model>' line is added to git commit message
 ---@field auto_add_current_file? boolean Automatically add the current file when opening a new chat.
 ---@field confirmation_ui_style? "popup"|"inline_buttons" Tool permission confirmation UI style.
+--- popup is the original yes,all,no in a floating window
+--- inline_buttons is the new inline buttons in the sidebar
 ---@field acp_follow_agent_locations? boolean Open files and navigate to lines when ACP agents make edits.
 
 ---@class avante.Config.PromptLoggerKeymap
@@ -272,7 +275,9 @@ M.instructions_file = "avante.md"
 
 ---@tag vim.g.avante
 ---@class avante.Config
----@field log_level? vim.log.levels
+---@field debug boolean
+--- will keep requests and responses on the filesystem. Check the logs to find their paths
+---@field log_level vim.log.levels
 ---@field public session_recovery any
 --- Avante.nvim provides two interaction modes:
 --- - *agentic* (default): Uses AI tools to automatically generate and apply code changes
@@ -321,11 +326,8 @@ M.instructions_file = "avante.md"
 ---@field rules table
 ---
 ---@field behaviour avante.Config.Behaviour Behaviour and automation options.
----@field prompt_logger? avante.Config.PromptLogger Prompt logging options.
+---@field prompt_logger avante.Config.PromptLogger Prompt logging options.
 ---@field windows table
----@field slash_commands AvanteSlashCommand[] see |*avante-slashcommands*|
----@field shortcuts AvanteShortcut[]  see |*avante-shortcuts*|
----@field ask_opts AskOptions
 
 M._defaults = {
   debug = false,
@@ -374,6 +376,15 @@ M._defaults = {
       extra = nil, -- Extra configuration options for the embedding model
     },
     docker_extra_args = "", -- Extra arguments to pass to the docker command
+  },
+  ipc_service = { -- Cross-process instance IPC service configuration
+    -- Enables the IPC service so root Avante instances in *different* Neovim
+    -- processes can discover each other, share responsibility context, and
+    -- exchange messages via send_message.  Requires Docker or Nix.
+    enabled = false,
+    runner = "docker", -- "docker" or "nix"
+    image = "quay.io/yetoneful/avante-ipc-service:0.0.1",
+    docker_extra_args = "",
   },
   web_search_engine = {
     provider = "tavily",
@@ -592,11 +603,12 @@ M._defaults = {
     openai = {
       endpoint = "https://api.openai.com/v1",
       model = "gpt-4o",
-      timeout = 30000, -- Timeout in milliseconds, increase this for reasoning models
+      timeout = 30000,
       context_window = 128000, -- Number of tokens to send to the model for context
+      cost_per_input_token = 0.0000025, -- $2.50 per 1M tokens
+      cost_per_output_token = 0.00001, -- $10 per 1M tokens
       use_response_api = copilot_use_response_api, -- Automatically switch to Response API for GPT-5 Codex models
       support_previous_response_id = true, -- OpenAI Response API supports previous_response_id for stateful conversations
-      -- NOTE: Response API automatically manages conversation state using previous_response_id for tool calling
       extra_request_body = {
         temperature = 0.75,
         max_completion_tokens = 16384, -- Increase this to include reasoning tokens (for reasoning models). For Response API, will be converted to max_output_tokens
@@ -613,6 +625,8 @@ M._defaults = {
       allow_insecure = false, -- Allow insecure server connections
       timeout = 30000, -- Timeout in milliseconds
       context_window = 64000, -- Number of tokens to send to the model for context
+      cost_per_input_token = 0, -- Free with GitHub Copilot subscription
+      cost_per_output_token = 0,
       use_response_api = copilot_use_response_api, -- Automatically switch to Response API for GPT-5 Codex models
       support_previous_response_id = false, -- Copilot doesn't support previous_response_id, must send full history
       -- NOTE: Copilot doesn't support previous_response_id, always sends full conversation history including tool_calls
@@ -641,12 +655,15 @@ M._defaults = {
       model = "claude-sonnet-4-5-20250929",
       timeout = 30000, -- Timeout in milliseconds
       context_window = 200000,
+      cost_per_input_token = 0.000003, -- $3 per 1M tokens
+      cost_per_output_token = 0.000015, -- $15 per 1M tokens
       extra_request_body = {
         temperature = 0.75,
         max_tokens = 64000,
       },
     },
     ---@type AvanteSupportedProvider
+    ---@diagnostic disable-next-line: missing-fields
     bedrock = {
       model = "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
       model_names = {
@@ -670,6 +687,8 @@ M._defaults = {
       model = "gemini-2.0-flash",
       timeout = 30000, -- Timeout in milliseconds
       context_window = 1048576,
+      cost_per_input_token = 0.0000001, -- $0.10 per 1M tokens
+      cost_per_output_token = 0.0000004, -- $0.40 per 1M tokens
       use_ReAct_prompt = true,
       extra_request_body = {
         generationConfig = {
@@ -683,6 +702,8 @@ M._defaults = {
       model = "gemini-1.5-flash-002",
       timeout = 30000, -- Timeout in milliseconds
       context_window = 1048576,
+      cost_per_input_token = 0.000000075, -- $0.075 per 1M tokens
+      cost_per_output_token = 0.0000003, -- $0.30 per 1M tokens
       use_ReAct_prompt = true,
       extra_request_body = {
         generationConfig = {
@@ -704,6 +725,8 @@ M._defaults = {
     ollama = {
       endpoint = "http://127.0.0.1:11434",
       timeout = 30000, -- Timeout in milliseconds
+      cost_per_input_token = 0, -- Local model, free
+      cost_per_output_token = 0,
       use_ReAct_prompt = true,
       extra_request_body = {
         options = {
@@ -736,8 +759,11 @@ M._defaults = {
     ---@type AvanteSupportedProvider
     ["claude-haiku"] = {
       __inherited_from = "claude",
+      endpoint = "https://api.anthropic.com",
       model = "claude-3-5-haiku-20241022",
       timeout = 30000, -- Timeout in milliseconds
+      cost_per_input_token = 0.0000008, -- $0.80 per 1M tokens
+      cost_per_output_token = 0.000004, -- $4 per 1M tokens
       extra_request_body = {
         temperature = 0.75,
         max_tokens = 8192,
@@ -746,8 +772,11 @@ M._defaults = {
     ---@type AvanteSupportedProvider
     ["claude-opus"] = {
       __inherited_from = "claude",
+      endpoint = "https://api.anthropic.com",
       model = "claude-3-opus-20240229",
       timeout = 30000, -- Timeout in milliseconds
+      cost_per_input_token = 0.000015, -- $15 per 1M tokens
+      cost_per_output_token = 0.000075, -- $75 per 1M tokens
       extra_request_body = {
         temperature = 0.75,
         max_tokens = 20480,
@@ -756,6 +785,8 @@ M._defaults = {
     ["openai-gpt-4o-mini"] = {
       __inherited_from = "openai",
       model = "gpt-4o-mini",
+      cost_per_input_token = 0.00000015, -- $0.15 per 1M tokens
+      cost_per_output_token = 0.0000006, -- $0.60 per 1M tokens
     },
     aihubmix = {
       __inherited_from = "openai",
@@ -845,12 +876,7 @@ M._defaults = {
     enable_fastapply = false,
     include_generated_by_commit_line = false,
     auto_add_current_file = true,
-    --- popup is the original yes,all,no in a floating window
-    --- inline_buttons is the new inline buttons in the sidebar
-    ---@type "popup" | "inline_buttons"
     confirmation_ui_style = "inline_buttons",
-    --- Whether to automatically open files and navigate to lines when ACP agent makes edits
-    ---@type boolean
     acp_follow_agent_locations = true,
   },
   ---@type avante.Config.PromptLogger
@@ -1085,11 +1111,22 @@ M._defaults = {
     debounce = 600,
     throttle = 600,
   },
+  --- Dispatch agent configuration
+  --- Controls how dispatch_agent selects providers for sub-tasks (e.g. file reading)
+  dispatch = {
+    --- Maximum ratio of a provider's context_window that a dispatch request+file may occupy.
+    --- The cheapest provider whose context fits the payload within this ratio is selected.
+    --- @type number
+    max_context_ratio = 0.6,
+  },
   disabled_tools = {},
   ---@type AvanteLLMToolPublic[] | fun(): AvanteLLMToolPublic[]
   custom_tools = {},
+  ---@type AvanteSlashCommand[]
   slash_commands = {},
+  ---@type AvanteShortcut[]
   shortcuts = {},
+  ---@type AskOptions
   ask_opts = {},
 }
 
@@ -1097,7 +1134,6 @@ M._defaults = {
 ---@diagnostic disable-next-line: missing-fields
 M._options = {}
 
----@diagnostic disable-next-line: param-type-mismatch
 local function get_config_dir_path() return vim.fs.joinpath(vim.fn.expand("~"), ".config", "avante.nvim") end
 local function get_config_file_path() return vim.fs.joinpath(get_config_dir_path(), "config.json") end
 

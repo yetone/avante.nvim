@@ -1425,6 +1425,7 @@ function M.icon(string_with_icon, utf8_fallback)
   end
 end
 
+---@return table
 function M.deep_extend_with_metatable(behavior, ...)
   local tables = { ... }
   local base = tables[1]
@@ -1524,6 +1525,8 @@ function M.llm_tool_param_fields_to_json_schema(fields)
   for _, field in ipairs(fields) do
     if field.type == "object" and field.fields then
       local properties_, required_ = M.llm_tool_param_fields_to_json_schema(field.fields)
+      -- Ensure nested properties is always a JSON object, not array
+      if vim.tbl_isempty(properties_) then properties_ = vim.empty_dict() end
       properties[field.name] = {
         type = field.type,
         description = field.get_description and field.get_description() or field.description,

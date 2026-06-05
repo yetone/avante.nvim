@@ -11,6 +11,7 @@ local Config = require("avante.config")
 local Path = require("avante.path")
 local Providers = require("avante.providers")
 local LLMToolHelpers = require("avante.llm_tools.helpers")
+local DispatchRegistry = require("avante.dispatch_registry")
 local LLMTools = require("avante.llm_tools")
 local History = require("avante.history")
 local HistoryRender = require("avante.history.render")
@@ -29,9 +30,28 @@ local group = api.nvim_create_augroup("avante_llm", { clear = true })
 ---@param prev_memory string | nil
 ---@param history_messages avante.HistoryMessage[]
 ---@param cb fun(memory: avante.ChatMemory | nil): nil
-function M.summarize_memory(prev_memory, history_messages, cb)
-  local system_prompt =
-    [[You are an expert coding assistant. Your goal is to generate a concise, structured summary of the conversation below that captures all essential information needed to continue development after context replacement. Include tasks performed, code areas modified or reviewed, key decisions or assumptions, test results or errors, and outstanding tasks or next steps.]]
+---@param prev_memory string | nil
+---@param history_messages avante.HistoryMessage[]
+---@param cb fun(memory: avante.ChatMemory | nil): nil
+---@param mode? "compact" | "simplify"  -- "compact" (default): readable structured summary; "simplify": ultra-terse bullet points
+function M.summarize_memory(prev_memory, history_messages, cb, mode)
+  local system_prompt
+  local user_prompt_suffix
+  if mode == "simplify" then
+    system_prompt = [[You are an expert software engineering assistant.
+Your task is to create the most compact possible summary of a coding conversation.
+Be EXTREMELY concise. Include only what an engineer MUST know to continue the work:
+- Current state of the code (what was built, changed, or fixed)
+- Exact errors or blockers still unresolved
+- The precise next step(s) remaining
+- Any critical decisions, constraints, or gotchas
+Omit all explanations, rationale, and conversational filler. Output dense, terse bullet points.]]
+    user_prompt_suffix = "\n\nProvide the minimal engineering-context summary. Use terse bullet points only."
+  else
+    system_prompt = [[You are an expert coding assistant. Your goal is to generate a concise, structured summary of the conversation below that captures all essential information needed to continue development after context replacement. Include tasks performed, code areas modified or reviewed, key decisions or assumptions, test results or errors, and outstanding tasks or next steps.]]
+    user_prompt_suffix = "\n\nPlease summarize this conversation, covering:\n1. Tasks performed and outcomes\n2. Code files, modules, or functions modified or examined\n3. Important decisions or assumptions made\n4. Errors encountered and test or build results\n5. Remaining tasks, open questions, or next steps\nProvide the summary in a clear, concise format."
+  end
+
   if #history_messages == 0 then
     cb(nil)
     return
@@ -55,9 +75,7 @@ function M.summarize_memory(prev_memory, history_messages, cb)
     :map(function(msg) return msg.message.role .. ": " .. HistoryRender.message_to_text(msg, history_messages) end)
     :totable()
   local conversation_text = table.concat(conversation_items, "\n")
-  local user_prompt = "Here is the conversation so far:\n"
-    .. conversation_text
-    .. "\n\nPlease summarize this conversation, covering:\n1. Tasks performed and outcomes\n2. Code files, modules, or functions modified or examined\n3. Important decisions or assumptions made\n4. Errors encountered and test or build results\n5. Remaining tasks, open questions, or next steps\nProvide the summary in a clear, concise format."
+  local user_prompt = "Here is the conversation so far:\n" .. conversation_text .. user_prompt_suffix
   if prev_memory then user_prompt = user_prompt .. "\n\nThe previous summary is:\n\n" .. prev_memory end
   local messages = {
     {
@@ -92,6 +110,89 @@ function M.summarize_memory(prev_memory, history_messages, cb)
             last_message_uuid = latest_message_uuid,
           }
           cb(memory)
+        else
+          cb(nil)
+        end
+      end,
+    },
+  })
+end
+
+--- Alias for `summarize_memory` with mode="simplify".
+--- Kept as a separate entry-point so call-sites remain explicit.
+---@param prev_memory string | nil
+---@param history_messages avante.HistoryMessage[]
+---@param cb fun(memory: avante.ChatMemory | nil): nil
+function M.simplify_history(prev_memory, history_messages, cb)
+  M.summarize_memory(prev_memory, history_messages, cb, "simplify")
+end
+
+--- Draft a message to send to another Avante chat instance.
+--- The LLM uses the current conversation history as context and composes a
+--- self-contained message that captures the user's intent so that the
+--- receiving instance has all the information it needs.
+---@param history_messages avante.HistoryMessage[]  current chat's history
+---@param user_intent string                        what the user wants to communicate
+---@param sender_name string                        instance name of the sending chat
+---@param target_name string                        instance name of the receiving chat
+---@param cb fun(drafted_message: string | nil): nil
+function M.draft_inter_instance_message(history_messages, user_intent, sender_name, target_name, cb)
+  local system_prompt = string.format(
+    [[You are the AI assistant for the coding chat session "%s".
+You are composing a message to send to another AI assistant session named "%s".
+Both sessions are running concurrently inside the same editor on the same codebase.
+
+Given the conversation history below and the user's stated intent, draft a clear,
+self-contained message for the receiving session.  The message must:
+- Include all context the receiving session needs (it cannot see our history)
+- Be concise but complete — the receiver will act on it directly
+- Sound like a peer-to-peer handoff, not a forwarded chat log
+
+Output ONLY the message body — no preamble, no "Here is the message:", no quotes.]],
+    sender_name,
+    target_name
+  )
+
+  local conversation_items = vim
+    .iter(history_messages)
+    :filter(function(msg) return not msg.is_dummy and not msg.just_for_display end)
+    :map(function(msg) return msg.message.role .. ": " .. HistoryRender.message_to_text(msg, history_messages) end)
+    :totable()
+  local conversation_text = table.concat(conversation_items, "\n")
+
+  local user_prompt = "Current conversation history:\n"
+    .. conversation_text
+    .. "\n\nUser's intent for the message to send:\n"
+    .. user_intent
+    .. "\n\nDraft the message to send to ["
+    .. target_name
+    .. "]:"
+
+  local messages = { { role = "user", content = user_prompt } }
+  local response_content = ""
+  local provider = Providers.get_memory_summary_provider()
+
+  M.curl({
+    provider = provider,
+    prompt_opts = {
+      system_prompt = system_prompt,
+      messages = messages,
+    },
+    handler_opts = {
+      on_start = function(_) end,
+      on_chunk = function(chunk)
+        if not chunk then return end
+        response_content = response_content .. chunk
+      end,
+      on_stop = function(stop_opts)
+        if stop_opts.error ~= nil then
+          Utils.error(string.format("draft_inter_instance_message failed: %s", vim.inspect(stop_opts.error)))
+          cb(nil)
+          return
+        end
+        if stop_opts.reason == "complete" then
+          response_content = Utils.trim_think_content(response_content)
+          cb(response_content ~= "" and response_content or nil)
         else
           cb(nil)
         end
@@ -268,7 +369,7 @@ function M.generate_prompts(opts)
     local lines = Utils.read_file_from_buf_or_disk(vim.fs.abspath(instruction_file_path))
     local instruction_content = lines and table.concat(lines, "\n") or ""
 
-    if instruction_content then opts.instructions = (opts.instructions or "") .. "\n" .. instruction_content end
+    opts.instructions = (opts.instructions or "") .. "\n" .. instruction_content
     opts._instructions_loaded = true
   end
 
@@ -515,6 +616,14 @@ function M.generate_prompts(opts)
   local cursor_rules = Prompts.get_cursor_rules_prompt(selected_files)
   if cursor_rules then system_prompt = system_prompt .. "\n\n" .. cursor_rules end
 
+  -- Inject dispatch agent status context so the primary agent knows what is in-flight
+  if opts.session_ctx and opts.session_ctx.dispatch_session_id then
+    local dispatch_context = DispatchRegistry.get_context(opts.session_ctx.dispatch_session_id)
+    if dispatch_context and dispatch_context ~= "" then
+      system_prompt = system_prompt .. "\n\n" .. dispatch_context
+    end
+  end
+
   ---@type AvantePromptOptions
   return {
     system_prompt = system_prompt,
@@ -537,13 +646,141 @@ function M.calculate_tokens(opts)
   return tokens
 end
 
+--- Strip CESU-8 surrogate pairs and any other invalid UTF-8 byte sequences,
+--- replacing them with the UTF-8 replacement character U+FFFD.
+--- cjson rejects strings that contain surrogate code points (0xED 0xA0-0xBF …)
+--- with "surrogates not allowed", so all user-supplied strings must be cleaned
+--- before being JSON-encoded.
+---@param s string
+---@return string
+local function sanitize_string(s)
+  if type(s) ~= "string" then return s end
+  local out = {}
+  local repl = "ï¿½" -- U+FFFD replacement character in UTF-8
+  local len = #s
+  local i = 1
+  while i <= len do
+    local b = s:byte(i)
+    if b < 0x80 then
+      -- ASCII fast path.
+      out[#out + 1] = s:sub(i, i)
+      i = i + 1
+    elseif b >= 0xED and b <= 0xED then
+      -- Surrogate range: ED [A0-BF] [80-BF] — always invalid UTF-8.
+      if i + 2 <= len then
+        local b2 = s:byte(i + 1)
+        if b2 >= 0xA0 and b2 <= 0xBF then
+          out[#out + 1] = repl
+          i = i + 3 -- skip the full 3-byte surrogate sequence
+        else
+          out[#out + 1] = repl
+          i = i + 1
+        end
+      else
+        out[#out + 1] = repl
+        i = i + 1
+      end
+    elseif b < 0xC0 then
+      -- Stray continuation byte (0x80-0xBF outside a multi-byte sequence).
+      out[#out + 1] = repl
+      i = i + 1
+    elseif b < 0xE0 then
+      -- 2-byte sequence: leader 0xC2-0xDF, one continuation 0x80-0xBF.
+      if i + 1 <= len then
+        local b2 = s:byte(i + 1)
+        if b2 >= 0x80 and b2 <= 0xBF then
+          out[#out + 1] = s:sub(i, i + 1)
+          i = i + 2
+        else
+          out[#out + 1] = repl
+          i = i + 1
+        end
+      else
+        out[#out + 1] = repl
+        i = i + 1
+      end
+    elseif b < 0xF0 then
+      -- 3-byte sequence: leader 0xE0-0xEF, two continuations.
+      if i + 2 <= len then
+        local b2, b3 = s:byte(i + 1), s:byte(i + 2)
+        local ok2 = b2 >= 0x80 and b2 <= 0xBF
+        local ok3 = b3 >= 0x80 and b3 <= 0xBF
+        -- Over-long: E0 must be followed by A0-BF.
+        if b == 0xE0 and b2 < 0xA0 then ok2 = false end
+        -- Surrogate range ED A0-BF already handled in step 1; defensive check.
+        if b == 0xED and b2 >= 0xA0 then ok2 = false end
+        if ok2 and ok3 then
+          out[#out + 1] = s:sub(i, i + 2)
+          i = i + 3
+        else
+          out[#out + 1] = repl
+          i = i + 1
+        end
+      else
+        out[#out + 1] = repl
+        i = i + 1
+      end
+    elseif b < 0xF5 then
+      -- 4-byte sequence: leader 0xF0-0xF4, three continuations.
+      -- F0 must be followed by 90-BF (over-long); F4 by 80-8F (max U+10FFFF).
+      if i + 3 <= len then
+        local b2, b3, b4 = s:byte(i + 1), s:byte(i + 2), s:byte(i + 3)
+        local ok2 = b2 >= 0x80 and b2 <= 0xBF
+        local ok3 = b3 >= 0x80 and b3 <= 0xBF
+        local ok4 = b4 >= 0x80 and b4 <= 0xBF
+        if b == 0xF0 and b2 < 0x90 then ok2 = false end
+        if b == 0xF4 and b2 > 0x8F then ok2 = false end
+        if ok2 and ok3 and ok4 then
+          out[#out + 1] = s:sub(i, i + 3)
+          i = i + 4
+        else
+          out[#out + 1] = repl
+          i = i + 1
+        end
+      else
+        out[#out + 1] = repl
+        i = i + 1
+      end
+    else
+      -- 0xF5-0xFF are never valid UTF-8.
+      out[#out + 1] = repl
+      i = i + 1
+    end
+  end
+  return table.concat(out)
+end
+
+--- Recursively sanitize a value so it can be safely JSON-encoded by cjson / vim.json.encode.
+--- All strings are passed through sanitize_string which ensures valid UTF-8 with no
+--- surrogate code points.  Tables are traversed recursively; other types are returned as-is.
+---@param value any
+---@return any
+local function sanitize_for_json(value)
+  local t = type(value)
+  if t == "string" then
+    return sanitize_string(value)
+  elseif t == "table" then
+    -- Preserve vim.empty_dict() marker so cjson encodes as {} not []
+    if vim.tbl_isempty(value) and not vim.islist(value) then return vim.empty_dict() end
+    local out = {}
+    for k, v in pairs(value) do
+      out[sanitize_for_json(k)] = sanitize_for_json(v)
+    end
+    -- Preserve array vs. hash-table metatable so cjson encodes them correctly.
+    if vim.islist(value) then return vim.list_slice(out, 1) end
+    return out
+  else
+    return value
+  end
+end
+
 local parse_headers = function(headers_file)
   local headers = {}
   local file = io.open(headers_file, "r")
   if file then
     for line in file:lines() do
-      line = line:gsub("\r$", "")
-      local key, value = line:match("^%s*(.-)%s*:%s*(.*)$")
+      local linep = line:gsub("\r$", "")
+      local key, value = linep:match("^%s*(.-)%s*:%s*(.*)$")
       if key and value then headers[key] = value end
     end
     if Config.debug then
@@ -561,6 +798,129 @@ local parse_headers = function(headers_file)
     file:close()
   end
   return headers
+end
+
+--- Sanitize a string so it contains only valid UTF-8 and no surrogate code points.
+---
+--- Two sources of bad bytes can reach JSON encoding:
+---   1. CESU-8 / modified-UTF-8 surrogates (3 bytes: 0xED [0xA0-0xBF] [0x80-0xBF]).
+---      Produced by the JVM and some editors for codepoints above U+FFFF.
+---   2. Arbitrary non-UTF-8 bytes from binary file content, latin-1 encoded comments,
+---      clipboard data, grep output, etc.  vim.json.encode (cjson) encodes these as
+---      WTF-8 lone surrogates (\uDCxx), which strict API parsers reject with
+---      "surrogates not allowed".
+---
+--- Strategy: strip CESU-8 surrogate triplets first, then validate byte-by-byte and
+--- replace any remaining invalid bytes with U+FFFD.
+---@param s string
+---@return string
+local function sanitize_string(s)
+  -- Step 1: strip CESU-8 / modified-UTF-8 surrogate triplets.
+  s = s:gsub("\xED[\xA0-\xBF][\x80-\xBF]", "\xEF\xBF\xBD")
+
+  -- Step 2: validate remaining bytes as UTF-8; replace bad bytes with U+FFFD.
+  local out = {}
+  local i = 1
+  local len = #s
+  local repl = "\xEF\xBF\xBD" -- U+FFFD
+  while i <= len do
+    local b = s:byte(i)
+    if b < 0x80 then
+      -- ASCII: always valid.
+      out[#out + 1] = s:sub(i, i)
+      i = i + 1
+    elseif b < 0xC2 then
+      -- Lone continuation byte (0x80-0xBF) or overlong 2-byte leader (0xC0-0xC1).
+      out[#out + 1] = repl
+      i = i + 1
+    elseif b < 0xE0 then
+      -- 2-byte sequence: leader 0xC2-0xDF, one continuation 0x80-0xBF.
+      if i + 1 <= len then
+        local b2 = s:byte(i + 1)
+        if b2 >= 0x80 and b2 <= 0xBF then
+          out[#out + 1] = s:sub(i, i + 1)
+          i = i + 2
+        else
+          out[#out + 1] = repl
+          i = i + 1
+        end
+      else
+        out[#out + 1] = repl
+        i = i + 1
+      end
+    elseif b < 0xF0 then
+      -- 3-byte sequence: leader 0xE0-0xEF, two continuations.
+      if i + 2 <= len then
+        local b2, b3 = s:byte(i + 1), s:byte(i + 2)
+        local ok2 = b2 >= 0x80 and b2 <= 0xBF
+        local ok3 = b3 >= 0x80 and b3 <= 0xBF
+        -- Over-long: E0 must be followed by A0-BF.
+        if b == 0xE0 and b2 < 0xA0 then ok2 = false end
+        -- Surrogate range ED A0-BF already handled in step 1; defensive check.
+        if b == 0xED and b2 >= 0xA0 then ok2 = false end
+        if ok2 and ok3 then
+          out[#out + 1] = s:sub(i, i + 2)
+          i = i + 3
+        else
+          out[#out + 1] = repl
+          i = i + 1
+        end
+      else
+        out[#out + 1] = repl
+        i = i + 1
+      end
+    elseif b < 0xF5 then
+      -- 4-byte sequence: leader 0xF0-0xF4, three continuations.
+      -- F0 must be followed by 90-BF (over-long); F4 by 80-8F (max U+10FFFF).
+      if i + 3 <= len then
+        local b2, b3, b4 = s:byte(i + 1), s:byte(i + 2), s:byte(i + 3)
+        local ok2 = b2 >= 0x80 and b2 <= 0xBF
+        local ok3 = b3 >= 0x80 and b3 <= 0xBF
+        local ok4 = b4 >= 0x80 and b4 <= 0xBF
+        if b == 0xF0 and b2 < 0x90 then ok2 = false end
+        if b == 0xF4 and b2 > 0x8F then ok2 = false end
+        if ok2 and ok3 and ok4 then
+          out[#out + 1] = s:sub(i, i + 3)
+          i = i + 4
+        else
+          out[#out + 1] = repl
+          i = i + 1
+        end
+      else
+        out[#out + 1] = repl
+        i = i + 1
+      end
+    else
+      -- 0xF5-0xFF are never valid UTF-8.
+      out[#out + 1] = repl
+      i = i + 1
+    end
+  end
+  return table.concat(out)
+end
+
+--- Recursively sanitize a value so it can be safely JSON-encoded by cjson / vim.json.encode.
+--- All strings are passed through sanitize_string which ensures valid UTF-8 with no
+--- surrogate code points.  Tables are traversed recursively; other types are returned as-is.
+---@param value any
+---@return any
+local function sanitize_for_json(value)
+  local t = type(value)
+  if t == "string" then
+    return sanitize_string(value)
+  elseif t == "table" then
+    -- Preserve vim.empty_dict() marker so cjson encodes as {} not []
+    if vim.tbl_isempty(value) and not vim.islist(value) then return vim.empty_dict() end
+    local out = {}
+    for k, v in pairs(value) do
+      out[sanitize_for_json(k)] = sanitize_for_json(v)
+    end
+    -- Preserve array vs. hash-table metatable so cjson encodes them correctly.
+    if vim.islist(value) then return vim.list_slice(out, 1) end
+    return out
+  else
+    return value
+  end
 end
 
 ---@param opts avante.CurlOpts
@@ -586,7 +946,7 @@ function M.curl(opts)
     return
   end
 
-  ---@type string
+  ---@type string?
   local current_event_state = nil
   local turn_ctx = {}
   turn_ctx.turn_id = Utils.uuid()
@@ -645,8 +1005,16 @@ function M.curl(opts)
       raw = spec.rawArgs,
     }
   else
-    -- For regular JSON requests, encode as JSON and write to file
-    local json_content = vim.json.encode(spec.body)
+    -- For regular JSON requests, encode as JSON and write to file.
+    -- sanitize_for_json strips invalid UTF-8 surrogates that cause cjson to reject the body.
+    local ok, json_content = pcall(vim.json.encode, sanitize_for_json(spec.body))
+    if not ok then
+      Utils.error("Failed to encode request body: " .. tostring(json_content), { title = "Avante" })
+      if handler_opts.on_stop then
+        handler_opts.on_stop({ reason = "error", error = { message = "Failed to encode request body: " .. tostring(json_content) } })
+      end
+      return
+    end
     fn.writefile(vim.split(json_content, "\n"), curl_body_file)
     curl_options = {
       headers = spec.headers,
@@ -829,16 +1197,6 @@ function M.curl(opts)
   })
 
   return active_job
-end
-
-local retry_timer = nil
-local abort_retry_timer = false
-local function stop_retry_timer()
-  if retry_timer then
-    retry_timer:stop()
-    pcall(function() retry_timer:close() end)
-    retry_timer = nil
-  end
 end
 
 -- Intelligently truncate chat history for session recovery to avoid token limits
@@ -1306,10 +1664,9 @@ function M._stream_acp(opts)
             end
             return
           end
-          ---@type string[]
-          local file_lines = lines or {}
-          if line ~= nil and limit ~= nil then file_lines = vim.list_slice(file_lines, line, line + limit) end
-          local content = table.concat(file_lines, "\n")
+          lines = lines or {}
+          if line ~= nil and limit ~= nil then lines = vim.list_slice(lines, line, line + limit) end
+          local content = table.concat(lines, "\n")
           if
             last_tool_call_message
             and last_tool_call_message.acp_tool_call
@@ -1804,8 +2161,25 @@ end
 
 ---@param opts AvanteLLMStreamOptions
 function M._stream(opts)
-  -- Reset the cancellation flag at the start of a new request
+  -- Initialise the per-session cancellation flag.  Using session_ctx isolates each
+  -- avante instance so that cancelling one stream does not affect concurrent streams
+  -- running in other sidebar instances.
+  opts.session_ctx = opts.session_ctx or {}
+  opts.session_ctx.is_cancelled = false
+  -- Keep the legacy global in sync for any code that still reads it directly.
   if LLMToolHelpers then LLMToolHelpers.is_cancelled = false end
+
+  -- Per-stream retry-timer state. Using per-stream locals instead of module-level
+  -- variables prevents multiple avante instances from clobbering each other's timers.
+  local retry_timer = nil
+  local stream_cancelled = false
+  local function stop_retry_timer()
+    if retry_timer then
+      retry_timer:stop()
+      pcall(function() retry_timer:close() end)
+      retry_timer = nil
+    end
+  end
 
   local acp_provider = Config.acp_providers[Config.provider]
   if acp_provider then return M._stream_acp(opts) end
@@ -1964,7 +2338,13 @@ function M._stream(opts)
         })
         if result ~= nil or error ~= nil then return handle_tool_result(result, error) end
       end
-      if stop_opts.reason == "cancelled" then dispatch_cancel_message() end
+      if stop_opts.reason == "cancelled" then
+        stream_cancelled = true -- signal any running retry countdown to stop
+        -- Per-session flag: lets process_tool_use polling detect the cancel
+        -- without touching other instances' session_ctx.
+        opts.session_ctx.is_cancelled = true
+        dispatch_cancel_message()
+      end
       local history_messages = opts.get_history_messages and opts.get_history_messages({ all = true }) or {}
       local pending_tools, pending_tool_use_messages = History.get_pending_tools(history_messages)
       if stop_opts.reason == "complete" and Config.mode == "agentic" then
@@ -2046,10 +2426,12 @@ function M._stream(opts)
         Utils.info("Rate limit reached. Retrying in " .. retry_count .. " seconds", { title = "Avante" })
 
         local function countdown()
-          if abort_retry_timer then
+          -- stream_cancelled is set to true when on_stop fires with reason "cancelled"
+          -- (triggered by the CANCEL_PATTERN autocmd from cancel_inflight_request).
+          -- dispatch_cancel_message() is already called at that point; here we just stop.
+          if stream_cancelled then
             Utils.info("Retry aborted due to user requested cancellation.")
             stop_retry_timer()
-            dispatch_cancel_message()
             return
           end
 
@@ -2221,7 +2603,6 @@ function M.stream(opts)
 
   opts.mode = opts.mode or Config.mode
 
-  abort_retry_timer = false
   if Config.dual_boost.enabled and valid_dual_boost_modes[opts.mode] then
     M._dual_boost_stream(
       opts,
@@ -2234,13 +2615,15 @@ function M.stream(opts)
 end
 
 function M.cancel_inflight_request()
-  if LLMToolHelpers.is_cancelled ~= nil then LLMToolHelpers.is_cancelled = true end
+  -- Close any open confirmation popup immediately.
   if LLMToolHelpers.confirm_popup ~= nil then
     LLMToolHelpers.confirm_popup:cancel()
     LLMToolHelpers.confirm_popup = nil
   end
-  abort_retry_timer = true
-
+  -- Fire the CANCEL_PATTERN autocmd.  Each active _stream() invocation has registered
+  -- a once-handler that (a) shuts down the curl job and (b) calls on_stop({reason="cancelled"}),
+  -- which in turn sets session_ctx.is_cancelled=true so tool-execution polling stops,
+  -- and stream_cancelled=true so any running rate-limit retry countdown stops.
   api.nvim_exec_autocmds("User", { pattern = M.CANCEL_PATTERN })
 end
 

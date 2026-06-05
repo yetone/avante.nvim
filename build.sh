@@ -2,9 +2,17 @@
 
 set -e
 
-REPO_OWNER="yetone"
-REPO_NAME="avante.nvim"
 REPO_REMOTE="${1:-origin}"
+remote_url=$(git config --get remote.${REPO_REMOTE}.url 2>/dev/null || true)
+if [[ "$remote_url" == *"github.com"* ]]; then
+  tmp="${remote_url#*github.com[:/]}"
+  tmp="${tmp%.git}"
+  REPO_OWNER="${tmp%/*}"
+  REPO_NAME="${tmp#*/}"
+else
+  REPO_OWNER="yetone"
+  REPO_NAME="avante.nvim"
+fi
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
 
@@ -15,14 +23,17 @@ TARGET_DIR="${SCRIPT_DIR}/lua"
 case "$(uname -s)" in
 Linux*)
   PLATFORM="linux"
+  CARGO_EXT="so"
   LIB_EXT="so"
   ;;
 Darwin*)
   PLATFORM="darwin"
+  CARGO_EXT="dylib"
   LIB_EXT="so"
   ;;
 CYGWIN* | MINGW* | MSYS*)
   PLATFORM="windows"
+  CARGO_EXT="dll"
   LIB_EXT="dll"
   ;;
 *)
@@ -107,7 +118,8 @@ elif [[ "$latest_tag" != "$built_tag" && -n "$latest_tag" ]]; then
 else
   echo "No latest tag found. Building from source."
   cargo build --release --features="$LUA_VERSION"
-  for f in target/release/lib*."$LIB_EXT"; do
-    cp "$f" "${TARGET_DIR}/$(echo $f | sed 's#.*/lib##')"
+  for f in target/release/lib*."$CARGO_EXT"; do
+    filename=$(basename "$f" | sed 's/^lib//' | sed "s/\.$CARGO_EXT$/.$LIB_EXT/")
+    cp "$f" "${TARGET_DIR}/${filename}"
   done
 fi

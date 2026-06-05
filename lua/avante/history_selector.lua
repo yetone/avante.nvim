@@ -204,8 +204,10 @@ function M.open(bufnr, cb)
     end,
 
     get_preview_content = function(item_id)
-      local history = Path.history.from_file(PlPath:new(item_id))
-      if not history then return "", "markdown" end
+      -- Use the captured bufnr (the code buffer) rather than the current buffer,
+      -- which inside the selector might be a floating/preview window pointing at
+      -- a completely different project root.
+      local history = Path.history.load(bufnr, item_id)
       local Sidebar = require("avante.sidebar")
       local content = Sidebar.render_history_content(history)
       return content, "markdown"

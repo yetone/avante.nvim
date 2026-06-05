@@ -118,7 +118,8 @@ vim.g.avante_login = vim.g.avante_login
 ---@field turn_id string | nil
 ---@field is_calling boolean | nil
 ---@field original_content AvanteLLMMessageContent | nil
----@field acp_tool_call? avante.acp.ToolCall | avante.acp.ToolCallUpdate
+---@field acp_tool_call? avante.acp.ToolCall
+---@field from_instance string | nil   -- instance_name of the sending chat (cross-instance message)
 
 ---@class AvanteLLMToolResult
 ---@field tool_name string
@@ -245,27 +246,29 @@ vim.g.avante_login = vim.g.avante_login
 ---@class AvanteCurlOutput: {url: string, proxy: string, insecure: boolean, body: table<string, any> | string, headers: table<string, string>, rawArgs: string[] | nil}
 ---@alias AvanteCurlArgsParser fun(self: AvanteProviderFunctor, prompt_opts: AvantePromptOptions): (AvanteCurlOutput | nil)
 ---
----@alias AvanteResponseParser fun(self: AvanteProviderFunctor, ctx: any, data_stream: string, event_state: string, opts: AvanteHandlerOptions): nil
+---@alias AvanteResponseParser fun(self: AvanteProviderFunctor, ctx: any, data_stream: string, event_state: string?, opts: AvanteHandlerOptions): nil
 ---
 ---@class AvanteDefaultBaseProvider: table<string, any>
----@field endpoint? string
+---@field endpoint string
 ---@field extra_request_body? table<string, any>
 ---@field model? string
 ---@field model_names? string[]
 ---@field local? boolean
 ---@field proxy? string
 ---@field keep_alive? string
----@field timeout? integer
----@field allow_insecure? boolean
+---@field timeout integer Timeout in milliseconds, increase this for reasoning models
+---@field allow_insecure? boolean Allow insecure server connections
 ---@field api_key_name? string
 ---@field _shellenv? string
----@field disable_tools? boolean
+---@field disable_tools? boolean disable if prompt consumes too many tokens
 ---@field entra? boolean
 ---@field hide_in_model_selector? boolean
 ---@field use_ReAct_prompt? boolean
 ---@field context_window? integer
 ---@field use_response_api? boolean | fun(provider: AvanteDefaultBaseProvider, ctx?: any): boolean
----@field support_previous_response_id? boolean
+--- NOTE: Response API automatically manages conversation state using previous_response_id for tool calling
+---@field cost_per_input_token? number -- Cost in dollars per input token (e.g. 0.000003 for $3/1M tokens)
+---@field cost_per_output_token? number -- Cost in dollars per output token (e.g. 0.000015 for $15/1M tokens)
 ---
 ---@class AvanteSupportedProvider: AvanteDefaultBaseProvider
 ---@field __inherited_from? string
@@ -526,6 +529,8 @@ vim.g.avante_login = vim.g.avante_login
 ---@field system_prompt string | nil
 ---@field tokens_usage avante.LLMTokenUsage | nil
 ---@field acp_session_id string | nil
+---@field instance_id string | nil   -- UUID for this chat session
+---@field instance_name string | nil -- human-readable name (e.g. "swift-fox")
 ---
 ---@class avante.ChatMemory
 ---@field content string
@@ -542,7 +547,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field content string
 ---@field uri string
 ---
----@alias AvanteSlashCommandBuiltInName "clear" | "help" | "lines" | "commit" | "new" | "init" | "compact" | "model"
+---@alias AvanteSlashCommandBuiltInName "clear" | "help" | "lines" | "commit" | "new" | "init" | "compact" | "model" | "simplify" | "send"
 ---@alias AvanteSlashCommandCallback fun(self: avante.Sidebar, args: string, cb?: fun(args: string): nil): nil
 ---@class AvanteSlashCommand
 ---@field name AvanteSlashCommandBuiltInName | string

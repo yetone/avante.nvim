@@ -3,6 +3,7 @@ local Utils = require("avante.utils")
 local Path = require("plenary.path")
 local Scan = require("plenary.scandir")
 local Config = require("avante.config")
+local Names = require("avante.utils.names")
 
 ---@class avante.Path
 ---@field history_path string
@@ -48,18 +49,46 @@ end
 ---@return avante.ChatHistory[]
 function History.list(bufnr)
   local history_dir = History.get_history_dir(bufnr)
-  local files = vim.fn.glob(tostring(history_dir:joinpath("*.json")), true, true)
   local latest_filename = History.get_latest_filename(bufnr, false)
   local res = {}
-  for _, filename in ipairs(files) do
-    if not filename:match("metadata.json") then
-      local filepath = Path:new(filename)
+
+  Utils.debug("History.list scanning", tostring(history_dir))
+
+  -- New format: per-instance subdirectories (<instance_name>/*.json)
+  local subdirs = Scan.scan_dir(tostring(history_dir), { depth = 1, only_dirs = true, add_dirs = true })
+  for _, subdir_path in ipairs(subdirs) do
+    local subdir = Path:new(subdir_path)
+    local instance_dirname = filepath_to_filename(subdir)
+    local json_files = vim.fn.glob(tostring(subdir:joinpath("*.json")), true, true)
+    table.sort(json_files) -- 0.json first for consistency
+    for _, json_file in ipairs(json_files) do
+      local filepath = Path:new(json_file)
       local history = History.from_file(filepath)
-      if history then table.insert(res, history) end
+      if history then
+        -- Override filename with path relative to history_dir so callers use
+        -- the correct relative key (e.g. "swift-fox/0.json").
+        history.filename = instance_dirname .. "/" .. filepath_to_filename(filepath)
+        Utils.debug("History.list found (new)", history.filename, history.instance_name)
+        table.insert(res, history)
+      end
     end
   end
-  --- sort by timestamp
-  --- sort by latest_filename
+
+  -- Legacy format: flat *.json files directly inside history_dir
+  local flat_files = vim.fn.glob(tostring(history_dir:joinpath("*.json")), true, true)
+  for _, file_path in ipairs(flat_files) do
+    if not file_path:match("metadata.json") then
+      local filepath = Path:new(file_path)
+      local history = History.from_file(filepath)
+      if history then
+        history.filename = filepath_to_filename(filepath) -- just basename for legacy
+        Utils.debug("History.list found (legacy)", history.filename, history.instance_name)
+        table.insert(res, history)
+      end
+    end
+  end
+
+  -- Sort: latest_filename pinned first, then descending by last-message timestamp
   table.sort(res, function(a, b)
     local H = require("avante.history")
     if a.filename == latest_filename then return true end
@@ -127,7 +156,11 @@ end
 
 ---@param bufnr integer
 function History.new(bufnr)
-  local filepath = History.get_latest_filepath(bufnr, true)
+  local instance_name = Names.generate()
+  -- New layout: one subfolder per instance, history stored as 0.json inside it.
+  -- e.g.  <history_dir>/swift-fox/0.json
+  local filename = instance_name .. "/0.json"
+  Utils.debug("History.new creating", filename, instance_name)
   ---@type avante.ChatHistory
   local history = {
     title = "untitled",
@@ -135,7 +168,9 @@ function History.new(bufnr)
     entries = {},
     messages = {},
     todos = {},
-    filename = filepath_to_filename(filepath),
+    filename = filename,
+    instance_id = Utils.uuid(),
+    instance_name = instance_name,
   }
   return history
 end
@@ -157,6 +192,14 @@ function History.from_file(filepath)
         if not vim.islist(history.todos) then history.todos = {} end
         ---@cast history avante.ChatHistory
         history.filename = filepath_to_filename(filepath)
+        -- Backfill instance_id / instance_name for histories created before this feature.
+        if not history.instance_id or history.instance_id == "" then history.instance_id = Utils.uuid() end
+        if not history.instance_name or history.instance_name == "" then
+          history.instance_name = Names.generate()
+        else
+          -- Register the persisted name so the collision table stays accurate.
+          Names.register(history.instance_name)
+        end
         return history
       end
     end
@@ -170,7 +213,39 @@ end
 function History.load(bufnr, filename)
   local history_filepath = filename and History.get_filepath(bufnr, filename)
     or History.get_latest_filepath(bufnr, false)
-  return History.from_file(history_filepath) or History.new(bufnr)
+  local h = History.from_file(history_filepath)
+  if h then
+    -- Ensure the filename stored in the history object uses the relative path
+    -- passed by the caller (e.g. "swift-fox/0.json") rather than just the
+    -- basename that from_file() sets.
+    if filename then h.filename = filename end
+    Utils.debug("History.load loaded", h.filename, h.instance_name)
+    return h
+  end
+  Utils.debug("History.load creating new (file missing or unreadable)", tostring(history_filepath))
+  return History.new(bufnr)
+end
+
+--- Recursively strip UTF-8 surrogate code points (CESU-8: 0xED [0xA0-0xBF] [0x80-0xBF])
+--- from all string values in `value`, replacing each 3-byte sequence with U+FFFD.
+--- This prevents cjson from rejecting the JSON with "surrogates not allowed" when
+--- file content or tool results contain characters encoded in modified UTF-8.
+---@param value any
+---@return any
+local function deep_sanitize_utf8(value)
+  local t = type(value)
+  if t == "string" then
+    return (value:gsub("\xED[\xA0-\xBF][\x80-\xBF]", "\xEF\xBF\xBD"))
+  elseif t == "table" then
+    local out = {}
+    for k, v in pairs(value) do
+      out[deep_sanitize_utf8(k)] = deep_sanitize_utf8(v)
+    end
+    if vim.islist(value) then return vim.list_slice(out, 1) end
+    return out
+  else
+    return value
+  end
 end
 
 -- Saves the chat history for the given buffer.
@@ -178,7 +253,21 @@ end
 ---@param history avante.ChatHistory
 function History.save(bufnr, history)
   local history_filepath = History.get_filepath(bufnr, history.filename)
-  history_filepath:write(vim.json.encode(history), "w")
+  -- Ensure parent directory exists (needed for per-instance subfolders like
+  -- <history_dir>/swift-fox/0.json — the swift-fox dir might not exist yet).
+  local parent = history_filepath:parent()
+  if not parent:exists() then parent:mkdir({ parents = true }) end
+  -- Sanitize surrogate code points before encoding so that history files
+  -- remain valid UTF-8 JSON even when tool results or file contents contain
+  -- CESU-8 / modified-UTF-8 surrogate bytes.
+  local ok, json_content = pcall(vim.json.encode, deep_sanitize_utf8(history))
+  if not ok then
+    -- Fallback: encode without sanitization (better to save something than nothing)
+    ok, json_content = pcall(vim.json.encode, history)
+    if not ok then return end
+  end
+  Utils.debug("History.save writing", history.filename)
+  history_filepath:write(json_content, "w")
   History.save_latest_filename(bufnr, history.filename)
 end
 
@@ -190,6 +279,17 @@ function History.delete(bufnr, filename)
   if history_filepath:exists() then
     local was_latest = (filename == History.get_latest_filename(bufnr, false))
     vim.fs.rm(tostring(history_filepath))
+
+    -- Clean up the per-instance subdirectory if it's now empty.
+    -- Only remove direct subdirectories of history_dir (not history_dir itself).
+    local history_dir = History.get_history_dir(bufnr)
+    local parent = history_filepath:parent()
+    if tostring(parent) ~= tostring(history_dir) then
+      local remaining = vim.fn.glob(tostring(parent:joinpath("*")), true, true)
+      if #remaining == 0 then
+        pcall(vim.fs.rm, tostring(parent), { recursive = true })
+      end
+    end
 
     if was_latest then
       local remaining_histories = History.list(bufnr) -- This list is sorted by recency
@@ -295,11 +395,11 @@ function Prompt.get_templates_dir(project_root)
   -- get root directory of given bufnr
   local directory = Path:new(project_root)
   if Utils.get_os_name() == "windows" then
-    local win_path = vim.fs.abspath(tostring(directory)):gsub("^%a:", ""):gsub("^[/\\]+", "")
-    directory = Path:new(vim.fs.normalize(win_path))
+    directory = Path:new(vim.fs.abspath(tostring(directory)):gsub("^%a:", ""))
   end
   local cache_prompt_dir = Path:new(P.cache_path):joinpath(directory)
-  if not cache_prompt_dir:exists() then cache_prompt_dir:mkdir({ parents = true }) end
+  local cache_dir_str = tostring(cache_prompt_dir):gsub("\\", "/")
+  if vim.fn.isdirectory(cache_dir_str) == 0 then vim.fn.mkdir(cache_dir_str, "p") end
 
   local function find_rules(dir)
     if not dir then return end
@@ -451,6 +551,7 @@ P.repo_map = RepoMap
 ---@return AvanteTemplates|nil
 function P._init_templates_lib()
   if _templates_lib ~= nil then return _templates_lib end
+
   local ok, module = pcall(require, "avante_templates")
   ---@cast module AvanteTemplates
   ---@cast ok boolean

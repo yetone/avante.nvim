@@ -71,6 +71,7 @@ local Path = require("plenary.path")
 local Config = require("avante.config")
 local RagService = require("avante.rag_service")
 local Helpers = require("avante.llm_tools.helpers")
+local DispatchRegistry = require("avante.dispatch_registry")
 
 local M = {}
 
@@ -714,6 +715,8 @@ end
 ---@type AvanteLLMTool[]
 M._tools = {
   require("avante.llm_tools.dispatch_agent"),
+  require("avante.llm_tools.dispatch_status"),
+  require("avante.llm_tools.dispatch_await"),
   require("avante.llm_tools.glob"),
   {
     name = "rag_search",
@@ -917,7 +920,182 @@ Then you can use the "read_definitions" tool to retrieve the source code definit
     },
   },
   require("avante.llm_tools.str_replace"),
-  require("avante.llm_tools.view"),
+  {
+    name = "view",
+    description = [[Reads the content of a file by dispatching a sub-agent with a cheap LLM.
+The sub-agent reads the file and returns analyzed content relevant to your task.
+This is ASYNCHRONOUS - it returns immediately with a dispatch ID. The result
+will be delivered to you automatically when the dispatch completes.
+
+For quick searches, prefer the grep tool with context_lines instead.
+Use view when you need to understand the full structure or content of a file.
+
+IMPORTANT: If you just need a few lines around a known pattern, use grep with context_lines instead - it's synchronous and faster.]],
+    param = {
+      type = "table",
+      fields = {
+        {
+          name = "path",
+          description = "The relative path of the file to read",
+          type = "string",
+        },
+        {
+          name = "purpose",
+          description = "What you're looking for or trying to understand in this file. This helps the sub-agent provide more relevant analysis.",
+          type = "string",
+          optional = true,
+        },
+        {
+          name = "start_line",
+          description = "Optional line number to start reading on (1-based index)",
+          type = "integer",
+          optional = true,
+        },
+        {
+          name = "end_line",
+          description = "Optional line number to end reading on (1-based index, inclusive)",
+          type = "integer",
+          optional = true,
+        },
+      },
+      usage = {
+        path = "The path to the file in the current project scope",
+        purpose = "What you're looking for in this file",
+        start_line = "The start line of the view range, 1-indexed",
+        end_line = "The end line of the view range, 1-indexed",
+      },
+    },
+    returns = {
+      {
+        name = "result",
+        description = "Dispatch ID and status (async - result delivered later)",
+        type = "string",
+      },
+      {
+        name = "error",
+        description = "Error message if the dispatch could not be started",
+        type = "string",
+        optional = true,
+      },
+    },
+    func = function(input, opts)
+      local on_log = opts.on_log
+      local on_complete = opts.on_complete
+      local session_ctx = opts.session_ctx or {}
+
+      if not input.path then return nil, "path is required" end
+
+      -- Read the file content using the raw view tool
+      local raw_view = require("avante.llm_tools.view")
+      local file_result, file_err = raw_view.func(input, {
+        on_log = on_log,
+        session_ctx = session_ctx,
+      })
+
+      if file_err then
+        if on_complete then
+          on_complete(nil, file_err)
+          return
+        end
+        return nil, file_err
+      end
+
+      -- Estimate file tokens
+      local file_content = file_result or ""
+      local words = 0
+      for _ in file_content:gmatch("%S+") do
+        words = words + 1
+      end
+      local estimated_file_tokens = math.ceil(words * 1.3)
+
+      -- Build the dispatch prompt
+      local purpose = input.purpose or "Read and summarize the file content"
+      local dispatch_prompt = "Read the file '" .. input.path .. "' and provide a thorough analysis."
+        .. " Focus on: " .. purpose
+        .. "\n\nFile content:\n" .. file_content
+
+      -- Pick cheapest provider that fits
+      local total_tokens = estimated_file_tokens + 500 -- headroom for prompt overhead
+      local dispatch_provider_name, _ = DispatchRegistry.pick_cheapest_provider(total_tokens)
+
+      -- Fall back to default provider
+      if not dispatch_provider_name then dispatch_provider_name = Config.provider end
+
+      local Llm = require("avante.llm")
+      local Providers_ = require("avante.providers")
+      local dispatch_provider = Providers_[dispatch_provider_name]
+      local dispatch_model = dispatch_provider and dispatch_provider.model or "unknown"
+
+      local session_id = session_ctx.dispatch_session_id or "default"
+      local dispatch_id = DispatchRegistry.register(session_id, "view: " .. input.path, dispatch_provider_name, dispatch_model)
+
+      if on_log then
+        on_log(string.format("Dispatching file read #%s for '%s' (provider: %s)", dispatch_id, input.path, dispatch_provider_name))
+      end
+
+      local system_prompt = "You are a file analysis assistant. Read the provided file content and answer questions about it. Be thorough and precise."
+      local history_messages = {}
+      local result = ""
+
+      local agent_loop_options = {
+        system_prompt = system_prompt,
+        user_input = dispatch_prompt,
+        tools = {
+          require("avante.llm_tools.attempt_completion"),
+        },
+        on_tool_log = session_ctx.on_tool_log,
+        on_messages_add = function(msgs)
+          msgs = vim.islist(msgs) and msgs or { msgs }
+          for _, msg in ipairs(msgs) do
+            local idx = nil
+            for i, m in ipairs(history_messages) do
+              if m.uuid == msg.uuid then
+                idx = i
+                break
+              end
+            end
+            if idx ~= nil then
+              history_messages[idx] = msg
+            else
+              table.insert(history_messages, msg)
+            end
+          end
+          for _, msg in ipairs(msgs) do
+            local History_ = require("avante.history")
+            local tool_use = History_.Helpers.get_tool_use_data(msg)
+            if tool_use and tool_use.name == "attempt_completion" and tool_use.input and tool_use.input.result then
+              result = tool_use.input.result
+            end
+          end
+        end,
+        session_ctx = session_ctx,
+        on_chunk = function() end,
+        on_complete = function(err)
+          if err ~= nil then
+            DispatchRegistry.fail(session_id, dispatch_id, vim.inspect(err))
+            return
+          end
+          DispatchRegistry.complete(session_id, dispatch_id, result)
+        end,
+      }
+
+      -- Fire-and-forget
+      vim.schedule(function()
+        Llm.agent_loop(agent_loop_options)
+      end)
+
+      local response = string.format(
+        "Dispatch #%s started - reading '%s' via provider '%s' (model: %s). Result will be delivered automatically.",
+        dispatch_id, input.path, dispatch_provider_name, dispatch_model
+      )
+
+      if on_complete then
+        on_complete(response, nil)
+        return
+      end
+      return response, nil
+    end,
+  },
   require("avante.llm_tools.write_to_file"),
   require("avante.llm_tools.insert"),
   require("avante.llm_tools.undo_edit"),
@@ -1332,8 +1510,12 @@ M.run_python = M.python
 function M.process_tool_use(tools, tool_use, opts)
   local on_log = opts.on_log
   local on_complete = opts.on_complete
+  -- session_ctx carries the per-stream cancellation state (session_ctx.is_cancelled).
+  -- Helpers.check_cancelled() prefers session_ctx over the legacy global flag so that
+  -- cancelling one avante instance does not accidentally abort tool execution in another.
+  local session_ctx = opts.session_ctx or {}
   -- Check if execution is already cancelled
-  if Helpers.is_cancelled then
+  if Helpers.check_cancelled(session_ctx) then
     Utils.debug("Tool execution cancelled before starting: " .. tool_use.name)
     if on_complete then
       on_complete(nil, Helpers.CANCEL_TOKEN)
@@ -1366,13 +1548,13 @@ function M.process_tool_use(tools, tool_use, opts)
         100,
         100,
         vim.schedule_wrap(function()
-          if Helpers.is_cancelled then
+          if Helpers.check_cancelled(session_ctx) then
             Utils.debug("Tool execution cancelled during execution: " .. tool_use.name)
             if cancel_timer and not cancel_timer:is_closing() then
               cancel_timer:stop()
               cancel_timer:close()
             end
-            Helpers.is_cancelled = false
+            Helpers.reset_cancelled(session_ctx)
             on_complete(nil, Helpers.CANCEL_TOKEN)
           end
         end)
@@ -1390,7 +1572,7 @@ function M.process_tool_use(tools, tool_use, opts)
     end
 
     -- Check for cancellation one more time before processing result
-    if Helpers.is_cancelled then
+    if Helpers.check_cancelled(session_ctx) then
       if on_log then on_log(tool_use.id, tool_use.name, "cancelled during result handling", "failed") end
       return nil, Helpers.CANCEL_TOKEN
     end
@@ -1415,10 +1597,10 @@ function M.process_tool_use(tools, tool_use, opts)
   -- matching tool_result, causing every subsequent API request to fail with an
   -- "ids were found without tool_result blocks" error.
   local ok, result, err = pcall(func, input_json, {
-    session_ctx = opts.session_ctx or {},
+    session_ctx = session_ctx,
     on_log = function(log)
       -- Check for cancellation during logging
-      if Helpers.is_cancelled then return end
+      if Helpers.check_cancelled(session_ctx) then return end
       if on_log then on_log(tool_use.id, tool_use.name, log, "running") end
     end,
     set_store = function(key, value)
@@ -1426,8 +1608,8 @@ function M.process_tool_use(tools, tool_use, opts)
     end,
     on_complete = function(result, err)
       -- Check for cancellation before completing
-      if Helpers.is_cancelled then
-        Helpers.is_cancelled = false
+      if Helpers.check_cancelled(session_ctx) then
+        Helpers.reset_cancelled(session_ctx)
         if on_complete then on_complete(nil, Helpers.CANCEL_TOKEN) end
         return
       end

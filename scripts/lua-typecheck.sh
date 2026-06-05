@@ -121,7 +121,7 @@ main() {
         log "Installing lua-language-server..."
         local luals_bin_path
         luals_bin_path="$(./scripts/setup-deps.sh "$setup_deps_flags" install-luals "$dest_dir")"
-        export PATH="$luals_bin_path:$PATH"
+        export PATH="$PATH:$luals_bin_path"
         log_verbose "Added $luals_bin_path to PATH"
 
         local deps_dir="$dest_dir/deps"

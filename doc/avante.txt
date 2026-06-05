@@ -451,6 +451,7 @@ avante.Config.Behaviour                                *avante.Config.Behaviour*
         {minimize_diff?}                      (boolean)           Remove unchanged lines when applying a code block.
         {enable_token_counting?}              (boolean)           Enable token counting.
         {use_cwd_as_project_root?}            (boolean)           Use the current working directory as project root.
+                                                                  Some APIs return the number of tokens consumed.
         {auto_focus_on_diff_view?}            (boolean)           Focus the diff view automatically.
         {auto_approve_tool_permissions?}      (boolean|string[])  Auto-approve all tools, no tools, or only specific tool names.
         {auto_check_diagnostics?}             (boolean)           Automatically check diagnostics.
@@ -485,7 +486,8 @@ avante.CoreConfig : avante.Config                            *avante.CoreConfig*
 avante.Config                                                    *avante.Config*
 
     Fields: ~
-        {log_level?}                  (vim.log.levels)
+        {debug}                       (boolean)
+        {log_level}                   (vim.log.levels)               will keep requests and responses on the filesystem. Check the logs to find their paths
         {session_recovery}            (any)
         {mode}                        (avante.Mode)                  Avante.nvim provides two interaction modes:
                                                                      - *agentic* (default): Uses AI tools to automatically generate and apply code changes
@@ -526,7 +528,7 @@ avante.Config                                                    *avante.Config*
         {rules}                       (table)
         {behaviour}                   (avante.Config.Behaviour)     Behaviour and automation options.
 
-        {prompt_logger?}              (avante.Config.PromptLogger)  Prompt logging options.
+        {prompt_logger}               (avante.Config.PromptLogger)  Prompt logging options.
         {windows}                     (table)
         {slash_commands}              (AvanteSlashCommand[])        see |*avante-slashcommands*|
         {shortcuts}                   (AvanteShortcut[])            see |*avante-shortcuts*|
@@ -820,6 +822,9 @@ Sidebar:new({id})                                           *avante-sidebar:new*
 
     Parameters: ~
         {id}  (integer)  the tabpage id retrieved from api.nvim_get_current_tabpage()
+
+
+Sidebar.place_sign_at_first_line()     *avante-sidebar.place_sign_at_first_line*
 
 
 Sidebar:delete_autocmds()                       *avante-sidebar:delete_autocmds*
@@ -2358,6 +2363,9 @@ M.icon({string_with_icon}, {utf8_fallback})                  *avante-utils.icon*
 
 
 M.deep_extend_with_metatable()         *avante-utils.deep_extend_with_metatable*
+
+    Returns: ~
+        (table)
 
 
 M.utc_now()                                               *avante-utils.utc_now*

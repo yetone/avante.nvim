@@ -43,8 +43,6 @@ local function to_windows_path(path)
   return winpath
 end
 
----Command to install the necessary rust libraries
----Defaults to download the libraries but passing `source=true` will force a local build via cargo
 ---@param opts? {source: boolean}
 function M.build(opts)
   opts = opts or { source = true }
@@ -268,6 +266,7 @@ function M.select_history()
     vim.api.nvim_buf_call(buf, function()
       if not require("avante").is_sidebar_open() then require("avante").open_sidebar({}) end
       local Path = require("avante.path")
+<<<<<<< HEAD
       -- filepath is the full absolute path to the selected history JSON.
       -- plenary.path:joinpath() with an absolute path resolves to that absolute path,
       -- so passing the full path works transparently for both same-project and
@@ -283,6 +282,18 @@ function M.select_history()
       local sidebar = require("avante").get()
       sidebar.current_history_filename = filepath
       sidebar:update_content_with_history()
+=======
+      -- Update the global metadata pointer so the NEXT fresh instance opens
+      -- the right file.
+      Path.history.save_latest_filename(buf, filename)
+      local sidebar = require("avante").get()
+      -- Use switch_to_history() which bypasses the isolation guard — the user
+      -- explicitly picked this history so it must be loaded as-is even if
+      -- another sidebar currently holds the same instance_name.
+      sidebar:switch_to_history(filename)
+      -- Re-render the content with the newly loaded history.
+      sidebar:update_content("")
+>>>>>>> main
       sidebar:create_todos_container()
       sidebar:initialize_token_count()
       vim.schedule(function() sidebar:focus_input() end)

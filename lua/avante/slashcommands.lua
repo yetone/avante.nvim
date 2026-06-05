@@ -11,9 +11,11 @@
 --- - `/clear`: clear chat history
 --- - `/new`: start a new chat
 --- - `/compact`: compact history messages
+--- - `/simplify`: aggressively simplify chat history, keeping only critical engineering context
 --- - `/model`: select model
 --- - `/lines <start>-<end> <question>`: ask about specific lines
 --- - `/commit`: generate a commit message
+--- - `/send <instance-name> <message>`: send a message to another Avante instance (hidden when ipc_service is enabled)
 ---@brief ]]
 
 ---@class avante.SlashCommands
@@ -49,6 +51,11 @@ local builtin_commands = {
     name = "compact",
   },
   {
+    description = "Maximally simplify history, keeping only critical engineering context",
+    details = "Maximally simplify history, keeping only critical engineering context",
+    name = "simplify",
+  },
+  {
     description = "Select model",
     details = "Select model",
     name = "model",
@@ -63,6 +70,12 @@ local builtin_commands = {
     description = "Commit the changes",
     details = "Commit the changes",
     name = "commit",
+  },
+  {
+    shorthelp = "Send a message to another Avante instance",
+    description = "/send <instance-name> <intent>",
+    details = "Ask the current chat's model to draft and send a message to another active Avante instance\n/send <instance-name> <what to communicate>",
+    name = "send",
   },
 }
 
@@ -85,6 +98,7 @@ local callbacks = {
   clear = function(sidebar, args, cb) sidebar:clear_history(args, cb) end,
   new = function(sidebar, args, cb) sidebar:new_chat(args, cb) end,
   compact = function(sidebar, args, cb) sidebar:compact_history_messages(args, cb) end,
+  simplify = function(sidebar, args, cb) sidebar:simplify_history_messages(args, cb) end,
   init = function(sidebar, args, cb) sidebar:init_current_project(args, cb) end,
   lines = function(_, args, cb)
     if cb then cb(args) end
@@ -103,12 +117,27 @@ local callbacks = {
     end
     if cb then cb("") end
   end,
+  -- /send is a convenience wrapper around the send_message LLM tool for
+  -- in-process (same-nvim) instance messaging.  When the IPC service is
+  -- enabled the LLM tool handles cross-process delivery directly, so /send
+  -- is redundant and would only confuse the model with stale in-process-only
+  -- semantics.  We keep the callback in case someone invokes it at runtime
+  -- but filter the command out of the visible list below.
+  send = function(sidebar, args, cb) sidebar:send_message_to_instance(args, cb) end,
 }
 
 ---@return AvanteSlashCommand[]
 function M.get_builtin_commands()
+  local Config = require("avante.config")
+  local ipc_enabled = Config.ipc_service and Config.ipc_service.enabled
   return vim
     .iter(builtin_commands)
+    :filter(function(command)
+      -- Hide /send when the IPC service is enabled — cross-process messaging
+      -- is handled transparently by the send_message LLM tool instead.
+      if command.name == "send" and ipc_enabled then return false end
+      return true
+    end)
     :map(
       ---@param command AvanteSlashCommand
       function(command)
