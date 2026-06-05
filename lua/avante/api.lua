@@ -275,8 +275,6 @@ function M.select_history()
       Path.history.save_latest_filename(buf, filepath)
       local sidebar = require("avante").get()
       sidebar.current_history_filename = filepath
->>>>>>> 1f930ab (prog)
-=======
       -- filepath is the full absolute path to the selected history JSON.
       -- plenary.path:joinpath() with an absolute path resolves to that absolute path,
       -- so passing the full path works transparently for both same-project and
@@ -284,7 +282,6 @@ function M.select_history()
       Path.history.save_latest_filename(buf, filepath)
       local sidebar = require("avante").get()
       sidebar.current_history_filename = filepath
->>>>>>> 1f930ab (prog)
       sidebar:update_content_with_history()
       sidebar:create_todos_container()
       sidebar:initialize_token_count()
