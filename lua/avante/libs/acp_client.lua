@@ -1,8 +1,8 @@
----@mod avante-acp-client avante-acp
+---@mod avante-acp avante ACP
 ---
 ---@brief [[
 ---
----Avante.nvim now supports the Agent Client Protocol (ACP) (https://agentclientprotocol.com/overview/introduction), enabling seamless integration with AI agents that follow this standardized communication protocol. ACP provides a unified way for AI agents to interact with development environments, offering enhanced capabilities for code editing, file operations, and tool execution.
+---Avante.nvim now supports the Agent Client Protocol (ACP) (https://agentclientprotocol.com/overview/introduction), enabling seamless integration with AI agents that follow this standardized communication protocol.
 ---
 ---What is ACP?~
 ---
