@@ -188,6 +188,72 @@ end, {
   complete = function(_, _, _) return { "history", "cache" } end,
 })
 cmd("ShowRepoMap", function() require("avante.repo_map").show() end, { desc = "avante: show repo map" })
+cmd("TokenBreakdown", function()
+  local sidebar = require("avante").get()
+  if not sidebar then
+    Utils.warn("No Avante sidebar found. Open Avante first (:AvanteAsk or :AvanteChat).")
+    return
+  end
+  sidebar:get_generate_prompts_options("", function(opts)
+    local Llm = require("avante.llm")
+    local breakdown, total = Llm.calculate_tokens_breakdown(opts)
+
+    if #breakdown == 0 then
+      Utils.warn("No token breakdown available (ACP providers are not supported).")
+      return
+    end
+
+    -- Build display lines
+    local max_name_len = 0
+    for _, item in ipairs(breakdown) do
+      max_name_len = math.max(max_name_len, #item.name)
+    end
+    local fmt = "  %-" .. max_name_len .. "s  %7d  (%3d%%)"
+    local sep = string.rep("─", max_name_len + 20)
+
+    local lines = {
+      "  Token breakdown for a fresh request",
+      sep,
+      "",
+    }
+    for _, item in ipairs(breakdown) do
+      local pct = total > 0 and math.floor(item.tokens / total * 100 + 0.5) or 0
+      table.insert(lines, string.format(fmt, item.name, item.tokens, pct))
+    end
+    table.insert(lines, "")
+    table.insert(lines, sep)
+    table.insert(lines, string.format("  %-" .. max_name_len .. "s  %7d", "TOTAL", total))
+    table.insert(lines, "")
+    table.insert(lines, "  Press q or <Esc> to close")
+
+    -- Open a scratch floating window
+    local buf = vim.api.nvim_create_buf(false, true)
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+    vim.api.nvim_set_option_value("modifiable", false, { buf = buf })
+    vim.api.nvim_set_option_value("buftype", "nofile", { buf = buf })
+    vim.api.nvim_set_option_value("filetype", "avante_token_breakdown", { buf = buf })
+
+    local width = math.min(math.max(60, max_name_len + 22), vim.o.columns - 4)
+    local height = math.min(#lines, vim.o.lines - 4)
+    local win = vim.api.nvim_open_win(buf, true, {
+      relative = "editor",
+      width = width,
+      height = height,
+      row = math.floor((vim.o.lines - height) / 2),
+      col = math.floor((vim.o.columns - width) / 2),
+      style = "minimal",
+      border = "rounded",
+      title = " Avante Token Breakdown ",
+      title_pos = "center",
+    })
+    vim.api.nvim_set_option_value("wrap", false, { win = win })
+
+    -- Close keymaps
+    for _, key in ipairs({ "q", "<Esc>" }) do
+      vim.keymap.set("n", key, function() vim.api.nvim_win_close(win, true) end, { buffer = buf, nowait = true })
+    end
+  end)
+end, { desc = "avante: show per-component token count breakdown" })
 cmd("Models", function() require("avante.model_selector").open() end, { desc = "avante: show models" })
 cmd("ACPModels", function() require("avante.api").select_acp_model() end, { desc = "avante: switch ACP model" })
 cmd("ACPModes", function() require("avante.api").select_acp_mode() end, { desc = "avante: switch ACP mode" })

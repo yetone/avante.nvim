@@ -2282,26 +2282,33 @@ function Sidebar:get_content_between_separators(position)
   return content, start_line
 end
 
+--- /clear command.
+--- Marks the current instance directory as "deleted" via a sentinel file
+--- (so it stops appearing in the :AvanteHistory picker), but DOES NOT remove
+--- any JSON files from disk and DOES NOT release the instance_name from the
+--- Names registry — both are kept around so the user can recover the chat
+--- by manually removing the sentinel.
+--- Then immediately starts a brand-new chat in the same sidebar (new
+--- instance_name + new instance dir), the same way /new behaves.
 function Sidebar:clear_history(args, cb)
   self.current_state = nil
-  if next(self.chat_history) ~= nil then
-    self.chat_history.messages = {}
-    self.chat_history.entries = {}
-    Path.history.save(self.code.bufnr, self.chat_history)
-    self._history_cache_invalidated = true
-    self:reload_chat_history()
-    self:update_content_with_history()
-    self:update_content(
-      "Chat history cleared",
-      { focus = false, scroll = false, callback = function() self:focus_input() end }
-    )
-    if cb then cb(args) end
-  else
-    self:update_content(
-      "Chat history is already empty",
-      { focus = false, scroll = false, callback = function() self:focus_input() end }
-    )
+  if self.chat_history and self.chat_history.instance_name and self.chat_history.instance_name ~= "" then
+    local prev_instance_name = self.chat_history.instance_name
+    -- Best-effort persist of the current state so the sentinel marks a known
+    -- on-disk snapshot rather than a stale one.
+    pcall(function() Path.history.save(self.code.bufnr, self.chat_history) end)
+    Path.history.mark_instance_deleted(self.code.bufnr, prev_instance_name)
+    Utils.debug("Sidebar:clear_history marked deleted", prev_instance_name)
+    -- NOTE: we deliberately do NOT release the instance_name from
+    -- avante.utils.names so the user can restore later.
   end
+
+  -- Start a brand-new chat in this same sidebar so it stays usable.
+  self:new_chat(args, cb)
+  self:update_content(
+    "Previous chat marked as deleted; started a new chat.",
+    { focus = false, scroll = false, callback = function() self:focus_input() end }
+  )
 end
 
 function Sidebar:clear_state()

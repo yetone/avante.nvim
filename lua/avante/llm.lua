@@ -646,6 +646,167 @@ function M.calculate_tokens(opts)
   return tokens
 end
 
+--- Return a per-component token breakdown for the given prompt options.
+--- Each entry in the returned list is { name: string, tokens: integer }.
+--- The second return value is the grand total.
+---@param opts AvanteGeneratePromptsOptions
+---@return { name: string, tokens: integer }[], integer
+function M.calculate_tokens_breakdown(opts)
+  if Config.acp_providers[Config.provider] then return {}, 0 end
+
+  local project_instruction_file = Config.instructions_file or "avante.md"
+  local project_root = tostring(Utils.root.get())
+  local instruction_file_path = vim.fs.joinpath(project_root, project_instruction_file)
+  local instructions_content = ""
+
+  if vim.uv.fs_stat(instruction_file_path) and not opts._instructions_loaded then
+    local lines = Utils.read_file_from_buf_or_disk(vim.fs.abspath(instruction_file_path))
+    instructions_content = lines and table.concat(lines, "\n") or ""
+  end
+
+  local mode = opts.mode or Config.mode
+  local system_info = Utils.get_system_info()
+
+  -- Resolve selected_files (same logic as generate_prompts)
+  local selected_files = opts.selected_files or {}
+  if opts.selected_filepaths then
+    for _, filepath in ipairs(opts.selected_filepaths) do
+      local lines, error = Utils.read_file_from_buf_or_disk(filepath)
+      if error == nil then
+        local content = table.concat(lines or {}, "\n")
+        local filetype = Utils.get_filetype(filepath)
+        table.insert(selected_files, { path = filepath, content = content, file_type = filetype })
+      end
+    end
+  end
+
+  -- Strip files already viewed via tool_use (same as generate_prompts)
+  local viewed_files = {}
+  if opts.history_messages then
+    for _, message in ipairs(opts.history_messages) do
+      local use = History.Helpers.get_tool_use_data(message)
+      if use and use.name == "view" and use.input.path then
+        local uniform_path = Utils.uniform_path(use.input.path)
+        viewed_files[uniform_path] = use.id
+      end
+    end
+  end
+  selected_files = vim.iter(selected_files):filter(function(file) return viewed_files[file.path] == nil end):totable()
+
+  local is_acp_provider = false
+  if not opts.provider then is_acp_provider = Config.acp_providers[Config.provider] ~= nil end
+  local model_name = "unknown"
+  local use_react_prompt = false
+  if not is_acp_provider then
+    local provider = opts.provider or Providers[Config.provider]
+    model_name = provider.model or "unknown"
+    local provider_conf = Providers.parse_config(provider)
+    use_react_prompt = provider_conf.use_ReAct_prompt
+  end
+
+  Path.prompts.initialize(Path.prompts.get_templates_dir(project_root), project_root)
+
+  local template_opts = {
+    ask = opts.ask,
+    code_lang = opts.code_lang,
+    selected_files = selected_files,
+    selected_code = opts.selected_code,
+    recently_viewed_files = opts.recently_viewed_files,
+    project_context = opts.project_context,
+    diagnostics = opts.diagnostics,
+    system_info = system_info,
+    model_name = model_name,
+    memory = opts.memory,
+    enable_fastapply = Config.behaviour.enable_fastapply,
+    use_react_prompt = use_react_prompt,
+  }
+
+  ---@type { name: string, tokens: integer }[]
+  local breakdown = {}
+  local total = 0
+
+  local function add(name, content)
+    if not content or content == "" or content == "null" then return end
+    local t = Utils.tokens.calculate_tokens(content)
+    if t > 0 then
+      table.insert(breakdown, { name = name, tokens = t })
+      total = total + t
+    end
+  end
+
+  -- Base system prompt (rendered from mode templates)
+  local base_system_prompt = Path.prompts.render_mode(mode, template_opts)
+  add("System prompt (base template)", base_system_prompt)
+
+  -- Custom system prompt from user config
+  if Config.system_prompt ~= nil then
+    local custom_system_prompt
+    if type(Config.system_prompt) == "function" then custom_system_prompt = Config.system_prompt() end
+    if type(Config.system_prompt) == "string" then custom_system_prompt = Config.system_prompt end
+    if custom_system_prompt and custom_system_prompt ~= "" and custom_system_prompt ~= "null" then
+      add("Custom system prompt (config.system_prompt)", custom_system_prompt)
+    end
+  end
+
+  -- Agents rules: AGENTS.md, CLAUDE.md, OPENCODE.md, .cursorrules, .windsurfrules, etc.
+  local agents_rules = Prompts.get_agents_rules_prompt()
+  if agents_rules then add("Agents rules (AGENTS.md / CLAUDE.md / .cursorrules …)", agents_rules) end
+
+  -- Cursor rules: .cursor/rules/*.mdc files with alwaysApply or matching globs
+  local cursor_rules = Prompts.get_cursor_rules_prompt(selected_files)
+  if cursor_rules then add("Cursor rules (.cursor/rules/*.mdc)", cursor_rules) end
+
+  -- Project context (repo map) – only when @codebase mention is used
+  if opts.project_context ~= nil and opts.project_context ~= "" and opts.project_context ~= "null" then
+    local project_context = Path.prompts.render_file("_project.avanterules", template_opts)
+    add("Project context / repo map (@codebase)", project_context)
+  end
+
+  -- Diagnostics
+  if opts.diagnostics ~= nil and opts.diagnostics ~= "" and opts.diagnostics ~= "null" then
+    local diagnostics = Path.prompts.render_file("_diagnostics.avanterules", template_opts)
+    add("Diagnostics (@diagnostics)", diagnostics)
+  end
+
+  -- Selected files / code context
+  if #selected_files > 0 or opts.selected_code ~= nil then
+    local code_context = Path.prompts.render_file("_context.avanterules", template_opts)
+    add("Selected files / code context", code_context)
+  end
+
+  -- Conversation memory summary
+  if opts.memory ~= nil and opts.memory ~= "" and opts.memory ~= "null" then
+    local memory = Path.prompts.render_file("_memory.avanterules", template_opts)
+    add("Conversation memory (summary)", memory)
+  end
+
+  -- Instructions file (avante.md in project root)
+  add(string.format("Instructions file (%s)", project_instruction_file), instructions_content)
+
+  -- History messages
+  if opts.history_messages and #opts.history_messages > 0 then
+    local history_tokens = 0
+    for _, msg in ipairs(opts.history_messages) do
+      history_tokens = history_tokens + Utils.tokens.calculate_tokens(msg.message.content)
+    end
+    if history_tokens > 0 then
+      table.insert(
+        breakdown,
+        { name = string.format("History messages (%d)", #opts.history_messages), tokens = history_tokens }
+      )
+      total = total + history_tokens
+    end
+  end
+
+  -- Dispatch agent context (only when a dispatch session is active)
+  if opts.session_ctx and opts.session_ctx.dispatch_session_id then
+    local dispatch_context = DispatchRegistry.get_context(opts.session_ctx.dispatch_session_id)
+    if dispatch_context then add("Dispatch agent context", dispatch_context) end
+  end
+
+  return breakdown, total
+end
+
 --- Strip CESU-8 surrogate pairs and any other invalid UTF-8 byte sequences,
 --- replacing them with the UTF-8 replacement character U+FFFD.
 --- cjson rejects strings that contain surrogate code points (0xED 0xA0-0xBF …)

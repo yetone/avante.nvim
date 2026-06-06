@@ -63,6 +63,12 @@
 --- :AvanteShowRepoMap
 ---         Show the repository map for the project.
 ---
+---                                                     *:AvanteTokenBreakdown*
+--- :AvanteTokenBreakdown
+---         Show a per-component breakdown of the token count for a fresh
+---         request (system prompt, rules files, selected files, memory, ...).
+---         Useful for diagnosing unexpectedly high starting token counts.
+---
 ---                                                     *:AvanteToggle*
 --- :AvanteToggle
 ---         Toggle the Avante sidebar.

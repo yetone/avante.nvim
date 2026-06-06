@@ -7,24 +7,9 @@ local Selector = require("avante.ui.selector")
 ---@class avante.HistorySelector
 local M = {}
 
--- Number of most-recent conversations to show per project.
-local HISTORY_PER_PROJECT = 5
-
--- Extract a plain-text snippet from a message's content field.
--- Content may be a string (modern user messages) or an array of typed blocks.
----@param content any
----@return string
-local function extract_text(content)
-  if type(content) == "string" then return content end
-  if type(content) == "table" then
-    for _, block in ipairs(content) do
-      if type(block) == "table" and block.type == "text" and type(block.text) == "string" then
-        return block.text
-      end
-    end
-  end
-  return ""
-end
+-- Sentinel item ids used for non-history rows in the picker.
+local EXPAND_ID = "__avante_expand_other_projects__"
+local SEPARATOR_ID = "__avante_separator__"
 
 -- Collapse whitespace and truncate a string to max_len, appending "…" if cut.
 ---@param s string
@@ -36,97 +21,62 @@ local function truncate(s, max_len)
   return s:sub(1, max_len - 1) .. "…"
 end
 
--- Return the role of a message, handling both modern (msg.role) and legacy
--- (msg.message.role via the Message class wrapper) formats.
----@param msg table
+-- Format a mtime as "5m ago", "3h ago", "2d ago", or a date stamp for older
+-- entries.
+---@param mtime integer  seconds since epoch
 ---@return string
-local function msg_role(msg)
-  return msg.role or (type(msg.message) == "table" and msg.message.role) or ""
+local function format_relative_time(mtime)
+  if not mtime or mtime <= 0 then return "" end
+  local now = os.time()
+  local diff = now - mtime
+  if diff < 0 then diff = 0 end
+  if diff < 60 then return diff .. "s ago" end
+  if diff < 3600 then return math.floor(diff / 60) .. "m ago" end
+  if diff < 86400 then return math.floor(diff / 3600) .. "h ago" end
+  if diff < 86400 * 7 then return math.floor(diff / 86400) .. "d ago" end
+  if diff < 86400 * 30 then return math.floor(diff / (86400 * 7)) .. "w ago" end
+  return os.date("%Y-%m-%d", mtime) --[[@as string]]
 end
 
--- Return the content of a message, handling both formats.
----@param msg table
----@return any
-local function msg_content(msg)
-  return msg.content or (type(msg.message) == "table" and msg.message.content) or ""
-end
-
--- Build the display label for a history entry.
--- Format: "project_name | <first user msg>…<last msg>"
----@param history avante.ChatHistory
----@param project_name string
----@param full_filepath string  absolute path to the .json file (used as the item id)
+---@param summary avante.HistoryInstanceSummary
+---@param include_project boolean  if true, prefix label with project basename
 ---@return avante.ui.SelectorItem
-local function to_selector_item(history, project_name, full_filepath)
-  local messages = History.get_history_messages(history)
+local function to_selector_item(summary, include_project)
+  local time_str = format_relative_time(summary.mtime)
+  local first = summary.first_message_text
+  if first == "" then first = summary.last_message_text end
+  if first == "" then first = "(empty)" end
+  first = truncate(first, 80)
 
-  -- First user message text
-  local first_text = ""
-  for _, msg in ipairs(messages) do
-    if msg_role(msg) == "user" then
-      local text = extract_text(msg_content(msg))
-      if text ~= "" then
-        first_text = text
-        break
-      end
-    end
+  local pieces = {}
+  if include_project then
+    local project_name = vim.fn.fnamemodify(summary.project_root, ":t")
+    if project_name == "" then project_name = summary.project_dirname end
+    table.insert(pieces, "[" .. project_name .. "]")
   end
+  table.insert(pieces, summary.instance_name)
+  if time_str ~= "" then table.insert(pieces, time_str) end
+  table.insert(pieces, first)
+  if summary.is_legacy then table.insert(pieces, "(legacy)") end
 
-  -- Last message text (any role)
-  local last_text = ""
-  for i = #messages, 1, -1 do
-    local text = extract_text(msg_content(messages[i]))
-    if text ~= "" then
-      last_text = text
-      break
-    end
-  end
-
-  local label
-  if first_text == "" and last_text == "" then
-    label = project_name .. " | (empty)"
-  elseif last_text == "" or first_text == last_text then
-    label = project_name .. " | " .. truncate(first_text, 70)
-  else
-    label = project_name .. " | " .. truncate(first_text, 40) .. " … " .. truncate(last_text, 40)
-  end
-
-  return { id = full_filepath, title = label }
+  return {
+    -- Encode both the relative filename and the project storage key in the
+    -- item id so we can disambiguate cross-project picks unambiguously.
+    id = summary.filename .. "\0" .. summary.project_dirname,
+    title = table.concat(pieces, "  "),
+  }
 end
 
--- Return the N most-recent history filepaths from a history directory, sorted
--- by descending numeric filename (414.json > 413.json).  Non-numeric filenames
--- and metadata.json are skipped.
----@param history_dir_path table  plenary.path object
----@param n integer
----@return string[]  absolute file paths
-local function get_recent_filepaths(history_dir_path, n)
-  local files = vim.fn.glob(tostring(history_dir_path:joinpath("*.json")), true, true)
-  local candidates = {}
-  for _, filepath in ipairs(files) do
-    if not filepath:match("metadata%.json$") then
-      local num = tonumber(vim.fn.fnamemodify(filepath, ":t:r"))
-      if num then table.insert(candidates, { filepath = filepath, num = num }) end
-    end
-  end
-  table.sort(candidates, function(a, b) return a.num > b.num end)
-  local result = {}
-  for i = 1, math.min(n, #candidates) do
-    table.insert(result, candidates[i].filepath)
-  end
-  return result
-end
-
--- Build plain-text representation of a conversation for the "wr" write action.
--- Includes only user/assistant message text; tool-use/result blocks are skipped.
+-- Build plain-text representation of a conversation for the write action.
 ---@param history avante.ChatHistory
 ---@return string
 local function render_plain_text(history)
   local messages = History.get_history_messages(history)
   local lines = {}
+  local function msg_role(m) return m.role or (type(m.message) == "table" and m.message.role) or "" end
+  local function msg_content(m) return m.content or (type(m.message) == "table" and m.message.content) or "" end
   for _, msg in ipairs(messages) do
     local role = msg_role(msg)
-    -- Skip internal tool-orchestration messages
     if role ~= "user" and role ~= "assistant" then goto continue end
 
     local content = msg_content(msg)
@@ -134,7 +84,6 @@ local function render_plain_text(history)
     if type(content) == "string" then
       text = content
     elseif type(content) == "table" then
-      -- Gather only text blocks; skip tool_use / tool_result
       local parts = {}
       for _, block in ipairs(content) do
         if type(block) == "table" and block.type == "text" and type(block.text) == "string" then
@@ -155,81 +104,154 @@ local function render_plain_text(history)
   return table.concat(lines, "\n")
 end
 
----@param bufnr integer
----@param cb fun(filepath: string)  called with the FULL absolute path of the selected history JSON
-function M.open(bufnr, cb)
+-- Load a multi-part instance history by absolute storage path (used for
+-- preview / write actions on cross-project picks, where bufnr won't resolve
+-- to the right project dir).
+---@param summary avante.HistoryInstanceSummary
+---@return avante.ChatHistory | nil
+local function load_history_by_summary(summary)
   local PlPath = require("plenary.path")
-  local projects = Path.list_projects()
+  local instance_dir = PlPath:new(Config.history.storage_path)
+    :joinpath("projects")
+    :joinpath(summary.project_dirname)
+    :joinpath("history")
+    :joinpath(summary.instance_dirname)
+  if not instance_dir:exists() then return nil end
+  local json_files = vim.fn.glob(tostring(instance_dir:joinpath("*.json")), true, true)
+  table.sort(json_files, function(a, b)
+    local na = tonumber(vim.fn.fnamemodify(a, ":t:r")) or 0
+    local nb = tonumber(vim.fn.fnamemodify(b, ":t:r")) or 0
+    return na < nb
+  end)
+  if #json_files == 0 then return nil end
+  local history = Path.history.from_file(PlPath:new(json_files[1]))
+  if not history then return nil end
+  history.filename = summary.filename
+  for i = 2, #json_files do
+    local part = Path.history.from_file(PlPath:new(json_files[i]))
+    if part then
+      if part.messages then vim.list_extend(history.messages, part.messages) end
+      if part.entries then vim.list_extend(history.entries, part.entries) end
+    end
+  end
+  return history
+end
 
-  if not projects or #projects == 0 then
-    Utils.warn("No avante history found.")
-    return
+---@param bufnr integer
+---@param cb fun(payload: { filename: string, project_root: string, project_dirname: string, cross_project: boolean })
+---@param include_other_projects boolean
+local function open_picker(bufnr, cb, include_other_projects)
+  local current = Path.history.list_instances(bufnr) or {}
+  local current_project_root = Utils.root.get({ buf = bufnr }) or ""
+
+  local others = {}
+  if include_other_projects then others = Path.history.list_all_instances(current_project_root) or {} end
+
+  local items_by_id = {}
+  local function index(s) items_by_id[s.filename .. "\0" .. s.project_dirname] = s end
+  for _, s in ipairs(current) do
+    index(s)
+  end
+  for _, s in ipairs(others) do
+    index(s)
   end
 
+  ---@type avante.ui.SelectorItem[]
   local selector_items = {}
+  for _, s in ipairs(current) do
+    table.insert(selector_items, to_selector_item(s, false))
+  end
 
-  for _, project in ipairs(projects) do
-    -- Use the last component of the real project root as the display name.
-    local project_name = vim.fn.fnamemodify(project.root, ":t")
-    if not project_name or project_name == "" then project_name = project.name end
-
-    local history_dir = PlPath:new(project.directory):joinpath("history")
-    if not history_dir:exists() then goto continue end
-
-    local recent_paths = get_recent_filepaths(history_dir, HISTORY_PER_PROJECT)
-    for _, filepath in ipairs(recent_paths) do
-      local history = Path.history.from_file(PlPath:new(filepath))
-      if history then
-        table.insert(selector_items, to_selector_item(history, project_name, filepath))
-      end
+  if include_other_projects then
+    if #others > 0 and #current > 0 then
+      table.insert(selector_items, { id = SEPARATOR_ID, title = string.rep("─", 60) })
     end
-
-    ::continue::
+    for _, s in ipairs(others) do
+      table.insert(selector_items, to_selector_item(s, true))
+    end
+  else
+    -- Always offer the expand option at the bottom (even when current is empty).
+    table.insert(selector_items, {
+      id = EXPAND_ID,
+      title = "▶ Show histories from other projects (will switch nvim cwd on pick)",
+    })
   end
 
   if #selector_items == 0 then
-    Utils.warn("No history items found.")
+    Utils.warn("No avante history found for this project.")
     return
   end
 
+  local title = include_other_projects and "Avante History (all projects, mtime-sorted)"
+    or "Avante History (this project, mtime-sorted)"
+
   Selector:new({
     provider = Config.selector.provider,
-    title = string.format("Avante History (top %d per project)", HISTORY_PER_PROJECT),
+    title = title,
     items = selector_items,
 
     on_select = function(item_ids)
-      if not item_ids then return end
-      if #item_ids == 0 then return end
-      cb(item_ids[1])
+      if not item_ids or #item_ids == 0 then return end
+      local picked = item_ids[1]
+      if picked == EXPAND_ID then
+        vim.schedule(function() open_picker(bufnr, cb, true) end)
+        return
+      end
+      if picked == SEPARATOR_ID then return end
+
+      local summary = items_by_id[picked]
+      if not summary then return end
+
+      cb({
+        filename = summary.filename,
+        project_root = summary.project_root,
+        project_dirname = summary.project_dirname,
+        cross_project = summary.project_root ~= current_project_root,
+      })
     end,
 
     get_preview_content = function(item_id)
-      -- Use the captured bufnr (the code buffer) rather than the current buffer,
-      -- which inside the selector might be a floating/preview window pointing at
-      -- a completely different project root.
-      local history = Path.history.load(bufnr, item_id)
+      if item_id == EXPAND_ID or item_id == SEPARATOR_ID then return "", "markdown" end
+      local summary = items_by_id[item_id]
+      if not summary then return "", "markdown" end
+      local history = load_history_by_summary(summary)
+      if not history then return "", "markdown" end
       local Sidebar = require("avante.sidebar")
       local content = Sidebar.render_history_content(history)
       return content, "markdown"
     end,
 
     on_delete_item = function(item_id)
-      if not item_id then return end
-      vim.fn.delete(item_id)
+      if item_id == EXPAND_ID or item_id == SEPARATOR_ID then return end
+      local summary = items_by_id[item_id]
+      if not summary then return end
+      -- Mark the instance as deleted (sentinel file) without touching the JSONs.
+      -- We can't use Path.history.mark_instance_deleted(bufnr, ...) for
+      -- cross-project picks because the bufnr resolves to a DIFFERENT project
+      -- dir, so write the sentinel directly using the storage path we know.
+      local PlPath = require("plenary.path")
+      local sentinel = PlPath:new(Config.history.storage_path)
+        :joinpath("projects")
+        :joinpath(summary.project_dirname)
+        :joinpath("history")
+        :joinpath(summary.instance_dirname)
+        :joinpath(".deleted")
+      pcall(function() sentinel:write(tostring(os.time()), "w") end)
+      Utils.info("Marked '" .. summary.instance_name .. "' as deleted (instance dir kept on disk)")
     end,
 
     on_write_item = function(item_id)
-      local history = Path.history.from_file(PlPath:new(item_id))
+      if item_id == EXPAND_ID or item_id == SEPARATOR_ID then return end
+      local summary = items_by_id[item_id]
+      if not summary then return end
+      local history = load_history_by_summary(summary)
       if not history then
         Utils.warn("Could not load history for writing.")
         return
       end
-
       local plain = render_plain_text(history)
-      -- Default output path: cwd/<numeric_stem>_conversation.txt
       local cwd = vim.fn.getcwd()
-      local stem = vim.fn.fnamemodify(item_id, ":t:r")
-      local default_dest = cwd .. "/" .. stem .. "_conversation.txt"
+      local default_dest = cwd .. "/" .. summary.instance_name .. "_conversation.txt"
 
       vim.ui.input({ prompt = "Write conversation to: ", default = default_dest }, function(dest)
         if not dest or dest == "" then return end
@@ -244,8 +266,13 @@ function M.open(bufnr, cb)
       end)
     end,
 
-    on_open = function() M.open(bufnr, cb) end,
+    on_open = function() open_picker(bufnr, cb, include_other_projects) end,
   }):open()
 end
 
+---@param bufnr integer
+---@param cb fun(payload: { filename: string, project_root: string, project_dirname: string, cross_project: boolean })
+function M.open(bufnr, cb) open_picker(bufnr, cb, false) end
+
 return M
+

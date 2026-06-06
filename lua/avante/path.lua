@@ -29,6 +29,19 @@ local function filepath_to_filename(filepath) return tostring(filepath):sub(tost
 -- History path
 local History = {}
 
+-- Hard cap per JSON file. Beyond this we transparently split into 0.json,
+-- 1.json, 2.json, ... inside the instance directory.  Load reassembles them.
+local MAX_FILE_SIZE_BYTES = 4 * 1024 * 1024
+
+-- Sentinel filename written inside an instance dir to mark it as deleted by
+-- /clear.  We never actually remove the directory so the user can recover
+-- by deleting this sentinel manually.
+local DELETED_SENTINEL = ".deleted"
+
+-- Per-process memo of project history dirs whose legacy flat <n>.json files
+-- have already been migrated into per-instance folders during this session.
+local _migrated_dirs = {}
+
 function History.get_history_dir(bufnr)
   local dirname = generate_project_dirname_in_storage(bufnr)
   local history_dir = Path:new(Config.history.storage_path):joinpath(dirname):joinpath("history")
@@ -46,43 +59,120 @@ function History.get_history_dir(bufnr)
   return history_dir
 end
 
+---Return true if the given instance directory has been marked as deleted by /clear.
+---@param instance_dir_path Path
+---@return boolean
+function History.is_instance_deleted(instance_dir_path)
+  return instance_dir_path:joinpath(DELETED_SENTINEL):exists()
+end
+
+---Mark an instance as deleted (writes a sentinel file).  Keeps all JSON files
+---intact so the user can restore manually.  Does NOT release the instance_name.
+---@param bufnr integer
+---@param instance_dirname string  e.g. "swift-fox"
+function History.mark_instance_deleted(bufnr, instance_dirname)
+  local history_dir = History.get_history_dir(bufnr)
+  local instance_dir = history_dir:joinpath(instance_dirname)
+  if not instance_dir:exists() then return end
+  local sentinel = instance_dir:joinpath(DELETED_SENTINEL)
+  sentinel:write(tostring(os.time()), "w")
+  Utils.debug("History.mark_instance_deleted", instance_dirname)
+end
+
+---Remove the deleted sentinel from an instance directory.
+---@param bufnr integer
+---@param instance_dirname string
+function History.restore_instance(bufnr, instance_dirname)
+  local history_dir = History.get_history_dir(bufnr)
+  local sentinel = history_dir:joinpath(instance_dirname):joinpath(DELETED_SENTINEL)
+  if sentinel:exists() then pcall(vim.fs.rm, tostring(sentinel)) end
+end
+
+---One-shot migration: move any legacy flat <n>.json (and named *.json) files
+---directly inside history_dir into per-instance folders so they show up in
+---the new picker.  Runs at most once per directory per process.
+---@param history_dir Path
+local function migrate_legacy_files(history_dir)
+  local key = tostring(history_dir)
+  if _migrated_dirs[key] then return end
+  _migrated_dirs[key] = true
+
+  local files = vim.fn.glob(tostring(history_dir:joinpath("*.json")), true, true)
+  for _, file_path in ipairs(files) do
+    if not file_path:match("metadata%.json$") then
+      local stem = vim.fn.fnamemodify(file_path, ":t:r")
+      -- Prefer the existing instance_name inside the file when available;
+      -- otherwise label the legacy file by its numeric stem.
+      local target_dirname
+      local ok, content = pcall(function() return Path:new(file_path):read() end)
+      if ok and content then
+        local decode_ok, parsed = pcall(vim.json.decode, content)
+        if decode_ok and type(parsed) == "table" and type(parsed.instance_name) == "string" and parsed.instance_name ~= "" then
+          target_dirname = parsed.instance_name
+        end
+      end
+      if not target_dirname then target_dirname = "legacy-" .. stem end
+
+      local target_dir = history_dir:joinpath(target_dirname)
+      if not target_dir:exists() then target_dir:mkdir({ parents = true }) end
+      local dest = target_dir:joinpath("0.json")
+      if not dest:exists() then
+        -- Fix up filename field inside the JSON before moving.
+        if ok and content then
+          local decode_ok, parsed = pcall(vim.json.decode, content)
+          if decode_ok and type(parsed) == "table" then
+            parsed.filename = target_dirname .. "/0.json"
+            if not parsed.instance_name or parsed.instance_name == "" then
+              parsed.instance_name = target_dirname
+            end
+            if not parsed.instance_id or parsed.instance_id == "" then
+              parsed.instance_id = Utils.uuid()
+            end
+            local enc_ok, enc = pcall(vim.json.encode, parsed)
+            if enc_ok then
+              dest:write(enc, "w")
+              pcall(vim.fs.rm, file_path)
+              Utils.debug("History.migrate_legacy moved", file_path, "→", tostring(dest))
+              goto continue
+            end
+          end
+        end
+        -- Fallback: byte copy + remove
+        pcall(function()
+          Path:new(file_path):copy({ destination = dest })
+          vim.fs.rm(file_path)
+        end)
+      end
+      ::continue::
+    end
+  end
+end
+
+---@param bufnr integer
+---@param opts? { include_deleted?: boolean }
 ---@return avante.ChatHistory[]
-function History.list(bufnr)
+function History.list(bufnr, opts)
+  opts = opts or {}
   local history_dir = History.get_history_dir(bufnr)
   local latest_filename = History.get_latest_filename(bufnr, false)
   local res = {}
 
+  -- Migrate legacy flat files into per-instance folders (idempotent, one-shot per session).
+  migrate_legacy_files(history_dir)
+
   Utils.debug("History.list scanning", tostring(history_dir))
 
-  -- New format: per-instance subdirectories (<instance_name>/*.json)
+  -- Per-instance subdirectories (<instance_name>/*.json).  After migration this
+  -- is the ONLY layout we have to deal with.
   local subdirs = Scan.scan_dir(tostring(history_dir), { depth = 1, only_dirs = true, add_dirs = true })
   for _, subdir_path in ipairs(subdirs) do
     local subdir = Path:new(subdir_path)
-    local instance_dirname = filepath_to_filename(subdir)
-    local json_files = vim.fn.glob(tostring(subdir:joinpath("*.json")), true, true)
-    table.sort(json_files) -- 0.json first for consistency
-    for _, json_file in ipairs(json_files) do
-      local filepath = Path:new(json_file)
-      local history = History.from_file(filepath)
+    if opts.include_deleted or not History.is_instance_deleted(subdir) then
+      local instance_dirname = filepath_to_filename(subdir)
+      -- Load the merged instance history (handles multi-part 0.json / 1.json / …).
+      local history = History.load(bufnr, instance_dirname .. "/0.json")
       if history then
-        -- Override filename with path relative to history_dir so callers use
-        -- the correct relative key (e.g. "swift-fox/0.json").
-        history.filename = instance_dirname .. "/" .. filepath_to_filename(filepath)
-        Utils.debug("History.list found (new)", history.filename, history.instance_name)
-        table.insert(res, history)
-      end
-    end
-  end
-
-  -- Legacy format: flat *.json files directly inside history_dir
-  local flat_files = vim.fn.glob(tostring(history_dir:joinpath("*.json")), true, true)
-  for _, file_path in ipairs(flat_files) do
-    if not file_path:match("metadata.json") then
-      local filepath = Path:new(file_path)
-      local history = History.from_file(filepath)
-      if history then
-        history.filename = filepath_to_filename(filepath) -- just basename for legacy
-        Utils.debug("History.list found (legacy)", history.filename, history.instance_name)
+        Utils.debug("History.list found", history.filename, history.instance_name)
         table.insert(res, history)
       end
     end
@@ -99,6 +189,173 @@ function History.list(bufnr)
     local timestamp_b = #b_messages > 0 and b_messages[#b_messages].timestamp or b.timestamp
     return timestamp_a > timestamp_b
   end)
+  return res
+end
+
+---Lightweight per-instance summary used by the :AvanteHistory picker.  Avoids
+---loading multi-megabyte JSON files when only mtime/title/first-message are
+---needed for the picker.  Sorted by mtime descending.
+---@class avante.HistoryInstanceSummary
+---@field instance_name string
+---@field instance_dirname string
+---@field filename string             relative path: "<instance>/0.json"
+---@field project_root string
+---@field project_dirname string      filesystem-safe encoded form (the storage key)
+---@field title string
+---@field first_message_text string
+---@field last_message_text string
+---@field mtime integer               seconds since epoch (latest mtime in instance dir)
+---@field timestamp string|nil
+---@field is_legacy boolean
+
+---@param history_dir Path
+---@param instance_dirname string
+---@param project_root string
+---@param project_dirname string
+---@return avante.HistoryInstanceSummary | nil
+local function build_instance_summary(history_dir, instance_dirname, project_root, project_dirname)
+  local instance_dir = history_dir:joinpath(instance_dirname)
+  if not instance_dir:exists() then return nil end
+  if History.is_instance_deleted(instance_dir) then return nil end
+
+  -- Latest mtime across all *.json parts so growing instances bubble to the top.
+  local json_files = vim.fn.glob(tostring(instance_dir:joinpath("*.json")), true, true)
+  if #json_files == 0 then return nil end
+  local latest_mtime = 0
+  for _, fp in ipairs(json_files) do
+    local stat = vim.uv.fs_stat(fp)
+    if stat and stat.mtime and stat.mtime.sec and stat.mtime.sec > latest_mtime then
+      latest_mtime = stat.mtime.sec
+    end
+  end
+
+  -- Load merged history to extract title + first/last message previews.  This
+  -- DOES read every part file, which can be expensive for very large
+  -- instances; callers that want raw mtime sort should defer this.
+  local history = History.from_file(instance_dir:joinpath("0.json"))
+  if not history then return nil end
+  -- Merge subsequent parts to make first/last message previews accurate.
+  table.sort(json_files)
+  for i = 2, #json_files do
+    local part = History.from_file(Path:new(json_files[i]))
+    if part then
+      if part.messages then vim.list_extend(history.messages, part.messages) end
+      if part.entries then vim.list_extend(history.entries, part.entries) end
+    end
+  end
+
+  local H = require("avante.history")
+  local messages = H.get_history_messages(history)
+
+  local function extract_text(content)
+    if type(content) == "string" then return content end
+    if type(content) == "table" then
+      for _, block in ipairs(content) do
+        if type(block) == "table" and block.type == "text" and type(block.text) == "string" then
+          return block.text
+        end
+      end
+    end
+    return ""
+  end
+  local function msg_role(m) return m.role or (type(m.message) == "table" and m.message.role) or "" end
+  local function msg_content(m) return m.content or (type(m.message) == "table" and m.message.content) or "" end
+
+  local first_text = ""
+  for _, m in ipairs(messages) do
+    if msg_role(m) == "user" then
+      local t = extract_text(msg_content(m))
+      if t ~= "" then
+        first_text = t
+        break
+      end
+    end
+  end
+  local last_text = ""
+  for i = #messages, 1, -1 do
+    local t = extract_text(msg_content(messages[i]))
+    if t ~= "" then
+      last_text = t
+      break
+    end
+  end
+
+  return {
+    instance_name = history.instance_name or instance_dirname,
+    instance_dirname = instance_dirname,
+    filename = instance_dirname .. "/0.json",
+    project_root = project_root,
+    project_dirname = project_dirname,
+    title = history.title or "untitled",
+    first_message_text = first_text,
+    last_message_text = last_text,
+    mtime = latest_mtime,
+    timestamp = history.timestamp,
+    is_legacy = instance_dirname:match("^legacy%-") ~= nil,
+  }
+end
+
+---List instance summaries for the buffer's project, sorted by mtime descending.
+---Excludes /clear-deleted instances.
+---@param bufnr integer
+---@return avante.HistoryInstanceSummary[]
+function History.list_instances(bufnr)
+  local history_dir = History.get_history_dir(bufnr)
+  migrate_legacy_files(history_dir)
+
+  local project_root = Utils.root.get({ buf = bufnr }) or ""
+  local project_dirname = generate_project_dirname_in_storage(bufnr):match("[^/]+$") or ""
+
+  local res = {}
+  local subdirs = Scan.scan_dir(tostring(history_dir), { depth = 1, only_dirs = true, add_dirs = true })
+  for _, subdir_path in ipairs(subdirs) do
+    local subdir = Path:new(subdir_path)
+    local instance_dirname = filepath_to_filename(subdir)
+    local summary = build_instance_summary(history_dir, instance_dirname, project_root, project_dirname)
+    if summary then table.insert(res, summary) end
+  end
+  table.sort(res, function(a, b) return a.mtime > b.mtime end)
+  return res
+end
+
+---List instance summaries across ALL projects, sorted by mtime descending.
+---Excludes the current project (callers should concat them onto the
+---current-project list themselves).
+---@param exclude_project_root? string
+---@return avante.HistoryInstanceSummary[]
+function History.list_all_instances(exclude_project_root)
+  local projects_dir = Path:new(Config.history.storage_path):joinpath("projects")
+  if not projects_dir:exists() then return {} end
+
+  local res = {}
+  local project_dirs = Scan.scan_dir(tostring(projects_dir), { depth = 1, only_dirs = true, add_dirs = true })
+  for _, project_dir_path in ipairs(project_dirs) do
+    local project_dir = Path:new(project_dir_path)
+    local history_dir = project_dir:joinpath("history")
+    if history_dir:exists() then
+      migrate_legacy_files(history_dir)
+      local metadata_file = history_dir:joinpath("metadata.json")
+      local project_root = ""
+      if metadata_file:exists() then
+        local ok, content = pcall(function() return metadata_file:read() end)
+        if ok and content then
+          local dok, metadata = pcall(vim.json.decode, content)
+          if dok and metadata and metadata.project_root then project_root = metadata.project_root end
+        end
+      end
+      if project_root ~= "" and project_root ~= exclude_project_root then
+        local project_dirname = filepath_to_filename(project_dir)
+        local subdirs = Scan.scan_dir(tostring(history_dir), { depth = 1, only_dirs = true, add_dirs = true })
+        for _, subdir_path in ipairs(subdirs) do
+          local subdir = Path:new(subdir_path)
+          local instance_dirname = filepath_to_filename(subdir)
+          local summary = build_instance_summary(history_dir, instance_dirname, project_root, project_dirname)
+          if summary then table.insert(res, summary) end
+        end
+      end
+    end
+  end
+  table.sort(res, function(a, b) return a.mtime > b.mtime end)
   return res
 end
 
@@ -206,20 +463,59 @@ function History.from_file(filepath)
   end
 end
 
--- Loads the chat history for the given buffer.
+-- Loads the chat history for the given buffer.  Transparently merges
+-- multi-part instance directories (0.json + 1.json + …) produced by the
+-- 4 MB split logic in History.save.
 ---@param bufnr integer
 ---@param filename string?
 ---@return avante.ChatHistory
 function History.load(bufnr, filename)
+  local history_dir = History.get_history_dir(bufnr)
+  local instance_dirname = filename and filename:match("^(.-)/[^/]+%.json$") or nil
+
+  if instance_dirname then
+    local instance_dir = history_dir:joinpath(instance_dirname)
+    if instance_dir:exists() then
+      local json_files = vim.fn.glob(tostring(instance_dir:joinpath("*.json")), true, true)
+      table.sort(json_files, function(a, b)
+        local na = tonumber(vim.fn.fnamemodify(a, ":t:r")) or 0
+        local nb = tonumber(vim.fn.fnamemodify(b, ":t:r")) or 0
+        return na < nb
+      end)
+      if #json_files > 0 then
+        local base = History.from_file(Path:new(json_files[1]))
+        if base then
+          -- Canonical filename always points at 0.json regardless of how many
+          -- parts there are on disk; subsequent saves go through the same
+          -- canonical entry point.
+          base.filename = instance_dirname .. "/0.json"
+          for i = 2, #json_files do
+            local part = History.from_file(Path:new(json_files[i]))
+            if part then
+              if part.messages then vim.list_extend(base.messages, part.messages) end
+              if part.entries then vim.list_extend(base.entries, part.entries) end
+            end
+          end
+          Utils.debug(
+            "History.load merged",
+            base.filename,
+            base.instance_name,
+            string.format("(%d parts, %d messages)", #json_files, #base.messages)
+          )
+          return base
+        end
+      end
+    end
+  end
+
+  -- Fall back to legacy single-file path (e.g. metadata.json points at a
+  -- flat <n>.json that hasn't been migrated yet).
   local history_filepath = filename and History.get_filepath(bufnr, filename)
     or History.get_latest_filepath(bufnr, false)
   local h = History.from_file(history_filepath)
   if h then
-    -- Ensure the filename stored in the history object uses the relative path
-    -- passed by the caller (e.g. "swift-fox/0.json") rather than just the
-    -- basename that from_file() sets.
     if filename then h.filename = filename end
-    Utils.debug("History.load loaded", h.filename, h.instance_name)
+    Utils.debug("History.load loaded (legacy single-file)", h.filename, h.instance_name)
     return h
   end
   Utils.debug("History.load creating new (file missing or unreadable)", tostring(history_filepath))
@@ -248,26 +544,135 @@ local function deep_sanitize_utf8(value)
   end
 end
 
--- Saves the chat history for the given buffer.
+-- Saves the chat history for the given buffer.  When the encoded history
+-- exceeds MAX_FILE_SIZE_BYTES, transparently splits messages and entries
+-- across <instance>/0.json, <instance>/1.json, ... so each file stays under
+-- the cap.  The first part holds all metadata (title, todos, memory, etc.)
+-- plus as many messages/entries as fit; subsequent parts hold only the
+-- overflow `{ messages = [...], entries = [...] }`.
 ---@param bufnr integer
 ---@param history avante.ChatHistory
 function History.save(bufnr, history)
-  local history_filepath = History.get_filepath(bufnr, history.filename)
-  -- Ensure parent directory exists (needed for per-instance subfolders like
-  -- <history_dir>/swift-fox/0.json — the swift-fox dir might not exist yet).
-  local parent = history_filepath:parent()
-  if not parent:exists() then parent:mkdir({ parents = true }) end
+  if not history or not history.filename then return end
+
   -- Sanitize surrogate code points before encoding so that history files
   -- remain valid UTF-8 JSON even when tool results or file contents contain
   -- CESU-8 / modified-UTF-8 surrogate bytes.
-  local ok, json_content = pcall(vim.json.encode, deep_sanitize_utf8(history))
-  if not ok then
-    -- Fallback: encode without sanitization (better to save something than nothing)
-    ok, json_content = pcall(vim.json.encode, history)
-    if not ok then return end
+  local sanitized = deep_sanitize_utf8(history)
+
+  local instance_dirname = type(history.filename) == "string" and history.filename:match("^(.-)/[^/]+%.json$") or nil
+  local history_dir = History.get_history_dir(bufnr)
+
+  -- Legacy: filename has no slash → behave exactly like the old single-file save.
+  if not instance_dirname then
+    local history_filepath = History.get_filepath(bufnr, history.filename)
+    local parent = history_filepath:parent()
+    if not parent:exists() then parent:mkdir({ parents = true }) end
+    local ok, json_content = pcall(vim.json.encode, sanitized)
+    if not ok then
+      ok, json_content = pcall(vim.json.encode, history)
+      if not ok then return end
+    end
+    Utils.debug("History.save writing (legacy)", history.filename)
+    history_filepath:write(json_content, "w")
+    History.save_latest_filename(bufnr, history.filename)
+    return
   end
-  Utils.debug("History.save writing", history.filename)
-  history_filepath:write(json_content, "w")
+
+  -- New (per-instance) layout: always canonicalize filename to <instance>/0.json
+  -- regardless of how many parts there end up being.
+  history.filename = instance_dirname .. "/0.json"
+  local instance_dir = history_dir:joinpath(instance_dirname)
+  if not instance_dir:exists() then instance_dir:mkdir({ parents = true }) end
+
+  -- Fast path: does the whole thing fit in a single file?
+  local ok_full, full_json = pcall(vim.json.encode, sanitized)
+  if not ok_full then
+    -- Last-ditch: encode raw
+    ok_full, full_json = pcall(vim.json.encode, history)
+    if not ok_full then return end
+  end
+
+  if #full_json <= MAX_FILE_SIZE_BYTES then
+    instance_dir:joinpath("0.json"):write(full_json, "w")
+    -- Clean up any leftover part files from a previously-larger state.
+    local existing = vim.fn.glob(tostring(instance_dir:joinpath("*.json")), true, true)
+    for _, fp in ipairs(existing) do
+      local n = tonumber(vim.fn.fnamemodify(fp, ":t:r"))
+      if n and n > 0 then pcall(function() vim.fs.rm(fp) end) end
+    end
+    Utils.debug("History.save wrote single-part", history.filename, "bytes=" .. #full_json)
+    History.save_latest_filename(bufnr, history.filename)
+    return
+  end
+
+  -- Need to split.  Strategy: greedy bin-packing of messages + entries.
+  -- Part 0 carries the full metadata table.  Subsequent parts are just
+  -- `{ messages = [...], entries = [...] }`.
+  Utils.debug("History.save splitting (size " .. #full_json .. " > cap)", history.filename)
+
+  local base = vim.deepcopy(sanitized)
+  base.messages = {}
+  base.entries = {}
+  local base_size = #vim.json.encode(base)
+  -- Use the base size as the floor for part 0.  Reserve a small safety margin.
+  local SAFETY = 1024
+  local budget_for_part0 = MAX_FILE_SIZE_BYTES - base_size - SAFETY
+  if budget_for_part0 < 0 then budget_for_part0 = 0 end
+  local budget_for_part_n = MAX_FILE_SIZE_BYTES - SAFETY
+
+  ---@type { messages: any[], entries: any[] }[]
+  local parts = { { messages = {}, entries = {} } }
+  local sizes = { 0 }
+  local function current_budget(i) return i == 1 and budget_for_part0 or budget_for_part_n end
+
+  local function fit(field, item)
+    -- Encoded size: item plus a comma overhead.
+    local ok_e, enc = pcall(vim.json.encode, item)
+    if not ok_e then return end
+    local cost = #enc + 2 -- comma + space-ish overhead
+
+    local idx = #parts
+    -- If item alone is larger than even a fresh part, drop it onto its own
+    -- oversized part (better to exceed than to silently lose data).
+    if cost > current_budget(idx) and (#parts[idx].messages + #parts[idx].entries) > 0 then
+      table.insert(parts, { messages = {}, entries = {} })
+      sizes[#parts] = 0
+      idx = #parts
+    end
+    table.insert(parts[idx][field], item)
+    sizes[idx] = sizes[idx] + cost
+  end
+
+  for _, msg in ipairs(sanitized.messages or {}) do
+    fit("messages", msg)
+  end
+  for _, entry in ipairs(sanitized.entries or {}) do
+    fit("entries", entry)
+  end
+
+  -- Materialise part 0 as base ∪ parts[1]
+  local part0 = vim.deepcopy(base)
+  part0.messages = parts[1].messages
+  part0.entries = parts[1].entries
+  local p0_ok, p0_json = pcall(vim.json.encode, part0)
+  if not p0_ok then return end
+  instance_dir:joinpath("0.json"):write(p0_json, "w")
+
+  for i = 2, #parts do
+    local part = { messages = parts[i].messages, entries = parts[i].entries }
+    local pe_ok, pe_json = pcall(vim.json.encode, part)
+    if pe_ok then instance_dir:joinpath((i - 1) .. ".json"):write(pe_json, "w") end
+  end
+
+  -- Trim any leftover files from a previously-larger state.
+  local existing = vim.fn.glob(tostring(instance_dir:joinpath("*.json")), true, true)
+  for _, fp in ipairs(existing) do
+    local n = tonumber(vim.fn.fnamemodify(fp, ":t:r"))
+    if n and n >= #parts then pcall(function() vim.fs.rm(fp) end) end
+  end
+
+  Utils.debug("History.save wrote " .. #parts .. " parts for " .. history.filename)
   History.save_latest_filename(bufnr, history.filename)
 end
 

@@ -262,42 +262,68 @@ function M.select_acp_mode() require("avante.acp_config_selector").open_mode() e
 
 function M.select_history()
   local buf = vim.api.nvim_get_current_buf()
-  require("avante.history_selector").open(buf, function(filepath)
-    vim.api.nvim_buf_call(buf, function()
+  require("avante.history_selector").open(buf, function(payload)
+    -- payload: { filename, project_root, project_dirname, cross_project }
+    local filename = payload.filename
+    local project_root = payload.project_root
+    local cross_project = payload.cross_project
+
+    local function load_history_into_sidebar(target_buf)
       if not require("avante").is_sidebar_open() then require("avante").open_sidebar({}) end
       local Path = require("avante.path")
-<<<<<<< HEAD
-      -- filepath is the full absolute path to the selected history JSON.
-      -- plenary.path:joinpath() with an absolute path resolves to that absolute path,
-      -- so passing the full path works transparently for both same-project and
-      -- cross-project selections.
-      Path.history.save_latest_filename(buf, filepath)
-      local sidebar = require("avante").get()
-      sidebar.current_history_filename = filepath
-      -- filepath is the full absolute path to the selected history JSON.
-      -- plenary.path:joinpath() with an absolute path resolves to that absolute path,
-      -- so passing the full path works transparently for both same-project and
-      -- cross-project selections.
-      Path.history.save_latest_filename(buf, filepath)
-      local sidebar = require("avante").get()
-      sidebar.current_history_filename = filepath
-      sidebar:update_content_with_history()
-=======
       -- Update the global metadata pointer so the NEXT fresh instance opens
       -- the right file.
-      Path.history.save_latest_filename(buf, filename)
+      pcall(function() Path.history.save_latest_filename(target_buf, filename) end)
       local sidebar = require("avante").get()
+      if not sidebar then return end
       -- Use switch_to_history() which bypasses the isolation guard — the user
       -- explicitly picked this history so it must be loaded as-is even if
       -- another sidebar currently holds the same instance_name.
       sidebar:switch_to_history(filename)
       -- Re-render the content with the newly loaded history.
       sidebar:update_content("")
->>>>>>> main
       sidebar:create_todos_container()
       sidebar:initialize_token_count()
       vim.schedule(function() sidebar:focus_input() end)
-    end)
+    end
+
+    if cross_project and project_root and project_root ~= "" then
+      -- Shift nvim's cwd to the picked project so subsequent buffer/project
+      -- resolution lines up with the history we're loading.  If the directory
+      -- no longer exists we bail out with a warning rather than silently
+      -- loading a chat from "somewhere else".
+      if vim.fn.isdirectory(project_root) ~= 1 then
+        Utils.warn(
+          "Cannot open cross-project history: directory does not exist: " .. project_root,
+          { once = true }
+        )
+        return
+      end
+      -- Close any existing sidebar bound to the OLD project before switching
+      -- cwd so the next open picks up the new root.
+      local existing = require("avante").get()
+      if existing and existing.is_open and existing:is_open() then
+        pcall(function() existing:close({ goto_code_win = false }) end)
+      end
+      local ok, err = pcall(vim.cmd.cd, vim.fn.fnameescape(project_root))
+      if not ok then
+        Utils.warn("Failed to cd into project: " .. tostring(err))
+        return
+      end
+      Utils.info("Switched nvim cwd → " .. project_root)
+      -- Bust the per-buffer project-root cache so Utils.root.get returns the
+      -- new cwd-based root rather than the cached old project root.
+      local Root = require("avante.utils.root")
+      Root.cache = {}
+      -- After cd, project root resolution is based on cwd; load using the
+      -- CURRENT buffer (post-cd) so per-project storage_path resolves correctly.
+      vim.schedule(function()
+        local new_buf = vim.api.nvim_get_current_buf()
+        load_history_into_sidebar(new_buf)
+      end)
+    else
+      vim.api.nvim_buf_call(buf, function() load_history_into_sidebar(buf) end)
+    end
   end)
 end
 
