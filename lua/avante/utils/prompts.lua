@@ -214,6 +214,7 @@ function M.get_agents_rules_prompt()
   return nil
 end
 
+---Load rules in *.cursor/rules*
 ---@param selected_files AvanteSelectedFile[]
 ---@return string | nil
 function M.get_cursor_rules_prompt(selected_files)
