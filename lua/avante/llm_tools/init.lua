@@ -105,6 +105,7 @@ function M.str_replace_based_edit_tool(input, opts)
   if not input.command then return false, "command not provided" end
   if on_log then on_log("command: " .. input.command) end
   if not on_complete then return false, "on_complete not provided" end
+  if not input.path then return false, "path not provided" end
   local abs_path = Helpers.get_abs_path(input.path)
   if not Helpers.has_permission_to_access(abs_path) then return false, "No permission to access path: " .. abs_path end
   if input.command == "view" then
@@ -1408,7 +1409,12 @@ function M.process_tool_use(tools, tool_use, opts)
     return result_str, err
   end
 
-  local result, err = func(input_json, {
+  -- Wrap the tool call in pcall so that any unhandled error is converted into a
+  -- proper tool_result error instead of crashing the stream callback.  Without
+  -- this, a crash would leave an orphaned tool_use message in history with no
+  -- matching tool_result, causing every subsequent API request to fail with an
+  -- "ids were found without tool_result blocks" error.
+  local ok, result, err = pcall(func, input_json, {
     session_ctx = opts.session_ctx or {},
     on_log = function(log)
       -- Check for cancellation during logging
@@ -1436,6 +1442,23 @@ function M.process_tool_use(tools, tool_use, opts)
     streaming = opts.streaming,
     tool_use_id = opts.tool_use_id,
   })
+
+  if not ok then
+    -- func threw an unhandled error; stop the cancel timer and surface the error
+    -- as a normal tool failure so the caller can record a tool_result and keep
+    -- the message history consistent.
+    local error_msg = tostring(result) -- pcall puts the error in the first return slot
+    if cancel_timer and not cancel_timer:is_closing() then
+      cancel_timer:stop()
+      cancel_timer:close()
+    end
+    if on_log then on_log(tool_use.id, tool_use.name, "Unexpected error: " .. error_msg, "failed") end
+    if on_complete then
+      on_complete(nil, "Unexpected error: " .. error_msg)
+      return
+    end
+    return nil, "Unexpected error: " .. error_msg
+  end
 
   -- Result and error being nil means that the tool was executed asynchronously
   if result == nil and err == nil and on_complete then return end

@@ -445,6 +445,59 @@ function M.generate_prompts(opts)
     messages = vim.list_extend(messages, { { role = "user", content = opts.instructions } })
   end
 
+  -- Normalize the messages array so it satisfies all provider constraints:
+  --   1. No two consecutive messages with the same role (merge their content).
+  --   2. The last message must be role = "user".
+  -- Violating either rule causes hard API errors on Anthropic-compatible models
+  -- ("assistant message prefill" / "conversation must end with a user message").
+  do
+    local normalized = {}
+    for _, msg in ipairs(messages) do
+      local prev = normalized[#normalized]
+      if prev and prev.role == msg.role then
+        -- Merge content into the previous message of the same role.
+        if type(prev.content) == "string" and type(msg.content) == "string" then
+          prev.content = prev.content .. "\n\n" .. msg.content
+        elseif type(prev.content) == "table" and type(msg.content) == "string" then
+          table.insert(prev.content, { type = "text", text = msg.content })
+        elseif type(prev.content) == "string" and type(msg.content) == "table" then
+          local merged = { { type = "text", text = prev.content } }
+          for _, item in ipairs(msg.content) do
+            table.insert(merged, item)
+          end
+          prev.content = merged
+        else
+          -- Both table form -- extend in place.
+          for _, item in ipairs(msg.content) do
+            table.insert(prev.content, item)
+          end
+        end
+      else
+        -- Different role -- add as a distinct entry.  We deep-copy so that the
+        -- merge branches above (which call table.insert on prev.content) never
+        -- mutate the original history message's content table.  A shallow copy
+        -- via vim.tbl_extend would leave prev.content pointing at the same
+        -- Lua table as the source message; subsequent merges would then
+        -- corrupt the caller's history_messages, causing duplicate tool_use /
+        -- tool_result blocks to accumulate across recursive _stream calls.
+        table.insert(normalized, vim.deepcopy(msg))
+      end
+    end
+    -- If the final message is still "assistant" after merging, drop it so the
+    -- conversation ends with a user turn. A dangling assistant message means
+    -- either a partially-streamed response slipped through the state filter, or
+    -- context messages were assembled in the wrong order. Either way the model
+    -- should reply to the preceding user message.
+    if #normalized > 0 and normalized[#normalized].role == "assistant" then
+      Utils.debug(
+        "generate_prompts: dropping trailing assistant message to satisfy "
+          .. "provider turn-order constraint"
+      )
+      table.remove(normalized)
+    end
+    messages = normalized
+  end
+
   opts.session_ctx = opts.session_ctx or {}
   opts.session_ctx.system_prompt = system_prompt
   opts.session_ctx.messages = messages
