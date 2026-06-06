@@ -60,6 +60,9 @@
             buildInputs = oa.buildInputs ++ [
               pkgs.neovim-unwrapped
             ];
+            shellHook = oa.shellHook + ''
+              export VIMRUNTIME=${pkgs.neovim-unwrapped}/share/nvim/runtime
+              '';
           });
         }
       );

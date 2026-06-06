@@ -35,23 +35,6 @@ jobs:
         run: |
           nix develop .#ci --command nvim --version
           nix develop .#ci --command make luatest
-
-  typecheck:
-    name: Typecheck
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        nvim_version: [ v0.11.0 ]
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: rhysd/action-setup-vim@v1
-        with:
-          neovim: true
-          version: ${{ matrix.nvim_version }}
-
       - name: Typecheck
-        env:
-          VIMRUNTIME: /home/runner/nvim-${{ matrix.nvim_version }}/share/nvim/runtime
-        run: |
-          make lua-typecheck
+        run:
+          nix develop .#ci --command make lua-typecheck
