@@ -1835,6 +1835,7 @@ M.get_agents_rules_prompt()             *avante-prompts.get_agents_rules_prompt*
 
                                         *avante-prompts.get_cursor_rules_prompt*
 M.get_cursor_rules_prompt({selected_files})
+    Load rules in *.cursor/rules*
 
     Parameters: ~
         {selected_files}  (AvanteSelectedFile[])
