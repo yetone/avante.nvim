@@ -85,6 +85,7 @@ docgen:
 		lua/avante/utils/prompts.lua \
 		lua/avante/extensions/init.lua \
 		lua/avante/utils/init.lua \
+		lua/avante/libs/acp_client.lua \
 		> doc/avante.txt
 
 luacheck:
