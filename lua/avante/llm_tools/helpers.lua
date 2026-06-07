@@ -7,10 +7,73 @@ local M = {}
 
 M.CANCEL_TOKEN = "__CANCELLED__"
 
--- Track cancellation state
+-- Track global cancellation state (legacy / hard-cancel via :AvanteStop, shutdown,
+-- buffer-leave, etc). New per-request cancellations should use a per-request
+-- cancel token instead (see make_cancel_token below). This global flag is kept
+-- for back-compat and for cases where we want to abort EVERY in-flight tool at
+-- once.
 M.is_cancelled = false
 ---@type avante.ui.Confirm
 M.confirm_popup = nil
+
+---@class avante.CancelToken
+---@field cancelled boolean              -- has cancellation been requested for this context?
+---@field request_id string|nil          -- the LLM request id this token belongs to
+---@field keep_tools_running boolean     -- if true, soft cancel: tools may keep running and have their results queued
+---@field cancelled_at integer|nil       -- vim.uv.hrtime() when cancelled
+---@field reason string|nil              -- optional human-readable reason
+
+---Create a per-request cancel token.
+---@param request_id string|nil
+---@param opts? { keep_tools_running?: boolean }
+---@return avante.CancelToken
+function M.make_cancel_token(request_id, opts)
+  opts = opts or {}
+  local keep = opts.keep_tools_running
+  if keep == nil then keep = true end
+  return {
+    cancelled = false,
+    request_id = request_id,
+    keep_tools_running = keep,
+    cancelled_at = nil,
+    reason = nil,
+  }
+end
+
+---Mark a cancel token as cancelled.
+---@param token avante.CancelToken|nil
+---@param opts? { abort_tools?: boolean, reason?: string }
+function M.cancel_token(token, opts)
+  if not token then return end
+  opts = opts or {}
+  token.cancelled = true
+  token.cancelled_at = vim.uv.hrtime()
+  if opts.reason then token.reason = opts.reason end
+  if opts.abort_tools then token.keep_tools_running = false end
+end
+
+---Has cancellation been requested for this context?
+---Includes the legacy global flag so that a hard global cancel still wins.
+---@param token avante.CancelToken|nil
+---@return boolean
+function M.is_token_cancelled(token)
+  if M.is_cancelled then return true end
+  if token and token.cancelled then return true end
+  return false
+end
+
+---Should an in-flight tool be aborted right now?
+---Soft (per-request) cancels with keep_tools_running=true do NOT abort tools —
+---they let the tool finish so its result can be queued for the next outbound
+---LLM payload. Only the legacy global flag, or an explicit
+---`cancel({ abort_tools = true })`, will actually abort the tool.
+---@param token avante.CancelToken|nil
+---@return boolean
+function M.should_abort_tool(token)
+  if M.is_cancelled then return true end
+  if token and token.cancelled and not token.keep_tools_running then return true end
+  return false
+end
 
 ---@param rel_path string
 ---@return string
