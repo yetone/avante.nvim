@@ -1931,7 +1931,9 @@ function M._stream(opts)
             and LLMToolHelpers.is_token_cancelled(opts.session_ctx.cancel_token)
             and error ~= LLMToolHelpers.CANCEL_TOKEN
           then
-            Utils.debug("handle_tool_result: dropping recursion for cancelled request " .. tostring(opts.session_ctx.request_id))
+            Utils.debug(
+              "handle_tool_result: dropping recursion for cancelled request " .. tostring(opts.session_ctx.request_id)
+            )
             return
           end
           -- Special handling for cancellation signal from tools
