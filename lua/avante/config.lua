@@ -751,6 +751,7 @@ M._defaults = {
     ---@type AvanteSupportedProvider
     ["claude-opus"] = {
       __inherited_from = "claude",
+      endpoint = "https://api.anthropic.com",
       model = "claude-opus-4-8",
       timeout = 30000, -- Timeout in milliseconds
       extra_request_body = {
