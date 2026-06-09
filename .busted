@@ -1,0 +1,18 @@
+return {
+  _all = {
+    lua = "nlua",
+    helper = "tests/nlua_helper.lua",
+    lpath = table.concat({
+      "./lua/?.lua",
+      "./lua/?/init.lua",
+      "./tests/?.lua",
+    }, ";"),
+    cpath = table.concat({
+      "./lua/?.so",
+      "./lua/?/?.so",
+    }, ";"),
+  },
+  default = {
+    ROOT = { "tests" },
+  },
+}

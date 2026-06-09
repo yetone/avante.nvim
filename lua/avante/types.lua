@@ -1,4 +1,4 @@
----@meta
+---@meta types
 
 ---@class vim.api.create_autocmd.callback.args
 ---@field id number
@@ -248,7 +248,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@alias AvanteResponseParser fun(self: AvanteProviderFunctor, ctx: any, data_stream: string, event_state: string?, opts: AvanteHandlerOptions): nil
 ---
 ---@class AvanteDefaultBaseProvider: table<string, any>
----@field endpoint string
+---@field endpoint string Endpoint (e.g. "https://api.mistral.ai/v1")
 ---@field extra_request_body? table<string, any>
 ---@field model? string
 ---@field model_names? string[]
@@ -258,10 +258,11 @@ vim.g.avante_login = vim.g.avante_login
 ---@field timeout integer Timeout in milliseconds, increase this for reasoning models
 ---@field allow_insecure? boolean Allow insecure server connections
 ---@field api_key_name? string
+---Either the name of the environment variable containing the API key (avante will try a variant prefixed with "AVANTE_" as well) or if the value starts with "cmd:", avante will run the command and retreive the key from its stdout
 ---@field _shellenv? string
 ---@field disable_tools? boolean disable if prompt consumes too many tokens
 ---@field entra? boolean
----@field hide_in_model_selector? boolean
+---@field hide_in_model_selector? boolean Dont show provider in |:AvanteSwitchProvider|
 ---@field use_ReAct_prompt? boolean
 ---@field context_window? integer
 ---@field use_response_api? boolean | fun(provider: AvanteDefaultBaseProvider, ctx?: any): boolean

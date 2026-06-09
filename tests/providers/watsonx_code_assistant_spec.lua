@@ -1,15 +1,13 @@
-local busted = require("plenary.busted")
-
-busted.describe("watsonx_code_assistant provider", function()
+describe("watsonx_code_assistant provider", function()
   local watsonx_provider
 
-  busted.before_each(function()
+  before_each(function()
     -- Minimal setup without extensive mocking
     watsonx_provider = require("avante.providers.watsonx_code_assistant")
   end)
 
-  busted.describe("basic configuration", function()
-    busted.it("should have required properties", function()
+  describe("basic configuration", function()
+    it("should have required properties", function()
       assert.is_not_nil(watsonx_provider.api_key_name)
       assert.equals("WCA_API_KEY", watsonx_provider.api_key_name)
       assert.is_not_nil(watsonx_provider.role_map)
@@ -17,17 +15,17 @@ busted.describe("watsonx_code_assistant provider", function()
       assert.equals("ASSISTANT", watsonx_provider.role_map.assistant)
     end)
 
-    busted.it("should disable streaming", function() assert.is_true(watsonx_provider:is_disable_stream()) end)
+    it("should disable streaming", function() assert.is_true(watsonx_provider:is_disable_stream()) end)
 
-    busted.it("should have required functions", function()
+    it("should have required functions", function()
       assert.is_function(watsonx_provider.parse_messages)
       assert.is_function(watsonx_provider.parse_response_without_stream)
       assert.is_function(watsonx_provider.parse_curl_args)
     end)
   end)
 
-  busted.describe("parse_messages", function()
-    busted.it("should parse messages with correct role mapping", function()
+  describe("parse_messages", function()
+    it("should parse messages with correct role mapping", function()
       ---@type AvantePromptOptions
       local opts = {
         system_prompt = "You are a helpful assistant",
@@ -49,7 +47,7 @@ busted.describe("watsonx_code_assistant provider", function()
       assert.equals("Hi there", result[3].content)
     end)
 
-    busted.it("should handle WCA_COMMAND system prompt", function()
+    it("should handle WCA_COMMAND system prompt", function()
       ---@type AvantePromptOptions
       local opts = {
         system_prompt = "WCA_COMMAND",

@@ -2,7 +2,7 @@
 set -e
 
 DEST_DIR="$PWD/target/tests"
-DEPS_DIR="$DEST_DIR/deps"
+NVIM_TEST_HOME="$DEST_DIR/nvim"
 
 log() {
     echo "$1" >&2
@@ -17,43 +17,34 @@ check_tools() {
         log "Error: silversearcher-ag (ag) is not installed. Please install it."
         exit 1
     }
-}
-
-setup_deps() {
-    local plenary_path="$DEPS_DIR/plenary.nvim"
-    if [ -d "$plenary_path/.git" ]; then
-        log "plenary.nvim already exists. Updating..."
-        (
-            cd "$plenary_path"
-            git fetch -q
-            if git show-ref --verify --quiet refs/remotes/origin/main; then
-                git reset -q --hard origin/main
-            elif git show-ref --verify --quiet refs/remotes/origin/master; then
-                git reset -q --hard origin/master
-            fi
-        )
-    else
-        if [ -d "$plenary_path" ]; then
-            log "Removing non-git plenary.nvim directory and re-cloning."
-            rm -rf "$plenary_path"
-        fi
-        log "Cloning plenary.nvim..."
-        mkdir -p "$DEPS_DIR"
-        git clone --depth 1 "https://github.com/nvim-lua/plenary.nvim.git" "$plenary_path"
-    fi
+    command -v nlua &>/dev/null || {
+        log "Error: nlua is not installed. Please install nlua."
+        exit 1
+    }
+    command -v busted &>/dev/null || {
+        log "Error: busted is not installed. Please install busted."
+        exit 1
+    }
 }
 
 run_tests() {
     log "Running tests..."
-    nvim --headless --clean \
-        -c "set runtimepath+=$DEPS_DIR/plenary.nvim" \
-        -c "lua require('plenary.test_harness').test_directory('tests/', { minimal_init = 'NONE' })"
+    mkdir -p "$NVIM_TEST_HOME"/{config,data,state,cache}
+    local test_roots=("$@")
+    if [ ${#test_roots[@]} -eq 0 ]; then
+        test_roots=("tests")
+    fi
+
+    XDG_CONFIG_HOME="$NVIM_TEST_HOME/config" \
+        XDG_DATA_HOME="$NVIM_TEST_HOME/data" \
+        XDG_STATE_HOME="$NVIM_TEST_HOME/state" \
+        XDG_CACHE_HOME="$NVIM_TEST_HOME/cache" \
+        busted "${test_roots[@]}"
 }
 
 main() {
     check_tools
-    setup_deps
-    run_tests
+    run_tests "$@"
 }
 
 main "$@"

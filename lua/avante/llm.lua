@@ -981,6 +981,18 @@ function M._stream_acp(opts)
   end
   local acp_client = opts.acp_client
   local session_id = opts.acp_session_id
+  local acp_client_config = acp_client and acp_client.config
+  local is_same_acp_command_invocation = acp_client_config
+    and acp_client_config.command == acp_provider.command
+    and vim.deep_equal(acp_client_config.args, acp_provider.args)
+  if acp_client and not is_same_acp_command_invocation then
+    Utils.debug("reset stale ACP client", acp_client_config and acp_client_config.command, acp_provider.command)
+    pcall(function() acp_client:stop() end)
+    acp_client = nil
+    session_id = nil
+    opts.acp_client = nil
+    opts.acp_session_id = nil
+  end
   if not acp_client then
     local acp_config = vim.tbl_deep_extend("force", acp_provider, {
       ---@type ACPHandlers

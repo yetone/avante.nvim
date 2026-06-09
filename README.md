@@ -354,7 +354,7 @@ programs.neovim = {
       type = "lua";
       config = ''
               require("avante").setup()
-      '' # or builtins.readFile ./plugins/avante.lua;
+      ''; # or builtins.readFile ./plugins/avante.lua
     }
   ];
 };

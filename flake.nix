@@ -2,7 +2,7 @@
   description = "Development shell for avante.nvim";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs?rev=28ace32529a63842e4f8103e4f9b24960cf6c23a";
   };
 
   outputs =
@@ -30,14 +30,14 @@
             lp.luarocks
             lp.nlua
           ]);
-        in
-        {
+
           default = pkgs.mkShell {
             name = "avante";
 
             packages = with pkgs; [
               lua5_1.pkgs.luacheck
               lua-language-server
+              ripgrep
               yq
               silver-searcher
               python3
@@ -52,6 +52,18 @@
               export DEPS_PATH="target/tests/deps"
             '';
           };
+
+        in
+        {
+          inherit default;
+          ci = default.overrideAttrs(oa: {
+            buildInputs = oa.buildInputs ++ [
+              pkgs.neovim-unwrapped
+            ];
+            shellHook = oa.shellHook + ''
+              export VIMRUNTIME=${pkgs.neovim-unwrapped}/share/nvim/runtime
+              '';
+          });
         }
       );
     };

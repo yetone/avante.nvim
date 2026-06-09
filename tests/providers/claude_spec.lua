@@ -1,7 +1,4 @@
 ---@diagnostic disable: duplicate-set-field, need-check-nil
-local busted = require("plenary.busted")
-local async = require("plenary.async.tests")
-local async_util = require("plenary.async")
 local test_util = require("avante.utils.test")
 local pkce = require("avante.auth.pkce")
 
@@ -25,11 +22,13 @@ local function create_mock_token_response()
   }
 end
 
-busted.describe("claude provider", function()
+local function wait_for_schedule() vim.wait(100) end
+
+describe("claude provider", function()
   -- PKCE Implementation Tests
-  busted.describe("PKCE implementation", function()
-    busted.describe("generate_verifier", function()
-      busted.it("should return a non-empty string", function()
+  describe("PKCE implementation", function()
+    describe("generate_verifier", function()
+      it("should return a non-empty string", function()
         local verifier, err = pkce.generate_verifier()
         assert.not_nil(verifier)
         assert.is_nil(err)
@@ -37,19 +36,19 @@ busted.describe("claude provider", function()
         assert.is_true(#verifier > 0)
       end)
 
-      busted.it("should generate URL-safe base64 string (no +, /, or =)", function()
+      it("should generate URL-safe base64 string (no +, /, or =)", function()
         local verifier, err = pkce.generate_verifier()
         assert.is_nil(err)
         assert.is_false(verifier:match("[+/=]") ~= nil, "Verifier should not contain +, /, or =")
       end)
 
-      busted.it("should generate verifier within valid length range (43-128 chars)", function()
+      it("should generate verifier within valid length range (43-128 chars)", function()
         local verifier, err = pkce.generate_verifier()
         assert.is_nil(err)
         assert.is_true(#verifier >= 43 and #verifier <= 128, "Verifier length should be 43-128 characters")
       end)
 
-      busted.it("should generate different verifiers on multiple calls", function()
+      it("should generate different verifiers on multiple calls", function()
         local verifier1, err1 = pkce.generate_verifier()
         local verifier2, err2 = pkce.generate_verifier()
         assert.is_nil(err1)
@@ -58,8 +57,8 @@ busted.describe("claude provider", function()
       end)
     end)
 
-    busted.describe("generate_challenge", function()
-      busted.it("should return a non-empty string", function()
+    describe("generate_challenge", function()
+      it("should return a non-empty string", function()
         local verifier = "test_verifier_123456"
         local challenge, err = pkce.generate_challenge(verifier)
         assert.not_nil(challenge)
@@ -68,7 +67,7 @@ busted.describe("claude provider", function()
         assert.is_true(#challenge > 0)
       end)
 
-      busted.it("should be deterministic (same verifier produces same challenge)", function()
+      it("should be deterministic (same verifier produces same challenge)", function()
         local verifier = "test_verifier_123456"
         local challenge1, err1 = pkce.generate_challenge(verifier)
         local challenge2, err2 = pkce.generate_challenge(verifier)
@@ -77,14 +76,14 @@ busted.describe("claude provider", function()
         assert.equals(challenge1, challenge2)
       end)
 
-      busted.it("should generate URL-safe base64 string (no +, /, or =)", function()
+      it("should generate URL-safe base64 string (no +, /, or =)", function()
         local verifier = "test_verifier_123456"
         local challenge, err = pkce.generate_challenge(verifier)
         assert.is_nil(err)
         assert.is_false(challenge:match("[+/=]") ~= nil, "Challenge should not contain +, /, or =")
       end)
 
-      busted.it("should generate different challenges for different verifiers", function()
+      it("should generate different challenges for different verifiers", function()
         local verifier1 = "test_verifier_1"
         local verifier2 = "test_verifier_2"
         local challenge1, err1 = pkce.generate_challenge(verifier1)
@@ -94,7 +93,7 @@ busted.describe("claude provider", function()
         assert.not_equal(challenge1, challenge2)
       end)
 
-      busted.it("should generate challenge of correct length for SHA256 (43 chars)", function()
+      it("should generate challenge of correct length for SHA256 (43 chars)", function()
         local verifier = "test_verifier_123456"
         local challenge, err = pkce.generate_challenge(verifier)
         assert.is_nil(err)
@@ -104,17 +103,17 @@ busted.describe("claude provider", function()
   end)
 
   -- Token Storage Tests
-  busted.describe("Token storage and retrieval", function()
+  describe("Token storage and retrieval", function()
     local claude_provider
 
-    busted.before_each(function()
+    before_each(function()
       -- Reload the provider module to get a fresh state
       package.loaded["avante.providers.claude"] = nil
       claude_provider = require("avante.providers.claude")
     end)
 
-    busted.describe("store_tokens", function()
-      async.it("should store tokens with correct structure in state", function()
+    describe("store_tokens", function()
+      it("should store tokens with correct structure in state", function()
         -- Initialize state
         claude_provider.state = { claude_token = nil }
 
@@ -137,7 +136,7 @@ busted.describe("claude provider", function()
         claude_provider.store_tokens(mock_tokens)
 
         -- Wait for vim.schedule callback to execute
-        async_util.util.sleep(100)
+        wait_for_schedule()
 
         -- Restore mocks
         io.open = original_open
@@ -151,7 +150,7 @@ busted.describe("claude provider", function()
         assert.is_true(claude_provider.state.claude_token.expires_at > original_time)
       end)
 
-      async.it("should include all required fields", function()
+      it("should include all required fields", function()
         claude_provider.state = { claude_token = nil }
 
         local mock_tokens = create_mock_token_response()
@@ -170,7 +169,7 @@ busted.describe("claude provider", function()
         claude_provider.store_tokens(mock_tokens)
 
         -- Wait for vim.schedule callback to execute
-        async_util.util.sleep(100)
+        wait_for_schedule()
 
         io.open = original_open
         vim.fn.system = original_system
@@ -184,11 +183,11 @@ busted.describe("claude provider", function()
   end)
 
   -- Authentication Flow Start Tests
-  busted.describe("Authentication flow initiation", function()
+  describe("Authentication flow initiation", function()
     local claude_provider
     local Config
 
-    busted.before_each(function()
+    before_each(function()
       package.loaded["avante.providers.claude"] = nil
       package.loaded["avante.config"] = nil
       Config = require("avante.config")
@@ -200,8 +199,8 @@ busted.describe("claude provider", function()
       claude_provider = require("avante.providers.claude")
     end)
 
-    busted.describe("authenticate", function()
-      async.it("should generate PKCE parameters", function()
+    describe("authenticate", function()
+      it("should generate PKCE parameters", function()
         -- Mock vim.ui.open to prevent browser opening
         local captured_url = nil
         local original_open = vim.ui.open
@@ -226,7 +225,7 @@ busted.describe("claude provider", function()
         claude_provider.authenticate()
 
         -- Wait for vim.schedule callback to execute
-        async_util.util.sleep(100)
+        wait_for_schedule()
 
         vim.ui.open = original_open
         vim.notify = original_notify
@@ -237,7 +236,7 @@ busted.describe("claude provider", function()
         assert.is_true(captured_url:match("code_challenge_method=S256") ~= nil)
       end)
 
-      async.it("should construct authorization URL with correct parameters", function()
+      it("should construct authorization URL with correct parameters", function()
         local captured_url = nil
         local original_open = vim.ui.open
         vim.ui.open = function(url)
@@ -259,7 +258,7 @@ busted.describe("claude provider", function()
         claude_provider.authenticate()
 
         -- Wait for vim.schedule callback to execute
-        async_util.util.sleep(100)
+        wait_for_schedule()
 
         vim.ui.open = original_open
         vim.notify = original_notify
@@ -274,7 +273,7 @@ busted.describe("claude provider", function()
         assert.is_true(captured_url:match("code_challenge_method=S256") ~= nil)
       end)
 
-      async.it("should use correct OAuth endpoint", function()
+      it("should use correct OAuth endpoint", function()
         local captured_url = nil
         local original_open = vim.ui.open
         vim.ui.open = function(url)
@@ -296,7 +295,7 @@ busted.describe("claude provider", function()
         claude_provider.authenticate()
 
         -- Wait for vim.schedule callback to execute
-        async_util.util.sleep(100)
+        wait_for_schedule()
 
         vim.ui.open = original_open
         vim.notify = original_notify
@@ -304,7 +303,7 @@ busted.describe("claude provider", function()
         assert.is_true(captured_url:match("^https://claude.ai/oauth/authorize") ~= nil)
       end)
 
-      async.it("should fallback to clipboard when vim.ui.open fails", function()
+      it("should fallback to clipboard when vim.ui.open fails", function()
         -- Mock vim.ui.open to fail
         local original_open = vim.ui.open
         vim.ui.open = function(url) error("Browser open failed") end
@@ -329,7 +328,7 @@ busted.describe("claude provider", function()
         claude_provider.authenticate()
 
         -- Wait for vim.schedule callback to execute
-        async_util.util.sleep(100)
+        wait_for_schedule()
 
         vim.ui.open = original_open
         vim.fn.setreg = original_setreg
@@ -344,31 +343,31 @@ busted.describe("claude provider", function()
   end)
 
   -- Token Refresh Logic Tests
-  busted.describe("Token refresh logic", function()
+  describe("Token refresh logic", function()
     local claude_provider
     local curl
 
-    busted.before_each(function()
+    before_each(function()
       package.loaded["avante.providers.claude"] = nil
       package.loaded["plenary.curl"] = nil
       claude_provider = require("avante.providers.claude")
       curl = require("plenary.curl")
     end)
 
-    busted.describe("refresh_token", function()
-      busted.it("should exit early when no state exists", function()
+    describe("refresh_token", function()
+      it("should exit early when no state exists", function()
         claude_provider.state = nil
         local result = claude_provider.refresh_token(false, false)
         assert.is_false(result)
       end)
 
-      busted.it("should exit early when no token exists in state", function()
+      it("should exit early when no token exists in state", function()
         claude_provider.state = { claude_token = nil }
         local result = claude_provider.refresh_token(false, false)
         assert.is_false(result)
       end)
 
-      busted.it("should skip refresh when token is not expired and not forced", function()
+      it("should skip refresh when token is not expired and not forced", function()
         local non_expired_token = create_mock_token_data(false)
         claude_provider.state = { claude_token = non_expired_token }
 
@@ -376,7 +375,7 @@ busted.describe("claude provider", function()
         assert.is_false(result)
       end)
 
-      async.it("should proceed when forced even if token not expired", function()
+      it("should proceed when forced even if token not expired", function()
         local non_expired_token = create_mock_token_data(false)
         claude_provider.state = { claude_token = non_expired_token }
 
@@ -405,7 +404,7 @@ busted.describe("claude provider", function()
         claude_provider.refresh_token(false, true)
 
         -- Wait for any vim.schedule callbacks to complete
-        async_util.util.sleep(100)
+        wait_for_schedule()
 
         curl.post = original_post
         io.open = original_open
@@ -414,7 +413,7 @@ busted.describe("claude provider", function()
         assert.is_true(post_called)
       end)
 
-      async.it("should make POST request with correct structure", function()
+      it("should make POST request with correct structure", function()
         local expired_token = create_mock_token_data(true)
         claude_provider.state = { claude_token = expired_token }
 
@@ -448,7 +447,7 @@ busted.describe("claude provider", function()
         claude_provider.refresh_token(false, false)
 
         -- Wait for any vim.schedule callbacks to complete
-        async_util.util.sleep(100)
+        wait_for_schedule()
 
         curl.post = original_post
         io.open = original_open
@@ -464,7 +463,7 @@ busted.describe("claude provider", function()
         assert.equals("application/json", captured_headers["Content-Type"])
       end)
 
-      async.it("should handle successful refresh response", function()
+      it("should handle successful refresh response", function()
         local expired_token = create_mock_token_data(true)
         claude_provider.state = { claude_token = expired_token }
 
@@ -493,7 +492,7 @@ busted.describe("claude provider", function()
         claude_provider.refresh_token(false, false)
 
         -- Wait for any vim.schedule callbacks to complete
-        async_util.util.sleep(100)
+        wait_for_schedule()
 
         curl.post = original_post
         io.open = original_open
@@ -504,7 +503,7 @@ busted.describe("claude provider", function()
         assert.equals(mock_response.refresh_token, claude_provider.state.claude_token.refresh_token)
       end)
 
-      async.it("should handle error response (status >= 400)", function()
+      it("should handle error response (status >= 400)", function()
         local expired_token = create_mock_token_data(true)
         claude_provider.state = { claude_token = expired_token }
 
@@ -527,7 +526,7 @@ busted.describe("claude provider", function()
         local result = claude_provider.refresh_token(false, false)
 
         -- Wait for any vim.schedule callbacks to complete
-        async_util.util.sleep(100)
+        wait_for_schedule()
 
         -- Should not crash and return gracefully
         -- State should remain unchanged
@@ -540,11 +539,11 @@ busted.describe("claude provider", function()
   end)
 
   -- Lockfile Management Tests
-  busted.describe("Lockfile management", function()
+  describe("Lockfile management", function()
     -- Note: These tests are more integration-style as the functions are local to the module
     -- We test the observable behavior rather than the internal functions directly
 
-    busted.it("should handle lockfile scenarios through setup", function()
+    it("should handle lockfile scenarios through setup", function()
       -- This is a basic smoke test that the lockfile logic doesn't crash
       -- More detailed testing would require exposing the internal functions or using integration tests
       local claude_provider = require("avante.providers.claude")
@@ -556,19 +555,19 @@ busted.describe("claude provider", function()
   end)
 
   -- Provider Setup Tests
-  busted.describe("Provider setup", function()
+  describe("Provider setup", function()
     local claude_provider
     local Config
 
-    busted.before_each(function()
+    before_each(function()
       package.loaded["avante.providers.claude"] = nil
       package.loaded["avante.config"] = nil
       Config = require("avante.config")
       claude_provider = require("avante.providers.claude")
     end)
 
-    busted.describe("API mode setup", function()
-      busted.it("should set correct api_key_name for API auth", function()
+    describe("API mode setup", function()
+      it("should set correct api_key_name for API auth", function()
         -- Mock the provider config
         local P = require("avante.providers")
         local original_parse = P.parse_config
@@ -592,8 +591,8 @@ busted.describe("claude provider", function()
       end)
     end)
 
-    busted.describe("Max mode setup", function()
-      async.it("should initialize state when nil", function()
+    describe("Max mode setup", function()
+      it("should initialize state when nil", function()
         -- Start with no state
         claude_provider.state = nil
 
@@ -640,7 +639,7 @@ busted.describe("claude provider", function()
         pcall(function() claude_provider.setup() end)
 
         -- Wait for any vim.schedule callbacks to complete
-        async_util.util.sleep(100)
+        wait_for_schedule()
 
         Path.new = original_new
         vim.ui.open = original_open

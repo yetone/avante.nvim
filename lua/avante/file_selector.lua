@@ -2,7 +2,7 @@ local Utils = require("avante.utils")
 local Config = require("avante.config")
 local Selector = require("avante.ui.selector")
 
-local PROMPT_TITLE = "(Avante) Add a file"
+local PROMPT_TITLE = "(Avante) Add file(s)"
 
 --- @class FileSelector
 local FileSelector = {}
