@@ -93,8 +93,13 @@ jobs:
         with:
           targets: ${{ matrix.config.rust_target }}
           toolchain: "1.85.0"
-      - name: Build all crates
-        if: ${{ matrix.config.container == null }}
+      - name: Build all crates (Linux/MacOS)
+        if: ${{ matrix.config.container == null && matrix.config.os_name != 'windows' }}
+        run: |
+          make ${{ matrix.feature }} BUILD_FROM_SOURCE=true CARGO_TARGET=${{ matrix.config.rust_target }}
+
+      - name: Build all crates (Windows)
+        if: ${{ matrix.config.os_name == 'windows' }}
         run: |
           # TODO leverage AvanteBuild
           cargo build --release --features ${{ matrix.feature }} --target ${{ matrix.config.rust_target }}
@@ -109,30 +114,16 @@ jobs:
             -w /workspace \
             --platform ${{ matrix.config.docker_platform }} \
             ${{ matrix.config.container }} \
-            bash -c "yum install -y perl-IPC-Cmd openssl-devel && curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && . /root/.cargo/env && cargo build --release --features ${{ matrix.feature }}"
+            bash -c "yum install -y perl-IPC-Cmd openssl-devel && curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && . /root/.cargo/env && make ${{ matrix.feature }} BUILD_FROM_SOURCE=true"
 
       - name: Handle binaries (Linux/MacOS)
         if: ${{ matrix.config.os_name != 'windows' }}
         shell: bash
         run: |
           mkdir -p results
-          if [ "${{ matrix.config.os_name }}" == "darwin" ]; then
-            CARGO_EXT="dylib"
-            TARGET_DIR="target/${{ matrix.config.rust_target }}/release"
-          else
-            CARGO_EXT="so"
-            TARGET_DIR="target/release"
-          fi
-
-          # Rename the extension to .so on all Unix platforms
-          EXT="so"
-
-          cp -v $TARGET_DIR/libavante_templates.$CARGO_EXT results/avante_templates.$EXT
-          cp -v $TARGET_DIR/libavante_tokenizers.$CARGO_EXT results/avante_tokenizers.$EXT
-          cp -v $TARGET_DIR/libavante_repo_map.$CARGO_EXT results/avante_repo_map.$EXT
-          cp -v $TARGET_DIR/libavante_html2md.$CARGO_EXT results/avante_html2md.$EXT
+          cp -v lua/avante_*.so results/
           cd results
-          tar zcvf avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.tar.gz *.${EXT}
+          tar zcvf avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.tar.gz *.so
 
       - name: Handle binaries (Windows)
         if: ${{ matrix.config.os_name == 'windows' }}
