@@ -1140,9 +1140,7 @@ function M._stream_acp(opts)
               local target_line = math.min(line, line_count)
 
               pcall(api.nvim_win_set_cursor, code_winid, { target_line, 0 })
-              pcall(api.nvim_win_call, code_winid, function()
-                vim.cmd("normal! zz")
-              end)
+              pcall(api.nvim_win_call, code_winid, function() vim.cmd("normal! zz") end)
 
               vim.g.avante_last_auto_nav = now
             end)
