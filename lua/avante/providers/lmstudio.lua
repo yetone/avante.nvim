@@ -1,3 +1,36 @@
+---@mod avante-providers-lmstudio
+---@brief [[
+---
+--- lmstudio (www.lmstudio.com) is a local LLM inference server.
+--- It supports three API modes: OpenAI-compatible, Claude-compatible,
+--- and native LM Studio chat API.
+---
+--- Configuration example:
+---
+--- ```lua
+--- require("avante").setup({
+---   provider = "lmstudio",
+---   providers = {
+---     lmstudio = {
+---       mode = "openai",       -- "openai" | "anthropic" | "lmstudio" (native)
+---       endpoint = "http://127.0.0.1:1234",
+---       model = "",            -- populated by :AvanteModels or list_models
+---       timeout = 30000,
+---       use_server_defaults = false,
+---       use_server_context_window = false,
+---     },
+---   },
+--- })
+--- ```
+---
+--- Modes:
+--- - `openai` (default): Uses OpenAI-compatible API at `/v1/chat/completions`
+--- - `anthropic`: Uses Claude API at `/v1/messages`
+--- - `lmstudio`: Native LM Studio API at `/api/v1/chat`
+---
+--- Run `:AvanteModels` to list available models.
+--- ]]
+---
 local Utils = require("avante.utils")
 local Providers = require("avante.providers")
 
