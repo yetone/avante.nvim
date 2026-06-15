@@ -374,6 +374,14 @@ vim.g.avante_login = vim.g.avante_login
 ---@field load_model_handler fun(): AvanteBedrockModelHandler
 ---@field build_bedrock_payload? AvanteBedrockPayloadBuilder
 ---
+---@alias LmStudioMode "openai" | "anthropic" | "lmstudio"
+---@class AvanteLmStudioProvider: AvanteDefaultBaseProvider
+---@field mode LmStudioMode
+---@field api_key string
+---@field model_names? string[]
+---@field use_server_defaults? boolean
+---@field use_server_context_window? boolean
+---
 ---@class AvanteBedrockModelHandler : AvanteProviderFunctor
 ---@field role_map table<"user" | "assistant", string>
 ---@field parse_messages AvanteMessagesParser
