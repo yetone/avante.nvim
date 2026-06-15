@@ -842,7 +842,7 @@ function M.refresh_token(async, force)
     return false
   end
 
-  local base_url = "https://console.anthropic.com/v1/oauth/token"
+  local base_url = token_endpoint
   local body = {
     grant_type = "refresh_token",
     client_id = client_id,
