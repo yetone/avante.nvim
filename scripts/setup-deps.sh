@@ -165,6 +165,10 @@ install_nvim_runtime() {
 
     local nvim_version
     nvim_version="$(yq -r '.jobs.typecheck.strategy.matrix.nvim_version[0]' .github/workflows/lua.yaml)"
+    # Fallback to stable when the workflow uses nix CI instead of matrix (e.g., e7a167e+)
+    if [ "$nvim_version" == "null" ] || [ -z "$nvim_version" ]; then
+        nvim_version="stable"
+    fi
     log_verbose "Parsed nvim version from workflow: $nvim_version"
 
     log_verbose "Resolving ${nvim_version} Neovim release from GitHub API..."
