@@ -69,18 +69,10 @@ test_command() {
   command -v "$1" >/dev/null 2>&1
 }
 
-test_gh_auth() {
-  if gh api user >/dev/null 2>&1; then
-    return 0
-  else
-    return 1
-  fi
-}
-
 fetch_remote_tags() {
-  git ls-remote --tags "$REPO_REMOTE" | cut -f2 | sed 's|refs/tags/||' | while read tag; do
+  git ls-remote --tags "$REPO_REMOTE" | cut -f2 | sed 's|refs/tags/||' | while read -r tag; do
     if ! git rev-parse "$tag" >/dev/null 2>&1; then
-      git fetch origin "refs/tags/$tag:refs/tags/$tag"
+      git fetch "$REPO_REMOTE" "refs/tags/$tag:refs/tags/$tag"
     fi
   done
 }
@@ -90,7 +82,7 @@ if [ ! -d "$TARGET_DIR" ]; then
 fi
 
 fetch_remote_tags
-latest_tag="$(git describe --tags --abbrev=0 || true)" # will be empty in clone repos
+latest_tag="$(git describe --tags --abbrev=0 --match "v*" || true)" # will be empty in clone repos
 built_tag="$(cat "${TARGET_DIR}/.tag" 2>/dev/null || true)"
 
 save_tag() {
@@ -102,19 +94,13 @@ if [[ "$latest_tag" = "$built_tag" && -n "$latest_tag" ]]; then
 elif [[ "$latest_tag" != "$built_tag" && -n "$latest_tag" ]]; then
   echo "Local build is out of date $built_tag. Downloading latest $latest_tag."
 
-  set -x
-  if test_command "gh" && test_gh_auth; then
-    gh release download "$latest_tag" --repo "github.com/$REPO_OWNER/$REPO_NAME" --pattern "*$ARTIFACT_NAME_PATTERN*" --clobber --output - | tar -zxv -C "$TARGET_DIR"
-    save_tag
-  else
-    # Get the artifact download URL
-    ARTIFACT_URL=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$latest_tag" | grep "browser_download_url" | cut -d '"' -f 4 | grep "$ARTIFACT_NAME_PATTERN")
+  # Get the artifact download URL
+  ARTIFACT_URL=$(curl -s "https://api.github.com/repos/$REPO_OWNER/$REPO_NAME/releases/tags/$latest_tag" | grep "browser_download_url" | cut -d '"' -f 4 | grep "$ARTIFACT_NAME_PATTERN")
 
-    mkdir -p "$TARGET_DIR"
+  mkdir -p "$TARGET_DIR"
 
-    curl -L "$ARTIFACT_URL" | tar -zxv -C "$TARGET_DIR"
-    save_tag
-  fi
+  curl -L "$ARTIFACT_URL" | tar -zxv -C "$TARGET_DIR"
+  save_tag
 else
   echo "No latest tag found. Building from source."
   cargo build --release --features="$LUA_VERSION"
