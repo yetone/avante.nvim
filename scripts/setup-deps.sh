@@ -164,7 +164,7 @@ install_nvim_runtime() {
     command -v yq &>/dev/null || die "yq is not installed for parsing GitHub API responses."
 
     local nvim_version
-    nvim_version="$(yq -r '.jobs.typecheck.strategy.matrix.nvim_version[0]' .github/workflows/lua.yaml)"
+    nvim_version="$(yq -r '.jobs.typecheck.strategy.matrix.nvim_version[0]' .github/workflows/tests.yaml)"
     log_verbose "Parsed nvim version from workflow: $nvim_version"
 
     log_verbose "Resolving ${nvim_version} Neovim release from GitHub API..."
