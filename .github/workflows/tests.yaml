@@ -13,6 +13,7 @@ on:
     paths:
       - "**/*.lua"
       - .github/workflows/tests.yaml
+      - .github/workflows/build.yaml
 
 jobs:
   # reference from: https://github.com/nvim-lua/plenary.nvim/blob/2d9b06177a975543726ce5c73fca176cedbffe9d/.github/workflows/default.yml#L6C3-L43C20
