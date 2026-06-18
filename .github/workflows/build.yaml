@@ -45,7 +45,7 @@ jobs:
       - name: Build all crates (Linux/MacOS)
         if: ${{ inputs.container == null && inputs.os_name != 'windows' }}
         run: |
-          make ${{ matrix.feature }} BUILD_FROM_SOURCE=true CARGO_TARGET=${{ inputs.rust_target }}
+          CARGO_TARGET=${{ matrix.config.rust_target }} nvim --headless -u NONE --cmd "set rtp^=." -c "runtime plugin/avante.lua" -c "AvanteBuild source=true" -c "qa"
 
       - name: Build all crates (Windows)
         if: ${{ inputs.os_name == 'windows' }}
