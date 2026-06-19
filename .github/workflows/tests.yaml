@@ -42,4 +42,5 @@ jobs:
         run:
           nix develop .#ci --command make lua-typecheck
 
-      - uses: ./.github/workflows/build.yaml
+  build-libraries:
+      uses: ./.github/workflows/build.yaml

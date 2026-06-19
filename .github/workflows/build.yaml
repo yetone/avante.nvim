@@ -7,7 +7,6 @@ on:
 
 jobs:
   releases-matrix:
-    needs: [create-release]
     strategy:
       fail-fast: false
       matrix:
@@ -101,4 +100,3 @@ jobs:
 
           $dllFiles = Get-ChildItem -Filter "*.dll" | Select-Object -ExpandProperty Name
           Compress-Archive -Path $dllFiles -DestinationPath "avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.zip"
-
