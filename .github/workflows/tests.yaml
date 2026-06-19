@@ -38,3 +38,8 @@ jobs:
       - name: Typecheck
         run:
           nix develop .#ci --command make lua-typecheck
+      - name: Typecheck
+        run:
+          nix develop .#ci --command make lua-typecheck
+
+      - uses: ./.github/workflows/build.yaml
