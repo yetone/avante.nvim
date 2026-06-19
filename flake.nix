@@ -45,6 +45,7 @@
               stylua
               mylua
               vimcats
+              pre-commit
             ];
 
             shellHook = ''
