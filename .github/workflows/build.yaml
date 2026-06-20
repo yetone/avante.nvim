@@ -2,7 +2,27 @@ name: Build libraries
 
 on:
   workflow_call:
-    # inputs:
+    inputs:
+      os_name:
+        type: string
+        description: One of "windows", "linux" or "darwin"
+        required: true
+      os:
+        type: string
+        description: github input type as used in "runs-on"
+      arch:
+        type: string
+        # TODO convert to choice. Can we do without / deduce from os_name ?
+        description: toto
+      rust_target:
+        type: string
+      docker_platform:
+        type: string
+        description: for example linux/amd64
+      container:
+        type: string
+        description: for instance quay.io/pypa/manylinux2014_x86_64 # for glibc 2.17
+
       # todo pass platforms ?
 
 jobs:
@@ -11,86 +31,86 @@ jobs:
       fail-fast: false
       matrix:
         feature: [lua51, luajit]
-        config:
-          - os: ubuntu-24.04-arm
-            os_name: linux
-            arch: aarch64
-            rust_target: aarch64-unknown-linux-gnu
-            docker_platform: linux/aarch64
-            container: quay.io/pypa/manylinux2014_aarch64
-          - os: ubuntu-latest
-            os_name: linux
-            arch: x86_64
-            rust_target: x86_64-unknown-linux-gnu
-            docker_platform: linux/amd64
-            container: quay.io/pypa/manylinux2014_x86_64 # for glibc 2.17
-          - os: macos-latest
-            os_name: darwin
-            arch: x86_64
-            rust_target: x86_64-apple-darwin
-          - os: macos-latest
-            os_name: darwin
-            arch: aarch64
-            rust_target: aarch64-apple-darwin
-          - os: windows-latest
-            os_name: windows
-            arch: x86_64
-            rust_target: x86_64-pc-windows-msvc
-          - os: windows-latest
-            os_name: windows
-            arch: aarch64
-            rust_target: aarch64-pc-windows-msvc
+        # config:
+        #   - os: ubuntu-24.04-arm
+        #     os_name: linux
+        #     arch: aarch64
+        #     rust_target: aarch64-unknown-linux-gnu
+        #     docker_platform: linux/aarch64
+        #     container: quay.io/pypa/manylinux2014_aarch64
+        #   - os: ubuntu-latest
+        #     os_name: linux
+        #     arch: x86_64
+        #     rust_target: x86_64-unknown-linux-gnu
+        #     docker_platform: linux/amd64
+        #     container: quay.io/pypa/manylinux2014_x86_64 # for glibc 2.17
+        #   - os: macos-latest
+        #     os_name: darwin
+        #     arch: x86_64
+        #     rust_target: x86_64-apple-darwin
+        #   - os: macos-latest
+        #     os_name: darwin
+        #     arch: aarch64
+        #     rust_target: aarch64-apple-darwin
+        #   - os: windows-latest
+        #     os_name: windows
+        #     arch: x86_64
+        #     rust_target: x86_64-pc-windows-msvc
+        #   - os: windows-latest
+        #     os_name: windows
+        #     arch: aarch64
+        #     rust_target: aarch64-pc-windows-msvc
 
-    runs-on: ${{ matrix.config.os }}
+    runs-on: ${{ inputs.os }}
 
     steps:
       - uses: actions/checkout@v7
       - uses: Swatinem/rust-cache@82a92a6e8fbeee089604da2575dc567ae9ddeaab # ratchet:Swatinem/rust-cache@v2
-        if: ${{ matrix.config.container == null }}
+        if: ${{ inputs.container == null }}
       - uses: dtolnay/rust-toolchain@7b1c307e0dcbda6122208f10795a713336a9b35a # ratchet:dtolnay/rust-toolchain@master
-        if: ${{ matrix.config.container == null }}
+        if: ${{ inputs.container == null }}
         with:
-          targets: ${{ matrix.config.rust_target }}
+          targets: ${{ inputs.rust_target }}
           toolchain: "1.85.0"
       - name: Build all crates (Linux/MacOS)
-        if: ${{ matrix.config.container == null && matrix.config.os_name != 'windows' }}
+        if: ${{ inputs.container == null && inputs.os_name != 'windows' }}
         run: |
-          make ${{ matrix.feature }} BUILD_FROM_SOURCE=true CARGO_TARGET=${{ matrix.config.rust_target }}
+          make ${{ matrix.feature }} BUILD_FROM_SOURCE=true CARGO_TARGET=${{ inputs.rust_target }}
 
       - name: Build all crates (Windows)
-        if: ${{ matrix.config.os_name == 'windows' }}
+        if: ${{ inputs.os_name == 'windows' }}
         run: |
           # TODO leverage AvanteBuild
-          cargo build --release --features ${{ matrix.feature }} --target ${{ matrix.config.rust_target }}
+          cargo build --release --features ${{ matrix.feature }} --target ${{ inputs.rust_target }}
 
       - name: Build all crates with glibc 2.17 # for glibc 2.17
-        if: ${{ matrix.config.container != null }}
+        if: ${{ inputs.container != null }}
         run: |
           # sudo apt-get install -y qemu qemu-user-static
           docker run \
             --rm \
             -v $(pwd):/workspace \
             -w /workspace \
-            --platform ${{ matrix.config.docker_platform }} \
-            ${{ matrix.config.container }} \
+            --platform ${{ inputs.docker_platform }} \
+            ${{ inputs.container }} \
             bash -c "yum install -y perl-IPC-Cmd openssl-devel && curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && . /root/.cargo/env && make ${{ matrix.feature }} BUILD_FROM_SOURCE=true"
 
       - name: Handle binaries (Linux/MacOS)
-        if: ${{ matrix.config.os_name != 'windows' }}
+        if: ${{ inputs.os_name != 'windows' }}
         shell: bash
         run: |
           mkdir -p results
           cp -v lua/avante_*.so results/
           cd results
-          tar zcvf avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.tar.gz *.so
+          tar zcvf avante_lib-${{ inputs.os_name }}-${{ inputs.arch }}-${{ matrix.feature }}.tar.gz *.so
 
       - name: Handle binaries (Windows)
-        if: ${{ matrix.config.os_name == 'windows' }}
+        if: ${{ inputs.os_name == 'windows' }}
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path results
 
-          $TargetDir = "target\${{ matrix.config.rust_target }}\release"
+          $TargetDir = "target\${{ inputs.rust_target }}\release"
           Copy-Item -Path "$TargetDir\avante_templates.dll" -Destination "results\avante_templates.dll"
           Copy-Item -Path "$TargetDir\avante_tokenizers.dll" -Destination "results\avante_tokenizers.dll"
           Copy-Item -Path "$TargetDir\avante_repo_map.dll" -Destination "results\avante_repo_map.dll"
@@ -99,4 +119,4 @@ jobs:
           Set-Location -Path results
 
           $dllFiles = Get-ChildItem -Filter "*.dll" | Select-Object -ExpandProperty Name
-          Compress-Archive -Path $dllFiles -DestinationPath "avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.zip"
+          Compress-Archive -Path $dllFiles -DestinationPath "avante_lib-${{ inputs.os_name }}-${{ inputs.arch }}-${{ matrix.feature }}.zip"
