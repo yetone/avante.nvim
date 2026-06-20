@@ -8,11 +8,11 @@ on:
       - "**/*.lua"
       - .github/workflows/tests.yaml
   pull_request:
-    branches:
-      - main
-    paths:
-      - "**/*.lua"
-      - .github/workflows/tests.yaml
+    # branches:
+    #   - main
+    # paths:
+    #   - "**/*.lua"
+    #   - .github/workflows/tests.yaml
 
 jobs:
   # reference from: https://github.com/nvim-lua/plenary.nvim/blob/2d9b06177a975543726ce5c73fca176cedbffe9d/.github/workflows/default.yml#L6C3-L43C20
@@ -38,3 +38,13 @@ jobs:
       - name: Typecheck
         run:
           nix develop .#ci --command make lua-typecheck
+
+  build-libraries:
+      uses: ./.github/workflows/build.yaml
+      with:
+          os: ubuntu-24.04-arm
+          os_name: linux
+          arch: aarch64
+          rust_target: aarch64-unknown-linux-gnu
+          docker_platform: linux/aarch64
+          container: quay.io/pypa/manylinux2014_aarch64

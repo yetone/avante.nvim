@@ -1,0 +1,24 @@
+name: Manual workflow
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Environment to target
+        required: true
+        default: staging
+        type: choice
+        options:
+          - staging
+          - production
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Show selected environment
+        run: echo "Running manual workflow for ${{ inputs.environment }}"

@@ -1,0 +1,93 @@
+name: Build libraries
+
+on:
+  workflow_call:
+    inputs:
+      os_name:
+        type: string
+        description: One of "windows", "linux" or "darwin"
+        required: true
+      os:
+        type: string
+        description: github input type as used in "runs-on"
+      arch:
+        type: string
+        # TODO convert to choice. Can we do without / deduce from os_name ?
+        description: toto
+      rust_target:
+        type: string
+      docker_platform:
+        type: string
+        description: for example linux/amd64
+      container:
+        type: string
+        description: for instance quay.io/pypa/manylinux2014_x86_64 # for glibc 2.17
+
+      # todo pass platforms ?
+
+jobs:
+  build-libraries:
+    strategy:
+      fail-fast: false
+      matrix:
+        feature: [lua51, luajit]
+
+    runs-on: ${{ inputs.os }}
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Swatinem/rust-cache@82a92a6e8fbeee089604da2575dc567ae9ddeaab # ratchet:Swatinem/rust-cache@v2
+        if: ${{ inputs.container == null }}
+      - uses: dtolnay/rust-toolchain@7b1c307e0dcbda6122208f10795a713336a9b35a # ratchet:dtolnay/rust-toolchain@master
+        if: ${{ inputs.container == null }}
+        with:
+          targets: ${{ inputs.rust_target }}
+          toolchain: "1.85.0"
+      - name: Build all crates (Linux/MacOS)
+        if: ${{ inputs.container == null && inputs.os_name != 'windows' }}
+        run: |
+          make ${{ matrix.feature }} BUILD_FROM_SOURCE=true CARGO_TARGET=${{ inputs.rust_target }}
+
+      - name: Build all crates (Windows)
+        if: ${{ inputs.os_name == 'windows' }}
+        run: |
+          # TODO leverage AvanteBuild
+          cargo build --release --features ${{ matrix.feature }} --target ${{ inputs.rust_target }}
+
+      - name: Build all crates with glibc 2.17 # for glibc 2.17
+        if: ${{ inputs.container != null }}
+        run: |
+          # sudo apt-get install -y qemu qemu-user-static
+          docker run \
+            --rm \
+            -v $(pwd):/workspace \
+            -w /workspace \
+            --platform ${{ inputs.docker_platform }} \
+            ${{ inputs.container }} \
+            bash -c "yum install -y perl-IPC-Cmd openssl-devel && curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && . /root/.cargo/env && make ${{ matrix.feature }} BUILD_FROM_SOURCE=true"
+
+      - name: Handle binaries (Linux/MacOS)
+        if: ${{ inputs.os_name != 'windows' }}
+        shell: bash
+        run: |
+          mkdir -p results
+          cp -v lua/avante_*.so results/
+          cd results
+          tar zcvf avante_lib-${{ inputs.os_name }}-${{ inputs.arch }}-${{ matrix.feature }}.tar.gz *.so
+
+      - name: Handle binaries (Windows)
+        if: ${{ inputs.os_name == 'windows' }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path results
+
+          $TargetDir = "target\${{ inputs.rust_target }}\release"
+          Copy-Item -Path "$TargetDir\avante_templates.dll" -Destination "results\avante_templates.dll"
+          Copy-Item -Path "$TargetDir\avante_tokenizers.dll" -Destination "results\avante_tokenizers.dll"
+          Copy-Item -Path "$TargetDir\avante_repo_map.dll" -Destination "results\avante_repo_map.dll"
+          Copy-Item -Path "$TargetDir\avante_html2md.dll" -Destination "results\avante_html2md.dll"
+
+          Set-Location -Path results
+
+          $dllFiles = Get-ChildItem -Filter "*.dll" | Select-Object -ExpandProperty Name
+          Compress-Archive -Path $dllFiles -DestinationPath "avante_lib-${{ inputs.os_name }}-${{ inputs.arch }}-${{ matrix.feature }}.zip"
