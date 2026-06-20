@@ -79,6 +79,7 @@ jobs:
     steps:
       # TODO pass on the matrix
       - uses: ./.github/workflows/build.yaml
+        with: ${{ matrix.config }}
 
       - name: Upload Release Asset
         uses: shogo82148/actions-upload-release-asset@v1.10.1
