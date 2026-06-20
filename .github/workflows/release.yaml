@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       release_id: ${{ steps.create-release.outputs.id }}
-      release_upload_url: ${{ steps.create-release.outputs.upload_url }}
+      release_tag: ${{ steps.get_version.outputs.version }}
       release_body: "${{ steps.tag.outputs.message }}"
 
     steps:
@@ -81,23 +81,22 @@ jobs:
         with: ${{ matrix.config }}
 
       - name: Upload Release Asset
-        uses: shogo82148/actions-upload-release-asset@v1.10.1
         if: ${{ matrix.config.os_name != 'windows' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ASSET_NAME: avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.tar.gz
-        with:
-          upload_url: ${{ needs.create-release.outputs.release_upload_url }}
-          asset_path: ./results/avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.tar.gz
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ needs.create-release.outputs.release_tag }}" \
+            "./results/avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.tar.gz" \
+            --clobber
+
       - name: Upload Release Asset (Windows)
-        uses: shogo82148/actions-upload-release-asset@8482bd769644976d847e96fb4b9354228885e7b4 # ratchet:shogo82148/actions-upload-release-asset@v1
         if: ${{ matrix.config.os_name == 'windows' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ASSET_NAME: avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.zip
-        with:
-          upload_url: ${{ needs.create-release.outputs.release_upload_url }}
-          asset_path: ./results/avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.zip
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ needs.create-release.outputs.release_tag }}" \
+            "./results/avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.zip" \
+            --clobber
 
   publish-release:
     permissions:
