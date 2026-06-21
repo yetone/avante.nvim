@@ -13,7 +13,7 @@ on:
     paths:
       - "**/*.lua"
       - .github/workflows/tests.yaml
-      - .github/workflows/build.yaml
+      - .github/actions/build.yaml
 
 jobs:
   # reference from: https://github.com/nvim-lua/plenary.nvim/blob/2d9b06177a975543726ce5c73fca176cedbffe9d/.github/workflows/default.yml#L6C3-L43C20
@@ -36,16 +36,24 @@ jobs:
         run: |
           nix develop .#ci --command nvim --version
           nix develop .#ci --command make luatest
+
       - name: Typecheck
         run:
           nix develop .#ci --command make lua-typecheck
 
-  build-libraries-linux:
-      uses: ./.github/workflows/build.yaml
-      with:
-        os: ubuntu-latest
-        os_name: linux
-        arch: x86_64
-        rust_target: x86_64-unknown-linux-gnu
-        docker_platform: linux/amd64
-        container: quay.io/pypa/manylinux2014_x86_64 # for glibc 2.17
+  build-libraries:
+    strategy:
+      fail-fast: false
+      matrix:
+        feature: [lua51, luajit]
+
+    runs-on: ${{ inputs.os }}
+    steps:
+      - uses: ./.github/actions/build.yaml
+        with:
+          os: ubuntu-latest
+          os_name: linux
+          arch: x86_64
+          rust_target: x86_64-unknown-linux-gnu
+          docker_platform: linux/amd64
+          container: quay.io/pypa/manylinux2014_x86_64 # for glibc 2.17
