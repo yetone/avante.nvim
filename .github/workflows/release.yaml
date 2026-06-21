@@ -77,7 +77,9 @@ jobs:
     runs-on: ${{ matrix.config.os }}
 
     steps:
-      - uses: ./.github/workflows/build.yaml
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/build
         with: ${{ matrix.config }}
 
       - name: Upload Release Asset
@@ -86,16 +88,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release upload "${{ needs.create-release.outputs.release_tag }}" \
-            "./results/avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.tar.gz" \
-            --clobber
+            "./results/avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.tar.gz" --clobber
 
       - name: Upload Release Asset (Windows)
         if: ${{ matrix.config.os_name == 'windows' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release upload "${{ needs.create-release.outputs.release_tag }}" \
-            "./results/avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.zip" \
+        run:
+          gh release upload "${{ needs.create-release.outputs.release_tag }}"
+            "./results/avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.zip"
             --clobber
 
   publish-release:

@@ -1,59 +1,63 @@
-name: Build libraries
+---
+name: Build avante libraries
+description: shared action used in test and release avante workflows
+inputs:
+  os_name:
+    description: One of "windows", "linux" or "darwin"
+    required: true
+  os:
+    description: github input type as used in "runs-on"
+  arch:
+    description: one of aarch64, x86_64
+  rust_target:
+    # can we do without ?
+    description: e.g. "aarch64-pc-windows-msvc"
+  docker_platform:
+    description: for example "linux/amd64"
+  container:
+    description: for instance quay.io/pypa/manylinux2014_x86_64 # for glibc 2.17
 
-on:
-  workflow_call:
-    inputs:
-      os_name:
-        type: string
-        description: One of "windows", "linux" or "darwin"
-        required: true
-      os:
-        type: string
-        description: github input type as used in "runs-on"
-      arch:
-        type: string
-        description: one of aarch64, x86_64
-      rust_target:
-        type: string
-        # can we do without ?
-        description: e.g. "aarch64-pc-windows-msvc"
-      docker_platform:
-        type: string
-        description: for example "linux/amd64"
-      container:
-        type: string
-        description: for instance quay.io/pypa/manylinux2014_x86_64 # for glibc 2.17
-
-jobs:
-  build-libraries:
-    strategy:
-      fail-fast: false
-      matrix:
-        feature: [lua51, luajit]
-
-    runs-on: ${{ inputs.os }}
-
-    steps:
+runs:
+  using: "composite"
+  steps:
       - uses: actions/checkout@v7
+
       - uses: Swatinem/rust-cache@82a92a6e8fbeee089604da2575dc567ae9ddeaab # ratchet:Swatinem/rust-cache@v2
         if: ${{ inputs.container == null }}
+
       - uses: dtolnay/rust-toolchain@7b1c307e0dcbda6122208f10795a713336a9b35a # ratchet:dtolnay/rust-toolchain@master
         if: ${{ inputs.container == null }}
         with:
           targets: ${{ inputs.rust_target }}
           toolchain: "1.85.0"
+
+      - name: Install Nix
+        if: ${{ inputs.os_name != 'windows' }}
+        uses: DeterminateSystems/nix-installer-action@v16
+
       - name: Build all crates (Linux/MacOS)
+        shell: bash
         if: ${{ inputs.container == null && inputs.os_name != 'windows' }}
         run: |
-          CARGO_TARGET=${{ matrix.config.rust_target }} nvim --headless -u NONE --cmd "set rtp^=." -c "runtime plugin/avante.lua" -c "AvanteBuild source=true" -c "qa"
+          # reproduce packpath folder
+          ./scripts/setup-deps.sh clone "deps/start"
+
+          set -x
+          # TODO postpone using AvanteBuild for now
+          # nix develop .#ci --command  nvim -v --headless -u NONE --cmd "set rtp^=." --cmd "set packpath^=./deps/" -c "runtime plugin/avante.lua" -c "AvanteBuild source=true" -c "qa"
+          cargo build --release --features ${{ matrix.feature }} --target ${{ inputs.rust_target }}
+          ls -lRa target/
+
 
       - name: Build all crates (Windows)
         if: ${{ inputs.os_name == 'windows' }}
+        shell: bash
         run: |
           # TODO leverage AvanteBuild
           cargo build --release --features ${{ matrix.feature }} --target ${{ inputs.rust_target }}
 
       - name: Build all crates (Linux) with glibc 2.17 # for glibc 2.17
+        shell: bash
         if: ${{ inputs.container != null }}
         run: |
           # sudo apt-get install -y qemu qemu-user-static
@@ -66,13 +70,28 @@ jobs:
             bash -c "yum install -y perl-IPC-Cmd openssl-devel && curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && . /root/.cargo/env && make ${{ matrix.feature }} BUILD_FROM_SOURCE=true"
 
       - name: Handle binaries (Linux/MacOS)
-        if: ${{ inputs.os_name != 'windows' }}
+        if: ${{ matrix.config.os_name != 'windows' }}
         shell: bash
         run: |
+          echo "Moving libraries from cargo folder to results/"
           mkdir -p results
-          cp -v lua/avante_*.so results/
+          if [ "${{ matrix.config.os_name }}" == "darwin" ]; then
+            CARGO_EXT="dylib"
+            TARGET_DIR="target/${{ matrix.config.rust_target }}/release"
+          else
+            CARGO_EXT="so"
+            TARGET_DIR="target/release"
+          fi
+
+          # Rename the extension to .so on all Unix platforms
+          EXT="so"
+
+          cp -v $TARGET_DIR/libavante_templates.$CARGO_EXT results/avante_templates.$EXT
+          cp -v $TARGET_DIR/libavante_tokenizers.$CARGO_EXT results/avante_tokenizers.$EXT
+          cp -v $TARGET_DIR/libavante_repo_map.$CARGO_EXT results/avante_repo_map.$EXT
+          cp -v $TARGET_DIR/libavante_html2md.$CARGO_EXT results/avante_html2md.$EXT
           cd results
-          tar zcvf avante_lib-${{ inputs.os_name }}-${{ inputs.arch }}-${{ matrix.feature }}.tar.gz *.so
+          tar zcvf avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.tar.gz *.${EXT}
 
       - name: Handle binaries (Windows)
         if: ${{ inputs.os_name == 'windows' }}
