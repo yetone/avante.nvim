@@ -57,9 +57,16 @@
         in
         {
           inherit default;
-          ci = default.overrideAttrs(oa: {
+          ci = let
+            neovimTested = pkgs.wrapNeovimUnstable pkgs.neovim-unwrapped {
+              plugins = [
+                pkgs.vimPlugins.plenary-nvim
+              ];
+            };
+          in
+            default.overrideAttrs(oa: {
             buildInputs = oa.buildInputs ++ [
-              pkgs.neovim-unwrapped
+              neovimTested
             ];
             shellHook = oa.shellHook + ''
               export VIMRUNTIME=${pkgs.neovim-unwrapped}/share/nvim/runtime

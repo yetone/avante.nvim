@@ -40,12 +40,12 @@ runs:
         if: ${{ inputs.container == null && inputs.os_name != 'windows' }}
         run: |
           # reproduce packpath folder
-          ./scripts/setup-deps.sh clone "deps/start"
+          # ./scripts/setup-deps.sh clone "deps/start"
 
           set -x
-          # TODO postpone using AvanteBuild for now
-          # nix develop .#ci --command  nvim -v --headless -u NONE --cmd "set rtp^=." --cmd "set packpath^=./deps/" -c "runtime plugin/avante.lua" -c "AvanteBuild source=true" -c "qa"
-          cargo build --release --features ${{ matrix.feature }} --target ${{ inputs.rust_target }}
+          # TODO postpone using AvanteBuild for now --cmd "set packpath^=./deps/"
+          nix develop .#ci --command  bash -c nvim --headless -u NONE --cmd "set rtp^=."  -c "runtime plugin/avante.lua" -c "lua vim.g.avante.debug = vim.log.levels.INFO" -c "AvanteBuild source=true" -c "qa"
+          # cargo build --release --features ${{ matrix.feature }} --target ${{ inputs.rust_target }}
           ls -lRa target/
 
 
