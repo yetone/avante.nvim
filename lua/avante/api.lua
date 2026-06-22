@@ -45,6 +45,7 @@ end
 
 ---Command to install the necessary rust libraries
 ---Defaults to download the libraries but passing `source=true` will force a local build via cargo
+---Blocking as it waits for cargo to finish
 ---@param opts? {source: boolean}
 function M.build(opts)
   opts = opts or { source = true }
@@ -87,6 +88,7 @@ function M.build(opts)
   local pid
   local exit_code = { 0 }
 
+  Utils.info("Starting command " .. table.concat(cmd, " "))
   local ok, job_or_err = pcall(vim.system, cmd, { text = true }, function(obj)
     local stderr = obj.stderr and vim.split(obj.stderr, "\n") or {}
     local stdout = obj.stdout and vim.split(obj.stdout, "\n") or {}
@@ -96,13 +98,13 @@ function M.build(opts)
         table.insert(output, "")
         Utils.debug("build output:", output)
       else
-        Utils.debug("build error:", stderr)
+        Utils.error("build error:", stderr)
       end
     end
   end)
   if not ok then Utils.error("Failed to build the command: " .. cmd .. "\n" .. job_or_err, { once = true }) end
-  pid = job_or_err.pid
-  return pid
+
+  return job_or_err:wait()
 end
 
 ---@class AskOptions
