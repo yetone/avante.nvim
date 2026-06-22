@@ -6,14 +6,13 @@ on:
       - main
     paths:
       - "**/*.lua"
-      - .github/workflows/tests.yaml
+      - ".github/**"
   pull_request:
     branches:
       - main
     paths:
       - "**/*.lua"
-      - .github/workflows/tests.yaml
-      - .github/actions/build.yaml
+      - ".github/**"
 
 jobs:
   # reference from: https://github.com/nvim-lua/plenary.nvim/blob/2d9b06177a975543726ce5c73fca176cedbffe9d/.github/workflows/default.yml#L6C3-L43C20
@@ -45,11 +44,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        feature: [lua51, luajit]
+          os:
+            - ubuntu-24.04
+            # - macos-latest # fails because of missing docker
 
-    runs-on: ${{ inputs.os }}
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: ./.github/actions/build.yaml
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/build
         with:
           os: ubuntu-latest
           os_name: linux
