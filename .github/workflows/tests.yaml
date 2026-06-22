@@ -46,7 +46,7 @@ jobs:
       matrix:
           os:
             - ubuntu-24.04
-            # - macos-latest # fails because of missing docker
+            - macos-latest # fails because of missing docker
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -57,6 +57,6 @@ jobs:
           os: ubuntu-latest
           os_name: linux
           arch: x86_64
-          rust_target: x86_64-unknown-linux-gnu
-          docker_platform: linux/amd64
-          container: quay.io/pypa/manylinux2014_x86_64 # for glibc 2.17
+          # rust_target: x86_64-unknown-linux-gnu
+          # docker_platform: linux/amd64
+          # container: quay.io/pypa/manylinux2014_x86_64 # for glibc 2.17
