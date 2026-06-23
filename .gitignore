@@ -37,7 +37,7 @@ temp/
 .envrc
 
 # If you use any build tools, you might need to ignore build output directories
-build/
+/build/
 dist/
 
 # If you use any test frameworks, you might need to ignore test coverage reports
