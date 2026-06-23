@@ -12,13 +12,13 @@ jobs:
   stale:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/stale@v9
+      - uses: actions/stale@v10
         with:
-          stale-issue-message: 'This issue is stale because it has been open 30 days with no activity. Remove stale label or comment or this will be closed in 5 days.'
-          stale-pr-message: 'This PR is stale because it has been open 14 days with no activity. Remove stale label or comment or this will be closed in 10 days.'
-          close-issue-message: 'This issue was closed because it has been stalled for 5 days with no activity.'
-          close-pr-message: 'This PR was closed because it has been stalled for 10 days with no activity.'
-          days-before-issue-stale: 30
-          days-before-pr-stale: 14
-          days-before-issue-close: 5
-          days-before-pr-close: 10
+          stale-issue-message: 'This issue is stale because it has been open 6 months with no activity. Remove stale label or comment or this will be closed in a week.'
+          stale-pr-message: 'This PR is stale because it has been open 3 months with no activity. Remove stale label or comment or this will be closed in 2 weeks.'
+          close-issue-message: 'This issue was closed because it has been stalled for a week with no activity.'
+          close-pr-message: 'This PR was closed because it has been stalled for 2 weeks with no activity.'
+          days-before-issue-stale: 180
+          days-before-pr-stale: 90
+          days-before-issue-close: 7
+          days-before-pr-close: 15
