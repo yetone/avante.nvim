@@ -1407,3 +1407,15 @@ async def list_resources() -> ResourceListResponse:
 async def health_check() -> dict[str, str]:
     """Health check endpoint."""
     return {"status": "ok"}
+
+
+def main() -> None:
+    """Run the RAG service from the console script."""
+    import uvicorn
+
+    port = int(os.environ.get("PORT", "20250"))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, workers=3)
+
+
+if __name__ == "__main__":
+    main()
