@@ -40,8 +40,8 @@ in pkgs.mkShell {
 
     run_and_log source ".venv/bin/activate"
 
-    run_and_log "uv pip install -r requirements.txt"
+    run_and_log "uv sync --frozen"
 
-    run_and_log "uv run fastapi run src/main.py --port $PORT --workers 3"
+    run_and_log "uv run rag-service"
     '';
 }

@@ -13,11 +13,12 @@ ENV PATH="/root/.local/bin:$PATH" \
   PYTHONUNBUFFERED=1 \
   PYTHONDONTWRITEBYTECODE=1
 
-COPY requirements.txt .
+COPY pyproject.toml uv.lock ./
+COPY src ./src
 
 # 直接安装到系统依赖中，不创建虚拟环境
-RUN uv pip install --system -r requirements.txt
+RUN uv sync --system --frozen
 
 COPY . .
 
-CMD ["uvicorn", "src.main:app", "--workers", "3", "--host", "0.0.0.0", "--port", "20250"]
+CMD ["rag-service"]

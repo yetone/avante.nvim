@@ -34,7 +34,7 @@
 --->
 ---   docker rm -fv avante-rag-service
 ---<
----
+---Communication port is hardcoded to localhost:20250
 ---@brief ]]
 
 local curl = require("plenary.curl")
@@ -194,7 +194,8 @@ function M.launch_rag_service(cb)
 
     Utils.debug(string.format("launching %s with nix...", container_name))
 
-    vim.system({ "sh", "run.sh", service_path }, {
+    -- TODO adjust
+    local ok, job_or_err = pcall(vim.system, { "avante-rag-service", service_path }, {
       detach = true,
       cwd = rag_service_dir,
       env = {
@@ -220,6 +221,11 @@ function M.launch_rag_service(cb)
         cb()
       end
     end)
+    if not ok then
+      Utils.error(
+        "Could not launch 'avante-rag-service', you can install it via nix profile add github:yetone/avante.nvim#ragService"
+      )
+    end
   end
 end
 
