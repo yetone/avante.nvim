@@ -3,6 +3,7 @@ local Utils = require("avante.utils")
 local Path = require("plenary.path")
 local Scan = require("plenary.scandir")
 local Config = require("avante.config")
+local Names = require("avante.utils.names")
 
 ---@class avante.Path
 ---@field history_path string
@@ -128,6 +129,7 @@ end
 ---@param bufnr integer
 function History.new(bufnr)
   local filepath = History.get_latest_filepath(bufnr, true)
+  local instance_name = Names.generate()
   ---@type avante.ChatHistory
   local history = {
     title = "untitled",
@@ -136,6 +138,8 @@ function History.new(bufnr)
     messages = {},
     todos = {},
     filename = filepath_to_filename(filepath),
+    instance_id = Utils.uuid(),
+    instance_name = instance_name,
   }
   return history
 end
@@ -157,6 +161,14 @@ function History.from_file(filepath)
         if not vim.islist(history.todos) then history.todos = {} end
         ---@cast history avante.ChatHistory
         history.filename = filepath_to_filename(filepath)
+        -- Backfill instance_id / instance_name for histories created before this feature.
+        if not history.instance_id or history.instance_id == "" then history.instance_id = Utils.uuid() end
+        if not history.instance_name or history.instance_name == "" then
+          history.instance_name = Names.generate()
+        else
+          -- Register the persisted name so the collision table stays accurate.
+          Names.register(history.instance_name)
+        end
         return history
       end
     end

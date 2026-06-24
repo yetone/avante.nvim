@@ -778,15 +778,7 @@ function M.curl(opts)
   return active_job
 end
 
-local retry_timer = nil
-local abort_retry_timer = false
-local function stop_retry_timer()
-  if retry_timer then
-    retry_timer:stop()
-    pcall(function() retry_timer:close() end)
-    retry_timer = nil
-  end
-end
+
 
 -- Intelligently truncate chat history for session recovery to avoid token limits
 ---@param history_messages table[]
@@ -1763,8 +1755,25 @@ end
 
 ---@param opts AvanteLLMStreamOptions
 function M._stream(opts)
-  -- Reset the cancellation flag at the start of a new request
+  -- Initialise the per-session cancellation flag.  Using session_ctx isolates each
+  -- avante instance so that cancelling one stream does not affect concurrent streams
+  -- running in other sidebar instances.
+  opts.session_ctx = opts.session_ctx or {}
+  opts.session_ctx.is_cancelled = false
+  -- Keep the legacy global in sync for any code that still reads it directly.
   if LLMToolHelpers then LLMToolHelpers.is_cancelled = false end
+
+  -- Per-stream retry-timer state. Using per-stream locals instead of module-level
+  -- variables prevents multiple avante instances from clobbering each other's timers.
+  local retry_timer = nil
+  local stream_cancelled = false
+  local function stop_retry_timer()
+    if retry_timer then
+      retry_timer:stop()
+      pcall(function() retry_timer:close() end)
+      retry_timer = nil
+    end
+  end
 
   local acp_provider = Config.acp_providers[Config.provider]
   if acp_provider then return M._stream_acp(opts) end
@@ -1923,7 +1932,13 @@ function M._stream(opts)
         })
         if result ~= nil or error ~= nil then return handle_tool_result(result, error) end
       end
-      if stop_opts.reason == "cancelled" then dispatch_cancel_message() end
+      if stop_opts.reason == "cancelled" then
+        stream_cancelled = true -- signal any running retry countdown to stop
+        -- Per-session flag: lets process_tool_use polling detect the cancel
+        -- without touching other instances' session_ctx.
+        opts.session_ctx.is_cancelled = true
+        dispatch_cancel_message()
+      end
       local history_messages = opts.get_history_messages and opts.get_history_messages({ all = true }) or {}
       local pending_tools, pending_tool_use_messages = History.get_pending_tools(history_messages)
       if stop_opts.reason == "complete" and Config.mode == "agentic" then
@@ -2005,10 +2020,12 @@ function M._stream(opts)
         Utils.info("Rate limit reached. Retrying in " .. retry_count .. " seconds", { title = "Avante" })
 
         local function countdown()
-          if abort_retry_timer then
+          -- stream_cancelled is set to true when on_stop fires with reason "cancelled"
+          -- (triggered by the CANCEL_PATTERN autocmd from cancel_inflight_request).
+          -- dispatch_cancel_message() is already called at that point; here we just stop.
+          if stream_cancelled then
             Utils.info("Retry aborted due to user requested cancellation.")
             stop_retry_timer()
-            dispatch_cancel_message()
             return
           end
 
@@ -2180,7 +2197,6 @@ function M.stream(opts)
 
   opts.mode = opts.mode or Config.mode
 
-  abort_retry_timer = false
   if Config.dual_boost.enabled and valid_dual_boost_modes[opts.mode] then
     M._dual_boost_stream(
       opts,
@@ -2193,13 +2209,15 @@ function M.stream(opts)
 end
 
 function M.cancel_inflight_request()
-  if LLMToolHelpers.is_cancelled ~= nil then LLMToolHelpers.is_cancelled = true end
+  -- Close any open confirmation popup immediately.
   if LLMToolHelpers.confirm_popup ~= nil then
     LLMToolHelpers.confirm_popup:cancel()
     LLMToolHelpers.confirm_popup = nil
   end
-  abort_retry_timer = true
-
+  -- Fire the CANCEL_PATTERN autocmd.  Each active _stream() invocation has registered
+  -- a once-handler that (a) shuts down the curl job and (b) calls on_stop({reason="cancelled"}),
+  -- which in turn sets session_ctx.is_cancelled=true so tool-execution polling stops,
+  -- and stream_cancelled=true so any running rate-limit retry countdown stops.
   api.nvim_exec_autocmds("User", { pattern = M.CANCEL_PATTERN })
 end
 

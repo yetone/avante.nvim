@@ -17,6 +17,7 @@ M.__index = M
 ---@field is_user_submission? boolean
 ---@field just_for_display? boolean
 ---@field visible? boolean
+---@field from_instance? string -- instance_name of the sending chat (cross-instance message)
 ---
 ---@param role "user" | "assistant"
 ---@param content AvanteLLMMessageContentItem
