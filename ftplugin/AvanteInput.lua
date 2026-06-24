@@ -15,7 +15,9 @@ api.nvim_create_autocmd("InsertEnter", {
 })
 
 local debounced_show_input_hint = Utils.debounce(function()
-  if vim.api.nvim_win_is_valid(sidebar.containers.input.winid) then sidebar:show_input_hint() end
+  if sidebar.containers.input and vim.api.nvim_win_is_valid(sidebar.containers.input.winid) then
+    sidebar:show_input_hint()
+  end
 end, 200)
 api.nvim_create_autocmd({ "TextChanged", "TextChangedI", "VimResized" }, {
   group = sidebar.augroup,
