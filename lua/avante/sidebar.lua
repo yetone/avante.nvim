@@ -179,7 +179,6 @@ function Sidebar:new(id)
     },
     containers = {},
     file_selector = FileSelector:new(id),
-    is_generating = false,
     chat_history = nil,
     current_state = nil,
     state_timer = nil,
@@ -2055,6 +2054,12 @@ end
 
 local _message_to_lines_lru_cache = LRUCache:new(100)
 
+---@param state avante.GenerateState | nil
+---@return boolean
+local function is_active_request_state(state)
+  return state == "generating" or state == "thinking" or state == "tool calling"
+end
+
 ---@param ctx table
 ---@param message avante.HistoryMessage
 ---@param messages avante.HistoryMessage[]
@@ -2456,13 +2461,18 @@ function Sidebar:add_history_messages(messages, opts)
     end
   end
   local last_message = messages[#messages]
-  if last_message then
-    if History.Helpers.is_tool_use_message(last_message) then
-      self.current_state = "tool calling"
+  if last_message and is_active_request_state(self.current_state) then
+    local next_state = nil
+    if History.Helpers.is_tool_use_message(last_message) and last_message.is_calling then
+      next_state = "tool calling"
     elseif History.Helpers.is_thinking_message(last_message) then
-      self.current_state = "thinking"
-    else
-      self.current_state = "generating"
+      next_state = "thinking"
+    end
+
+    if next_state ~= nil then
+      self.current_state = next_state
+      self.chat_history.last_state = next_state
+      self:save_history()
     end
   end
   if opts and opts.eager_update then
@@ -2621,6 +2631,7 @@ function Sidebar:reload_chat_history()
   self.token_count = nil
   if not self.code.bufnr or not api.nvim_buf_is_valid(self.code.bufnr) then return end
   self.chat_history = Path.history.load(self.code.bufnr)
+  self.current_state = self.chat_history.last_state
   self._history_cache_invalidated = true
 end
 
@@ -2795,7 +2806,7 @@ end
 function Sidebar:handle_submit(request)
   if Config.prompt_logger.enabled then PromptLogger.log_prompt(request) end
 
-  if self.is_generating then
+  if is_active_request_state(self.current_state) then
     self:add_history_messages({ History.Message:new("user", request) })
     return
   end
@@ -2888,6 +2899,10 @@ function Sidebar:handle_submit(request)
   local function on_state_change(state)
     self:clear_state()
     self.current_state = state
+    if self.chat_history then
+      self.chat_history.last_state = state
+      self:save_history()
+    end
     self:render_state()
   end
 
@@ -2927,8 +2942,6 @@ function Sidebar:handle_submit(request)
 
   ---@type AvanteLLMStopCallback
   local function on_stop(stop_opts)
-    self.is_generating = false
-
     pcall(function()
       ---remove keymaps
       vim.keymap.del("n", "j", { buffer = self.containers.result.bufnr })
