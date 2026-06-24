@@ -1,0 +1,25 @@
+=== avante.nvim RAG service setup log 2026-06-24 13:34:53 ===
+$ echo 'Environment: Linux jedha 7.0.12 #1-NixOS SMP PREEMPT_DYNAMIC Tue Jun  9 10:32:51 UTC 2026 x86_64 GNU/Linux'
+Environment: Linux jedha 7.0.12 #1-NixOS SMP PREEMPT_DYNAMIC Tue Jun  9 10:32:51 UTC 2026 x86_64 GNU/Linux
+
+$ echo 'Python version: Python 3.11.15'
+Python version: Python 3.11.15
+
+$ echo 'UV version: uv 0.11.19 (x86_64-unknown-linux-gnu)'
+UV version: uv 0.11.19 (x86_64-unknown-linux-gnu)
+
+$ uv venv
+Using CPython 3.14.5
+Creating virtual environment at: .venv
+Activate with: source .venv/bin/activate
+
+$ source
+bash: source: nom de fichier nécessaire en argument
+source : utilisation :source [-p chemin] nom_fichier [arguments]
+
+$ uv pip install -r requirements.txt
+  × No solution found when resolving dependencies:
+  ╰─▶ Because onnxruntime==1.20.1 has no wheels with a matching Python ABI tag (e.g., `cp314`) and you require
+      onnxruntime==1.20.1, we can conclude that your requirements are unsatisfiable.
+
+hint: You require CPython 3.14 (`cp314`), but we only found wheels for `onnxruntime` (v1.20.1) with the following Python ABI tags: `cp310`, `cp311`, `cp312`, `cp313`, `cp313t`
