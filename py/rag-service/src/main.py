@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 # Standard library imports
+import argparse
 import asyncio
 import fcntl
 import json
@@ -18,6 +19,72 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urljoin, urlparse
+
+
+def parse_cli_settings() -> argparse.Namespace:
+    """Parse service settings from command-line arguments."""
+    parser = argparse.ArgumentParser(description="Run the Avante RAG service.")
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=int(os.environ.get("PORT", "20250")),
+        help="Port to listen on.",
+    )
+    parser.add_argument(
+        "--embed-provider",
+        default=os.getenv("RAG_EMBED_PROVIDER", "openai"),
+        help="Embedding provider.",
+    )
+    parser.add_argument(
+        "--embed-endpoint",
+        default=os.getenv("RAG_EMBED_ENDPOINT", "https://api.openai.com/v1"),
+        help="Embedding API endpoint.",
+    )
+    parser.add_argument(
+        "--embed-model",
+        default=os.getenv("RAG_EMBED_MODEL", "text-embedding-3-large"),
+        help="Embedding model name.",
+    )
+    parser.add_argument(
+        "--embed-api-key",
+        default=os.getenv("RAG_EMBED_API_KEY"),
+        help="Embedding API key.",
+    )
+    parser.add_argument(
+        "--embed-extra",
+        default=os.getenv("RAG_EMBED_EXTRA"),
+        help="JSON object with extra embedding model settings.",
+    )
+    parser.add_argument(
+        "--llm-provider",
+        default=os.getenv("RAG_LLM_PROVIDER", "openai"),
+        help="LLM provider.",
+    )
+    parser.add_argument(
+        "--llm-endpoint",
+        default=os.getenv("RAG_LLM_ENDPOINT", "https://api.openai.com/v1"),
+        help="LLM API endpoint.",
+    )
+    parser.add_argument(
+        "--llm-model",
+        default=os.getenv("RAG_LLM_MODEL", "gpt-4o-mini"),
+        help="LLM model name.",
+    )
+    parser.add_argument(
+        "--llm-api-key",
+        default=os.getenv("RAG_LLM_API_KEY"),
+        help="LLM API key.",
+    )
+    parser.add_argument(
+        "--llm-extra",
+        default=os.getenv("RAG_LLM_EXTRA"),
+        help="JSON object with extra LLM settings.",
+    )
+    settings, _ = parser.parse_known_args()
+    return settings
+
+
+cli_settings = parse_cli_settings()
 
 # Third-party imports
 import chromadb
@@ -324,21 +391,22 @@ init_db()
 chroma_client = chromadb.PersistentClient(path=str(CHROMA_PERSIST_DIR))
 
 # # Check if provider or model has changed
-rag_embed_provider = os.getenv("RAG_EMBED_PROVIDER", "openai")
-rag_embed_endpoint = os.getenv("RAG_EMBED_ENDPOINT", "https://api.openai.com/v1")
-rag_embed_model = os.getenv("RAG_EMBED_MODEL", "text-embedding-3-large")
-rag_embed_api_key = os.getenv("RAG_EMBED_API_KEY", None)
-rag_embed_extra = os.getenv("RAG_EMBED_EXTRA", None)
+rag_embed_provider = cli_settings.embed_provider
+rag_embed_endpoint = cli_settings.embed_endpoint
+rag_embed_model = cli_settings.embed_model
+rag_embed_api_key = cli_settings.embed_api_key
+rag_embed_extra = cli_settings.embed_extra
 
-rag_llm_provider = os.getenv("RAG_LLM_PROVIDER", "openai")
-rag_llm_endpoint = os.getenv("RAG_LLM_ENDPOINT", "https://api.openai.com/v1")
-rag_llm_model = os.getenv("RAG_LLM_MODEL", "gpt-4o-mini")
-rag_llm_api_key = os.getenv("RAG_LLM_API_KEY", None)
-rag_llm_extra = os.getenv("RAG_LLM_EXTRA", None)
+rag_llm_provider = cli_settings.llm_provider
+rag_llm_endpoint = cli_settings.llm_endpoint
+rag_llm_model = cli_settings.llm_model
+rag_llm_api_key = cli_settings.llm_api_key
+rag_llm_extra = cli_settings.llm_extra
 
 # Try to read previous config
 config_file = BASE_DATA_DIR / "rag_config.json"
 if config_file.exists():
+    logger.info("Opening config file %s", config_file)
     with Path.open(config_file, "r") as f:
         prev_config = json.load(f)
         if prev_config.get("provider") != rag_embed_provider or prev_config.get("embed_model") != rag_embed_model:
@@ -357,13 +425,13 @@ storage_context = StorageContext.from_defaults(vector_store=vector_store)
 try:
     embed_extra = json.loads(rag_embed_extra) if rag_embed_extra is not None else {}
 except json.JSONDecodeError:
-    logger.error("Failed to decode RAG_EMBED_EXTRA, defaulting to empty dict.")
+    logger.error("Failed to decode --embed-extra, defaulting to empty dict.")
     embed_extra = {}
 
 try:
     llm_extra = json.loads(rag_llm_extra) if rag_llm_extra is not None else {}
 except json.JSONDecodeError:
-    logger.error("Failed to decode RAG_LLM_EXTRA, defaulting to empty dict.")
+    logger.error("Failed to decode --llm-extra, defaulting to empty dict.")
     llm_extra = {}
 
 # Initialize embedding model and LLM based on provider using the factory
@@ -1413,8 +1481,7 @@ def main() -> None:
     """Run the RAG service from the console script."""
     import uvicorn
 
-    port = int(os.environ.get("PORT", "20250"))
-    uvicorn.run("main:app", host="0.0.0.0", port=port, workers=3)
+    uvicorn.run("main:app", host="0.0.0.0", port=cli_settings.port, workers=3)  # noqa: S104
 
 
 if __name__ == "__main__":

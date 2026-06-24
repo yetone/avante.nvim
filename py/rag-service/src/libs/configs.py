@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 # Configuration
-BASE_DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
+BASE_DATA_DIR = Path(os.environ.get("DATA_DIR", "/tmp/avante-rag-service"))  # noqa: S108
 CHROMA_PERSIST_DIR = BASE_DATA_DIR / "chroma_db"
 LOG_DIR = BASE_DATA_DIR / "logs"
 DB_FILE = BASE_DATA_DIR / "sqlite" / "indexing_history.db"
