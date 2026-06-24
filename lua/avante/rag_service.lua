@@ -47,6 +47,36 @@ local M = {}
 local container_name = "avante-rag-service"
 local service_path = "/tmp/" .. container_name
 
+---@brief Starts the rag service if not already running
+function M.run_rag_service()
+  local started_at = os.time()
+  local add_resource_with_delay
+  local function add_resource()
+    if not M.is_ready() then
+      local elapsed = os.time() - started_at
+      if elapsed > 1000 * 60 * 15 then
+        Utils.warn("Rag Service is not ready, giving up")
+        return
+      end
+      add_resource_with_delay()
+      return
+    end
+    vim.defer_fn(function()
+      Utils.info("Adding project root to Rag Service ...")
+      local uri = "file://" .. Utils.get_project_root()
+      if uri:sub(-1) ~= "/" then uri = uri .. "/" end
+      M.add_resource(uri)
+    end, 5000)
+  end
+  add_resource_with_delay = function()
+    vim.defer_fn(function() add_resource() end, 5000)
+  end
+  vim.schedule(function()
+    Utils.info("Starting Rag Service ...")
+    M.launch_rag_service(add_resource_with_delay)
+  end)
+end
+
 function M.get_rag_service_image()
   if Config.rag_service and Config.rag_service.image then
     return Config.rag_service.image
@@ -191,26 +221,36 @@ function M.launch_rag_service(cb)
     local dirname =
       Utils.trim(string.sub(debug.getinfo(1).source, 2, #"/lua/avante/rag_service.lua" * -1), { suffix = "/" })
     local rag_service_dir = dirname .. "/py/rag-service"
+    rag_service_dir = service_path
 
     Utils.debug(string.format("launching %s with nix...", container_name))
 
     -- TODO adjust
-    local ok, job_or_err = pcall(vim.system, { "avante-rag-service", service_path }, {
+    local args = {
+      "avante-rag-service",
+      service_path,
+      "--port",
+      port,
+      "--embed-provider",
+      Config.rag_service.embed.provider,
+      "--embed-extra",
+      embed_extra,
+      "--llm-provider",
+      Config.rag_service.llm.provider,
+      "--llm-model",
+      Config.rag_service.llm.model,
+    }
+    Utils.info("Starting rag service with: " .. table.concat(args, " "))
+    local ok, job_or_err = pcall(vim.system, args, {
       detach = true,
       cwd = rag_service_dir,
       env = {
-        ALLOW_RESET = "TRUE",
-        PORT = port,
         DATA_DIR = service_path,
-        RAG_EMBED_PROVIDER = Config.rag_service.embed.provider,
         RAG_EMBED_ENDPOINT = Config.rag_service.embed.endpoint,
         RAG_EMBED_API_KEY = embed_api_key,
         RAG_EMBED_MODEL = Config.rag_service.embed.model,
-        RAG_EMBED_EXTRA = embed_extra,
-        RAG_LLM_PROVIDER = Config.rag_service.llm.provider,
         RAG_LLM_ENDPOINT = Config.rag_service.llm.endpoint,
         RAG_LLM_API_KEY = llm_api_key,
-        RAG_LLM_MODEL = Config.rag_service.llm.model,
         RAG_LLM_EXTRA = llm_extra,
       },
     }, function(res)
@@ -295,6 +335,8 @@ function M.to_local_uri(uri)
   return uri
 end
 
+---Checks http code when contacting server's /api/health
+---@return boolean
 function M.is_ready()
   return vim
     .system(

@@ -618,37 +618,7 @@ function M.setup(opts)
 
   M.did_setup = true
 
-  local function run_rag_service()
-    local started_at = os.time()
-    local add_resource_with_delay
-    local function add_resource()
-      local is_ready = RagService.is_ready()
-      if not is_ready then
-        local elapsed = os.time() - started_at
-        if elapsed > 1000 * 60 * 15 then
-          Utils.warn("Rag Service is not ready, giving up")
-          return
-        end
-        add_resource_with_delay()
-        return
-      end
-      vim.defer_fn(function()
-        Utils.info("Adding project root to Rag Service ...")
-        local uri = "file://" .. Utils.get_project_root()
-        if uri:sub(-1) ~= "/" then uri = uri .. "/" end
-        RagService.add_resource(uri)
-      end, 5000)
-    end
-    add_resource_with_delay = function()
-      vim.defer_fn(function() add_resource() end, 5000)
-    end
-    vim.schedule(function()
-      Utils.info("Starting Rag Service ...")
-      RagService.launch_rag_service(add_resource_with_delay)
-    end)
-  end
-
-  if Config.rag_service.enabled then run_rag_service() end
+  if Config.rag_service.enabled then RagService.run_rag_service() end
 
   local has_cmp, cmp = pcall(require, "cmp")
   if has_cmp then
