@@ -21,6 +21,22 @@ local log = require("avante.utils.log")
 local M = {}
 
 M.CANCEL_PATTERN = "AvanteLLMEscape"
+-- Per-request cancel autocmd patterns are emitted as `CANCEL_PATTERN_PREFIX .. request_id`
+-- so a single in-flight request can be cancelled in isolation without disturbing other
+-- sidebars / concurrent requests. The global M.CANCEL_PATTERN remains a broadcast
+-- "cancel everything" signal used by cleanup paths (:AvanteStop, shutdown, file leave).
+M.CANCEL_PATTERN_PREFIX = "AvanteLLMEscape_"
+
+-- Monotonic counter used to mint per-request ids. Strings are used so that callers
+-- can safely store these as table keys or compare with `==`.
+M._next_request_id = 0
+
+---Allocate a unique id for an in-flight LLM request.
+---@return string
+function M.next_request_id()
+  M._next_request_id = M._next_request_id + 1
+  return tostring(M._next_request_id)
+end
 
 ------------------------------Prompt and type------------------------------
 
@@ -741,39 +757,58 @@ function M.curl(opts)
   end
   active_job = new_active_job
 
-  api.nvim_create_autocmd("User", {
-    group = group,
-    pattern = M.CANCEL_PATTERN,
-    once = true,
-    callback = function()
-      -- Error: cannot resume dead coroutine
-      if active_job then
-        -- Mark as completed first to prevent error handler from running
-        completed = true
+  -- Build the list of cancel autocmd patterns this request should listen to.
+  -- Always listen on the global CANCEL_PATTERN (broadcast cancel). If the caller
+  -- has supplied a per-request pattern via opts.cancel_pattern, listen on that
+  -- too so only this specific request is killed without disturbing others.
+  local cancel_patterns = { M.CANCEL_PATTERN }
+  if opts.cancel_pattern and opts.cancel_pattern ~= M.CANCEL_PATTERN then
+    table.insert(cancel_patterns, opts.cancel_pattern)
+  end
+  local autocmd_ids = {}
+  local function shutdown_active_job()
+    -- Error: cannot resume dead coroutine
+    if active_job then
+      -- Mark as completed first to prevent error handler from running
+      completed = true
 
-        -- 检查 active_job 的状态
-        local job_is_alive = pcall(function() return active_job:is_closing() == false end)
+      -- Check active_job status
+      local job_is_alive = pcall(function() return active_job:is_closing() == false end)
 
-        -- 只有当 job 仍然活跃时才尝试关闭它
-        if job_is_alive then
-          -- Attempt to shutdown the active job, but ignore any errors
-          xpcall(function() active_job:shutdown() end, function(err)
-            Utils.debug("Ignored error during job shutdown: " .. vim.inspect(err))
-            return err
-          end)
-        else
-          Utils.debug("Job already closed, skipping shutdown")
-        end
-
-        Utils.debug("LLM request cancelled")
-        active_job = nil
-
-        -- Clean up and notify of cancellation
-        cleanup()
-        vim.schedule(function() handler_opts.on_stop({ reason = "cancelled" }) end)
+      -- Only attempt to shut down the job if it is still alive
+      if job_is_alive then
+        -- Attempt to shutdown the active job, but ignore any errors
+        xpcall(function() active_job:shutdown() end, function(err)
+          Utils.debug("Ignored error during job shutdown: " .. vim.inspect(err))
+          return err
+        end)
+      else
+        Utils.debug("Job already closed, skipping shutdown")
       end
-    end,
-  })
+
+      Utils.debug("LLM request cancelled")
+      active_job = nil
+
+      -- Tear down the sibling autocmds so they don't fire a second time.
+      for _, id in ipairs(autocmd_ids) do
+        pcall(api.nvim_del_autocmd, id)
+      end
+      autocmd_ids = {}
+
+      -- Clean up and notify of cancellation
+      cleanup()
+      vim.schedule(function() handler_opts.on_stop({ reason = "cancelled" }) end)
+    end
+  end
+  for _, pattern in ipairs(cancel_patterns) do
+    local id = api.nvim_create_autocmd("User", {
+      group = group,
+      pattern = pattern,
+      once = true,
+      callback = shutdown_active_job,
+    })
+    table.insert(autocmd_ids, id)
+  end
 
   return active_job
 end
@@ -1763,7 +1798,9 @@ end
 
 ---@param opts AvanteLLMStreamOptions
 function M._stream(opts)
-  -- Reset the cancellation flag at the start of a new request
+  -- Reset the legacy global cancellation flag at the start of a new request.
+  -- Per-request cancellation now uses session_ctx.cancel_token (allocated below)
+  -- so that one in-flight request can be cancelled without affecting siblings.
   if LLMToolHelpers then LLMToolHelpers.is_cancelled = false end
 
   local acp_provider = Config.acp_providers[Config.provider]
@@ -1771,6 +1808,23 @@ function M._stream(opts)
 
   local provider = opts.provider or Providers[Config.provider]
   opts.session_ctx = opts.session_ctx or {}
+
+  -- Allocate a per-request id + cancel token on the first call into _stream for
+  -- this logical request. Recursive iterations of the agent loop (handle_next_tool_use
+  -- -> M._stream) reuse the same id/token so all iterations of a single user
+  -- submission share one cancel scope.
+  if not opts.session_ctx.request_id then
+    opts.session_ctx.request_id = M.next_request_id()
+    opts.session_ctx.cancel_pattern = M.CANCEL_PATTERN_PREFIX .. opts.session_ctx.request_id
+    opts.session_ctx.cancel_token = LLMToolHelpers.make_cancel_token(opts.session_ctx.request_id)
+  end
+
+  -- If this request was cancelled between agent-loop iterations, stop here so we
+  -- don't spawn a new curl call on a dead conversation.
+  if LLMToolHelpers.is_token_cancelled(opts.session_ctx.cancel_token) then
+    Utils.debug("M._stream: request " .. tostring(opts.session_ctx.request_id) .. " was cancelled before iteration")
+    return opts.on_stop({ reason = "cancelled" })
+  end
 
   if not opts.session_ctx.on_messages_add then opts.session_ctx.on_messages_add = opts.on_messages_add end
   if not opts.session_ctx.on_state_change then opts.session_ctx.on_state_change = opts.on_state_change end
@@ -1868,6 +1922,20 @@ function M._stream(opts)
         local function handle_tool_result(result, error)
           partial_tool_use_message.is_calling = false
           if opts.on_messages_add then opts.on_messages_add({ partial_tool_use_message }) end
+          -- If this request was soft-cancelled (e.g. the user submitted a new message
+          -- mid-stream), we must NOT recurse back into M._stream. The tool's result
+          -- has already been appended to chat history via the on_messages_add above,
+          -- so the next user-driven request will see it as part of history naturally.
+          if
+            opts.session_ctx
+            and LLMToolHelpers.is_token_cancelled(opts.session_ctx.cancel_token)
+            and error ~= LLMToolHelpers.CANCEL_TOKEN
+          then
+            Utils.debug(
+              "handle_tool_result: dropping recursion for cancelled request " .. tostring(opts.session_ctx.request_id)
+            )
+            return
+          end
           -- Special handling for cancellation signal from tools
           if error == LLMToolHelpers.CANCEL_TOKEN then
             Utils.debug("Tool execution was cancelled by user")
@@ -1902,6 +1970,7 @@ function M._stream(opts)
           tool_use_id = partial_tool_use.id,
           streaming = partial_tool_use.state == "generating",
           on_complete = function() end,
+          cancel_token = opts.session_ctx and opts.session_ctx.cancel_token or nil,
         }
         if partial_tool_use.state == "generating" then
           if not is_edit_tool_use and not support_streaming then return end
@@ -1920,6 +1989,34 @@ function M._stream(opts)
           set_tool_use_store = opts.set_tool_use_store,
           on_complete = handle_tool_result,
           tool_use_id = partial_tool_use.id,
+          cancel_token = opts.session_ctx and opts.session_ctx.cancel_token or nil,
+          on_orphaned_result = function(tool_use, orphan_result, orphan_err, ctx)
+            -- The originating request was soft-cancelled but this tool was allowed
+            -- to finish. Append the tool_result + a small system note into history so
+            -- the *next* outbound LLM call has both the structurally-required
+            -- tool_result pair AND the surrounding context of where it came from.
+            if not opts.on_messages_add then return end
+            local result_message = History.Message:new("user", {
+              type = "tool_result",
+              tool_use_id = tool_use.id,
+              content = orphan_err ~= nil and orphan_err or orphan_result,
+              is_error = orphan_err ~= nil,
+              is_user_declined = false,
+            })
+            local note_text = string.format(
+              "<system-note>Tool `%s` (id=%s) from a previous, cancelled request finished after the cancellation. Its result is included above so you have full context for the current turn.</system-note>",
+              tool_use.name,
+              tool_use.id
+            )
+            local note_message = History.Message:new("user", note_text, {
+              visible = false,
+              is_context = true,
+            })
+            opts.on_messages_add({ result_message, note_message })
+            if opts.on_orphaned_tool_result then
+              opts.on_orphaned_tool_result(tool_use, orphan_result, orphan_err, ctx)
+            end
+          end,
         })
         if result ~= nil or error ~= nil then return handle_tool_result(result, error) end
       end
@@ -2048,6 +2145,7 @@ function M._stream(opts)
     prompt_opts = prompt_opts,
     handler_opts = handler_opts,
     on_response_headers = function(headers) resp_headers = headers end,
+    cancel_pattern = opts.session_ctx and opts.session_ctx.cancel_pattern or nil,
   })
 end
 
@@ -2139,8 +2237,27 @@ function M._dual_boost_stream(opts, Provider1, Provider2)
   if not success then Utils.error("Failed to start dual_boost streams: " .. tostring(err)) end
 end
 
+---@class avante.LLMStreamHandle
+---@field id string                                       -- unique request id
+---@field is_done fun(): boolean                          -- has the request finished (complete/error/cancelled)?
+---@field cancel fun(cancel_opts?: { abort_tools?: boolean, reason?: string }): nil
+---@field cancel_pattern string                           -- per-request autocmd pattern (advanced use)
+
 ---@param opts AvanteLLMStreamOptions
+---@return avante.LLMStreamHandle
 function M.stream(opts)
+  -- Allocate the request id eagerly so the caller has a handle even before _stream
+  -- has been entered (e.g. for the dual-boost / ACP paths).
+  opts.session_ctx = opts.session_ctx or {}
+  if not opts.session_ctx.request_id then
+    opts.session_ctx.request_id = M.next_request_id()
+    opts.session_ctx.cancel_pattern = M.CANCEL_PATTERN_PREFIX .. opts.session_ctx.request_id
+    opts.session_ctx.cancel_token = LLMToolHelpers.make_cancel_token(opts.session_ctx.request_id)
+  end
+  local request_id = opts.session_ctx.request_id
+  local cancel_pattern = opts.session_ctx.cancel_pattern
+  local cancel_token = opts.session_ctx.cancel_token
+
   local is_completed = false
   if opts.on_tool_log ~= nil then
     local original_on_tool_log = opts.on_tool_log
@@ -2190,8 +2307,35 @@ function M.stream(opts)
   else
     M._stream(opts)
   end
+
+  ---@type avante.LLMStreamHandle
+  return {
+    id = request_id,
+    cancel_pattern = cancel_pattern,
+    is_done = function() return is_completed end,
+    cancel = function(cancel_opts)
+      cancel_opts = cancel_opts or {}
+      -- Mark the per-request token as cancelled. If abort_tools is set, in-flight
+      -- tools will see should_abort_tool() return true and bail out. Otherwise
+      -- (the default soft cancel) they keep running and their results are routed
+      -- via on_orphaned_result so the next outbound payload can fold them in.
+      LLMToolHelpers.cancel_token(cancel_token, {
+        abort_tools = cancel_opts.abort_tools,
+        reason = cancel_opts.reason,
+      })
+      -- Tear down the curl request for this specific id without disturbing any
+      -- other concurrent requests.
+      api.nvim_exec_autocmds("User", { pattern = cancel_pattern })
+      abort_retry_timer = true
+    end,
+  }
 end
 
+---Hard-cancel EVERY in-flight LLM request and abort every running tool.
+---This is the "nuclear option" used by cleanup paths (:AvanteStop, shutdown,
+---buffer-leave). For surgical, per-request cancellation that lets tools finish
+---and queues their results for the next outbound payload, prefer the `cancel()`
+---method on the handle returned by `M.stream()`.
 function M.cancel_inflight_request()
   if LLMToolHelpers.is_cancelled ~= nil then LLMToolHelpers.is_cancelled = true end
   if LLMToolHelpers.confirm_popup ~= nil then

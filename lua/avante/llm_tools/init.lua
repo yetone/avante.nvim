@@ -1323,6 +1323,10 @@ M.run_python = M.python
 ---@field on_log? fun(tool_id: string, tool_name: string, log: string, state: AvanteLLMToolUseState): nil
 ---@field set_tool_use_store? fun(tool_id: string, key: string, value: any): nil
 ---@field on_complete? fun(result: string | nil, error: string | nil): nil
+---@field cancel_token? avante.CancelToken    -- per-request cancel token; preferred over the global Helpers.is_cancelled
+---@field on_orphaned_result? fun(tool_use: AvanteLLMToolUse, result: string | nil, error: string | nil, ctx: { request_id: string|nil, started_at: integer, finished_at: integer }): nil
+---@field streaming? boolean
+---@field tool_use_id? string
 
 ---@param tools AvanteLLMTool[]
 ---@param tool_use AvanteLLMToolUse
@@ -1331,8 +1335,12 @@ M.run_python = M.python
 function M.process_tool_use(tools, tool_use, opts)
   local on_log = opts.on_log
   local on_complete = opts.on_complete
-  -- Check if execution is already cancelled
-  if Helpers.is_cancelled then
+  local cancel_token = opts.cancel_token
+  local on_orphaned_result = opts.on_orphaned_result
+  local started_at = vim.uv.hrtime()
+  -- Check if execution is already cancelled (hard global cancel only — soft per-request
+  -- cancellations should not block a tool from starting if the user wants its result queued).
+  if Helpers.should_abort_tool(cancel_token) then
     Utils.debug("Tool execution cancelled before starting: " .. tool_use.name)
     if on_complete then
       on_complete(nil, Helpers.CANCEL_TOKEN)
@@ -1356,7 +1364,11 @@ function M.process_tool_use(tools, tool_use, opts)
   if not func then return nil, "Tool not found: " .. tool_use.name end
   if on_log then on_log(tool_use.id, tool_use.name, "running tool", "running") end
 
-  -- Set up a timer to periodically check for cancellation
+  -- Set up a timer to periodically check for HARD cancellation (global flag or
+  -- explicit abort_tools=true on the per-request token). Soft per-request cancels
+  -- with keep_tools_running=true are *not* observed here — the tool is allowed to
+  -- run to completion, and its result will be routed to on_orphaned_result when it
+  -- finishes, so the next outbound LLM payload can include it.
   local cancel_timer
   if on_complete then
     cancel_timer = vim.uv.new_timer()
@@ -1365,12 +1377,15 @@ function M.process_tool_use(tools, tool_use, opts)
         100,
         100,
         vim.schedule_wrap(function()
-          if Helpers.is_cancelled then
-            Utils.debug("Tool execution cancelled during execution: " .. tool_use.name)
+          if Helpers.should_abort_tool(cancel_token) then
+            Utils.debug("Tool execution aborted during execution: " .. tool_use.name)
             if cancel_timer and not cancel_timer:is_closing() then
               cancel_timer:stop()
               cancel_timer:close()
             end
+            -- Reset the legacy global flag so subsequent tools aren't poisoned by
+            -- a stale signal. Per-request tokens are not reset here — they belong
+            -- to the (now-dead) request and should stay cancelled.
             Helpers.is_cancelled = false
             on_complete(nil, Helpers.CANCEL_TOKEN)
           end
@@ -1388,8 +1403,8 @@ function M.process_tool_use(tools, tool_use, opts)
       cancel_timer:close()
     end
 
-    -- Check for cancellation one more time before processing result
-    if Helpers.is_cancelled then
+    -- Check for hard cancellation one more time before processing result
+    if Helpers.should_abort_tool(cancel_token) then
       if on_log then on_log(tool_use.id, tool_use.name, "cancelled during result handling", "failed") end
       return nil, Helpers.CANCEL_TOKEN
     end
@@ -1411,22 +1426,41 @@ function M.process_tool_use(tools, tool_use, opts)
   local result, err = func(input_json, {
     session_ctx = opts.session_ctx or {},
     on_log = function(log)
-      -- Check for cancellation during logging
-      if Helpers.is_cancelled then return end
+      -- Drop log entries for hard-aborted tools, but keep them for soft-cancelled
+      -- ones so the user can see what the orphaned tool was doing.
+      if Helpers.should_abort_tool(cancel_token) then return end
       if on_log then on_log(tool_use.id, tool_use.name, log, "running") end
     end,
     set_store = function(key, value)
       if opts.set_tool_use_store then opts.set_tool_use_store(tool_use.id, key, value) end
     end,
     on_complete = function(result, err)
-      -- Check for cancellation before completing
-      if Helpers.is_cancelled then
+      -- Hard cancel: report cancellation up.
+      if Helpers.should_abort_tool(cancel_token) then
         Helpers.is_cancelled = false
         if on_complete then on_complete(nil, Helpers.CANCEL_TOKEN) end
         return
       end
 
       result, err = handle_result(result, err)
+
+      -- Soft cancel (per-request token tripped while the tool was running):
+      -- the originating request is dead, so we must NOT re-enter its agent loop.
+      -- Route the result to the orphan handler so the surrounding code can fold
+      -- it into the next outbound LLM payload with proper context.
+      if Helpers.is_token_cancelled(cancel_token) then
+        if on_orphaned_result then
+          on_orphaned_result(tool_use, result, err, {
+            request_id = cancel_token and cancel_token.request_id or nil,
+            started_at = started_at,
+            finished_at = vim.uv.hrtime(),
+          })
+        else
+          Utils.debug("orphan tool result for " .. tool_use.name .. " dropped (no handler)")
+        end
+        return
+      end
+
       if on_complete == nil then
         Utils.error("asynchronous tool " .. tool_use.name .. " result not handled")
         return
