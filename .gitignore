@@ -50,3 +50,4 @@ config.personal.lua
 # create by avante
 /lua/.tag
 target
+/result
