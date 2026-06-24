@@ -267,6 +267,22 @@ end
 ---@field next_prompt? avante.Config.PromptLoggerKeymap Mapping used to load the next newer prompt log.
 ---@field prev_prompt? avante.Config.PromptLoggerKeymap Mapping used to load the previous older prompt log.
 
+---@class avante.Config.RagServiceModel
+---@field provider string Model provider.
+---@field endpoint string Model API endpoint.
+---@field api_key string Environment variable name for the model API key.
+---@field model string Model name.
+---@field extra? table Additional model provider options.
+
+---@class avante.Config.RagService
+---@field enabled boolean Enable the RAG service.
+---@field host_mount string? Host path mounted read-only for the RAG service.
+---@field runner "docker"|"nix"|string Runner used to launch the RAG service.
+---@field image? string Docker image used when runner is `docker`.
+---@field llm avante.Config.RagServiceModel Language model configuration.
+---@field embed avante.Config.RagServiceModel Embedding model configuration.
+---@field docker_extra_args string Extra arguments passed to `docker run`.
+
 ---@class avante.CoreConfig: avante.Config
 local M = {}
 
@@ -325,6 +341,7 @@ M.instructions_file = "avante.md"
 ---@field override_prompt_dir string | nil | fun(): string
 ---@field rules table
 ---
+---@field rag_service avante.Config.RagService RAG service configuration.
 ---@field behaviour avante.Config.Behaviour Behaviour and automation options.
 ---@field prompt_logger avante.Config.PromptLogger Prompt logging options.
 ---@field windows table
@@ -358,6 +375,7 @@ M._defaults = {
     project_dir = nil, ---@type string | nil (could be relative dirpath)
     global_dir = nil, ---@type string | nil (absolute dirpath)
   },
+  ---@type avante.Config.RagService
   rag_service = { -- RAG service configuration
     enabled = false, -- Enables the RAG service
     host_mount = os.getenv("HOME"), -- Host mount path for the RAG service (Docker will mount this path)
