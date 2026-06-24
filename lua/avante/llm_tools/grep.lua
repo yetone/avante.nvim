@@ -3,12 +3,26 @@ local Utils = require("avante.utils")
 local Helpers = require("avante.llm_tools.helpers")
 local Base = require("avante.llm_tools.base")
 
+--- Maximum output size in bytes before results are truncated.
+--- Keeps context window usage bounded when searching large codebases.
+local MAX_GREP_OUTPUT_BYTES = 50000
+
+--- Grep tool: search for a pattern across the project using ripgrep (rg), falling
+--- back to ag or grep if rg is unavailable.
+---
+--- Results include file path, line number, and a configurable number of context
+--- lines around each match, so the LLM can understand matches without a separate
+--- file-read step.
+---
+--- Output is capped at MAX_GREP_OUTPUT_BYTES bytes and annotated with a truncation
+--- notice when the limit is hit.
 ---@class AvanteLLMTool
 local M = setmetatable({}, Base)
 
 M.name = "grep"
 
-M.description = "Search for a keyword in a directory using grep in current project scope"
+M.description =
+  "Search for a pattern in files using ripgrep, returning matching lines with surrounding context. Use this to find code, definitions, and usages across the project."
 
 ---@type AvanteLLMToolParam
 M.param = {
@@ -21,8 +35,15 @@ M.param = {
     },
     {
       name = "query",
-      description = "Query to search for",
+      description = "Query to search for (supports regex)",
       type = "string",
+    },
+    {
+      name = "context_lines",
+      description = "Number of lines to show above and below each match (default 3)",
+      type = "integer",
+      default = 3,
+      optional = true,
     },
     {
       name = "case_sensitive",
@@ -47,6 +68,7 @@ M.param = {
   usage = {
     path = "Relative path to the project directory",
     query = "Query to search for",
+    context_lines = "Number of context lines above and below each match (default 3)",
     case_sensitive = "Whether to search case sensitively",
     include_pattern = "Glob pattern to include files",
     exclude_pattern = "Glob pattern to exclude files",
@@ -56,19 +78,19 @@ M.param = {
 ---@type AvanteLLMToolReturn[]
 M.returns = {
   {
-    name = "files",
-    description = "List of files that match the keyword",
+    name = "results",
+    description = "Search results with file paths, line numbers, and matching content with context",
     type = "string",
   },
   {
     name = "error",
-    description = "Error message if the directory was not searched successfully",
+    description = "Error message if the search failed",
     type = "string",
     optional = true,
   },
 }
 
----@type AvanteLLMToolFunc<{ path: string, query: string, case_sensitive?: boolean, include_pattern?: string, exclude_pattern?: string }>
+---@type AvanteLLMToolFunc<{ path: string, query: string, context_lines?: integer, case_sensitive?: boolean, include_pattern?: string, exclude_pattern?: string }>
 function M.func(input, opts)
   local on_log = opts.on_log
 
@@ -76,83 +98,58 @@ function M.func(input, opts)
   if not Helpers.has_permission_to_access(abs_path) then return "", "No permission to access path: " .. abs_path end
   if not Path:new(abs_path):exists() then return "", "No such file or directory: " .. abs_path end
 
-  ---check if any search cmd is available
+  local context_lines = input.context_lines or 3
+
+  -- Prefer ripgrep (rg), fall back to other tools
   local search_cmd = vim.fn.exepath("rg")
   if search_cmd == "" then search_cmd = vim.fn.exepath("ag") end
-  if search_cmd == "" then search_cmd = vim.fn.exepath("ack") end
   if search_cmd == "" then search_cmd = vim.fn.exepath("grep") end
-  if search_cmd == "" then return "", "No search command found" end
+  if search_cmd == "" then return "", "No search command found (rg, ag, or grep required)" end
 
-  ---execute the search command
   local cmd = {}
   if search_cmd:find("rg") then
-    cmd = { search_cmd, "--files-with-matches", "--hidden" }
+    -- ripgrep: return content with line numbers and context
+    cmd = { search_cmd, "-n", "--hidden", "--no-heading" }
+    -- Add context lines
+    if context_lines > 0 then vim.list_extend(cmd, { "-C", tostring(context_lines) }) end
     if input.case_sensitive then
       table.insert(cmd, "--case-sensitive")
     else
       table.insert(cmd, "--ignore-case")
     end
-    if input.include_pattern then
-      table.insert(cmd, "--glob")
-      table.insert(cmd, input.include_pattern)
-    end
-    if input.exclude_pattern then
-      table.insert(cmd, "--glob")
-      table.insert(cmd, "!" .. input.exclude_pattern)
-    end
-    table.insert(cmd, input.query)
-    table.insert(cmd, abs_path)
+    if input.include_pattern then vim.list_extend(cmd, { "--glob", input.include_pattern }) end
+    if input.exclude_pattern then vim.list_extend(cmd, { "--glob", "!" .. input.exclude_pattern }) end
+    -- Limit output to avoid overwhelming context
+    vim.list_extend(cmd, { "--max-count", "50", input.query, abs_path })
   elseif search_cmd:find("ag") then
     cmd = { search_cmd, "--nocolor", "--nogroup", "--hidden" }
+    if context_lines > 0 then vim.list_extend(cmd, { "-C", tostring(context_lines) }) end
     if input.case_sensitive then table.insert(cmd, "--case-sensitive") end
-    if input.include_pattern then
-      table.insert(cmd, "--ignore")
-      table.insert(cmd, "!" .. input.include_pattern)
-    end
-    if input.exclude_pattern then
-      table.insert(cmd, "--ignore")
-      table.insert(cmd, input.exclude_pattern)
-    end
-    table.insert(cmd, input.query)
-    table.insert(cmd, abs_path)
-  elseif search_cmd:find("ack") then
-    cmd = { search_cmd, "--nocolor", "--nogroup", "--hidden" }
-    if input.case_sensitive then table.insert(cmd, "--smart-case") end
-    if input.exclude_pattern then
-      table.insert(cmd, "--ignore-dir")
-      table.insert(cmd, input.exclude_pattern)
-    end
-    table.insert(cmd, input.query)
-    table.insert(cmd, abs_path)
+    if input.include_pattern then vim.list_extend(cmd, { "--ignore", "!" .. input.include_pattern }) end
+    if input.exclude_pattern then vim.list_extend(cmd, { "--ignore", input.exclude_pattern }) end
+    vim.list_extend(cmd, { input.query, abs_path })
   elseif search_cmd:find("grep") then
-    local files =
-      vim.system({ "git", "-C", abs_path, "ls-files", "-co", "--exclude-standard" }, { text = true }):wait().stdout
-    cmd = { "grep", "-rH" }
+    cmd = { "grep", "-rnH" }
+    if context_lines > 0 then vim.list_extend(cmd, { "-C", tostring(context_lines) }) end
     if not input.case_sensitive then table.insert(cmd, "-i") end
-    if input.include_pattern then
-      table.insert(cmd, "--include")
-      table.insert(cmd, input.include_pattern)
-    end
-    if input.exclude_pattern then
-      table.insert(cmd, "--exclude")
-      table.insert(cmd, input.exclude_pattern)
-    end
-    table.insert(cmd, input.query)
-    if files ~= "" then
-      for _, path in ipairs(vim.split(files, "\n")) do
-        if not path:match("^%s*$") then table.insert(cmd, vim.fs.joinpath(abs_path, path)) end
-      end
-    else
-      table.insert(cmd, abs_path)
-    end
+    if input.include_pattern then vim.list_extend(cmd, { "--include", input.include_pattern }) end
+    if input.exclude_pattern then vim.list_extend(cmd, { "--exclude", input.exclude_pattern }) end
+    vim.list_extend(cmd, { input.query, abs_path })
   end
 
   Utils.debug("cmd", table.concat(cmd, " "))
   if on_log then on_log("Running command: " .. table.concat(cmd, " ")) end
-  local result = vim.system(cmd, { text = true }):wait().stdout or ""
-  local filepaths = vim.split(result, "\n")
+  local result = vim.system(cmd, { text = true }):wait()
+  local output = result.stdout or ""
 
-  return vim.json.encode(filepaths), nil
+  -- Truncate if too large (avoid blowing up context)
+  if #output > MAX_GREP_OUTPUT_BYTES then
+    output = output:sub(1, MAX_GREP_OUTPUT_BYTES) .. "\n\n...[output truncated, " .. #output .. " total bytes]"
+  end
+
+  if output == "" then return vim.json.encode({ matches = {}, total = 0 }), nil end
+
+  return output, nil
 end
 
 return M
