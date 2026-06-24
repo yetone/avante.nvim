@@ -1731,6 +1731,40 @@ The high quality and ingenuity of these projects' source code have been immensel
   </tr>
 </table>
 
+## Multi-Instance Messaging
+
+When you have multiple Avante sidebars open (across tabs, windows, or even separate Neovim processes), each instance gets a unique human-readable name shown in the winbar (e.g. `Avante [swift-fox]`). Instances can discover and message each other.
+
+### In-process messaging (no setup required)
+
+The `send_message` LLM tool is always available to the agent. It can:
+- `action="list"` — discover other active Avante instances in the same Neovim session
+- `action="send"` — deliver a message to a named instance
+
+You can also use the `/send <instance-name> <intent>` slash command to have the current chat's model draft and deliver a message to another instance based on your stated intent and the conversation history.
+
+### Context simplification
+
+Use `/simplify` to aggressively compress the current chat history down to the minimal engineering-critical context: current state, unresolved blockers, and next steps.
+
+### Cross-process IPC service (optional, requires Docker or Nix)
+
+To enable messaging between Avante instances in *different* Neovim processes:
+
+```lua
+require("avante").setup({
+  ipc_service = {
+    enabled = true,
+    runner = "docker", -- or "nix"
+    image = "quay.io/yetoneful/avante-ipc-service:0.0.1",
+  },
+})
+```
+
+Once enabled, the `send_message` tool automatically uses the IPC service for cross-process delivery, with a fallback to in-process delivery for same-Neovim peers.
+
+The IPC service requires Docker (or OrbStack on macOS) or Nix. See `py/ipc-service/` for the service source.
+
 ## License
 
 avante.nvim is licensed under the Apache 2.0 License. For more details, please refer to the [LICENSE](./LICENSE) file.
