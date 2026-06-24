@@ -207,7 +207,7 @@ dependencies = [
 ]
 
 [project.scripts]
-rag-service = "main:main"
+avante-rag-service = "main:main"
 
 [build-system]
 requires = ["setuptools>=61"]
