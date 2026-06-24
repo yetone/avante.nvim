@@ -34,7 +34,7 @@
 --->
 ---   docker rm -fv avante-rag-service
 ---<
----
+---Communication port is hardcoded to localhost:20250
 ---@brief ]]
 
 local curl = require("plenary.curl")
@@ -194,6 +194,7 @@ function M.launch_rag_service(cb)
 
     Utils.debug(string.format("launching %s with nix...", container_name))
 
+    -- TODO adjust
     vim.system({ "sh", "run.sh", service_path }, {
       detach = true,
       cwd = rag_service_dir,

@@ -95,11 +95,14 @@
         let
           pythonSet = ragPythonSets.${system};
           ragService = (pythonSet.mkVirtualEnv "rag-service-env" ragWorkspace.deps.default).overrideAttrs (
-            _old: {
+            old: {
               venvIgnoreCollisions = [
                 "bin/fastapi"
                 "bin/llama-parse"
               ];
+              meta = (old.meta or { }) // {
+                mainProgram = "rag-service";
+              };
             }
           );
         in
@@ -112,7 +115,7 @@
       apps = forAllSystems (system: {
         rag-service = {
           type = "app";
-          program = "${self.packages.${system}.ragService}/bin/rag-service";
+          program = lib.getExe self.packages.${system}.ragService;
         };
         default = self.apps.${system}.rag-service;
       });
