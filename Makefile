@@ -26,7 +26,10 @@ TARGET_LIBRARY ?= all
 RAG_SERVICE_VERSION ?= 0.0.11
 RAG_SERVICE_IMAGE := quay.io/yetoneful/avante-rag-service:$(RAG_SERVICE_VERSION)
 
+.PHONY: all build
 all: luajit
+
+build: all
 
 define make_definitions
 ifeq ($(BUILD_FROM_SOURCE),true)
