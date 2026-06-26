@@ -6,13 +6,13 @@ on:
       - main
     paths:
       - "**/*.lua"
-      - .github/workflows/lua.yaml
+      - ".github/**"
   pull_request:
     branches:
       - main
     paths:
       - "**/*.lua"
-      - .github/workflows/lua.yaml
+      - ".github/**"
 
 jobs:
   # reference from: https://github.com/nvim-lua/plenary.nvim/blob/2d9b06177a975543726ce5c73fca176cedbffe9d/.github/workflows/default.yml#L6C3-L43C20
@@ -26,7 +26,7 @@ jobs:
           - os: ubuntu-24.04
           - os: macos-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Install Nix
         uses: DeterminateSystems/nix-installer-action@v16
@@ -35,6 +35,28 @@ jobs:
         run: |
           nix develop .#ci --command nvim --version
           nix develop .#ci --command make luatest
+
       - name: Typecheck
         run:
           nix develop .#ci --command make lua-typecheck
+
+  build-libraries:
+    strategy:
+      fail-fast: false
+      matrix:
+          os:
+            - ubuntu-24.04
+            - macos-latest # fails because of missing docker
+
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: ./.github/actions/build
+        with:
+          os: ubuntu-latest
+          os_name: linux
+          arch: x86_64
+          # rust_target: x86_64-unknown-linux-gnu
+          # docker_platform: linux/amd64
+          # container: quay.io/pypa/manylinux2014_x86_64 # for glibc 2.17
