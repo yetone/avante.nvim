@@ -195,22 +195,24 @@ function M.launch_rag_service(cb)
     Utils.debug(string.format("launching %s with nix...", container_name))
 
     -- TODO adjust
-    local ok, job_or_err = pcall(vim.system, { "avante-rag-service", service_path }, {
+    local ok, job_or_err = pcall(vim.system, {
+      "avante-rag-service", service_path,
+        "--port", port,
+        "--embed-provider", Config.rag_service.embed.provider,
+        "--embed-extra", embed_extra,
+        "--llm-provider", Config.rag_service.llm.provider,
+        "--llm-model", Config.rag_service.llm.model,
+        }, {
       detach = true,
       cwd = rag_service_dir,
       env = {
         ALLOW_RESET = "TRUE",
-        PORT = port,
         DATA_DIR = service_path,
-        RAG_EMBED_PROVIDER = Config.rag_service.embed.provider,
         RAG_EMBED_ENDPOINT = Config.rag_service.embed.endpoint,
         RAG_EMBED_API_KEY = embed_api_key,
         RAG_EMBED_MODEL = Config.rag_service.embed.model,
-        RAG_EMBED_EXTRA = embed_extra,
-        RAG_LLM_PROVIDER = Config.rag_service.llm.provider,
         RAG_LLM_ENDPOINT = Config.rag_service.llm.endpoint,
         RAG_LLM_API_KEY = llm_api_key,
-        RAG_LLM_MODEL = Config.rag_service.llm.model,
         RAG_LLM_EXTRA = llm_extra,
       },
     }, function(res)

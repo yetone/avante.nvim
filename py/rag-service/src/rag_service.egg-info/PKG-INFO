@@ -1,0 +1,341 @@
+Metadata-Version: 2.4
+Name: rag-service
+Version: 0.1.0
+Summary: RAG service for avante.nvim
+Requires-Python: <3.12,>=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: aiohappyeyeballs==2.4.6
+Requires-Dist: aiohttp==3.11.12
+Requires-Dist: aiosignal==1.3.2
+Requires-Dist: annotated-types==0.7.0
+Requires-Dist: anyio==4.8.0
+Requires-Dist: asgiref==3.8.1
+Requires-Dist: asttokens==3.0.0
+Requires-Dist: attrs==25.1.0
+Requires-Dist: backoff==2.2.1
+Requires-Dist: bcrypt==4.2.1
+Requires-Dist: beautifulsoup4==4.13.3
+Requires-Dist: bleach==6.3.0
+Requires-Dist: build==1.2.2.post1
+Requires-Dist: cachetools==5.5.1
+Requires-Dist: certifi==2024.12.14
+Requires-Dist: charset-normalizer==3.4.1
+Requires-Dist: chroma-hnswlib==0.7.6
+Requires-Dist: chromadb==0.6.3
+Requires-Dist: click==8.1.8
+Requires-Dist: coloredlogs==15.0.1
+Requires-Dist: dashscope==1.22.2
+Requires-Dist: dataclasses-json==0.6.7
+Requires-Dist: decorator==5.1.1
+Requires-Dist: defusedxml==0.7.1
+Requires-Dist: deprecated==1.2.18
+Requires-Dist: dirtyjson==1.0.8
+Requires-Dist: distro==1.9.0
+Requires-Dist: dnspython==2.7.0
+Requires-Dist: docx2txt==0.8
+Requires-Dist: durationpy==0.9
+Requires-Dist: email-validator==2.2.0
+Requires-Dist: et-xmlfile==2.0.0
+Requires-Dist: executing==2.2.0
+Requires-Dist: fastapi==0.115.8
+Requires-Dist: fastapi-cli==0.0.7
+Requires-Dist: fastjsonschema==2.21.2
+Requires-Dist: filelock==3.17.0
+Requires-Dist: filetype==1.2.0
+Requires-Dist: flatbuffers==25.1.24
+Requires-Dist: frozenlist==1.5.0
+Requires-Dist: fsspec==2025.2.0
+Requires-Dist: google-auth==2.38.0
+Requires-Dist: googleapis-common-protos==1.66.0
+Requires-Dist: greenlet==3.1.1
+Requires-Dist: grpcio==1.70.0
+Requires-Dist: h11==0.14.0
+Requires-Dist: httpcore==1.0.7
+Requires-Dist: httptools==0.6.4
+Requires-Dist: httpx==0.28.1
+Requires-Dist: huggingface-hub==0.31.4
+Requires-Dist: humanfriendly==10.0
+Requires-Dist: idna==3.10
+Requires-Dist: importlib-metadata==8.5.0
+Requires-Dist: importlib-resources==6.5.2
+Requires-Dist: ipdb==0.13.13
+Requires-Dist: ipython==8.32.0
+Requires-Dist: jedi==0.19.2
+Requires-Dist: jinja2==3.1.5
+Requires-Dist: jiter==0.8.2
+Requires-Dist: joblib==1.4.2
+Requires-Dist: jsonschema==4.25.1
+Requires-Dist: jsonschema-specifications==2025.9.1
+Requires-Dist: jupyter-client==8.7.0
+Requires-Dist: jupyter-core==5.9.1
+Requires-Dist: jupyterlab-pygments==0.3.0
+Requires-Dist: kubernetes==32.0.0
+Requires-Dist: llama-cloud==0.1.11
+Requires-Dist: llama-cloud-services==0.6.0
+Requires-Dist: llama-index==0.12.16
+Requires-Dist: llama-index-agent-openai==0.4.3
+Requires-Dist: llama-index-cli==0.4.0
+Requires-Dist: llama-index-core==0.12.16.post1
+Requires-Dist: llama-index-embeddings-dashscope==0.3.0
+Requires-Dist: llama-index-embeddings-ollama==0.5.0
+Requires-Dist: llama-index-embeddings-openai==0.3.1
+Requires-Dist: llama-index-indices-managed-llama-cloud==0.6.4
+Requires-Dist: llama-index-llms-dashscope==0.3.3
+Requires-Dist: llama-index-llms-ollama==0.5.2
+Requires-Dist: llama-index-llms-openai==0.3.18
+Requires-Dist: llama-index-llms-openai-like==0.3.4
+Requires-Dist: llama-index-llms-openrouter==0.3.1
+Requires-Dist: llama-index-multi-modal-llms-openai==0.4.3
+Requires-Dist: llama-index-program-openai==0.3.1
+Requires-Dist: llama-index-question-gen-openai==0.3.0
+Requires-Dist: llama-index-readers-file==0.4.4
+Requires-Dist: llama-index-readers-llama-parse==0.4.0
+Requires-Dist: llama-index-vector-stores-chroma==0.4.1
+Requires-Dist: llama-parse==0.6.0
+Requires-Dist: markdown-it-py==3.0.0
+Requires-Dist: markdownify==0.14.1
+Requires-Dist: markupsafe==3.0.2
+Requires-Dist: marshmallow==3.26.1
+Requires-Dist: matplotlib-inline==0.1.7
+Requires-Dist: mdurl==0.1.2
+Requires-Dist: mistune==3.1.4
+Requires-Dist: mmh3==5.1.0
+Requires-Dist: monotonic==1.6
+Requires-Dist: mpmath==1.3.0
+Requires-Dist: multidict==6.1.0
+Requires-Dist: mypy-extensions==1.0.0
+Requires-Dist: nbclient==0.10.2
+Requires-Dist: nbconvert==7.16.6
+Requires-Dist: nbformat==5.10.4
+Requires-Dist: nest-asyncio==1.6.0
+Requires-Dist: networkx==3.4.2
+Requires-Dist: nltk==3.9.1
+Requires-Dist: numpy==2.2.2
+Requires-Dist: oauthlib==3.2.2
+Requires-Dist: ollama==0.4.8
+Requires-Dist: onnxruntime==1.20.1
+Requires-Dist: openai==1.61.1
+Requires-Dist: openpyxl==3.1.5
+Requires-Dist: opentelemetry-api==1.30.0
+Requires-Dist: opentelemetry-exporter-otlp-proto-common==1.30.0
+Requires-Dist: opentelemetry-exporter-otlp-proto-grpc==1.30.0
+Requires-Dist: opentelemetry-instrumentation==0.51b0
+Requires-Dist: opentelemetry-instrumentation-asgi==0.51b0
+Requires-Dist: opentelemetry-instrumentation-fastapi==0.51b0
+Requires-Dist: opentelemetry-proto==1.30.0
+Requires-Dist: opentelemetry-sdk==1.30.0
+Requires-Dist: opentelemetry-semantic-conventions==0.51b0
+Requires-Dist: opentelemetry-util-http==0.51b0
+Requires-Dist: orjson==3.10.15
+Requires-Dist: overrides==7.7.0
+Requires-Dist: packaging==24.2
+Requires-Dist: pandas==2.2.3
+Requires-Dist: pandocfilters==1.5.1
+Requires-Dist: parso==0.8.4
+Requires-Dist: pathspec==0.12.1
+Requires-Dist: pexpect==4.9.0
+Requires-Dist: pillow==11.1.0
+Requires-Dist: platformdirs==4.5.1
+Requires-Dist: posthog==3.11.0
+Requires-Dist: prompt-toolkit==3.0.50
+Requires-Dist: propcache==0.2.1
+Requires-Dist: protobuf==5.29.3
+Requires-Dist: ptyprocess==0.7.0
+Requires-Dist: pure-eval==0.2.3
+Requires-Dist: pyasn1==0.6.1
+Requires-Dist: pyasn1-modules==0.4.1
+Requires-Dist: pydantic==2.10.6
+Requires-Dist: pydantic-core==2.27.2
+Requires-Dist: pygments==2.19.1
+Requires-Dist: pypdf==5.2.0
+Requires-Dist: pypika==0.48.9
+Requires-Dist: pyproject-hooks==1.2.0
+Requires-Dist: python-dateutil==2.9.0.post0
+Requires-Dist: python-dotenv==1.0.1
+Requires-Dist: python-multipart==0.0.20
+Requires-Dist: pytz==2025.1
+Requires-Dist: pyyaml==6.0.2
+Requires-Dist: pyzmq==27.1.0
+Requires-Dist: referencing==0.37.0
+Requires-Dist: regex==2024.11.6
+Requires-Dist: requests==2.32.3
+Requires-Dist: requests-oauthlib==2.0.0
+Requires-Dist: rich==13.9.4
+Requires-Dist: rich-toolkit==0.13.2
+Requires-Dist: rpds-py==0.30.0
+Requires-Dist: rsa==4.9
+Requires-Dist: safetensors==0.5.3
+Requires-Dist: shellingham==1.5.4
+Requires-Dist: six==1.17.0
+Requires-Dist: sniffio==1.3.1
+Requires-Dist: soupsieve==2.6
+Requires-Dist: sqlalchemy==2.0.38
+Requires-Dist: stack-data==0.6.3
+Requires-Dist: starlette==0.45.3
+Requires-Dist: striprtf==0.0.26
+Requires-Dist: sympy==1.13.3
+Requires-Dist: tenacity==9.0.0
+Requires-Dist: tiktoken==0.8.0
+Requires-Dist: tinycss2==1.4.0
+Requires-Dist: tokenizers==0.21.0
+Requires-Dist: tornado==6.5.3
+Requires-Dist: tqdm==4.67.1
+Requires-Dist: traitlets==5.14.3
+Requires-Dist: transformers==4.51.3
+Requires-Dist: tree-sitter==0.24.0
+Requires-Dist: tree-sitter-c-sharp==0.23.1
+Requires-Dist: tree-sitter-embedded-template==0.23.2
+Requires-Dist: tree-sitter-language-pack==0.6.1
+Requires-Dist: tree-sitter-yaml==0.7.0
+Requires-Dist: typer==0.15.1
+Requires-Dist: typing-extensions==4.12.2
+Requires-Dist: typing-inspect==0.9.0
+Requires-Dist: tzdata==2025.1
+Requires-Dist: urllib3==2.3.0
+Requires-Dist: uvicorn==0.34.0
+Requires-Dist: uvloop==0.21.0
+Requires-Dist: watchdog==6.0.0
+Requires-Dist: watchfiles==1.0.4
+Requires-Dist: wcwidth==0.2.13
+Requires-Dist: webencodings==0.5.1
+Requires-Dist: websocket-client==1.8.0
+Requires-Dist: websockets==14.2
+Requires-Dist: wrapt==1.17.2
+Requires-Dist: yarl==1.18.3
+Requires-Dist: zipp==3.21.0
+
+# RAG Service Configuration
+
+This document describes how to configure the RAG service, including setting up Language Model (LLM) and Embedding providers.
+
+## Provider Support Matrix
+
+The following table shows which model types are supported by each provider:
+
+| Provider   | LLM Support | Embedding Support |
+| ---------- | ----------- | ----------------- |
+| dashscope  | Yes         | Yes               |
+| ollama     | Yes         | Yes               |
+| openai     | Yes         | Yes               |
+| openrouter | Yes         | No                |
+
+## LLM Provider Configuration
+
+The `llm` section in the configuration file is used to configure the Language Model (LLM) used by the RAG service.
+
+Here are the configuration examples for each supported LLM provider:
+
+### OpenAI LLM Configuration
+
+[See more configurations](https://github.com/run-llama/llama_index/blob/main/llama-index-integrations/llms/llama-index-llms-openai/llama_index/llms/openai/base.py#L130)
+
+```lua
+llm = { -- Configuration for the Language Model (LLM) used by the RAG service
+  provider = "openai", -- The LLM provider ("openai")
+  endpoint = "https://api.openai.com/v1", -- The LLM API endpoint
+  api_key = "OPENAI_API_KEY", -- The environment variable name for the LLM API key
+  model = "gpt-4o-mini", -- The LLM model name (e.g., "gpt-4o-mini", "gpt-3.5-turbo")
+  extra = {-- Extra configuration options for the LLM (optional)
+    temperature = 0.7, -- Controls the randomness of the output. Lower values make it more deterministic.
+    max_tokens = 512, -- The maximum number of tokens to generate in the completion.
+    -- system_prompt = "You are a helpful assistant.", -- A system prompt to guide the model's behavior.
+    -- timeout = 120, -- Request timeout in seconds.
+  },
+},
+```
+
+### DashScope LLM Configuration
+
+[See more configurations](https://github.com/run-llama/llama_index/blob/main/llama-index-integrations/llms/llama-index-llms-dashscope/llama_index/llms/dashscope/base.py#L155)
+
+```lua
+llm = { -- Configuration for the Language Model (LLM) used by the RAG service
+  provider = "dashscope", -- The LLM provider ("dashscope")
+  endpoint = "", -- The LLM API endpoint (DashScope typically uses default or environment variables)
+  api_key = "DASHSCOPE_API_KEY", -- The environment variable name for the LLM API key
+  model = "qwen-plus", -- The LLM model name (e.g., "qwen-plus", "qwen-max")
+  extra = nil, -- Extra configuration options for the LLM (optional)
+},
+```
+
+### Ollama LLM Configuration
+
+[See more configurations](https://github.com/run-llama/llama_index/blob/main/llama-index-integrations/llms/llama-index-llms-ollama/llama_index/llms/ollama/base.py#L65)
+
+```lua
+llm = { -- Configuration for the Language Model (LLM) used by the RAG service
+  provider = "ollama", -- The LLM provider ("ollama")
+  endpoint = "http://localhost:11434", -- The LLM API endpoint for Ollama
+  api_key = "", -- Ollama typically does not require an API key
+  model = "llama2", -- The LLM model name (e.g., "llama2", "mistral")
+  extra = nil, -- Extra configuration options for the LLM (optional) Kristin", -- Extra configuration options for the LLM (optional)
+},
+```
+
+### OpenRouter LLM Configuration
+
+[See more configurations](https://github.com/run-llama/llama_index/blob/main/llama-index-integrations/llms/llama-index-llms-openrouter/llama_index/llms/openrouter/base.py#L17)
+
+```lua
+llm = { -- Configuration for the Language Model (LLM) used by the RAG service
+  provider = "openrouter", -- The LLM provider ("openrouter")
+  endpoint = "https://openrouter.ai/api/v1", -- The LLM API endpoint for OpenRouter
+  api_key = "OPENROUTER_API_KEY", -- The environment variable name for the LLM API key
+  model = "openai/gpt-4o-mini", -- The LLM model name (e.g., "openai/gpt-4o-mini", "mistralai/mistral-7b-instruct")
+  extra = nil, -- Extra configuration options for the LLM (optional)
+},
+```
+
+## Embedding Provider Configuration
+
+The `embedding` section in the configuration file is used to configure the Embedding Model used by the RAG service.
+
+Here are the configuration examples for each supported Embedding provider:
+
+### OpenAI Embedding Configuration
+
+[See more configurations](https://github.com/run-llama/llama_index/blob/main/llama-index-integrations/embeddings/llama-index-embeddings-openai/llama_index/embeddings/openai/base.py#L214)
+
+```lua
+embed = { -- Configuration for the Embedding Model used by the RAG service
+  provider = "openai", -- The Embedding provider ("openai")
+  endpoint = "https://api.openai.com/v1", -- The Embedding API endpoint
+  api_key = "OPENAI_API_KEY", -- The environment variable name for the Embedding API key
+  model = "text-embedding-3-large", -- The Embedding model name (e.g., "text-embedding-3-small", "text-embedding-3-large")
+  extra = {-- Extra configuration options for the Embedding model (optional)
+    dimensions = nil,
+  },
+},
+```
+
+### DashScope Embedding Configuration
+
+[See more configurations](https://github.com/run-llama/llama_index/blob/main/llama-index-integrations/embeddings/llama-index-embeddings-dashscope/llama_index/embeddings/dashscope/base.py#L156)
+
+```lua
+embed = { -- Configuration for the Embedding Model used by the RAG service
+  provider = "dashscope", -- The Embedding provider ("dashscope")
+  endpoint = "", -- The Embedding API endpoint (DashScope typically uses default or environment variables)
+  api_key = "DASHSCOPE_API_KEY", -- The environment variable name for the Embedding API key
+  model = "text-embedding-v3", -- The Embedding model name (e.g., "text-embedding-v2")
+  extra = { -- Extra configuration options for the Embedding model (optional)
+    embed_batch_size = 10,
+  },
+},
+```
+
+### Ollama Embedding Configuration
+
+[See more configurations](https://github.com/run-llama/llama_index/blob/main/llama-index-integrations/embeddings/llama-index-embeddings-ollama/llama_index/embeddings/ollama/base.py#L12)
+
+```lua
+embed = { -- Configuration for the Embedding Model used by the RAG service
+  provider = "ollama", -- The Embedding provider ("ollama")
+  endpoint = "http://localhost:11434", -- The Embedding API endpoint for Ollama
+  api_key = "", -- Ollama typically does not require an API key
+  model = "nomic-embed-text", -- The Embedding model name (e.g., "nomic-embed-text")
+  extra = { -- Extra configuration options for the Embedding model (optional)
+    embed_batch_size = 10，
+  },
+},
+```
