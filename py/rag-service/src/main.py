@@ -24,35 +24,60 @@ from urllib.parse import urljoin, urlparse
 def parse_cli_settings() -> argparse.Namespace:
     """Parse service settings from command-line arguments."""
     parser = argparse.ArgumentParser(description="Run the Avante RAG service.")
-    parser.add_argument("--port", type=int, default=20250, help="Port to listen on.")
-    parser.add_argument("--embed-provider", default="openai", help="Embedding provider.")
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=int(os.environ.get("PORT", "20250")),
+        help="Port to listen on.",
+    )
+    parser.add_argument(
+        "--embed-provider",
+        default=os.getenv("RAG_EMBED_PROVIDER", "openai"),
+        help="Embedding provider.",
+    )
     parser.add_argument(
         "--embed-endpoint",
-        default="https://api.openai.com/v1",
+        default=os.getenv("RAG_EMBED_ENDPOINT", "https://api.openai.com/v1"),
         help="Embedding API endpoint.",
     )
     parser.add_argument(
         "--embed-model",
-        default="text-embedding-3-large",
+        default=os.getenv("RAG_EMBED_MODEL", "text-embedding-3-large"),
         help="Embedding model name.",
     )
-    parser.add_argument("--embed-api-key", default=None, help="Embedding API key.")
+    parser.add_argument(
+        "--embed-api-key",
+        default=os.getenv("RAG_EMBED_API_KEY"),
+        help="Embedding API key.",
+    )
     parser.add_argument(
         "--embed-extra",
-        default=None,
+        default=os.getenv("RAG_EMBED_EXTRA"),
         help="JSON object with extra embedding model settings.",
     )
-    parser.add_argument("--llm-provider", default="openai", help="LLM provider.")
+    parser.add_argument(
+        "--llm-provider",
+        default=os.getenv("RAG_LLM_PROVIDER", "openai"),
+        help="LLM provider.",
+    )
     parser.add_argument(
         "--llm-endpoint",
-        default="https://api.openai.com/v1",
+        default=os.getenv("RAG_LLM_ENDPOINT", "https://api.openai.com/v1"),
         help="LLM API endpoint.",
     )
-    parser.add_argument("--llm-model", default="gpt-4o-mini", help="LLM model name.")
-    parser.add_argument("--llm-api-key", default=None, help="LLM API key.")
+    parser.add_argument(
+        "--llm-model",
+        default=os.getenv("RAG_LLM_MODEL", "gpt-4o-mini"),
+        help="LLM model name.",
+    )
+    parser.add_argument(
+        "--llm-api-key",
+        default=os.getenv("RAG_LLM_API_KEY"),
+        help="LLM API key.",
+    )
     parser.add_argument(
         "--llm-extra",
-        default=None,
+        default=os.getenv("RAG_LLM_EXTRA"),
         help="JSON object with extra LLM settings.",
     )
     settings, _ = parser.parse_known_args()
