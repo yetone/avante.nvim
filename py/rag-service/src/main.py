@@ -406,6 +406,7 @@ rag_llm_extra = cli_settings.llm_extra
 # Try to read previous config
 config_file = BASE_DATA_DIR / "rag_config.json"
 if config_file.exists():
+    logger.info("Opening config file %s", config_file)
     with Path.open(config_file, "r") as f:
         prev_config = json.load(f)
         if prev_config.get("provider") != rag_embed_provider or prev_config.get("embed_model") != rag_embed_model:
