@@ -466,6 +466,7 @@ except (ValueError, RuntimeError) as e:
 
 Settings.embed_model = embed_model
 Settings.llm = llm_model
+Settings.allow_reset=True
 
 
 try:
