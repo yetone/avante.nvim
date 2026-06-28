@@ -385,8 +385,8 @@ M._defaults = {
     llm = { -- Configuration for the Language Model (LLM) used by the RAG service
       provider = "openai", -- The LLM provider
       endpoint = "https://api.openai.com/v1", -- The LLM API endpoint
-      api_key = "OPENAI_API_KEY", -- The environment variable name for the LLM API key
-      model = "gpt-4o-mini", -- The LLM model name
+      api_key = "OPENAI_API_KEY",
+      model = "gpt-4o-mini",
       extra = nil, -- Extra configuration options for the LLM
     },
     embed = { -- Configuration for the Embedding model used by the RAG service
