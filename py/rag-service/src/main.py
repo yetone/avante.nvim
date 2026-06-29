@@ -88,6 +88,7 @@ cli_settings = parse_cli_settings()
 
 # Third-party imports
 import chromadb
+from chromadb import Settings
 import httpx
 import pathspec
 from fastapi import BackgroundTasks, FastAPI, HTTPException
@@ -106,12 +107,12 @@ from libs.utils import (
     uri_to_path,
 )
 from llama_index.core import (
-    Settings,
     SimpleDirectoryReader,
     StorageContext,
     VectorStoreIndex,
     load_index_from_storage,
 )
+import llama_index.core as li
 from llama_index.core.node_parser import CodeSplitter
 from llama_index.core.postprocessor import MetadataReplacementPostProcessor
 from llama_index.core.schema import Document
@@ -388,7 +389,10 @@ def markdown_to_links(base_url: str, markdown: str) -> list[str]:
 init_db()
 
 # Initialize ChromaDB and LlamaIndex services
-chroma_client = chromadb.PersistentClient(path=str(CHROMA_PERSIST_DIR))
+settings = Settings(
+  allow_reset=True
+  )
+chroma_client = chromadb.PersistentClient(path=str(CHROMA_PERSIST_DIR), settings=settings)
 
 # # Check if provider or model has changed
 rag_embed_provider = cli_settings.embed_provider
@@ -464,9 +468,8 @@ except (ValueError, RuntimeError) as e:
     raise RuntimeError(error_msg) from e
 
 
-Settings.embed_model = embed_model
-Settings.llm = llm_model
-Settings.allow_reset=True
+li.Settings.embed_model = embed_model
+li.Settings.llm = llm_model
 
 
 try:
