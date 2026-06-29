@@ -268,10 +268,10 @@ end
 ---@field prev_prompt? avante.Config.PromptLoggerKeymap Mapping used to load the previous older prompt log.
 
 ---@class avante.Config.RagServiceModel
----@field provider string Model provider.
----@field endpoint string Model API endpoint.
+---@field provider string Model provider. One available in py/rag-service/src/providers ie., "ollama", "openai", "dashscope", "openrouter"
+---@field endpoint string Model API endpoint (e.g., http://localhost)
 ---@field api_key string Environment variable name for the model API key.
----@field model string Model name.
+---@field model string Model name
 ---@field extra? table Additional model provider options.
 
 ---@class avante.Config.RagService
