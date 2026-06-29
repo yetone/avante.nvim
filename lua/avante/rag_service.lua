@@ -210,10 +210,12 @@ function M.launch_rag_service(cb)
     })
   elseif M.get_rag_service_runner() == "nix" then
     -- Check if service is already running
+    -- check if there is a process having "service_path" in its invokation
+    -- TODO use get_rag_service_status instead
     local check_cmd = { "pgrep", "-f", service_path }
     local check_result = vim.system(check_cmd, { text = true }):wait().stdout
     if check_result ~= "" then
-      Utils.debug(string.format("RAG service already running at %s", service_path))
+      Utils.info(string.format("RAG service already running at %s", service_path))
       cb()
       return
     end
@@ -225,7 +227,7 @@ function M.launch_rag_service(cb)
 
     Utils.debug(string.format("launching %s with nix...", container_name))
 
-    -- TODO adjust
+    -- can be launched beforehand via "uv run"
     local args = {
       "avante-rag-service",
       service_path,
@@ -459,6 +461,7 @@ function M.retrieve(base_uri, query, on_complete)
           return vim.tbl_deep_extend("force", source, { uri = uri })
         end)
         :totable()
+      Utils.debug("Sucessfully retreived rag answer")
       on_complete(jsn, nil)
     end,
   })

@@ -1067,6 +1067,18 @@ wheels = [
 ]
 
 [[package]]
+name = "llama-index-embeddings-openai-like"
+version = "0.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "llama-index-embeddings-openai" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2a/94/7446fd9c20d34875f3969afe6da55548dcc130de3887e1bf526ff528ebb1/llama_index_embeddings_openai_like-0.2.0.tar.gz", hash = "sha256:1d6002eb622111c9541f2b34bedc13f7b4897afdcf6dbdc06e440d01c2d58475", size = 3855, upload-time = "2025-07-30T20:52:11.11Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/23/e1/08341f525aab2e76fe3548b5819830b1ad27f904649adf3ec1bc417891c7/llama_index_embeddings_openai_like-0.2.0-py3-none-any.whl", hash = "sha256:87786b215f7b601e36532ff9e24a82379fd252b79ec97b0420ba4f6ddbbc1938", size = 3633, upload-time = "2025-07-30T20:52:10.378Z" },
+]
+
+[[package]]
 name = "llama-index-indices-managed-llama-cloud"
 version = "0.6.4"
 source = { registry = "https://pypi.org/simple" }
@@ -2212,6 +2224,7 @@ dependencies = [
     { name = "llama-index-embeddings-dashscope" },
     { name = "llama-index-embeddings-ollama" },
     { name = "llama-index-embeddings-openai" },
+    { name = "llama-index-embeddings-openai-like" },
     { name = "llama-index-indices-managed-llama-cloud" },
     { name = "llama-index-llms-dashscope" },
     { name = "llama-index-llms-ollama" },
@@ -2415,6 +2428,7 @@ requires-dist = [
     { name = "llama-index-embeddings-dashscope", specifier = "==0.3.0" },
     { name = "llama-index-embeddings-ollama", specifier = "==0.5.0" },
     { name = "llama-index-embeddings-openai", specifier = "==0.3.1" },
+    { name = "llama-index-embeddings-openai-like", specifier = ">=0.2.0" },
     { name = "llama-index-indices-managed-llama-cloud", specifier = "==0.6.4" },
     { name = "llama-index-llms-dashscope", specifier = "==0.3.3" },
     { name = "llama-index-llms-ollama", specifier = "==0.5.2" },

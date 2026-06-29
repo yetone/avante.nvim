@@ -399,13 +399,7 @@ rag_embed_endpoint = cli_settings.embed_endpoint
 rag_embed_model = cli_settings.embed_model
 rag_embed_api_key = cli_settings.embed_api_key
 rag_embed_extra = cli_settings.embed_extra
-
-rag_llm_provider = cli_settings.llm_provider
-rag_llm_endpoint = cli_settings.llm_endpoint
-rag_llm_model = cli_settings.llm_model
-rag_llm_api_key = cli_settings.llm_api_key
 rag_llm_extra = cli_settings.llm_extra
-
 # Try to read previous config
 config_file = BASE_DATA_DIR / "rag_config.json"
 if config_file.exists():
@@ -454,11 +448,11 @@ except (ValueError, RuntimeError) as e:
 
 try:
     llm_model = initialize_llm_model(
-        llm_provider=rag_llm_provider,
-        llm_model=rag_llm_model,
-        llm_endpoint=rag_llm_endpoint,
-        llm_api_key=rag_llm_api_key,
-        llm_extra=llm_extra,
+        llm_provider=cli_settings.llm_provider,
+        llm_model=cli_settings.llm_model,
+        llm_endpoint=cli_settings.llm_endpoint,
+        llm_api_key=cli_settings.llm_api_key,
+        llm_extra=cli_settings.llm_extra,
     )
     logger.info("LLM model initialized successfully.")
 except (ValueError, RuntimeError) as e:
@@ -768,6 +762,7 @@ def get_pathspec(directory: Path) -> pathspec.PathSpec | None:
     # Collect patterns from both sources
     patterns = get_gitignore_files(directory)
     patterns.extend(get_gitcrypt_files(directory))
+    patterns.extend([".jj"])
 
     return pathspec.GitIgnoreSpec.from_lines(patterns)
 
