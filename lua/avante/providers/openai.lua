@@ -290,48 +290,41 @@ function M:parse_messages(opts)
       if #content > 0 then table.insert(messages, { role = self.role_map[msg.role], content = content }) end
       if not provider_conf.disable_tools and not use_ReAct_prompt then
         if #tool_calls > 0 then
-          -- Only skip tool_calls if using Response API with previous_response_id support
-          -- Copilot uses Response API format but doesn't support previous_response_id
-          local should_include_tool_calls = not use_response_api or not provider_conf.support_previous_response_id
+          if use_response_api then
+            -- Keep tool calls in the parsed history. parse_curl_args may send only
+            -- pending tool outputs with previous_response_id, but full-history
+            -- fallback still needs each output paired with its function_call.
+            for _, tool_call in ipairs(tool_calls) do
+              table.insert(messages, {
+                type = "function_call",
+                call_id = tool_call.id,
+                name = tool_call["function"].name,
+                arguments = tool_call["function"].arguments,
+              })
+            end
+          else
+            -- Chat Completions API format
+            local last_message = messages[#messages]
+            if last_message and last_message.role == self.role_map["assistant"] and last_message.tool_calls then
+              last_message.tool_calls = vim.list_extend(last_message.tool_calls, tool_calls)
 
-          if should_include_tool_calls then
-            -- For Response API without previous_response_id support (like Copilot),
-            -- convert tool_calls to function_call items in input
-            if use_response_api then
-              for _, tool_call in ipairs(tool_calls) do
-                table.insert(messages, {
-                  type = "function_call",
-                  call_id = tool_call.id,
-                  name = tool_call["function"].name,
-                  arguments = tool_call["function"].arguments,
-                })
-              end
+              last_message.reasoning_content = pending_reasoning_content or ""
+              pending_reasoning_content = nil
+
+              if not last_message.content then last_message.content = "" end
             else
-              -- Chat Completions API format
-              local last_message = messages[#messages]
-              if last_message and last_message.role == self.role_map["assistant"] and last_message.tool_calls then
-                last_message.tool_calls = vim.list_extend(last_message.tool_calls, tool_calls)
+              local tool_call_message = {
+                role = self.role_map["assistant"],
+                tool_calls = tool_calls,
+                content = "",
+              }
 
-                last_message.reasoning_content = pending_reasoning_content or ""
-                pending_reasoning_content = nil
+              tool_call_message.reasoning_content = pending_reasoning_content or ""
+              pending_reasoning_content = nil
 
-                if not last_message.content then last_message.content = "" end
-              else
-                local tool_call_message = {
-                  role = self.role_map["assistant"],
-                  tool_calls = tool_calls,
-                  content = "",
-                }
-
-                tool_call_message.reasoning_content = pending_reasoning_content or ""
-                pending_reasoning_content = nil
-
-                table.insert(messages, tool_call_message)
-              end
+              table.insert(messages, tool_call_message)
             end
           end
-          -- If support_previous_response_id is true, Response API manages function call history
-          -- So we can skip adding tool_calls to input messages
         end
         if #tool_results > 0 then
           for _, tool_result in ipairs(tool_results) do
@@ -583,6 +576,20 @@ function M.transform_openai_usage(usage)
     -- total_tokens is the sum of both
   }
   return res
+end
+
+---@param messages AvanteOpenAIMessage[]
+---@return AvanteOpenAIMessage[]
+local function get_trailing_function_outputs(messages)
+  local function_outputs = {}
+
+  for idx = #messages, 1, -1 do
+    local msg = messages[idx]
+    if msg.type ~= "function_call_output" then break end
+    table.insert(function_outputs, 1, msg)
+  end
+
+  return function_outputs
 end
 
 --- Parse response
@@ -885,28 +892,24 @@ function M:parse_curl_args(prompt_opts)
 
   -- Response API uses 'input' instead of 'messages'
   if use_response_api then
-    -- Check if we have tool results - if so, use previous_response_id
-    local has_function_outputs = false
-    for _, msg in ipairs(parsed_messages) do
-      if msg.type == "function_call_output" then
-        has_function_outputs = true
-        break
-      end
-    end
+    local pending_function_outputs = get_trailing_function_outputs(parsed_messages)
 
-    if has_function_outputs and self.last_response_id then
+    if
+      #pending_function_outputs > 0
+      and self.last_response_id
+      and provider_conf.support_previous_response_id ~= false
+    then
       -- When sending function outputs, use previous_response_id
       base_body.previous_response_id = self.last_response_id
-      -- Only send the function outputs, not the full history
-      local function_outputs = {}
-      for _, msg in ipairs(parsed_messages) do
-        if msg.type == "function_call_output" then table.insert(function_outputs, msg) end
-      end
-      base_body.input = function_outputs
+      -- Only send outputs for the immediately pending tool calls, not every
+      -- historical tool output in the chat.
+      base_body.input = pending_function_outputs
       -- Clear the stored response_id after using it
       self.last_response_id = nil
     else
-      -- Normal request without tool results
+      -- Normal request, or fallback when previous_response_id is unavailable.
+      -- parse_messages keeps function_call items so full-history tool output
+      -- replay remains valid.
       base_body.input = parsed_messages
     end
 
