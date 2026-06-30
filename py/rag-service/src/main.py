@@ -400,7 +400,7 @@ rag_embed_endpoint = cli_settings.embed_endpoint
 rag_embed_model = cli_settings.embed_model
 rag_embed_api_key = cli_settings.embed_api_key
 rag_embed_extra = cli_settings.embed_extra
-
+rag_llm_extra = cli_settings.llm_extra
 # Try to read previous config
 config_file = BASE_DATA_DIR / "rag_config.json"
 if config_file.exists():
@@ -450,7 +450,7 @@ except (ValueError, RuntimeError) as e:
 try:
     llm_model = initialize_llm_model(
         llm_provider=cli_settings.llm_provider,
-        llm_model=rag_llm_model,
+        llm_model=cli_settings.llm_model,
         llm_endpoint=cli_settings.llm_endpoint,
         llm_api_key=cli_settings.llm_api_key,
         llm_extra=cli_settings.llm_extra

@@ -212,10 +212,11 @@ function M.launch_rag_service(cb)
     })
   elseif M.get_rag_service_runner() == "nix" then
     -- Check if service is already running
+    -- check if there is a process having "service_path" in its invokation
     local check_cmd = { "pgrep", "-f", service_path }
     local check_result = vim.system(check_cmd, { text = true }):wait().stdout
     if check_result ~= "" then
-      Utils.debug(string.format("RAG service already running at %s", service_path))
+      Utils.info(string.format("RAG service already running at %s", service_path))
       cb()
       return
     end
