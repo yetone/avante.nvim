@@ -7,15 +7,13 @@ on:
   release:
     types:
       - created
-  pull_request:
-  workflow_dispatch:
 
 jobs:
   luarocks-upload:
     if: github.repository == 'yetone/avante.nvim'
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # Required to count the commits
       - name: Get Version

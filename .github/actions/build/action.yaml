@@ -1,0 +1,97 @@
+---
+name: Build avante libraries
+description: shared action used in test and release avante workflows
+inputs:
+  os_name:
+    description: One of "windows", "linux" or "darwin"
+    required: true
+  os:
+    description: github input type as used in "runs-on"
+  arch:
+    description: one of aarch64, x86_64
+  rust_target:
+    # can we do without ?
+    description: e.g. "aarch64-pc-windows-msvc"
+  docker_platform:
+    description: for example "linux/amd64"
+  container:
+    description: for instance quay.io/pypa/manylinux2014_x86_64 # for glibc 2.17
+
+runs:
+  using: "composite"
+  steps:
+      - uses: actions/checkout@v7
+
+      - uses: Swatinem/rust-cache@82a92a6e8fbeee089604da2575dc567ae9ddeaab # ratchet:Swatinem/rust-cache@v2
+        if: ${{ inputs.container == null }}
+
+      - uses: dtolnay/rust-toolchain@7b1c307e0dcbda6122208f10795a713336a9b35a # ratchet:dtolnay/rust-toolchain@master
+        if: ${{ inputs.container == null }}
+        with:
+          targets: ${{ inputs.rust_target }}
+          toolchain: "1.85.0"
+
+      - name: Install Nix
+        if: ${{ inputs.os_name != 'windows' }}
+        uses: DeterminateSystems/nix-installer-action@v16
+
+      - name: Build all crates (Linux/MacOS)
+        shell: bash
+        if: ${{ inputs.container == null && inputs.os_name != 'windows' }}
+        run: |
+          # TODO reproduce packpath folder
+          # ./scripts/setup-deps.sh clone "deps/start"
+
+          set -x
+          mkdir -p ~/.cache/nvim
+          nix develop .#ci --command nvim -V3nvim.log --headless -u NONE --cmd "set rtp^=."  -c "runtime plugin/avante.lua" -c  "lua vim.g.avante = { debug= vim.log.levels.INFO }" -c "AvanteBuild source=true" +quit!
+
+          # to help diagnose failures
+          cat nvim.log
+          ls -lRa lua
+
+
+      - name: Build all crates (Windows)
+        if: ${{ inputs.os_name == 'windows' }}
+        shell: bash
+        run: |
+          # TODO run AvanteBuild instead
+          cargo build --release --features ${{ matrix.feature }} --target ${{ inputs.rust_target }}
+
+      - name: Build all crates (Linux) with glibc 2.17 # for glibc 2.17
+        shell: bash
+        if: ${{ inputs.container != null }}
+        run: |
+          # sudo apt-get install -y qemu qemu-user-static
+          docker run \
+            --rm \
+            -v $(pwd):/workspace \
+            -w /workspace \
+            --platform ${{ inputs.docker_platform }} \
+            ${{ inputs.container }} \
+            bash -c "yum install -y perl-IPC-Cmd openssl-devel && curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && . /root/.cargo/env && make ${{ matrix.feature }} BUILD_FROM_SOURCE=true"
+
+      - name: Handle binaries (Linux/MacOS)
+        if: ${{ inputs.os_name != 'windows' }}
+        shell: bash
+        run: |
+          mkdir -p results
+          cp -v lua/avante_*.so results/
+          tar zcvf avante_lib-${{ inputs.os_name }}-${{ inputs.arch }}-${{ matrix.feature }}.tar.gz results/*.so
+
+      - name: Handle binaries (Windows)
+        if: ${{ inputs.os_name == 'windows' }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path results
+
+          $TargetDir = "target\${{ inputs.rust_target }}\release"
+          Copy-Item -Path "$TargetDir\avante_templates.dll" -Destination "results\avante_templates.dll"
+          Copy-Item -Path "$TargetDir\avante_tokenizers.dll" -Destination "results\avante_tokenizers.dll"
+          Copy-Item -Path "$TargetDir\avante_repo_map.dll" -Destination "results\avante_repo_map.dll"
+          Copy-Item -Path "$TargetDir\avante_html2md.dll" -Destination "results\avante_html2md.dll"
+
+          Set-Location -Path results
+
+          $dllFiles = Get-ChildItem -Filter "*.dll" | Select-Object -ExpandProperty Name
+          Compress-Archive -Path $dllFiles -DestinationPath "avante_lib-${{ inputs.os_name }}-${{ inputs.arch }}-${{ matrix.feature }}.zip"
