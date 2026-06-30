@@ -449,6 +449,7 @@ except json.JSONDecodeError:
 
 # Initialize embedding model and LLM based on provider using the factory
 try:
+    logger.debug("Initializing embedding model %s at endpoint %s", rag_embed_model, rag_embed_endpoint)
     embed_model = initialize_embed_model(
         embed_provider=rag_embed_provider,
         embed_model=rag_embed_model,
@@ -1119,6 +1120,7 @@ async def readiness_probe() -> dict[str, str]:
     },
 )
 async def add_resource(request: ResourceRequest, background_tasks: BackgroundTasks):  # noqa: D103, ANN201, C901
+    logger.debug("add_resource %s", request.uri)
     # Check if resource already exists
     resource = resource_service.get_resource(request.uri)
     if resource and resource.status == "active":
