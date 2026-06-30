@@ -23,6 +23,9 @@ from urllib.parse import urljoin, urlparse
 
 
 def parse_cli_settings() -> argparse.Namespace:
+    # modules available in providers/ folder
+    available_providers = ["openai", "openai_like", "ollama", "dashscope", "openrouter"]
+
     """Parse service settings from command-line arguments."""
     parser = argparse.ArgumentParser(description="Run the Avante RAG service.")
     parser.add_argument(
@@ -41,6 +44,7 @@ def parse_cli_settings() -> argparse.Namespace:
     parser.add_argument(
         "--embed-provider",
         default=os.getenv("RAG_EMBED_PROVIDER", "openai"),
+        choices=available_providers,
         help="Embedding provider.",
     )
     parser.add_argument(
@@ -71,7 +75,7 @@ def parse_cli_settings() -> argparse.Namespace:
     parser.add_argument(
         "--llm-endpoint",
         default=os.getenv("RAG_LLM_ENDPOINT", "https://api.openai.com/v1"),
-        help="LLM API endpoint.",
+        help="LLM API endpoint. (e.g., http://localhost:8080/v1)",
     )
     parser.add_argument(
         "--llm-model",
