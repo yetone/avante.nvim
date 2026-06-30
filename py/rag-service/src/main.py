@@ -763,6 +763,7 @@ def get_pathspec(directory: Path) -> pathspec.PathSpec | None:
     # Collect patterns from both sources
     patterns = get_gitignore_files(directory)
     patterns.extend(get_gitcrypt_files(directory))
+    patterns.extend([".jj"])
 
     return pathspec.GitIgnoreSpec.from_lines(patterns)
 
