@@ -1,3 +1,4 @@
+-- useless comment to name a commit
 local Utils = require("avante.utils")
 local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
@@ -22,7 +23,7 @@ local M = {}
 local claude_path = vim.fn.stdpath("data") .. "/avante/claude-auth.json"
 local lockfile_path = vim.fn.stdpath("data") .. "/avante/claude-timer.lock"
 local auth_endpoint = "https://claude.ai/oauth/authorize"
-local token_endpoint = "https://console.anthropic.com/v1/oauth/token"
+local token_endpoint = "https://platform.claude.com/v1/oauth/token"
 local client_id = "9d1c250a-e61b-44d9-88ed-5944d1962f5e"
 local claude_code_spoof_prompt = "You are Claude Code, Anthropic's official CLI for Claude."
 
@@ -566,6 +567,7 @@ function M:parse_curl_args(prompt_opts)
   local headers = {
     ["Content-Type"] = "application/json",
     ["anthropic-version"] = "2023-06-01",
+    ["User-Agent"] = "axios/1.15.2",
   }
 
   if provider_conf.auth_type == "max" then
@@ -787,6 +789,7 @@ function M.authenticate()
         }),
         headers = {
           ["Content-Type"] = "application/json",
+          ["User-Agent"] = "axios/1.15.2",
         },
       })
 
@@ -840,7 +843,7 @@ function M.refresh_token(async, force)
     return false
   end
 
-  local base_url = "https://console.anthropic.com/v1/oauth/token"
+  local base_url = token_endpoint
   local body = {
     grant_type = "refresh_token",
     client_id = client_id,
@@ -850,6 +853,7 @@ function M.refresh_token(async, force)
     body = vim.json.encode(body),
     headers = {
       ["Content-Type"] = "application/json",
+      ["User-Agent"] = "axios/1.15.2",
     },
   }
 
