@@ -7,6 +7,7 @@ import argparse
 import asyncio
 import fcntl
 import json
+import logging
 import multiprocessing
 import os
 import re
@@ -29,6 +30,13 @@ def parse_cli_settings() -> argparse.Namespace:
         type=int,
         default=int(os.environ.get("PORT", "20250")),
         help="Port to listen on.",
+    )
+    parser.add_argument(
+        "--log-level",
+        type=str.upper,
+        choices=["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"],
+        default=os.environ.get("RAG_LOG_LEVEL", "INFO").upper(),
+        help="Logging level.",
     )
     parser.add_argument(
         "--embed-provider",
@@ -125,6 +133,9 @@ from services.resource import resource_service
 from tree_sitter_language_pack import SupportedLanguage, get_parser
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
+
+logging.getLogger().setLevel(cli_settings.log_level)
+logger.setLevel(cli_settings.log_level)
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
