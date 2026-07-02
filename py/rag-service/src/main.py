@@ -125,6 +125,7 @@ from llama_index.core import (
 )
 import llama_index.core as li
 from llama_index.core.node_parser import CodeSplitter
+from llama_index.core.node_parser import SentenceSplitter
 from llama_index.core.postprocessor import MetadataReplacementPostProcessor
 from llama_index.core.schema import Document
 from llama_index.vector_stores.chroma import ChromaVectorStore
@@ -258,6 +259,7 @@ BATCH_PROCESSING_DELAY = 1
 # number of cpu cores to use for parallel processing
 MAX_WORKERS = multiprocessing.cpu_count()
 BATCH_SIZE = 40  # Number of documents to process per batch
+DEFAULT_MAX_EMBEDDING_TOKENS = 512
 
 logger.info("data dir: %s", BASE_DATA_DIR.resolve())
 
@@ -415,30 +417,63 @@ rag_embed_model = cli_settings.embed_model
 rag_embed_api_key = cli_settings.embed_api_key
 rag_embed_extra = cli_settings.embed_extra
 rag_llm_extra = cli_settings.llm_extra
+try:
+    embed_extra = json.loads(rag_embed_extra) if rag_embed_extra is not None else {}
+except json.JSONDecodeError:
+    logger.error("Failed to decode --embed-extra, defaulting to empty dict.")
+    embed_extra = {}
+
+
+def parse_positive_int(value: object, default: int, setting_name: str) -> int:
+    """Parse a positive integer setting, falling back to the provided default."""
+    try:
+        parsed_value = int(value)
+    except (TypeError, ValueError):
+        logger.warning("Invalid %s=%r, defaulting to %d", setting_name, value, default)
+        return default
+
+    if parsed_value <= 0:
+        logger.warning("Invalid %s=%r, defaulting to %d", setting_name, value, default)
+        return default
+
+    return parsed_value
+
+
+max_embedding_tokens = parse_positive_int(
+    embed_extra.pop("max_embedding_tokens", DEFAULT_MAX_EMBEDDING_TOKENS),
+    DEFAULT_MAX_EMBEDDING_TOKENS,
+    "embed.extra.max_embedding_tokens",
+)
+max_embedding_token_overlap = min(50, max_embedding_tokens // 5)
+embedding_splitter = SentenceSplitter(
+    chunk_size=max_embedding_tokens,
+    chunk_overlap=max_embedding_token_overlap,
+)
+logger.info("Embedding chunks limited to %d tokens", max_embedding_tokens)
+
 # Try to read previous config
 config_file = BASE_DATA_DIR / "rag_config.json"
+current_config = {
+    "provider": rag_embed_provider,
+    "embed_model": rag_embed_model,
+    "max_embedding_tokens": max_embedding_tokens,
+}
 if config_file.exists():
     logger.info("Opening config file %s", config_file)
     with Path.open(config_file, "r") as f:
         prev_config = json.load(f)
-        if prev_config.get("provider") != rag_embed_provider or prev_config.get("embed_model") != rag_embed_model:
+        if prev_config != current_config:
             # Clear existing data if config changed
             logger.info("Detected config change, clearing existing data...")
             chroma_client.reset()
 
 # Save current config
 with Path.open(config_file, "w") as f:
-    json.dump({"provider": rag_embed_provider, "embed_model": rag_embed_model}, f)
+    json.dump(current_config, f)
 
 chroma_collection = chroma_client.get_or_create_collection("documents")  # pyright: ignore
 vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
 storage_context = StorageContext.from_defaults(vector_store=vector_store)
-
-try:
-    embed_extra = json.loads(rag_embed_extra) if rag_embed_extra is not None else {}
-except json.JSONDecodeError:
-    logger.error("Failed to decode --embed-extra, defaulting to empty dict.")
-    embed_extra = {}
 
 try:
     llm_extra = json.loads(rag_llm_extra) if rag_llm_extra is not None else {}
@@ -936,12 +971,42 @@ def split_documents(documents: list[Document]) -> list[Document]:
     # Initialize CodeSplitter
     # Split code documents using CodeSplitter
     processed_documents = []
+
+    def append_embedding_sized_documents(doc: Document, base_metadata: dict[str, object] | None = None) -> None:
+        """Split a document into chunks that fit the embedding model input limit."""
+        text = doc.get_content()
+        chunks = embedding_splitter.split_text(text)
+        metadata = {**doc.metadata, **(base_metadata or {})}
+        uri = get_node_uri(doc)
+        if uri:
+            metadata["uri"] = uri
+
+        for i, chunk in enumerate(chunks):
+            chunk_metadata = metadata
+            chunk_doc_id = doc.doc_id
+            if len(chunks) > 1:
+                chunk_metadata = {
+                    **metadata,
+                    "embedding_chunk_number": i,
+                    "embedding_total_chunks": len(chunks),
+                    "embedding_max_tokens": max_embedding_tokens,
+                }
+                chunk_doc_id = f"{doc.doc_id}__embedding_part_{i}"
+
+            processed_documents.append(
+                Document(
+                    text=chunk,
+                    doc_id=chunk_doc_id,
+                    metadata=chunk_metadata,
+                ),
+            )
+
     for doc in documents:
         uri = get_node_uri(doc)
         if not uri:
             continue
         if not is_path_node(doc):
-            processed_documents.append(doc)
+            append_embedding_sized_documents(doc)
             continue
         file_path = uri_to_path(uri)
         file_ext = file_path.suffix.lower()
@@ -980,11 +1045,9 @@ def split_documents(documents: list[Document]) -> list[Document]:
                         "orig_doc_id": doc.doc_id,
                     },
                 )
-                processed_documents.append(new_doc)
+                append_embedding_sized_documents(new_doc)
         else:
-            doc.metadata["orig_doc_id"] = doc.doc_id
-            # Add non-code files directly
-            processed_documents.append(doc)
+            append_embedding_sized_documents(doc, {"orig_doc_id": doc.doc_id})
     return processed_documents
 
 
@@ -1023,9 +1086,11 @@ async def index_remote_resource_async(resource: Resource) -> None:
         logger.debug("Found %d documents", len(documents))
         logger.debug("Document list: %s", [doc.doc_id for doc in documents])
 
+        processed_documents = split_documents(documents)
+
         # Process documents in batches
-        total_documents = len(documents)
-        batches = [documents[i : i + BATCH_SIZE] for i in range(0, total_documents, BATCH_SIZE)]
+        total_documents = len(processed_documents)
+        batches = [processed_documents[i : i + BATCH_SIZE] for i in range(0, total_documents, BATCH_SIZE)]
         logger.debug("Splitting documents into %d batches for processing", len(batches))
 
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:

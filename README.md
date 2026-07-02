@@ -1347,7 +1347,9 @@ Avante provides a RAG service, which is a tool for obtaining the required contex
       endpoint = "https://api.openai.com/v1", -- Embedding API endpoint
       api_key = "OPENAI_API_KEY", -- Environment variable name for the embedding API key
       model = "text-embedding-3-large", -- Embedding model name
-      extra = nil, -- Additional configuration options for the embedding model
+      extra = {
+        max_embedding_tokens = 512, -- Maximum tokens per chunk sent to the embedding model
+      },
     },
     docker_extra_args = "", -- Extra arguments to pass to the docker command
   },
