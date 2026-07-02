@@ -129,7 +129,8 @@ embed = { -- Configuration for the Embedding Model used by the RAG service
   api_key = "", -- Ollama typically does not require an API key
   model = "nomic-embed-text", -- The Embedding model name (e.g., "nomic-embed-text")
   extra = { -- Extra configuration options for the Embedding model (optional)
-    embed_batch_size = 10，
+    embed_batch_size = 10,
+    max_embedding_tokens = 512, -- Maximum tokens per chunk sent to the embedding model
   },
 },
 ```

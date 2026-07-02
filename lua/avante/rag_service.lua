@@ -222,8 +222,6 @@ function M.launch_rag_service(cb)
 
     local dirname =
       Utils.trim(string.sub(debug.getinfo(1).source, 2, #"/lua/avante/rag_service.lua" * -1), { suffix = "/" })
-    local rag_service_dir = dirname .. "/py/rag-service"
-    rag_service_dir = service_path
 
     Utils.debug(string.format("launching %s with nix...", container_name))
 
@@ -245,7 +243,6 @@ function M.launch_rag_service(cb)
     Utils.info("Starting rag service with: " .. table.concat(args, " "))
     local ok, job_or_err = pcall(vim.system, args, {
       detach = true,
-      cwd = rag_service_dir,
       env = {
         DATA_DIR = service_path,
         RAG_EMBED_ENDPOINT = Config.rag_service.embed.endpoint,
