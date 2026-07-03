@@ -49,7 +49,7 @@
         sourcePreference = "wheel";
       };
 
-      ragOverrides = final: prev: {
+      ragOverrides = pkgs: final: prev: {
         "rag-service" = prev."rag-service".overrideAttrs (_old: {
           src = lib.fileset.toSource {
             root = ./py/rag-service;
@@ -72,19 +72,32 @@
             setuptools = [ ];
           };
         });
+
+        chroma-hnswlib = prev.chroma-hnswlib.overrideAttrs (old: {
+          nativeBuildInputs =
+            (old.nativeBuildInputs or [ ])
+            ++ [ final.numpy ]
+            ++ final.resolveBuildSystem {
+              setuptools = [ ];
+            };
+          preBuild = ''
+            export PYTHONPATH="${pkgs.python313Packages.pybind11}/${pkgs.python313.sitePackages}:$PYTHONPATH"
+          '' + (old.preBuild or "");
+        });
       };
 
       ragPythonSets = forAllSystems (
         system:
         let
           pkgs = import nixpkgs { inherit system; };
-          python = pkgs.python311;
+          # TODO update
+          python = pkgs.python313;
         in
         (pkgs.callPackage pyproject-nix.build.packages { inherit python; }).overrideScope (
           lib.composeManyExtensions [
             pyproject-build-systems.overlays.wheel
             ragOverlay
-            ragOverrides
+            (ragOverrides pkgs)
           ]
         )
       );
@@ -140,9 +153,9 @@
               lua5_1.pkgs.luacheck
               lua-language-server
               ripgrep
-              yq
+              python313
+              # yq # brings python3.12 in scope :'(
               silver-searcher
-              python3
               docker
               stylua
               mylua
@@ -161,6 +174,7 @@
           default = basic.overrideAttrs(oa: {
             buildInputs = [
               pkgs.pyright # to be able to run pre-commit tests
+              pkgs.gcc # to build python deps
             ];
           });
 
