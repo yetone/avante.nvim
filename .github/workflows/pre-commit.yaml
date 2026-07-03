@@ -24,7 +24,8 @@ jobs:
     - run: |
         uv venv
         source .venv/bin/activate
-        uv pip install -r py/rag-service/requirements.txt
+        # uv build
+        uv pip install py/rag-service
     - uses: leafo/gh-actions-lua@v13
       with:
         luaVersion: "5.1.5"
