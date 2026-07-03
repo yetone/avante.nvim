@@ -480,6 +480,23 @@ avante.Config.PromptLogger                          *avante.Config.PromptLogger*
         {prev_prompt?}  (avante.Config.PromptLoggerKeymap)  Mapping used to load the previous older prompt log.
 
 
+avante.Config.RagServiceModel                    *avante.Config.RagServiceModel*
+
+    Fields: ~
+        {provider}  (string)  Model provider. One available in py/rag-service/src/providers ie., "ollama", "openai", "dashscope", "openrouter"
+        {endpoint}  (string)  Model API endpoint (e.g., http://localhost)
+        {api_key}   (string)  Environment variable name for the model API key.
+        {model}     (string)  Model name
+        {extra?}    (table)   Additional model provider options.
+
+
+avante.Config.RagService                              *avante.Config.RagService*
+
+    Fields: ~
+        {enabled}     (boolean)  Enable the RAG service.
+        {host_mount}  (string)
+
+
 avante.CoreConfig : avante.Config                            *avante.CoreConfig*
 
 
@@ -527,8 +544,9 @@ avante.Config                                                    *avante.Config*
                                                                      })
                                                                     <
         {rules}                       (table)
-        {behaviour}                   (avante.Config.Behaviour)     Behaviour and automation options.
+        {rag_service}                 (avante.Config.RagService)    RAG service configuration.
 
+        {behaviour}                   (avante.Config.Behaviour)     Behaviour and automation options.
         {prompt_logger}               (avante.Config.PromptLogger)  Prompt logging options.
         {windows}                     (table)
         {slash_commands}              (AvanteSlashCommand[])        see |*avante-slashcommands*|
@@ -1474,6 +1492,10 @@ avante RAG service                                          *avante-rag-service*
 >
    docker rm -fv avante-rag-service
 <
+Communication port is hardcoded to localhost:20250
+
+M.run_rag_service()                         *avante-rag-service.run_rag_service*
+    @brief Starts the rag service if not already running
 
 
 M.get_rag_service_image()             *avante-rag-service.get_rag_service_image*
@@ -1516,6 +1538,10 @@ M.to_local_uri()                               *avante-rag-service.to_local_uri*
 
 
 M.is_ready()                                       *avante-rag-service.is_ready*
+    Checks http code when contacting server's /api/health
+
+    Returns: ~
+        (boolean)
 
 
 AvanteRagServiceAddResourceResponse        *AvanteRagServiceAddResourceResponse*
