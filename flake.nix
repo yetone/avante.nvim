@@ -133,7 +133,7 @@
             lp.nlua
           ]);
 
-          default = pkgs.mkShell {
+          basic = pkgs.mkShell {
             name = "avante";
 
             packages = with pkgs; [
@@ -158,7 +158,12 @@
 
         in
         {
-          inherit default;
+          default = basic.overrideAttrs(oa: {
+            buildInputs = [
+              pkgs.pyright # to be able to run pre-commit tests
+            ];
+          });
+
           ci = let
             neovimTested = pkgs.wrapNeovimUnstable pkgs.neovim-unwrapped {
               plugins = [
@@ -166,7 +171,7 @@
               ];
             };
           in
-            default.overrideAttrs(oa: {
+            basic.overrideAttrs(oa: {
             buildInputs = oa.buildInputs ++ [
               neovimTested
             ];
