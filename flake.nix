@@ -174,6 +174,7 @@
           default = basic.overrideAttrs(oa: {
             buildInputs = [
               pkgs.pyright # to be able to run pre-commit tests
+              pkgs.ruff # to be able to run pre-commit tests
               pkgs.gcc # to build python deps
             ];
           });

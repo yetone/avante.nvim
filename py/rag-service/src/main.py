@@ -21,8 +21,53 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from urllib.parse import urljoin, urlparse
 
+# Third-party imports
+import chromadb
+import httpx
+import llama_index.core as li
+import pathspec
+from chromadb.config import Settings
+from fastapi import BackgroundTasks, FastAPI, HTTPException
+
+# Local application imports
+from libs.configs import BASE_DATA_DIR, CHROMA_PERSIST_DIR
+from libs.db import init_db
+from libs.logger import logger
+from libs.utils import (
+    get_node_uri,
+    inject_uri_to_node,
+    is_local_uri,
+    is_path_node,
+    is_remote_uri,
+    path_to_uri,
+    uri_to_path,
+)
+from llama_index.core import (
+    SimpleDirectoryReader,
+    StorageContext,
+    VectorStoreIndex,
+    load_index_from_storage,
+)
+from llama_index.core.node_parser import CodeSplitter, SentenceSplitter
+from llama_index.core.postprocessor import MetadataReplacementPostProcessor
+from llama_index.core.schema import Document
+from llama_index.vector_stores.chroma import ChromaVectorStore
+from markdownify import markdownify as md
+from models.resource import Resource
+from providers.factory import initialize_embed_model, initialize_llm_model
+from pydantic import BaseModel, Field
+from services.indexing_history import indexing_history_service
+from services.resource import resource_service
+from tree_sitter_language_pack import SupportedLanguage, get_parser
+from watchdog.events import FileSystemEvent, FileSystemEventHandler
+from watchdog.observers import Observer
+
+if TYPE_CHECKING:
+    from pathspec.gitignore import GitIgnoreSpec
+
 
 def parse_cli_settings() -> argparse.Namespace:
+    """Argument parser."""
     # modules available in providers/ folder
     available_providers = ["openai", "openai_like", "ollama", "dashscope", "openrouter"]
 
@@ -98,46 +143,6 @@ def parse_cli_settings() -> argparse.Namespace:
 
 cli_settings = parse_cli_settings()
 
-# Third-party imports
-import chromadb
-import httpx
-import pathspec
-from fastapi import BackgroundTasks, FastAPI, HTTPException
-
-# Local application imports
-from libs.configs import BASE_DATA_DIR, CHROMA_PERSIST_DIR
-from libs.db import init_db
-from libs.logger import logger
-from libs.utils import (
-    get_node_uri,
-    inject_uri_to_node,
-    is_local_uri,
-    is_path_node,
-    is_remote_uri,
-    path_to_uri,
-    uri_to_path,
-)
-from llama_index.core import (
-    SimpleDirectoryReader,
-    StorageContext,
-    VectorStoreIndex,
-    load_index_from_storage,
-)
-import llama_index.core as li
-from llama_index.core.node_parser import CodeSplitter
-from llama_index.core.node_parser import SentenceSplitter
-from llama_index.core.postprocessor import MetadataReplacementPostProcessor
-from llama_index.core.schema import Document
-from llama_index.vector_stores.chroma import ChromaVectorStore
-from markdownify import markdownify as md
-from models.resource import Resource
-from providers.factory import initialize_embed_model, initialize_llm_model
-from pydantic import BaseModel, Field
-from services.indexing_history import indexing_history_service
-from services.resource import resource_service
-from tree_sitter_language_pack import SupportedLanguage, get_parser
-from watchdog.events import FileSystemEvent, FileSystemEventHandler
-from watchdog.observers import Observer
 
 logging.getLogger().setLevel(cli_settings.log_level)
 logger.setLevel(cli_settings.log_level)
@@ -373,7 +378,7 @@ def fetch_markdown(url: str) -> str:
     try:
         logger.info("Fetching markdown content from %s", url)
         response = httpx.get(url, headers=http_headers)
-        if response.status_code == httpx.codes.OK:
+        if response.status_code == int(httpx.codes.OK):
             return md(response.text)
         return ""
     except (OSError, ValueError, RuntimeError) as e:
@@ -424,7 +429,7 @@ except json.JSONDecodeError:
     embed_extra = {}
 
 
-def parse_positive_int(value: object, default: int, setting_name: str) -> int:
+def parse_positive_int(value: str, default: int, setting_name: str) -> int:
     """Parse a positive integer setting, falling back to the provided default."""
     try:
         parsed_value = int(value)
@@ -808,7 +813,7 @@ def get_gitcrypt_files(directory: Path) -> list[str]:
     return git_crypt_patterns
 
 
-def get_pathspec(directory: Path) -> pathspec.PathSpec | None:
+def get_pathspec(directory: Path) -> GitIgnoreSpec:
     """Get pathspec for the directory."""
     # Collect patterns from both sources
     patterns = get_gitignore_files(directory)
@@ -965,7 +970,7 @@ def update_index_for_file(directory: Path, abs_file_path: Path) -> None:
         logger.error("File indexing failed: %s", abs_file_path)
 
 
-def split_documents(documents: list[Document]) -> list[Document]:
+def split_documents(documents: list[Document]) -> list[Document]:  # noqa: C901
     """Split documents into code and non-code documents."""
     # Create file parser configuration
     # Initialize CodeSplitter

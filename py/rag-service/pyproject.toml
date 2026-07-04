@@ -218,5 +218,10 @@ build-backend = "setuptools.build_meta"
 package-dir = { "" = "src" }
 py-modules = ["main"]
 
+[tool.pyright]
+include = ["src"]
+exclude = ["**/node_modules", "**/__pycache__", "**/.venv"]
+typeCheckingMode = "standard"
+
 [tool.setuptools.packages.find]
 where = ["src"]
