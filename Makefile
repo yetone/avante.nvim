@@ -91,6 +91,8 @@ docgen:
 		lua/avante/extensions/init.lua \
 		lua/avante/utils/init.lua \
 		lua/avante/libs/acp_client.lua \
+		lua/avante/providers/openai.lua \
+		lua/avante/providers/claude.lua \
 		> doc/avante.txt
 
 luacheck:
