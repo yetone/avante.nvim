@@ -1,3 +1,8 @@
+---@mod avante-providers-claude avante claude
+---
+---@brief [[
+--- Avante supports both the 'api' and 'max' authentications @see AvanteAnthropicProvider
+---@brief ]]
 local Utils = require("avante.utils")
 local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
