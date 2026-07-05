@@ -135,6 +135,7 @@ avante tools ·································�
 avante custom prompts ········································· |avante-prompts|
 avante utilities ················································ |avante-utils|
 avante ACP ························································ |avante-acp|
+avante claude ········································ |avante-providers-claude|
 
 Avante                                                                  *Avante*
 
@@ -3188,6 +3189,213 @@ ACPClient:send_text_prompt({session_id}, {text}, {callback})
         {session_id}  (string)
         {text}        (string)
         {callback}    (fun(result:table|nil,err:avante.acp.ACPError|nil))
+
+
+AvanteProviderFunctor                                    *AvanteProviderFunctor*
+
+
+M:is_disable_stream()                                      *M:is_disable_stream*
+
+
+M:transform_tool({tool})                                      *M:transform_tool*
+
+    Parameters: ~
+        {tool}  (AvanteLLMTool)
+
+    Returns: ~
+        (AvanteOpenAITool)
+
+
+M.is_openrouter()                                              *M.is_openrouter*
+    Check if url belongs to openrouter
+
+    Returns: ~
+        (boolean)
+
+
+M.is_mistral()                                                    *M.is_mistral*
+    Check if url belongs to mistral
+
+    Returns: ~
+        (boolean)
+
+
+M:list_models()                                                  *M:list_models*
+    Asking remote provider to list available models
+
+    Returns: ~
+        (AvanteProviderModelList)
+
+
+M.get_user_message({opts})                                  *M.get_user_message*
+
+    Parameters: ~
+        {opts}  (AvantePromptOptions)
+
+
+M.is_reasoning_model()                                    *M.is_reasoning_model*
+
+
+M.set_allowed_params()                                    *M.set_allowed_params*
+
+
+M:parse_messages()                                            *M:parse_messages*
+
+
+M:finish_pending_messages()                          *M:finish_pending_messages*
+
+
+M:add_text_message()                                        *M:add_text_message*
+
+
+M:add_thinking_message()                                *M:add_thinking_message*
+
+
+M:add_tool_use_message()                                *M:add_tool_use_message*
+
+
+M:add_reasoning_message()                              *M:add_reasoning_message*
+
+
+M.transform_openai_usage({usage})                     *M.transform_openai_usage*
+
+    Parameters: ~
+        {usage}  (avante.OpenAITokenUsage|nil)
+
+    Returns: ~
+        (avante.LLMTokenUsage|nil)
+
+
+M:parse_response()                                            *M:parse_response*
+     Parse response
+     Updates status
+
+
+M:parse_response_without_stream()              *M:parse_response_without_stream*
+
+
+M:parse_curl_args({prompt_opts})                             *M:parse_curl_args*
+
+    Parameters: ~
+        {prompt_opts}  (AvantePromptOptions)
+
+    Returns: ~
+        (AvanteCurlOutput|nil)
+
+
+==============================================================================
+avante claude                                          *avante-providers-claude*
+
+ Avante supports both the 'api' and 'max' authentications @see AvanteAnthropicProvider
+
+AvanteAnthropicProvider : AvanteDefaultBaseProvider    *AvanteAnthropicProvider*
+
+    Fields: ~
+        {auth_type}  ()
+
+
+ClaudeAuthToken                                                *ClaudeAuthToken*
+
+    Fields: ~
+        {access_token}   (string)
+        {refresh_token}  (string)
+        {expires_at}     (integer)
+
+
+AvanteProviderFunctor                                    *AvanteProviderFunctor*
+
+
+                             *avante-providers-claude.setup_claude_file_watcher*
+M.setup_claude_file_watcher()
+
+
+M.setup()                                        *avante-providers-claude.setup*
+
+
+M.setup_claude_timer()              *avante-providers-claude.setup_claude_timer*
+
+
+                             *avante-providers-claude:get_rate_limit_sleep_time*
+M:get_rate_limit_sleep_time({headers})
+
+    Parameters: ~
+        {headers}  (table<string,string>)
+
+    Returns: ~
+        (integer|nil)
+
+
+                            *avante-providers-claude.is_temperature_unsupported*
+M.is_temperature_unsupported({model})
+
+    Parameters: ~
+        {model}  (string|nil)
+
+    Returns: ~
+        (boolean)
+
+
+                                        *avante-providers-claude:transform_tool*
+M:transform_tool({self}, {tool}, {use_prefix})
+
+    Parameters: ~
+        {self}        (AvanteProviderFunctor)
+        {tool}        (AvanteLLMTool)
+        {use_prefix}  (boolean)                Whether to prefix tool names (for OAuth)
+
+    Returns: ~
+        (AvanteClaudeTool)
+
+
+M:is_disable_stream()                *avante-providers-claude:is_disable_stream*
+
+
+M:parse_messages()                      *avante-providers-claude:parse_messages*
+
+    Returns: ~
+        (AvanteClaudeMessage[])
+
+
+                             *avante-providers-claude.transform_anthropic_usage*
+M.transform_anthropic_usage({usage})
+
+    Parameters: ~
+        {usage}  (avante.AnthropicTokenUsage|nil)
+
+    Returns: ~
+        (avante.LLMTokenUsage|nil)
+
+
+M:parse_response()                      *avante-providers-claude:parse_response*
+
+
+M:parse_curl_args({prompt_opts})       *avante-providers-claude:parse_curl_args*
+
+    Parameters: ~
+        {prompt_opts}  (AvantePromptOptions)
+
+    Returns: ~
+        (AvanteCurlOutput|nil)
+
+
+M.on_error()                                  *avante-providers-claude.on_error*
+
+
+M.authenticate()                          *avante-providers-claude.authenticate*
+
+
+M.refresh_token({async}, {force})        *avante-providers-claude.refresh_token*
+     Function to refresh an expired claude auth token
+
+    Parameters: ~
+        {async}  (boolean)  whether to refresh the token asynchronously
+        {force}  (boolean)  whether to force the refresh
+
+
+M.store_tokens()                          *avante-providers-claude.store_tokens*
+
+
+M.cleanup_claude()                      *avante-providers-claude.cleanup_claude*
 
 
 vim:tw=78:ts=8:noet:ft=help:norl:
