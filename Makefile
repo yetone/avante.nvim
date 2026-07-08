@@ -94,6 +94,7 @@ docgen:
 		lua/avante/providers/openai.lua \
 		lua/avante/providers/claude.lua \
 		> doc/avante.txt
+	nvim -u NONE -i NONE --headless +'helptags doc' +'quit!'
 
 luacheck:
 	@luacheck `find \( -path './target' -prune \) -o -name "*.lua" -print` --codes

@@ -29,7 +29,7 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@v22
 
       - name: Generate docs
-        run: nix develop --command make docgen
+        run: nix develop .#ci --command make docgen
 
       - name: Check docs are up to date
         run: |
