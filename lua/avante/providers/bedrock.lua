@@ -87,7 +87,7 @@ end
 
 function M:transform_tool(tool)
   local model_handler = M.load_model_handler()
-  return model_handler.transform_tool(self, tool)
+  return model_handler.transform_tool(self, tool, false)
 end
 
 function M:build_bedrock_payload(prompt_opts, request_body)
