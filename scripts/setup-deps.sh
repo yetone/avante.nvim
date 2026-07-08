@@ -161,7 +161,7 @@ install_luals() {
 install_nvim_runtime() {
     local dest_dir=${1:-"$PWD/target/tests"}
 
-    command -v yq &>/dev/null || die "yq is not installed for parsing GitHub API responses."
+    command -v jq &>/dev/null || die "yq is not installed for parsing GitHub API responses."
 
     local nvim_version
     nvim_version="v0.11.7"
@@ -177,14 +177,14 @@ install_nvim_runtime() {
 
     local release_data
     release_data="$(curl -s "$api_url")"
-    if [ -z "$release_data" ] || echo "$release_data" | yq -e '.message == "Not Found"' > /dev/null; then
+    if [ -z "$release_data" ] || echo "$release_data" | jq -e '.message == "Not Found"' > /dev/null; then
         die "Failed to fetch release data from GitHub API for version '${nvim_version}'."
     fi
 
     # Find the correct asset by regex and extract its name and download URL.
     local asset_info
     asset_info="$(echo "$release_data" | \
-      yq -r '.assets[] | select(.name | test("nvim-linux(64|-x86_64)\\.tar\\.gz$")) | .name + " " + .browser_download_url')"
+      jq -r '.assets[] | select(.name | test("nvim-linux(64|-x86_64)\\.tar\\.gz$")) | .name + " " + .browser_download_url')"
 
     if [ -z "$asset_info" ]; then
         die "Could not find a suitable linux tarball asset for version '${nvim_version}'."
