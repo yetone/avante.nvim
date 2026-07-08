@@ -113,6 +113,10 @@ local SIDEBAR_CONTAINERS = {
 }
 
 ---@class avante.Sidebar
+--- This is avante's main view, a vertical column of several windows, most of the time:
+--- 1. the result
+--- 2. selected code
+--- 3. user input
 ---@field id integer
 ---@field augroup integer
 ---@field code avante.CodeState
@@ -1076,6 +1080,12 @@ local base_win_options = {
   statusline = vim.o.laststatus == 0 and " " or "",
 }
 
+---Sets 'winbar' for any sidebar container
+---If `windows.sidebar_header.include_model` is set, the bar will show the currently selected model
+---@param header_text string Leftmost default string
+---@param opts table?
+---When include_model is set, in ACP mode, model will be rendered as "model | mode"
+---else it will be set as
 function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl, opts)
   opts = vim.tbl_extend("force", { include_model = false }, opts or {})
   if not Config.windows.sidebar_header.enabled then return end
@@ -1130,6 +1140,7 @@ function Sidebar:render_header(winid, bufnr, header_text, hl, reverse_hl, opts)
   api.nvim_set_option_value("winbar", winbar_text, { win = winid })
 end
 
+--- @see render_header
 function Sidebar:render_result()
   if not Utils.is_valid_container(self.containers.result) then return end
   local header_text = Utils.icon("󰭻 ") .. "Avante"
