@@ -3302,7 +3302,7 @@ ClaudeAuthToken                                                *ClaudeAuthToken*
         {expires_at}     (integer)
 
 
-AvanteProviderFunctor                                    *AvanteProviderFunctor*
+AvanteClaudeProviderFunctor                        *AvanteClaudeProviderFunctor*
 
 
                              *avante-providers-claude.setup_claude_file_watcher*
@@ -3336,12 +3336,12 @@ M.is_temperature_unsupported({model})
 
 
                                         *avante-providers-claude:transform_tool*
-M:transform_tool({self}, {tool}, {use_prefix})
+M:transform_tool({self}, {tool}, {use_prefix?})
 
     Parameters: ~
-        {self}        (AvanteProviderFunctor)
-        {tool}        (AvanteLLMTool)
-        {use_prefix}  (boolean)                Whether to prefix tool names (for OAuth)
+        {self}         (AvanteProviderFunctor)
+        {tool}         (AvanteLLMTool)
+        {use_prefix?}  (boolean)                Whether to prefix tool names (for OAuth)
 
     Returns: ~
         (AvanteClaudeTool)
