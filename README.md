@@ -947,6 +947,19 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 >
 > Note: The aws_session_token is optional and only needed when using temporary AWS credentials
 >
+> Alternatively, you can authenticate with a [Bedrock API key](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html) (bearer token). Either export it as `AWS_BEARER_TOKEN_BEDROCK`, or set `BEDROCK_KEYS` to the token value (without any commas). In this mode the `aws_region` must be set in the bedrock provider config:
+>
+> ```sh
+> export AWS_BEARER_TOKEN_BEDROCK=your-bedrock-api-key
+> ```
+>
+> ```lua
+> bedrock = {
+>   model = "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+>   aws_region = "us-east-1",
+> },
+> ```
+>
 > Alternatively Bedrock tries to resolve AWS credentials using the [Default Credentials Provider Chain](https://docs.aws.amazon.com/cli/v1/userguide/cli-chap-authentication.html).
 > This means you can have credentials e.g. configured via the AWS CLI, stored in your ~/.aws/profile, use AWS SSO etc.
 > In this case `aws_region` and optionally `aws_profile` should be specified via the bedrock config, e.g.:
