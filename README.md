@@ -1326,6 +1326,34 @@ Avante provides a set of default providers, but users can also create their own 
 
 For more information, see [Custom Providers](https://github.com/yetone/avante.nvim/wiki/Custom-providers)
 
+### Example: OpenAI-compatible multi-model gateway (DaoXE)
+
+Point the built-in `openai` provider at any OpenAI-compatible Chat Completions host by setting `endpoint`. Example with [DaoXE](https://daoxe.com):
+
+```lua
+require("avante").setup({
+  provider = "openai",
+  providers = {
+    openai = {
+      endpoint = "https://daoxe.com/v1",
+      model = "your-account-model-id", -- exact ID from GET /v1/models or dashboard
+      -- api_key_name defaults to OPENAI_API_KEY; export your DaoXE key there
+    },
+  },
+})
+```
+
+```bash
+export OPENAI_API_KEY=your_daoxe_api_key
+```
+
+Notes:
+
+- Model IDs are account-scoped; do not hardcode a static public catalog.
+- Chat Completions path only.
+- DaoXE is not available in mainland China.
+- Contributor disclosure: this example was contributed by a DaoXE affiliate.
+
 ## RAG Service
 
 Avante provides a RAG service, which is a tool for obtaining the required context for the AI to generate the codes. By default, it is not enabled. You can enable it this way:
