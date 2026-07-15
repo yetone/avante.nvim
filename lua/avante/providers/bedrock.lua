@@ -20,6 +20,14 @@ M = setmetatable(M, {
 })
 
 function M.setup()
+  -- If a Bedrock API key / bearer token is available, we don't need sigv4 support
+  -- because the bearer token auth path sends `Authorization: Bearer <token>` instead
+  -- of using curl's --aws-sigv4.
+  local bearer = Utils.environment.parse("AWS_BEARER_TOKEN_BEDROCK")
+  local api_key_value = Utils.environment.parse(M.api_key_name)
+  local has_bearer_token = bearer ~= nil or (api_key_value ~= nil and not string.find(api_key_value, ","))
+  if has_bearer_token then return true end
+
   -- Check if curl supports AWS signature v4
   if not M.check_curl_supports_aws_sig() then
     Utils.error(
