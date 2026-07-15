@@ -59,6 +59,11 @@ avante.nvim                                                        *avante-nvim*
    export BEDROCK_KEYS=aws_access_key_id,aws_secret_access_key,aws_region[,aws_session_token]
 <
 
+ Or a Bedrock API key / bearer token (set `aws_region` in the bedrock config):
+>
+   export AWS_BEARER_TOKEN_BEDROCK=your-bedrock-api-key
+<
+
  Claude Pro/Max subscription~
 
  Set the Claude provider `auth_type` to `"max"`:

@@ -651,6 +651,12 @@ Avante.nvim 提供了多个可以与 blink.cmp 集成的补全项：
 > ```
 >
 > 注意：aws_session_token 是可选的，仅在使用临时 AWS 凭证时需要
+>
+> 你也可以使用 [Bedrock API key](https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html)（bearer token）进行认证。将其导出为 `AWS_BEARER_TOKEN_BEDROCK`，或将 `BEDROCK_KEYS` 设置为不含逗号的令牌值。使用此模式时必须在 bedrock 配置中设置 `aws_region`：
+>
+> ```sh
+> export AWS_BEARER_TOKEN_BEDROCK=your-bedrock-api-key
+> ```
 
 1. 在 Neovim 中打开代码文件。
 2. 使用 `:AvanteAsk` 命令查询 AI 关于代码的问题。

@@ -72,7 +72,10 @@ function M.is_env_set()
     return true
   end
   local value = Utils.environment.parse(M.api_key_name)
-  return value ~= nil
+  if value ~= nil then return true end
+  -- Also allow the AWS-native bearer token env var
+  local bearer = Utils.environment.parse("AWS_BEARER_TOKEN_BEDROCK")
+  return bearer ~= nil
 end
 
 function M:parse_messages(prompt_opts)
@@ -143,6 +146,7 @@ function M:parse_curl_args(prompt_opts)
   local provider_conf, request_body = P.parse_config(self)
 
   local access_key_id, secret_access_key, session_token, region
+  local bearer_token
 
   ---@diagnostic disable-next-line: undefined-field
   local profile = provider_conf.aws_profile
@@ -162,12 +166,30 @@ function M:parse_curl_args(prompt_opts)
   else
     -- try to parse credentials from api key
     local api_key = self.parse_api_key()
+    -- fall back to the AWS-native bearer token env var
+    if api_key == nil then api_key = Utils.environment.parse("AWS_BEARER_TOKEN_BEDROCK") end
     if api_key ~= nil then
-      local parts = vim.split(api_key, ",")
-      access_key_id = parts[1]
-      secret_access_key = parts[2]
-      region = parts[3]
-      session_token = parts[4]
+      if api_key:find(",") then
+        -- Legacy comma-separated sigv4 credentials:
+        -- access_key_id,secret_access_key,region[,session_token]
+        local parts = vim.split(api_key, ",")
+        access_key_id = parts[1]
+        secret_access_key = parts[2]
+        region = parts[3]
+        session_token = parts[4]
+      else
+        -- Single-value api key: treat as a Bedrock API key / bearer token.
+        -- See: https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html
+        bearer_token = api_key
+        ---@diagnostic disable-next-line: undefined-field
+        region = provider_conf.aws_region
+        if not region or region == "" then
+          Utils.error(
+            "Bedrock: aws_region must be set in the bedrock provider config when using an API key / bearer token"
+          )
+          return nil
+        end
+      end
     else
       Utils.error("Bedrock: API key not set correctly")
       return nil
@@ -196,16 +218,22 @@ function M:parse_curl_args(prompt_opts)
     ["Content-Type"] = "application/json",
   }
 
-  if session_token and session_token ~= "" then headers["x-amz-security-token"] = session_token end
+  local rawArgs
+  if bearer_token and bearer_token ~= "" then
+    -- Bedrock API key / bearer token flow: skip AWS SigV4 signing entirely.
+    headers["Authorization"] = "Bearer " .. bearer_token
+    rawArgs = {}
+  else
+    if session_token and session_token ~= "" then headers["x-amz-security-token"] = session_token end
+    rawArgs = {
+      "--aws-sigv4",
+      string.format("aws:amz:%s:bedrock", region),
+      "--user",
+      string.format("%s:%s", access_key_id, secret_access_key),
+    }
+  end
 
   local body_payload = self:build_bedrock_payload(prompt_opts, request_body)
-
-  local rawArgs = {
-    "--aws-sigv4",
-    string.format("aws:amz:%s:bedrock", region),
-    "--user",
-    string.format("%s:%s", access_key_id, secret_access_key),
-  }
 
   return {
     url = endpoint,
