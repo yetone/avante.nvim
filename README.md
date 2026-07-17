@@ -238,42 +238,43 @@ For building binary if you wish to build from source, then `cargo` is required. 
 Pack is an out-of-the-box plugin manager since Neovim v0.12.
 
 ```lua
-local avante_hook = function(ev)
-  local name, kind = ev.data.spec.name, ev.data.kind
-  if name == 'avante.nvim' and (kind == 'install' or kind == 'update') then
-    -- Use `make BUILD_FROM_SOURCE=true` to build from source
-    vim.system({ 'make' }, { cwd = ev.data.path }):wait()
-  end
-end
-
-vim.api.nvim_create_autocmd('PackChanged', { callback = avante_hook })
-
-local gh = function(x) return 'https://github.com/' .. x end
+vim.api.nvim_create_autocmd(
+  'PackChanged',
+  {
+    callback = function(ev)
+      local name, kind = ev.data.spec.name, ev.data.kind
+      if name == 'avante.nvim' and (kind == 'install' or kind == 'update') then
+        -- Use `make BUILD_FROM_SOURCE=true` to build from source
+        vim.system({ 'make' }, { cwd = ev.data.path }):wait()
+      end
+    end
+  }
+)
 
 vim.pack.add({
   {
-    src=gh('yetone/avante.nvim'),
+    src='https://github.com/yetone/avante.nvim',
     version='main'  -- default
   },
 
   -- Deps
-  gh('nvim-lua/plenary.nvim'),
-  gh('MunifTanjim/nui.nvim'),
-  gh('MeanderingProgrammer/render-markdown.nvim'),
+  'https://github.com/nvim-lua/plenary.nvim',
+  'https://github.com/MunifTanjim/nui.nvim',
+  'https://github.com/MeanderingProgrammer/render-markdown.nvim',
 
   -- Optional deps
-  gh('hrsh7th/nvim-cmp'),
-  gh('nvim-tree/nvim-web-devicons'), -- or 'echasnovski/mini.icons'
-  gh('HakonHarnes/img-clip.nvim'),
-  gh('zbirenbaum/copilot.lua'),
-  gh('stevearc/dressing.nvim'), -- for enhanced input UI
-  gh('folke/snacks.nvim'), -- for modern input UI
+  'https://github.com/hrsh7th/nvim-cmp',
+  'https://github.com/nvim-tree/nvim-web-devicons', -- or 'echasnovski/mini.icons'
+  'https://github.com/HakonHarnes/img-clip.nvim',
+  'https://github.com/zbirenbaum/copilot.lua',
+  'https://github.com/stevearc/dressing.nvim', -- for enhanced input UI
+  'https://github.com/folke/snacks.nvim', -- for modern input UI
 })
 
 -- Config customizations
 require('avante').setup({})
 ```
-  
+
 </details>
 
 <details>
