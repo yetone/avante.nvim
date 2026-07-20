@@ -370,4 +370,59 @@ describe("ACPClient", function()
       assert.same({}, sent_params.mcpServers)
     end)
   end)
+
+  describe("stdio process lifecycle", function()
+    local uv = vim.uv or vim.loop
+    local temp_dir
+    local child_pid
+    local transport
+
+    after_each(function()
+      if transport then pcall(function() transport:stop() end) end
+      if child_pid and uv.kill(child_pid, 0) == 0 then pcall(function() uv.kill(child_pid, 9) end) end
+      if temp_dir then vim.fs.rm(temp_dir, { recursive = true, force = true }) end
+    end)
+
+    it("stops subprocesses created by an ACP launcher", function()
+      if vim.fn.has("win32") == 1 then return end
+
+      temp_dir = vim.fn.tempname()
+      local launcher = vim.fs.joinpath(temp_dir, "acp-launcher.sh")
+      local child_pid_file = vim.fs.joinpath(temp_dir, "child.pid")
+
+      vim.fn.mkdir(temp_dir, "p")
+      vim.fn.writefile({
+        "#!/bin/sh",
+        "sleep 60 &",
+        'printf "%s\\n" "$!" > "$1"',
+        'wait "$!"',
+      }, launcher)
+      assert.equals(true, uv.fs_chmod(launcher, 493))
+
+      local client = ACPClient:new({
+        transport_type = "stdio",
+        command = launcher,
+        args = { child_pid_file },
+      })
+      transport = client:_create_stdio_transport()
+      transport:start(function() end)
+
+      assert.equals(
+        true,
+        vim.wait(2000, function() return uv.fs_stat(child_pid_file) ~= nil end, 20),
+        "ACP launcher did not report its child PID"
+      )
+      child_pid = tonumber(vim.fn.readfile(child_pid_file)[1])
+      assert.is_not_nil(child_pid)
+      assert.equals(0, uv.kill(child_pid, 0))
+
+      transport:stop()
+
+      assert.equals(
+        true,
+        vim.wait(2000, function() return uv.kill(child_pid, 0) == nil end, 20),
+        "ACP launcher child survived transport shutdown"
+      )
+    end)
+  end)
 end)
