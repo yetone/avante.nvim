@@ -260,14 +260,13 @@ vim.pack.add({
   -- Deps
   'https://github.com/nvim-lua/plenary.nvim',
   'https://github.com/MunifTanjim/nui.nvim',
-  'https://github.com/MeanderingProgrammer/render-markdown.nvim',
 
   -- Optional deps
+  'https://github.com/MeanderingProgrammer/render-markdown.nvim',
   'https://github.com/hrsh7th/nvim-cmp',
   'https://github.com/nvim-tree/nvim-web-devicons', -- or 'echasnovski/mini.icons'
   'https://github.com/HakonHarnes/img-clip.nvim',
   'https://github.com/zbirenbaum/copilot.lua',
-  'https://github.com/stevearc/dressing.nvim', -- for enhanced input UI
   'https://github.com/folke/snacks.nvim', -- for modern input UI
 })
 
