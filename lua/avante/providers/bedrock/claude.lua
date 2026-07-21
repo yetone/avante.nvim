@@ -49,7 +49,10 @@ function M.build_bedrock_payload(provider, prompt_opts, request_body)
     tools = tools,
     system = system_prompt,
   }
-  return vim.tbl_deep_extend("force", payload, request_body or {})
+  local final = vim.tbl_deep_extend("force", payload, request_body or {})
+  -- Strip temperature for models that don't support it (e.g. Claude 4+ with always-on thinking)
+  if Claude.is_temperature_unsupported(provider_conf.model) then final.temperature = nil end
+  return final
 end
 
 return M
