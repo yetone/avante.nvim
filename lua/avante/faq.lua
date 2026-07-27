@@ -1,3 +1,5 @@
+---@mod avante-mcp
+---Now you can integrate MCP functionality for Avante through `mcphub.nvim`. For detailed documentation, please refer to [mcphub.nvim](https://ravitemer.github.io/mcphub.nvim/extensions/avante.html)
 ---@divider =
 ---@mod avante-faq FAQ
 ---
