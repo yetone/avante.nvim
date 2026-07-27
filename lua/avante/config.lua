@@ -61,9 +61,9 @@
 ---   })
 ---<
 ---
---- Input providers~
+--- Input providers
 ---
---- Avante supports `native`, `dressing`, `snacks`, or a custom function:
+--- Avante supports different interfaces that act as *vim.ui.input()*. See *avante.AvanteInput* for the supported options, here is :
 --->
 ---   require("avante").setup({
 ---     input = {
@@ -76,7 +76,7 @@
 ---   })
 ---<
 ---
---- Selector providers~
+--- Selector providers
 ---
 --- Avante supports `native`, `fzf_lua`, `mini_pick`, `snacks`, `telescope`, or
 --- a custom function:
@@ -213,6 +213,27 @@
 ---we add a default var_accessor for this table to config values.
 
 ---@alias WebSearchEngineProviderResponseBodyFormatter fun(body: table): (string, string?)
+---@alias avante.Config.WebSearchEngineProviderName
+---| '"tavily"'
+---| '"serpapi"'
+---| '"searchapi"'
+---| '"google"'
+---| '"kagi"'
+---| '"brave"'
+---| '"searxng"'
+
+---@class avante.Config.WebSearchEngineProvider
+---@field api_key_name? string Environment variable containing the provider API key.
+---@field api_url_name? string Environment variable containing the provider API URL.
+---@field engine_id_name? string Environment variable containing the search engine ID.
+---@field extra_request_body table<string, any> Additional parameters included in search requests.
+---@field format_response_body WebSearchEngineProviderResponseBodyFormatter Converts a provider response into text and an optional error.
+
+---@class avante.Config.WebSearchEngine
+---@field provider avante.Config.WebSearchEngineProviderName Web search provider to use.
+---@field proxy? string Proxy URL used for web search requests.
+---@field providers table<string, avante.Config.WebSearchEngineProvider> Web search provider configurations.
+
 ---@alias avante.InputProvider
 ---| '"native"'
 ---| '"dressing"'
@@ -348,6 +369,7 @@ M.instructions_file = "avante.md"
 ---@field rules table
 ---
 ---@field rag_service avante.Config.RagService RAG service configuration.
+---@field web_search_engine avante.Config.WebSearchEngine Web search configuration.
 ---@field behaviour avante.Config.Behaviour Behaviour and automation options.
 ---@field prompt_logger avante.Config.PromptLogger Prompt logging options.
 ---@field windows table
@@ -404,6 +426,7 @@ M._defaults = {
     },
     docker_extra_args = "", -- Extra arguments to pass to the docker command
   },
+  ---@type avante.Config.WebSearchEngine
   web_search_engine = {
     provider = "tavily",
     proxy = nil,
