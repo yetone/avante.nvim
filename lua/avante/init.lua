@@ -150,12 +150,7 @@
 local api = vim.api
 
 local Utils = require("avante.utils")
-local Sidebar = require("avante.sidebar")
-local Selection = require("avante.selection")
-local Suggestion = require("avante.suggestion")
 local Config = require("avante.config")
-local Diff = require("avante.diff")
-local RagService = require("avante.rag_service")
 
 ---@class Avante
 local M = {
@@ -207,6 +202,7 @@ end
 local H = {}
 
 function H.keymaps()
+  local Diff = require("avante.diff")
   vim.keymap.set({ "n", "v" }, "<Plug>(AvanteAsk)", function() require("avante.api").ask() end, { noremap = true })
   vim.keymap.set(
     { "n", "v" },
@@ -526,14 +522,17 @@ function M._init(id)
   local suggestion = M.suggestions[id]
 
   if not sidebar then
+    local Sidebar = require("avante.sidebar")
     sidebar = Sidebar:new(id)
     M.sidebars[id] = sidebar
   end
   if not selection then
+    local Selection = require("avante.selection")
     selection = Selection:new(id)
     M.selections[id] = selection
   end
   if not suggestion then
+    local Suggestion = require("avante.suggestion")
     suggestion = Suggestion:new(id)
     M.suggestions[id] = suggestion
   end
@@ -641,7 +640,7 @@ function M.setup(opts)
 
   M.did_setup = true
 
-  if Config.rag_service.enabled then RagService.run_rag_service() end
+  if Config.rag_service.enabled then require("avante.rag_service").run_rag_service() end
 
   local has_cmp, cmp = pcall(require, "cmp")
   if has_cmp then
