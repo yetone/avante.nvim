@@ -81,6 +81,7 @@ docgen:
 	vimcats --prefix-func \
 		lua/avante/init.lua \
 		lua/avante/config.lua \
+		lua/avante/api.lua \
 		lua/avante/commands.lua \
 		lua/avante/sidebar.lua \
 		lua/avante/slashcommands.lua \

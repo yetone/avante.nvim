@@ -213,7 +213,11 @@
 ---we add a default var_accessor for this table to config values.
 
 ---@alias WebSearchEngineProviderResponseBodyFormatter fun(body: table): (string, string?)
----@alias avante.InputProvider "native" | "dressing" | "snacks" | fun(input: avante.ui.Input): nil
+---@alias avante.InputProvider
+---| '"native"'
+---| '"dressing"'
+---| '"snacks"'
+---| `fun(input: avante.ui.Input): nil`
 
 local Utils = require("avante.utils")
 
@@ -221,6 +225,8 @@ local function copilot_use_response_api(opts)
   local model = opts and opts.model
   return type(model) == "string" and model:match("gpt%-%d+%.?%d*%-codex") ~= nil
 end
+
+---@alias ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | "watsonx_code_assistant" | "mistral" | string
 
 ---@class avante.file_selector.IParams
 ---@field public title      string
@@ -276,7 +282,7 @@ end
 
 ---@class avante.Config.RagService
 ---@field enabled boolean Enable the RAG service.
----@field host_mount string? Host path mounted read-only for the RAG service.
+---@field host_mount string Host path mounted read-only for the RAG service.
 ---@field runner "docker"|"nix"|string Runner used to launch the RAG service.
 ---@field image? string Docker image used when runner is `docker`.
 ---@field llm avante.Config.RagServiceModel Language model configuration.
@@ -358,7 +364,7 @@ M._defaults = {
   --- - *legacy*: Uses the traditional planning method without automatic tool execution
   ---@type avante.Mode
   mode = "agentic",
-  ---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | "watsonx_code_assistant" | "mistral" | string
+  ---@type ProviderName
   provider = "claude",
   auto_suggestions_provider = nil,
   memory_summary_provider = nil,
