@@ -8,7 +8,6 @@ local lsp = vim.lsp
 
 local log = require("avante.utils.log")
 local LRUCache = require("avante.utils.lru_cache")
-local diff2search_replace = require("avante.utils.diff2search_replace")
 
 ---@class avante.utils: LazyUtilCore
 ---@field tokens avante.utils.tokens
@@ -1684,6 +1683,7 @@ end
 ---@param diff string
 ---@return string
 function M.fix_diff(diff)
+  local diff2search_replace = require("avante.utils.diff2search_replace")
   diff = diff2search_replace(diff)
   -- Normalize block headers to the expected ones (fix for some LLMs output)
   diff = diff:gsub("<<<<<<<%s*SEARCH", "------- SEARCH")

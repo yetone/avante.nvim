@@ -77,20 +77,15 @@ local PPath = require("plenary.path")
 local Providers = require("avante.providers")
 local Path = require("avante.path")
 local Config = require("avante.config")
-local Diff = require("avante.diff")
 local Llm = require("avante.llm")
 local Utils = require("avante.utils")
 local PromptLogger = require("avante.utils.promptLogger")
 local Highlights = require("avante.highlights")
-local RepoMap = require("avante.repo_map")
 local FileSelector = require("avante.file_selector")
-local LLMTools = require("avante.llm_tools")
 local History = require("avante.history")
 local Render = require("avante.history.render")
 local Line = require("avante.ui.line")
 local LRUCache = require("avante.utils.lru_cache")
-local logo = require("avante.utils.logo")
-local ButtonGroupLine = require("avante.ui.button_group_line")
 
 local RESULT_BUF_NAME = "AVANTE_RESULT"
 local VIEW_BUFFER_UPDATED_PATTERN = "AvanteViewBufferUpdated"
@@ -1016,6 +1011,7 @@ function Sidebar:apply(current_cursor)
   end
 
   vim.defer_fn(function()
+    local Diff = require("avante.diff")
     api.nvim_set_current_win(self.code.winid)
     for filepath, snippets in pairs(selected_snippets_map) do
       if Config.behaviour.minimize_diff then snippets = self:minimize_snippets(filepath, snippets) end
@@ -1723,6 +1719,7 @@ function Sidebar:resize()
 end
 
 function Sidebar:render_logo()
+  local logo = require("avante.utils.logo")
   local logo_lines = vim.split(logo, "\n")
   local max_width = 30
   --- get editor width
@@ -2065,6 +2062,7 @@ function Sidebar:get_message_lines(ctx, message, messages, ignore_record_prefix)
   if message.state == "generating" or message.is_calling then
     local lines = self:_get_message_lines(ctx, message, messages, ignore_record_prefix)
     if self.permission_handler and self.permission_button_options then
+      local ButtonGroupLine = require("avante.ui.button_group_line")
       local button_group_line = ButtonGroupLine:new(self.permission_button_options, {
         on_click = self.permission_handler,
         group_label = "Waiting for Confirmation... ",
@@ -2701,7 +2699,10 @@ function Sidebar:get_generate_prompts_options(request, cb)
   local mentions = Utils.extract_mentions(request)
   request = mentions.new_content
 
-  local project_context = mentions.enable_project_context and file_ext and RepoMap.get_repo_map(file_ext) or nil
+  local project_context = mentions.enable_project_context
+      and file_ext
+      and require("avante.repo_map").get_repo_map(file_ext)
+    or nil
 
   local diagnostics = nil
   if mentions.enable_diagnostics then
@@ -2714,6 +2715,7 @@ function Sidebar:get_generate_prompts_options(request, cb)
 
   local history_messages = self:get_history_messages_for_api()
 
+  local LLMTools = require("avante.llm_tools")
   local tools = vim.deepcopy(LLMTools.get_tools(request, history_messages))
   table.insert(tools, {
     name = "add_file_to_context",
