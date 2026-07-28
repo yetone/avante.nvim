@@ -1,3 +1,8 @@
+---@mod avante-html2md Converts html to markdown
+---@brief [[
+--- Loads the rust library html2md.so which is a glorified wrapper over
+--- https://gitlab.com/Kanedias/html2md to convert simple html documents into markdown flavor.
+---@brief ]]
 ---@class AvanteHtml2Md
 ---@field fetch_md fun(url: string): string
 local _html2md_lib = nil
