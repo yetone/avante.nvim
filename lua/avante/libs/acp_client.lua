@@ -368,6 +368,8 @@ function ACPClient:_create_stdio_transport()
     stdout = nil,
     --- @type uv.uv_process_t|nil
     process = nil,
+    --- @type integer|nil
+    pid = nil,
   }
 
   --- @param transport_self avante.acp.ACPTransportInstance
@@ -412,6 +414,9 @@ function ACPClient:_create_stdio_transport()
     ---@diagnostic disable-next-line: missing-fields
     local handle, pid = uv.spawn(self.config.command, {
       args = args,
+      -- A separate process group lets us clean up ACP launchers and every
+      -- subprocess they create. Windows keeps the existing direct-child path.
+      detached = vim.fn.has("win32") == 0,
       env = final_env,
       stdio = { stdin, stdout, stderr },
     }, function(code, signal)
@@ -422,6 +427,7 @@ function ACPClient:_create_stdio_transport()
         transport_self.process:close()
         transport_self.process = nil
       end
+      transport_self.pid = nil
 
       -- Handle auto-reconnect
       if self.config.reconnect and self.reconnect_count < (self.config.max_reconnect_attempts or 3) then
@@ -440,6 +446,7 @@ function ACPClient:_create_stdio_transport()
     end
 
     transport_self.process = handle
+    transport_self.pid = pid
     transport_self.stdin = stdin
     transport_self.stdout = stdout
 
@@ -492,14 +499,22 @@ function ACPClient:_create_stdio_transport()
   function transport.stop(transport_self)
     if transport_self.process and not transport_self.process:is_closing() then
       local process = transport_self.process
+      local pid = transport_self.pid
       transport_self.process = nil
+      transport_self.pid = nil
 
       if not process then return end
 
-      -- Try to terminate gracefully
-      pcall(function() process:kill(15) end)
-      -- then force kill, it'll fail harmlessly if already exited
-      pcall(function() process:kill(9) end)
+      if vim.fn.has("win32") == 0 and pid then
+        -- The ACP command is a process-group leader on POSIX. Kill the group
+        -- so package-manager launchers cannot leave their native child behind.
+        pcall(function() uv.kill(-pid, 15) end)
+        pcall(function() uv.kill(-pid, 9) end)
+      else
+        -- Windows does not support POSIX process-group signals.
+        pcall(function() process:kill(15) end)
+        pcall(function() process:kill(9) end)
+      end
       process:close()
     end
     if transport_self.stdin then
