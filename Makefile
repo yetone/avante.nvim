@@ -93,6 +93,7 @@ docgen:
 		lua/avante/libs/acp_client.lua \
 		lua/avante/providers/openai.lua \
 		lua/avante/providers/claude.lua \
+		lua/avante/html2md.lua \
 		> doc/avante.txt
 	nvim -u NONE -i NONE --headless +'helptags doc' +'quit!'
 
