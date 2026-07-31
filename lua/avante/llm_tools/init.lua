@@ -292,9 +292,14 @@ function M.web_search(input, opts)
   if on_log then on_log("query: " .. input.query) end
   local search_engine = Config.web_search_engine.providers[provider_type]
   if search_engine == nil then return nil, "No search engine found: " .. provider_type end
-  if provider_type ~= "searxng" and search_engine.api_key_name == "" then return nil, "No API key provided" end
-  local api_key = provider_type ~= "searxng" and Utils.environment.parse(search_engine.api_key_name) or nil
-  if provider_type ~= "searxng" and api_key == nil or api_key == "" then
+  if provider_type ~= "searxng" and provider_type ~= "duckduckgo" and
+    search_engine.api_key_name == "" then
+    return nil, "No API key provided"
+  end
+  local api_key = provider_type ~= "searxng" and provider_type ~= "duckduckgo"
+      and Utils.environment.parse(search_engine.api_key_name)
+    or nil
+  if (provider_type ~= "searxng" and provider_type ~= "duckduckgo") and (api_key == nil or api_key == "") then
     return nil, "Environment variable " .. search_engine.api_key_name .. " is not set"
   end
   if provider_type == "tavily" then
@@ -431,6 +436,42 @@ function M.web_search(input, opts)
     })
     if resp.status ~= 200 then return nil, "Error: " .. resp.body end
     local jsn = vim.json.decode(resp.body)
+    return search_engine.format_response_body(jsn)
+  elseif provider_type == "duckduckgo" then
+    local query_params = vim.tbl_deep_extend("force",
+      { q = input.query }, search_engine.extra_request_body)
+    local query_string = ""
+    for key, value in pairs(query_params) do
+      query_string = query_string .. key .. "=" .. vim.uri_encode(value) .. "&"
+    end
+    local resp = curl.post("https://html.duckduckgo.com/html/?" .. query_string, {
+      headers = {
+        ["User-Agent"] = "Mozilla/5.0 (X11; Linux x86_64; rv:153.0) Gecko/20100101 Firefox/153.0",
+        ["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        ["Accept-Language"] = "en-US,en;q=0.9",
+        ["Accept-Encoding"] = "gzip, deflate, br, zstd",
+        ["Connection"] = "keep-alive",
+        ["Upgrade-Insecure-Requests"] = "1",
+        ["Sec-Fetch-Dest"] = "document",
+        ["Sec-Fetch-Mode"] = "navigate",
+        ["Sec-Fetch-Site"] = "none",
+        ["Sec-Fetch-User"] = "?1",
+        ["Priority"] = "u=0, i",
+        ["TE"] = "trailers",
+      },
+    })
+    if resp.status ~= 200 then return nil, "Error: " .. resp.body end
+    vim.notify(resp.body, vim.log.levels.INFO)
+
+    local jsn = {}
+    for href, title in resp.body:gmatch(
+      '<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>(.-)</a>') do
+      table.insert(jsn, {
+        title = title,
+        url = href,
+        snippet = "",
+      })
+    end
     return search_engine.format_response_body(jsn)
   end
   return nil, "Error: No search engine found"
