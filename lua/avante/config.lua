@@ -584,9 +584,7 @@ M._defaults = {
           ["TE"] = "trailers",
         },
         ---@type WebSearchEngineProviderResponseBodyFormatter
-        format_response_body = function(body)
-          return vim.json.encode(body), nil
-        end,
+        format_response_body = function(body) return vim.json.encode(body), nil end,
       },
     },
   },

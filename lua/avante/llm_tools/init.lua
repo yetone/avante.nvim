@@ -292,11 +292,11 @@ function M.web_search(input, opts)
   if on_log then on_log("query: " .. input.query) end
   local search_engine = Config.web_search_engine.providers[provider_type]
   if search_engine == nil then return nil, "No search engine found: " .. provider_type end
-  if provider_type ~= "searxng" and provider_type ~= "duckduckgo" and
-    search_engine.api_key_name == "" then
+  if provider_type ~= "searxng" and provider_type ~= "duckduckgo" and search_engine.api_key_name == "" then
     return nil, "No API key provided"
   end
-  local api_key = provider_type ~= "searxng" and provider_type ~= "duckduckgo"
+  local api_key = provider_type ~= "searxng"
+      and provider_type ~= "duckduckgo"
       and Utils.environment.parse(search_engine.api_key_name)
     or nil
   if (provider_type ~= "searxng" and provider_type ~= "duckduckgo") and (api_key == nil or api_key == "") then
@@ -438,8 +438,7 @@ function M.web_search(input, opts)
     local jsn = vim.json.decode(resp.body)
     return search_engine.format_response_body(jsn)
   elseif provider_type == "duckduckgo" then
-    local query_params = vim.tbl_deep_extend("force",
-      { q = input.query }, search_engine.extra_request_body)
+    local query_params = vim.tbl_deep_extend("force", { q = input.query }, search_engine.extra_request_body)
     local query_string = ""
     for key, value in pairs(query_params) do
       query_string = query_string .. key .. "=" .. vim.uri_encode(value) .. "&"
@@ -452,9 +451,12 @@ function M.web_search(input, opts)
       return html:gsub("</?b[^>]*>", ""):gsub("<[^>]+>", " "):gsub("%s+", " "):gsub("^%s*(.-)%s*$", "%1")
     end
     local jsn = {}
-    for href, title, snippet in resp.body:gmatch(
-      '<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>(.-)</a>.-' ..
-      '<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*href="[^"]*"[^>]*>(.-)</a>') do
+    for href, title, snippet in
+      resp.body:gmatch(
+        '<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>(.-)</a>.-'
+          .. '<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*href="[^"]*"[^>]*>(.-)</a>'
+      )
+    do
       table.insert(jsn, {
         title = clean_html(title),
         url = href,
