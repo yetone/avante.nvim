@@ -474,6 +474,9 @@ function M.web_search(input, opts)
         snippet = clean_html(snippet),
       })
     end
+    if #jsn < 1 and resp.body:find("challenge-form", 1, true) then
+      return nil, "Error: Search engine thinks you're a bot"
+    end
     return search_engine.format_response_body(jsn)
   end
   return nil, "Error: No search engine found"

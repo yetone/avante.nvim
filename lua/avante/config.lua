@@ -564,6 +564,14 @@ M._defaults = {
           return vim.json.encode(jsn), nil
         end,
       },
+      duckduckgo = {
+        api_key_name = "", -- DuckDuckGo is free, no API key required
+        extra_request_body = {},
+        ---@type WebSearchEngineProviderResponseBodyFormatter
+        format_response_body = function(body)
+          return vim.json.encode(body), nil
+        end,
+      },
     },
   },
   acp_providers = {
