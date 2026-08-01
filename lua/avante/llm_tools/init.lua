@@ -461,14 +461,17 @@ function M.web_search(input, opts)
       },
     })
     if resp.status >= 300 then return nil, "Error: " .. resp.status end
+    local function clean_html(html)
+      return html:gsub("</?b[^>]*>", ""):gsub("<[^>]+>", " "):gsub("%s+", " "):gsub("^%s*(.-)%s*$", "%1")
+    end
     local jsn = {}
     for href, title, snippet in resp.body:gmatch(
       '<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>(.-)</a>.-' ..
       '<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*href="[^"]*"[^>]*>(.-)</a>') do
       table.insert(jsn, {
-        title = title,
+        title = clean_html(title),
         url = href,
-        snippet = snippet,
+        snippet = clean_html(snippet),
       })
     end
     return search_engine.format_response_body(jsn)
