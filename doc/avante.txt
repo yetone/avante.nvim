@@ -428,6 +428,7 @@ avante configuration                                             *avante-config*
  - Kagi: `KAGI_API_KEY`
  - Brave Search: `BRAVE_API_KEY`
  - SearXNG: `SEARXNG_API_URL`
+ - DuckDuckGo: No API key required
 
  You can also set avante options via `vim.g.avante`.
 
