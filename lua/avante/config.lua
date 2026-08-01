@@ -268,7 +268,7 @@ end
 ---@field prev_prompt? avante.Config.PromptLoggerKeymap Mapping used to load the previous older prompt log.
 
 ---@class avante.Config.RagServiceModel
----@field provider string Model provider. One available in py/rag-service/src/providers ie., "ollama", "openai", "dashscope", "openrouter"
+---@field provider string Model provider. One available in py/rag-service/src/providers ie., "ollama", "openai", "dashscope", "openrouter", "orcarouter"
 ---@field endpoint string Model API endpoint (e.g., http://localhost)
 ---@field api_key string Environment variable name for the model API key.
 ---@field model string Model name
@@ -832,6 +832,12 @@ M._defaults = {
       extra_request_body = {
         max_tokens = 4096, -- to avoid using the unsupported max_completion_tokens
       },
+    },
+    orcarouter = {
+      __inherited_from = "openai",
+      endpoint = "https://api.orcarouter.ai/v1",
+      model = "anthropic/claude-sonnet-4.6", -- model ids are namespaced, see https://www.orcarouter.ai/models
+      api_key_name = "ORCAROUTER_API_KEY",
     },
   },
   ---Specify the special dual_boost mode

@@ -619,6 +619,7 @@ Avante.nvim 提供了多个可以与 blink.cmp 集成的补全项：
 > export AVANTE_CO_API_KEY=your-cohere-api-key
 > export AVANTE_AIHUBMIX_API_KEY=your-aihubmix-api-key
 > export AVANTE_MOONSHOT_API_KEY=your-moonshot-api-key
+> export AVANTE_ORCAROUTER_API_KEY=your-orcarouter-api-key
 > ```
 >
 > **全局 API 密钥（传统方式）**

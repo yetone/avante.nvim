@@ -12,6 +12,7 @@ The following table shows which model types are supported by each provider:
 | ollama     | Yes         | Yes               |
 | openai     | Yes         | Yes               |
 | openrouter | Yes         | No                |
+| orcarouter | Yes         | Yes               |
 
 ## LLM Provider Configuration
 
@@ -80,6 +81,22 @@ llm = { -- Configuration for the Language Model (LLM) used by the RAG service
 },
 ```
 
+### OrcaRouter LLM Configuration
+
+[See more configurations](https://developers.llamaindex.ai/python/framework-api-reference/llms/openai_like/)
+
+```lua
+llm = { -- Configuration for the Language Model (LLM) used by the RAG service
+  provider = "orcarouter", -- The LLM provider ("orcarouter")
+  endpoint = "https://api.orcarouter.ai/v1", -- The LLM API endpoint for OrcaRouter
+  api_key = "ORCAROUTER_API_KEY", -- The environment variable name for the LLM API key
+  model = "anthropic/claude-sonnet-4.6", -- The LLM model name (e.g., "openai/gpt-5.1", "anthropic/claude-sonnet-4.6")
+  extra = nil, -- Extra configuration options for the LLM (optional)
+},
+```
+
+Model ids are namespaced by vendor; the full catalog is at <https://www.orcarouter.ai/models>.
+
 ## Embedding Provider Configuration
 
 The `embedding` section in the configuration file is used to configure the Embedding Model used by the RAG service.
@@ -131,6 +148,22 @@ embed = { -- Configuration for the Embedding Model used by the RAG service
   extra = { -- Extra configuration options for the Embedding model (optional)
     embed_batch_size = 10,
     max_embedding_tokens = 512, -- Maximum tokens per chunk sent to the embedding model
+  },
+},
+```
+
+### OrcaRouter Embedding Configuration
+
+[See more configurations](https://developers.llamaindex.ai/python/framework-api-reference/embeddings/openai_like/)
+
+```lua
+embed = { -- Configuration for the Embedding Model used by the RAG service
+  provider = "orcarouter", -- The Embedding provider ("orcarouter")
+  endpoint = "https://api.orcarouter.ai/v1", -- The Embedding API endpoint for OrcaRouter
+  api_key = "ORCAROUTER_API_KEY", -- The environment variable name for the Embedding API key
+  model = "openai/text-embedding-3-small", -- The Embedding model name (e.g., "openai/text-embedding-3-large")
+  extra = { -- Extra configuration options for the Embedding model (optional)
+    embed_batch_size = 10,
   },
 },
 ```

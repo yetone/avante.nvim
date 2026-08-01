@@ -69,7 +69,7 @@ if TYPE_CHECKING:
 def parse_cli_settings() -> argparse.Namespace:
     """Argument parser."""
     # modules available in providers/ folder
-    available_providers = ["openai", "openai_like", "ollama", "dashscope", "openrouter"]
+    available_providers = ["openai", "openai_like", "ollama", "dashscope", "openrouter", "orcarouter"]
 
     """Parse service settings from command-line arguments."""
     parser = argparse.ArgumentParser(description="Run the Avante RAG service.")
