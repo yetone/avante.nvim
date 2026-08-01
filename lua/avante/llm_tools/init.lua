@@ -445,20 +445,7 @@ function M.web_search(input, opts)
       query_string = query_string .. key .. "=" .. vim.uri_encode(value) .. "&"
     end
     local resp = curl.post("https://html.duckduckgo.com/html/?" .. query_string, {
-      headers = {
-        ["User-Agent"] = "Mozilla/5.0 (X11; Linux x86_64; rv:153.0) Gecko/20100101 Firefox/153.0",
-        ["Accept"] = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        ["Accept-Language"] = "en-US,en;q=0.9",
-        ["Accept-Encoding"] = "gzip, deflate, br, zstd",
-        ["Connection"] = "keep-alive",
-        ["Upgrade-Insecure-Requests"] = "1",
-        ["Sec-Fetch-Dest"] = "document",
-        ["Sec-Fetch-Mode"] = "navigate",
-        ["Sec-Fetch-Site"] = "none",
-        ["Sec-Fetch-User"] = "?1",
-        ["Priority"] = "u=0, i",
-        ["TE"] = "trailers",
-      },
+      headers = search_engine.extra_headers or {},
     })
     if resp.status >= 300 then return nil, "Error: " .. resp.status end
     local function clean_html(html)
