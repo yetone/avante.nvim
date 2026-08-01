@@ -460,16 +460,15 @@ function M.web_search(input, opts)
         ["TE"] = "trailers",
       },
     })
-    if resp.status ~= 200 then return nil, "Error: " .. resp.body end
-    vim.notify(resp.body, vim.log.levels.INFO)
-
+    if resp.status >= 300 then return nil, "Error: " .. resp.status end
     local jsn = {}
-    for href, title in resp.body:gmatch(
-      '<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>(.-)</a>') do
+    for href, title, snippet in resp.body:gmatch(
+      '<a[^>]*class="[^"]*result__a[^"]*"[^>]*href="([^"]*)"[^>]*>(.-)</a>.-' ..
+      '<a[^>]*class="[^"]*result__snippet[^"]*"[^>]*href="[^"]*"[^>]*>(.-)</a>') do
       table.insert(jsn, {
         title = title,
         url = href,
-        snippet = "",
+        snippet = snippet,
       })
     end
     return search_engine.format_response_body(jsn)
