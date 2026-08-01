@@ -958,6 +958,7 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 > export AVANTE_CO_API_KEY=your-cohere-api-key
 > export AVANTE_AIHUBMIX_API_KEY=your-aihubmix-api-key
 > export AVANTE_MOONSHOT_API_KEY=your-moonshot-api-key
+> export AVANTE_ORCAROUTER_API_KEY=your-orcarouter-api-key
 > ```
 >
 > **Global API Keys (Legacy)**
