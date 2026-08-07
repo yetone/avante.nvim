@@ -91,7 +91,11 @@ docgen:
 		lua/avante/extensions/init.lua \
 		lua/avante/utils/init.lua \
 		lua/avante/libs/acp_client.lua \
+		lua/avante/providers/openai.lua \
+		lua/avante/providers/claude.lua \
+		lua/avante/html2md.lua \
 		> doc/avante.txt
+	nvim -u NONE -i NONE --headless +'helptags doc' +'quit!'
 
 luacheck:
 	@luacheck `find \( -path './target' -prune \) -o -name "*.lua" -print` --codes

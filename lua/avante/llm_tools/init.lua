@@ -65,11 +65,9 @@
 ---
 ---@brief ]]
 
-local curl = require("plenary.curl")
 local Utils = require("avante.utils")
 local Path = require("plenary.path")
 local Config = require("avante.config")
-local RagService = require("avante.rag_service")
 local Helpers = require("avante.llm_tools.helpers")
 
 local M = {}
@@ -285,6 +283,7 @@ end
 
 ---@type AvanteLLMToolFunc<{ query: string }>
 function M.web_search(input, opts)
+  local curl = require("plenary.curl")
   local on_log = opts.on_log
   local provider_type = Config.web_search_engine.provider
   local proxy = Config.web_search_engine.proxy
@@ -598,6 +597,7 @@ function M.rag_search(input, opts)
   local root = Utils.get_project_root()
   local uri = "file://" .. root
   if uri:sub(-1) ~= "/" then uri = uri .. "/" end
+  local RagService = require("avante.rag_service")
   RagService.retrieve(
     uri,
     input.query,
@@ -716,7 +716,7 @@ M._tools = {
   require("avante.llm_tools.glob"),
   {
     name = "rag_search",
-    enabled = function() return Config.rag_service.enabled and RagService.is_ready() end,
+    enabled = function() return Config.rag_service.enabled and require("avante.rag_service").is_ready() end,
     description = "Use Retrieval-Augmented Generation (RAG) to search for relevant information from an external knowledge base or documents. This tool retrieves relevant context from a large dataset and integrates it into the response generation process, improving accuracy and relevance. Use it when answering questions that require factual knowledge beyond what the model has been trained on.",
     param = {
       type = "table",

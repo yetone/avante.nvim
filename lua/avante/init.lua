@@ -59,6 +59,29 @@
 ---   export BEDROCK_KEYS=aws_access_key_id,aws_secret_access_key,aws_region[,aws_session_token]
 ---<
 ---
+--- The `aws_session_token` is optional and only needed for temporary AWS
+--- credentials. If `BEDROCK_KEYS` is not set, Bedrock falls back to the AWS
+--- default credentials chain (env vars, `~/.aws/credentials`, IAM role, SSO,
+--- etc.), in which case set `aws_region` and optionally `aws_profile` in the
+--- bedrock provider config.
+---
+--- Or a Bedrock API key / bearer token: export `AWS_BEARER_TOKEN_BEDROCK`
+--- (or set `BEDROCK_KEYS` to the token value without any commas). In this
+--- mode `aws_region` must be set in the bedrock provider config, e.g.:
+--->
+---   export AWS_BEARER_TOKEN_BEDROCK=your-bedrock-api-key
+---
+---   require("avante").setup({
+---     providers = {
+---       bedrock = {
+---         model = "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+---         aws_region = "us-east-1",
+---       },
+---     },
+---   })
+---<
+--- See https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html.
+---
 --- Claude Pro/Max subscription~
 ---
 --- Set the Claude provider `auth_type` to `"max"`:
@@ -127,12 +150,7 @@
 local api = vim.api
 
 local Utils = require("avante.utils")
-local Sidebar = require("avante.sidebar")
-local Selection = require("avante.selection")
-local Suggestion = require("avante.suggestion")
 local Config = require("avante.config")
-local Diff = require("avante.diff")
-local RagService = require("avante.rag_service")
 
 ---@class Avante
 local M = {
@@ -184,6 +202,7 @@ end
 local H = {}
 
 function H.keymaps()
+  local Diff = require("avante.diff")
   vim.keymap.set({ "n", "v" }, "<Plug>(AvanteAsk)", function() require("avante.api").ask() end, { noremap = true })
   vim.keymap.set(
     { "n", "v" },
@@ -503,14 +522,17 @@ function M._init(id)
   local suggestion = M.suggestions[id]
 
   if not sidebar then
+    local Sidebar = require("avante.sidebar")
     sidebar = Sidebar:new(id)
     M.sidebars[id] = sidebar
   end
   if not selection then
+    local Selection = require("avante.selection")
     selection = Selection:new(id)
     M.selections[id] = selection
   end
   if not suggestion then
+    local Suggestion = require("avante.suggestion")
     suggestion = Suggestion:new(id)
     M.suggestions[id] = suggestion
   end
@@ -618,37 +640,7 @@ function M.setup(opts)
 
   M.did_setup = true
 
-  local function run_rag_service()
-    local started_at = os.time()
-    local add_resource_with_delay
-    local function add_resource()
-      local is_ready = RagService.is_ready()
-      if not is_ready then
-        local elapsed = os.time() - started_at
-        if elapsed > 1000 * 60 * 15 then
-          Utils.warn("Rag Service is not ready, giving up")
-          return
-        end
-        add_resource_with_delay()
-        return
-      end
-      vim.defer_fn(function()
-        Utils.info("Adding project root to Rag Service ...")
-        local uri = "file://" .. Utils.get_project_root()
-        if uri:sub(-1) ~= "/" then uri = uri .. "/" end
-        RagService.add_resource(uri)
-      end, 5000)
-    end
-    add_resource_with_delay = function()
-      vim.defer_fn(function() add_resource() end, 5000)
-    end
-    vim.schedule(function()
-      Utils.info("Starting Rag Service ...")
-      RagService.launch_rag_service(add_resource_with_delay)
-    end)
-  end
-
-  if Config.rag_service.enabled then run_rag_service() end
+  if Config.rag_service.enabled then require("avante.rag_service").run_rag_service() end
 
   local has_cmp, cmp = pcall(require, "cmp")
   if has_cmp then

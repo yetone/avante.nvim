@@ -1,4 +1,8 @@
--- useless comment to name a commit
+---@mod avante-providers-claude avante claude
+---
+---@brief [[
+--- Avante supports both the 'api' and 'max' authentications @see AvanteAnthropicProvider
+---@brief ]]
 local Utils = require("avante.utils")
 local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
@@ -17,7 +21,7 @@ local curl = require("plenary.curl")
 ---@field refresh_token string
 ---@field expires_at integer
 
----@class AvanteProviderFunctor
+---@class AvanteClaudeProviderFunctor
 local M = {}
 
 local claude_path = vim.fn.stdpath("data") .. "/avante/claude-auth.json"
@@ -264,7 +268,7 @@ end
 
 ---@param self AvanteProviderFunctor
 ---@param tool AvanteLLMTool
----@param use_prefix boolean Whether to prefix tool names (for OAuth)
+---@param use_prefix? boolean Whether to prefix tool names (for OAuth)
 ---@return AvanteClaudeTool
 function M:transform_tool(tool, use_prefix)
   local input_schema_properties, required = Utils.llm_tool_param_fields_to_json_schema(tool.param.fields)

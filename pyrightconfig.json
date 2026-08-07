@@ -5,7 +5,10 @@
   "exclude": [
     "**/node_modules",
     "**/__pycache__",
-    "**/.*"
+    "**/.*",
+    "**/build",
+    "**/dist",
+    "target"
   ],
   "defineConstant": {
     "DEBUG": true

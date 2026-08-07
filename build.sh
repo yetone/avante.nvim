@@ -2,10 +2,10 @@
 
 set -e
 
-REPO_REMOTE="${1:-origin}"
-remote_url=$(git config --get remote.${REPO_REMOTE}.url 2>/dev/null || true)
-if [[ "$remote_url" == *"github.com"* ]]; then
-  tmp="${remote_url#*github.com[:/]}"
+REMOTE_URL="${1:-https://github.com/yetone/avante.nvim.git}"
+
+if [[ "$REMOTE_URL" == *"github.com"* ]]; then
+  tmp="${REMOTE_URL#*github.com[:/]}"
   tmp="${tmp%.git}"
   REPO_OWNER="${tmp%/*}"
   REPO_NAME="${tmp#*/}"
@@ -70,9 +70,9 @@ test_command() {
 }
 
 fetch_remote_tags() {
-  git ls-remote --tags "$REPO_REMOTE" | cut -f2 | sed 's|refs/tags/||' | while read -r tag; do
+  git ls-remote --tags "$REMOTE_URL" | cut -f2 | sed 's|refs/tags/||' | while read -r tag; do
     if ! git rev-parse "$tag" >/dev/null 2>&1; then
-      git fetch "$REPO_REMOTE" "refs/tags/$tag:refs/tags/$tag"
+      git fetch "$REMOTE_URL" "refs/tags/$tag:refs/tags/$tag"
     fi
   done
 }

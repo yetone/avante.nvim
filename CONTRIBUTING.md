@@ -7,6 +7,14 @@ Contributions to avante.nvim are welcome! If you're interested in helping out, p
 ## With nix
 
 Running `nix develop` will give you a shell with all dependencies.
+You can build the rag service with `nix build .#ragService` or install it
+declaratively with uv via:
+
+```
+uv venv --no-managed-python
+source .venv/bin/activate
+uv pip install py/rag-service
+```
 
 ## Other systems
 

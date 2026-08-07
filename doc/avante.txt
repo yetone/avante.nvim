@@ -59,6 +59,29 @@ avante.nvim                                                        *avante-nvim*
    export BEDROCK_KEYS=aws_access_key_id,aws_secret_access_key,aws_region[,aws_session_token]
 <
 
+ The `aws_session_token` is optional and only needed for temporary AWS
+ credentials. If `BEDROCK_KEYS` is not set, Bedrock falls back to the AWS
+ default credentials chain (env vars, `~/.aws/credentials`, IAM role, SSO,
+ etc.), in which case set `aws_region` and optionally `aws_profile` in the
+ bedrock provider config.
+
+ Or a Bedrock API key / bearer token: export `AWS_BEARER_TOKEN_BEDROCK`
+ (or set `BEDROCK_KEYS` to the token value without any commas). In this
+ mode `aws_region` must be set in the bedrock provider config, e.g.:
+>
+   export AWS_BEARER_TOKEN_BEDROCK=your-bedrock-api-key
+
+   require("avante").setup({
+     providers = {
+       bedrock = {
+         model = "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+         aws_region = "us-east-1",
+       },
+     },
+   })
+<
+ See https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html.
+
  Claude Pro/Max subscription~
 
  Set the Claude provider `auth_type` to `"max"`:
@@ -135,6 +158,8 @@ avante tools ·································�
 avante custom prompts ········································· |avante-prompts|
 avante utilities ················································ |avante-utils|
 avante ACP ························································ |avante-acp|
+avante claude ········································ |avante-providers-claude|
+Converts html to markdown ····································· |avante-html2md|
 
 Avante                                                                  *Avante*
 
@@ -480,6 +505,23 @@ avante.Config.PromptLogger                          *avante.Config.PromptLogger*
         {prev_prompt?}  (avante.Config.PromptLoggerKeymap)  Mapping used to load the previous older prompt log.
 
 
+avante.Config.RagServiceModel                    *avante.Config.RagServiceModel*
+
+    Fields: ~
+        {provider}  (string)  Model provider. One available in py/rag-service/src/providers ie., "ollama", "openai", "dashscope", "openrouter"
+        {endpoint}  (string)  Model API endpoint (e.g., http://localhost)
+        {api_key}   (string)  Environment variable name for the model API key.
+        {model}     (string)  Model name
+        {extra?}    (table)   Additional model provider options.
+
+
+avante.Config.RagService                              *avante.Config.RagService*
+
+    Fields: ~
+        {enabled}     (boolean)  Enable the RAG service.
+        {host_mount}  (string)
+
+
 avante.CoreConfig : avante.Config                            *avante.CoreConfig*
 
 
@@ -527,8 +569,9 @@ avante.Config                                                    *avante.Config*
                                                                      })
                                                                     <
         {rules}                       (table)
-        {behaviour}                   (avante.Config.Behaviour)     Behaviour and automation options.
+        {rag_service}                 (avante.Config.RagService)    RAG service configuration.
 
+        {behaviour}                   (avante.Config.Behaviour)     Behaviour and automation options.
         {prompt_logger}               (avante.Config.PromptLogger)  Prompt logging options.
         {windows}                     (table)
         {slash_commands}              (AvanteSlashCommand[])        see |*avante-slashcommands*|
@@ -785,7 +828,10 @@ avante sidebar                                                  *avante-sidebar*
 avante.Sidebar                                                  *avante.Sidebar*
 
     Fields: ~
-        {id}                         (integer)
+        {id}                         (integer)                                                                                               This is avante's main view, a vertical column of several windows, most of the time:
+                                                                                                                                             1. the result
+                                                                                                                                             2. selected code
+                                                                                                                                             3. user input
         {augroup}                    (integer)
         {code}                       (avante.CodeState)
         {containers}                 ({result?:NuiSplit,todos?:NuiSplit,selected_code?:NuiSplit,selected_files?:NuiSplit,input?:NuiSplit})
@@ -983,9 +1029,12 @@ Sidebar:apply({current_cursor})                           *avante-sidebar:apply*
 
 
 Sidebar:render_header()                           *avante-sidebar:render_header*
+    When include_model is set, in ACP mode, model will be rendered as "model | mode"
+    else it will be set as
 
 
 Sidebar:render_result()                           *avante-sidebar:render_result*
+     @see render_header
 
 
 Sidebar:render_input({ask?})                       *avante-sidebar:render_input*
@@ -1474,6 +1523,10 @@ avante RAG service                                          *avante-rag-service*
 >
    docker rm -fv avante-rag-service
 <
+Communication port is hardcoded to localhost:20250
+
+M.run_rag_service()                         *avante-rag-service.run_rag_service*
+    @brief Starts the rag service if not already running
 
 
 M.get_rag_service_image()             *avante-rag-service.get_rag_service_image*
@@ -1516,6 +1569,10 @@ M.to_local_uri()                               *avante-rag-service.to_local_uri*
 
 
 M.is_ready()                                       *avante-rag-service.is_ready*
+    Checks http code when contacting server's /api/health
+
+    Returns: ~
+        (boolean)
 
 
 AvanteRagServiceAddResourceResponse        *AvanteRagServiceAddResourceResponse*
@@ -3162,6 +3219,237 @@ ACPClient:send_text_prompt({session_id}, {text}, {callback})
         {session_id}  (string)
         {text}        (string)
         {callback}    (fun(result:table|nil,err:avante.acp.ACPError|nil))
+
+
+AvanteProviderFunctor                                    *AvanteProviderFunctor*
+
+
+M:is_disable_stream()                                      *M:is_disable_stream*
+
+
+M:transform_tool({tool})                                      *M:transform_tool*
+
+    Parameters: ~
+        {tool}  (AvanteLLMTool)
+
+    Returns: ~
+        (AvanteOpenAITool)
+
+
+M.is_openrouter()                                              *M.is_openrouter*
+    Check if url belongs to openrouter
+
+    Returns: ~
+        (boolean)
+
+
+M.is_mistral()                                                    *M.is_mistral*
+    Check if url belongs to mistral
+
+    Returns: ~
+        (boolean)
+
+
+M:list_models()                                                  *M:list_models*
+    Asking remote provider to list available models
+
+    Returns: ~
+        (AvanteProviderModelList)
+
+
+M.get_user_message({opts})                                  *M.get_user_message*
+
+    Parameters: ~
+        {opts}  (AvantePromptOptions)
+
+
+M.is_reasoning_model()                                    *M.is_reasoning_model*
+
+
+M.set_allowed_params()                                    *M.set_allowed_params*
+
+
+M:parse_messages()                                            *M:parse_messages*
+
+
+M:finish_pending_messages()                          *M:finish_pending_messages*
+
+
+M:add_text_message()                                        *M:add_text_message*
+
+
+M:add_thinking_message()                                *M:add_thinking_message*
+
+
+M:add_tool_use_message()                                *M:add_tool_use_message*
+
+
+M:add_reasoning_message()                              *M:add_reasoning_message*
+
+
+M.transform_openai_usage({usage})                     *M.transform_openai_usage*
+
+    Parameters: ~
+        {usage}  (avante.OpenAITokenUsage|nil)
+
+    Returns: ~
+        (avante.LLMTokenUsage|nil)
+
+
+M:parse_response()                                            *M:parse_response*
+     Parse response
+     Updates status
+
+
+M:parse_response_without_stream()              *M:parse_response_without_stream*
+
+
+M:parse_curl_args({prompt_opts})                             *M:parse_curl_args*
+
+    Parameters: ~
+        {prompt_opts}  (AvantePromptOptions)
+
+    Returns: ~
+        (AvanteCurlOutput|nil)
+
+
+==============================================================================
+avante claude                                          *avante-providers-claude*
+
+ Avante supports both the 'api' and 'max' authentications @see AvanteAnthropicProvider
+
+AvanteAnthropicProvider : AvanteDefaultBaseProvider    *AvanteAnthropicProvider*
+
+    Fields: ~
+        {auth_type}  ()
+
+
+ClaudeAuthToken                                                *ClaudeAuthToken*
+
+    Fields: ~
+        {access_token}   (string)
+        {refresh_token}  (string)
+        {expires_at}     (integer)
+
+
+AvanteClaudeProviderFunctor                        *AvanteClaudeProviderFunctor*
+
+
+                             *avante-providers-claude.setup_claude_file_watcher*
+M.setup_claude_file_watcher()
+
+
+M.setup()                                        *avante-providers-claude.setup*
+
+
+M.setup_claude_timer()              *avante-providers-claude.setup_claude_timer*
+
+
+                             *avante-providers-claude:get_rate_limit_sleep_time*
+M:get_rate_limit_sleep_time({headers})
+
+    Parameters: ~
+        {headers}  (table<string,string>)
+
+    Returns: ~
+        (integer|nil)
+
+
+                            *avante-providers-claude.is_temperature_unsupported*
+M.is_temperature_unsupported({model})
+
+    Parameters: ~
+        {model}  (string|nil)
+
+    Returns: ~
+        (boolean)
+
+
+                                        *avante-providers-claude:transform_tool*
+M:transform_tool({self}, {tool}, {use_prefix?})
+
+    Parameters: ~
+        {self}         (AvanteProviderFunctor)
+        {tool}         (AvanteLLMTool)
+        {use_prefix?}  (boolean)                Whether to prefix tool names (for OAuth)
+
+    Returns: ~
+        (AvanteClaudeTool)
+
+
+M:is_disable_stream()                *avante-providers-claude:is_disable_stream*
+
+
+M:parse_messages()                      *avante-providers-claude:parse_messages*
+
+    Returns: ~
+        (AvanteClaudeMessage[])
+
+
+                             *avante-providers-claude.transform_anthropic_usage*
+M.transform_anthropic_usage({usage})
+
+    Parameters: ~
+        {usage}  (avante.AnthropicTokenUsage|nil)
+
+    Returns: ~
+        (avante.LLMTokenUsage|nil)
+
+
+M:parse_response()                      *avante-providers-claude:parse_response*
+
+
+M:parse_curl_args({prompt_opts})       *avante-providers-claude:parse_curl_args*
+
+    Parameters: ~
+        {prompt_opts}  (AvantePromptOptions)
+
+    Returns: ~
+        (AvanteCurlOutput|nil)
+
+
+M.on_error()                                  *avante-providers-claude.on_error*
+
+
+M.authenticate()                          *avante-providers-claude.authenticate*
+
+
+M.refresh_token({async}, {force})        *avante-providers-claude.refresh_token*
+     Function to refresh an expired claude auth token
+
+    Parameters: ~
+        {async}  (boolean)  whether to refresh the token asynchronously
+        {force}  (boolean)  whether to force the refresh
+
+
+M.store_tokens()                          *avante-providers-claude.store_tokens*
+
+
+M.cleanup_claude()                      *avante-providers-claude.cleanup_claude*
+
+
+==============================================================================
+Converts html to markdown                                       *avante-html2md*
+
+ Loads the rust library html2md.so which is a glorified wrapper over
+ https://gitlab.com/Kanedias/html2md to convert simple html documents into markdown flavor.
+
+AvanteHtml2Md                                                    *AvanteHtml2Md*
+
+    Fields: ~
+        {fetch_md}  (fun(url:string):string)
+
+
+M._init_html2md_lib()                         *avante-html2md._init_html2md_lib*
+
+    Returns: ~
+        (AvanteHtml2Md|nil)
+
+
+M.setup()                                                 *avante-html2md.setup*
+
+
+M.fetch_md()                                           *avante-html2md.fetch_md*
 
 
 vim:tw=78:ts=8:noet:ft=help:norl:

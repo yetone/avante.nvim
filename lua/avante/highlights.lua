@@ -2,8 +2,6 @@ local api = vim.api
 
 local Config = require("avante.config")
 local Utils = require("avante.utils")
-local bit = require("bit")
-local rshift, band = bit.rshift, bit.band
 
 local Highlights = {
   TITLE = { name = "AvanteTitle", fg = "#1e222a", bg = "#98c379" },
@@ -191,6 +189,8 @@ setmetatable(M, {
 ---@return {r: integer, g: integer, b: integer} with keys 'r', 'g', 'b' in [0,255]
 function H.decode_24bit_rgb(rgb_24bit)
   vim.validate("rgb_24bit", rgb_24bit, "number", true)
+  local bit = require("bit")
+  local rshift, band = bit.rshift, bit.band
   local r = band(rshift(rgb_24bit, 16), 255)
   local g = band(rshift(rgb_24bit, 8), 255)
   local b = band(rgb_24bit, 255)

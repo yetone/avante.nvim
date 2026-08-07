@@ -2,7 +2,7 @@ local P = require("avante.providers")
 local Utils = require("avante.utils")
 local Vertex = require("avante.providers.vertex")
 
----@class AvanteProviderFunctor
+---@class AvanteVertexClaudeProviderFunctor : AvanteProviderFunctor
 local M = {}
 
 M.role_map = {

@@ -6,7 +6,7 @@ local Utils = require("avante.utils")
 ---@class avante.Providers
 ---@field azure AvanteProviderFunctor
 ---@field bedrock AvanteBedrockProviderFunctor
----@field claude AvanteProviderFunctor
+---@field claude AvanteClaudeProviderFunctor
 ---@field cohere AvanteProviderFunctor
 ---@field copilot AvanteProviderFunctor
 ---@field gemini AvanteProviderFunctor
@@ -237,6 +237,8 @@ function M.refresh(provider_name)
     local p = M[Config.provider]
     E.setup({ provider = p, refresh = true })
   end
+  local sidebar = require("avante").get()
+  if sidebar and sidebar:is_open() then sidebar:render_result() end
   Utils.info("Switch to provider: " .. provider_name, { once = true, title = "Avante" })
 end
 

@@ -251,7 +251,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field endpoint string Endpoint (e.g. "https://api.mistral.ai/v1")
 ---@field extra_request_body? table<string, any>
 ---@field model? string
----@field model_names? string[]
+---@field model_names? string[] a list of model to choose from
 ---@field local? boolean
 ---@field proxy? string
 ---@field keep_alive? string
@@ -347,6 +347,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field parse_api_key? fun(): string | nil
 ---
 ---@class AvanteProviderFunctor
+---  Implementation of a LLM provider
 ---@field _model_list_cache table
 ---@field extra_headers fun(table): table | table | nil
 ---@field support_prompt_caching boolean | nil
@@ -357,7 +358,7 @@ vim.g.avante_login = vim.g.avante_login
 ---@field is_disable_stream fun(self: AvanteProviderFunctor): boolean
 ---@field setup fun(): nil
 ---@field is_env_set fun(): boolean
----@field api_key_name string
+---@field api_key_name string Name of the environment variable
 ---@field tokenizer_id string | "gpt-4o"
 ---@field model? string
 ---@field context_window? integer
@@ -379,6 +380,10 @@ vim.g.avante_login = vim.g.avante_login
 ---@field parse_messages AvanteMessagesParser
 ---@field parse_response AvanteResponseParser
 ---@field build_bedrock_payload AvanteBedrockPayloadBuilder
+---
+---@class AvanteClaudeProviderFunctor: AvanteProviderFunctor
+---@field is_temperature_unsupported fun(string): boolean
+---@field transform_anthropic_usage any
 ---
 ---@class AvanteACPProvider
 ---@field command string

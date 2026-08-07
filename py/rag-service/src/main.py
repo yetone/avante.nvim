@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 # Standard library imports
+import argparse
 import asyncio
 import fcntl
 import json
+import logging
 import multiprocessing
 import os
 import re
@@ -22,7 +24,9 @@ from urllib.parse import urljoin, urlparse
 # Third-party imports
 import chromadb
 import httpx
+import llama_index.core as li
 import pathspec
+from chromadb.config import Settings
 from fastapi import BackgroundTasks, FastAPI, HTTPException
 
 # Local application imports
@@ -39,13 +43,12 @@ from libs.utils import (
     uri_to_path,
 )
 from llama_index.core import (
-    Settings,
     SimpleDirectoryReader,
     StorageContext,
     VectorStoreIndex,
     load_index_from_storage,
 )
-from llama_index.core.node_parser import CodeSplitter
+from llama_index.core.node_parser import CodeSplitter, SentenceSplitter
 from llama_index.core.postprocessor import MetadataReplacementPostProcessor
 from llama_index.core.schema import Document
 from llama_index.vector_stores.chroma import ChromaVectorStore
@@ -58,6 +61,91 @@ from services.resource import resource_service
 from tree_sitter_language_pack import SupportedLanguage, get_parser
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
+
+if TYPE_CHECKING:
+    from pathspec.gitignore import GitIgnoreSpec
+
+
+def parse_cli_settings() -> argparse.Namespace:
+    """Argument parser."""
+    # modules available in providers/ folder
+    available_providers = ["openai", "openai_like", "ollama", "dashscope", "openrouter"]
+
+    """Parse service settings from command-line arguments."""
+    parser = argparse.ArgumentParser(description="Run the Avante RAG service.")
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=int(os.environ.get("PORT", "20250")),
+        help="Port to listen on.",
+    )
+    parser.add_argument(
+        "--log-level",
+        type=str.upper,
+        choices=["CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG", "NOTSET"],
+        default=os.environ.get("RAG_LOG_LEVEL", "INFO").upper(),
+        help="Logging level.",
+    )
+    parser.add_argument(
+        "--embed-provider",
+        default=os.getenv("RAG_EMBED_PROVIDER", "openai"),
+        choices=available_providers,
+        help="Embedding provider.",
+    )
+    parser.add_argument(
+        "--embed-endpoint",
+        default=os.getenv("RAG_EMBED_ENDPOINT", "https://api.openai.com/v1"),
+        help="Embedding API endpoint.",
+    )
+    parser.add_argument(
+        "--embed-model",
+        default=os.getenv("RAG_EMBED_MODEL", "text-embedding-3-large"),
+        help="Embedding model name.",
+    )
+    parser.add_argument(
+        "--embed-api-key",
+        default=os.getenv("RAG_EMBED_API_KEY"),
+        help="Embedding API key.",
+    )
+    parser.add_argument(
+        "--embed-extra",
+        default=os.getenv("RAG_EMBED_EXTRA"),
+        help="JSON object with extra embedding model settings.",
+    )
+    parser.add_argument(
+        "--llm-provider",
+        default=os.getenv("RAG_LLM_PROVIDER", "openai"),
+        help="LLM provider.",
+    )
+    parser.add_argument(
+        "--llm-endpoint",
+        default=os.getenv("RAG_LLM_ENDPOINT", "https://api.openai.com/v1"),
+        help="LLM API endpoint. (e.g., http://localhost:8080/v1)",
+    )
+    parser.add_argument(
+        "--llm-model",
+        default=os.getenv("RAG_LLM_MODEL", "gpt-4o-mini"),
+        help="LLM model name.",
+    )
+    parser.add_argument(
+        "--llm-api-key",
+        default=os.getenv("RAG_LLM_API_KEY"),
+        help="LLM API key.",
+    )
+    parser.add_argument(
+        "--llm-extra",
+        default=os.getenv("RAG_LLM_EXTRA"),
+        help="JSON object with extra LLM settings.",
+    )
+    settings, _ = parser.parse_known_args()
+    return settings
+
+
+cli_settings = parse_cli_settings()
+
+
+logging.getLogger().setLevel(cli_settings.log_level)
+logger.setLevel(cli_settings.log_level)
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator
@@ -176,6 +264,7 @@ BATCH_PROCESSING_DELAY = 1
 # number of cpu cores to use for parallel processing
 MAX_WORKERS = multiprocessing.cpu_count()
 BATCH_SIZE = 40  # Number of documents to process per batch
+DEFAULT_MAX_EMBEDDING_TOKENS = 512
 
 logger.info("data dir: %s", BASE_DATA_DIR.resolve())
 
@@ -289,7 +378,7 @@ def fetch_markdown(url: str) -> str:
     try:
         logger.info("Fetching markdown content from %s", url)
         response = httpx.get(url, headers=http_headers)
-        if response.status_code == httpx.codes.OK:
+        if response.status_code == int(httpx.codes.OK):
             return md(response.text)
         return ""
     except (OSError, ValueError, RuntimeError) as e:
@@ -321,53 +410,85 @@ def markdown_to_links(base_url: str, markdown: str) -> list[str]:
 init_db()
 
 # Initialize ChromaDB and LlamaIndex services
-chroma_client = chromadb.PersistentClient(path=str(CHROMA_PERSIST_DIR))
+settings = Settings(
+    allow_reset=True,
+)
+chroma_client = chromadb.PersistentClient(path=str(CHROMA_PERSIST_DIR), settings=settings)
 
 # # Check if provider or model has changed
-rag_embed_provider = os.getenv("RAG_EMBED_PROVIDER", "openai")
-rag_embed_endpoint = os.getenv("RAG_EMBED_ENDPOINT", "https://api.openai.com/v1")
-rag_embed_model = os.getenv("RAG_EMBED_MODEL", "text-embedding-3-large")
-rag_embed_api_key = os.getenv("RAG_EMBED_API_KEY", None)
-rag_embed_extra = os.getenv("RAG_EMBED_EXTRA", None)
+rag_embed_provider = cli_settings.embed_provider
+rag_embed_endpoint = cli_settings.embed_endpoint
+rag_embed_model = cli_settings.embed_model
+rag_embed_api_key = cli_settings.embed_api_key
+rag_embed_extra = cli_settings.embed_extra
+rag_llm_extra = cli_settings.llm_extra
+try:
+    embed_extra = json.loads(rag_embed_extra) if rag_embed_extra is not None else {}
+except json.JSONDecodeError:
+    logger.error("Failed to decode --embed-extra, defaulting to empty dict.")
+    embed_extra = {}
 
-rag_llm_provider = os.getenv("RAG_LLM_PROVIDER", "openai")
-rag_llm_endpoint = os.getenv("RAG_LLM_ENDPOINT", "https://api.openai.com/v1")
-rag_llm_model = os.getenv("RAG_LLM_MODEL", "gpt-4o-mini")
-rag_llm_api_key = os.getenv("RAG_LLM_API_KEY", None)
-rag_llm_extra = os.getenv("RAG_LLM_EXTRA", None)
+
+def parse_positive_int(value: str, default: int, setting_name: str) -> int:
+    """Parse a positive integer setting, falling back to the provided default."""
+    try:
+        parsed_value = int(value)
+    except (TypeError, ValueError):
+        logger.warning("Invalid %s=%r, defaulting to %d", setting_name, value, default)
+        return default
+
+    if parsed_value <= 0:
+        logger.warning("Invalid %s=%r, defaulting to %d", setting_name, value, default)
+        return default
+
+    return parsed_value
+
+
+max_embedding_tokens = parse_positive_int(
+    embed_extra.pop("max_embedding_tokens", DEFAULT_MAX_EMBEDDING_TOKENS),
+    DEFAULT_MAX_EMBEDDING_TOKENS,
+    "embed.extra.max_embedding_tokens",
+)
+max_embedding_token_overlap = min(50, max_embedding_tokens // 5)
+embedding_splitter = SentenceSplitter(
+    chunk_size=max_embedding_tokens,
+    chunk_overlap=max_embedding_token_overlap,
+)
+logger.info("Embedding chunks limited to %d tokens", max_embedding_tokens)
 
 # Try to read previous config
 config_file = BASE_DATA_DIR / "rag_config.json"
+current_config = {
+    "provider": rag_embed_provider,
+    "embed_model": rag_embed_model,
+    "max_embedding_tokens": max_embedding_tokens,
+}
 if config_file.exists():
+    logger.info("Opening config file %s", config_file)
     with Path.open(config_file, "r") as f:
         prev_config = json.load(f)
-        if prev_config.get("provider") != rag_embed_provider or prev_config.get("embed_model") != rag_embed_model:
+        if prev_config != current_config:
             # Clear existing data if config changed
             logger.info("Detected config change, clearing existing data...")
             chroma_client.reset()
 
 # Save current config
 with Path.open(config_file, "w") as f:
-    json.dump({"provider": rag_embed_provider, "embed_model": rag_embed_model}, f)
+    json.dump(current_config, f)
 
 chroma_collection = chroma_client.get_or_create_collection("documents")  # pyright: ignore
 vector_store = ChromaVectorStore(chroma_collection=chroma_collection)
 storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
 try:
-    embed_extra = json.loads(rag_embed_extra) if rag_embed_extra is not None else {}
-except json.JSONDecodeError:
-    logger.error("Failed to decode RAG_EMBED_EXTRA, defaulting to empty dict.")
-    embed_extra = {}
-
-try:
     llm_extra = json.loads(rag_llm_extra) if rag_llm_extra is not None else {}
 except json.JSONDecodeError:
-    logger.error("Failed to decode RAG_LLM_EXTRA, defaulting to empty dict.")
+    logger.error("Failed to decode --llm-extra, defaulting to empty dict.")
     llm_extra = {}
 
 # Initialize embedding model and LLM based on provider using the factory
 try:
+    logger.debug("Initializing embedding model %s at endpoint %s", rag_embed_model, rag_embed_endpoint)
     embed_model = initialize_embed_model(
         embed_provider=rag_embed_provider,
         embed_model=rag_embed_model,
@@ -383,11 +504,11 @@ except (ValueError, RuntimeError) as e:
 
 try:
     llm_model = initialize_llm_model(
-        llm_provider=rag_llm_provider,
-        llm_model=rag_llm_model,
-        llm_endpoint=rag_llm_endpoint,
-        llm_api_key=rag_llm_api_key,
-        llm_extra=llm_extra,
+        llm_provider=cli_settings.llm_provider,
+        llm_model=cli_settings.llm_model,
+        llm_endpoint=cli_settings.llm_endpoint,
+        llm_api_key=cli_settings.llm_api_key,
+        llm_extra=cli_settings.llm_extra,
     )
     logger.info("LLM model initialized successfully.")
 except (ValueError, RuntimeError) as e:
@@ -396,8 +517,8 @@ except (ValueError, RuntimeError) as e:
     raise RuntimeError(error_msg) from e
 
 
-Settings.embed_model = embed_model
-Settings.llm = llm_model
+li.Settings.embed_model = embed_model
+li.Settings.llm = llm_model
 
 
 try:
@@ -692,11 +813,12 @@ def get_gitcrypt_files(directory: Path) -> list[str]:
     return git_crypt_patterns
 
 
-def get_pathspec(directory: Path) -> pathspec.PathSpec | None:
+def get_pathspec(directory: Path) -> GitIgnoreSpec:
     """Get pathspec for the directory."""
     # Collect patterns from both sources
     patterns = get_gitignore_files(directory)
     patterns.extend(get_gitcrypt_files(directory))
+    patterns.extend([".jj"])
 
     return pathspec.GitIgnoreSpec.from_lines(patterns)
 
@@ -848,18 +970,48 @@ def update_index_for_file(directory: Path, abs_file_path: Path) -> None:
         logger.error("File indexing failed: %s", abs_file_path)
 
 
-def split_documents(documents: list[Document]) -> list[Document]:
+def split_documents(documents: list[Document]) -> list[Document]:  # noqa: C901
     """Split documents into code and non-code documents."""
     # Create file parser configuration
     # Initialize CodeSplitter
     # Split code documents using CodeSplitter
     processed_documents = []
+
+    def append_embedding_sized_documents(doc: Document, base_metadata: dict[str, object] | None = None) -> None:
+        """Split a document into chunks that fit the embedding model input limit."""
+        text = doc.get_content()
+        chunks = embedding_splitter.split_text(text)
+        metadata = {**doc.metadata, **(base_metadata or {})}
+        uri = get_node_uri(doc)
+        if uri:
+            metadata["uri"] = uri
+
+        for i, chunk in enumerate(chunks):
+            chunk_metadata = metadata
+            chunk_doc_id = doc.doc_id
+            if len(chunks) > 1:
+                chunk_metadata = {
+                    **metadata,
+                    "embedding_chunk_number": i,
+                    "embedding_total_chunks": len(chunks),
+                    "embedding_max_tokens": max_embedding_tokens,
+                }
+                chunk_doc_id = f"{doc.doc_id}__embedding_part_{i}"
+
+            processed_documents.append(
+                Document(
+                    text=chunk,
+                    doc_id=chunk_doc_id,
+                    metadata=chunk_metadata,
+                ),
+            )
+
     for doc in documents:
         uri = get_node_uri(doc)
         if not uri:
             continue
         if not is_path_node(doc):
-            processed_documents.append(doc)
+            append_embedding_sized_documents(doc)
             continue
         file_path = uri_to_path(uri)
         file_ext = file_path.suffix.lower()
@@ -898,11 +1050,9 @@ def split_documents(documents: list[Document]) -> list[Document]:
                         "orig_doc_id": doc.doc_id,
                     },
                 )
-                processed_documents.append(new_doc)
+                append_embedding_sized_documents(new_doc)
         else:
-            doc.metadata["orig_doc_id"] = doc.doc_id
-            # Add non-code files directly
-            processed_documents.append(doc)
+            append_embedding_sized_documents(doc, {"orig_doc_id": doc.doc_id})
     return processed_documents
 
 
@@ -941,9 +1091,11 @@ async def index_remote_resource_async(resource: Resource) -> None:
         logger.debug("Found %d documents", len(documents))
         logger.debug("Document list: %s", [doc.doc_id for doc in documents])
 
+        processed_documents = split_documents(documents)
+
         # Process documents in batches
-        total_documents = len(documents)
-        batches = [documents[i : i + BATCH_SIZE] for i in range(0, total_documents, BATCH_SIZE)]
+        total_documents = len(processed_documents)
+        batches = [processed_documents[i : i + BATCH_SIZE] for i in range(0, total_documents, BATCH_SIZE)]
         logger.debug("Splitting documents into %d batches for processing", len(batches))
 
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
@@ -1037,6 +1189,7 @@ async def readiness_probe() -> dict[str, str]:
     },
 )
 async def add_resource(request: ResourceRequest, background_tasks: BackgroundTasks):  # noqa: D103, ANN201, C901
+    logger.debug("add_resource %s", request.uri)
     # Check if resource already exists
     resource = resource_service.get_resource(request.uri)
     if resource and resource.status == "active":
@@ -1407,3 +1560,14 @@ async def list_resources() -> ResourceListResponse:
 async def health_check() -> dict[str, str]:
     """Health check endpoint."""
     return {"status": "ok"}
+
+
+def main() -> None:
+    """Run the RAG service from the console script."""
+    import uvicorn
+
+    uvicorn.run("main:app", host="0.0.0.0", port=cli_settings.port, workers=3)  # noqa: S104
+
+
+if __name__ == "__main__":
+    main()
