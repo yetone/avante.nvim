@@ -196,7 +196,6 @@ For building binary if you wish to build from source, then `cargo` is required. 
     "nvim-telescope/telescope.nvim", -- for file_selector provider telescope
     "hrsh7th/nvim-cmp", -- autocompletion for avante commands and mentions
     "ibhagwan/fzf-lua", -- for file_selector provider fzf
-    "stevearc/dressing.nvim", -- for input provider dressing
     "folke/snacks.nvim", -- for input provider snacks
     "nvim-tree/nvim-web-devicons", -- or echasnovski/mini.icons
     "zbirenbaum/copilot.lua", -- for providers='copilot'
@@ -306,7 +305,6 @@ Plug 'hrsh7th/nvim-cmp'
 Plug 'nvim-tree/nvim-web-devicons' "or Plug 'echasnovski/mini.icons'
 Plug 'HakonHarnes/img-clip.nvim'
 Plug 'zbirenbaum/copilot.lua'
-Plug 'stevearc/dressing.nvim' " for enhanced input UI
 Plug 'folke/snacks.nvim' " for modern input UI
 
 " Yay, pass source=true if you want to build from source
@@ -371,7 +369,6 @@ end)
   use 'nvim-tree/nvim-web-devicons' -- or use 'echasnovski/mini.icons'
   use 'HakonHarnes/img-clip.nvim'
   use 'zbirenbaum/copilot.lua'
-  use 'stevearc/dressing.nvim' -- for enhanced input UI
   use 'folke/snacks.nvim' -- for modern input UI
 
   -- Avante.nvim with build process
@@ -441,7 +438,7 @@ require('render-markdown').setup ({
 require('avante').setup({
   -- Example: Using snacks.nvim as input provider
   input = {
-    provider = "snacks", -- "native" | "dressing" | "snacks"
+    provider = "snacks", -- "native" | "snacks"
     provider_opts = {
       -- Snacks input configuration
       title = "Avante Input",
@@ -731,29 +728,6 @@ Avante.nvim supports multiple input providers for user input (like API key entry
     provider_opts = {},
   }
 }
-```
-
-</details>
-
-<details>
-  <summary>Dressing.nvim Input Provider</summary>
-
-For enhanced input UI with better styling and features:
-
-```lua
-{
-  input = {
-    provider = "dressing",
-    provider_opts = {},
-  }
-}
-```
-
-You'll need to install dressing.nvim:
-
-```lua
--- With lazy.nvim
-{ "stevearc/dressing.nvim" }
 ```
 
 </details>
