@@ -445,6 +445,7 @@ function M:add_text_message(ctx, text, state, opts)
   end
   local cleaned_xml_content = table.concat(cleaned_xml_lines, "\n")
   local xml = ReActParser.parse(cleaned_xml_content)
+  local stop_streaming_tool_use = nil
   if xml and #xml > 0 then
     local new_content_list = {}
     local xml_md_openned = false
@@ -512,13 +513,17 @@ function M:add_text_message(ctx, text, state, opts)
             state = "generating",
           }
         end
-        opts.on_stop({ reason = "tool_use", streaming_tool_use = item.partial })
+        -- Collect the stop event and emit it only after on_messages_add so that
+        -- the stop handler observes the tool_use messages already in history.
+        -- Otherwise completed tools are still seen as "generating" and never execute.
+        if stop_streaming_tool_use == nil or item.partial then stop_streaming_tool_use = item.partial end
       end
       ::continue::
     end
     msg.message.content = table.concat(new_content_list, "\n"):gsub("\n+$", "\n")
   end
   if opts.on_messages_add then opts.on_messages_add(msgs) end
+  if stop_streaming_tool_use ~= nil then opts.on_stop({ reason = "tool_use", streaming_tool_use = stop_streaming_tool_use }) end
 end
 
 function M:add_thinking_message(ctx, text, state, opts)

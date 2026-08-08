@@ -13,6 +13,38 @@ local JsonParser = require("avante.libs.jsonparser")
 
 local M = {}
 
+-- Some models (e.g. qwen2.5-coder) emit tool calls as fenced JSON blocks
+-- (```json {"name": ..., "input": ...} ```) instead of <tool_use> XML.
+-- Rewrite such blocks into the <tool_use> format the parser understands.
+local function wrap_fenced_json(text)
+  local out = {}
+  local pos = 1
+  while true do
+    local fence_start = text:find("```json", pos, true)
+    if not fence_start then
+      out[#out + 1] = text:sub(pos)
+      break
+    end
+    out[#out + 1] = text:sub(pos, fence_start - 1)
+    local json_start = fence_start + 7
+    local fence_end = text:find("```", json_start, true)
+    if not fence_end then
+      -- Unclosed fence: treat the remainder as a partial tool_use
+      out[#out + 1] = "<tool_use>" .. text:sub(json_start)
+      break
+    end
+    local json_text = text:sub(json_start, fence_end - 1)
+    local ok, jsn = pcall(vim.json.decode, json_text)
+    if ok and type(jsn) == "table" and jsn.name then
+      out[#out + 1] = "<tool_use>" .. json_text .. "</tool_use>"
+    else
+      out[#out + 1] = text:sub(fence_start, fence_end + 2)
+    end
+    pos = fence_end + 3
+  end
+  return table.concat(out)
+end
+
 --- Parse the text into a list of TextContent and ToolUseContent
 --- The text is a string.
 --- For example:
@@ -159,6 +191,7 @@ local M = {}
 ---@param text string
 ---@return (avante.TextContent|avante.ToolUseContent)[]
 function M.parse(text)
+  text = wrap_fenced_json(text)
   local result = {}
   local pos = 1
   local len = #text
