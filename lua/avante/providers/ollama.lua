@@ -174,7 +174,8 @@ function M:add_tool_use_messages(ctx, tool_calls, opts)
       local id
       if tool_use then
         id = tool_use.id
-        tool_use.input_json = type(func.arguments) == "string" and func.arguments or vim.json.encode(func.arguments or {})
+        tool_use.input_json = type(func.arguments) == "string" and func.arguments
+          or vim.json.encode(func.arguments or {})
       else
         id = Utils.uuid()
         ctx.tool_use_map = ctx.tool_use_map or {}

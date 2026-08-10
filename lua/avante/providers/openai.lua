@@ -523,7 +523,9 @@ function M:add_text_message(ctx, text, state, opts)
     msg.message.content = table.concat(new_content_list, "\n"):gsub("\n+$", "\n")
   end
   if opts.on_messages_add then opts.on_messages_add(msgs) end
-  if stop_streaming_tool_use ~= nil then opts.on_stop({ reason = "tool_use", streaming_tool_use = stop_streaming_tool_use }) end
+  if stop_streaming_tool_use ~= nil then
+    opts.on_stop({ reason = "tool_use", streaming_tool_use = stop_streaming_tool_use })
+  end
 end
 
 function M:add_thinking_message(ctx, text, state, opts)

@@ -28,9 +28,7 @@ local function tool_use_messages(history)
 end
 
 describe("ollama provider", function()
-  before_each(function()
-    setup_config()
-  end)
+  before_each(function() setup_config() end)
 
   it("adds completed ReAct tool_use messages to history before firing the stop event", function()
     local history = {}
@@ -77,7 +75,12 @@ describe("ollama provider", function()
     }
     local ctx = { content = "", content_uuid = "uuid-2", turn_id = "turn-2" }
 
-    Providers.openai:add_text_message(ctx, '<tool_use>{"name":"str_replace","input":{"path":"src/ma', "generating", opts)
+    Providers.openai:add_text_message(
+      ctx,
+      '<tool_use>{"name":"str_replace","input":{"path":"src/ma',
+      "generating",
+      opts
+    )
 
     assert.are.same(1, #stop_events)
     assert.is_true(stop_events[1].streaming_tool_use)
@@ -101,11 +104,16 @@ describe("ollama provider", function()
     }
     local ctx = { content = "", content_uuid = "uuid-3", turn_id = "turn-3" }
 
-    Providers.openai:add_text_message(ctx, [[
+    Providers.openai:add_text_message(
+      ctx,
+      [[
 <tool_use>{"name":"glob","input":{"path":"src"}}</tool_use>
 <tool_use>{"name":"grep","input":{"pattern":"#","path":"src"}}</tool_use>
 <tool_use>{"name":"attempt_completion","input":{"result":"done"}}</tool_use>
-]], "generating", opts)
+]],
+      "generating",
+      opts
+    )
 
     assert.are.same(1, #stop_events)
     assert.is_false(stop_events[1].streaming_tool_use)
@@ -139,7 +147,9 @@ describe("ollama provider", function()
         role = "assistant",
         content = "",
         tool_calls = {
-          { ["function"] = { name = "str_replace", arguments = { path = "src/main.ts", old_str = "a", new_str = "b" } } },
+          {
+            ["function"] = { name = "str_replace", arguments = { path = "src/main.ts", old_str = "a", new_str = "b" } },
+          },
         },
       },
       done = false,
