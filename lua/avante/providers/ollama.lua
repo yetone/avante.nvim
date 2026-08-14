@@ -159,12 +159,34 @@ function M:is_disable_stream() return false end
 
 ---@param tool_calls avante.OllamaToolCall[]
 ---@param opts AvanteHandlerOptions
-function M:add_tool_use_messages(tool_calls, opts)
+function M:add_tool_use_messages(ctx, tool_calls, opts)
   if opts.on_messages_add then
     local msgs = {}
-    for _, tool_call in ipairs(tool_calls) do
-      local id = Utils.uuid()
+    for index, tool_call in ipairs(tool_calls) do
       local func = tool_call["function"]
+      -- Ollama streams tool calls incrementally: the same call is repeated in
+      -- subsequent chunks with progressively complete arguments. Key the map
+      -- by the call position so later chunks update the same message instead
+      -- of adding duplicates, and so the arguments are complete by the time
+      -- the stream finishes.
+      local map_key = "ollama-native-" .. index
+      local tool_use = ctx.tool_use_map and ctx.tool_use_map[map_key]
+      local id
+      if tool_use then
+        id = tool_use.id
+        tool_use.input_json = type(func.arguments) == "string" and func.arguments
+          or vim.json.encode(func.arguments or {})
+      else
+        id = Utils.uuid()
+        ctx.tool_use_map = ctx.tool_use_map or {}
+        ctx.tool_use_map[map_key] = {
+          uuid = id,
+          id = id,
+          name = func.name,
+          input_json = type(func.arguments) == "string" and func.arguments or vim.json.encode(func.arguments or {}),
+          state = "generating",
+        }
+      end
       local msg = HistoryMessage:new("assistant", {
         type = "tool_use",
         name = func.name,
@@ -204,7 +226,7 @@ function M:parse_stream_data(ctx, data, opts)
     if jsn.message.tool_calls then
       ctx.has_tool_use = true
       local tool_calls = jsn.message.tool_calls
-      self:add_tool_use_messages(tool_calls, opts)
+      self:add_tool_use_messages(ctx, tool_calls, opts)
     end
   end
 
