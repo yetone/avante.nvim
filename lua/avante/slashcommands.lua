@@ -1,4 +1,4 @@
----@mod avante-slashcommands avante slash commands
+---@mod avante-slashcommands Slash commands
 ---@brief [[
 ---Built-in slash commands available in the Avante input buffer.
 ---

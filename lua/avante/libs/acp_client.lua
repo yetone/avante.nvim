@@ -1,17 +1,25 @@
----@mod avante-acp avante ACP
+---@mod avante-acp Agent Client Protocol support
 ---
 ---@brief [[
 ---
 ---Avante.nvim now supports the Agent Client Protocol (ACP) (https://agentclientprotocol.com/overview/introduction), enabling seamless integration with AI agents that follow this standardized communication protocol.
 ---
----What is ACP?~
+---What is ACP?
 ---
----The Agent Client Protocol (ACP) is a standardized protocol that enables AI agents to communicate with development tools and environments. It provides:
+---(ACP) is a standardized protocol that enables AI agents to communicate with development tools and environments. It provides:
 ---
 ---- **Standardized Communication**: A unified JSON-RPC based protocol for agent-client interactions
 ---- **Tool Integration**: Support for various development tools like file operations, code execution, and search
 ---- **Session Management**: Persistent sessions that maintain context across interactions
 ---- **Permission System**: Granular control over what agents can access and modify
+---
+--- Supported ACP agents include:
+---
+--- - Gemini CLI
+--- - Claude Code
+--- - Goose
+--- - Codex
+--- - Kimi CLI
 ---@brief ]]
 local Config = require("avante.config")
 local Utils = require("avante.utils")

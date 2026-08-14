@@ -1,16 +1,40 @@
----@mod avante-config avante configuration
+---@mod vim.g.avante Configuration via variable
+---
+---@brief [[
+---The recommended way to configure avante.nvim is to use the global variable
+---vim.g.avante . The setup() function still needs to be called.
+---<
+--- vim.g.avante = {
+---   log_level =  vim.log.levels.ERROR,
+---   -- Example: Using snacks.nvim as input provider
+---   input = {
+---     provider = "snacks", -- "native" | "dressing" | "snacks"
+---     provider_opts = {
+---       -- Snacks input configuration
+---       title = "Avante Input",
+---       icon = " ",
+---       placeholder = "Enter your API key...",
+---     },
+---   },
+---   -- Your other config here!
+--- })
+--->
+---@brief ]]
+---@see avante.Config
+---
+---@mod avante-config Configuration
 ---
 ---@brief [[
 ---
---- Recommended Neovim option:
+---Recommended Neovim option:
 ---
 --->lua
 ---   vim.opt.laststatus = 3
 ---<
 ---
---- Call `require("avante").setup()` from your Neovim configuration.
+---Call `require("avante").setup()` from your Neovim configuration.
 ---
---- Common options:
+---Common options:
 ---
 --->lua
 ---   require("avante").setup({
@@ -49,21 +73,11 @@
 ---   })
 ---<
 ---
---- For the full default configuration, see `lua/avante/config.lua`.
+---For the full default configuration, see `lua/avante/config.lua`.
 ---
---- Project instructions~
+---Input providers
 ---
---- By default Avante reads `avante.md` from the project root as
---- project-specific instructions. Change the filename with:
---->
----   require("avante").setup({
----     instructions_file = "avante.md",
----   })
----<
----
---- Input providers
----
---- Avante supports different interfaces that act as *vim.ui.input()*. See *avante.AvanteInput* for the supported options, here is :
+---Avante supports different interfaces that act as *vim.ui.input()*. See *avante.AvanteInput* for the supported options, here is :
 --->
 ---   require("avante").setup({
 ---     input = {
@@ -76,10 +90,10 @@
 ---   })
 ---<
 ---
---- Selector providers
+---Selector providers
 ---
---- Avante supports `native`, `fzf_lua`, `mini_pick`, `snacks`, `telescope`, or
---- a custom function:
+---Avante supports `native`, `fzf_lua`, `mini_pick`, `snacks`, `telescope`, or
+---a custom function:
 --->
 ---   require("avante").setup({
 ---     selector = {
@@ -89,43 +103,11 @@
 ---   })
 ---<
 ---
---- Providers~
 ---
---- Avante ships with default providers and supports custom providers.
+---Fast Apply
 ---
---- Common provider names include:
----
---- - `claude`
---- - `openai`
---- - `azure`
---- - `gemini`
---- - `vertex`
---- - `cohere`
---- - `copilot`
---- - `bedrock`
---- - `ollama`
---- - `watsonx_code_assistant`
---- - `mistral`
----
---- Ollama~
----
---- Ollama is disabled by default. Configure its endpoint check to enable it:
---->
----   require("avante").setup({
----     provider = "ollama",
----     providers = {
----       ollama = {
----         model = "qwq:32b",
----         is_env_set = require("avante.providers.ollama").check_endpoint_alive,
----       },
----     },
----   })
----<
----
---- Fast Apply~
----
---- Fast Apply uses a specialized apply model for faster code edits. Enable it
---- and configure Morph:
+---Fast Apply uses a specialized apply model for faster code edits. Enable it
+---and configure Morph:
 --->
 ---   require("avante").setup({
 ---     behaviour = {
@@ -139,23 +121,10 @@
 ---   })
 ---<
 ---
---- Set:
+---Set:
 --->
 ---   export MORPH_API_KEY="your-api-key"
 ---<
----
---- ACP Support~
----
---- Avante supports the Agent Client Protocol (ACP), allowing compatible coding
---- agents to interact with Neovim through a standardized protocol.
----
---- Supported ACP agents include:
----
---- - Gemini CLI
---- - Claude Code
---- - Goose
---- - Codex
---- - Kimi CLI
 ---
 --- Configure ACP providers with `acp_providers`:
 ---
@@ -182,30 +151,9 @@
 ---   })
 ---<
 ---
---- Select an ACP-backed provider with |:AvanteSwitchProvider|.
+---Select an ACP-backed provider with |:AvanteSwitchProvider|.
 ---
---- Web Search~
----
---- Avante tools can use web search engines. Configure the provider with:
---->
----   require("avante").setup({
----     web_search_engine = {
----       provider = "tavily",
----       proxy = nil,
----     },
----   })
----<
----
---- Supported providers and environment variables:
----
---- - Tavily: `TAVILY_API_KEY`
---- - SerpApi: `SERPAPI_API_KEY`
---- - Google: `GOOGLE_SEARCH_API_KEY` and `GOOGLE_SEARCH_ENGINE_ID`
---- - Kagi: `KAGI_API_KEY`
---- - Brave Search: `BRAVE_API_KEY`
---- - SearXNG: `SEARXNG_API_URL`
----
---- You can also set avante options via `vim.g.avante`.
+---You can also set avante options via `vim.g.avante`.
 ---
 ---@brief ]]
 
@@ -230,9 +178,10 @@
 ---@field format_response_body WebSearchEngineProviderResponseBodyFormatter Converts a provider response into text and an optional error.
 
 ---@class avante.Config.WebSearchEngine
+---Avante tools can use web search engines.
 ---@field provider avante.Config.WebSearchEngineProviderName Web search provider to use.
 ---@field proxy? string Proxy URL used for web search requests.
----@field providers table<string, avante.Config.WebSearchEngineProvider> Web search provider configurations.
+---@field providers table<string, avante.Config.WebSearchEngineProvider> Web search provider configurations. See |avante-web-search|
 
 ---@alias avante.InputProvider
 ---| '"native"'
@@ -247,7 +196,7 @@ local function copilot_use_response_api(opts)
   return type(model) == "string" and model:match("gpt%-%d+%.?%d*%-codex") ~= nil
 end
 
----@alias ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | "watsonx_code_assistant" | "mistral" | string
+---@alias avante.ProviderName "claude" | "openai" | "azure" | "gemini" | "vertex" | "cohere" | "copilot" | "bedrock" | "ollama" | "watsonx_code_assistant" | "mistral" | string
 
 ---@class avante.file_selector.IParams
 ---@field public title      string
@@ -303,7 +252,7 @@ end
 
 ---@class avante.Config.RagService
 ---@field enabled boolean Enable the RAG service.
----@field host_mount string Host path mounted read-only for the RAG service.
+---@field host_mount string? Host path mounted read-only for the RAG service.
 ---@field runner "docker"|"nix"|string Runner used to launch the RAG service.
 ---@field image? string Docker image used when runner is `docker`.
 ---@field llm avante.Config.RagServiceModel Language model configuration.
@@ -316,7 +265,6 @@ local M = {}
 --- Default configuration for project-specific instruction file
 M.instructions_file = "avante.md"
 
----@tag vim.g.avante
 ---@class avante.Config
 ---@field debug boolean
 --- will keep requests and responses on the filesystem. Check the logs to find their paths
@@ -341,9 +289,6 @@ M.instructions_file = "avante.md"
 ---@field providers {string: AvanteProvider}
 ---Agent Client Protocol providers.  |avante-acp|
 ---@field acp_providers {string: AvanteACPProvider}
----
----You can choose to disable tools by their names to in case you want to avoid its usage (like Claude 3.7 overusing the python tool)
----@field disabled_tools? string[]
 ---
 ---Default provider on startup. If undefined, avante loads the last provider used.
 ---@field provider? avante.ProviderName
@@ -373,6 +318,8 @@ M.instructions_file = "avante.md"
 ---@field behaviour avante.Config.Behaviour Behaviour and automation options.
 ---@field prompt_logger avante.Config.PromptLogger Prompt logging options.
 ---@field windows table
+---@field disabled_tools string[] You can choose to disable tools by their names in case you want to avoid its usage (like Claude 3.7 overusing the python tool). For example: `{ "python" }`
+---@field custom_tools AvanteSlashCommand[] see |*avante-custom-tools*|
 ---@field slash_commands AvanteSlashCommand[] see |*avante-slashcommands*|
 ---@field shortcuts AvanteShortcut[]  see |*avante-shortcuts*|
 ---@field ask_opts AskOptions
@@ -386,7 +333,7 @@ M._defaults = {
   --- - *legacy*: Uses the traditional planning method without automatic tool execution
   ---@type avante.Mode
   mode = "agentic",
-  ---@type ProviderName
+  ---@type avante.ProviderName
   provider = "claude",
   auto_suggestions_provider = nil,
   memory_summary_provider = nil,
@@ -1135,6 +1082,7 @@ M._defaults = {
     throttle = 600,
   },
   disabled_tools = {},
+
   ---@type AvanteLLMToolPublic[] | fun(): AvanteLLMToolPublic[]
   custom_tools = {},
   slash_commands = {},
@@ -1447,7 +1395,7 @@ function M.support_paste_image() return Utils.has("img-clip.nvim") or Utils.has(
 
 function M.get_window_width() return math.ceil(vim.o.columns * (M.windows.width / 100)) end
 
----get supported providers
+---Get supported providers
 ---@param provider_name avante.ProviderName
 function M.get_provider_config(provider_name)
   local found = false
