@@ -1,13 +1,13 @@
----@mod avante-sidebar avante sidebar
+---@mod avante-sidebar Sidebar
 ---@brief [[
 --- The 'sidebar' is made of several containers, each with its own 'Avante*' filetype that you can use to customize its behavior, e.g. "AvanteInput", "AvanteResult"...
 ---
---- Keymaps~
+--- Keymaps
 ---
 --- Default keymaps are installed when `behaviour.auto_set_keymaps` is enabled.
 --- If a mapping already exists, Avante leaves it to the user to configure.
 ---
---- Sidebar~
+--- Sidebar
 ---
 ---                                             *avante-sidebar-keymaps*
 --- `A`             Apply all
