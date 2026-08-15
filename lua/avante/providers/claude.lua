@@ -29,7 +29,6 @@ local HistoryMessage = require("avante.history.message")
 local JsonParser = require("avante.libs.jsonparser")
 local Config = require("avante.config")
 local Path = require("plenary.path")
-local pkce = require("avante.auth.pkce")
 local curl = require("plenary.curl")
 
 ---@class AvanteAnthropicProvider : AvanteDefaultBaseProvider
@@ -753,6 +752,7 @@ function M.on_error(result)
 end
 
 function M.authenticate()
+  local pkce = require("avante.auth.pkce")
   local verifier, verifier_err = pkce.generate_verifier()
   if not verifier then
     vim.schedule(
