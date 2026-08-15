@@ -126,7 +126,7 @@
 ---   export MORPH_API_KEY="your-api-key"
 ---<
 ---
---- Configure ACP providers with `acp_providers`:
+---Configure ACP providers with `acp_providers`:
 ---
 --->lua
 ---   require("avante").setup({
