@@ -20,7 +20,21 @@
 --- - Goose
 --- - Codex
 --- - Kimi CLI
+---Before using ACP agents, ensure you have the required tools installed:
+---
+---- **For Gemini CLI**: Install the `gemini` CLI tool and set your `GEMINI_API_KEY`
+---- **For Claude Code**: Install the `acp-claude-code` package via npm and set your `ANTHROPIC_API_KEY`
+---
+---ACP vs Traditional Providers
+---
+---ACP providers offer several advantages over traditional API-based providers:
+---
+---- **Enhanced Tool Access**: Agents can directly interact with your file system, run commands, and access development tools
+---- **Persistent Context**: Sessions maintain state across multiple interactions
+---- **Fine-grained Permissions**: Control exactly what agents can access and modify
+---- **Standardized Protocol**: Compatible with any ACP-compliant agent
 ---@brief ]]
+---@see avante-config
 local Config = require("avante.config")
 local Utils = require("avante.utils")
 
