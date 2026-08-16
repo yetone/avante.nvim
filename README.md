@@ -355,37 +355,6 @@ end)
 
 <details>
 
-  <summary><a href="https://github.com/wbthomason/packer.nvim">Packer</a></summary>
-
-```vim
-
-  -- Required plugins
-  use 'nvim-lua/plenary.nvim'
-  use 'MunifTanjim/nui.nvim'
-  use 'MeanderingProgrammer/render-markdown.nvim'
-
-  -- Optional dependencies
-  use 'hrsh7th/nvim-cmp'
-  use 'nvim-tree/nvim-web-devicons' -- or use 'echasnovski/mini.icons'
-  use 'HakonHarnes/img-clip.nvim'
-  use 'zbirenbaum/copilot.lua'
-  use 'folke/snacks.nvim' -- for modern input UI
-
-  -- Avante.nvim with build process
-  use {
-    'yetone/avante.nvim',
-    branch = 'main',
-    run = 'make',
-    config = function()
-      require('avante').setup()
-    end
-  }
-```
-
-</details>
-
-<details>
-
   <summary><a href="https://github.com/nix-community/home-manager">Home Manager</a></summary>
 
 ```nix
