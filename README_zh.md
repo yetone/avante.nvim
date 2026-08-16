@@ -1181,10 +1181,10 @@ avante.nvim 根据 Apache 2.0 许可证授权。有关更多详细信息，请�
 # Star 历史
 
 <p align="center">
-  <a target="_blank" href="https://star-history.com/#yetone/avante.nvim&Date">
+  <a target="_blank" href="https://star-history.dera.page/#yetone/avante.nvim&Date">
     <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=yetone/avante.nvim&type=Date&theme=dark">
-      <img alt="NebulaGraph Data Intelligence Suite(ngdi)" src="https://api.star-history.com/svg?repos=yetone/avante.nvim&type=Date">
+      <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=yetone/avante.nvim&type=Date&theme=dark">
+      <img alt="NebulaGraph Data Intelligence Suite(ngdi)" src="https://star-history.dera.page/svg?repos=yetone/avante.nvim&type=Date">
     </picture>
   </a>
 </p>
