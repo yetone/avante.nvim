@@ -126,7 +126,7 @@ luatest:
 # upgrade / pin CI actions
 .PHONY: upgrade-actions
 upgrade-actions:
-	ratchet upgrade ./.github/workflows/rust.yaml
+	ratchet upgrade ./.github/workflows/rust.yaml .github/actions/build/action.yaml
 
 .PHONY: lint
 lint: luacheck luastylecheck ruststylecheck rustlint
