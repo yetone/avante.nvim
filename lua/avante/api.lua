@@ -1,6 +1,5 @@
 local Config = require("avante.config")
 local Utils = require("avante.utils")
-local PromptInput = require("avante.ui.prompt_input")
 
 ---@class avante.ApiToggle
 ---@operator call(): boolean
@@ -172,6 +171,7 @@ function M.ask(opts)
   end
 
   if opts.floating == true or (Config.windows.ask.floating == true and not has_question and opts.floating == nil) then
+    local PromptInput = require("avante.ui.prompt_input")
     local prompt_input = PromptInput:new({
       submit_callback = function(input) ask(input) end,
       close_on_submit = true,
