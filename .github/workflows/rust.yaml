@@ -28,4 +28,4 @@ jobs:
           toolchain: stable
           components: clippy, rustfmt
       - name: Run rust tests
-        run: cargo test --features luajit
+        run: make rusttest
