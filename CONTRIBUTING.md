@@ -84,6 +84,11 @@ make luatest
 
 If the previous doesn't work you can check the Makefile targets and run the files in scripts/ with `--live` instead.
 
+# How to bump CI/CD actions
+
+Use [ratchet](https://github.com/sethvargo/ratchet) to upgrade and pin actions
+to specific commit. See the 'upgrade-actions' target in Makefile.
+
 # How to create a new release ? (maintainers-only)
 
 1. Create a branch `release-vX.X` if it doesn't exist yet

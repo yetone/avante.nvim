@@ -129,6 +129,11 @@ rusttest:
 luatest:
 	@./scripts/run-luatest.sh
 
+# upgrade / pin CI actions
+.PHONY: upgrade-actions
+upgrade-actions:
+	ratchet upgrade ./.github/workflows/rust.yaml
+
 .PHONY: lint
 lint: luacheck luastylecheck ruststylecheck rustlint
 
