@@ -146,20 +146,29 @@ end
 ---@param db_path string Absolute path to auth.db
 ---@return string|nil
 function H.read_token_from_authdb(db_path)
-  if vim.fn.executable("sqlite3") ~= 1 then
-    vim.notify_once(
-      "[avante.copilot] sqlite3 not found in PATH; cannot read auth.db.\n"
-        .. "Install sqlite3 or sign in with an older copilot.lua that writes hosts.json.",
-      vim.log.levels.WARN
-    )
-    return nil
+  -- Preferred: query via sqlite3 CLI
+  if vim.fn.executable("sqlite3") == 1 then
+    local query = "SELECT cast(token_ciphertext as text) FROM oauth_tokens LIMIT 1;"
+    local obj = vim.system({ "sqlite3", "-batch", "-noheader", db_path, query }):wait()
+    if obj.code == 0 and obj.stdout then
+      local token = vim.trim(obj.stdout):match("^(gh[uco]_[%w_-]+)$")
+      if token then return token end
+    end
   end
 
-  local query = "SELECT cast(token_ciphertext as text) FROM oauth_tokens LIMIT 1;"
-  local obj = vim.system({ "sqlite3", "-batch", "-noheader", db_path, query }):wait()
-  if obj.code ~= 0 or not obj.stdout then return nil end
+  -- Last resort: scan the raw bytes of the db (and its WAL) for a token
+  -- that matches the well-known GitHub OAuth prefix.  This works because
+  -- schema_version 0 stores the token as a plaintext BLOB; it will stop
+  -- working if/when GitHub encrypts the column for real
+  local function scan_file(path)
+    local f = io.open(path, "rb")
+    if not f then return nil end
+    local content = f:read("*a")
+    f:close()
+    return content:match("gh[uco]_[a-zA-Z0-9_%-]+")
+  end
 
-  return vim.trim(obj.stdout):match("^(gh[uco]_[%w_-]+)$")
+  return scan_file(db_path) or scan_file(db_path .. "-wal")
 end
 
 --- Read the OAuth token from a legacy hosts.json / apps.json file.
@@ -175,8 +184,7 @@ function H.read_token_from_json(json_path)
     :fold({}, function(acc, _, v)
       acc.oauth_token = v.oauth_token
       return acc
-    end)
-    .oauth_token
+    end).oauth_token
 end
 
 local function _get_chat_auth_url()
