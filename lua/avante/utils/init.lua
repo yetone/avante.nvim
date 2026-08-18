@@ -393,7 +393,9 @@ function M.notify(msg, opts)
   opts = opts or {}
   if type(msg) == "table" then
     ---@diagnostic disable-next-line: no-unknown
-    msg = table.concat(vim.tbl_filter(function(line) return line or false end, msg), "\n")
+    local lines = vim.tbl_filter(function(line) return line or false end, msg)
+    vim.print(lines)
+    msg = table.concat(lines, "\n")
   end
   ---@diagnostic disable-next-line: undefined-field
   if opts.stacktrace then
