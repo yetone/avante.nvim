@@ -243,7 +243,7 @@ vim.api.nvim_create_autocmd(
     callback = function(ev)
       local name, kind = ev.data.spec.name, ev.data.kind
       if name == 'avante.nvim' and (kind == 'install' or kind == 'update') then
-        -- Use `make BUILD_FROM_SOURCE=true` to build from source
+        -- Use `./build.sh` to use prebuilt libraries
         vim.system({ 'make' }, { cwd = ev.data.path }):wait()
       end
     end
