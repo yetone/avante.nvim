@@ -1,4 +1,4 @@
-use minijinja::{context, Environment};
+use minijinja::{Environment, context};
 use mlua::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::path::Path;

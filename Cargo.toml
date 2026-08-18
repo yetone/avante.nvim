@@ -1,19 +1,19 @@
 [workspace]
 members = ["crates/*"]
-resolver = "2"
+resolver = "3"
 
 [workspace.package]
-edition = "2021"
-rust-version = "1.80"
+edition = "2024"
+rust-version = "1.86"
 license = "Apache-2.0"
-version = "0.1.0"
+version = "0.2.0"
 
 [workspace.dependencies]
 avante-tokenizers = { path = "crates/avante-tokenizers" }
 avante-templates = { path = "crates/avante-templates" }
 avante-repo-map = { path = "crates/avante-repo-map" }
 avante-html2md = { path = "crates/avante-html2md" }
-minijinja = { version = "2.4.0", features = [
+minijinja = { version = "2.24.0", features = [
   "loader",
   "json",
   "fuel",
@@ -22,15 +22,15 @@ minijinja = { version = "2.4.0", features = [
   "custom_syntax",
   "loop_controls",
 ] }
-mlua = { version = "0.10.0", features = ["module", "serialize"] }
+mlua = { version = "0.10.5", features = ["module", "serialize"] }
 tiktoken-rs = { version = "0.6.0" }
-tokenizers = { version = "0.20.0", features = [
+tokenizers = { version = "0.20.4", features = [
   "esaxx_fast",
   "http",
   "unstable_wasm",
   "onig",
 ], default-features = false }
-serde = { version = "1.0.209", features = ["derive"] }
+serde = { version = "1.0.229", features = ["derive"] }
 
 [workspace.lints.rust]
 unsafe_code = "warn"

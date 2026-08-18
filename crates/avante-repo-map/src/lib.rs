@@ -1545,8 +1545,7 @@ mod tests {
         let definitions = extract_definitions("typescript", source).unwrap();
         let stringified = stringify_definitions(&definitions);
         println!("{stringified}");
-        let expected = "var testVar:string;func testFunc(a: number, b: number) -> void;func testFunc2(a: number, b: number) -> void;func testFunc3(a: number, b: number) -> number;class TestClass{func constructor(a: number, b: number) -> void;func testMethod(a: number, b: number) -> number;var a:number;var b:number;};"
-;
+        let expected = "var testVar:string;func testFunc(a: number, b: number) -> void;func testFunc2(a: number, b: number) -> void;func testFunc3(a: number, b: number) -> number;class TestClass{func constructor(a: number, b: number) -> void;func testMethod(a: number, b: number) -> number;var a:number;var b:number;};";
         assert_eq!(stringified, expected);
     }
 
@@ -2032,8 +2031,7 @@ mod tests {
         let definitions = extract_definitions("java", source).unwrap();
         let stringified = stringify_definitions(&definitions);
         println!("{stringified}");
-        let expected =
-            "class MyClass{func myPublicMethod(String parameter) -> void;func myMethod() -> void;};";
+        let expected = "class MyClass{func myPublicMethod(String parameter) -> void;func myMethod() -> void;};";
         assert_eq!(stringified, expected);
     }
 

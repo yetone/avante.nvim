@@ -1,9 +1,9 @@
-use hf_hub::{api::sync::ApiBuilder, Repo, RepoType};
+use hf_hub::{Repo, RepoType, api::sync::ApiBuilder};
 use mlua::prelude::*;
 use regex::Regex;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use tiktoken_rs::{get_bpe_from_model, CoreBPE};
+use tiktoken_rs::{CoreBPE, get_bpe_from_model};
 use tokenizers::Tokenizer;
 
 struct Tiktoken {
