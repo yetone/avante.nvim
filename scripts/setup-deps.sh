@@ -164,7 +164,7 @@ install_nvim_runtime() {
     command -v jq &>/dev/null || die "jq is not installed for parsing GitHub API responses."
 
     local nvim_version
-    nvim_version="v0.11.7"
+    nvim_version="v0.12.0"
     log_verbose "Parsed nvim version from workflow: $nvim_version"
 
     log_verbose "Resolving ${nvim_version} Neovim release from GitHub API..."

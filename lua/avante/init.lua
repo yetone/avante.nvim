@@ -26,7 +26,7 @@
 ---
 ---@mod avante-requirements Requirements
 ---@brief [[
---- avante.nvim requires Neovim 0.11.0 or later.
+--- avante.nvim requires Neovim 0.12.0 or later.
 --- Mandatory dependencies are:
 --- - 'nvim-lua/plenary.nvim'
 --- - 'MunifTanjim/nui.nvim'.
