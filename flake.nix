@@ -152,6 +152,7 @@
             packages = with pkgs; [
               cargo
               rustc
+              rustfmt
               lua5_1.pkgs.luacheck
               lua-language-server
               ripgrep
