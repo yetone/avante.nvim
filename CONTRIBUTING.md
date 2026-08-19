@@ -24,6 +24,8 @@ uv pip install py/rag-service
 
 ```sh
 pre-commit install --install-hooks
+rustup component add rustfmt
+rustup component add clippy
 ```
 
 ## Tooling configuration

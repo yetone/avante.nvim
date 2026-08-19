@@ -107,13 +107,11 @@ stylefix:
 
 .PHONY: ruststylecheck
 ruststylecheck:
-	@rustup component add rustfmt 2> /dev/null
-	@cargo fmt --all -- --check
+	cargo fmt --all -- --check
 
 .PHONY: rustlint
 rustlint:
-	@rustup component add clippy 2> /dev/null
-	@cargo clippy -F luajit --all -- -F clippy::dbg-macro -D warnings
+	cargo clippy -F luajit --all -- -F clippy::dbg-macro -D warnings
 
 .PHONY: rusttest
 rusttest:
