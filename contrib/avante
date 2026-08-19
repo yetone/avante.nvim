@@ -1,0 +1,3 @@
+#!/bin/sh
+# launches neovim with avante to mimic a typical harness
+nvim -c 'lua vim.defer_fn(function()require("avante.api").zen_mode()end, 100)'
