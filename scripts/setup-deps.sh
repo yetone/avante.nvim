@@ -161,7 +161,7 @@ install_luals() {
 install_nvim_runtime() {
     local dest_dir=${1:-"$PWD/target/tests"}
 
-    command -v jq &>/dev/null || die "yq is not installed for parsing GitHub API responses."
+    command -v jq &>/dev/null || die "jq is not installed for parsing GitHub API responses."
 
     local nvim_version
     nvim_version="v0.11.7"
