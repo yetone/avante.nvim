@@ -13,9 +13,9 @@ workspace = true
 
 [dependencies]
 dirs = "5.0.1"
-regex = "1.11.1"
+regex = "1.13.1"
 hf-hub = { git = "https://github.com/yetone/hf-hub", branch='main', features = ["default", "ureq"] }
-ureq = { version = "2.10.1", features = ["json", "socks-proxy"] }
+ureq = { version = "2.12.1", features = ["json", "socks-proxy"] }
 mlua = { workspace = true }
 tiktoken-rs = { workspace = true }
 tokenizers = { workspace = true }

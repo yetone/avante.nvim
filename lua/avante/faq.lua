@@ -1,0 +1,46 @@
+---@mod avante-mcp
+---Now you can integrate MCP functionality for Avante through `mcphub.nvim`. For detailed documentation, please refer to [mcphub.nvim](https://ravitemer.github.io/mcphub.nvim/extensions/avante.html)
+---@divider =
+---@mod avante-faq FAQ
+---
+---How do I disable agentic mode?
+---
+---Set:
+---@usage [[
+---   vim.g.avante = {
+---     mode = "legacy",
+---   }
+---@usage ]]
+---
+---Agentic mode uses AI tools to automatically generate and apply changes.
+---Legacy mode uses the traditional planning flow without automatic tool
+---execution.
+---
+---To keep agentic mode but disable specific tools:
+---@usage [[
+---   vim.g.avante = {
+---     mode = "agentic",
+---     disabled_tools = { "bash", "python" },
+---   })
+---@usage ]]
+---
+---Why are my default keymaps missing?
+---
+---If a default mapping conflicts with an existing mapping, Avante does not
+---override it. Configure your own keymaps or change the existing mappings.
+---
+---How do I use markdown rendering?
+---
+---Install a markdown renderer and include the `Avante` filetype in its
+---supported filetypes. For render-markdown.nvim:
+---@usage [[
+---   {
+---     "MeanderingProgrammer/render-markdown.nvim",
+---     opts = {
+---       file_types = { "markdown", "Avante" },
+---     },
+---     ft = { "markdown", "Avante" },
+---   }
+---@usage ]]
+---
+---@brief ]]

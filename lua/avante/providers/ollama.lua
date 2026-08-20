@@ -1,11 +1,23 @@
+---@mod avante-providers-ollama Ollama provider
+---Ollama is disabled by default. Configure its endpoint check to enable it:
+---@usage [[
+---   require("avante").setup({
+---     provider = "ollama",
+---     providers = {
+---       ollama = {
+---         model = "qwq:32b",
+---         is_env_set = require("avante.providers.ollama").check_endpoint_alive,
+---       },
+---     },
+---   })
+---@usage ]]
+
 local Utils = require("avante.utils")
 local Providers = require("avante.providers")
 local Config = require("avante.config")
-local Clipboard = require("avante.clipboard")
-local HistoryMessage = require("avante.history.message")
 local Prompts = require("avante.utils.prompts")
 
----@class AvanteProviderFunctor
+---@class AvanteOllamaProviderFunctor : AvanteProviderFunctor
 local M = {}
 
 setmetatable(M, {
@@ -23,12 +35,13 @@ M.role_map = {
   assistant = "assistant",
 }
 
--- Ollama is disabled by default. Users should override is_env_set()
--- implementation in their configs to enable it. There is a helper
--- check_endpoint_alive() that can be used to test if configured
--- endpoint is alive that can be used in place of is_env_set().
+---Ollama is disabled by default. Users should override is_env_set()
+---implementation in their configs to enable it. There is a helper
+---check_endpoint_alive() that can be used to test if configured
+---endpoint is alive that can be used in place of is_env_set().
 function M.is_env_set() return false end
 
+---@private
 function M:parse_messages(opts)
   local messages = {}
   local provider_conf, _ = Providers.parse_config(self)
@@ -114,6 +127,7 @@ function M:parse_messages(opts)
   end)
 
   if Config.behaviour.support_paste_from_clipboard and opts.image_paths and #opts.image_paths > 0 then
+    local Clipboard = require("avante.clipboard")
     local message_content = messages[#messages].content
     if type(message_content) ~= "table" or message_content[1] == nil then
       message_content = { { type = "text", text = message_content } }
@@ -160,6 +174,7 @@ function M:is_disable_stream() return false end
 ---@param tool_calls avante.OllamaToolCall[]
 ---@param opts AvanteHandlerOptions
 function M:add_tool_use_messages(tool_calls, opts)
+  local HistoryMessage = require("avante.history.message")
   if opts.on_messages_add then
     local msgs = {}
     for _, tool_call in ipairs(tool_calls) do
@@ -180,6 +195,7 @@ function M:add_tool_use_messages(tool_calls, opts)
   end
 end
 
+---@private
 function M:parse_stream_data(ctx, data, opts)
   local ok, jsn = pcall(vim.json.decode, data)
   if not ok or not jsn then

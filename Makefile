@@ -20,7 +20,6 @@ TARGET_DIR := target$(if $(CARGO_TARGET),/$(CARGO_TARGET))/release
 LUA_VERSIONS := luajit lua51
 
 BUILD_DIR := lua
-BUILD_FROM_SOURCE ?= false
 TARGET_LIBRARY ?= all
 
 RAG_SERVICE_VERSION ?= 0.0.11
@@ -29,7 +28,6 @@ RAG_SERVICE_IMAGE := quay.io/yetoneful/avante-rag-service:$(RAG_SERVICE_VERSION)
 all: luajit
 
 define make_definitions
-ifeq ($(BUILD_FROM_SOURCE),true)
 ifeq ($(TARGET_LIBRARY), all)
 $1: $(BUILD_DIR)/libAvanteTokenizers-$1.$(EXT) $(BUILD_DIR)/libAvanteTemplates-$1.$(EXT) $(BUILD_DIR)/libAvanteRepoMap-$1.$(EXT) $(BUILD_DIR)/libAvanteHtml2md-$1.$(EXT)
 else ifeq ($(TARGET_LIBRARY), tokenizers)
@@ -42,10 +40,6 @@ else ifeq ($(TARGET_LIBRARY), html2md)
 $1: $(BUILD_DIR)/libAvanteHtml2md-$1.$(EXT)
 else
 	$$(error TARGET_LIBRARY must be one of all, tokenizers, templates, repo-map, html2md)
-endif
-else
-$1:
-	LUA_VERSION=$1 bash ./build.sh
 endif
 endef
 
@@ -81,6 +75,7 @@ docgen:
 	vimcats --prefix-func \
 		lua/avante/init.lua \
 		lua/avante/config.lua \
+		lua/avante/api.lua \
 		lua/avante/commands.lua \
 		lua/avante/sidebar.lua \
 		lua/avante/slashcommands.lua \
@@ -91,9 +86,13 @@ docgen:
 		lua/avante/extensions/init.lua \
 		lua/avante/utils/init.lua \
 		lua/avante/libs/acp_client.lua \
-		lua/avante/providers/openai.lua \
+		lua/avante/providers/init.lua \
+		lua/avante/providers/bedrock.lua \
 		lua/avante/providers/claude.lua \
+		lua/avante/providers/ollama.lua \
+		lua/avante/providers/openai.lua \
 		lua/avante/html2md.lua \
+		lua/avante/faq.lua \
 		> doc/avante.txt
 	nvim -u NONE -i NONE --headless +'helptags doc' +'quit!'
 
@@ -108,13 +107,11 @@ stylefix:
 
 .PHONY: ruststylecheck
 ruststylecheck:
-	@rustup component add rustfmt 2> /dev/null
-	@cargo fmt --all -- --check
+	cargo fmt --all -- --check
 
 .PHONY: rustlint
 rustlint:
-	@rustup component add clippy 2> /dev/null
-	@cargo clippy -F luajit --all -- -F clippy::dbg-macro -D warnings
+	cargo clippy -F luajit --all -- -F clippy::dbg-macro -D warnings
 
 .PHONY: rusttest
 rusttest:
@@ -123,6 +120,11 @@ rusttest:
 .PHONY: luatest
 luatest:
 	@./scripts/run-luatest.sh
+
+# upgrade / pin CI actions
+.PHONY: upgrade-actions
+upgrade-actions:
+	ratchet upgrade ./.github/workflows/rust.yaml .github/actions/build/action.yaml
 
 .PHONY: lint
 lint: luacheck luastylecheck ruststylecheck rustlint

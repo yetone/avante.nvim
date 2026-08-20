@@ -1,7 +1,6 @@
 ---@mod avante-nvim avante.nvim
 ---
 ---@brief [[
----
 --- avante.nvim is a Neovim plugin designed to emulate the behaviour of the Cursor
 --- AI IDE. It provides AI-driven code suggestions, chat, code editing, and the
 --- ability to apply recommendations directly to source files.
@@ -16,136 +15,39 @@
 ---   and Kimi CLI.
 --- - Optional RAG service and web-search tools.
 ---
---- Installation~
+---@brief ]]
+---@toc avante-contents
 ---
---- Requirements~
+---@mod avante-installation Installation
 ---
+---@brief [[
+---See the official README at https://github.com/yetone/avante.nvim for installation instructions.
+---@brief ]]
+---
+---@mod avante-requirements Requirements
+---@brief [[
 --- avante.nvim requires Neovim 0.11.0 or later.
+--- Mandatory dependencies are:
+--- - 'nvim-lua/plenary.nvim'
+--- - 'MunifTanjim/nui.nvim'.
 ---
+--- Optional dependencies are:
+--- - 'MeanderingProgrammer/render-markdown.nvim'
+--- - https://github.com/Kaiser-Yang/blink-cmp-avante for autocompletion
 ---
---- See the official README at https://github.com/yetone/avante.nvim for installation instructions.
+--- If you wish to build from source, then `cargo` is required. Otherwise `curl` and `tar` will be used to get prebuilt binary from GitHub. See |:AvanteBuild|.
+---@brief ]]
+---@mod avante-usage Usage
 ---
---- Usage~
----
+---@brief [[
 --- Basic workflow:
 ---
 --- 1. Open a code file in Neovim.
 --- 2. Run |:AvanteAsk| with a question, or open the chat with |:AvanteChat|.
 --- 3. Review the AI response and suggested changes.
 --- 4. Apply edits from the sidebar with the configured keymaps.
----
---- API keys~
----
---- Scoped API keys are recommended when you want credentials used only by
---- Avante:
---->
----   export AVANTE_ANTHROPIC_API_KEY=your-claude-api-key
----   export AVANTE_OPENAI_API_KEY=your-openai-api-key
----   export AVANTE_AZURE_OPENAI_API_KEY=your-azure-api-key
----   export AVANTE_GEMINI_API_KEY=your-gemini-api-key
----   export AVANTE_CO_API_KEY=your-cohere-api-key
----   export AVANTE_MOONSHOT_API_KEY=your-moonshot-api-key
----<
----
---- Legacy/global keys are also supported:
---->
----   export ANTHROPIC_API_KEY=your-api-key
----   export OPENAI_API_KEY=your-api-key
----   export AZURE_OPENAI_API_KEY=your-api-key
----<
----
---- Bedrock can use `BEDROCK_KEYS` or the AWS default credentials chain:
---->
----   export BEDROCK_KEYS=aws_access_key_id,aws_secret_access_key,aws_region[,aws_session_token]
----<
----
---- The `aws_session_token` is optional and only needed for temporary AWS
---- credentials. If `BEDROCK_KEYS` is not set, Bedrock falls back to the AWS
---- default credentials chain (env vars, `~/.aws/credentials`, IAM role, SSO,
---- etc.), in which case set `aws_region` and optionally `aws_profile` in the
---- bedrock provider config.
----
---- Or a Bedrock API key / bearer token: export `AWS_BEARER_TOKEN_BEDROCK`
---- (or set `BEDROCK_KEYS` to the token value without any commas). In this
---- mode `aws_region` must be set in the bedrock provider config, e.g.:
---->
----   export AWS_BEARER_TOKEN_BEDROCK=your-bedrock-api-key
----
----   require("avante").setup({
----     providers = {
----       bedrock = {
----         model = "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
----         aws_region = "us-east-1",
----       },
----     },
----   })
----<
---- See https://docs.aws.amazon.com/bedrock/latest/userguide/api-keys.html.
----
---- Claude Pro/Max subscription~
----
---- Set the Claude provider `auth_type` to `"max"`:
---->
----   require("avante").setup({
----     providers = {
----       claude = {
----         auth_type = "max",
----       },
----     },
----   })
----<
----
---- After reopening Neovim, complete the browser authentication flow. If needed,
---- run:
---->
----   :AvanteSwitchProvider
----<
----
---- FAQ~
----
---- How do I disable agentic mode?~
----
---- Set:
---->
----   require("avante").setup({
----     mode = "legacy",
----   })
----<
----
---- Agentic mode uses AI tools to automatically generate and apply changes.
---- Legacy mode uses the traditional planning flow without automatic tool
---- execution.
----
---- To keep agentic mode but disable specific tools:
---->
----   require("avante").setup({
----     mode = "agentic",
----     disabled_tools = { "bash", "python" },
----   })
----<
----
---- Why are my default keymaps missing?~
----
---- If a default mapping conflicts with an existing mapping, Avante does not
---- override it. Configure your own keymaps or change the existing mappings.
----
---- How do I use markdown rendering?~
----
---- Install a markdown renderer and include the `Avante` filetype in its
---- supported filetypes. For render-markdown.nvim:
---->
----   {
----     "MeanderingProgrammer/render-markdown.nvim",
----     opts = {
----       file_types = { "markdown", "Avante" },
----     },
----     ft = { "markdown", "Avante" },
----   }
----<
----
 ---@brief ]]
-
----@toc avante-contents
+---@mod avante
 
 local api = vim.api
 
@@ -201,6 +103,8 @@ end
 
 local H = {}
 
+---Registers keymaps
+---@see avante.Config.mappings
 function H.keymaps()
   local Diff = require("avante.diff")
   vim.keymap.set({ "n", "v" }, "<Plug>(AvanteAsk)", function() require("avante.api").ask() end, { noremap = true })
@@ -614,8 +518,9 @@ setmetatable(M.toggle, {
 
 M.slash_commands_id = nil
 
----@tag avante-init-setup
----Main setup function that calls each submodule setup.
+---Main setup function that calls each submodule (repo_map, html2md,...) setup.
+---It is advised to pass configuration via vim.g.avante instead
+---@see vim.g.avante
 ---@param opts? avante.Config
 function M.setup(opts)
   ---PERF: we can still allow running require("avante").setup() multiple times to override config if users wish to

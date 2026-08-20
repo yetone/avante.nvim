@@ -150,16 +150,19 @@
             name = "avante";
 
             packages = with pkgs; [
+              cargo
+              rustc
+              rustfmt
               lua5_1.pkgs.luacheck
               lua-language-server
               ripgrep
               python313
               # yq # brings python3.12 in scope :'(
-              silver-searcher
+              silver-searcher # for tests
               docker
               stylua
               mylua
-              vimcats
+              vimcats  # to generate docs
               pre-commit
             ];
 

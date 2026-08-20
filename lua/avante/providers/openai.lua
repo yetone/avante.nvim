@@ -1,9 +1,8 @@
+---@mod avante-providers-openai OpenAI provider
 local Utils = require("avante.utils")
 local Config = require("avante.config")
-local Clipboard = require("avante.clipboard")
 local Providers = require("avante.providers")
 local HistoryMessage = require("avante.history.message")
-local ReActParser = require("avante.libs.ReAct_parser2")
 local JsonParser = require("avante.libs.jsonparser")
 local Prompts = require("avante.utils.prompts")
 local LlmTools = require("avante.llm_tools")
@@ -323,7 +322,7 @@ function M:parse_messages(opts)
                   content = "",
                 }
 
-                tool_call_message.reasoning_content = pending_reasoning_content or ""
+                tool_call_message.reasoning_content = pending_reasoning_content
                 pending_reasoning_content = nil
 
                 table.insert(messages, tool_call_message)
@@ -355,6 +354,7 @@ function M:parse_messages(opts)
   end)
 
   if Config.behaviour.support_paste_from_clipboard and opts.image_paths and #opts.image_paths > 0 then
+    local Clipboard = require("avante.clipboard")
     local message_content = messages[#messages].content
     if type(message_content) ~= "table" or message_content[1] == nil then
       message_content = { { type = "text", text = message_content } }
@@ -444,6 +444,7 @@ function M:add_text_message(ctx, text, state, opts)
     ::continue::
   end
   local cleaned_xml_content = table.concat(cleaned_xml_lines, "\n")
+  local ReActParser = require("avante.libs.ReAct_parser2")
   local xml = ReActParser.parse(cleaned_xml_content)
   if xml and #xml > 0 then
     local new_content_list = {}

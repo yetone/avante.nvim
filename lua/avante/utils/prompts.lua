@@ -1,4 +1,4 @@
----@mod avante-prompts avante custom prompts
+---@mod avante-prompts Custom prompts
 ---@brief [[
 ---
 --- Avante uses different prompts for planning, editing, suggesting, and
@@ -16,9 +16,17 @@
 ---   })
 ---<
 ---
---- Project prompt rules~
+---By default Avante reads `avante.md` from the project root as
+---project-specific instructions. Change the filename with:
+---<
+---   vim.g.avante = {
+---     instructions_file = "avante.md",
+---   }
+--->
 ---
---- Avante can load `*.avanterules` files from a project. Configure rule
+---Project prompt rules
+---
+---Avante can load `*.avanterules` files from a project. Configure rule
 --- directories:
 --->
 ---   require("avante").setup({

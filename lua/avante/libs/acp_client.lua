@@ -1,18 +1,40 @@
----@mod avante-acp avante ACP
+---@mod avante-acp Agent Client Protocol support
 ---
 ---@brief [[
 ---
 ---Avante.nvim now supports the Agent Client Protocol (ACP) (https://agentclientprotocol.com/overview/introduction), enabling seamless integration with AI agents that follow this standardized communication protocol.
 ---
----What is ACP?~
+---What is ACP?
 ---
----The Agent Client Protocol (ACP) is a standardized protocol that enables AI agents to communicate with development tools and environments. It provides:
+---(ACP) is a standardized protocol that enables AI agents to communicate with development tools and environments. It provides:
 ---
 ---- **Standardized Communication**: A unified JSON-RPC based protocol for agent-client interactions
 ---- **Tool Integration**: Support for various development tools like file operations, code execution, and search
 ---- **Session Management**: Persistent sessions that maintain context across interactions
 ---- **Permission System**: Granular control over what agents can access and modify
+---
+--- Supported ACP agents include:
+---
+--- - Gemini CLI
+--- - Claude Code
+--- - Goose
+--- - Codex
+--- - Kimi CLI
+---Before using ACP agents, ensure you have the required tools installed:
+---
+---- **For Gemini CLI**: Install the `gemini` CLI tool and set your `GEMINI_API_KEY`
+---- **For Claude Code**: Install the `acp-claude-code` package via npm and set your `ANTHROPIC_API_KEY`
+---
+---ACP vs Traditional Providers
+---
+---ACP providers offer several advantages over traditional API-based providers:
+---
+---- **Enhanced Tool Access**: Agents can directly interact with your file system, run commands, and access development tools
+---- **Persistent Context**: Sessions maintain state across multiple interactions
+---- **Fine-grained Permissions**: Control exactly what agents can access and modify
+---- **Standardized Protocol**: Compatible with any ACP-compliant agent
 ---@brief ]]
+---@see avante-config
 local Config = require("avante.config")
 local Utils = require("avante.utils")
 

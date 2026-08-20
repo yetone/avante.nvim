@@ -36,6 +36,10 @@ function M.check()
   -- Check input UI provider
   local input_provider = Config.input and Config.input.provider or "native"
   if input_provider == "dressing" then
+    Utils.warn(
+      "The 'dressing' provider is deprecated. Update your config 'input.provider' to 'native' for instance (see "
+    )
+
     if Utils.has("dressing.nvim") or Utils.has("dressing") then
       H.ok("Found configured input provider: dressing.nvim")
     else

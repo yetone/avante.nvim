@@ -1,8 +1,27 @@
----@mod avante-providers-claude avante claude
+---@mod avante-providers-claude Anthropic provider
 ---
 ---@brief [[
---- Avante supports both the 'api' and 'max' authentications @see AvanteAnthropicProvider
+--- Avante supports both the 'api' and 'max' authentications
+---
+--- Set the Claude provider `auth_type` to `"max"`:
 ---@brief ]]
+---@see AvanteAnthropicProvider
+---@usage [[
+---   vim.g.avante = {
+---     providers = {
+---       claude = {
+---         auth_type = "max",
+---       },
+---     },
+---   })
+---@usage ]]
+---
+---After reopening Neovim, complete the browser authentication flow. If needed,
+---run:
+--->
+---   :AvanteSwitchProvider
+---<
+
 local Utils = require("avante.utils")
 local Clipboard = require("avante.clipboard")
 local P = require("avante.providers")
@@ -10,7 +29,6 @@ local HistoryMessage = require("avante.history.message")
 local JsonParser = require("avante.libs.jsonparser")
 local Config = require("avante.config")
 local Path = require("plenary.path")
-local pkce = require("avante.auth.pkce")
 local curl = require("plenary.curl")
 
 ---@class AvanteAnthropicProvider : AvanteDefaultBaseProvider
@@ -113,6 +131,7 @@ local function start_manager_check_timer()
   )
 end
 
+---@private
 function M.setup_claude_file_watcher()
   if M._file_watcher then return end
 
@@ -197,6 +216,7 @@ function M.setup()
   end
 end
 
+---@nodoc
 function M.setup_claude_timer()
   if M._refresh_timer then
     M._refresh_timer:stop()
@@ -732,6 +752,7 @@ function M.on_error(result)
 end
 
 function M.authenticate()
+  local pkce = require("avante.auth.pkce")
   local verifier, verifier_err = pkce.generate_verifier()
   if not verifier then
     vim.schedule(

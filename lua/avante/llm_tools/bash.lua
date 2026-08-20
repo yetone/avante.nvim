@@ -1,9 +1,8 @@
-local Path = require("plenary.path")
-local Utils = require("avante.utils")
-local Helpers = require("avante.llm_tools.helpers")
+---@mod avante-tool-bash
+---@brief
+---Runs bash. Tries to avoid running the 'banned_commands'
 local Base = require("avante.llm_tools.base")
 local Config = require("avante.config")
-local Providers = require("avante.providers")
 
 ---@class AvanteLLMTool
 local M = setmetatable({}, Base)
@@ -31,6 +30,7 @@ local banned_commands = {
 }
 
 M.get_description = function()
+  local Providers = require("avante.providers")
   local provider = Providers[Config.provider]
   if Config.provider:match("copilot") and provider.model and provider.model:match("gpt") then
     return [[Executes a given bash command in a persistent shell session with optional timeout, ensuring proper handling and security measures. Do not use bash command to read or modify files, or you will be fired!]]
@@ -217,6 +217,10 @@ M.returns = {
 ---@type AvanteLLMToolFunc<{ path: string, command: string }>
 function M.func(input, opts)
   local is_streaming = opts.streaming or false
+  local Helpers = require("avante.llm_tools.helpers")
+  local Path = require("plenary.path")
+  local Utils = require("avante.utils")
+
   if is_streaming then
     -- wait for stream completion as command may not be complete yet
     return

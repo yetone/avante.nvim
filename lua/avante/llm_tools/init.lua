@@ -1,37 +1,8 @@
----@mod avante-tools avante tools
+---@tag avante-custom-tools
 ---@brief [[
----
---- Agentic mode enables tool use. If a model does not support tools, disable
---- them for that provider:
---->
----   require("avante").setup({
----     providers = {
----       claude = {
----         disable_tools = true,
----       },
----     },
----   })
+---Custom tools can run shell commands, scripts, or Lua functions
 ---<
----
---- Disable selected tools only:
---->
----   require("avante").setup({
----     disabled_tools = { "python" },
----   })
----<
----
---- Built-in tool names include:
---->
----   rag_search, python, git_diff, git_commit, glob, search_keyword,
----   read_file_toplevel_symbols, read_file, create_file, move_path, copy_path,
----   delete_path, create_dir, bash, web_search, fetch
----<
----
---- Custom tools~
----
---- Custom tools can run shell commands, scripts, or Lua functions:
---->
----   require("avante").setup({
+---   vim.g.avante = {
 ---     custom_tools = {
 ---       {
 ---         name = "run_go_tests",
@@ -60,7 +31,34 @@
 ---         end,
 ---       },
 ---     },
+---   }
+--->
+---@brief ]]
+---
+---@mod avante-tools avante tools
+---@brief [[
+---
+--- Agentic mode enables tool use. If a model does not support tools, disable
+--- them for that provider:
+--->
+---   require("avante").setup({
+---     providers = {
+---       claude = {
+---         disable_tools = true,
+---       },
+---     },
 ---   })
+---<
+---
+---
+---@brief ]]
+---@tag avante-tools-builtins
+---@brief [[
+--- Built-in tool names include:
+--->
+---   rag_search, python, git_diff, git_commit, glob, search_keyword,
+---   read_file_toplevel_symbols, read_file, create_file, move_path, copy_path,
+---   delete_path, create_dir, bash, web_search, fetch
 ---<
 ---
 ---@brief ]]
@@ -281,6 +279,26 @@ function M.create_dir(input, opts)
   end, nil, opts.session_ctx, "create_dir")
 end
 
+---@tag avante-web-search
+---@brief [[
+---<
+---  vim.g.avante = {
+---    web_search_engine = {
+---      provider = "tavily",
+---      proxy = nil,
+---    },
+---  }
+--->
+---
+--- Supported providers and environment variables:
+---
+--- - Tavily: `TAVILY_API_KEY`
+--- - SerpApi: `SERPAPI_API_KEY`
+--- - Google: `GOOGLE_SEARCH_API_KEY` and `GOOGLE_SEARCH_ENGINE_ID`
+--- - Kagi: `KAGI_API_KEY`
+--- - Brave Search: `BRAVE_API_KEY`
+--- - SearXNG: `SEARXNG_API_URL`
+---@brief ]]
 ---@type AvanteLLMToolFunc<{ query: string }>
 function M.web_search(input, opts)
   local curl = require("plenary.curl")
