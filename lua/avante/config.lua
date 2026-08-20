@@ -666,7 +666,7 @@ M._defaults = {
     ---@type AvanteSupportedProvider
     gemini = {
       endpoint = "https://generativelanguage.googleapis.com/v1beta/models",
-      model = "gemini-2.0-flash",
+      model = "gemini-3.6-flash",
       timeout = 30000, -- Timeout in milliseconds
       context_window = 1048576,
       use_ReAct_prompt = true,
