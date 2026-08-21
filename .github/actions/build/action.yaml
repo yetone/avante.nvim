@@ -63,13 +63,8 @@ runs:
       if: ${{ inputs.container != null }}
       run: |
         # sudo apt-get install -y qemu qemu-user-static
-        docker run \
-          --rm \
-          -v $(pwd):/workspace \
-          -w /workspace \
-          --platform ${{ inputs.docker_platform }} \
-          ${{ inputs.container }} \
-          bash -c "yum install -y perl-IPC-Cmd openssl-devel && curl --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && . /root/.cargo/env && make ${{ matrix.feature }} BUILD_FROM_SOURCE=true"
+        ./scripts/build-in-container.sh "${{ inputs.docker_platform }}" \
+            "${{ inputs.container }}" "${{ matrix.feature }}"
 
     - name: Handle binaries (Linux/MacOS)
       if: ${{ inputs.os_name != 'windows' }}
