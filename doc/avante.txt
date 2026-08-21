@@ -3189,6 +3189,7 @@ avante.Providers                                              *avante.Providers*
         {mistral}                 (AvanteProviderFunctor)
         {ollama}                  (AvanteProviderFunctor)
         {openai}                  (AvanteProviderFunctor)
+        {orcarouter}              (AvanteProviderFunctor)
         {vertex_claude}           (AvanteProviderFunctor)
         {watsonx_code_assistant}  (AvanteProviderFunctor)
 
@@ -3541,6 +3542,13 @@ M:transform_tool({tool})                *avante-providers-openai:transform_tool*
 
 M.is_openrouter()                        *avante-providers-openai.is_openrouter*
     Check if url belongs to openrouter
+
+    Returns: ~
+        (boolean)
+
+
+M.is_orcarouter()                       *avante-providers-openai.is_orcarouter*
+    Check if url belongs to orcarouter
 
     Returns: ~
         (boolean)

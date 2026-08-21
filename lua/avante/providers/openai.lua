@@ -46,6 +46,10 @@ end
 ---@return boolean
 function M.is_openrouter(url) return url:match("^https://openrouter%.ai/") end
 
+---Check if url belongs to orcarouter
+---@return boolean
+function M.is_orcarouter(url) return url:match("^https://api%.orcarouter%.ai/") end
+
 ---Check if url belongs to mistral
 ---@return boolean
 function M.is_mistral(url) return url:match("^https://api%.mistral%.ai/") end
@@ -836,6 +840,12 @@ function M:parse_curl_args(prompt_opts)
   end
 
   if M.is_openrouter(provider_conf.endpoint) then
+    headers["HTTP-Referer"] = "https://github.com/yetone/avante.nvim"
+    headers["X-Title"] = "Avante.nvim"
+    request_body.include_reasoning = true
+  end
+
+  if M.is_orcarouter(provider_conf.endpoint) then
     headers["HTTP-Referer"] = "https://github.com/yetone/avante.nvim"
     headers["X-Title"] = "Avante.nvim"
     request_body.include_reasoning = true

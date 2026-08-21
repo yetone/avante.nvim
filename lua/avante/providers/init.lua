@@ -34,6 +34,7 @@ local Utils = require("avante.utils")
 ---@field mistral AvanteProviderFunctor
 ---@field ollama AvanteProviderFunctor
 ---@field openai AvanteProviderFunctor
+---@field orcarouter AvanteProviderFunctor
 ---@field vertex_claude AvanteProviderFunctor
 ---@field watsonx_code_assistant AvanteProviderFunctor
 local M = {}

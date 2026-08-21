@@ -78,6 +78,15 @@
             max_tokens = 32768,
           },
       },
+      orcarouter = {
+        endpoint = "https://api.orcarouter.ai/v1",
+        model = "openai/gpt-5.5",
+        timeout = 30000, -- 超时时间（毫秒）
+        extra_request_body = {
+          temperature = 0.75,
+          max_tokens = 20480,
+        },
+      },
     },
   },
   dependencies = {
@@ -320,6 +329,15 @@ _请参见 [config.lua#L9](./lua/avante/config.lua) 以获取完整配置_
       extra_request_body = {
         temperature = 0.75,
         max_tokens = 32768,
+      },
+    },
+    orcarouter = {
+      endpoint = "https://api.orcarouter.ai/v1",
+      model = "openai/gpt-5.5",
+      timeout = 30000, -- 超时时间（毫秒）
+      extra_request_body = {
+        temperature = 0.75,
+        max_tokens = 20480,
       },
     },
   },
@@ -619,6 +637,7 @@ Avante.nvim 提供了多个可以与 blink.cmp 集成的补全项：
 > export AVANTE_CO_API_KEY=your-cohere-api-key
 > export AVANTE_AIHUBMIX_API_KEY=your-aihubmix-api-key
 > export AVANTE_MOONSHOT_API_KEY=your-moonshot-api-key
+> export AVANTE_ORCAROUTER_API_KEY=your-orcarouter-api-key
 > ```
 >
 > **全局 API 密钥（传统方式）**

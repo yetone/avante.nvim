@@ -186,6 +186,15 @@ For building binary if you wish to build from source, then `cargo` is required. 
           max_tokens = 32768,
         },
       },
+      orcarouter = {
+        endpoint = "https://api.orcarouter.ai/v1",
+        model = "openai/gpt-5.5",
+        timeout = 30000, -- Timeout in milliseconds
+        extra_request_body = {
+          temperature = 0.75,
+          max_tokens = 20480,
+        },
+      },
     },
   },
   dependencies = {
@@ -901,6 +910,7 @@ Given its early stage, `avante.nvim` currently supports the following basic func
 > export AVANTE_CO_API_KEY=your-cohere-api-key
 > export AVANTE_AIHUBMIX_API_KEY=your-aihubmix-api-key
 > export AVANTE_MOONSHOT_API_KEY=your-moonshot-api-key
+> export AVANTE_ORCAROUTER_API_KEY=your-orcarouter-api-key
 > ```
 >
 > **Global API Keys (Legacy)**
