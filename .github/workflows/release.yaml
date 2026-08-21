@@ -87,8 +87,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          ls -l
           gh release upload "${{ needs.create-release.outputs.release_tag }}" \
-            "./results/avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.tar.gz" --clobber
+            "./avante_lib-${{ matrix.config.os_name }}-${{ matrix.config.arch }}-${{ matrix.feature }}.tar.gz" --clobber
 
       - name: Upload Release Asset (Windows)
         if: ${{ matrix.config.os_name == 'windows' }}
