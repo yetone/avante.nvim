@@ -150,14 +150,11 @@
             name = "avante";
 
             packages = with pkgs; [
-              cargo
-              rustc
               rustfmt
               lua5_1.pkgs.luacheck
               lua-language-server
               ripgrep
               python313
-              # yq # brings python3.12 in scope :'(
               silver-searcher # for tests
               docker
               stylua
@@ -175,7 +172,10 @@
         in
         {
           default = basic.overrideAttrs(oa: {
-            buildInputs = [
+            buildInputs = with pkgs; [
+              cargo
+              rustc
+              ratchet # to upgrade github actions
               pkgs.pyright # to be able to run pre-commit tests
               pkgs.ruff # to be able to run pre-commit tests
               pkgs.gcc # to build python deps
