@@ -2,7 +2,7 @@
   description = "Development shell for avante.nvim";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs?rev=28ace32529a63842e4f8103e4f9b24960cf6c23a";
+    nixpkgs.url = "github:NixOS/nixpkgs?rev=62e3050a29278c985725a86704faa1e99236b51a";
     pyproject-nix = {
       url = "github:pyproject-nix/pyproject.nix";
       inputs.nixpkgs.follows = "nixpkgs";

@@ -1372,12 +1372,7 @@ end
 
 ---@param opts table<string, any>
 function M.override(opts)
-  if vim.fn.has("nvim-0.11") == 1 then
-    vim.validate("opts", opts, "table", true)
-  else
-    vim.validate({ opts = { opts, "table", true } })
-  end
-
+  vim.validate("opts", opts, "table", true)
   M._options = vim.tbl_deep_extend("force", M._options, opts or {})
 
   for k, v in pairs(M._options.providers) do
